@@ -26,7 +26,7 @@ See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit
    | New/changed wire format | `docs/architecture/wire/` updated |
    | New/changed web endpoint | docs or inline help updated |
    | New/changed plugin behavior | `docs/guide/plugins.md` updated |
-   | New feature | `docs/features.md` entry |
+   | New feature | `features/<id>.md` declaration |
    | New/changed API | `docs/architecture/api/commands.md` updated |
    | New/changed skill | canonical `ai/skills/` source exists |
    | New/changed `.claude/` rule | `ai/INSTRUCTIONS.md` pointer if needed |
@@ -42,7 +42,7 @@ See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit
 
    | # | Type | Location | Detail | Status |
    |---|------|----------|--------|--------|
-   | 1 | missing docs | docs/features.md | new feature X not listed | MISSING |
+   | 1 | missing docs | features/<id>.md | new feature X has no declaration | MISSING |
    | 2 | stale ref | .claude/rules/foo.md:12 | `internal/old/deleted.go` | STALE | <!-- doc-links: ignore (example output) -->
    | 3 | wiring | internal/component/host/info.go | GetHostInfo has no non-test caller | UNWIRED |
 

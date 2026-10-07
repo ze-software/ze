@@ -95,6 +95,6 @@
 
 ## Reference
 
-- [Feature Inventory](../features.md) -- complete list of protocols, attributes, and CLI commands
+- [Feature Inventory](https://ze-software.net/reference/feature-status/) -- complete list of protocols, attributes, and CLI commands
 - [Architecture](../architecture/) -- internal design, wire format, pool architecture
 - [Plugin Development](../plugin-development/) -- writing external plugins, IPC protocol, SDK

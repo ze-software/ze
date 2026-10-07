@@ -52,8 +52,9 @@ website/
   data/
     nav.json                              -- single source for the mega-menu; the header producer
                                               renders assets/header.html, which every page loads
-    features.json                         -- shipped and experimental feature cards:
-                                              section, category, status, chips, bullets
+    features.json                         -- feature cards: category, the features/*.md ids
+                                              they describe, chips, bullets; no status, the
+                                              build derives shipped or experimental from the ids
     milestones.json                       -- every node on milestones/index.html: date, title,
                                               category, blurb, and the blog week it links to
     topics.json                           -- controlled tag vocabulary for Changes chips
@@ -466,9 +467,12 @@ this before considering the update done.
    Preserve the RFC section, message budget, archive, and resume behavior.
 
 1. **Check Features for drift.** Did the week ship something with no card
-   yet, or move a feature from Experimental to shipped? Add/move/edit its
-   entry in `data/features.json` -- the intro paragraph's count is computed
-   from the data at render time, nothing to hand-update. If the week is a
+   yet? Add or edit its entry in `data/features.json`, naming the
+   `features/*.md` declarations it describes. A card moves from Experimental
+   to shipped only when every declaration it names is complete and
+   supported, so a level change is made in the declaration, never in the
+   card (`docs/contributing/feature-maturity.md`). The intro paragraph's
+   count is computed from the data at render time, nothing to hand-update. If the week is a
    genuine landmark (a whole protocol or subsystem's first appearance, not a
    routine improvement), also add one node to `data/milestones.json` so the
    Milestones timeline stays current -- keep it coarse, one node per

@@ -44,7 +44,7 @@ func fixtureTree(t *testing.T, edit func(string) string) string {
 	files["internal/widget/widget_test.go"] = "package widget\n\nimport \"testing\"\n\nfunc TestWidget(t *testing.T) {}\n"
 	files["test/plugin/widget.ci"] = "cmd=foreground:seq=1:exec=ze\n"
 	files["docs/widget.md"] = "# Widget\n"
-	files["plan/immediate/spec-unrelated.md"] = "# Spec\n\n## Files to Modify\n- `internal/other/x.go`\n"
+	files["plan/immediate/spec-unrelated.md"] = "# Spec\n\n## Files to Modify\n- `internal/other/x.go`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture: the spec names a file the tree does not hold) -->
 	files["features/widget.md"] = edit(passingDeclaration)
 	for rel, content := range files {
 		writeFile(t, tree, rel, content)
@@ -225,7 +225,7 @@ func TestCheckRefusesSupportedWithRFCGap(t *testing.T) {
 
 func TestCheckRefusesSupportedWithImmediateSpec(t *testing.T) {
 	tree := fixtureTree(t, same)
-	writeFile(t, tree, "plan/immediate/spec-widget-bug.md", "# Spec\n\n## Files to Modify\n- `internal/widget/widget.go`\n")
+	writeFile(t, tree, "plan/immediate/spec-widget-bug.md", "# Spec\n\n## Files to Modify\n- `internal/widget/widget.go`\n") // <!-- doc-links: ignore (a synthetic path in a test fixture: the spec names a file the tree does not hold) -->
 	verdict := judgeOne(t, tree)
 	requireRefused(t, &verdict, "S5: plan/immediate/spec-widget-bug.md names internal/widget")
 }

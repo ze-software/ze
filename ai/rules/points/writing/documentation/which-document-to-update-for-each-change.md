@@ -7,7 +7,7 @@ stage:
 
 | # | Category | Location | When to update |
 |---|----------|----------|----------------|
-| 1 | Feature list | `docs/features.md` | New user-facing feature |
+| 1 | Feature declaration | `features/<id>.md`, which renders `docs/features.md` (`docs/contributing/feature-maturity.md`) | New user-facing feature, or a change to a feature's scope, evidence or level |
 | 2 | User guide | `docs/guide/<topic>.md` | Feature with usage instructions |
 | 3 | Config syntax | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` | Config format changes |
 | 4 | CLI reference | `docs/guide/command-reference.md` | New or changed CLI commands |

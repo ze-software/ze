@@ -7,7 +7,7 @@ Ze validates protocol correctness against production BGP daemons in two compleme
 live session interop tests (Docker containers running real daemons) and byte-level wire format
 validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).
 
-For BGP terminology used in this document, see [docs/features.md](../../features.md).
+For BGP terminology used in this document, see [BGP protocol](../../features/bgp-protocol.md).
 
 `ai/rules/interop-and-goal-validation.md` states when an interop test is owed.
 This page is the infrastructure it is owed against.

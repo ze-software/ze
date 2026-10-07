@@ -109,10 +109,21 @@ set, and writes the record only when every item was observed passing. The exit
 code alone is not the observation: the item's own PASS line must be in the
 output, ending with the selector that runner was given (the stem for a `.ci`,
 the repository path for an `.et`), because a `-run` pattern that matched
-nothing exits 0. A `test/pppoe/` test declares `option=netns-link` and skips
-outside `./le test qemu pppoe-test`, so elsewhere record-run observes a skip,
-not a pass, and records nothing. A failure, a missing PASS line, or
-a test file that changed during the run writes nothing.
+nothing exits 0. A skip is never a pass. A `.ci` that declares
+`option=needs-linux`, with or without `caps=`, and that this host would skip
+(`runner.NeedsGuest`, the parser's own skip decision) runs in a throwaway QEMU
+guest instead: record-run cross-builds `ze` and `ze-stripped` for the guest
+under `tmp/qemu/feature-record-run/`, then runs `le test qemu run ... command
+'<guest le> test qemu all-tests test <path>'`, which runs that one test through
+the suite `all-tests` gives its directory, network-namespace preparation
+included. The guest runner's own PASS line is still the observation. When the
+guest route cannot run here (no QEMU, no KVM access, no image), the refusal
+says the test skips on this host and quotes the route's own error. A
+`test/pppoe/` test declares `option=netns-link` and skips outside `./le test
+qemu pppoe-test`, which record-run does not drive, so it observes a skip and
+records nothing. The chaos-web suite runs under the isolated set like any other:
+its `le chaos run` step is the set's own `le`. A failure, a missing PASS line,
+or a test file that changed during the run writes nothing.
 
 It then runs each counted Interop entry through its suite's own runner: the
 catalog's `RunScenario` (`interoplab.Catalog`), which each lab registers beside
@@ -136,3 +147,46 @@ known to be unchecked is never published, so the commit waits for the prose fix
 or a fresh review. A change date is the committer date of the newest commit
 touching the path, or today for a path with uncommitted changes. A shallow
 checkout has no history to read it from, and the check refuses to answer there.
+
+## The published surfaces
+
+Two public surfaces state feature maturity, and both derive it from the
+declarations. Neither one carries a status a person typed.
+
+`docs/features.md` is a derived artifact, not a tracked file. `RenderPage`
+writes it from the declarations: one table for each Kind, in the order the
+vocabulary declares the Kinds, and the rows of each table ordered by name. A row
+holds the linked name, the status label for its scope and level, and the
+Description verbatim. A partial row adds its Scope gaps, and an umbrella row
+names each part with that part's status. A part keeps its own row too. The page
+renders at session start, after an edit to a file directly under `features/`
+(a run record does not feed it), and in every site build through
+`derived.EnsureAll`. A declaration the parser refuses stops the render, so a
+feature never drops off the page in silence. The site publishes the page at
+`/reference/feature-status/`. A link to it from a tracked file goes to that
+URL, or names the path in code, because GitHub holds no copy of the file.
+
+<!-- source: internal/le/feature/render.go -- RenderPage, feedsPage, rebuildPage -->
+<!-- source: internal/le/feature/register.go -- derived.Register -->
+<!-- source: internal/le/site/docsmanifest.go -- docsDestinationExact -->
+
+A site feature card in `website/data/features.json` names, in `features`, the
+ids of the declarations it describes, and it holds no status. The card is solid
+and sits in the core section only when every feature it names is complete in
+scope and supported in level. Otherwise it is dashed, sits in the experimental
+section and carries the Experimental badge. The build refuses a card that names
+no feature, names an id no declaration holds, names only future or rejected
+features, or still carries a `status` key. The published feature count is the
+number of cards the build keeps, so a level change moves a card between the
+sections but does not change the count. A section with no card is not
+published. The features page, the homepage, the site facts and `llms.txt` all
+read the cards through `loadFeatureData`.
+
+<!-- source: internal/le/feature/render.go -- CardShipped, CardLabel, CardClass -->
+<!-- source: internal/le/site/datapages.go -- loadFeatureData, featureData.place -->
+<!-- source: internal/le/site/facts.go -- factsFromSiteData -->
+
+To add a feature, add its declaration: the page follows. To show it on the
+site, name its id in the card that describes it, or add a card. To change what
+a card's bullets claim, change the declarations it names first, because a card
+states nothing its declarations do not.

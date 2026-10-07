@@ -97,6 +97,15 @@ The feature page links this inventory rather than maintaining pending cards.
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
 <!-- source: internal/le/site/datapages.go -- featuresBody, featuresMirror -->
 
+The feature page's cards come from `website/data/features.json`, but no card
+states its own maturity. Each card names the `features/*.md` declarations it
+describes, and the build derives its section and badge from them. A card that
+no declaration backs stops the build. `docs/features.md`, which the docs
+producer publishes at `/reference/feature-status/`, is rendered from the same
+declarations. The rules are in `docs/contributing/feature-maturity.md`, "The
+published surfaces".
+<!-- source: internal/le/site/datapages.go -- loadFeatureData -->
+
 The build does not read a local `plan/roadmap.md`. Source links name the selected
 commit, and an unreadable or missing `plan/` stops the build. Verify privately
 with `./le site build output <session-scratch-directory>`, then inspect the

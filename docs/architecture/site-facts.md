@@ -60,6 +60,14 @@ where it is when it READS one artifact that is itself committed and gated.**
 tool cannot derive, so a number a reader cannot find in the file reads as
 uncommitted rather than as forgotten.
 
+The feature count is site-owned: it is the number of cards in
+`website/data/features.json`. Each card's state is not. The build derives it
+from the `features/*.md` declarations the card names, and refuses a card no
+declaration backs, so the count never includes a card that describes nothing
+(`docs/contributing/feature-maturity.md`, "The published surfaces").
+<!-- source: internal/le/site/facts.go -- factsFromSiteData -->
+<!-- source: internal/le/site/datapages.go -- loadFeatureData -->
+
 ## Two properties make the gate answerable
 
 **It judges a COMMIT, never the working tree.** A check that read the tree would

@@ -7,7 +7,7 @@ an SSH CLI or a web editor.
 
 > **Pre-release.** Ze has not been released yet. Some features are incomplete or
 > experimental, and APIs and configuration syntax can change. The
-> [feature inventory](docs/features.md) records their status. A lab is the right
+> [feature inventory](https://ze-software.net/reference/feature-status/) records their status. A lab is the right
 > place to evaluate Ze before putting it on a live network.
 
 I wrote [ExaBGP](https://github.com/Exa-Networks/exabgp), and its users are the
@@ -27,7 +27,7 @@ and the system they run on.
 ## What Ze Includes
 
 Features depend on the build and configuration. The guides describe how to use
-each area, and the [feature inventory](docs/features.md) distinguishes supported,
+each area, and the [feature inventory](https://ze-software.net/reference/feature-status/) distinguishes supported,
 experimental, and partial implementations.
 
 | Area | Guides |

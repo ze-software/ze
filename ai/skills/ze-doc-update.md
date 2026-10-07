@@ -43,7 +43,7 @@ structured for the GitHub wiki renderer. Key files:
 
 | Directory | Content |
 |-----------|---------|
-| `docs/features.md` | Master feature table with status column. Every feature gets a row. |
+| `features/<id>.md` | One declaration per feature. It renders the master table `docs/features.md`, a derived file nobody edits by hand. Every feature gets a declaration. |
 | `docs/features/*.md` | Per-feature detail pages (bgp-protocol, interfaces, plugins, etc.). |
 | `docs/guide/*.md` | Operator guides (configuration, cli, command-reference, rpki, firewall, etc.). |
 | `docs/guide/command-reference.md` | Canonical command reference. Wiki mirrors this. |
@@ -52,7 +52,7 @@ structured for the GitHub wiki renderer. Key files:
 | `docs/config-reference.md` | Config syntax reference. |
 
 7. **Update docs/ files** that are stale. Common gaps:
-   - `docs/features.md` missing a row for a new feature
+   - a new feature with no `features/<id>.md` declaration
    - `docs/comparison.md` showing "No" for a feature Ze now has
    - `docs/guide/command-reference.md` missing new commands
    - `docs/config-reference.md` missing new config blocks
@@ -135,8 +135,8 @@ git -C ../wiki push
 
 | Change Type | Wiki | docs/ |
 |-------------|------|-------|
-| New feature (feat:) | feature-inventory.md + plugins.md + status.md + topic page + command-reference.md | docs/features.md + docs/features/<area>.md + docs/guide/<topic>.md |
-| New subsystem | New wiki page + all of the above + _Sidebar.md + comparison.md | docs/guide/<subsystem>.md (create) + docs/features.md row |
+| New feature (feat:) | feature-inventory.md + plugins.md + status.md + topic page + command-reference.md | features/<id>.md + docs/features/<area>.md + docs/guide/<topic>.md |
+| New subsystem | New wiki page + all of the above + _Sidebar.md + comparison.md | docs/guide/<subsystem>.md (create) + features/<id>.md declaration |
 | Config syntax change | Topic page config table | docs/config-reference.md + docs/guide/<topic>.md |
 | CLI command change | command-reference.md + show-commands.md + cli.md + topic page | docs/guide/command-reference.md |
 | New pipe operator | cli.md + show-commands.md + command-reference.md | docs/guide/command-reference.md |

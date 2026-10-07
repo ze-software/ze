@@ -205,7 +205,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
      files you changed. Any factual doc change carries a source anchor. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | | `docs/features.md` |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | | `features/<id>.md` (renders `docs/features.md`) |
 | 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
 | 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
 | 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |

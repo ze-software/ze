@@ -231,4 +231,4 @@ Selected routes move through a shared route-decision pipeline:
 | Config syntax | [config-reference.md](config-reference.md) |
 | BGP FSM | [bgp-fsm.md](bgp-fsm.md) |
 | Plugin architecture | [plugin-overview.md](plugin-overview.md) |
-| Feature inventory | [features.md](features.md) |
+| Feature inventory | [feature status](https://ze-software.net/reference/feature-status/) |

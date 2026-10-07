@@ -194,5 +194,5 @@ debug level.
 ## See also
 
 - [`docs/architecture/api/commands.md`](../architecture/api/commands.md#operational-report-bus-ze-showwarnings-ze-showerrors) -- full RPC contract, push API for subsystem authors, lock ordering, concurrency model.
-- [`docs/features.md`](../features.md) -- where the report bus sits in the feature list.
+- [`docs/features.md`](https://ze-software.net/reference/feature-status/) -- where the report bus sits in the feature list.
 - `internal/core/report/` -- the source of truth. Read the package godoc in `report.go` before adding a new producer.

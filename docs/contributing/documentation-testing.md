@@ -342,8 +342,10 @@ that stopped early must not read as a file that broke no rule.
 plugins register themselves, then queries `registry.All()` and
 `registry.FamilyMap()`. It walks the `.ci` files and reads the native functional
 suite catalog from `internal/le/test/functional`. It compares those facts with
-claims in `docs/DESIGN.md`, `docs/comparison.md`, `README.md`,
-`docs/features.md`, and `docs/functional-tests.md`.
+claims in `docs/DESIGN.md`, `docs/comparison.md`, `README.md`, and
+`docs/functional-tests.md`. `docs/features.md` is not among them: that page is
+rendered from `features/*.md`, so its status cells hold only the vocabulary's
+labels (`docs/contributing/feature-maturity.md`).
 
 `internal/le/doc/yangcontract.Answer` imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree
