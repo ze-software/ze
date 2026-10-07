@@ -125,6 +125,13 @@ HTML files, 889 of them `index.html`.
 
   → Constraint: the registry explains 37% of the site. The other 63% needs its
   renderer restored, and no map will recover it.
+  → Constraint (2026-10-07, from spec-feature-maturity-declared, commit
+  4a301468e0): the features producer's data model and goldens changed.
+  `website/data/features.json` cards name `features/*.md` ids and carry no
+  status; `loadFeatureData` derives each card's section and badge, and the
+  feature goldens under `internal/le/site/testdata/` were re-derived to match.
+  `docs/features.md` is now a derived artifact. No unfinished item of this spec
+  was touched; a port of the features renderer reads through `loadFeatureData`.
   → Constraint: `DOCS_MANIFEST` carries only a category per row. The title comes
   from front matter or the first H1, and the description is derived. So the
   restored manifest is a category map, not a page table.
