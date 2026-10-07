@@ -221,3 +221,14 @@ meta/ca/
 # run of test/exabgp-compat leaves __pycache__ beside them.
 __pycache__/
 *.pyc
+
+# Binary evidence archives never belong under plan/. On 2026-10-06 a closing
+# spec committed ~320MB of build-proof tarballs to plan/handover/, split into
+# 80MB parts to slip under GitHub's 100MB limit, and removing them took a
+# history rewrite and a force-push. Keep such evidence outside the repository;
+# a JSON digest of it may be committed.
+plan/**/*.tar
+plan/**/*.tar.*
+plan/**/*.tgz
+plan/**/*.part-*
+plan/**/*.bundle
