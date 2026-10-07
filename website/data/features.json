@@ -18,7 +18,8 @@
       "category": "operate",
       "features": [
         "cli-default-output-format",
-        "pipe-output-limiting"
+        "pipe-output-limiting",
+        "resolution-cli-and-pipes"
       ],
       "title": "Output Formatting",
       "href": "features/formatting/",
@@ -36,7 +37,7 @@
       "bullets": [
         "**table**, **json**, **yaml**, **ndjson**",
         "**match**, **count**, **first**/**last**",
-        "Offline via **ze format**",
+        "Offline via **ze pipe**",
         "**Every command**, no rendering flags"
       ]
     },
@@ -892,7 +893,8 @@
     {
       "category": "services",
       "features": [
-        "dns-resolver"
+        "dns-resolver",
+        "resolution-cli-and-pipes"
       ],
       "title": "DNS Resolver",
       "href": "features/dns-resolver/",
