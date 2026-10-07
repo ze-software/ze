@@ -884,11 +884,6 @@ plan/spec-ospf-rfc3101-nssa-defaults.md	test/ospf/ospf-nssa-abr-default.ci
 plan/spec-ospf-rfc3101-nssa-defaults.md	test/ospf/ospf-nssa-internal-default.ci
 plan/spec-ospf-rfc3101-nssa-defaults.md	test/ospf/ospf-nssa-no-summary-default.ci
 plan/spec-ospf-rfc3101-nssa-defaults.md	test/ospfv3/ospfv3-nssa-abr-default.ci
-plan/spec-password-weakness-warning.md	internal/component/config/password_strength.go
-plan/spec-password-weakness-warning.md	internal/component/config/password_strength_test.go
-plan/spec-password-weakness-warning.md	plan/spec-fixit-bcrypt-hash-credential.md
-plan/spec-password-weakness-warning.md	test/ci/
-plan/spec-password-weakness-warning.md	test/parse/password-weakness-warning.ci
 plan/spec-perf-next-1-ebgp-wire-lockfree.md	scripts/dev/learned_staleness.py
 plan/spec-perf-next-2-filter-delta-alloc.md	ai/rules/no-partial-completion.md
 plan/spec-perf-next-2-filter-delta-alloc.md	internal/component/bgp/reactor/filter_delta_parse_test.go

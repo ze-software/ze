@@ -90,8 +90,8 @@ const plaintextPrefix = "plaintext-"
 //
 // It returns one HashedPassword for every canonical leaf it HASHED, and nil
 // when it hashed nothing. Order follows the schema walk, except across the
-// entries of one list, which come from a Go map and are unordered. Two callers
-// read it. LoadConfig writes no file itself, so it must warn that the plaintext
+// entries of one list, which come from a Go map and are unordered. Every caller
+// reads it. LoadConfig writes no file itself, so it must warn that the plaintext
 // is still where the operator put it, and it can only know that from this walk.
 // Every caller must also surface the advisory Weakness of each entry, because
 // this walk is where the plaintext is last in hand. Making the walk report what

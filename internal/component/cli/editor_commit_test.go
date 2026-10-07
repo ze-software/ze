@@ -126,6 +126,73 @@ system {
 		"the committed hash validates the password the operator typed")
 }
 
+// TestCommitPathsWarnWeakPasswordAndSetIt: both editor commit paths carry the
+// weakness verdict out and still set the password.
+//
+// VALIDATES: AC-1 and AC-2 on the editor surface. CommitSession (the daemon-less
+// commit) and CommitSessionCandidate (the commit a running daemon reloads) each
+// return the advisory line in CommitResult.Warnings, and the committed tree
+// holds a bcrypt hash of the weak plaintext.
+// PREVENTS: a commit site dropping the hashed list ApplyPasswordHashing returns,
+// which would set the weak password with no word to the operator, and the
+// warning becoming a refusal.
+func TestCommitPathsWarnWeakPasswordAndSetIt(t *testing.T) {
+	seed := validBGPConfig + `
+system {
+	authentication {
+		user lab {
+			plaintext-password "Qwerty"
+		}
+	}
+}
+`
+	const want = "system.authentication.user.lab.password: weak password (one of the most common passwords)"
+
+	// Each path returns the committed text: CommitSession writes it to the
+	// store, CommitSessionCandidate hands it back for the daemon to reload.
+	commits := map[string]func(ed *Editor, configPath string) (*CommitResult, string, error){
+		"CommitSession": func(ed *Editor, configPath string) (*CommitResult, string, error) {
+			result, err := ed.CommitSession()
+			if err != nil {
+				return nil, "", err
+			}
+			data, err := ed.store.ReadFile(configPath)
+			return result, string(data), err
+		},
+		"CommitSessionCandidate": func(ed *Editor, _ string) (*CommitResult, string, error) {
+			return ed.CommitSessionCandidate(time.Now())
+		},
+	}
+	for name, commit := range commits {
+		t.Run(name, func(t *testing.T) {
+			configPath := writeTestConfig(t, seed)
+			store := newTestTreeStore(t, configPath)
+			ed, err := NewEditorWithStorage(store, configPath)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = ed.Close() })
+			ed.SetSession(NewEditSession("thomas", "local"))
+			require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
+			result, written, err := commit(ed, configPath)
+			require.NoError(t, err, "a weak password is warned about, never refused")
+			require.Empty(t, result.Conflicts)
+			assert.Equal(t, []string{want}, result.Warnings)
+
+			tree, err := config.ParseTreeWithYANG(written, nil)
+			require.NoError(t, err)
+			lab := tree.GetContainer("system").GetContainer("authentication").GetList("user")["lab"]
+			require.NotNil(t, lab)
+			hash, ok := lab.Get("password")
+			require.True(t, ok, "the weak password is set all the same")
+			assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(hash), []byte("Qwerty")),
+				"the committed hash validates the weak password the operator typed")
+			for _, warning := range result.Warnings {
+				assert.NotContains(t, strings.ToLower(warning), "qwerty", "the warning must never carry the password")
+			}
+		})
+	}
+}
+
 // TestCommitPathDropsEmptyPlaintextLeaf: an EMPTY ephemeral leaf is dropped too.
 //
 // VALIDATES: the deliberate change spec-netlab-integration made to the commit

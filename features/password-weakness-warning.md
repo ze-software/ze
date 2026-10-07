@@ -12,7 +12,7 @@
 | Real-path tests | test/parse/password-weakness-warning.ci |
 | Docs | docs/guide/authentication.md |
 | Doc review | 2026-10-07: re-read at promotion; passwordDenylist holds exactly the eight named passwords, PasswordMinLength is 8, and PasswordWeakness is called from passwd, the loader, the editor commit and set paths, and HashedPassword; matches the row |
-| Defect review | 2026-10-07: plan/spec-password-weakness-warning.md in progress (review gate empty, the .ci never ran) |
+| Defect review | 2026-10-07: spec-password-weakness-warning closed after an independent review (2 rounds, final clean); test/parse/password-weakness-warning.ci passes, and the editor commit and load-path warnings gained unit tests; no open defect |
 
 ## Description
 

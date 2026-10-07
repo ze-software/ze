@@ -110,6 +110,38 @@ func TestLoadConfigWarnsPlaintextRemainsOnDisk(t *testing.T) {
 	assert.NotContains(t, warnings[0], "opssecret", "the warning must never carry the secret")
 }
 
+// TestLoadConfigWarnsWeakPasswordAndSetsIt: the load path judges what it hashes.
+//
+// VALIDATES: AC-1 on the daemon load path. warnWeakPassword logs one WARN line
+// for the weak password LoadConfig hashed, naming the leaf and the rule, and the
+// password is set all the same.
+// PREVENTS: a boot that sets a weak credential from a config file in silence,
+// and the warning becoming a load failure for a file ze accepted before.
+func TestLoadConfigWarnsWeakPasswordAndSetsIt(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "weak.conf")
+	input := `system {
+	authentication {
+		user weakload {
+			plaintext-password "short";
+		}
+	}
+}
+`
+
+	result, err := LoadConfig(input, configPath, nil)
+	require.NoError(t, err, "a weak password is warned about, never refused")
+
+	hash, ok := loadConfigUser(t, result.Tree, "weakload").Get("password")
+	require.True(t, ok, "the weak password is set all the same")
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(hash), []byte("short")))
+
+	// The user name is unique to this test, so it filters the shared ring.
+	warnings := warningsNaming(t, "system.authentication.user.weakload.password")
+	assert.Equal(t, []string{
+		"system.authentication.user.weakload.password: weak password (shorter than 8 characters)",
+	}, warnings)
+}
+
 // TestLoadConfigLeavesHashedPasswordAlone: a hashed config pays nothing.
 //
 // VALIDATES: a file already carrying a bcrypt hash and no plaintext sibling is

@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 5/6 |
-| Updated | 2026-09-19 |
+| Phase | 6/6 |
+| Updated | 2026-10-07 |
 
 Anchor refresh (2026-07-22 plan review, design HOLDS against the landed bcrypt
 work, learned 1181): the R-4 risk materialized benignly -- 1181 touched the
@@ -224,7 +224,9 @@ re-approving the design.
 | `TestPasswordStrengthStrongNoReason` | `internal/component/config/password_strength_test.go` | strong password returns no reason | PASS |
 | `TestPasswordWeaknessNeverEchoesPlaintext` | `internal/component/config/password_strength_test.go` | the reason never carries the password (R-3) | PASS |
 | `TestHashPlaintextWeakStillSets` | `internal/component/config/password_hash_test.go` | weak password warns but is still hashed/set | PASS |
-| `TestCmdSetWeakPasswordWarnsAndSets` | `internal/component/config/cli/cmd_set_test.go` | `ze config set` prints the warning on stderr and exits 0 | see report: package build blocked by another session |
+| `TestCmdSetWeakPasswordWarnsAndSets` | `internal/component/config/cli/cmd_set_test.go` | `ze config set` prints the warning on stderr and exits 0 | PASS under the daemon feature tags (`ze_core ze_distro` + every `feature-gates.txt` tag); without `ze_bgp` the package resolves no `ze-bgp-conf` and every schema test fails, recorded in `plan/journal/silent-fall-through.md` 2026-09-04 |
+| `TestCommitPathsWarnWeakPasswordAndSetIt` | `internal/component/cli/editor_commit_test.go` | `CommitSession` and `CommitSessionCandidate` return the warning in `CommitResult.Warnings` and commit the hash | PASS (added at closure review) |
+| `TestLoadConfigWarnsWeakPasswordAndSetsIt` | `internal/component/config/loader_test.go` | `LoadConfig` logs one WARN line for the weak password and sets it | PASS (added at closure review) |
 | `TestRunImplWeakPlaintextWarnsAndHashes` | `internal/plugins/passwd/main_test.go` | `ze passwd` warns on stderr and still prints the hash | PASS |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -236,7 +238,7 @@ re-approving the design.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `password-weakness-warning` | `test/parse/password-weakness-warning.ci` | weak password warns yet sets; strong password is silent | written; unrun, see report |
+| `password-weakness-warning` | `test/parse/password-weakness-warning.ci` | weak password warns yet sets; strong password is silent | PASS 2026-10-07 (`./le test bgp parse --pattern password-weakness-warning`, 2.6s); also recorded in `features/runs/password-weakness-warning.json` |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -309,9 +311,10 @@ re-approving the design.
 | Advisory only | a weak password is never silently blocked or altered |
 
 ## Mistake Log
-### Wrong Assumptions
-| What was assumed | What was true | How discovered | Impact |
-|------------------|---------------|----------------|--------|
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The 2026-09-06 implementation reported `TestCmdSetWeakPasswordWarnsAndSets` blocked by a broken package | `internal/component/config/cli` resolves `ze-bgp-conf` only when built with `ze_bgp`; under the daemon feature tags the package is green | closure re-ran the package with every `feature-gates.txt` tag | recorded the tag set in the TDD table; the untagged trap is already `plan/journal/silent-fall-through.md` 2026-09-04 |
+| approach | Three of the six warning surfaces (`CommitSession`, `CommitSessionCandidate`, `LoadConfig`) shipped with no test asserting the warning | the `.ci` drives only `ze config set` and `ze passwd` | closure review, wiring step | added two tests, each red with its surfacing line removed |
 
 ## Design Insights
 <!-- LIVE -->
@@ -329,30 +332,94 @@ re-approving the design.
 - `internal/plugins/passwd/main.go` -- `runImpl` warns on `errOut` and still prints the hash with exit 0.
 - Docs: `docs/guide/authentication.md` (the policy, the surface table, the load-path line), `docs/features.md` (one row), `docs/guide/command-reference.md` (`ze passwd`).
 
+### Bugs Found/Fixed
+- None in the product. The closure review found two test and comment gaps, listed under Review Gate.
+
+### Documentation Updates
+- None at closure. `docs/guide/authentication.md` ("Weak passwords are named, never refused", the surface table and the load-path line), `docs/features.md` and `docs/guide/command-reference.md` (`ze passwd`) landed in `0cb93dd5b0`; re-read at closure against `PasswordWeakness`, `PasswordWeaknessWarnings`, `printCommitWarnings`, `appendCommitWarnings`, `logCommitWarnings` and `warnWeakPassword`, and every claim holds, including the masked `set` line (`cmd_set.go`, `DisplayValueAtPath`).
+
+### Deviations from Plan
+- `CommitResult.MigrationWarning string` became `Warnings []string` rather than gaining a second field: one advisory channel for the migration warning and the password warnings.
+- The REST, gRPC and gNMI commit responses carry no warning field, so `ConfigSessionManager.Commit` logs the warning at WARN with the user name instead.
+- Step 5 (`./le verify current mode full`) was not run at closure: the owner barred whole-tree gates while another session runs a heavy programme on this machine. Scoped evidence is under Pre-Commit Verification, and the commit records the verification debt.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Warn at password-set time on a short password | Done | `internal/component/config/password_strength.go` `PasswordWeakness` | `PasswordMinLength = 8`, counted in runes |
+| Warn on an embedded common-password denylist | Done | `password_strength.go` `passwordDenylist` | 8 entries, `strings.EqualFold` whole-value |
+| Advisory only, the commit still succeeds | Done | `password_hash.go` `hashPlaintextSibling` | reason computed before the hash, hash always written |
+| One helper for both set paths | Done | `hashPlaintextSibling` and `internal/plugins/passwd/main.go` `runImpl` | both call `PasswordWeakness` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `.ci` seq 1-2, `TestPasswordStrengthShort`, `TestCommitPathsWarnWeakPasswordAndSetIt`, `TestLoadConfigWarnsWeakPasswordAndSetsIt` | |
+| AC-2 | Done | `TestPasswordStrengthDenylist`, `TestCommitPathsWarnWeakPasswordAndSetIt`, `.ci` seq 5 | |
+| AC-3 | Done | `.ci` seq 3 (`LetMeIn`), `TestPasswordStrengthDenylist` | |
+| AC-4 | Done | `.ci` seq 4, `TestPasswordStrengthStrongNoReason` | |
+| AC-5 | Done | `TestApplyPasswordHashingEmptyPlaintext`, `TestRunImplEmptyPlaintext` | `PasswordWeakness("")` returns "" |
+| AC-6 | Done | `TestRunImplOversizePlaintextRejected`, 73-byte case in `password_hash_test.go` | unchanged |
+| AC-7 | Done | `.ci` seq 5, `TestRunImplWeakPlaintextWarnsAndHashes` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPasswordStrength*`, `TestPasswordWeaknessNeverEchoesPlaintext` | Done | `internal/component/config/password_strength_test.go` | PASS |
+| `TestHashPlaintextWeakStillSets` | Done | `internal/component/config/password_hash_test.go` | PASS |
+| `TestCmdSetWeakPasswordWarnsAndSets` | Done | `internal/component/config/cli/cmd_set_test.go` | PASS under daemon tags |
+| `TestRunImplWeakPlaintextWarnsAndHashes` | Done | `internal/plugins/passwd/main_test.go` | PASS |
+| `password-weakness-warning` | Done | `test/parse/password-weakness-warning.ci` | PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/config/password_strength.go` | Done | |
+| `internal/component/config/password_hash.go` | Done | |
+| `internal/plugins/passwd/main.go` | Done | |
+| `test/parse/password-weakness-warning.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 19
+- **Done:** 19
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A weak password is made visible at set time | functional | `test/parse/password-weakness-warning.ci` PASS 2026-10-07: `ze config set` prints `warning: system.authentication.user.alice.password: weak password (shorter than 8 characters)` and `ze passwd` prints `warning: weak password (one of the most common passwords)` |
+| The warning never breaks an existing config | functional | same `.ci`: exit 0 on every weak set, and `cat test.conf` shows a `$2a$10$` hash with no `plaintext-password` leaf |
+| The editor commit and the daemon load surface it too | unit, discriminated | `TestCommitPathsWarnWeakPasswordAndSetIt` and `TestLoadConfigWarnsWeakPasswordAndSetsIt` went red with the `PasswordWeaknessWarnings` append in `editor_commit.go` and the `warnWeakPassword` call in `loader.go` removed, and green restored |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is demonstrated | - |
+
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/password-weakness-warning-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and functional coverage, removed-behavior audit, security (plaintext leak, downgrade), stale comments, Go style; run inline by the closure agent, which did not write the code |
 
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Three warning surfaces had no test asserting the warning: `CommitSession`, `CommitSessionCandidate` and `LoadConfig`. Dropping the `PasswordWeaknessWarnings` append left every test green | `internal/component/cli/editor_commit.go`, `internal/component/config/loader.go` | `TestCommitPathsWarnWeakPasswordAndSetIt` (`editor_commit_test.go`), `TestLoadConfigWarnsWeakPasswordAndSetsIt` (`loader_test.go`); red with the surfacing removed |
+| 2 | ISSUE | Stale comment: `ApplyPasswordHashing` said "Two callers read it" while four call sites read it | `internal/component/config/password_hash.go` | now "Every caller reads it" |
 
-### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+NOTEs (no action): `ConfigSessionManager.Commit` logs the warning before the `onCommit` reload hook runs, so a reload that then fails still leaves the advisory line in the log; the line is true of the staged password either way. `appendCommitWarnings` rendering in the TUI status line has no own test; it is the same three-line loop the migration warning used. `./le commit audit` reports 20 deleted/weakened findings, all under `internal/component/bgp/plugins/persist`, `internal/component/bgp/reactor` and `test/plugin`/`test/reload` persist tests, another session's work; none touches this spec's files.
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+Run 2 over the fixed tree: 0 BLOCKER, 0 ISSUE.
 
 ## Checklist
 
@@ -384,3 +451,42 @@ policy, `hashPlaintextSibling` records its warning, and `passwd.runImpl` warns
 before producing the hash. The recorded commit does not demonstrate the
 functional `.ci` or satisfy the unticked review and goal gates. This spec
 remains in progress until that evidence is supplied.
+
+## Progress, 2026-10-07
+
+The evidence is supplied: the `.ci` passes, the review gate is clean, and the
+spec closes.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/password_strength.go` | yes | `git hash-object` resolves; `gopls symbols` lists `PasswordWeakness`, `PasswordMinLength`, `passwordDenylist` |
+| `test/parse/password-weakness-warning.ci` | yes | blob `9dc3c9d652654177429546bf8f81098d591d7a97`, the blob `features/runs/password-weakness-warning.json` recorded |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-4, AC-7 | warn, set, exit 0; strong is silent | `./le test bgp parse --pattern password-weakness-warning`: `2.6s 1/1 PASS 235 password-weakness-warning` |
+| AC-1, AC-2 (editor, load) | warning carried, hash set | `go test -tags "<daemon tags>" -run 'Weak|Strength|Weakness|TestLoadConfig|TestCommitPathPasswordHashingUnchanged' ./internal/component/cli/ ./internal/component/config/`: `ok` both |
+| AC-5, AC-6, AC-7 | empty and 73-byte refusals unchanged in `ze passwd` | `go test -race ./internal/plugins/passwd/`: `ok 14.939s` |
+| all | the touched packages | under the daemon tags: `ok internal/component/config/cli 94.959s`, `ok internal/component/cli 346.127s`, `ok internal/component/api 1.224s`; `internal/component/config` fails only `TestRFC7950MandatoryUnderAbsentNonPresenceContainer`, a deliberate untagged red owned by the rfc-verdict-test-fix-pass programme (`validator_mandatory_rfc7950_red_test.go`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config set ... plaintext-password` weak and strong | `test/parse/password-weakness-warning.ci` seq 1-4 | read: real `ze` binary, stderr `contains=` the warning, `cat test.conf` shows the hash |
+| `ze passwd` weak | same file, seq 5 | read: stdin `qwerty`, stdout hash, stderr warning |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `CommitResult.Warnings` filled at `editor_commit.go` (both commit functions) and `commitContent` (`editor_commands.go`); `TestCommitPathsWarnWeakPasswordAndSetIt` |
+| A-2 | confirmed | `git grep "ApplyPasswordHashing(\|PasswordWeakness("`: 4 hashing call sites plus `passwd.runImpl`, all through the one helper |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/authentication.md` surface table and sample lines | `printCommitWarnings` (`config/cli/main.go`), `appendCommitWarnings` (`model_commands_commit.go`), `warnWeakPassword` (`loader.go`), `logCommitWarnings` (`api/config_session.go`), `runImpl` | yes |
+| `features/password-weakness-warning.md` Defect review row | repointed to the bare stem at closure | yes |
