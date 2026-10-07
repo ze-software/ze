@@ -152,6 +152,10 @@ type RunResult struct {
 	Events []peer.Event
 }
 
+// defaultStepDelay is the real-time pause per virtual second when the caller
+// sets no RunConfig.StepDelay, and the teardown pace of a canceled run.
+const defaultStepDelay = 10 * time.Millisecond
+
 // Run executes an in-process chaos scenario. It creates a reactor with mock
 // network and virtual clock, connects peer simulators via net.Pipe(), and
 // advances virtual time to drive the simulation to completion.
@@ -442,7 +446,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// is only for reactor/plugin startup; the handshake happens during the
 	// first few virtual time steps.
 	handshakeWait := 2*time.Second + time.Duration(len(cfg.Profiles))*200*time.Millisecond
-	time.Sleep(handshakeWait)
+	pace(ctx, handshakeWait)
 
 	// Start chaos/route scheduler goroutines. They read from a tick channel
 	// fed by the advance loop below (virtual time drives scheduling).
@@ -496,7 +500,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	step := 1 * time.Second
 	stepDelay := cfg.StepDelay
 	if stepDelay == 0 {
-		stepDelay = 10 * time.Millisecond
+		stepDelay = defaultStepDelay
 	}
 	simulated := time.Duration(0)
 	disconnected := false
@@ -536,7 +540,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			break
 		}
 		vc.Advance(step)
-		time.Sleep(stepDelay)
+		pace(ctx, stepDelay)
 	}
 
 	for simulated < cfg.Duration {
@@ -709,7 +713,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 				// (session.Run polls clock.Sleep), so blocking here on any
 				// session state deadlocks. What it buys is real time for the
 				// TCP exchange; the virtual steps that follow do the rest.
-				time.Sleep(500 * time.Millisecond)
+				pace(ctx, 500*time.Millisecond)
 			}
 		}
 
@@ -738,7 +742,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 				delay = d
 			}
 		}
-		time.Sleep(delay)
+		pace(ctx, delay)
 	}
 
 	// Virtual time MUST keep moving from here until everything is down.
@@ -760,14 +764,24 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// reconnect handshake cannot finish while virtual time stands still.
 	stopAdvance := make(chan struct{})
 	advanceDone := make(chan struct{})
+	//
+	// A canceled run drops the real-time pacing. stepDelay is one second under
+	// the web dashboard, and the reactor's shutdown and the simulators' exit
+	// each wait on virtual time, so pacing the teardown at the dashboard's
+	// speed made one SIGTERM cost seconds of wall clock for a run nobody is
+	// watching any more.
 	go func() {
 		defer close(advanceDone)
 		ticker := time.NewTicker(stepDelay)
 		defer ticker.Stop()
+		canceled := ctx.Done()
 		for {
 			select {
 			case <-stopAdvance:
 				return
+			case <-canceled:
+				ticker.Reset(defaultStepDelay)
+				canceled = nil
 			case <-ticker.C:
 				vc.Advance(step)
 			}

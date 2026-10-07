@@ -674,7 +674,14 @@ Control:
 			ipConsumer = &reporterConsumer{r: report.NewReporter(wd, ipWatchdog)}
 		}
 
-		ipCtx, ipCancel := context.WithTimeout(context.Background(), *duration+30*time.Second)
+		// SIGINT and SIGTERM are caught BEFORE the run starts. The in-process
+		// reactor installs its own SIGTERM handler, and once any handler is
+		// registered the signal no longer kills the process: without this
+		// context the reactor alone would take the signal, Ze would stop, and
+		// the run would keep pacing until a second signal.
+		sigCtx, sigStop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer sigStop()
+		ipCtx, ipCancel := context.WithTimeout(sigCtx, *duration+30*time.Second)
 		defer ipCancel()
 		ipCfg := inprocess.RunConfig{
 			Profiles:      profiles,
@@ -707,12 +714,11 @@ Control:
 		fmt.Fprintf(os.Stderr, "le chaos run | in-process complete | events: %d\n", len(result.Events))
 
 		// When web dashboard is active, keep serving until Ctrl-C
-		// so the user can explore the final state.
-		if wd != nil {
+		// so the user can explore the final state. A signal that already
+		// ended the run ends the process too.
+		if wd != nil && sigCtx.Err() == nil {
 			fmt.Fprintf(os.Stderr, "le chaos run | simulation done — dashboard at %s (Ctrl-C to exit)\n", dashboardURL(*webAddr))
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-			<-sigCh
+			<-sigCtx.Done()
 		}
 		return 0
 	}

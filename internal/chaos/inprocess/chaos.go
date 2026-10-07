@@ -81,6 +81,18 @@ func waitSettled(ctx context.Context, settle bool, settled func() bool, poll tim
 	}
 }
 
+// pace waits d of real time, or until ctx is canceled, whichever comes first.
+// Run's pacing waits go through it so a canceled run stops within one select
+// rather than finishing a full step delay; time.Sleep cannot be interrupted.
+func pace(ctx context.Context, d time.Duration) {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	}
+}
+
 // chaosProgress tracks how far each peer's chaos has got. It counts actions
 // dispatched against actions applied. It also records whether the peer has come
 // back up since the first action hit it.
