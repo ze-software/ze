@@ -35,6 +35,40 @@ holds the plaintext. Refer to
 [Passwords in a config file](authentication.md#passwords-in-a-config-file).
 <!-- source: internal/component/config/loader.go -- LoadConfig calls ApplyPasswordHashing, warnPlaintextOnDisk -->
 
+## Moving a Management Listener
+
+A reload moves the web server, the looking glass and the MCP server to a new
+address or port with no restart. Change the `ip` or `port` of a `server` entry
+under `environment { web }`, `environment { looking-glass }` or
+`environment { mcp }`, then commit or reload. The REST and gRPC listeners of
+`api-server` move the same way.
+<!-- source: cmd/ze/hub/listener_migrate.go -- buildChanges, reloadListeners -->
+
+```
+environment {
+    web {
+        enabled true;
+        server main {
+            ip 0.0.0.0;
+            port 9443;
+        }
+    }
+}
+```
+
+| Step or case | What Ze does |
+|--------------|--------------|
+| New address | Ze binds the new address and serves on it before it closes the old one |
+| Old address | It stops accepting new connections. A connection it already accepted stays open and is served to its end |
+| An address that is already in use | The bind fails, the reload fails, and the service keeps every listener it had |
+| One service fails after another moved | Ze moves the services that already moved back to their old addresses, and the whole reload fails |
+| One service takes an address another gives up | Ze moves those two services last and logs `sequenced listener migration (brief gap expected)`. An address cannot be bound before it is released, so a bind that fails here fails the reload as above |
+| A web, MCP, REST or gRPC server with no authentication | The reload is refused if it would move that server to a non-loopback address. The looking glass is public, so this check does not apply to it |
+<!-- source: internal/component/web/server.go -- WebServer.Reconfigure -->
+<!-- source: internal/component/lg/server.go -- LGServer.Reconfigure -->
+<!-- source: cmd/ze/hub/service_mcp.go -- mcpServerHandle.Reconfigure -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- migrateListeners, rollbackAppliedListeners, detectConflicts, checkReloadExposure -->
+
 ## BGP Globals
 
 A reload applies a changed global `router-id` and global local AS

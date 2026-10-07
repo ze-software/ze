@@ -146,6 +146,42 @@ Archive locations are read from the config at editor startup. Adding an `archive
 All configured destinations are attempted regardless of individual failures. Errors are collected per destination. A failure uploading to one location does not prevent archiving to other locations.
 <!-- source: internal/component/config/archive/archive.go -- NewNotifier -->
 
+## Pruning Old Archives
+
+`commit-revisions` caps the number of archive files a `file://` location keeps.
+It is a `system` leaf, so one value applies to every archive block.
+
+```
+system {
+    host router1;
+    commit-revisions 20;
+    archive local {
+        location file:///var/backups/ze;
+        trigger commit;
+    }
+}
+```
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- leaf commit-revisions -->
+
+| Rule | Detail |
+|------|--------|
+| Range | 0 to 1000. The default is 0, which keeps every file |
+| When | After each successful write by an archive block: an editor commit, `ze config archive <name>`, and each `daily` or `hourly` archive, the boot archive included |
+| What counts | The `.conf` files in the block's `file://` directory whose name starts with the fixed part of the block's filename. Subdirectories and other files are not counted |
+| What goes | The files with the oldest modification time, until the count is down to the cap |
+| HTTP | An `http://` or `https://` location is never pruned. The receiving server decides what to keep |
+<!-- source: internal/component/config/archive/archive.go -- NewNotifier, ArchivePrefix, PruneFileArchives -->
+<!-- source: internal/component/config/archive/scheduler.go -- Scheduler boot archive and fireByTrigger -->
+
+Two blocks that write to the same directory with the same filename format share
+one count. Put `{archive}` in the format to give each block its own count.
+<!-- source: internal/component/config/archive/archive.go -- FormatFilename, DefaultFilenameFormat -->
+
+Known defect: when the filename format holds `{date}` or `{time}`, the default
+format included, pruning removes no file today, and the directory keeps every
+archive.
+<!-- source: internal/component/config/archive/archive.go -- ArchivePrefix -->
+
 ## Change Detection
 
 For time-based triggers with `on-change true`, ze tracks config changes using SHA-256 hashes in memory. Each named archive block has its own hash. The first check after daemon start always reports "changed" (no baseline yet), so the boot archive fires unconditionally. Subsequent checks compare the current config hash against the last archived hash and skip the archive if unchanged.

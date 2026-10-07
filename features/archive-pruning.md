@@ -10,9 +10,10 @@
 | Level | experimental |
 | Components | internal/component/config/archive |
 | Real-path tests | test/ui/config-archive-prune.ci |
-| Doc review | 2026-10-07: ze-system-conf.yang leaf commit-revisions is uint16 range 0..1000 default 0; PruneFileArchives runs only when CommitRevisions > 0 and for file:// locations, and keeps only names starting with ArchivePrefix, which retains the 2000-01-0x date digits, so a format carrying {date} or {time}, the default included, is never pruned; the row now says so; docs/guide/config-archive.md is silent on commit-revisions |
+| Docs | docs/guide/config-archive.md |
+| Doc review | 2026-10-07: ze-system-conf.yang leaf commit-revisions is uint16 range 0..1000 default 0; PruneFileArchives runs only when CommitRevisions > 0 and for file:// locations, and keeps only names starting with ArchivePrefix, which retains the 2000-01-0x date digits, so a format carrying {date} or {time}, the default included, is never pruned; the row now says so. docs/guide/config-archive.md "Pruning Old Archives" re-read against NewNotifier, Scheduler, PruneFileArchives and the YANG leaf: system-wide leaf, 0..1000 default 0, runs after each successful block write, counts .conf files matching the block's fixed filename part, removes oldest by modification time, never prunes HTTP, and names the {date}/{time} defect |
 | Defect review | 2026-10-07: journal row of 2026-10-07 in plan/journal/unwired-feature.md names ArchivePrefix; test/ui/config-archive-prune.ci is red until it is fixed |
-| Extra criteria | supported: a functional test asserting the retained file count = test/ui/config-archive-prune.ci; supported: a user page documenting commit-revisions = none yet |
+| Extra criteria | supported: a functional test asserting the retained file count = test/ui/config-archive-prune.ci; supported: a user page documenting commit-revisions = docs/guide/config-archive.md |
 
 ## Description
 
