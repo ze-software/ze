@@ -45,7 +45,7 @@ func scriptMessagePath(t *testing.T, root, script string) string {
 //
 // VALIDATES: two prepared commits under one tag in one session name two
 // different message files, and the first one's content survives the second
-// create (AC-1 of plan/spec-commit-message-file-carries-its-own-suffix.md).
+// create (AC-1 of spec-commit-message-file-carries-its-own-suffix).
 // Each script's own `git commit -F` line names its message, while session and
 // tag are identical for both, so the script is the one source the message path
 // is derived from (AC-2).
@@ -176,51 +176,62 @@ func messageArtifacts(t *testing.T, root string) []string {
 // route. nextTag allocates with O_EXCL, so the reservation is a real file from
 // that moment, and only Create's deferred cleanup removes it.
 //
-// VALIDATES: AC-4 of plan/spec-commit-message-file-carries-its-own-suffix.md, a
+// VALIDATES: AC-4 of spec-commit-message-file-carries-its-own-suffix, a
 // failed or dry-run create leaves no message artifact behind.
 // PREVENTS: an empty reservation that a later automatic tag walk reads as a
 // taken letter, and that nothing ever runs or cleans.
-// MUTATION: delete the os.Remove in Create's keepReservation defer and both
-// halves go red.
+// Each route runs under an automatic tag and under a named one, because the
+// cleanup once covered automatic tags alone and a named tag's reservation
+// outlived the create that made it.
+// MUTATION: delete the os.Remove in Create's keepReservation defer and every
+// subtest goes red; restrict that cleanup to automatic tags and the named ones
+// go red.
 func TestACreateThatWritesNoScriptLeavesNoMessageHoldingAName(t *testing.T) {
-	t.Run("dry run", func(t *testing.T) {
-		root := newCommitRepository(t)
-		t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-msg-dry-run")
-		writeCommitFixture(t, root, "mine.txt", "mine\n")
+	// The empty tag is the automatic walk.
+	for _, tag := range []string{"", "named"} {
+		label := "automatic tag"
+		if tag != "" {
+			label = "named tag"
+		}
+		t.Run("dry run, "+label, func(t *testing.T) {
+			root := newCommitRepository(t)
+			t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-msg-dry-run")
+			writeCommitFixture(t, root, "mine.txt", "mine\n")
 
-		dry, err := Create(root, &Options{
-			Subject: "a dry run", Files: []string{"mine.txt"}, DryRun: true,
+			dry, err := Create(root, &Options{
+				Subject: "a dry run", Files: []string{"mine.txt"}, DryRun: true, Tag: tag,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if dry.MessageText == "" {
+				t.Fatal("the dry run answered no message text, so it is not the route under test")
+			}
+			if left := messageArtifacts(t, root); len(left) != 0 {
+				t.Fatalf("the dry run left message files behind: %q", left)
+			}
+			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(dry.Script))); err == nil {
+				t.Fatalf("the dry run wrote its script %s", dry.Script)
+			}
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if dry.MessageText == "" {
-			t.Fatal("the dry run answered no message text, so it is not the route under test")
-		}
-		if left := messageArtifacts(t, root); len(left) != 0 {
-			t.Fatalf("the dry run left message files behind: %q", left)
-		}
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(dry.Script))); err == nil {
-			t.Fatalf("the dry run wrote its script %s", dry.Script)
-		}
-	})
-	t.Run("refused after the reservation", func(t *testing.T) {
-		root := newCommitRepository(t)
-		t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-msg-refused")
-		writeCommitFixture(t, root, "mine.txt", "mine\n")
+		t.Run("refused after the reservation, "+label, func(t *testing.T) {
+			root := newCommitRepository(t)
+			t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-msg-refused")
+			writeCommitFixture(t, root, "mine.txt", "mine\n")
 
-		// Append with no prepared script is refused by targetScript, which runs
-		// after nextTag has reserved the message.
-		_, err := Create(root, &Options{
-			Subject: "an append with nothing to append to", Files: []string{"mine.txt"}, Append: true,
+			// Append with no prepared script is refused by targetScript, which runs
+			// after nextTag has reserved the message.
+			_, err := Create(root, &Options{
+				Subject: "an append with nothing to append to", Files: []string{"mine.txt"}, Append: true, Tag: tag,
+			})
+			if err == nil || !strings.Contains(err.Error(), "no prepared script") {
+				t.Fatalf("the append was not refused after the reservation: %v", err)
+			}
+			if left := messageArtifacts(t, root); len(left) != 0 {
+				t.Fatalf("the refused create left message files behind: %q", left)
+			}
 		})
-		if err == nil || !strings.Contains(err.Error(), "no prepared script") {
-			t.Fatalf("the append was not refused after the reservation: %v", err)
-		}
-		if left := messageArtifacts(t, root); len(left) != 0 {
-			t.Fatalf("the refused create left message files behind: %q", left)
-		}
-	})
+	}
 }
 
 // TestTheAutomaticTagWalkStepsOverATakenLetter drives nextTag's automatic walk
@@ -231,7 +242,7 @@ func TestACreateThatWritesNoScriptLeavesNoMessageHoldingAName(t *testing.T) {
 // only part of the name the walk chooses, so a walk that ignored the suffixed
 // files on disk would hand both creates the letter a.
 //
-// VALIDATES: AC-3 of plan/spec-commit-message-file-carries-its-own-suffix.md,
+// VALIDATES: AC-3 of spec-commit-message-file-carries-its-own-suffix,
 // and the a..z boundary: z is the last letter allocated, and past it create
 // refuses rather than reusing one.
 // PREVENTS: two prepared commits of one session reading as one tag in tmp/,
