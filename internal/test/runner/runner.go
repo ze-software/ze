@@ -157,10 +157,6 @@ type Runner struct {
 	// apply ParallelTimeoutHeadroom. Zero outside a Run.
 	concurrency int
 
-	// extraBinaries maps binary name -> build spec for additional
-	// binaries that should be built alongside ze.
-	extraBinaries map[string]ExtraBinary
-
 	// binShimDir holds the bare names a child resolves on PATH: symlinks for
 	// ze and le, and shell shims for the retired harness names. It is what goes on a test child's PATH; see
 	// setupBinShims for why the binaries' own directory must not.
@@ -224,17 +220,6 @@ func (r *Runner) Display() *Display {
 // Report returns the runner's report generator.
 func (r *Runner) Report() *Report {
 	return r.report
-}
-
-// ExtraBinary describes an additional Go binary to build alongside ze.
-type ExtraBinary struct {
-	Pkg  string
-	Tags string
-}
-
-// SetExtraBinaries configures additional Go binaries to build alongside ze.
-func (r *Runner) SetExtraBinaries(binaries map[string]ExtraBinary) {
-	r.extraBinaries = binaries
 }
 
 // Cleanup removes temporary files.
@@ -372,23 +357,6 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build ze: %w", err)
 	}
 
-	// Build extra binaries (e.g., le chaos run for chaos-web tests).
-	for name, spec := range r.extraBinaries {
-		outPath := filepath.Join(r.tmpDir, name)
-		buildArgs := []string{"build"}
-		if spec.Tags != "" {
-			buildArgs = append(buildArgs, "-tags", spec.Tags)
-		}
-		buildArgs = append(buildArgs, "-o", outPath, spec.Pkg)
-		cmd = exec.CommandContext(ctx, "go", buildArgs...) //nolint:gosec // paths from internal runner
-		cmd.Dir = r.baseDir
-		cmd.Env = childEnv("CGO_ENABLED=0")
-		if output, err := cmd.CombinedOutput(); err != nil {
-			r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
-			return fmt.Errorf("build %s: %w", name, err)
-		}
-	}
-
 	if err := r.setupBinShims(); err != nil {
 		r.display.buildStatus(false, err)
 		return err
@@ -399,9 +367,9 @@ func (r *Runner) Build(ctx context.Context) error {
 }
 
 // verifyPrebuilt is the LE_TEST_NO_BUILD path: it checks that the ze the
-// runner would otherwise build already exists, rather than building them. Extra
-// binaries (e.g. le chaos run) are not supported in this mode and must be built
-// normally.
+// runner would otherwise build already exists, rather than building it. It is
+// the only binary the runner builds: every `le` head runs the runner's own
+// executable, the chaos suites' `le chaos run` included.
 func (r *Runner) verifyPrebuilt() error {
 	r.display.buildStatus(true, nil)
 
@@ -424,11 +392,6 @@ func (r *Runner) verifyPrebuilt() error {
 
 	if _, err := os.Stat(r.zePath); err != nil {
 		buildErr := fmt.Errorf("LE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", r.zePath, err)
-		r.display.buildStatus(false, buildErr)
-		return buildErr
-	}
-	if len(r.extraBinaries) > 0 {
-		buildErr := fmt.Errorf("LE_TEST_NO_BUILD does not support extra binaries: %v", r.extraBinaries)
 		r.display.buildStatus(false, buildErr)
 		return buildErr
 	}

@@ -723,13 +723,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		case binNameZe:
 			binPath = r.zePath
 		default:
-			// Check if the binary was built as an extra binary in the temp dir.
-			tmpBin := filepath.Join(r.tmpDir, binName)
-			if _, err := os.Stat(tmpBin); err == nil {
-				binPath = tmpBin
-			} else {
-				binPath = binName // Use as-is (PATH lookup)
-			}
+			binPath = binName // a PATH lookup
 		}
 
 		args := cmdParts[1:]

@@ -340,7 +340,7 @@ executable (`os.Executable`) answers every harness exec.
 |-----------------|------|
 | `ze` | the `ze` this run built |
 | `le` | the runner's own executable, with the authored words |
-| anything else | an extra binary of this run, else a PATH lookup |
+| anything else | a PATH lookup |
 
 A retired standalone harness name falls in the last row.
 No program answers to it, so the step fails at the lookup.

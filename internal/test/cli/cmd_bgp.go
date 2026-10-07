@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/peer"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
@@ -302,27 +301,6 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 		return fmt.Errorf("create runner: %w", err)
 	}
 	defer r.Cleanup()
-
-	// The chaos suites exec `le chaos run`, so they need the le personality in
-	// the runner's temp dir. The build carries every feature gate, as ./le's
-	// own build does (repofeaturetags.DaemonBuildTags). Without ze_bgp the BGP
-	// YANG modules are not linked, and `--in-process` then stops at startup
-	// with "resolve YANG modules: no such module: ze-bgp-conf": every
-	// chaos-web and chaos-integration test fails on a refused connection, and
-	// no client output explains it.
-	switch cli.command {
-	case cmdChaosWeb, cmdChaosIntg:
-		leTags, err := repofeaturetags.DaemonBuildTags(baseDir, repofeaturetags.LEBase)
-		if err != nil {
-			return fmt.Errorf("le build tags: %w", err)
-		}
-		// The daemon `le chaos run` forks is the runner's own ze, reached as
-		// `ze` on the child PATH (Runner.setupBinShims). A second, untagged ze
-		// here would carry no ze_core and answer `ze -` with "unknown command".
-		r.SetExtraBinaries(map[string]runner.ExtraBinary{
-			"le": {Pkg: packageZe, Tags: leTags},
-		})
-	}
 
 	r.Display().SetLabel(cli.command)
 	r.Report().SetLabel(cli.command)
