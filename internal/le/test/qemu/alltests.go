@@ -167,6 +167,10 @@ type vmSuite struct {
 	// not run in the guest root namespace. It also records why a suite is in
 	// this list when it gates nowhere else.
 	Why string
+	// Only is the stem of the one test an `all-tests test` run selects, empty
+	// for a whole-suite row. It is not part of Args because the runner reads
+	// its flags up to the first test name: suiteCommand puts it after them.
+	Only string
 }
 
 // vmSuites is every functional suite, in the ORDER the VM runs them.
@@ -840,11 +844,6 @@ func setEnv(environ []string, key, value string) []string {
 	return append(environ, entry)
 }
 
-// suite runs one functional suite, or reports it skipped.
-//
-// A suite that answers 0 without printing a count executed no test, and this
-// is where that becomes a failure rather than a phase the summary counts as
-// passed.
 // executeOne runs the one .ci at a.Test through the VM suite that walks its
 // directory, under the shim, environment and namespace preparation the whole
 // run gives that suite. The runner prints the test's own PASS or SKIP line,
@@ -855,7 +854,7 @@ func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
 		leaction.ReportError(err)
 		return AllTestsReport{}, 1
 	}
-	report := AllTestsReport{Planned: []string{suitePhaseName(suite.Name)}, Selection: a.Test}
+	report := AllTestsReport{Planned: []string{suitePhaseName(suite.Name)}, Test: a.Test}
 	a.note(plan(report.Planned))
 	if suite.Namespace == perTest {
 		if err := a.prepareNamespace(environ); err != nil {
@@ -874,8 +873,8 @@ func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
 var errNotOneCI = errors.New("qemu: all-tests test takes test/<dir>/<name>.ci")
 
 // vmSuiteFor answers the VM suite that runs the .ci at rel, test/<dir>/<name>.ci,
-// with its all-tests flag replaced by the test's stem, so the suite selects that
-// one file. A suite walks the directory its last word names.
+// with its all-tests flag removed and the test's stem in Only, so the suite
+// selects that one file. A suite walks the directory its last word names.
 func vmSuiteFor(rel string) (vmSuite, error) {
 	parts := strings.Split(rel, "/")
 	if len(parts) != 3 {
@@ -896,12 +895,18 @@ func vmSuiteFor(rel string) (vmSuite, error) {
 		if words[len(words)-1] != parts[1] {
 			continue
 		}
-		suite.Args = append(words, stem)
+		suite.Args = words
+		suite.Only = stem
 		return suite, nil
 	}
 	return vmSuite{}, errors.New("qemu: no VM suite runs test/" + parts[1] + "/")
 }
 
+// suite runs one functional suite, or reports it skipped.
+//
+// A suite that answers 0 without printing a count executed no test, and this
+// is where that becomes a failure rather than a phase the summary counts as
+// passed.
 func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 	name := suitePhaseName(suite.Name)
 	if slices.Contains(a.Skip, suite.Name) {
@@ -937,18 +942,24 @@ func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 // `timeout` runs the suite in its own process group. On expiry, it kills the
 // whole group. Thus a stuck ze or plugin child cannot wedge the run.
 func (a *allTestsRun) suiteCommand(suite vmSuite) []string {
-	argv := make([]string, 0, len(suite.Args)+8)
+	argv := make([]string, 0, len(suite.Args)+9)
 	argv = append(argv, "timeout", killAfterFlag, killAfterSeconds, a.Timeout, filepath.Join(a.BinDir, leName), leTestWord)
 	argv = append(argv, suite.Args...)
 
 	switch suite.Concurrency {
 	case takeNoP:
-		return argv
 	case scaledConcurrency:
-		return append(argv, "-p", a.Parallel)
+		argv = append(argv, "-p", a.Parallel)
 	default:
-		return append(argv, "-p", suite.Concurrency)
+		argv = append(argv, "-p", suite.Concurrency)
 	}
+
+	// The runner reads its flags up to the first test name, so the one test
+	// comes last: a `-p` after it would be read as a second test name.
+	if suite.Only != "" {
+		argv = append(argv, suite.Only)
+	}
+	return argv
 }
 
 // unitPhase runs the complete Go package population without -race. The Alpine

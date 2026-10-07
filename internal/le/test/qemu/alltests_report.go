@@ -51,6 +51,10 @@ type AllTestsReport struct {
 	// who cannot see the filter reads "ALL PHASES PASSED" as a verdict over
 	// tests that never ran.
 	Selection string `json:"selection,omitempty"`
+	// Test is the one test/<dir>/<name>.ci an `all-tests test` run ran, the
+	// narrowest selection there is. It is not an `option=` tag, so it is kept
+	// apart from Selection, which names one.
+	Test string `json:"test,omitempty"`
 	// Planned names every phase the run intended to reach, in order, as it was
 	// known before the first child started. A run that ends early is then a run
 	// whose Phases are shorter than its Planned, rather than a run that looks
@@ -119,6 +123,9 @@ func (r AllTestsReport) Text() string {
 	if r.Selection != "" {
 		tb.Str("selection: only the .ci tests marked option=").Str(r.Selection).
 			Str(" ran; the unit, installer and integration phases are unfiltered\n")
+	}
+	if r.Test != "" {
+		tb.Str("selection: only ").Str(r.Test).Str(" ran\n")
 	}
 	tb.Str("phases: ").Int(int64(ran)).Str(" ran, ").Int(int64(skipped)).Str(" skipped, ").
 		Int(int64(len(r.Planned))).Str(" planned\n")
