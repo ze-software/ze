@@ -11,6 +11,7 @@ model and does not copy them.
 <!-- source: internal/le/feature/declaration.go -- Parse, Load -->
 <!-- source: internal/le/feature/check.go -- Check -->
 <!-- source: internal/le/feature/runrecord.go -- RunRecord -->
+<!-- source: internal/le/feature/scenariotree.go -- scenarioTreeID -->
 
 ## The declaration
 
@@ -48,7 +49,7 @@ Supported requires, among the criteria the report names:
 | Criterion | Evidence the check reads |
 |-----------|--------------------------|
 | S1 real path | at least one real-path test, and a recorded green run of each one's present content |
-| S2 interop | for a protocol feature, at least one Interop scenario not listed in Stub evidence |
+| S2 interop | for a protocol feature, at least one Interop scenario not listed in Stub evidence, and a recorded green run of each such scenario's present directory |
 | S3 RFC | each listed enrolled stem published as supported by the RFC ledger, with no gated requirement marked `{gap}`; an unenrolled stem is reported as a bound |
 | S4 docs | a Docs page and a Doc review |
 | S5 defects | no `plan/immediate/` spec naming a Components path in its Files to Modify, and a Defect review no older than the newest journal row naming one ("re-review owed") |
@@ -77,18 +78,29 @@ An `Extra criteria` cell holds items separated by `; `, each
 `<level>: <criterion> = <evidence>`. The evidence is a pointer, resolved as an
 Interop entry, a real-path test item or a repository path, or a dated
 attestation. A pointer that does not resolve leaves the gated level and every
-level above it unmet.
+level above it unmet, and so does an Interop entry pointer with no current
+recorded green run.
 
 A path that does not exist, escapes the repository, or names a Go test function
 its file does not declare is refused at every level.
 
 ## Recorded runs
 
-"The test exists" never reaches Supported. A green run is recorded in
-`features/runs/<id>.json`, committed beside the declarations, with the git blob
-id of the test file when it passed. The run is current while the file's blob
-id is unchanged; editing the test makes the run stale. Only passes are
-recorded.
+"The test exists" never reaches Supported, and neither does "the scenario
+exists". A green run is recorded in `features/runs/<id>.json`, committed beside
+the declarations: under `runs`, each real-path test with the git blob id of its
+file when it passed; under `interop`, each Interop entry that counts toward a
+level (every one not listed in Stub evidence, and every extra criterion pointer
+naming one) with the git tree id of its scenario directory when it passed. A run
+is current while that id is unchanged; editing the test or anything in the
+scenario directory makes the run stale. Only passes are recorded.
+
+Both ids are computed over the working tree, so a run recorded before a commit
+stays current through it, and a shallow CI checkout needs no history. The tree
+id covers the files git would track under the scenario directory, tracked or
+untracked but never ignored, each hashed as it is on disk; on a clean checkout
+it equals `git rev-parse HEAD:<dir>`. A record written before interop runs were
+recorded has no `interop` key and reads as no scenario run.
 
 `./le feature record-run feature <id>` is the writer. It runs each real-path
 item through the repository's own runner, `go test -run ^Name$ -v` for a Go test
@@ -101,6 +113,16 @@ nothing exits 0. A `test/pppoe/` test declares `option=netns-link` and skips
 outside `./le test qemu pppoe-test`, so elsewhere record-run observes a skip,
 not a pass, and records nothing. A failure, a missing PASS line, or
 a test file that changed during the run writes nothing.
+
+It then runs each counted Interop entry through its suite's own runner: the
+catalog's `RunScenario` (`interoplab.Catalog`), which each lab registers beside
+its scenario list and which calls the same `RunAt` its `./le test integration`
+or `./le test deployment` action calls, with the scenario name as the selector.
+Docker is required. The observation is the suite report: it must report
+exactly one scenario, under that name, passed, with no setup error and exit
+code 0. A failed scenario, a report of another scenario or of none, a run that
+outlasts its two-hour deadline, or a scenario directory that changed during the
+run writes nothing.
 
 ## Attestations
 

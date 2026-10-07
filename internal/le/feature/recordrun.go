@@ -3,11 +3,14 @@
 // Related: check.go -- the S1 criterion that consumes it
 //
 // The writer records only what it watched pass. It runs every real-path test
-// item of one feature through the repository's own runners, refuses the whole
-// record when one item fails, when the output does not show that item passing,
-// or when the item's file changed while it ran, and writes nothing in each of
-// those cases. A run that selected no test exits 0 under `go test -run`, so the
-// exit code alone is never the evidence: the item's own PASS line is.
+// item of one feature through the repository's own runners, and every Interop
+// entry that counts toward a level through its suite's own runner (the
+// catalog's RunScenario). It refuses the whole record when one item fails,
+// when the output does not show that item passing, or when the item's file or
+// scenario directory changed while it ran, and writes nothing in each of those
+// cases. A run that selected no test exits 0 under `go test -run`, so the exit
+// code alone is never the evidence: the item's own PASS line is, and for a
+// scenario the suite report's own result for that one scenario.
 
 package feature
 
@@ -20,17 +23,24 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 
 // itemRunDeadline bounds one item's run. An expired deadline is an error, never
 // a red and never a pass: an unmeasured answer is not recorded.
 const itemRunDeadline = 20 * time.Minute
+
+// scenarioRunDeadline bounds one interop scenario's run, image builds
+// included. An expired deadline is an error, never a red and never a pass.
+const scenarioRunDeadline = 2 * time.Hour
 
 // excerptOctetsMax bounds the run output quoted in a refusal.
 const excerptOctetsMax = 4000
@@ -45,8 +55,20 @@ type observation struct {
 // is for a run that could not be made or did not finish.
 type runItem func(item string) (observation, error)
 
-// RecordRun runs every real-path test item of feature id and, only when every
-// one was observed passing, writes features/runs/<id>.json.
+// runScenario runs one Interop entry `<suite>/<scenario>` and answers its
+// suite's report. The error is for a run that could not be made or did not
+// finish.
+type runScenario func(item string) (interoplab.SuiteReport, error)
+
+// runners is what record-run runs items with: one runner per item kind.
+type runners struct {
+	item     runItem
+	scenario runScenario
+}
+
+// RecordRun runs every real-path test item and every counted Interop entry of
+// feature id and, only when every one was observed passing, writes
+// features/runs/<id>.json.
 func RecordRun(tree, id string) (RunRecord, error) {
 	toolchain, err := gotoolchain.New(tree)
 	if err != nil {
@@ -59,18 +81,22 @@ func RecordRun(tree, id string) (RunRecord, error) {
 	runner := &repoRunner{tree: tree, toolchain: toolchain}
 	defer runner.release()
 
-	return recordRun(tree, id, runner.run, commit, time.Now().UTC().Format(time.DateOnly))
+	return recordRun(tree, id, runners{item: runner.run, scenario: catalogScenarioRunner(tree)}, commit,
+		time.Now().UTC().Format(time.DateOnly))
 }
 
 // recordRun is RecordRun with its runner, commit and date passed in, so a test
 // can drive every refusal without a toolchain.
-func recordRun(tree, id string, run runItem, commit, date string) (RunRecord, error) {
+func recordRun(tree, id string, run runners, commit, date string) (RunRecord, error) {
 	declaration, err := declarationNamed(tree, id)
 	if err != nil {
 		return RunRecord{}, err
 	}
-	if len(declaration.RealPathTests) == 0 {
-		return RunRecord{}, errors.New("feature " + id + " lists no real-path test, so there is nothing to run")
+	in := &evidence{tree: tree, scenarios: map[string]map[string]string{}, catalogErrors: map[string]string{}}
+	scenarios := in.interopToRun(&declaration)
+	if len(declaration.RealPathTests) == 0 && len(scenarios) == 0 {
+		return RunRecord{}, errors.New("feature " + id + " lists no real-path test and no counted interop " +
+			"scenario, so there is nothing to run")
 	}
 	record := RunRecord{Feature: id, Runs: make([]TestRun, 0, len(declaration.RealPathTests))}
 	for _, item := range declaration.RealPathTests {
@@ -79,7 +105,7 @@ func recordRun(tree, id string, run runItem, commit, date string) (RunRecord, er
 		if err != nil {
 			return RunRecord{}, err
 		}
-		seen, err := run(item)
+		seen, err := run.item(item)
 		if err != nil {
 			return RunRecord{}, errors.New(item + ": " + err.Error() + "; nothing recorded")
 		}
@@ -97,10 +123,115 @@ func recordRun(tree, id string, run runItem, commit, date string) (RunRecord, er
 		record.Runs = append(record.Runs, TestRun{Test: item, TestBlob: before, Commit: commit, Date: date,
 			Result: runResultPass})
 	}
+	for _, item := range scenarios {
+		scenarioRun, err := recordScenario(in, item, run.scenario)
+		if err != nil {
+			return RunRecord{}, err
+		}
+		scenarioRun.Commit, scenarioRun.Date = commit, date
+		record.Interop = append(record.Interop, scenarioRun)
+	}
 	if err := writeRunRecord(tree, &record); err != nil {
 		return RunRecord{}, err
 	}
 	return record, nil
+}
+
+// interopToRun answers the Interop entries a record must hold a run of: every
+// counted (non-stub) Interop entry, and every extra criterion pointer that
+// names an interop entry, each once, in declaration order.
+func (in *evidence) interopToRun(d *Declaration) []string {
+	scenarios := countedInterop(d)
+	for _, extra := range d.Extra {
+		if extra.Pointer == "" {
+			continue
+		}
+		if !in.isInteropPointer(extra.Pointer) {
+			continue
+		}
+		if slices.Contains(scenarios, extra.Pointer) {
+			continue
+		}
+		scenarios = append(scenarios, extra.Pointer)
+	}
+	return scenarios
+}
+
+// recordScenario runs the Interop entry item once and answers its run, or why
+// it is not recorded: an entry that does not resolve, a run not observed
+// passing, or a scenario directory that changed while it ran.
+func recordScenario(in *evidence, item string, run runScenario) (ScenarioRun, error) {
+	if problem := in.interopItem(item); problem != "" {
+		return ScenarioRun{}, errors.New(problem + "; nothing recorded")
+	}
+	suite, scenario, _ := strings.Cut(item, "/")
+	names, _ := in.catalog(suite)
+	directory := names[scenario]
+	before, err := scenarioTreeID(in.tree, directory)
+	if err != nil {
+		return ScenarioRun{}, err
+	}
+	report, err := run(item)
+	if err != nil {
+		return ScenarioRun{}, errors.New(item + ": " + err.Error() + "; nothing recorded")
+	}
+	if problem := observedScenarioPass(scenario, &report); problem != "" {
+		return ScenarioRun{}, errors.New(item + ": " + problem + "; nothing recorded:\n" + excerpt(report.Text()))
+	}
+	after, err := scenarioTreeID(in.tree, directory)
+	if err != nil {
+		return ScenarioRun{}, err
+	}
+	if after != before {
+		return ScenarioRun{}, errors.New(item + ": " + directory + " changed while it ran, so the pass " +
+			"belongs to neither content; nothing recorded")
+	}
+	return ScenarioRun{Scenario: item, ScenarioTree: before, Result: runResultPass}, nil
+}
+
+// observedScenarioPass answers why report is not a pass of exactly scenario,
+// or "". A suite run whose selector matched another scenario, or more than
+// one, did not prove this one passed.
+func observedScenarioPass(scenario string, report *interoplab.SuiteReport) string {
+	if report.SetupError != "" {
+		return "the suite did not set up: " + report.SetupError
+	}
+	if report.Code != 0 {
+		return "the run failed"
+	}
+	if len(report.Scenarios) != 1 {
+		return "the run reported " + strconv.Itoa(len(report.Scenarios)) + " scenarios, not exactly " + scenario
+	}
+	result := &report.Scenarios[0]
+	if result.Name != scenario {
+		return "the run reported scenario '" + result.Name + "', not " + scenario
+	}
+	if !result.Passed {
+		return "the run reported " + scenario + " failed: " + result.Error
+	}
+	return ""
+}
+
+// catalogScenarioRunner runs an Interop entry through its suite's registered
+// RunScenario, the same runner `./le test integration` and
+// `./le test deployment` drive.
+func catalogScenarioRunner(tree string) runScenario {
+	return func(item string) (interoplab.SuiteReport, error) {
+		suite, scenario, _ := strings.Cut(item, "/")
+		catalog, registered := interoplab.CatalogNamed(suite)
+		if !registered {
+			return interoplab.SuiteReport{}, errors.New("no interop suite '" + suite + "' is registered")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), scenarioRunDeadline)
+		defer cancel()
+
+		report := catalog.RunScenario(ctx, tree, scenario)
+		if ctx.Err() != nil {
+			return interoplab.SuiteReport{}, errors.New("did not finish inside " + scenarioRunDeadline.String() +
+				", so whether it passes is unknown")
+		}
+		return report, nil
+	}
 }
 
 // declarationNamed answers the declaration whose id is id, refusing one that

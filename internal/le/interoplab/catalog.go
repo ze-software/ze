@@ -5,11 +5,15 @@
 // asks for it: `./le feature check` resolves a declaration's Interop entry
 // `<suite>/<scenario>` here. Each suite registers its own catalog, built on the
 // same Discover call and checker map its runner uses, so the names a feature
-// cites are the names the runner runs and no second list exists.
+// cites are the names the runner runs and no second list exists. The catalog
+// also declares how to run ONE of those scenarios through the suite's own
+// runner, which is how `./le feature record-run` records an interop green run
+// without a second resolver.
 
 package interoplab
 
 import (
+	"context"
 	"slices"
 	"sync"
 )
@@ -21,6 +25,11 @@ type Catalog struct {
 	// Scenarios answers the suite's scenarios under the checkout at root,
 	// through Discover with an empty selector.
 	Scenarios func(root string) ([]ScenarioSource, error)
+	// RunScenario runs exactly the scenario named scenario under the checkout
+	// at root through the suite's own runner, with that name as the runner's
+	// selector, and answers the runner's report. It reads no selector variable
+	// from the environment: the argument wins. Docker is required.
+	RunScenario func(ctx context.Context, root, scenario string) SuiteReport
 }
 
 var (
@@ -39,6 +48,9 @@ func RegisterCatalog(catalog Catalog) {
 	}
 	if catalog.Scenarios == nil {
 		panic("BUG: interoplab.RegisterCatalog " + catalog.Suite + " without a Scenarios function")
+	}
+	if catalog.RunScenario == nil {
+		panic("BUG: interoplab.RegisterCatalog " + catalog.Suite + " without a RunScenario function")
 	}
 	if _, held := catalogs[catalog.Suite]; held {
 		panic("BUG: interoplab.RegisterCatalog " + catalog.Suite + " registered twice")

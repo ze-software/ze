@@ -19,8 +19,8 @@ const keyFeature = "feature"
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "check", Why: "refuse a feature declaration whose fields, paths or declared level its " +
-		"evidence does not support; the ceiling is computed from the real-path tests and their recorded " +
-		"green runs, the RFC ledger, the docs, the open immediate specs and the stub markers",
+		"evidence does not support; the ceiling is computed from the real-path tests, the interop " +
+		"scenarios and their recorded green runs, the RFC ledger, the docs, the open immediate specs and the stub markers",
 		Answer: checkAnswer},
 	leaction.Action{Verb: "report", Why: "every declared feature with its kind, scope, level, evidence ceiling, " +
 		"public status, and the unmet criteria between its level and the next one",
@@ -28,9 +28,10 @@ var actions = leaction.New(area,
 			{Keyword: keyFeature, Value: "id", Requirement: leaction.Optional},
 		},
 		AnswerArgs: reportAnswer},
-	leaction.Action{Verb: "record-run", Why: "run every real-path test of one feature through the repository's own " +
-		"runners and record a green run in features/runs/<id>.json only when each one was observed passing; " +
-		"a failure, a run that selected nothing, or a file that changed mid-run records nothing",
+	leaction.Action{Verb: "record-run", Why: "run every real-path test and every counted interop scenario of one feature " +
+		"through the repository's own runners and record a green run in features/runs/<id>.json only when " +
+		"each one was observed passing; a failure, a run that selected nothing, or a file or scenario " +
+		"directory that changed mid-run records nothing",
 		Parameters: []leaction.Parameter{
 			{Keyword: keyFeature, Value: "id", Requirement: leaction.Required},
 		},

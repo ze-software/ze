@@ -153,17 +153,22 @@ func Run() (any, int) {
 	if err != nil {
 		return setupFailure(err)
 	}
-	report, code := RunAt(context.Background(), root)
+	report, code := RunAt(context.Background(), root, "")
 	return report, code
 }
 
 // RunAt runs the selected FreeRADIUS scenarios against root.
-func RunAt(ctx context.Context, root string) (Report, int) {
+// A non-empty selector names the one scenario to run and wins over RADIUS_INTEROP_SCENARIO;
+// an empty one leaves the variable to choose.
+func RunAt(ctx context.Context, root, selector string) (Report, int) {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
 		SelectorVariable: "RADIUS_INTEROP_SCENARIO",
 		SuffixVariable:   "ZE_RADIUS_INTEROP_SUFFIX",
 		DefaultSuffix:    strconv.Itoa(os.Getpid()),
 	})
+	if selector != "" {
+		environment.Selector = selector
+	}
 	return runAt(ctx, root, environment, interoplab.NewDocker())
 }
 

@@ -49,11 +49,20 @@ func fixtureTree(t *testing.T, edit func(string) string) string {
 	for rel, content := range files {
 		writeFile(t, tree, rel, content)
 	}
-	writeFile(t, tree, "test/interop-fixture/scenarios/widget-peer/README", "a scenario directory\n")
-	recordGreenRuns(t, tree, "widget", "test/plugin/widget.ci", "internal/widget/widget_test.go::TestWidget")
+	writeFile(t, tree, fixtureScenarioDir+"/README", "a scenario directory\n")
+	// Seeded before the record: the scenario's tree id is read through git.
 	commitFixture(t, tree, fixtureCommitDate, "seed fixture")
+	recordGreenRuns(t, tree, "widget", []string{fixtureScenario},
+		"test/plugin/widget.ci", "internal/widget/widget_test.go::TestWidget")
+	commitFixture(t, tree, fixtureCommitDate, "record green runs")
 	return tree
 }
+
+// The fixture interop scenario, as a declaration cites it and where it lives.
+const (
+	fixtureScenario    = "fixture/widget-peer"
+	fixtureScenarioDir = "test/interop-fixture/scenarios/widget-peer"
+)
 
 // fixtureCommitDate is older than every attestation in passingDeclaration, so a
 // review dated 2026-10-07 is current against the seeded tree.
@@ -89,6 +98,10 @@ func init() {
 		Scenarios: func(root string) ([]interoplab.ScenarioSource, error) {
 			return interoplab.Discover(filepath.Join(root, "test", "interop-fixture", "scenarios"), "",
 				map[string]interoplab.Checker{"widget-peer": func(context.Context, *interoplab.CheckContext) error { return nil }})
+		},
+		// The check never runs a scenario; record-run tests pass their own runner.
+		RunScenario: func(context.Context, string, string) interoplab.SuiteReport {
+			return interoplab.SuiteReport{SetupError: "the fixture suite runs nothing", Code: 1}
 		}})
 }
 
@@ -103,26 +116,33 @@ func writeFile(t *testing.T, tree, rel, content string) {
 	}
 }
 
-// recordGreenRuns writes a run record holding a green run of each item at the
-// item's present content, which is what `record-run` writes after a pass.
-func recordGreenRuns(t *testing.T, tree, id string, items ...string) {
+// recordGreenRuns writes a run record holding a green run of each test item at
+// the item's present content and of each fixture-suite scenario at its
+// directory's present content, which is what `record-run` writes after a pass.
+func recordGreenRuns(t *testing.T, tree, id string, scenarios []string, items ...string) {
 	t.Helper()
-	var body strings.Builder
-	body.WriteString("{\"feature\": \"" + id + "\", \"runs\": [")
-	for i, item := range items {
+	record := RunRecord{Feature: id}
+	for _, item := range items {
 		file, _, _ := strings.Cut(item, goTestSeparator)
 		blob, err := blobID(tree, file)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if i > 0 {
-			body.WriteString(",")
-		}
-		body.WriteString("{\"test\": \"" + item + "\", \"test-blob\": \"" + blob +
-			"\", \"commit\": \"abc\", \"date\": \"2026-10-07\", \"result\": \"pass\"}")
+		record.Runs = append(record.Runs, TestRun{Test: item, TestBlob: blob, Commit: "abc", Date: "2026-10-07",
+			Result: runResultPass})
 	}
-	body.WriteString("]}\n")
-	writeFile(t, tree, runRecordRel(id), body.String())
+	for _, item := range scenarios {
+		_, name, _ := strings.Cut(item, "/")
+		treeID, err := scenarioTreeID(tree, "test/interop-fixture/scenarios/"+name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		record.Interop = append(record.Interop, ScenarioRun{Scenario: item, ScenarioTree: treeID, Commit: "abc",
+			Date: "2026-10-07", Result: runResultPass})
+	}
+	if err := writeRunRecord(tree, &record); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func same(text string) string { return text }
@@ -343,4 +363,74 @@ func TestCheckRefusesUnmetExtraCriterion(t *testing.T) {
 	}
 	verdict = judgeOne(t, fixtureTree(t, withExtra("supported: fuzzed parser = internal/widget/widget_test.go::FuzzWidget")))
 	requireRefused(t, &verdict, "extra criterion 'fuzzed parser'")
+}
+
+// TestCheckRefusesInteropWithoutCurrentRun is D-6 as the owner reads it: an
+// Interop entry counted toward Supported needs a recorded green run of the
+// scenario directory as it is now, through S2 and through an extra criterion.
+func TestCheckRefusesInteropWithoutCurrentRun(t *testing.T) {
+	verdict := judgeOne(t, fixtureTree(t, protocolWith(fixtureScenario)))
+	if len(verdict.Refusals) > 0 {
+		t.Fatalf("a scenario with a current green run was refused: %v", verdict.Refusals)
+	}
+
+	tree := fixtureTree(t, protocolWith(fixtureScenario))
+	recordGreenRuns(t, tree, "widget", nil, "test/plugin/widget.ci", "internal/widget/widget_test.go::TestWidget")
+	verdict = judgeOne(t, tree)
+	requireRefused(t, &verdict, "S2: "+fixtureScenario+" exists, not run")
+
+	tree = fixtureTree(t, protocolWith(fixtureScenario))
+	writeFile(t, tree, fixtureScenarioDir+"/README", "an edited scenario directory\n")
+	verdict = judgeOne(t, tree)
+	requireRefused(t, &verdict, "S2: "+fixtureScenario+" changed since its recorded green run")
+
+	tree = fixtureTree(t, protocolWith(fixtureScenario))
+	writeFile(t, tree, fixtureScenarioDir+"/frr.conf", "an untracked file the runner would read\n")
+	verdict = judgeOne(t, tree)
+	requireRefused(t, &verdict, "S2: "+fixtureScenario+" changed since its recorded green run")
+
+	tree = fixtureTree(t, func(text string) string {
+		return strings.Replace(text, "| Docs |", "| Extra criteria | supported: lab = "+fixtureScenario+" |\n| Docs |", 1)
+	})
+	recordGreenRuns(t, tree, "widget", nil, "test/plugin/widget.ci", "internal/widget/widget_test.go::TestWidget")
+	verdict = judgeOne(t, tree)
+	requireRefused(t, &verdict, "extra criterion 'lab': "+fixtureScenario+" exists, not run")
+}
+
+// TestScenarioTreeIDIsGitsTreeID: on a clean checkout the scenario identity is
+// the id git itself gives the directory, nested directories and the executable
+// mode included; an edit or an untracked file changes it, an ignored file
+// does not.
+func TestScenarioTreeIDIsGitsTreeID(t *testing.T) {
+	tree := fixtureTree(t, same)
+	writeFile(t, tree, fixtureScenarioDir+"/peer/run.sh", "#!/bin/sh\n")
+	if err := os.Chmod(filepath.Join(tree, fixtureScenarioDir, "peer", "run.sh"), 0o755); err != nil { //nolint:gosec // the executable mode is what the test is about
+		t.Fatal(err)
+	}
+	// "peer.conf" sorts before the directory "peer" in git's order, because
+	// git compares a directory's name as "peer/".
+	writeFile(t, tree, fixtureScenarioDir+"/peer.conf", "a file beside the directory\n")
+	writeFile(t, tree, ".gitignore", "*.log\n")
+	commitFixture(t, tree, fixtureCommitDate, "nest the scenario")
+	cmd := exec.CommandContext(t.Context(), "git", "-C", tree, "rev-parse", "HEAD:"+fixtureScenarioDir)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clean, err := scenarioTreeID(tree, fixtureScenarioDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.TrimSpace(string(out)); clean != want {
+		t.Fatalf("scenario tree id %s, git says %s", clean, want)
+	}
+
+	writeFile(t, tree, fixtureScenarioDir+"/run.log", "ignored output\n")
+	if ignored, err := scenarioTreeID(tree, fixtureScenarioDir); err != nil || ignored != clean {
+		t.Fatalf("an ignored file changed the id: %s (err %v), want %s", ignored, err, clean)
+	}
+	writeFile(t, tree, fixtureScenarioDir+"/peer/extra.conf", "untracked\n")
+	if untracked, err := scenarioTreeID(tree, fixtureScenarioDir); err != nil || untracked == clean {
+		t.Fatalf("an untracked file left the id at %s (err %v)", untracked, err)
+	}
 }

@@ -6,4 +6,4 @@ the suite only because it takes its original name back.
 
 | Test | Reason |
 |------|--------|
-| TestTheFeaturesPageUsesTheSharedShell | Renamed back to `TestTheFeaturesPageReadsAsThePublishedPage`, which keeps every chrome check this test held and restores the body golden and the byte-for-byte mirror golden it had dropped. Nothing left the suite. |
+| recordedTree | Extracted, not a weakening: its body moved into `recordedTreeOf(t, edit)` (recordrun_test.go), which applies a declaration edit first; recordedTree now calls it with the identity edit, so the os.Remove error check still runs for every caller. |

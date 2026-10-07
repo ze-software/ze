@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -127,8 +128,9 @@ func (in *evidence) staleDefectReview(d *Declaration, verdict *Verdict) {
 	}
 }
 
-// catalog answers the scenario names of one interop suite, read once per run.
-func (in *evidence) catalog(suite string) (map[string]bool, bool) {
+// catalog answers the scenarios of one interop suite, name -> directory
+// relative to the tree, read once per run.
+func (in *evidence) catalog(suite string) (map[string]string, bool) {
 	if names, held := in.scenarios[suite]; held {
 		return names, true
 	}
@@ -136,13 +138,18 @@ func (in *evidence) catalog(suite string) (map[string]bool, bool) {
 	if !registered {
 		return nil, false
 	}
-	names := map[string]bool{}
+	names := map[string]string{}
 	sources, err := catalog.Scenarios(in.tree)
 	if err != nil {
 		in.catalogErrors[suite] = err.Error()
 	}
 	for _, source := range sources {
-		names[source.Name] = true
+		rel, err := filepath.Rel(in.tree, source.Directory)
+		if err != nil {
+			in.catalogErrors[suite] = err.Error()
+			continue
+		}
+		names[source.Name] = filepath.ToSlash(rel)
 	}
 	in.scenarios[suite] = names
 	return names, true
@@ -163,25 +170,83 @@ func (in *evidence) interopItem(item string) string {
 	if problem, failed := in.catalogErrors[suite]; failed {
 		return "'" + item + "': suite " + suite + " cannot list its scenarios: " + problem
 	}
-	if !names[scenario] {
+	if _, listed := names[scenario]; !listed {
 		return "'" + item + "': suite " + suite + " runs no scenario named '" + scenario + "'"
 	}
 	return ""
 }
 
+// isInteropPointer reports whether pointer names an interop entry: a
+// `<suite>/...` whose suite is a registered catalog.
+func (in *evidence) isInteropPointer(pointer string) bool {
+	suite, _, found := strings.Cut(pointer, "/")
+	if !found {
+		return false
+	}
+	_, registered := in.catalog(suite)
+	return registered
+}
+
+// interopRun answers why the Interop entry item of feature id has no current
+// recorded green run, or "" (D-6 as the owner reads it: interop scenarios
+// too). An entry that does not resolve answers "": interopItem refused it.
+func (in *evidence) interopRun(id, item string) string {
+	if in.interopItem(item) != "" {
+		return ""
+	}
+	suite, scenario, _ := strings.Cut(item, "/")
+	names, _ := in.catalog(suite)
+	tree, err := scenarioTreeID(in.tree, names[scenario])
+	if err != nil {
+		return item + ": " + err.Error()
+	}
+	record, err := loadRunRecord(in.tree, id)
+	if err != nil {
+		return err.Error()
+	}
+	switch record.scenarioStateOf(item, tree) {
+	case runStateCurrent:
+		return ""
+	case runStateNotRun:
+		return item + " exists, not run (no green run recorded in " + runRecordRel(id) + ")"
+	case runStateStale:
+		return item + " changed since its recorded green run"
+	case runStateUnspecified:
+		panic("BUG: scenarioStateOf answered no run state")
+	}
+	panic("BUG: scenarioStateOf answered an unknown run state")
+}
+
+// countedInterop answers the Interop entries that count toward a level: every
+// one not listed in Stub evidence.
+func countedInterop(d *Declaration) []string {
+	var counted []string
+	for _, item := range d.Interop {
+		if !slices.Contains(d.StubEvidence, item) {
+			counted = append(counted, item)
+		}
+	}
+	return counted
+}
+
 // criterionInterop is S2: a protocol feature reaches Supported only with at
-// least one non-stub interop scenario. For the other kinds S2 is not an
-// interop-lab scenario (spec, per-Kind table), so a feature that needs it
+// least one non-stub interop scenario, and every non-stub one needs a recorded
+// green run of the scenario as it is now (D-6). For the other kinds S2 is not
+// an interop-lab scenario (spec, per-Kind table), so a feature that needs it
 // carries it as an extra criterion.
-func criterionInterop(d *Declaration, verdict *Verdict) {
+func (in *evidence) criterionInterop(d *Declaration, verdict *Verdict) {
 	if d.Kind != KindProtocol {
 		return
 	}
-	for _, item := range d.Interop {
-		if !slices.Contains(d.StubEvidence, item) {
-			return
+	counted := countedInterop(d)
+	if len(counted) == 0 {
+		verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported],
+			"S2: no non-stub interop scenario is listed for a protocol feature")
+		return
+	}
+	for _, item := range counted {
+		if problem := in.interopRun(d.ID, item); problem != "" {
+			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S2: "+problem)
 		}
 	}
-	verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported],
-		"S2: no non-stub interop scenario is listed for a protocol feature")
 }

@@ -70,11 +70,11 @@ func runGeneralInterop(ctx context.Context, root string) (any, int) {
 }
 
 func runIPsecInterop(ctx context.Context, root string) (any, int) {
-	return interopipsec.RunAt(ctx, root)
+	return interopipsec.RunAt(ctx, root, "")
 }
 
 func runRADIUSInterop(ctx context.Context, root string) (any, int) {
-	return interopradius.RunAt(ctx, root)
+	return interopradius.RunAt(ctx, root, "")
 }
 
 func runStressBirdGate(_ context.Context, _ string) (any, int) {

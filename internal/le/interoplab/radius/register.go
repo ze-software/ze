@@ -1,6 +1,7 @@
 package radius
 
 import (
+	"context"
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -8,10 +9,15 @@ import (
 
 // The catalog resolves through the same Discover call and checker map this
 // lab's runner builds its scenarios from, so a scenario a feature cites is one
-// the lab runs. A catalog names scenarios and runs none of them.
+// the lab runs. RunScenario runs one of them through this lab's own runner,
+// with the scenario name as its selector.
 func init() {
 	interoplab.RegisterCatalog(interoplab.Catalog{Suite: "radius",
 		Scenarios: func(root string) ([]interoplab.ScenarioSource, error) {
 			return interoplab.Discover(filepath.Join(root, labDirectory, "scenarios"), "", scenarioCheckerMap(interoplab.ReadEnvironment(interoplab.EnvironmentOptions{}).SessionTimeout))
+		},
+		RunScenario: func(ctx context.Context, root, scenario string) interoplab.SuiteReport {
+			report, _ := RunAt(ctx, root, scenario)
+			return report.SuiteReport
 		}})
 }

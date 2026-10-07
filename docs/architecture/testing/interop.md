@@ -39,8 +39,13 @@ Each lab registers one in its `register.go` (`interoplab.RegisterCatalog`,
 checker map its runner uses, so a name cited elsewhere is a name the runner
 runs. `./le feature check` resolves a feature's Interop entry
 `<suite>/<scenario>` this way, and names the registered suites when it refuses
-one it does not know.
-<!-- source: internal/le/interoplab/catalog.go -- RegisterCatalog, CatalogNamed -->
+one it does not know. The catalog also declares `RunScenario`, which runs ONE
+scenario through the lab's own `RunAt` with the name as its selector, winning
+over the lab's selector variable. `./le feature record-run` records an interop
+green run through it, against the scenario directory's git tree id, so a
+feature's Supported claim needs a current green run of each scenario it counts
+(`docs/contributing/feature-maturity.md`, "Recorded runs").
+<!-- source: internal/le/interoplab/catalog.go -- RegisterCatalog, CatalogNamed, Catalog.RunScenario -->
 
 A scenario directory carries only declarative inputs its runner reads: `ze.conf`
 plus the peer configuration and argument files that topology needs. Assertions

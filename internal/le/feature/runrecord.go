@@ -13,6 +13,11 @@
 // run is current exactly when that id equals the file's blob id now. A date
 // comparison would need git history the shallow CI checkout does not hold, and
 // would call a reverted edit stale.
+//
+// The owner's reading of D-6 covers interop scenarios too: an Interop entry
+// counted toward a level needs a recorded green run of the scenario as it is
+// now. A scenario is a directory, so its identity is the git TREE id of that
+// directory, computed over the working tree the way blobID computes a file's.
 
 package feature
 
@@ -39,6 +44,9 @@ const runResultPass = "pass"
 type RunRecord struct {
 	Feature string    `json:"feature"`
 	Runs    []TestRun `json:"runs"`
+	// Interop is absent from a record written before interop runs were
+	// recorded, which reads as no scenario run: the truthful answer.
+	Interop []ScenarioRun `json:"interop,omitempty"`
 }
 
 // TestRun is one recorded green run of one real-path test item.
@@ -53,12 +61,25 @@ type TestRun struct {
 	Result string `json:"result"`
 }
 
+// ScenarioRun is one recorded green run of one interop scenario.
+type ScenarioRun struct {
+	// Scenario is the Interop entry exactly as the declaration lists it,
+	// `<suite>/<scenario>`.
+	Scenario string `json:"scenario"`
+	// ScenarioTree is the git tree id of the scenario directory when it ran.
+	ScenarioTree string `json:"scenario-tree"`
+	// Commit is HEAD when it ran, for a reader; freshness never reads it.
+	Commit string `json:"commit"`
+	Date   string `json:"date"`
+	Result string `json:"result"`
+}
+
 // runState is the answer for one real-path test item.
 type runState uint8
 
 const (
 	runStateUnspecified runState = iota
-	// runStateCurrent: a green run is recorded for the file's present content.
+	// runStateCurrent: a green run is recorded for the present content.
 	runStateCurrent
 	// runStateNotRun: the test exists and no green run is recorded for it.
 	runStateNotRun
@@ -89,6 +110,11 @@ func loadRunRecord(tree, id string) (RunRecord, error) {
 			return RunRecord{}, errors.New(rel + ": run of " + run.Test + " has result '" + run.Result + "'; only a pass is recorded")
 		}
 	}
+	for _, run := range record.Interop {
+		if run.Result != runResultPass {
+			return RunRecord{}, errors.New(rel + ": run of " + run.Scenario + " has result '" + run.Result + "'; only a pass is recorded")
+		}
+	}
 	return record, nil
 }
 
@@ -113,6 +139,22 @@ func (r RunRecord) stateOf(item, blob string) runState {
 	return state
 }
 
+// scenarioStateOf answers whether the Interop entry item has a current green
+// run in record. tree is the scenario directory's git tree id now.
+func (r RunRecord) scenarioStateOf(item, tree string) runState {
+	state := runStateNotRun
+	for _, run := range r.Interop {
+		if run.Scenario != item {
+			continue
+		}
+		if run.ScenarioTree == tree {
+			return runStateCurrent
+		}
+		state = runStateStale
+	}
+	return state
+}
+
 // blobID answers the git blob id of the file at rel: SHA-1 over
 // "blob <size>\x00<content>", the id `git hash-object` prints.
 func blobID(tree, rel string) (string, error) {
@@ -120,8 +162,14 @@ func blobID(tree, rel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	hash := sha1.New() //nolint:gosec // the git blob id is SHA-1 by definition
-	hash.Write([]byte("blob " + strconv.Itoa(len(content)) + "\x00"))
+	return hex.EncodeToString(gitObjectID("blob", content)), nil
+}
+
+// gitObjectID answers the raw git object id of content stored as kind: SHA-1
+// over "<kind> <size>\x00<content>".
+func gitObjectID(kind string, content []byte) []byte {
+	hash := sha1.New() //nolint:gosec // the git object id is SHA-1 by definition
+	hash.Write([]byte(kind + " " + strconv.Itoa(len(content)) + "\x00"))
 	hash.Write(content)
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return hash.Sum(nil)
 }

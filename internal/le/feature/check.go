@@ -50,9 +50,10 @@ type evidence struct {
 	immediate map[string]string // spec path -> its Files to Modify section
 	journal   []journal.Row
 	dates     *changeDates
-	// scenarios caches each interop suite's scenario names; catalogErrors
-	// holds the suites whose catalog could not list them.
-	scenarios     map[string]map[string]bool
+	// scenarios caches each interop suite's scenarios, name -> directory
+	// relative to tree; catalogErrors holds the suites whose catalog could
+	// not list them.
+	scenarios     map[string]map[string]string
 	catalogErrors map[string]string
 }
 
@@ -80,7 +81,7 @@ func Check(tree string) ([]Verdict, []error, error) {
 		return nil, nil, err
 	}
 	in := &evidence{tree: tree, rfc: collected, immediate: immediate, journal: rows, dates: dates,
-		scenarios: map[string]map[string]bool{}, catalogErrors: map[string]string{}}
+		scenarios: map[string]map[string]string{}, catalogErrors: map[string]string{}}
 	byID := make(map[string]*Declaration, len(declarations))
 	for i := range declarations {
 		byID[declarations[i].ID] = &declarations[i]
@@ -114,7 +115,7 @@ func (in *evidence) judge(d *Declaration) Verdict {
 		return verdict
 	}
 	in.criterionRealPath(d, &verdict)
-	criterionInterop(d, &verdict)
+	in.criterionInterop(d, &verdict)
 	in.criterionRFC(d, &verdict)
 	in.criterionDocs(d, &verdict)
 	in.criterionDefects(d, &verdict)

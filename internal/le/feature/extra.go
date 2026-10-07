@@ -107,7 +107,7 @@ func (in *evidence) criterionExtra(d *Declaration, verdict *Verdict) {
 		if extra.Pointer == "" {
 			continue // a dated attestation is the evidence; staleness is the reviewer's.
 		}
-		problem := in.extraPointer(extra.Pointer)
+		problem := in.extraPointer(d.ID, extra.Pointer)
 		if problem == "" {
 			continue
 		}
@@ -121,13 +121,15 @@ func (in *evidence) criterionExtra(d *Declaration, verdict *Verdict) {
 }
 
 // extraPointer resolves a pointer as its own field would: an interop entry
-// through the suite catalog, a test item through testItem, anything else as a
+// through the suite catalog and, as it counts toward a level, its recorded
+// green run (D-6); a test item through testItem; anything else as a
 // repository path.
-func (in *evidence) extraPointer(pointer string) string {
-	if suite, _, found := strings.Cut(pointer, "/"); found {
-		if _, registered := in.catalog(suite); registered {
-			return in.interopItem(pointer)
+func (in *evidence) extraPointer(id, pointer string) string {
+	if in.isInteropPointer(pointer) {
+		if problem := in.interopItem(pointer); problem != "" {
+			return problem
 		}
+		return in.interopRun(id, pointer)
 	}
 	if strings.Contains(pointer, goTestSeparator) {
 		return in.testItem(pointer)

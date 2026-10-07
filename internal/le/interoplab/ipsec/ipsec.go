@@ -117,18 +117,23 @@ func Run() (any, int) {
 		report := Report{SetupError: err.Error(), Code: 1}
 		return report, 1
 	}
-	report, code := RunAt(context.Background(), root)
+	report, code := RunAt(context.Background(), root, "")
 	return report, code
 }
 
 // RunAt runs the selected strongSwan scenarios against root.
-func RunAt(ctx context.Context, root string) (Report, int) {
+// A non-empty selector names the one scenario to run and wins over IPSEC_INTEROP_SCENARIO;
+// an empty one leaves the variable to choose.
+func RunAt(ctx context.Context, root, selector string) (Report, int) {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
 		SelectorVariable: "IPSEC_INTEROP_SCENARIO",
 		SuffixVariable:   "ZE_IPSEC_INTEROP_SUFFIX",
 		DefaultImage:     defaultFRRImage,
 		DefaultSuffix:    strconv.Itoa(os.Getpid()),
 	})
+	if selector != "" {
+		environment.Selector = selector
+	}
 	return runAt(ctx, root, environment, interoplab.NewDocker())
 }
 

@@ -89,7 +89,7 @@ func TestCheckAcceptsAnEditorTest(t *testing.T) {
 		editorItem: "5.9s     1/1  PASS  100  " + editorItem + "\npass  1/1  100.0%  5.9s\n",
 		"internal/widget/widget_test.go::TestWidget": passOutputs["internal/widget/widget_test.go::TestWidget"],
 	}
-	if _, err := recordRun(tree, "widget", fakeRunner(outputs), "abc", "2026-10-07"); err != nil {
+	if _, err := recordRun(tree, "widget", runners{item: fakeRunner(outputs)}, "abc", "2026-10-07"); err != nil {
 		t.Fatal(err)
 	}
 	verdict := judgeOne(t, tree)
@@ -109,7 +109,7 @@ func TestRecordRunRefusesAnEditorPassForAnotherFile(t *testing.T) {
 		editorItem: "5.9s     1/1  PASS  100  widget\n",
 		"internal/widget/widget_test.go::TestWidget": passOutputs["internal/widget/widget_test.go::TestWidget"],
 	}
-	_, err := recordRun(tree, "widget", fakeRunner(outputs), "abc", "2026-10-07")
+	_, err := recordRun(tree, "widget", runners{item: fakeRunner(outputs)}, "abc", "2026-10-07")
 	if err == nil || !strings.Contains(err.Error(), "no PASS line for "+editorItem) {
 		t.Fatalf("error %v, want a refusal naming %s", err, editorItem)
 	}
