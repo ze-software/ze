@@ -1,0 +1,18 @@
+# Test: commit-revisions caps the files a file:// archive location keeps
+# VALIDATES: with `commit-revisions 2` and a file:// archive block, three
+#   `ze config archive local` runs against a live daemon leave exactly the two
+#   newest archive files, oldest pruned first, and a .conf file no archive block
+#   wrote stays in place.
+# PREVENTS: the cap being parsed but never applied, so an archive directory grows
+#   without bound on a router that archives on every change.
+#
+# The fixture (internal/test/fixture/config_archive_prune_fixture.go) starts the
+# daemon itself, because the archive location must be an absolute path private
+# to this run and the CLI needs the daemon's SSH credentials. It returns an
+# error, reported through ZE-OBSERVER-FAIL, when any round's file set differs
+# from the newest two.
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=le test fixture ui/config-archive-prune
+expect=exit:code=0
+expect=stdout:contains=OK: commit-revisions 2 kept
