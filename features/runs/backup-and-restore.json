@@ -1,0 +1,68 @@
+{
+  "feature": "backup-and-restore",
+  "runs": [
+    {
+      "test": "test/plugin/data-backup.ci",
+      "test-blob": "e82b7eea791889a40938639db86012b83ac9c6b7",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/data-backup-live.ci",
+      "test-blob": "cabb55162a1dab2b1e39f99a696f59fd65719c1f",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/data-backup-refused-live.ci",
+      "test-blob": "54ccae609fca90ce452ec2ac8fc2c66796b41c2d",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/data-restore-config.ci",
+      "test-blob": "31d13ef7dc17f703b0f2af635ed9f1e208dbba84",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/data-restore-config-live.ci",
+      "test-blob": "68bad768cab55f2fb810917976a0a918b267d868",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/data-restore-full.ci",
+      "test-blob": "6bd374709cd1b1b0ca87b39755e1a53c8b6b9ceb",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/data-restore-full-refused-live.ci",
+      "test-blob": "ad69d04ae456a0284584c6175f2b748f5efcb9ec",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/data-restore-full-resume.ci",
+      "test-blob": "60ff82b60033809ba8327849a6c4d7218118d29b",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/managed/data-restore-client-live.ci",
+      "test-blob": "0a579c7cb73f015d610bd5b6ffd0342fc5184af3",
+      "commit": "4a301468e077fbd7f4785f2f2b342c405ad3e926",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}

@@ -7,11 +7,11 @@
 | Name | Password Weakness Warning |
 | Kind | daemon |
 | Scope | complete |
-| Level | experimental |
+| Level | supported |
 | Components | internal/component/config/password_strength.go, internal/component/config/password_hash.go, internal/plugins/passwd |
 | Real-path tests | test/parse/password-weakness-warning.ci |
 | Docs | docs/guide/authentication.md |
-| Doc review | 2026-10-07: passwordDenylist in password_strength.go holds exactly the eight named passwords |
+| Doc review | 2026-10-07: re-read at promotion; passwordDenylist holds exactly the eight named passwords, PasswordMinLength is 8, and PasswordWeakness is called from passwd, the loader, the editor commit and set paths, and HashedPassword; matches the row |
 | Defect review | 2026-10-07: plan/spec-password-weakness-warning.md in progress (review gate empty, the .ci never ran) |
 
 ## Description

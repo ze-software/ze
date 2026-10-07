@@ -1,0 +1,12 @@
+{
+  "feature": "config-dependency-graph",
+  "runs": [
+    {
+      "test": "test/parse/cli-config-graph.ci",
+      "test-blob": "42b80f9f534c9039175dcf598ce658225553128a",
+      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}

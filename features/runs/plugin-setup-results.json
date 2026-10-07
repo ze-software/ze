@@ -1,0 +1,40 @@
+{
+  "feature": "plugin-setup-results",
+  "runs": [
+    {
+      "test": "test/parse/show-plugin-list.ci",
+      "test-blob": "1256eaefdf0b8c202e783884b0e28b797cb08512",
+      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/parse/show-plugin-list-memlock.ci",
+      "test-blob": "9a677b2b1ddc5a1e6d96b8b5968c424f44886a49",
+      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "cmd/ze/hub/startup_gate_test.go::TestRunRefusesOnHardSetupFailure",
+      "test-blob": "6270d52417ece1aa28b1f7377ffe78c4443f95ec",
+      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "cmd/ze/hub/startup_gate_test.go::TestRunRefusalNamesEveryHardFailure",
+      "test-blob": "6270d52417ece1aa28b1f7377ffe78c4443f95ec",
+      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "cmd/ze/hub/startup_gate_test.go::TestCLIVerbUnaffectedByHardSetupFailure",
+      "test-blob": "6270d52417ece1aa28b1f7377ffe78c4443f95ec",
+      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}
