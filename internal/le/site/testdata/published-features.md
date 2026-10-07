@@ -190,7 +190,7 @@ Implemented and tested, still waiting for production evidence.
 
 ### Development Activity
 
-*observe / Experimental* -- `Heatmap` `Live data`
+*observe / Experimental* -- `Heatmap` `Rebuilt each publish`
 
 - A year of **commits** and added lines, at a glance
 - Built from git history each time

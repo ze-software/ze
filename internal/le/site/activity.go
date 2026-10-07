@@ -69,7 +69,7 @@ func renderActivityPage(paths Paths) ([]string, error) {
 	shell := pageShell{
 		Title: "Development Activity - Ze",
 		Description: "A year of Ze's commit and added-line history, visualized as a " +
-			"calendar heatmap. Live data, regenerated from git history.",
+			"calendar heatmap, rebuilt from git history at each publish.",
 		Root:      activityRoot,
 		Path:      activityDest,
 		ExtraHead: activityStyle,
