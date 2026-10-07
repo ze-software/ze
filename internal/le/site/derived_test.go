@@ -99,7 +99,7 @@ func TestEachLLMSSectionCarriesItsOwnInput(t *testing.T) {
 		{"Product snapshot", "52 shipped or experimental feature cards, 402 CLI commands"},
 		{"Quality and verification model", "`./le verify worktree` runs the whole native verification"},
 		{"Comparison positioning", "Ze is compared with VyOS and freeRtr"},
-		{"Feature inventory", "- AI Tool Interfaces [automate, current]: chips: MCP"},
+		{"Feature inventory", "- AI Tool Interfaces [automate, experimental]: chips: MCP"},
 		{"Configuration model roots", "- `bgp`: BGP speaker configuration. Children: group, neighbor."},
 		{"Plugin registry", "- `bfd`: Bidirectional Forwarding Detection"},
 		{"CLI command surface", "- `show bgp` (read-only; wire ze-bgp:overview"},
