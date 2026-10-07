@@ -263,39 +263,57 @@ protocol to know about the node but treat it as administratively down.
 
 ### Schema Stamp
 
-Committed config files carry a schema stamp as the first line:
+Committed config files carry a schema stamp as the first line, naming the Ze
+release that wrote them (`YY.MM.DD`):
 
 ```
-# ze-schema: 1
+# ze-schema: 26.10.07
 ```
 
-The stamp is a comment (ignored by all parsers) that records which schema
-revision produced the file. It is re-emitted from a binary constant on every
-commit, not stored in the YANG tree. Files without a stamp are treated as
-revision 0 (pre-stamping).
+The stamp is a comment (ignored by all parsers). `FormatSchemaStamp` builds it
+from `version.Release()` and every persistence site re-emits it: the editor
+commit, schema evolution at startup, and downgrade recovery. It is not stored
+in the YANG tree. `ScanStampRelease` reads it back from the first line, and a
+file without a stamp yields an empty release. `version.CompareReleases` sorts
+an empty or unparseable release (such as a dev build's `dev`) as older than
+every dated one, so an unstamped file is never "newer" than the binary.
+
+<!-- source: internal/component/config/stamp.go -- FormatSchemaStamp, ScanStampRelease -->
+<!-- source: internal/core/version/version.go -- CompareReleases, IsNewerRelease -->
 
 #### Downgrade Recovery
 
-When ze starts and fails to parse `config.conf`, it checks whether the stamp
-is newer than the binary's own `SchemaStamp`. If so, the binary was downgraded
-and the config was written by a newer version. Ze walks the rollback directory
-(newest-first), skipping files with stamps above its own, and attempts a full
-parse on each candidate. The first rollback file that parses successfully
-becomes the active config. Ze writes it back to `config.conf` (stamped with
-the current binary's revision) so the running config matches what is on disk.
+When ze starts and `LoadConfig` fails on the active config, the hub calls
+`RecoverConfig`, unless the failure is a `ze:validate` refusal
+(`ErrCustomValidation`): a value the rules refuse is reported, never answered
+by starting on an older config. Recovery needs the persistent store, so a
+config read from stdin is not recovered.
+
+`RecoverConfig` acts only when the stamp on the failing config names a newer
+release than the binary's own, meaning the binary was downgraded. It then walks
+the config's history in the store (`ListVersions`, newest first), skips each
+version whose stamp is also newer than the binary, and attempts a full parse on
+the rest. The first version that parses becomes the running config.
 
 | Step | What happens |
 |------|-------------|
-| 1 | `LoadConfig` fails, stamp on `config.conf` > binary's `SchemaStamp` |
-| 2 | Walk `rollback/` newest-first, skip files with stamp > `SchemaStamp` |
-| 3 | Attempt full parse on each candidate (stamp is a hint, parse is the gate) |
-| 4 | First successful parse: write it back to `config.conf` with current stamp |
-| 5 | If none parse: refuse to start with a clear error |
+| 1 | `LoadConfig` fails, the failure is not `ErrCustomValidation`, and a store is open |
+| 2 | The stamp on the failing config is newer than `version.Release()`; otherwise ze refuses to start with the load error |
+| 3 | Walk history newest first, skip versions stamped newer than the binary |
+| 4 | Full parse on each candidate (the stamp is a hint, the parse is the gate) |
+| 5 | First success: the failing config is written into history (`WriteVersion`), so it is kept, not lost |
+| 6 | The recovered tree, re-stamped with this binary's release, is published through the store as a candidate and promoted to active; with an explicit config file the commit also writes that file |
+| 7 | If no version parses, or publication fails, ze refuses to start with a clear error |
+
+Publication refuses when the active config changed while recovery ran
+("configuration changed externally during schema recovery").
 
 Recovery runs at startup only, not on SIGHUP reload. A reload failure during
 runtime surfaces as an error rather than silently reverting to old config.
 
-<!-- source: internal/component/config/stamp.go -->
+<!-- source: internal/component/config/stamp.go -- RecoverConfig -->
+<!-- source: cmd/ze/hub/main.go -- recoverableLoadError, startup LoadConfig failure branch -->
+<!-- source: cmd/ze/hub/config_source.go -- publishRecoveredConfig, promoteConfigCandidate -->
 
 ---
 

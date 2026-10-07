@@ -1,0 +1,12 @@
+{
+  "feature": "config-schema-stamp",
+  "runs": [
+    {
+      "test": "test/ui/config-schema-stamp-recovers.ci",
+      "test-blob": "b4b99b9d7e35e286c139bee03080e85dc38a2dbb",
+      "commit": "d70bbec7fcf911d53a29d287c7538ed0c66bc621",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}

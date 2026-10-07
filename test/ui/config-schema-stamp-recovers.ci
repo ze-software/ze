@@ -1,0 +1,35 @@
+# Test: a daemon started on a config stamped by a newer release recovers the
+#       newest parseable rollback version and runs on it.
+# VALIDATES: RecoverConfig (internal/component/config/stamp.go), reached from
+#            the LoadConfig failure branch of the hub (cmd/ze/hub/main.go):
+#            the active config carries `# ze-schema: 99.12.31` and does not
+#            parse, so startup walks history newest first, skips the version a
+#            newer release wrote, loads the older compatible one, backs up the
+#            newer config into history, and publishes the recovered config
+#            re-stamped with this release.
+# PREVENTS: a daemon that refuses to start after a downgrade although a
+#           compatible config sits in its own history, and a recovery that
+#           loses the newer config instead of keeping it.
+#
+# The fixture config/schema-stamp-seed
+# (internal/test/fixture/register_config_schema_stamp.go) writes the store a
+# newer release leaves behind. The compatible version is unstamped on purpose:
+# a dev build's release is "dev", and every dated stamp is newer than that.
+#
+# RUN GREEN on 2026-10-07, and observed RED first: with RecoverConfig returning
+# no recovery, the daemon exits on the load error and never reports recovery.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+
+cmd=foreground:seq=1:exec=le test fixture config/schema-stamp-seed:exit=0
+cmd=background:seq=2:exec=ze start router.conf:name=daemon:ready=recovered config from rollback
+expect=stderr:contains=config from newer binary
+expect=stderr:contains=config-release=99.12.31
+expect=stderr:contains=recovered config from rollback
+reject=stderr:contains=no compatible config found in rollback history
+cmd=stop:seq=3:name=daemon:signal=term
+expect=key:path=file/active/router.conf:contains=# ze-schema: 
+expect=key:path=file/active/router.conf:contains=default table
+expect=key:path=file/active/router.conf:not-contains=99.12.31
+expect=key:glob=object/*:contains=# ze-schema: 99.12.31
