@@ -9,9 +9,9 @@
 | Scope | complete |
 | Level | supported |
 | Components | internal/component/config/backend_gate.go |
-| Real-path tests | test/parse/iface-vpp-rejects-bridge.ci, test/parse/iface-vpp-rejects-tunnel.ci, test/parse/iface-vpp-rejects-wireguard.ci, test/parse/iface-vpp-rejects-veth.ci, test/traffic/traffic-vpp-reject-hfsc.ci |
+| Real-path tests | test/parse/iface-vpp-rejects-bridge.ci, test/parse/iface-vpp-rejects-tunnel.ci, test/parse/iface-vpp-accepts-wireguard.ci, test/parse/iface-vpp-rejects-veth.ci, test/traffic/traffic-vpp-reject-hfsc.ci |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: re-read at promotion; the row named wireguard and mirror as netlink-only, but ze-iface-conf.yang annotates both `ze:backend "netlink vpp"` and iface-vpp-rejects-wireguard.ci asserts vpp accepts wireguard, so both were removed; veth, bridge and tunnel carry `ze:backend "netlink"`, ze-firewall-conf.yang carries seven `ze:backend "nft"` |
+| Doc review | 2026-10-07: re-read at promotion; the row named wireguard and mirror as netlink-only, but ze-iface-conf.yang annotates both `ze:backend "netlink vpp"` and iface-vpp-accepts-wireguard.ci asserts vpp accepts wireguard, so both were removed; veth, bridge and tunnel carry `ze:backend "netlink"`, ze-firewall-conf.yang carries seven `ze:backend "nft"` |
 | Defect review | 2026-10-07: audit found no open immediate spec and no journal row against backend_gate.go |
 
 ## Description

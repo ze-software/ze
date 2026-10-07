@@ -4,35 +4,35 @@
     {
       "test": "test/parse/iface-vpp-rejects-bridge.ci",
       "test-blob": "1758672164dfdcfe10be8bf95d610b35bf38e7dd",
-      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "commit": "fefe116119919059db9a4b5a3276129a8d738d7c",
       "date": "2026-10-07",
       "result": "pass"
     },
     {
       "test": "test/parse/iface-vpp-rejects-tunnel.ci",
       "test-blob": "b226b7d85dc837482474863008c38eb96ec9f64b",
-      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "commit": "fefe116119919059db9a4b5a3276129a8d738d7c",
       "date": "2026-10-07",
       "result": "pass"
     },
     {
-      "test": "test/parse/iface-vpp-rejects-wireguard.ci",
-      "test-blob": "3d63fe5572af50d64c8fd39557dde7a5cd3c21e1",
-      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "test": "test/parse/iface-vpp-accepts-wireguard.ci",
+      "test-blob": "c0e0b09cf38e913d95e14c62198f3a2c84f7b0a5",
+      "commit": "fefe116119919059db9a4b5a3276129a8d738d7c",
       "date": "2026-10-07",
       "result": "pass"
     },
     {
       "test": "test/parse/iface-vpp-rejects-veth.ci",
       "test-blob": "7816ece731760bca83e3b9927b8a14fb02059fc1",
-      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "commit": "fefe116119919059db9a4b5a3276129a8d738d7c",
       "date": "2026-10-07",
       "result": "pass"
     },
     {
       "test": "test/traffic/traffic-vpp-reject-hfsc.ci",
       "test-blob": "ee2b1c698a1ac958ce1717d99f3a2d41a61c06fb",
-      "commit": "7f57da56d149f4802a7eecccf7a4033f7402a530",
+      "commit": "fefe116119919059db9a4b5a3276129a8d738d7c",
       "date": "2026-10-07",
       "result": "pass"
     }
