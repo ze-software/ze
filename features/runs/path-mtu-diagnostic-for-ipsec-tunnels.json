@@ -1,0 +1,70 @@
+{
+  "feature": "path-mtu-diagnostic-for-ipsec-tunnels",
+  "runs": [
+    {
+      "test": "test/plugin/show-mtu-host.ci",
+      "test-blob": "06f3f85a2086d3699f89246a5c019e37295b9eff",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/show-mtu-json.ci",
+      "test-blob": "8ae6b7b3f3796b62c929aa59498b9785ae1d74fe",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/show-mtu-exhaustive.ci",
+      "test-blob": "881e1c0bcc8e74ae53ac284febb50767ba7f0cef",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/show-mtu-ike-probe.ci",
+      "test-blob": "2817463631e5a2afc410e43a1bfd15173d3f32ff",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/show-mtu-oversized-tunnels.ci",
+      "test-blob": "83d1c07c17427fee39e9cc08fdcaf13513017622",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/plugin/show-mtu-no-ipsec-component.ci",
+      "test-blob": "176bc0637a0c710349691011993403ee7d210693",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ],
+  "interop": [
+    {
+      "scenario": "ipsec/mtu-tunnel-sizing-strongswan",
+      "scenario-tree": "791347ade6ffee0d3051b8ab98afbfef1f2393e2",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "scenario": "ipsec/mtu-negotiated-transform",
+      "scenario-tree": "c3b86412ed6d8c2c33514ca65bdc207792f12b39",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "scenario": "ipsec/mtu-nat-installed-endpoint",
+      "scenario-tree": "fbd8e19bd9ccb489e4c69a6bc0572f60415b6358",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}

@@ -7,12 +7,12 @@
 | Name | Path MTU diagnostic for IPsec tunnels |
 | Kind | daemon |
 | Scope | complete |
-| Level | experimental |
+| Level | supported |
 | Components | internal/component/mtu, internal/core/probe |
 | Real-path tests | test/plugin/show-mtu-host.ci, test/plugin/show-mtu-json.ci, test/plugin/show-mtu-exhaustive.ci, test/plugin/show-mtu-ike-probe.ci, test/plugin/show-mtu-oversized-tunnels.ci, test/plugin/show-mtu-no-ipsec-component.ci |
 | Interop | ipsec/mtu-tunnel-sizing-strongswan, ipsec/mtu-negotiated-transform, ipsec/mtu-nat-installed-endpoint |
 | Docs | docs/guide/ipsec.md |
-| Doc review | 2026-10-07: host and exhaustive keywords read in internal/component/mtu/cmd/mtu.go; ICMP error queue path in internal/core/probe |
+| Doc review | 2026-10-07: description re-read against code after the recorded run: host and exhaustive in parseMTUArgs (mtu.go), states and `set interface` advice in verdict.go, ladder and bisection in search.go, IKE padded probe in run.go, ICMP error queue in internal/core/probe |
 | Defect review | 2026-10-07: journal 2026-09-17 overhead.go ike import row is stale (no non-test import at HEAD); no immediate spec names internal/component/mtu |
 
 ## Description

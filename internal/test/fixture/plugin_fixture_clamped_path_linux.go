@@ -33,7 +33,9 @@
 // the bit is still set, so a green run cannot come from a daemon that kept the
 // privilege. `far-daemon <conf>` starts a second `ze start` in the far
 // namespace before the command, for a test whose daemon needs a peer to talk
-// to.
+// to. Each far daemon runs from a copy of its file in a directory of its own,
+// because a daemon's live store sits beside its configuration file and admits
+// one owner.
 //
 // `ipv6` adds an IPv6 plane to the same topology: a Global /64 on each link
 // (2001:db8:99:1::/64 near, 2001:db8:99:2::/64 far), a fixed Link-Local
@@ -68,6 +70,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
@@ -609,20 +612,29 @@ func isolatedNetnsDriver(ctx context.Context, args []string) error {
 }
 
 // startFarDaemons starts `ze start <conf>` in the far namespace for each
-// far-daemon argument, off the real dataplane. A daemon dies with this process
-// (Pdeathsig) and with the context, so a killed fixture leaves no responder
-// behind.
+// far-daemon argument, off the real dataplane, each from a directory of its
+// own (farDaemonConfig). A daemon dies with this process (Pdeathsig) and with
+// the context, so a killed fixture leaves no responder behind.
 func startFarDaemons(ctx context.Context, plan *netnsRunPlan, far *testNetns, orig netns.NsHandle) ([]*exec.Cmd, error) {
 	if len(plan.farDaemons) == 0 {
 		return nil, nil
+	}
+	configs := make([]string, 0, len(plan.farDaemons))
+	for _, conf := range plan.farDaemons {
+		config, err := farDaemonConfig(conf)
+		if err != nil {
+			return nil, err
+		}
+		configs = append(configs, config)
 	}
 	if err := netns.Set(far.ns); err != nil {
 		return nil, fmt.Errorf("enter %s: %w", far.name, err)
 	}
 	var daemons []*exec.Cmd
 	var startErr error
-	for _, conf := range plan.farDaemons {
-		daemon := exec.CommandContext(ctx, "ze", "start", conf) //nolint:gosec // test fixture; the argument is the .ci's own file
+	for _, conf := range configs {
+		daemon := exec.CommandContext(ctx, "ze", "start", conf) //nolint:gosec // test fixture; the argument is a copy of the .ci's own file
+		daemon.Dir = filepath.Dir(conf)
 		daemon.Env = append(os.Environ(), clampedFarDaemonEnv)
 		daemon.Stdout = os.Stdout
 		daemon.Stderr = os.Stderr
@@ -642,6 +654,32 @@ func startFarDaemons(ctx context.Context, plan *netnsRunPlan, far *testNetns, or
 		return nil, startErr
 	}
 	return daemons, nil
+}
+
+// farDaemonConfig copies one far-daemon configuration into a new directory
+// beside it and returns the copy's absolute path. `ze start <file>` keeps its
+// live store in the directory that holds the file, and the store is owned by
+// one process: the .ci's tmpfs files all land in the test's work directory,
+// beside the near daemon's own, so started where they are, only one of the
+// three daemons would open its store. The work directory, which the runner
+// removes, holds the copies.
+func farDaemonConfig(conf string) (string, error) {
+	body, err := os.ReadFile(conf) //nolint:gosec // test fixture; the path is the .ci's own far-daemon argument
+	if err != nil {
+		return "", fmt.Errorf("read far daemon %s: %w", conf, err)
+	}
+	dir, err := os.MkdirTemp(filepath.Dir(conf), "far-daemon-")
+	if err != nil {
+		return "", fmt.Errorf("make a directory for far daemon %s: %w", conf, err)
+	}
+	config, err := filepath.Abs(filepath.Join(dir, filepath.Base(conf)))
+	if err != nil {
+		return "", fmt.Errorf("resolve far daemon %s: %w", conf, err)
+	}
+	if err := os.WriteFile(config, body, 0o600); err != nil {
+		return "", fmt.Errorf("copy far daemon %s: %w", conf, err)
+	}
+	return config, nil
 }
 
 // stopFarDaemons kills and reaps each far daemon, as the script's trap did.

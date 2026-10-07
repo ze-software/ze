@@ -707,7 +707,9 @@ from; `show-mtu-no-ipsec-component.ci` checks a registered inventory holding
 no tunnel answers `no-tunnels` (the not-registered half is a unit test,
 because one `ze` links every component); `show-mtu-oversized-tunnels.ci`
 passes two `far-daemon` configurations, which the fixture starts in the far
-namespace on the noop dataplane before the sender, negotiates aes128gcm to
+namespace on the noop dataplane before the sender, each from a copy of its
+file in a directory of its own because a live store sits beside its
+configuration file and admits one owner, negotiates aes128gcm to
 each from the sender with a Child SA bound to its own xfrm interface (`vti
 bind`) at 1500, and reads both tunnels oversized by 154 octets with their
 commands, plus the circuit-clamped underlay advice from a reference address
