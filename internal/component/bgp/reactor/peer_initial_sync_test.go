@@ -783,17 +783,17 @@ func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
 	}
 	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
 
-	peer.SignalAPIReady(plugin.ProcessSender("listener"))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("listener"), peer.session.initialReplay))
 	assert.False(t, apiSyncReleased(peer),
 		"a report from a process this peer does not name must not release the barrier: it pushes "+
 			"no route into this initial routing update, so it closes none of it")
 
-	peer.SignalAPIReady(plugin.ProcessSender("pusher-one"))
-	peer.SignalAPIReady(plugin.ProcessSender("pusher-one"))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-one"), peer.session.initialReplay))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-one"), peer.session.initialReplay))
 	assert.False(t, apiSyncReleased(peer),
 		"a second report from the same process must not stand in for the process that still owes routes")
 
-	peer.SignalAPIReady(plugin.ProcessSender("pusher-two"))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-two"), peer.session.initialReplay))
 	assert.True(t, apiSyncReleased(peer),
 		"the last named process's report releases the barrier")
 }

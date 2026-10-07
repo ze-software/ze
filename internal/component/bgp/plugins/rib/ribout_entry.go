@@ -52,6 +52,11 @@ type ribOutEntry struct {
 	// SourceMessageID identifies the received generation, independently of the
 	// destination's ADD-PATH identifier and this sent event's MsgID.
 	SourceMessageID uint64
+	SourceID        uint32
+	SourceOwner     uint64
+	SourcePath      uint32
+	SourceAddPath   bool
+	LocalOrigin     bool
 }
 
 // ribOutRouteKey identifies one framed announcement from the registered splitter.

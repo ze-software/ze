@@ -2,43 +2,25 @@ package rib
 
 import (
 	"context"
+	"encoding/json"
 	"net"
-	"sync/atomic"
+	"net/netip"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestRIBPluginEventLoopBlocking demonstrates the head-of-line blocking bug
-// in the rib plugin's event loop.
-//
-// VALIDATES: The rib plugin's synchronous updateRoute calls from within the
-// onEvent callback (engine-to-plugin) block the entire event loop while waiting for
-// the engine to respond on plugin-to-engine.
-//
-// PREVENTS: Regression if the blocking pattern is fixed — the test documents
-// the expected latency characteristic. When fixed, the second event delivery
-// should complete promptly regardless of plugin-to-engine response time.
-//
-// Architecture:
-//
-//	Plugin (goroutine)          Fake Engine (test)
-//	  plugin-to-engine (plugin→engine)    engineEnd (reads requests, sends responses)
-//	  engine-to-plugin (engine→plugin)    engineEnd (sends deliver-event RPCs)
-//
-// The blocking occurs because:
-// 1. Engine sends "state up" event via engine-to-plugin deliver-event
-// 2. Plugin's onEvent callback calls handleState → replayRoutes → updateRoute
-// 3. updateRoute calls plugin.UpdateRoute which sends RPC on plugin-to-engine and WAITS
-// 4. While waiting, engine-to-plugin's event loop can't process any new events
-// 5. Engine's next deliver-event on engine-to-plugin blocks on callMu (serialized writes).
-func TestRIBPluginEventLoopBlocking(t *testing.T) {
-	// Create two net.Pipe pairs for plugin-to-engine and engine-to-plugin.
-	// Plugin gets one end, fake engine gets the other.
+// TestRIBPluginSentEventsSurviveReplay exercises the external SDK event path.
+// A delayed replay RPC must not lose the locally originated route reported by
+// another sent event: a subsequent refresh must reproduce both exact prefixes.
+func TestRIBPluginSentEventsSurviveReplay(t *testing.T) {
+	// The real plugin and its engine-facing RPC consumer share one duplex pipe.
 	pluginEnd, engineEnd := net.Pipe()
 
 	// Wrap engine ends in rpc.Conn for structured RPC communication.
@@ -52,7 +34,17 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 		pluginDone <- runRIBPlugin(pluginEnd)
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(func() {
+		cancel()
+		_ = mux.Close()
+		_ = engineEnd.Close()
+		select {
+		case <-pluginDone:
+		case <-time.After(5 * time.Second):
+			t.Error("plugin did not exit after transport closure")
+		}
+	})
 
 	// ── 5-Stage Handshake (fake engine side) ─────────────────────────────
 
@@ -92,30 +84,24 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	// first session has been advertised nothing, so entries recorded for it were
 	// produced by that same session's own sends and replaying them puts a second
 	// copy of the route on the wire (collectPeerUpReplay, rib_replay.go). Without
-	// this event the state-up below is a first session and correctly replays
-	// nothing, so there would be no update-route to block on -- which is a
-	// property of the fixture, not of the head-of-line blocking under test.
-	//
-	// A down before any up takes neither transition branch; it only records that
-	// the peer is known, which is what the state-up in step 3 needs.
+	// this earlier down event, state-up is a first session and replays nothing.
+	// The down event records the peer as known without transitioning a session.
 	deliverEventSync(t, ctx, mux,
 		`{"type":"state","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"down"}`)
 
 	// Step 1: Send a "sent" event to populate ribOut with a route.
 	// This is a "type":"sent" event — the rib plugin stores it in ribOut.
-	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
+	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"route-meta":{"source-local":true},"origin":"igp","ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
 	deliverEventSync(t, ctx, mux, sentEvent)
 
-	// Step 2: Start a goroutine to handle update-route requests on plugin-to-engine.
-	// We add a deliberate delay to simulate real engine response time.
-	// This delay is what causes the head-of-line blocking.
-	const updateRouteDelay = 500 * time.Millisecond
-	var updateRouteCount atomic.Int32
-	firstUpdateRoute := make(chan struct{}, 1) // signals when first update-route arrives
-	handlerCtx, cancelHandler := context.WithCancel(ctx)
-	defer cancelHandler()
-
+	firstUpdateRoute := make(chan struct{})
+	releaseReplay := make(chan struct{})
+	var commandsMu sync.Mutex
+	var commands []string
+	handlerDone := make(chan struct{})
 	go func() {
+		defer close(handlerDone)
+		first := true
 		for {
 			var req *rpc.Request
 			select {
@@ -124,143 +110,102 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 					return
 				}
 				req = r
-			case <-handlerCtx.Done():
+			case <-ctx.Done():
 				return
 			}
-
 			switch req.Method {
 			case "ze-plugin-engine:update-route":
-				// Signal that the first update-route has been received.
-				select {
-				case firstUpdateRoute <- struct{}{}:
-				default:
+				var input rpc.UpdateRouteInput
+				if err := json.Unmarshal(req.Params, &input); err != nil {
+					t.Errorf("decode update-route: %v", err)
+					return
 				}
-				// deliberate: simulates work latency — the delay that
-				// blocks the plugin's event loop via synchronous updateRoute.
-				<-time.After(updateRouteDelay)
-				updateRouteCount.Add(1)
-				result := &rpc.UpdateRouteOutput{Announced: 1, Withdrawn: 1}
-				if sendErr := mux.SendResult(handlerCtx, req.ID, result); sendErr != nil {
-					t.Logf("SendResult failed: %v", sendErr)
+				commandsMu.Lock()
+				commands = append(commands, input.Command)
+				commandsMu.Unlock()
+				if first {
+					first = false
+					close(firstUpdateRoute)
+					select {
+					case <-releaseReplay:
+					case <-ctx.Done():
+						return
+					}
+				}
+				if err := mux.SendResult(ctx, req.ID, &rpc.UpdateRouteOutput{Announced: 1}); err != nil {
+					t.Errorf("answer update-route: %v", err)
 					return
 				}
 			case rpc.MethodDispatchCommand, rpc.MethodDispatchCommandArgs:
-				if sendErr := rpc.WriteDocumentAnswer(mux.AnswerWriter(handlerCtx), req.ID, rpc.AnswerTail{}, nil); sendErr != nil {
-					t.Logf("command answer failed: %v", sendErr)
+				if err := rpc.WriteDocumentAnswer(mux.AnswerWriter(ctx), req.ID, rpc.AnswerTail{}, nil); err != nil {
+					t.Errorf("answer command: %v", err)
 					return
 				}
 			default:
-				if sendErr := mux.SendOK(handlerCtx, req.ID); sendErr != nil {
-					t.Logf("SendOK failed: %v", sendErr)
-					return
-				}
+				t.Errorf("unexpected engine request %q", req.Method)
+				return
 			}
 		}
 	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-handlerDone:
+		case <-time.After(5 * time.Second):
+			t.Error("engine request handler did not exit after cancellation")
+		}
+	})
 
-	// Step 3: Deliver "state up" event and "probe" event concurrently.
-	//
-	// The state-up event triggers replayRoutes → updateRoute (synchronous RPC on plugin-to-engine).
-	// While that blocks, the probe event can't be delivered because:
-	//   (a) mux.CallRPC serializes via callMu (engine-side blocking)
-	//   (b) SDK's eventLoop is single-threaded (plugin-side blocking)
-	//
-	// Both effects compound, but (b) is the root cause we're testing:
-	// even if the engine could send the probe, the plugin couldn't process it
-	// until replayRoutes finishes.
-
-	stateUpEvent := `{"type":"state","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"up"}`
-	probeEvent := `{"type":"sent","msg-id":2,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"ipv4/unicast":[{"next-hop":"2.2.2.2","action":"add","nlri":["10.0.1.0/24"]}]}`
-
-	type deliverResult struct {
-		duration time.Duration
-		err      error
-	}
-
-	stateUpDone := make(chan deliverResult, 1)
-	probeDone := make(chan deliverResult, 1)
-
-	// Goroutine 1: deliver state-up event (triggers blocking replayRoutes)
+	stateUpEvent := `{"type":"state","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"state":"up","initial-replay":"1"}`
+	probeEvent := `{"type":"sent","msg-id":2,"peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"route-meta":{"source-local":true},"origin":"igp","ipv4/unicast":[{"next-hop":"2.2.2.2","action":"add","nlri":["10.0.1.0/24"]}]}`
+	stateUpDone := make(chan error, 1)
 	go func() {
-		start := time.Now()
-		callErr := deliverEvent(mux, stateUpEvent)
-		stateUpDone <- deliverResult{duration: time.Since(start), err: callErr}
+		stateUpDone <- deliverEvent(mux, stateUpEvent)
 	}()
-
-	// Wait for the state-up event to reach the update-route handler before
-	// sending the probe. The channel signal proves the handler is blocking,
-	// ensuring the test reliably demonstrates head-of-line blocking.
 	select {
 	case <-firstUpdateRoute:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for update-route handler to receive first request")
+	case <-ctx.Done():
+		t.Fatal("state-up did not reach replay")
 	}
-
-	// Goroutine 2: deliver probe event — blocked by head-of-line blocking
+	probeDone := make(chan error, 1)
+	probeStarted := make(chan struct{})
 	go func() {
-		start := time.Now()
-		callErr := deliverEvent(mux, probeEvent)
-		probeDone <- deliverResult{duration: time.Since(start), err: callErr}
+		close(probeStarted)
+		probeDone <- deliverEvent(mux, probeEvent)
 	}()
-
-	// Wait for both with timeout
-	var stateResult, probeResult deliverResult
+	<-probeStarted
+	close(releaseReplay)
 	select {
-	case stateResult = <-stateUpDone:
-	case <-time.After(30 * time.Second):
+	case err := <-stateUpDone:
+		require.NoError(t, err)
+	case <-ctx.Done():
 		t.Fatal("state-up delivery timed out")
 	}
 	select {
-	case probeResult = <-probeDone:
-	case <-time.After(30 * time.Second):
-		t.Fatal("probe delivery timed out")
+	case err := <-probeDone:
+		require.NoError(t, err)
+	case <-ctx.Done():
+		t.Fatal("sent-event delivery timed out")
 	}
 
-	require.NoError(t, stateResult.err, "state-up delivery should succeed")
-	require.NoError(t, probeResult.err, "probe delivery should succeed")
-
-	// ── Assertions ───────────────────────────────────────────────────────
-
-	t.Logf("state-up delivery: %v", stateResult.duration)
-	t.Logf("probe delivery: %v", probeResult.duration)
-	t.Logf("update-route RPCs processed: %d", updateRouteCount.Load())
-
-	// The state-up delivery itself must take at least the updateRoute delay,
-	// because replayRoutes sends the route + "plugin session ready" synchronously.
-	// With 1 route, that's 2 updateRoute calls × 500ms = ~1000ms.
-	assert.Greater(t, stateResult.duration, updateRouteDelay,
-		"state-up delivery should take at least one updateRoute delay")
-
-	// The probe delivery must be delayed by head-of-line blocking.
-	// It was submitted 50ms after the state-up event. If the event loop were
-	// non-blocking, it would complete in ~milliseconds. Instead, it must wait
-	// for replayRoutes to finish all its synchronous updateRoute calls.
-	assert.Greater(t, probeResult.duration, updateRouteDelay,
-		"probe event should be delayed by head-of-line blocking: "+
-			"the event loop is blocked while updateRoute waits for plugin-to-engine response")
-
-	// Verify that update-route RPCs were actually processed.
-	// replayRoutes sends: N routes + 1 "plugin session ready" command.
-	// We populated 1 route, so expect at least 2 update-route calls.
-	assert.GreaterOrEqual(t, updateRouteCount.Load(), int32(2),
-		"should have processed at least 2 update-route RPCs (1 route + plugin session ready)")
-
-	// ── Cleanup ──────────────────────────────────────────────────────────
-	cancelHandler()
-
-	if closeErr := mux.Close(); closeErr != nil {
-		t.Logf("mux close: %v", closeErr)
+	// Start a separate consumer observation after both deliveries finish. Replay
+	// cursor commands are not evidence that either route survived in Adj-RIB-Out.
+	commandsMu.Lock()
+	commands = nil
+	commandsMu.Unlock()
+	deliverEventSync(t, ctx, mux,
+		`{"type":"refresh","peer":{"address":"10.0.0.1","remote":{"address":"10.0.0.1","as":65001}},"afi":"ipv4","safi":"unicast"}`)
+	commandsMu.Lock()
+	refreshCommands := slices.Clone(commands)
+	commandsMu.Unlock()
+	var routes []refreshRouteIdentity
+	for _, command := range refreshCommands {
+		routes = append(routes, consumedRefreshRoutes(t, parseRefreshCommand(t, command))...)
 	}
-	if closeErr := engineEnd.Close(); closeErr != nil {
-		t.Logf("engineEnd close: %v", closeErr)
-	}
-
-	select {
-	case exitCode := <-pluginDone:
-		t.Logf("plugin exited with code %d", exitCode)
-	case <-time.After(5 * time.Second):
-		t.Error("plugin did not exit within timeout")
-	}
+	require.ElementsMatch(t, []refreshRouteIdentity{
+		{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")},
+		{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")},
+	}, routes, "refresh must retain both the replayed route and the later sent event")
 }
 
 // deliverEvent sends a deliver-event RPC on engine-to-plugin and waits for the response.

@@ -288,40 +288,6 @@ func (s *Session) filterPathsLimit(dst, body []byte, changes *pathsLimitChanges)
 	return n, dropped, nil
 }
 
-// recordAnnounced keeps the API duplicate cache from remembering a path the
-// session withheld. Otherwise an identical retry would never reach admission
-// after a withdrawal frees its slot.
-func (p *Peer) recordAnnounced(fam family.Family, key, signature []byte) {
-	ctx := p.sendCtx.Load()
-	if ctx == nil || ctx.PathsLimit(fam) == 0 {
-		p.adjOut.record(fam, key, signature)
-		return
-	}
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-	if session == nil {
-		return
-	}
-	session.writeMu.Lock()
-	defer session.writeMu.Unlock()
-	state := session.pathsLimit[fam]
-	if state == nil || len(key) < 5 {
-		return
-	}
-	prefixKey, err := state.key(key[4:], state.keyScratch[:], false)
-	if err != nil {
-		return
-	}
-	prefix := state.prefixes[string(prefixKey)]
-	if prefix == nil {
-		return
-	}
-	if _, held := prefix.ids[binary.BigEndian.Uint32(key)]; held {
-		p.adjOut.record(fam, key, signature)
-	}
-}
-
 // These totals count only PATHS-LIMIT decisions. A commit subtracts its own
 // serialized write's delta, not changes made by concurrent plugin writers.
 type pathsLimitSendCounts struct {
@@ -342,7 +308,7 @@ func (c *pathsLimitCommitSender) SendUpdate(update *message.Update) error {
 		return ErrNotConnected
 	}
 	var counts pathsLimitSendCounts
-	if err := session.sendUpdateCounted(context.Background(), update, &counts, false); err != nil {
+	if err := session.sendUpdateCounted(context.Background(), update, &counts, false, nil); err != nil {
 		return err
 	}
 	c.withheld.routes += counts.routes

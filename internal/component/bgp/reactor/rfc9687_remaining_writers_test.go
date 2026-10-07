@@ -20,6 +20,12 @@ func TestRFC9687RemainingWritersRestartSendHold(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			p := rfc9687Established(t, 90)
 			s := p.session
+			var item fwdItem
+			switch name {
+			case "batch-raw", "batch-parsed":
+				// Establish source ownership before advancing the timer under test.
+				item = rfc9687ForwardItem(t, s)
+			}
 			p.clock.Add(6 * rfc9687SendHold / 10)
 			var err error
 			switch name {
@@ -31,9 +37,7 @@ func TestRFC9687RemainingWritersRestartSendHold(t *testing.T) {
 				err = s.SendUpdateHeld(&message.Update{WithdrawnRoutes: []byte{24, 10, 0, 0}})
 				s.releaseWrites()
 			case "batch-raw", "batch-parsed":
-				peer := NewPeer(s.settings)
-				peer.session = s
-				item := fwdItem{peer: peer}
+				// RFC 9687 Section 4.3: only this post-advance send can restart the deadline.
 				if name == "batch-raw" {
 					item.rawBodies = [][]byte{{0, 4, 24, 10, 0, 0, 0, 0}}
 				} else {
@@ -69,5 +73,38 @@ func TestRFC9687RemainingWritersRestartSendHold(t *testing.T) {
 				t.Fatal("live writer failed to retain Established and the armed timer")
 			}
 		})
+	}
+}
+
+// rfc9687ForwardItem advertises the path through the real writer before returning
+// the captured ownership needed by the later batch withdrawal. Callers MUST run
+// this setup before advancing the fake clock, so setup cannot satisfy the timer
+// restart assertion on behalf of the writer under test.
+func rfc9687ForwardItem(t *testing.T, session *Session) fwdItem {
+	t.Helper()
+	peer := NewPeer(session.settings)
+	peer.session = session
+	peer.state.Store(int32(PeerStateEstablished))
+	peer.setEncodingContexts(session.Negotiated())
+	t.Cleanup(peer.clearEncodingContexts)
+
+	source, _ := newAnnouncePeer(t, "192.0.2.3")
+	source.session.localOpen = &message.Open{MyAS: 65000, HoldTime: 90}
+	source.session.peerOpen = &message.Open{MyAS: 65001, HoldTime: 90}
+	source.session.negotiateWith(nil, nil)
+	source.setEncodingContexts(source.session.Negotiated())
+	t.Cleanup(source.clearEncodingContexts)
+
+	body := makeUpdateBody(nil,
+		[]byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 3, 4, 192, 0, 2, 3},
+		[]byte{24, 10, 0, 0})
+	// RFC 4271 Section 4.3: advertise the route this source will later withdraw.
+	if err := ownershipWriterForward(t, peer, source, body, false); err != nil {
+		t.Fatal(err)
+	}
+	return fwdItem{
+		peer: peer, session: session, authority: adjOutForwarded,
+		receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+		sourcePeerStr: source.addrString,
 	}
 }

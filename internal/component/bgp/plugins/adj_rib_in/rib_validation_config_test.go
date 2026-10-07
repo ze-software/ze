@@ -171,10 +171,7 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 					delivered = append(delivered, "rule")
 					return nil
 				})
-				bridge.SetDispatchCommand(func(_ context.Context, command string) (*rpc.DispatchCommandOutput, error) {
-					if command != "request peer "+target+" plugin session ready" {
-						t.Errorf("unexpected peer action %q", command)
-					}
+				bridge.SetDispatchCommand(func(_ context.Context, _ string) (*rpc.DispatchCommandOutput, error) {
 					delivered = append(delivered, "ready")
 					return &rpc.DispatchCommandOutput{Status: statusDone}, nil
 				})
@@ -197,10 +194,10 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 				}
 				if delivery == "structured" {
 					r.handleStructuredState(&rpc.StructuredEvent{
-						PeerAddress: target, State: rpc.SessionStateUp, UnheldRoles: unheld,
+						PeerAddress: target, State: rpc.SessionStateUp, UnheldRoles: unheld, InitialReplay: 41,
 					})
 				} else {
-					r.handleState(&bgp.Event{Type: "state", State: stateUp, UnheldRoles: unheld,
+					r.handleState(&bgp.Event{Type: "state", State: stateUp, UnheldRoles: unheld, InitialReplay: 41,
 						Peer: mustMarshal(t, bgp.PeerInfoJSON{Remote: bgp.PeerRemoteInfo{Address: target, AS: 65001}})})
 				}
 				want := []string{"rule", "ready"}

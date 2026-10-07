@@ -53,22 +53,32 @@ type fwdKey struct {
 // Pre-computed send operations for one destination peer from one ForwardUpdate call.
 // The worker executes rawBodies (SendRawUpdateBody) then updates (SendUpdate).
 type fwdItem struct {
-	rawBodies          [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
-	updates            []*message.Update // Re-encode path: SendUpdate per entry
-	peer               *Peer             // Target peer for all operations
-	done               func()            // Called after all ops complete (Release cache entry)
-	peerBufIdx         int               // 1-based index into per-peer pool; 0 = not from per-peer pool
-	peerPoolRef        *peerPool         // Pool to return buffer to (avoids map lookup + lock)
-	overflowBuf        BufHandle         // Overflow MixedBufMux handle holding this item's copied bodies (ownOverflowBodies); nil Buf = not from overflow
-	meta               map[string]any    // Route metadata from ReceivedUpdate; set on sent events
-	sourcePeerStr      string            // Source peer address string for ribOut stale-scoping
-	sourceMessageID    uint64            // Original received generation for ownership and AIGP, not a replay cache ID
-	receivedPeer       *Peer
-	receivedGeneration uint64
-	recovery           *recoveryAdmission
-	aigpOrigin         sendOrigin
-	aigpRevision       uint64
-	aigpReplay         *aigpAdvertisement
+	rawBodies            [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
+	updates              []*message.Update // Re-encode path: SendUpdate per entry
+	peer                 *Peer             // Target peer for all operations
+	session              *Session          // Destination incarnation captured before materialization
+	authority            adjOutAuthority
+	provenance           *fwdProvenance
+	writeBody            int    // Original body ordinal, before final ownership filtering
+	expectedMessage      uint64 // Exact sent receipt for replay/cleanup, never ordinary withdrawal
+	initialReplay        uint64 // Exact peer-up Session receipt
+	initialLocal         bool   // Captured explicit local origin, never inferred from absence
+	initialSourcePath    uint32
+	initialSourceAddPath bool
+	initialSourceState   PeerState
+	done                 func()         // Called after all ops complete (Release cache entry)
+	peerBufIdx           int            // 1-based index into per-peer pool; 0 = not from per-peer pool
+	peerPoolRef          *peerPool      // Pool to return buffer to (avoids map lookup + lock)
+	overflowBuf          BufHandle      // Overflow MixedBufMux handle holding this item's copied bodies (ownOverflowBodies); nil Buf = not from overflow
+	meta                 map[string]any // Route metadata from ReceivedUpdate; set on sent events
+	sourcePeerStr        string         // Source peer address string for ribOut stale-scoping
+	sourceMessageID      uint64         // Original received generation for ownership and AIGP, not a replay cache ID
+	receivedPeer         *Peer
+	receivedGeneration   uint64
+	recovery             *recoveryAdmission
+	aigpOrigin           sendOrigin
+	aigpRevision         uint64
+	aigpReplay           *aigpAdvertisement
 	// The writer MUST retain a recomputation candidate only for this refusal.
 	aigpCostWithheld bool
 	supersedeKey     uint64 // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
@@ -119,6 +129,15 @@ func (item *fwdItem) uncountOnChannel() {
 func forwardSourceCurrent(peer *Peer, generation uint64) bool {
 	return peer == nil || (!peer.stopping.Load() &&
 		peer.State() == PeerStateEstablished && peer.forwardGeneration.Load() == generation)
+}
+
+// initialSourceCurrent is the source-incarnation fence for exact retained
+// history admitted behind the destination's initial replay gate. The RIB has
+// already validated its received path/revision; the captured state prevents a
+// retained-down snapshot from following re-establishment on the same generation.
+func initialSourceCurrent(peer *Peer, generation uint64, state PeerState) bool {
+	return peer != nil && !peer.stopping.Load() && peer.State() == state &&
+		peer.forwardGeneration.Load() == generation
 }
 
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
@@ -228,6 +247,7 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		session.sentAIGPOrigin = sendOrigin{}
 		session.sentAIGPRevision = 0
 		session.sentAIGPCostWithheld = false
+		session.sentForward = nil
 		session.commitAIGPWrites(false)
 		// Clear write deadline (zero value = no deadline).
 		_ = conn.SetWriteDeadline(time.Time{})
@@ -260,6 +280,13 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 					recovery.retry = true
 					break
 				}
+				if section.receivedPeer != nil {
+					receipt, present := recovery.sources[section.receivedPeer]
+					if !present || !receipt.cut.current(section.receivedPeer) {
+						recovery.retry = true
+						break
+					}
+				}
 			}
 			if recovery.retry {
 				continue
@@ -268,10 +295,17 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		}
 		for j := range sections {
 			item := &sections[j]
-			if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
+			sourceCurrent := forwardSourceCurrent(item.receivedPeer, item.receivedGeneration)
+			if item.authority == adjOutInitial && !item.initialLocal {
+				sourceCurrent = initialSourceCurrent(item.receivedPeer, item.receivedGeneration, item.initialSourceState)
+			}
+			if item.authority != adjOutExpected && !sourceCurrent {
 				if recovery := items[i].recovery; recovery != nil {
 					recovery.retry = true
 				}
+				continue
+			}
+			if item.session != nil && item.session != session {
 				continue
 			}
 			// A marker claimed for an earlier session is not this session's to send.
@@ -288,12 +322,15 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 			session.sentMeta = item.meta // Route metadata for sent event callbacks.
 			session.sentSourcePeerStr = item.sourcePeerStr
 			session.sentSourceMessageID = item.sourceMessageID
+			session.sentForward = item
+			item.writeBody = 0
 			for _, body := range item.rawBodies {
 				if err := session.writeRawUpdateBody(body); err != nil {
 					fwdLogger().Warn("forward batch write failed", "peer", peer.Settings().Address, "err", err)
 					failRecoveryWrites(items, session, err)
 					return
 				}
+				item.writeBody++
 			}
 			for _, update := range item.updates {
 				// Forward sections already passed policy; originated items
@@ -303,6 +340,7 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 					failRecoveryWrites(items, session, err)
 					return
 				}
+				item.writeBody++
 			}
 		}
 	}
@@ -611,6 +649,10 @@ func (fp *fwdPool) outgoingPool(key fwdKey) *peerPool {
 // Handles Outgoing Peer Pool buffers and Global Shared Pool handles.
 // Called from safeBatchHandle and Stop cleanup.
 func (fp *fwdPool) releaseItem(item *fwdItem) {
+	if item.provenance != nil {
+		item.provenance.release()
+		item.provenance = nil
+	}
 	if recovery := item.recovery; recovery != nil {
 		fp.releaseRecoveryItems(recovery)
 		if !recovery.retry && !recovery.written && recovery.err == nil {
@@ -921,6 +963,25 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 	if item.supersedeKey != 0 {
 		for i := range w.overflow {
 			if w.overflow[i].supersedeKey != item.supersedeKey {
+				continue
+			}
+			if w.overflow[i].authority != item.authority {
+				continue
+			}
+			if w.overflow[i].session != item.session {
+				continue
+			}
+			if w.overflow[i].receivedPeer != item.receivedPeer {
+				continue
+			}
+			if w.overflow[i].receivedGeneration != item.receivedGeneration {
+				continue
+			}
+			// Equal collapsed bytes can name different ingress paths.
+			if item.provenance != nil {
+				continue
+			}
+			if w.overflow[i].provenance != nil {
 				continue
 			}
 			// Never across the replay fence: an initial-update item passes a

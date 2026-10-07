@@ -750,6 +750,9 @@ func makeRSPeerWithSession(t testing.TB, addr string, peerAS uint32, ctx *bgpctx
 	peer := makeRSPeer(t, addr, peerAS, ctx, ctxID)
 
 	session := NewSession(peer.settings)
+	session.adjOut = &peer.adjOut
+	session.SetSourceID(peer.SourceID())
+	session.setSendCtxID(ctxID)
 	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
 	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
 	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
@@ -784,8 +787,12 @@ func TestReactorForwardRSDirectWrite(t *testing.T) {
 	dst, dstSession, dstReader := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
 
 	item := fwdItem{
-		peer:      dst,
-		rawBodies: [][]byte{body},
+		peer:               dst,
+		session:            dstSession,
+		authority:          adjOutForwarded,
+		receivedPeer:       src,
+		receivedGeneration: src.forwardGeneration.Load(),
+		rawBodies:          [][]byte{body},
 	}
 
 	handled, written, sess := tryDirectWriteNoFlush(&item)
@@ -824,8 +831,6 @@ func TestReactorForwardRSDirectWrite(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timeout reading flushed data")
 	}
-
-	_ = src // keep source peer alive
 }
 
 func TestReactorForwardRSDirectWriteTryLockFails(t *testing.T) {

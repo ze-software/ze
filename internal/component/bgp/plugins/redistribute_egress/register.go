@@ -122,8 +122,9 @@ func runPlugin(conn net.Conn) int {
 
 // parseStateEvent extracts the peer address and state from a text state event
 // (the non-DirectBridge / external-plugin delivery path). Format:
-// "peer 10.0.0.1 remote as 65001 state up\n". Returns ("", "") when the line is
-// not a recognized state event. Mirrors the watchdog plugin's parser.
+// "peer 10.0.0.1 remote as 65001 state up initial-replay 42\n".
+// It reads the value after state, not the final token; replay receipts are not
+// relevant to this non-readiness consumer. Unrecognized lines return ("", "").
 func parseStateEvent(text string) (peerAddr, state string) {
 	fields := strings.Fields(strings.TrimRight(text, "\n"))
 	if len(fields) < 4 || fields[0] != "peer" {

@@ -606,7 +606,7 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 	// Inject route metadata if present (sideband, not in wire bytes).
 	// Marshal error silently drops metadata (meta contains only string/bool values
 	// from ingress filters; marshal failure requires a code bug, not external input).
-	hasMeta := len(msg.Meta) > 0 || msg.SourcePeerStr != ""
+	hasMeta := len(msg.Meta) > 0 || msg.SourcePeerStr != "" || msg.SourceOwner != 0 || msg.SourceLocal || len(msg.SentPathSources) != 0
 	if hasMeta {
 		buf = append(buf, `,"route-meta":{`...)
 		first := true
@@ -625,8 +625,53 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 			buf = strconv.AppendUint(buf, msg.SourceMessageID, 10)
 			first = false
 		}
+		if msg.SourceID != 0 {
+			if !first {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, `"source-id":`...)
+			buf = strconv.AppendUint(buf, uint64(msg.SourceID), 10)
+			first = false
+		}
+		if msg.SourceOwner != 0 {
+			if !first {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, `"source-owner":"`...)
+			buf = strconv.AppendUint(buf, msg.SourceOwner, 10)
+			buf = append(buf, '"')
+			first = false
+		}
+		if msg.SourceLocal {
+			if !first {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, `"source-local":true`...)
+			first = false
+		}
+		if len(msg.SentPathSources) != 0 {
+			if !first {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, `"sent-path-sources":[`...)
+			for index, path := range msg.SentPathSources {
+				if index != 0 {
+					buf = append(buf, ',')
+				}
+				buf = append(buf, `{"family":"`...)
+				buf = path.Family.AppendTo(buf)
+				buf = append(buf, `","ordinal":`...)
+				buf = strconv.AppendUint(buf, uint64(path.Ordinal), 10)
+				buf = append(buf, `,"path-id":`...)
+				buf = strconv.AppendUint(buf, uint64(path.PathID), 10)
+				buf = append(buf, '}')
+			}
+			buf = append(buf, ']')
+			first = false
+		}
 		for k, v := range msg.Meta {
-			if k == "source-peer" || k == "source-message-id" {
+			if k == "source-peer" || k == "source-message-id" || k == "source-id" ||
+				k == bgptypes.SourceOwnerMeta || k == bgptypes.SourceLocalMeta || k == bgptypes.SentPathSourcesMeta {
 				continue // Transport provenance cannot be replaced by route policy.
 			}
 			kb, kerr := json.Marshal(k)

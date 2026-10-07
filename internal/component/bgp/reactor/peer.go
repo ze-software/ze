@@ -262,6 +262,9 @@ type Peer struct {
 	// Created in runOnce() before session.Run(), closed after session exits.
 	// nil means synchronous delivery (no channel configured).
 	deliverChan chan deliveryItem
+	// One scalar publication frontier per delivery lifetime. Cold recovery
+	// waits until accepted receive IDs reach plugin queues, without a hot lock.
+	receivePublication atomic.Pointer[receivePublication]
 
 	// validationForwardMu orders received and retained-route dispatch for this
 	// source. Callers MUST hold it from eligibility lookup through FIFO enqueue.
@@ -277,8 +280,9 @@ type Peer struct {
 	forwardGeneration atomic.Uint64
 
 	// sentUpdateSequence is one causal receipt counter, not a route inventory.
-	// The session writer advances it while holding writeMu before sent delivery;
-	// recovery snapshots it under that lock, then drains delivery without locks.
+	// The writer advances it under writeMu for sent delivery and source-bound
+	// operations filtered without output. Recovery snapshots it under that lock,
+	// then drains applied event delivery without locks before re-resolving.
 	sentUpdateSequence atomic.Uint64
 
 	// Reconnect configuration
@@ -517,6 +521,10 @@ type Peer struct {
 	// Assigned at creation, never changes.
 	sourceID source.SourceID
 
+	// sourceOwner distinguishes Peer incarnations even when the source registry
+	// reuses an address's ID. It remains typed through internal sent delivery.
+	sourceOwner uint64
+
 	// addrString caches settings.Address.String() to avoid per-message
 	// string allocation on the hot path (Prometheus labels, bus notifications,
 	// forward pool keys). Computed once at peer creation.
@@ -551,10 +559,9 @@ type Peer struct {
 
 	health *sessionHealth
 
-	// adjOut is what this peer has been sent on the API origination rails, so a
-	// second announce of a route it already holds puts nothing on the wire
-	// (RFC 4271 Section 9.2). Cleared on teardown by clearEncodingContexts,
-	// because the next session's peer starts with nothing. See adj_rib_out.go.
+	// adjOut is the final writer's per-session native ownership frontier and
+	// local duplicate evidence. It retains no forwarded attributes and is reset
+	// on teardown; source candidate selection remains the selecting RIB's job.
 	adjOut adjRIBOut
 
 	fwdFacts atomic.Pointer[peerForwardFacts]
@@ -619,6 +626,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		queueMax = maxOpQueueCap
 	}
 
+	sourceOwner := nextMsgID()
 	p := &Peer{
 		settings:        settings,
 		clock:           clk,
@@ -628,6 +636,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		opQueue:         make([]peerOp, 0, 16), // Pre-allocate small capacity
 		opQueueMax:      queueMax,
 		sourceID:        source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
+		sourceOwner:     sourceOwner,
 		inboundNotify:   make(chan struct{}, 1),
 		addrString:      addrStr,
 		localAddrString: settings.LocalAddress.String(),
@@ -884,42 +893,59 @@ func (p *Peer) raiseReplayFence() {
 //
 // A report that completes the set lowers the replay fence
 // (Peer.initialUpdateOwed) and releases the live forwards parked behind it.
-func (p *Peer) SignalAPIReady(sender plugin.Sender) {
+func (p *Peer) SignalAPIReady(sender plugin.Sender, initialReplay uint64) error {
 	process, named := sender.Process()
 	if !named {
-		if !sender.IsOperator() {
-			routesLogger().Warn("plugin session ready names no process, so this peer cannot tell which of its route-pushing processes reported",
-				"peer", p.settings.Address.String())
+		if sender.IsOperator() {
+			return nil
 		}
-		return
+		routesLogger().Warn("plugin session ready names no process, so this peer cannot tell which of its route-pushing processes reported",
+			"peer", p.settings.Address.String())
+		return errors.New("plugin session ready requires a named process; explicit operator readiness is a no-op")
 	}
 
-	if p.creditAPIReady(process) {
+	lowered, err := p.creditAPIReady(process, initialReplay)
+	if err != nil {
+		return err
+	}
+	if lowered {
 		// The last report lowered the replay fence. Wake the forward worker
 		// so the live changes parked behind it go out now, not with the next
 		// forward (wakeForwardOverflow). Outside p.mu: the wake takes the
 		// pool lock.
 		p.wakeForwardOverflow()
 	}
+	return nil
 }
 
-// creditAPIReady records one process's report for this session and reports
-// whether that report completed the set, which lowers the replay fence
-// (Peer.initialUpdateOwed). Caller MUST NOT hold p.mu.
-//
-// Uses a single Lock (not RLock→WLock upgrade) to prevent a race where
-// resetAPISync replaces apiSyncReady between the read and close operations.
-func (p *Peer) creditAPIReady(process string) bool {
+// creditAPIReady validates the captured Session receipt and records this
+// process's report atomically, returning whether the replay fence was lowered.
+// Caller MUST NOT hold p.mu. The same lock owns session replacement and
+// resetAPISync, so old work cannot credit a replacement's readiness channel.
+func (p *Peer) creditAPIReady(process string, initialReplay uint64) (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	if initialReplay == 0 {
+		return false, errors.New("plugin session ready requires session <initial-replay token> from the peer UP event")
+	}
+	if p.session == nil {
+		return false, errors.New("plugin session ready has no current session; wait for the next peer UP event")
+	}
+	if p.session.initialReplay != initialReplay {
+		return false, errors.New("plugin session ready names an old session; use the token captured by this replay's peer UP event")
+	}
+	if p.session.tearingDown.Load() {
+		return false, errors.New("plugin session ready names a retired session; wait for the next peer UP event")
+	}
 
 	if !slices.Contains(p.apiSyncExpected, process) {
 		routesLogger().Debug("plugin session ready from a process this peer's barrier does not name, so the report is not credited",
 			"peer", p.settings.Address.String(), "process", process, "barrier", p.apiSyncExpected)
-		return false
+		return false, nil
 	}
 	if _, reported := p.apiSyncSignalled[process]; reported {
-		return false
+		return false, nil
 	}
 	p.apiSyncSignalled[process] = struct{}{}
 
@@ -935,7 +961,7 @@ func (p *Peer) creditAPIReady(process string) bool {
 
 	lowered := p.lowerReplayFence()
 	if len(p.apiSyncSignalled) < len(p.apiSyncExpected) {
-		return lowered
+		return lowered, nil
 	}
 	if p.apiSyncReady != nil {
 		p.apiSyncReadyOnce.Do(func() {
@@ -944,7 +970,7 @@ func (p *Peer) creditAPIReady(process string) bool {
 	}
 	routesLogger().Debug("every route-pushing process has reported",
 		"peer", p.settings.Address.String(), "processes", p.apiSyncExpected)
-	return lowered
+	return lowered, nil
 }
 
 // lowerReplayFence lowers the replay fence once every process that holds it
@@ -1127,6 +1153,20 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 	}
 
 	p.refreshForwardFacts()
+}
+
+// initialReplayToken is published only while this connection's initial routing
+// update is owed. The writer MUST match both the token and that live phase;
+// a delayed old UP event cannot authorize replay on another connection.
+func (p *Peer) initialReplayToken() uint64 {
+	if !p.initialSyncEOROwed.Load() && !p.initialUpdateOwed.Load() {
+		return 0
+	}
+	session := p.currentSession()
+	if session == nil {
+		return 0
+	}
+	return session.initialReplay
 }
 
 // RemoteRouterID returns the peer's BGP Identifier from their OPEN message.
@@ -2098,11 +2138,11 @@ func (p *Peer) forwardChannelPending() bool {
 
 // withdrawBehindForwards reports whether an announce-rail withdrawal for this
 // peer must join the peer's forward queue instead of reaching the wire at once
-// (reactorAPIAdapter.queueBehindForwards). A peer that is not Established has
+// (announceTarget.queueBehindForwards). A peer that is not Established has
 // no forward queue that will drain, so the answer is false there.
 //
-// Two facts each make the direct write wrong. While the replay fence is up
-// (initialUpdateOwed), a withdrawal is a live change like any other: written at
+// Two facts each make the direct write wrong. During the initial routing update
+// or its replay fence, a withdrawal is a live change like any other: written at
 // once, it reaches the peer before the replayed announce of the same prefix,
 // which passes the fence later and leaves a withdrawn route installed. While
 // forwarded items are owed through overflow (forwardOverflowPending) or through
@@ -2118,7 +2158,7 @@ func (p *Peer) withdrawBehindForwards() bool {
 	if p.reactor == nil || p.reactor.fwdPool == nil {
 		return false
 	}
-	if p.initialUpdateOwed.Load() {
+	if p.forwardOrderHold(false) {
 		return true
 	}
 	if p.forwardOverflowPending() {

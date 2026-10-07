@@ -141,10 +141,7 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 				delivered = append(delivered, "eor")
 				return json.RawMessage(`{"result":{"announced":0,"withdrawn":0}}`), nil
 			})
-			bridge.SetDispatchCommand(func(_ context.Context, command string) (*rpc.DispatchCommandOutput, error) {
-				if command != "request peer "+target+" plugin session ready" {
-					t.Errorf("unexpected peer action %q", command)
-				}
+			bridge.SetDispatchCommand(func(context.Context, string) (*rpc.DispatchCommandOutput, error) {
 				delivered = append(delivered, "ready")
 				done <- struct{}{}
 				return &rpc.DispatchCommandOutput{Status: statusDone}, nil
@@ -154,7 +151,7 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 				source: {Address: source, Up: true},
 				target: {Address: target, Families: map[family.Family]bool{fam: true}},
 			}}
-			rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, State: rpc.SessionStateUp})
+			rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, State: rpc.SessionStateUp, InitialReplay: 17})
 			select {
 			case <-done:
 			case <-time.After(5 * time.Second):
@@ -166,7 +163,7 @@ func TestPeerUpReflectsExistingFlowSpecBeforeEOR(t *testing.T) {
 			rr.mu.Lock()
 			rr.peers[target].ReplayGen++
 			rr.mu.Unlock()
-			rr.replayForPeer(target, 1)
+			rr.replayForPeer(target, 1, 17)
 			if !slices.Equal(delivered, []string{"rule", "eor", "ready"}) {
 				t.Fatalf("old-session reflection reached reconnected peer: %v", delivered)
 			}

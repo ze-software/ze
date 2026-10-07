@@ -253,6 +253,25 @@ type UpdateTextResult struct {
 	EORFamilies  []family.Family // EOR markers to send (RFC 4724)
 }
 
+// SentOwnerMessageMeta carries an exact sent-advertisement receipt through
+// in-process and JSON plugin dispatch. The value MUST be a decimal string so
+// JSON number decoding cannot round a uint64 message identifier.
+const SentOwnerMessageMeta = "sent-owner-message"
+
+// Initial replay receipts are issued by the peer-up state event. They are not
+// interchangeable with an ordinary same-session sent replay expectation.
+const (
+	InitialReplayMeta      = "initial-replay"
+	InitialLocalMeta       = "initial-local"
+	InitialSourcePeerMeta  = "initial-source-peer"
+	InitialSourceIDMeta    = "initial-source-id"
+	InitialSourceOwnerMeta = "initial-source-owner"
+	InitialSourcePathMeta  = "initial-source-path"
+	SentPathSourcesMeta    = "sent-path-sources"
+	SourceOwnerMeta        = "source-owner"
+	SourceLocalMeta        = "source-local"
+)
+
 // NLRIBatch represents a batch of NLRIs with shared attributes.
 // Used for efficient UPDATE message generation - reactor builds wire format
 // and splits into multiple messages if exceeding peer's max size.
@@ -266,6 +285,20 @@ type NLRIBatch struct {
 	// withdrawal. The RIB supplies replacement selection and sent ownership.
 	RecoverySource netip.Addr
 	RecoveryCut    uint64
+	// SentOwnerMessage fences automatic sent replay and cleanup against the
+	// exact advertisement captured by the RIB before dispatch. A replacement
+	// owner or destination session MUST NOT inherit that operation.
+	SentOwnerMessage uint64
+	// InitialReplay authorizes intentional peer-up replay on precisely the
+	// session whose state event issued this receipt. Exactly one origin form
+	// is required: explicit local, or the captured stable source and path.
+	InitialReplay        uint64
+	InitialLocal         bool
+	InitialSourcePeer    string
+	InitialSourceID      uint32
+	InitialSourceOwner   uint64
+	InitialSourcePath    uint32
+	InitialSourceAddPath bool
 	// NextHop is the next-hop policy. An announce resolves it per destination
 	// peer; a withdraw reads an EXPLICIT address only, to restate it as the RFC
 	// 4271 Section 5.1.3 NEXT_HOP attribute where the family carries one.

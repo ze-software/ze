@@ -180,10 +180,15 @@ func TestForwardAIGPLiveGenerationEndsWithSourceSession(t *testing.T) {
 					err = (&reactorAPIAdapter{r: f.r}).ForwardUpdate(sel, id, "aigp-forwarder", plugin.ProcessSender("aigp-forwarder"))
 					require.ErrorIs(t, err, errForwardNoSource)
 				}
+				// The fresh source must own the control route even when the
+				// prior Peer was removed, not merely re-established.
+				require.NoError(t, ownershipWriterForward(t, f.destination, f.source, f.body(t, 100), false))
+				setup := aigpSocketBodies(t, f.conn)
+				require.Len(t, setup, 1)
 				f.forward(t, f.receive(t, makeUpdateBody([]byte{24, 10, 20, 0}, nil, nil)))
 				close(release)
 				forwardSocketBarrier(t, f.r)
-				bodies := aigpSocketBodies(t, f.conn)
+				bodies := aigpSocketBodies(t, f.conn)[len(setup):]
 				require.Len(t, bodies, 1, "old session's live announcement must not reach the destination")
 				sections, err := wire.ParseUpdateSections(bodies[0])
 				require.NoError(t, err)
@@ -224,11 +229,19 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 	attrs = append(attrs, mp[:n]...)
 	attrs = append(attrs, 0x80, 15, byte(3+len(mpWithdraw)), 0, 2, 1)
 	attrs = append(attrs, mpWithdraw...)
+	// Both original withdrawals name advertisements from this same source.
+	// RFC 4271 Section 4.3 and RFC 4760 Section 3.
+	require.NoError(t, ownershipWriterForward(t, f.destination, f.source,
+		ownershipRailBody(family.IPv4Unicast, false, []byte{24, 10, 21, 0}, 0), false))
+	require.NoError(t, ownershipWriterForward(t, f.destination, f.source,
+		ownershipRailBody(family.IPv6Unicast, false, mpWithdraw, 0), false))
+	setup := aigpSocketBodies(t, f.conn)
+	require.Len(t, setup, 2)
 	body := makeUpdateBody([]byte{24, 10, 21, 0}, attrs, sections.NLRI(base))
 	original := bytes.Clone(body)
 	f.forward(t, f.receive(t, body))
 	forwardSocketBarrier(t, f.r)
-	initial := aigpSocketBodies(t, f.conn)
+	initial := aigpSocketBodies(t, f.conn)[len(setup):]
 	require.Len(t, initial, 4)
 	check := func(bodies [][]byte, want map[family.Family]uint64) {
 		t.Helper()
@@ -278,7 +291,7 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 	setMPMetric(40)
 	f.r.readvertiseAIGP()
 	forwardSocketBarrier(t, f.r)
-	all := aigpSocketBodies(t, f.conn)
+	all := aigpSocketBodies(t, f.conn)[len(setup):]
 	require.Len(t, all, 6)
 	check(all[4:], map[family.Family]uint64{family.IPv4Unicast: 130, family.IPv6Unicast: 140})
 }

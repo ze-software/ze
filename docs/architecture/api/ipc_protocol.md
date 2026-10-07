@@ -733,6 +733,17 @@ Plugin lifecycle operations:
 | `plugin session bye` | Disconnect |
 <!-- source: internal/core/ipc/yang/ze-plugin-api.yang -- plugin lifecycle RPCs -->
 
+Per-peer replay completion is separate from process startup:
+`request peer <addr> plugin session ready session <captured-token>`.
+The token is the lossless nonzero decimal `initial-replay` value captured from
+that replay's peer-UP event (including an empty replay). The current Session and
+sending process are checked atomically before its replay/live-forward fence is
+released. Missing, old or retired receipts fail; a late worker cannot obtain a
+replacement token to finish old work. Explicit operator readiness is a no-op.
+This fence does not delay Ze's independently owned End-of-RIB.
+<!-- source: internal/component/bgp/plugins/cmd/peer/session.go -- handlePeerSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- creditAPIReady -->
+
 ### BGP Namespace
 
 **Introspection:**

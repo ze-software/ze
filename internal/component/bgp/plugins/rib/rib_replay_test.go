@@ -205,7 +205,7 @@ func TestReplayEmptyRibOut(t *testing.T) {
 // signal means the peer burns the full 2s and the EOR lands 2.5s late.
 //
 // Deliberately driven from handleState/handleStructuredState rather than by
-// calling replayRoutesWithCursor(addr, nil) directly: the bug was never in the
+// calling replayRoutesWithCursor(addr, nil, receipt) directly: the bug was never in the
 // helper, it was that no caller ever reached it with an empty collection. A test
 // on the helper stays green through the entire bug (see
 // TestReplayReadySignalUsesRequestPeer, which did). Per ai/rules/evidence.md
@@ -218,6 +218,7 @@ func TestReplayEmptyRibOut(t *testing.T) {
 // skip the replay call entirely and stall the EOR by 2.5s on every fresh session.
 func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
 	const addr = "10.0.0.1"
+	const initialReplay uint64 = 18446744073709551615
 
 	// Both peer-up entry points must behave identically. handleState parses a
 	// JSON *Event; handleStructuredState takes the DirectBridge struct.
@@ -232,13 +233,14 @@ func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
 		require.Empty(t, r.ribOut, "precondition: Adj-RIB-Out must be empty")
 
 		r.handleState(&Event{
+			InitialReplay: initialReplay,
 			Peer: mustMarshal(t, map[string]any{
 				"state":  "up",
 				"remote": map[string]any{"address": addr, "as": uint32(65001)},
 			}),
 		})
 
-		require.Equal(t, []string{"request peer " + addr + " plugin session ready"}, dispatched,
+		require.Equal(t, []string{"request peer " + addr + " plugin session ready session 18446744073709551615"}, dispatched,
 			"a peer coming up with an empty Adj-RIB-Out must signal ready immediately; "+
 				"without it the reactor waits the full waitForAPISync(2s) and the EOR is 2.5s late")
 	})
@@ -251,11 +253,12 @@ func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
 		require.Empty(t, r.ribOut, "precondition: Adj-RIB-Out must be empty")
 
 		r.handleStructuredState(&rpc.StructuredEvent{
-			PeerAddress: addr,
-			State:       rpc.SessionStateUp,
+			PeerAddress:   addr,
+			State:         rpc.SessionStateUp,
+			InitialReplay: initialReplay,
 		})
 
-		require.Equal(t, []string{"request peer " + addr + " plugin session ready"}, dispatched,
+		require.Equal(t, []string{"request peer " + addr + " plugin session ready session 18446744073709551615"}, dispatched,
 			"the structured peer-up path must signal ready on an empty Adj-RIB-Out too")
 	})
 }
@@ -301,10 +304,10 @@ func TestReplayReadySignalUsesRequestPeer(t *testing.T) {
 	var dispatched []string
 	r := &RIBManager{dispatchHook: func(cmd string) { dispatched = append(dispatched, cmd) }}
 
-	r.replayRoutesWithCursor("10.0.0.1", nil)
+	r.replayRoutesWithCursor("10.0.0.1", nil, 19)
 
 	require.Len(t, dispatched, 1)
-	assert.Equal(t, "request peer 10.0.0.1 plugin session ready", dispatched[0])
+	assert.Equal(t, "request peer 10.0.0.1 plugin session ready session 19", dispatched[0])
 }
 
 // TestDispatchPeerActionRequestPeerPrefix verifies RFC 7313 refresh markers

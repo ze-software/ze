@@ -71,7 +71,7 @@ func TestReplayForPeerDispatchesTypedReplayCommand(t *testing.T) {
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 
-	rr.replayForPeer("10.0.0.1", 1)
+	rr.replayForPeer("10.0.0.1", 1, 17)
 
 	mu.Lock()
 	defer mu.Unlock()

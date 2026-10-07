@@ -234,8 +234,8 @@ caller that opens the artifact from its own process. That caller meets whatever
 the last write left, which is usually nothing. `derived.EnsureAll` is the
 rebuild for it: one pass over the registry that renders each artifact the tree
 does not hold whole. `site.Build` calls it, because the site publishes
-`docs/features/rfc-status.md` as a page of the documentation and the RFC prose
-links the shards beside it. `digest.Check` calls it for the other reason a Go
+`docs/features/rfc-status.md` and `docs/features.md` as pages of the
+documentation and the RFC prose links the shards beside it. `digest.Check` calls it for the other reason a Go
 reader has: an anchor in `ai/digests/*.md` cites `ai/PACKAGE-MAP.md`, and a tree
 that does not hold the map reads that citation as a dead link and tells the
 author to delete a line that is correct. The gate met it in the worktree
@@ -244,11 +244,11 @@ artifact at all.
 Nothing compares a re-render against a committed copy, because there is no
 committed copy. Which files are registered is the registry's
 own answer rather than a list here: `derived.All` enumerates them, and
-`internal/le/repo/packagemap`, `internal/le/doc/index` and `internal/le/rfc` are
-the packages that register today.
+`internal/le/repo/packagemap`, `internal/le/doc/index`, `internal/le/rfc` and
+`internal/le/feature` are the packages that register today.
 `docs/contributing/navigating-the-code.md` is the consumer contract for the
-index artifacts, and `docs/contributing/rfc-conformance-gates.md` for the five
-RFC outputs.
+index artifacts, `docs/contributing/rfc-conformance-gates.md` for the five
+RFC outputs, and `docs/contributing/feature-maturity.md` for the feature page.
 
 An artifact's path can be a DIRECTORY, and `rfc/requirements` is one: the set of
 files inside it is derived too, because a summary that stops declaring
@@ -947,6 +947,26 @@ forward" ack path. Destinations are capped at `ze.fwd.dest.cap` (default 4096).
 Both paths share the same egress filter chain, AS-PATH prepend, next-hop policy,
 and replay-on-new-peer invariants.
 
+All output rails converge at the final session writer's ownership admission.
+The existing per-peer `adjOut` is bound to one destination Session and records
+native route identity, outgoing ADD-PATH presence/ID and the current local or
+forwarded owner. Forwarded owners include stable source-peer identity and
+received path identity, not merely the source address. A withdrawal from another
+source cannot remove a replacement, even before a buffered batch flushes.
+Per-path synthesized withdrawals retain absent-route authority without granting
+it to received withdrawn siblings. This is a steady-state wire safeguard, not
+a second selecting RIB.
+
+Ownership filtering runs after policy/transcoding and before PATHS-LIMIT.
+Final normalization precedes recording, so local duplicate evidence describes
+the actual advertisement, including labels excluded from the semantic route key.
+Forwarded replacements clear local duplicate evidence. The ordered pending
+frontier becomes committed at flush; a write/flush failure invalidates it and
+seals only the failing Session. The asynchronous sent RIB remains a projection;
+cold source-DOWN recovery retains its existing drain and session/sequence fences.
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody, flushWrites -->
+
 **Batched cache retains (rs-gap-0):** `ForwardUpdate` accumulates per-peer
 dispatch items during the egress loop and calls `retainN(id, peerCount)` once
 per id instead of per-peer `Retain` calls, reducing cache-lock acquisitions.
@@ -1227,6 +1247,18 @@ When closing a BGP connection, ze uses TCP half-close (`CloseWrite`) before `Clo
 <!-- source: internal/component/bgp/reactor/session_connection.go -- closeConn -->
 
 The sequence is: flush `bufio.Writer` -> `CloseWrite` (FIN) -> drain unread data (100ms deadline) -> `Close`.
+
+Session teardown records its initiating close reason before attempting a
+NOTIFICATION. This applies to Hold and Send Hold expiry, collision resolution,
+administrative or automatic teardown, and import-policy teardown. If that
+notification's write or flush fails, writer retirement still seals the writer
+and closes the transport, but `Session.Run` must not mistake the failed delivery
+for the cause of the teardown. The close reason is first-wins: an earlier
+recorded failure remains authoritative.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- setCloseReason, CloseWithNotification, teardown -->
+<!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback, Run -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- sendHoldTimerExpired, retireWrite -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- processMessage -->
 
 ### Send Hold Timer (RFC 9687)
 

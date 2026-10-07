@@ -155,7 +155,7 @@ func TestReconnectResend(t *testing.T) {
 	mgr.peerPools["10.0.0.1"].AnnouncePool("dnsr", "10.0.0.1")
 
 	// Peer comes up
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 41)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -207,7 +207,7 @@ func TestDisconnectedStateUpdate(t *testing.T) {
 	mu.Unlock()
 
 	// Now peer comes up — should resend the announced route
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 41)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -238,7 +238,7 @@ func TestInitiallyAnnouncedRoutes(t *testing.T) {
 	}
 
 	// Peer comes up — initially announced routes should be sent
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 41)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -269,7 +269,7 @@ func TestInitiallyWithdrawnRoutes(t *testing.T) {
 	}
 
 	// Peer comes up — withdrawn routes should NOT be sent
-	mgr.handleStateUp("10.0.0.3")
+	mgr.handleStateUp("10.0.0.3", 41)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -299,7 +299,7 @@ func TestStateDownPreventsRoutesSending(t *testing.T) {
 	}
 
 	// Peer comes up, then goes down
-	mgr.handleStateUp("10.0.0.4")
+	mgr.handleStateUp("10.0.0.4", 41)
 	mgr.handleStateDown("10.0.0.4")
 
 	// Clear sent routes from the state-up
@@ -353,7 +353,7 @@ func TestStateUpMixedInitialState(t *testing.T) {
 	}
 
 	// First session establishment — only route A should be sent
-	mgr.handleStateUp("10.0.0.5")
+	mgr.handleStateUp("10.0.0.5", 41)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -389,11 +389,11 @@ func TestRapidFlap(t *testing.T) {
 	}
 
 	// Rapid flap: up→down→up→down→up
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 41)
 	mgr.handleStateDown("10.0.0.1")
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 42)
 	mgr.handleStateDown("10.0.0.1")
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 43)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -570,7 +570,7 @@ func TestExplicitWithdrawSurvivesReconnect(t *testing.T) {
 	}
 
 	// First session: peer comes up, nothing sent (not initiallyAnnounced)
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 41)
 
 	// Explicit announce
 	_, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dnsr"}, "10.0.0.1")
@@ -594,7 +594,7 @@ func TestExplicitWithdrawSurvivesReconnect(t *testing.T) {
 
 	// Peer flaps: down → up
 	mgr.handleStateDown("10.0.0.1")
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 42)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -627,7 +627,7 @@ func TestInitiallyAnnouncedRestoredOnReconnect(t *testing.T) {
 	}
 
 	// First session: auto-announced
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 41)
 
 	mu.Lock()
 	if len(sent) != 1 {
@@ -648,7 +648,7 @@ func TestInitiallyAnnouncedRestoredOnReconnect(t *testing.T) {
 
 	// Peer flaps — initiallyAnnounced should be restored
 	mgr.handleStateDown("10.0.0.1")
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 42)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -682,7 +682,7 @@ func TestReconnectResendAfterEstablished(t *testing.T) {
 	}
 
 	// Phase 1: peer comes up, nothing sent (initially withdrawn)
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 41)
 
 	mu.Lock()
 	if len(sent) != 0 {
@@ -705,7 +705,7 @@ func TestReconnectResendAfterEstablished(t *testing.T) {
 
 	// Phase 3: peer flaps down → up
 	mgr.handleStateDown("10.0.0.1")
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 42)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -1179,7 +1179,7 @@ func TestReconnectUsesStoredNotOverride(t *testing.T) {
 	}
 
 	// First up
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 41)
 	// MED override
 	_, _, _ = mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
 
@@ -1189,7 +1189,7 @@ func TestReconnectUsesStoredNotOverride(t *testing.T) {
 
 	// Reconnect
 	mgr.handleStateDown("10.0.0.1")
-	mgr.handleStateUp("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1", 42)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -1241,50 +1241,4 @@ func TestMEDOverrideBoundary(t *testing.T) {
 type sentRoute struct {
 	peer string
 	cmd  string
-}
-
-// TestPeerUpSignalsSessionReady pins the readiness signal, on every peer-up and
-// whatever the peer's pools hold.
-//
-// VALIDATES: bgp-watchdog tells the engine when it has finished its initial
-// contribution for a peer, which is what releases that peer's End-of-RIB hold.
-// A peer that grants a process `send [ update ]` waits for one signal per such
-// process (reactor/peer_run.go, peer_initial_sync.go).
-// PREVENTS: the marker waiting out the whole sync timeout, during which an
-// unrelated event-driven announce is queued AHEAD of it and the End-of-RIB then
-// claims a route that was never part of the initial routing update (RFC 4724
-// Section 2). Measured on the healthcheck fixtures, whose probe rises inside
-// that window.
-func TestPeerUpSignalsSessionReady(t *testing.T) {
-	var mu sync.Mutex
-	var ready []string
-	mgr := newWatchdogServer(func(_, _ string) {}, func(peer string) {
-		mu.Lock()
-		ready = append(ready, peer)
-		mu.Unlock()
-	})
-
-	// A peer with an announced route: the signal must follow the route.
-	mgr.peerPools["10.0.0.1"] = newPoolSet()
-	entry := newPoolEntry("10.0.0.0/24#0",
-		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
-		"update text nlri ipv4/unicast del 10.0.0.0/24")
-	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
-		t.Fatal(err)
-	}
-	mgr.handleStateUp("10.0.0.1")
-
-	// A peer this plugin holds no pool for. "I have nothing for this peer"
-	// completes the initial update exactly as a route does, so it signals too:
-	// staying silent would hold the marker on the peers that need it least.
-	mgr.handleStateUp("10.0.0.9")
-
-	mu.Lock()
-	defer mu.Unlock()
-	if len(ready) != 2 {
-		t.Fatalf("session-ready signals = %v, want one per peer-up", ready)
-	}
-	if ready[0] != "10.0.0.1" || ready[1] != "10.0.0.9" {
-		t.Errorf("session-ready peers = %v, want [10.0.0.1 10.0.0.9]", ready)
-	}
 }

@@ -6,13 +6,17 @@
 package rib
 
 import (
+	"context"
 	"encoding/hex"
 	"hash/fnv"
 	"net/netip"
 	"sort"
+	"strconv"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -20,23 +24,34 @@ import (
 
 // replayGroup represents a set of routes sharing the same attributes.
 type replayGroup struct {
-	Route      *Route
-	Prefixes   []string
-	MinMsgID   uint64
-	Family     family.Family
-	PathID     uint32
-	StaleLevel uint8
+	Route         *Route
+	Prefixes      []string
+	MinMsgID      uint64
+	Family        family.Family
+	PathID        uint32
+	StaleLevel    uint8
+	SourceID      uint32
+	SourceOwner   uint64
+	SourcePath    uint32
+	SourceAddPath bool
+	LocalOrigin   bool
 }
 
 // groupKey identifies a unique attribute group for replay batching.
 type groupKey struct {
-	Family     family.Family
-	AttrHandle attrpool.Handle
-	PathID     uint32
-	StaleLevel uint8
-	AddPath    bool
-	NextHop    string
-	SourcePeer string
+	Family        family.Family
+	AttrHandle    attrpool.Handle
+	PathID        uint32
+	StaleLevel    uint8
+	AddPath       bool
+	NextHop       string
+	SourcePeer    string
+	MessageID     uint64
+	SourceID      uint32
+	SourceOwner   uint64
+	SourcePath    uint32
+	SourceAddPath bool
+	LocalOrigin   bool
 }
 
 // collectGroupedRibOutRoutes groups ribOut entries by (family, AttrHandle, pathID, StaleLevel).
@@ -119,17 +134,26 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 			if peerUp && entry.ConfigStatic {
 				continue
 			}
+			if peerUp && !r.sentSourceCurrent(fam, key, entry) {
+				continue
+			}
 			if !replaySourceEligible(fam, key, entry.SourcePeer) {
 				continue
 			}
 			gk := groupKey{
-				Family:     fam,
-				AttrHandle: entry.AttrHandle,
-				PathID:     key.PathID,
-				StaleLevel: entry.StaleLevel,
-				AddPath:    entry.AddPath,
-				NextHop:    entry.NextHop,
-				SourcePeer: entry.SourcePeer,
+				Family:        fam,
+				AttrHandle:    entry.AttrHandle,
+				PathID:        key.PathID,
+				StaleLevel:    entry.StaleLevel,
+				AddPath:       entry.AddPath,
+				NextHop:       entry.NextHop,
+				SourcePeer:    entry.SourcePeer,
+				MessageID:     entry.MsgID,
+				SourceID:      entry.SourceID,
+				SourceOwner:   entry.SourceOwner,
+				SourcePath:    entry.SourcePath,
+				SourceAddPath: entry.SourceAddPath,
+				LocalOrigin:   entry.LocalOrigin,
 			}
 			pg, ok := groups[gk]
 			if !ok {
@@ -183,12 +207,17 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 		routeCopy.StaleLevel = pg.key.StaleLevel
 
 		result = append(result, replayGroup{
-			Route:      &routeCopy,
-			Prefixes:   pg.prefixes,
-			MinMsgID:   pg.minMsgID,
-			Family:     pg.key.Family,
-			PathID:     pg.key.PathID,
-			StaleLevel: pg.key.StaleLevel,
+			Route:         &routeCopy,
+			Prefixes:      pg.prefixes,
+			MinMsgID:      pg.minMsgID,
+			Family:        pg.key.Family,
+			PathID:        pg.key.PathID,
+			StaleLevel:    pg.key.StaleLevel,
+			SourceID:      pg.key.SourceID,
+			SourceOwner:   pg.key.SourceOwner,
+			SourcePath:    pg.key.SourcePath,
+			SourceAddPath: pg.key.SourceAddPath,
+			LocalOrigin:   pg.key.LocalOrigin,
 		})
 	}
 
@@ -310,10 +339,27 @@ func asPathString(path []uint32) string {
 	return b.String()
 }
 
+// signalReplayReady carries the same captured Session receipt as every initial
+// restore command, including the zero-route case where no writer is called.
+func (r *RIBManager) signalReplayReady(peerAddr string, initialReplay uint64) {
+	var tb textbuf.Buffer
+	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready session ").Uint(initialReplay).String()
+	if r.dispatchHook != nil {
+		r.dispatchHook(command)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	status, _, err := r.plugin.DispatchCommand(ctx, command)
+	if err != nil || status == statusError {
+		logger().Warn("initial replay ready failed", "peer", peerAddr, "session", initialReplay, "status", status, "error", err)
+	}
+}
+
 // replayRoutesWithCursor replays routes using cursor mode for efficiency.
-func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGroup) {
+func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGroup, initialReplay uint64) {
 	if len(groups) == 0 {
-		r.dispatchPeerAction(peerAddr, "plugin session ready")
+		r.signalReplayReady(peerAddr, initialReplay)
 		return
 	}
 
@@ -327,15 +373,35 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 	sortGroupsForMinimalDeltas(groups)
 
 	var prev *Route
+groups:
 	for i := range groups {
 		g := &groups[i]
 		cmds := formatCursorCommands(g, prev)
-		meta := map[string]any{metaKeyReplay: true}
+		meta := map[string]any{metaKeyReplay: true,
+			bgptypes.SentOwnerMessageMeta: strconv.FormatUint(g.MinMsgID, 10),
+			bgptypes.InitialReplayMeta:    strconv.FormatUint(initialReplay, 10)}
+		if g.LocalOrigin {
+			meta[bgptypes.InitialLocalMeta] = true
+		} else {
+			meta[bgptypes.InitialSourcePeerMeta] = g.Route.SourcePeer
+			meta[bgptypes.InitialSourceIDMeta] = strconv.FormatUint(uint64(g.SourceID), 10)
+			meta[bgptypes.InitialSourceOwnerMeta] = strconv.FormatUint(g.SourceOwner, 10)
+			if g.SourceAddPath {
+				meta[bgptypes.InitialSourcePathMeta] = strconv.FormatUint(uint64(g.SourcePath), 10)
+			}
+		}
 		if g.StaleLevel > 0 {
 			meta["stale"] = g.StaleLevel
 		}
 		for _, cmd := range cmds {
-			r.updateRouteWithMeta(peerAddr, cmd, meta)
+			if err := r.updateRouteWithMeta(peerAddr, cmd, meta); err != nil {
+				r.updateRoute(peerAddr)
+				// Rejected history is not delivered, but it must not strand
+				// the live-forward fence. Try the remaining independent groups
+				// with full attributes, then report this captured session done.
+				prev = nil
+				continue groups
+			}
 		}
 		if g.Route.RawAttrs == "" {
 			prev = g.Route
@@ -343,7 +409,7 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 	}
 
 	r.updateRoute(peerAddr)
-	r.dispatchPeerAction(peerAddr, "plugin session ready")
+	r.signalReplayReady(peerAddr, initialReplay)
 }
 
 // resendRoutesWithCursor replays routes using cursor mode for manual resend.
@@ -375,7 +441,8 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 	for i := range groups {
 		g := &groups[i]
 		cmds := formatCursorCommands(g, prev)
-		meta := map[string]any{metaKeyReplay: true}
+		meta := map[string]any{metaKeyReplay: true,
+			bgptypes.SentOwnerMessageMeta: strconv.FormatUint(g.MinMsgID, 10)}
 		if g.StaleLevel > 0 {
 			meta["stale"] = g.StaleLevel
 		}

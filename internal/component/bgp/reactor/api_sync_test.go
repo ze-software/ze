@@ -336,7 +336,7 @@ func (h *warnRecorder) messages() []string {
 // is no waiter left to start. The three tests below are about WHICH peer a
 // ready signal is credited to, which the channel answers exactly as the wait
 // did, and there is now no timeout that could close it for any other reason.
-func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-chan struct{} {
+func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) (<-chan struct{}, uint64) {
 	t.Helper()
 
 	settings := NewPeerSettings(addr, 65000, 65001, 0x01020304)
@@ -347,6 +347,7 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-ch
 	peer := r.peers[settings.PeerKey()]
 	r.mu.RUnlock()
 	require.NotNil(t, peer, "peer must be stored under its own address:port key")
+	peer.session = NewSession(settings)
 
 	peer.SetClock(sim.NewFakeClock(time.Now()))
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
@@ -357,7 +358,7 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-ch
 	peer.mu.RUnlock()
 	require.NotNil(t, synced, "resetAPISync must arm the readiness channel")
 
-	return synced
+	return synced, peer.session.initialReplay
 }
 
 func chanClosed(ch <-chan struct{}) func() bool {
@@ -386,10 +387,10 @@ func chanClosed(ch <-chan struct{}) func() bool {
 func TestSignalPeerAPIReadyNonDefaultPort(t *testing.T) {
 	r := New(&Config{})
 	addr := netip.MustParseAddr("192.0.2.10")
-	synced := armAPISyncPeer(t, r, addr, 1179)
+	synced, initialReplay := armAPISyncPeer(t, r, addr, 1179)
 
 	// Bare IP: exactly what the emitters put on the wire.
-	r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"))
+	require.NoError(t, r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"), initialReplay))
 
 	require.Eventually(t, chanClosed(synced), 2*time.Second, time.Millisecond,
 		"a peer on a non-default port must receive its ready signal")
@@ -403,9 +404,9 @@ func TestSignalPeerAPIReadyNonDefaultPort(t *testing.T) {
 func TestSignalPeerAPIReadyDefaultPort(t *testing.T) {
 	r := New(&Config{})
 	addr := netip.MustParseAddr("192.0.2.11")
-	synced := armAPISyncPeer(t, r, addr, DefaultBGPPort)
+	synced, initialReplay := armAPISyncPeer(t, r, addr, DefaultBGPPort)
 
-	r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"))
+	require.NoError(t, r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"), initialReplay))
 
 	require.Eventually(t, chanClosed(synced), 2*time.Second, time.Millisecond,
 		"a peer on the default port must receive its ready signal")
@@ -415,11 +416,10 @@ func TestSignalPeerAPIReadyDefaultPort(t *testing.T) {
 // not exist reaches nobody AND is observable.
 //
 // VALIDATES: ai/rules/evidence.md "or say something" -- the lookup miss
-// logs at Warn naming the peer instead of degrading into a silent no-op. Nothing
-// downstream can report it: handlePeerSessionReady still answers "peer ready
-// acknowledged" (cmd/peer/session.go:22).
-// PREVENTS: a typo'd or stale peer address silently dropping the signal, leaving
-// only an unexplained 2.5s EOR delay as evidence.
+// logs at Warn naming the peer and returns an error rather than acknowledging
+// a report no readiness owner received.
+// PREVENTS: a typo'd or stale peer address silently dropping the signal and
+// leaving another session's replay fence unexplained.
 func TestSignalPeerAPIReadyUnknownPeerWarns(t *testing.T) {
 	rec := &warnRecorder{}
 	old := slog.Default()
@@ -427,9 +427,9 @@ func TestSignalPeerAPIReadyUnknownPeerWarns(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(old) })
 
 	r := New(&Config{})
-	synced := armAPISyncPeer(t, r, netip.MustParseAddr("192.0.2.12"), 1179)
+	synced, initialReplay := armAPISyncPeer(t, r, netip.MustParseAddr("192.0.2.12"), 1179)
 
-	r.SignalPeerAPIReady("198.51.100.99", plugin.ProcessSender("pusher"))
+	require.ErrorIs(t, r.SignalPeerAPIReady("198.51.100.99", plugin.ProcessSender("pusher"), initialReplay), ErrPeerNotFound)
 
 	require.Never(t, chanClosed(synced), 100*time.Millisecond, time.Millisecond,
 		"a signal for an unknown peer must not release a different peer's API sync")

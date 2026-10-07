@@ -152,25 +152,26 @@ func stripAIGPBody(dst, body []byte) ([]byte, error) {
 	return dst[:written], nil
 }
 
-func (s *Session) writeUpdateWithoutAIGP(body []byte) error {
+func (s *Session) writeUpdateWithoutAIGP(body []byte, raw bool) (bool, error) {
 	handle := getReadBuf(len(body) > message.MaxMsgLen-message.HeaderLen)
 	defer s.returnReadBuffer(handle)
 	filtered, err := stripAIGPBody(handle.Buf, body)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return s.writeRawUpdateBody(filtered)
+	return s.writeUpdateBody(filtered, raw)
 }
 
 // writeOriginatedRawUpdate applies origination policy to both raw API forms.
 // Received forwarding MUST use writeRawUpdateBody instead: it preserves the
 // source's metric and has already applied the egress accumulation rules.
-// The caller MUST hold writeMu and flush the buffered write.
-func (s *Session) writeOriginatedRawUpdate(body []byte) error {
+// The caller MUST hold writeMu and flush the buffered write. Only SendRawMessage
+// passes raw=true; it MUST retire the Session after flushing opaque output.
+func (s *Session) writeOriginatedRawUpdate(body []byte, raw bool) (bool, error) {
 	if aigpPresent(body) {
 		if !s.aigpOriginAllowed(body) {
-			return s.writeUpdateWithoutAIGP(body)
+			return s.writeUpdateWithoutAIGP(body, raw)
 		}
 	}
-	return s.writeRawUpdateBody(body)
+	return s.writeUpdateBody(body, raw)
 }

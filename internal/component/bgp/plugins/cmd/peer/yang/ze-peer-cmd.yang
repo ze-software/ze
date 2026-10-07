@@ -504,11 +504,21 @@ the moment a peer's plugin process finished its startup.";
                     container ready {
                         config false;
                         ze:command "ze-plugin:session-peer-ready";
-                        description "The daemon closes this process's share of the peer's End-of-RIB barrier, so the
-peer stops waiting for routes from this process. The signal is keyed on the
-sending process, so one process does not release another. A peer of '*', and an
-empty peer, are both ignored.";
+                        description "The daemon closes this sending process's share of the peer's
+live-forward replay fence only for the captured peer-UP session token.
+Missing, stale or retired process receipts fail without releasing queued work.
+An explicit operator request is a no-op; it cannot credit a named process.
+A peer of '*', and an empty peer, signal nothing.";
                         ze:help "Signal that per-peer plugin setup is complete.";
+                        leaf session {
+                            type string {
+                                pattern '[1-9][0-9]*';
+                            }
+                            description "The opaque nonzero uint64 initial-replay token captured from
+the peer-UP event whose replay this process finished. Never fetch a new token
+to finish old replay work.";
+                            ze:help "Captured peer-UP initial-replay token.";
+                        }
                     }
                 }
             }

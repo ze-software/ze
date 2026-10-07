@@ -4,10 +4,12 @@ package rib
 import (
 	"encoding/binary"
 	"net/netip"
+	"strconv"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
@@ -18,6 +20,7 @@ import (
 type sentLifecycleWrite struct {
 	peer    string
 	command string
+	message uint64
 }
 
 // receivedOwner matches route identity and received generation, not egress
@@ -98,7 +101,7 @@ func (r *RIBManager) reconcileSentSourceLocked(source netip.Addr, selected famil
 					command := bgp.FormatWithdrawCommand(reconstructRoute(withdraw, fam, key))
 					delete(routes, key)
 					entry.release()
-					writes = append(writes, sentLifecycleWrite{peer: destination.String(), command: command})
+					writes = append(writes, sentLifecycleWrite{peer: destination.String(), command: command, message: entry.MsgID})
 					continue
 				}
 				if len(community) == 0 {
@@ -191,7 +194,8 @@ func attachSentCommunity(entry *ribOutEntry, community []byte) bool {
 
 func (r *RIBManager) dispatchSentLifecycle(writes []sentLifecycleWrite) {
 	for _, write := range writes {
-		meta := map[string]any{"rib-lifecycle": true, metaKeyReplay: true}
+		meta := map[string]any{"rib-lifecycle": true, metaKeyReplay: true,
+			bgptypes.SentOwnerMessageMeta: strconv.FormatUint(write.message, 10)}
 		r.updateRouteWithMeta(write.peer, write.command, meta)
 	}
 }

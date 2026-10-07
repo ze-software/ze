@@ -69,9 +69,50 @@ NLRI separately in `ribOutEntry.NativeNLRI`. ADD-PATH presence is retained even
 when its identifier is zero. Withdrawals use the same family identity operation,
 including withdrawal-specific framing. Each destination entry owns its
 `SourcePeer`; there is no second source inventory. Removing one destination
-cannot erase another's origin. `SourceMessageID` records the received generation;
-the sent ADD-PATH identifier is not an ingress identifier. Replay feedback does
-not write ownership or attributes; a new advertisement replaces them.
+cannot erase another's origin. `SourceMessageID` records the received revision;
+the sent ADD-PATH identifier is not an ingress identifier. The existing sent
+receipt also retains explicit local origin or the stable source-Peer incarnation
+and received ADD-PATH presence/identifier. Address equality or an absent source
+field is not proof of origin. The final writer emits those receipts from its
+actual surviving announcements, without retaining forwarded attributes.
+Replay feedback does not write ownership or attributes; a new advertisement
+replaces them.
+
+The sent callback borrows the writer's typed `wireu.SentOrigin` view. The event
+producer copies its scalar source/local fields into the existing `RawMessage`
+and retains the event-owned path sidecar; it never keeps the borrowed view.
+External serializers project those fields only when needed. Ordinary internal
+forwarding creates no ownership metadata map and formats no incarnation string.
+
+This sent inventory is an asynchronous projection, not the ordinary writer's
+admission authority. The final writer extends the existing per-peer `adjOut`
+with source/path ownership and binds it to one destination Session. It sees
+buffered writes in order without a RIB RPC. Source-bound withdrawals must match
+that live owner; automatic cleanup carries the captured owner and advertisement
+revision before deleting a projection entry. Sent-route refresh preserves
+ownership instead of becoming unrestricted local origination. Cold source-DOWN
+recovery still uses the applied-delivery and session/sequence receipts below.
+Sent events record successful buffered acceptance, not successful flush or TCP
+delivery. The writer's pending frontier and AIGP receipts commit on flush, and a
+failure invalidates that Session. Neither this projection nor its old callback
+alone grants admission on a new session.
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, adjOutPath -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody -->
+
+Peer-up history uses the new Session's captured initial-sync receipt rather than
+bypassing ordinary ownership on an empty table. It can populate only empty slots
+in that phase and cannot displace newer live output. Forwarded history requires
+the same source incarnation and exact retained received path/message revision.
+Changed or removed source history is ineligible; replay does not elect or
+reconstruct a newer route. The RIB joins the existing initial-update fence so
+restoration precedes queued live changes and lifecycle cleanup. Both local and
+forwarded history retain their logical old sent revision, while the new wire
+message has its own unique ID. This does not depend on the optional Adj-RIB-In
+plugin. See [replay cursor](../bgp/replay-cursor.md).
+The initial token remains valid while the peer-up replay fence is held, even
+after Ze's own EOR. Completion carries the same captured token to the actual
+readiness owner, including when no replay group was emitted; old work cannot
+release a replacement Session's queued live changes.
 
 Replay and refresh retain every attribute from the immutable `pool.RibOut`
 blob through `Route.RawAttrs` and the existing `update hex` command. Native
@@ -113,14 +154,29 @@ generation, or a withdrawal if its failed owner has no usable replacement.
 ADD-PATH destinations instead withdraw only the failed source's actual sent
 identifiers, including zero. The RIB normalizes the affected identities once per
 batch and scans that destination's sent family once, rather than restarting from
-the first route after every identifier. The sent inventory remains the only
-authority for those identifiers. Entries learned after the DOWN cut are not
-candidates for removal.
+the first route after every identifier. This remains the cold lookup's retained
+sent projection; final writer admission still requires its live owner receipt.
+Entries learned after the DOWN cut are not candidates for removal.
 
 Sent event callbacks enqueue delivery; they do not synchronously update the RIB.
-The engine first snapshots a destination's send sequence under its session
-`writeMu`, releases the lock, then drains the RIB command owner's existing FIFO
-event-delivery queue with `DrainEventsApplied`. Unlike the soft quiesce barrier,
+The engine first snapshots a destination's causal send sequence under its
+session `writeMu`, releases the lock, then captures each source's accepted
+receive-message cut. Before the selecting RIB's barrier, it waits for those
+exact cuts to be published into plugin queues. Acceptance precedes reactor-native
+fast forwarding; completion follows `OnMessageBatchReceived` (or the synchronous
+receive callback). Thus a fast-path write cannot outrun its source event and
+leave a falsely current RIB snapshot.
+
+The publication frontier contains only scalar IDs and the exact delivery-worker
+lifetime. Cold waiters share a broadcast, support cancellation and fail if that
+worker stops before publishing their cut. A dropped or panicked batch poisons
+that worker's receipt; later success does not hide it. With no cold waiter,
+completion takes no publication mutex; only a blocking cold waiter allocates a
+notification channel. There is no per-UPDATE channel, polling loop, unjoined
+waiter goroutine, or hot RIB lookup. Completion is publication, not application.
+
+Recovery then drains the RIB command owner's existing FIFO event-delivery queue
+with `DrainEventsApplied`. Unlike the soft quiesce barrier,
 this receipt proves successful application and checks owner liveness for both
 DirectBridge and plugin IPC, including internal runners whose allocated bridge
 was never activated. A stopped or failed activated bridge cannot fall back to
@@ -129,20 +185,37 @@ for that Process incarnation; a later successful delivery cannot clear them.
 Only then does recovery query the RIB, in-process or through the same hidden
 `request bgp rib recovery` producer.
 
-Before either lookup transport starts, a cold receipt captures configured peer
-identities and their source-session generations. Reconstruction must match that
-receipt; reconnecting between selection and reconstruction cannot relabel old
-bytes with a new session's encoding context.
+The cold source receipt also captures configured peer identities and source
+generations. Reconstruction and final admission must still match its worker,
+accepted receive cut, and generation. Reconnect or a later source UPDATE cannot
+relabel old selected bytes with a new session's context.
 
 Every selected path and every post-policy output section is staged in one
-destination operation. The destination worker checks its session, send sequence
-and all source generations under `writeMu` before writing. An intervening send
-requests a new barrier and election after releasing all write locks. Siblings
+destination operation. The destination worker checks its session, causal send
+sequence, source generations, and received-publication cuts under `writeMu`.
+An intervening operation requests new publication/application barriers and
+selection after releasing all write locks. Siblings
 do not invalidate one another through their own sends, and item release answers
 one completion after releasing all child resources, including cancellation and
 pool shutdown. A hard deadline, write or flush error takes precedence over a
 retry request, including source loss after a sibling has already written.
 Sent callbacks remain asynchronous.
+<!-- source: internal/component/bgp/reactor/receive_publication.go -- receivePublicationCut.wait, current -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce delivery publication -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- acceptedReceive, synchronous publication -->
+
+The publication regression runs actual `Peer.runOnce` sessions over `net.Pipe`.
+It blocks the real batch-receiver callback after native forwarding and waits
+for a later same-source marker on the recipient wire, fencing the filtered
+withdrawal's writer decision. Recovery then captures a cut including that
+marker, starts with a live context, and waits for publication before allowing
+the registered dispatcher to deliver the withdrawal. The lookup wrapper checks
+the selecting RIB's actual candidate removal before calling its real provider;
+recipient history must then contain a withdrawal, not a stale replacement.
+A panicking delivery callback instead requires no lookup and an explicit Cease
+on the affected destination session. This carrier exercises the applied-event
+drain but does not independently discriminate that drain or external IPC.
+<!-- test: internal/component/bgp/reactor/forward_publication_ownership_test.go TestRecoveryWaitsForFilteredReceivedPublication -->
 
 There is no timer retry and no second route inventory. RS owns and joins each
 DOWN operation using its plugin lifecycle context, without an unrelated

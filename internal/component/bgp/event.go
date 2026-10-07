@@ -356,7 +356,8 @@ type Event struct {
 	Peer json.RawMessage `json:"peer"`
 
 	// State event field.
-	State string `json:"state,omitempty"`
+	State         string `json:"state,omitempty"`
+	InitialReplay uint64 `json:"initial-replay,string,omitempty"`
 
 	// UnheldRoles names the exclusive roles this plugin was told are claimed
 	// that no other process taking delivery of this event holds. The engine

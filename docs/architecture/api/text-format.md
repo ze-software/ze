@@ -20,7 +20,7 @@ All parsed text events start with `peer <address> remote as <asn>`. State events
 
 | Shape | Layout | Used by |
 |-------|--------|---------|
-| State | `peer <address> remote as <asn> state <state> [reason <reason>]` | State change events |
+| State | `peer <address> remote as <asn> state <state> [reason <reason>] [initial-replay <receipt>]` | State change events |
 | Message | `peer <address> remote as <asn> <direction> <type> <msgid> <body...>` | UPDATE, OPEN, NOTIFICATION, KEEPALIVE, REFRESH, BORR, EORR |
 <!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText, appendFilterResultText -->
 <!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
@@ -28,17 +28,31 @@ All parsed text events start with `peer <address> remote as <asn>`. State events
 Direction is `received` or `sent`. Message ID is a monotonically increasing integer per peer session for BGP wire messages.
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- OnPeerEstablished, OnPeerClosed -->
 
+`initial-replay` is an opaque nonzero Session receipt captured when the state
+event is produced. A peer-up readiness reporter carries that same decimal value
+in `request peer <address> plugin session ready session <receipt>`, even when it
+has no routes to replay. It must not fetch a replacement Session's receipt when
+its work finishes. Readers that do not report readiness read the value after
+`state`; the state is not necessarily the last token. The suffix is omitted
+when no Session receipt exists.
+
+This is Ze's native IPC format, not the ExaBGP script protocol. The ExaBGP
+bridge consumes Ze JSON events and uses its own compatibility encoder to write
+`neighbor <address> up` or `neighbor <address> down - <reason>`; it does not
+forward this bookkeeping suffix.
+
 ### BNF Grammar
 
 ```
 <message>       ::= <state-event> | <message-event>
-<state-event>   ::= "peer" <address> "remote" "as" <asn> "state" <state-value> [<reason>] LF
+<state-event>   ::= "peer" <address> "remote" "as" <asn> "state" <state-value> [<reason>] [<initial-replay>] LF
 <message-event> ::= "peer" <address> "remote" "as" <asn> <direction> <type> <msgid> <body> LF
 
 <direction>     ::= "received" | "sent"
 <type>          ::= "update" | "open" | "notification" | "keepalive" | "refresh" | "borr" | "eorr"
 <state-value>   ::= "up" | "down"
 <reason>        ::= "reason" <token>
+<initial-replay> ::= "initial-replay" <uint64-decimal>
 
 <update-body>   ::= <attribute>* <nlri-section>* | <empty>
 <nlri-section>  ::= ["next" <address>] "nlri" <family> [<path-info>] <action> <nlri-token>+
@@ -183,7 +197,7 @@ Format: `<afi>/<safi>` — always slash-separated, lowercase.
 All examples below use the current uniform header and UPDATE body shape.
 
 ```
-peer 10.0.0.1 remote as 65001 state up
+peer 10.0.0.1 remote as 65001 state up initial-replay 42
 
 peer 10.0.0.1 remote as 65001 state down
 

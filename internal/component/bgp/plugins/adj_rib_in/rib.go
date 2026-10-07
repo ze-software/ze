@@ -727,6 +727,7 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	}
 
 	isUp := state == rpc.SessionStateUp
+	initialReplay := se.InitialReplay
 
 	r.mu.Lock()
 	r.peerUp[peerAddr] = isUp
@@ -751,24 +752,15 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 			logger().Error("FlowSpec peer-up replay failed", "peer", se.PeerAddress, "error", err)
 		}
 	}
-	r.signalSessionReady(se.PeerAddress)
+	r.signalSessionReady(se.PeerAddress, initialReplay)
 }
 
-// signalSessionReady tells the engine this plugin has finished the routes it
-// owes the peer's INITIAL routing update.
-//
-// RFC 4724 Section 4 owes the End-of-RIB marker once that update completes, and a
-// peer that attaches this plugin with `send [ update ]` is counted into the
-// barrier that holds the marker (reactor/peer_run.go,
-// ProcessBinding.MayPushRoutes). A counted plugin that never signals does not
-// make the marker wrong, it makes it LATE: the barrier runs to its timeout and
-// the peer gets a marker seconds after its initial update was complete.
-//
-// Sent on EVERY peer-up, replay or no replay. A peer whose replay another plugin
-// owns, and a peer this plugin holds no route for, are both finished the instant
-// the event arrives, and a barrier cannot tell "finished with nothing to send"
-// from "still working" unless the plugin says so.
-func (r *AdjRIBInManager) signalSessionReady(peerAddress string) {
+// signalSessionReady reports completion of this plugin's initial routing update.
+// Every peer-up with a token reports, even when replay belongs to another plugin
+// or there are no routes. The engine credits only the captured session; readiness
+// from a reporter that owns a replay fence releases that fence, not End-of-RIB.
+// Callers MUST pass the token captured from the peer-up event, never a current-session lookup.
+func (r *AdjRIBInManager) signalSessionReady(peerAddress string, initialReplay uint64) {
 	// runAdjRIBInPlugin always builds the manager with its SDK handle, so a nil
 	// one means a unit test constructed the manager directly. The sibling replay
 	// path needs no such guard: relayRoutes returns before it dereferences the
@@ -776,12 +768,15 @@ func (r *AdjRIBInManager) signalSessionReady(peerAddress string) {
 	if r.plugin == nil {
 		return
 	}
+	if initialReplay == 0 {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), sessionReadyTimeout)
 	defer cancel()
 	var tb textbuf.Buffer
-	command := tb.Str("request peer ").Str(peerAddress).Str(" plugin session ready").String()
+	command := tb.Str("request peer ").Str(peerAddress).Str(" plugin session ready session ").Uint(initialReplay).String()
 	if _, _, err := r.plugin.DispatchCommand(ctx, command); err != nil {
-		logger().Warn("plugin session ready failed; this peer's end-of-rib waits out the sync timeout",
+		logger().Warn("plugin session ready failed",
 			"peer", peerAddress, "error", err)
 	}
 }
@@ -986,6 +981,7 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	}
 
 	isUp := state == stateUp
+	initialReplay := event.InitialReplay
 
 	r.mu.Lock()
 	r.peerUp[peerAddr] = isUp
@@ -1014,7 +1010,7 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 			logger().Error("FlowSpec peer-up replay failed", "peer", event.GetPeerAddress(), "error", err)
 		}
 	}
-	r.signalSessionReady(event.GetPeerAddress())
+	r.signalSessionReady(event.GetPeerAddress(), initialReplay)
 }
 
 // noteIngested advances the ingest position to msgID if it is newer.

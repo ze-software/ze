@@ -121,9 +121,12 @@ func fwdChurnRelay(t *testing.T, r *Reactor, src *Peer, ctxID bgpctx.ContextID, 
 	wire.SetMessageID(updateID)
 	wire.SetSourceID(fwdChurnSource)
 	update := &ReceivedUpdate{
-		WireUpdate:   wire,
-		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
-		ReceivedAt:   time.Now(),
+		WireUpdate:         wire,
+		SourcePeerIP:       src.Settings().Address,
+		SourcePeerStr:      src.addrString,
+		ReceivedAt:         time.Now(),
+		receivedPeer:       src,
+		receivedGeneration: src.forwardGeneration.Load(),
 	}
 	r.recentUpdates.Add(update)
 	r.recentUpdates.Activate(updateID, 1)

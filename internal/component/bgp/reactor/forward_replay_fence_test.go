@@ -98,7 +98,7 @@ func TestLiveForwardWaitsForPeerUpReplay(t *testing.T) {
 				return len(parseWireUpdates(t, conn.written())) > 1
 			}, 200*time.Millisecond, 5*time.Millisecond, "no live change may pass the fence")
 
-			dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner))
+			require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay))
 
 			var seen []wireUpdate
 			require.Eventually(t, func() bool {
@@ -175,7 +175,7 @@ func TestAnnounceRailWithdrawJoinsTheFence(t *testing.T) {
 				return len(parseWireUpdates(t, conn.written())) > tt.passes
 			}, 200*time.Millisecond, 5*time.Millisecond, "no live change may pass the fence, the withdrawal included")
 
-			dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner))
+			require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay))
 
 			var seen []wireUpdate
 			require.Eventually(t, func() bool {
@@ -249,7 +249,7 @@ func TestReplayEndOfRIBFollowsTheReplay(t *testing.T) {
 		return len(parseWireUpdates(t, conn.written())) > 2
 	}, 200*time.Millisecond, 5*time.Millisecond, "no live change may pass the fence")
 
-	dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner))
+	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay))
 
 	var seen []wireUpdate
 	require.Eventually(t, func() bool {
@@ -323,10 +323,10 @@ func TestReplayFenceHoldsOnlyItsOwnPeer(t *testing.T) {
 	require.False(t, fenced.forwardOrderHold(true), "the replay itself must pass its own fence")
 	require.False(t, other.forwardOrderHold(false), "another peer must not be held by this peer's replay")
 
-	fenced.SignalAPIReady(plugin.ProcessSender(replayFenceOwner))
+	require.NoError(t, fenced.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), fenced.session.initialReplay))
 	require.True(t, fenced.forwardOrderHold(false), "the fence stays up while another process still owes the update")
 
-	fenced.SignalAPIReady(plugin.ProcessSender("receive-store"))
+	require.NoError(t, fenced.SignalAPIReady(plugin.ProcessSender("receive-store"), fenced.session.initialReplay))
 	require.False(t, fenced.forwardOrderHold(false),
 		"the last fence owner's report must lower the fence, whatever a reporter outside it does")
 }

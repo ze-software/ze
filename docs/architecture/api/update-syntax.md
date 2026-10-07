@@ -954,8 +954,11 @@ send bgp upstream1 update text nhop set 10.0.0.1 \
 
 ## Raw Passthrough Commands
 
-Send raw bytes with no validation ("trust me bro" mode). The peer must attach the
-program with `send [ raw ]`; no other send type permits it.
+Raw is an explicit diagnostic injection operation. The peer must attach the
+program with `send [ raw ]`; no other send type permits it. Raw UPDATE requests
+are not duplicate-suppressed, but the existing AIGP origination policy,
+negotiated PATHS-LIMIT filtering and Label-Index Reserved/Flags normalization
+still apply. PATHS-LIMIT can refuse malformed input before any bytes are sent.
 
 The encoding is `hex` or `b64`, the data is always supplied, and the message type
 takes the `type` keyword in front of it. The model declares all three
@@ -965,7 +968,7 @@ outside either set is refused before the handler runs.
 | Command | What's sent | Header |
 |---------|-------------|--------|
 | `send bgp X raw <enc> <data> type <type>` | Message payload | Ze adds |
-| `send bgp X raw <enc> <data>` | Full packet | User provides FF*16 |
+| `send bgp X raw <enc> <data>` | Full packet | User provides FF*16; recognized UPDATE headers are rebuilt |
 
 ```bash
 # Payload only (Ze adds 19-byte header)
@@ -982,7 +985,16 @@ introduces a body and a header-only frame has none. A KEEPALIVE is
 octets, the length 0x0013, and the type 0x04.
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw passthrough -->
 
-⚠️ **No validation.** Can crash peer, violate FSM, send malformed messages.
+Malformed diagnostic bytes can violate the peer's protocol expectations. When
+an accepted raw operation cannot be accounted for in Ze's outbound ownership,
+Ze flushes those bytes, then retires that exact connection. Successful emission
+still returns success; the close reason identifies the diagnostic safety reset,
+not a transport write failure. A write or flush failure instead reports its
+actual error. This reset is Ze's sender-side safety policy, not an RFC 7606
+receiver-handling requirement. Reconnection restores ordinary route management.
+No route ownership or replay receipt is invented from opaque output, and an old
+operation cannot retire a replacement connection.
+<!-- source: internal/component/bgp/reactor/session_write.go -- SendRawMessage, finishRawWrite -->
 
 ## Error Messages
 

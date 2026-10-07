@@ -34,6 +34,17 @@ import (
 // by plugin-refresh.ci and refresh-config-static.ci.
 func consumeRefreshCommand(t *testing.T, command string) []bgptypes.NLRIGroup {
 	t.Helper()
+	groups := parseRefreshCommand(t, command)
+	for _, group := range groups {
+		require.NotNil(t, group.Wire)
+	}
+	return groups
+}
+
+// parseRefreshCommand accepts the real text and wire consumers without requiring
+// one attribute representation. Callers assert the route behavior they need.
+func parseRefreshCommand(t *testing.T, command string) []bgptypes.NLRIGroup {
+	t.Helper()
 	args := strings.Fields(command)
 	require.GreaterOrEqual(t, len(args), 3)
 	require.Equal(t, "update", args[0])
@@ -56,7 +67,6 @@ func consumeRefreshCommand(t *testing.T, command string) []bgptypes.NLRIGroup {
 	for _, group := range result.Groups {
 		require.Empty(t, group.Withdraw, "refresh must advertise the retained route")
 		require.NotEmpty(t, group.Announce)
-		require.NotNil(t, group.Wire)
 	}
 	return result.Groups
 }

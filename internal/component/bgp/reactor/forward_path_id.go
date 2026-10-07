@@ -185,6 +185,15 @@ func (t *fwdPathIDTable) generatePath(src source.SourceID, key *fwdPathKey) uint
 	return id
 }
 
+// lookupPath never allocates an identifier for a withdrawal. Unknown paths
+// retain zero on the temporary wire; final ownership admission rejects them.
+func (t *fwdPathIDTable) lookupPath(src source.SourceID, key *fwdPathKey) uint32 {
+	t.mu.RLock()
+	id := t.byPath[src][*key]
+	t.mu.RUnlock()
+	return id
+}
+
 // releasePath frees the identifier ze advertised for one path, so the value
 // returns to the pool. A path ze holds no identifier for is not an error: a
 // source may withdraw a pair it never announced, and RFC 7911 Section 5 has the
@@ -272,10 +281,16 @@ type fwdPathIDMemo struct {
 	keyScratch [nlrisplit.PrefixKeyScratchSize]byte
 }
 
-// unframed returns ze's identifier for a path whose source framed none.
-func (m *fwdPathIDMemo) unframed(received uint32) uint32 {
+// unframed returns ze's identifier without creating state for withdrawals.
+func (m *fwdPathIDMemo) unframed(received uint32, withdraw bool) uint32 {
 	if m.have && m.received == received {
 		return m.generated
+	}
+	if withdraw {
+		fwdPathIDs.mu.RLock()
+		id := fwdPathIDs.bySource[m.source][received]
+		fwdPathIDs.mu.RUnlock()
+		return id
 	}
 	id := fwdPathIDs.generate(m.source, received)
 	m.have, m.received, m.generated = true, received, id
@@ -288,6 +303,9 @@ func (m *fwdPathIDMemo) framed(fam family.Family, received uint32, raw []byte, w
 	var key fwdPathKey
 	if err := fwdPathKeyFor(&key, fam, received, raw, withdraw, m.keyScratch[:]); err != nil {
 		return 0, err
+	}
+	if withdraw {
+		return fwdPathIDs.lookupPath(m.source, &key), nil
 	}
 	return fwdPathIDs.generatePath(m.source, &key), nil
 }

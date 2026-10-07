@@ -128,6 +128,10 @@ type PeerInfo struct {
 	State           PeerState
 	Uptime          time.Duration
 
+	// InitialReplay identifies the exact session whose peer-up replay is owed.
+	// Zero is not a replay receipt.
+	InitialReplay uint64
+
 	// BFDSubState is the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1
 	// sub-state, empty where the session is not waiting for BFD. Section 11
 	// asks an implementation to "provide visibility for these sub-states in

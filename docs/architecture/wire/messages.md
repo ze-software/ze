@@ -228,6 +228,21 @@ first metric without copying the attribute.
 <!-- source: internal/core/bgp/attribute/aigp.go -- AIGPMetricOffset -->
 <!-- source: internal/component/bgp/message/rfc7606.go -- validateAIGPAttr -->
 
+### Internal sent-origin receipt
+
+`wireu.WireUpdate` exposes a callback-only `SentOrigin` view for a successfully
+buffered outgoing UPDATE. It is not a BGP wire attribute. The Session owns the
+view; the event producer copies the source-incarnation/local-origin scalars
+before the callback returns. Received ADD-PATH provenance uses an optional
+event-owned family/announcement-ordinal sidecar, preserving identifier zero
+independently of destination framing. `Snapshot` does not retain the borrowed
+view. Internal forwarding creates no generic metadata map for this receipt;
+external event serializers format the typed fields only at their boundary.
+The callback is buffered acceptance, not proof of a successful flush or TCP
+delivery; ownership on a replacement Session requires its own replay authority.
+<!-- source: internal/component/bgp/wireu/wire_update.go -- SentOrigin, SentPathSource, WireUpdate -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody -->
+
 ---
 
 ## 3. NOTIFICATION Message (Type 3)

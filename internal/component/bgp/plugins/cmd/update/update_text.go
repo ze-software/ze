@@ -1103,17 +1103,41 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	if recoveryErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: recoveryErr.Error()}, recoveryErr
 	}
+	sentOwnerMessage, ownerErr := sentOwnerMessageFromMeta(ctx.Meta)
+	if ownerErr != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: ownerErr.Error()}, ownerErr
+	}
+	initial, initialErr := initialReplayFromMeta(ctx.Meta, sentOwnerMessage)
+	if initialErr != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: initialErr.Error()}, initialErr
+	}
+	if initial.InitialReplay != 0 {
+		for _, group := range groups {
+			if len(group.Withdraw) > 0 {
+				err := errors.New("initial replay cannot withdraw routes")
+				return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+			}
+		}
+	}
 
 	for _, group := range groups {
 		if len(group.Announce) > 0 {
 			batch := bgptypes.NLRIBatch{
-				Family:   group.Family,
-				NLRIs:    group.Announce,
-				NextHop:  group.NextHop,
-				Wire:     group.Wire,
-				OriginAS: group.OriginAS,
-				Stale:    staleLevel,
-				Replay:   replay,
+				Family:               group.Family,
+				NLRIs:                group.Announce,
+				NextHop:              group.NextHop,
+				Wire:                 group.Wire,
+				OriginAS:             group.OriginAS,
+				Stale:                staleLevel,
+				Replay:               replay,
+				SentOwnerMessage:     sentOwnerMessage,
+				InitialReplay:        initial.InitialReplay,
+				InitialLocal:         initial.InitialLocal,
+				InitialSourcePeer:    initial.InitialSourcePeer,
+				InitialSourceID:      initial.InitialSourceID,
+				InitialSourceOwner:   initial.InitialSourceOwner,
+				InitialSourcePath:    initial.InitialSourcePath,
+				InitialSourceAddPath: initial.InitialSourceAddPath,
 			}
 			if err := bgpReactor.AnnounceNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
@@ -1135,12 +1159,13 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 			// contains the MP_UNREACH_NLRI is not required to carry any other path
 			// attributes" -- so the command is what decides which one is sent.
 			batch := bgptypes.NLRIBatch{
-				Family:         group.Family,
-				NLRIs:          group.Withdraw,
-				NextHop:        group.NextHop,
-				Wire:           group.Wire,
-				RecoverySource: recoverySource,
-				RecoveryCut:    recoveryCut,
+				Family:           group.Family,
+				NLRIs:            group.Withdraw,
+				NextHop:          group.NextHop,
+				Wire:             group.Wire,
+				RecoverySource:   recoverySource,
+				RecoveryCut:      recoveryCut,
+				SentOwnerMessage: sentOwnerMessage,
 			}
 			switch err := bgpReactor.WithdrawNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); {
 			case err == nil:
@@ -1225,4 +1250,101 @@ func replayFromMeta(meta map[string]any) bool {
 	}
 	replay, ok := meta["replay"].(bool)
 	return ok && replay
+}
+
+// sentOwnerMessageFromMeta refuses malformed automatic cleanup rather than
+// silently granting the unrestricted authority of an operator withdrawal.
+func sentOwnerMessageFromMeta(meta map[string]any) (uint64, error) {
+	value, present := meta[bgptypes.SentOwnerMessageMeta]
+	if !present {
+		if _, lifecycle := meta["rib-lifecycle"]; lifecycle {
+			return 0, errors.New("sent lifecycle cleanup requires an owner receipt")
+		}
+		return 0, nil
+	}
+	text, ok := value.(string)
+	if !ok {
+		return 0, errors.New("sent owner receipt must be a decimal string")
+	}
+	messageID, err := strconv.ParseUint(text, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("sent owner receipt: %w", err)
+	}
+	if messageID == 0 {
+		return 0, errors.New("sent owner receipt must be nonzero")
+	}
+	return messageID, nil
+}
+
+// initialReplayFromMeta accepts only a complete, explicitly typed peer-up
+// receipt. Missing receipt pieces MUST NOT downgrade an internal replay into
+// ordinary operator origination.
+func initialReplayFromMeta(meta map[string]any, sentOwner uint64) (bgptypes.NLRIBatch, error) {
+	var batch bgptypes.NLRIBatch
+	raw, present := meta[bgptypes.InitialReplayMeta]
+	if !present {
+		for _, key := range []string{bgptypes.InitialLocalMeta, bgptypes.InitialSourcePeerMeta,
+			bgptypes.InitialSourceIDMeta, bgptypes.InitialSourceOwnerMeta, bgptypes.InitialSourcePathMeta} {
+			if _, exists := meta[key]; exists {
+				return batch, errors.New("initial replay origin lacks session receipt")
+			}
+		}
+		return batch, nil
+	}
+	receipt, ok := raw.(string)
+	if !ok {
+		return batch, errors.New("initial replay receipt must be a decimal string")
+	}
+	var err error
+	batch.InitialReplay, err = strconv.ParseUint(receipt, 10, 64)
+	if err != nil || batch.InitialReplay == 0 || sentOwner == 0 {
+		return batch, errors.New("initial replay requires nonzero session and sent-owner receipts")
+	}
+	if local, exists := meta[bgptypes.InitialLocalMeta]; exists {
+		if local != true {
+			return batch, errors.New("initial local origin must be true")
+		}
+		for _, key := range []string{bgptypes.InitialSourcePeerMeta, bgptypes.InitialSourceIDMeta,
+			bgptypes.InitialSourceOwnerMeta, bgptypes.InitialSourcePathMeta} {
+			if _, exists := meta[key]; exists {
+				return batch, errors.New("initial local replay cannot carry a forwarding source")
+			}
+		}
+		batch.InitialLocal = true
+		return batch, nil
+	}
+	batch.InitialSourcePeer, ok = meta[bgptypes.InitialSourcePeerMeta].(string)
+	if !ok || batch.InitialSourcePeer == "" {
+		return batch, errors.New("initial forwarded replay lacks source peer")
+	}
+	owner, ok := meta[bgptypes.InitialSourceOwnerMeta].(string)
+	if !ok {
+		return batch, errors.New("initial source owner must be a decimal string")
+	}
+	batch.InitialSourceOwner, err = strconv.ParseUint(owner, 10, 64)
+	if err != nil || batch.InitialSourceOwner == 0 {
+		return batch, errors.New("initial source owner must be nonzero")
+	}
+	sourceID, ok := meta[bgptypes.InitialSourceIDMeta].(string)
+	if !ok {
+		return batch, errors.New("initial source identity must be a decimal string")
+	}
+	id, err := strconv.ParseUint(sourceID, 10, 32)
+	if err != nil || id == 0 {
+		return batch, errors.New("initial source identity must be nonzero")
+	}
+	batch.InitialSourceID = uint32(id)
+	if rawPath, exists := meta[bgptypes.InitialSourcePathMeta]; exists {
+		path, valid := rawPath.(string)
+		if !valid {
+			return batch, errors.New("initial source path must be a decimal string")
+		}
+		id, err := strconv.ParseUint(path, 10, 32)
+		if err != nil {
+			return batch, errors.New("initial source path exceeds uint32")
+		}
+		batch.InitialSourcePath = uint32(id)
+		batch.InitialSourceAddPath = true
+	}
+	return batch, nil
 }

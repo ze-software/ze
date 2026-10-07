@@ -52,6 +52,8 @@ func BenchmarkReactorForwardRSMixedRetry(b *testing.B) {
 			wire := wireu.NewWireUpdate(buildModTestPayload(body.PathAttributes, body.NLRI), h.update.WireUpdate.SourceCtxID())
 			wire.SetMessageID(1)
 			h.update.WireUpdate = wire
+			h.update.receivedPeer = source
+			h.update.receivedGeneration = source.forwardGeneration.Load()
 			for _, peer := range h.dests {
 				peer.settings.RSClient = true
 				peer.settings.PeerAS = 65002
@@ -89,6 +91,9 @@ func BenchmarkReactorForwardRSMixedRetry(b *testing.B) {
 func rsSelectionWriter(t testing.TB, peer *Peer, writer io.Writer) *Session {
 	t.Helper()
 	session := NewSession(peer.Settings())
+	session.adjOut = &peer.adjOut
+	session.SetSourceID(peer.SourceID())
+	session.setSendCtxID(peer.sendContextID())
 	for _, event := range []fsm.Event{fsm.EventManualStart, fsm.EventTCPConnectionConfirmed, fsm.EventBGPOpen, fsm.EventKeepaliveMsg} {
 		if err := session.fsm.Event(event); err != nil {
 			t.Fatal(err)
@@ -112,6 +117,8 @@ func TestReactorForwardRSRetrySelection(t *testing.T) {
 	if source == nil {
 		t.Fatal("source fixture missing")
 	}
+	h.update.receivedPeer = source
+	h.update.receivedGeneration = source.forwardGeneration.Load()
 	source.settings.PeerAS = source.settings.LocalAS
 	source.settings.RouteReflectorClient = true
 	source.remoteRouterID.Store(0x0a000001)

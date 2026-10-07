@@ -146,13 +146,24 @@ State events have the state value at `bgp` level:
   "bgp": {
     "message": {"type": "state"},
     "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
-    "state": "up"
+    "state": "up",
+    "initial-replay": "42"
   }
 }
 ```
 
 State values: `"up"`, `"down"`, `"connected"`
 <!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
+
+When a Session receipt exists, `initial-replay` is its opaque nonzero uint64
+encoded as a decimal string, not a JSON number. A readiness-reporting process
+keeps the receipt from the original event and sends
+`request peer <address> plugin session ready session <receipt>` after its work,
+including an empty replay. The engine validates that receipt against the live
+Session and the process's still-open readiness share atomically. A late event
+must not acknowledge a replacement Session. Native text events carry the same
+receipt as an `initial-replay <receipt>` suffix; the ExaBGP compatibility
+encoders do not expose it.
 
 For `"down"` events, a `reason` field is included:
 

@@ -116,8 +116,8 @@ func TestRibOutSourceOwnership(t *testing.T) {
 	raw := []byte{24, 10, 0, 0}
 	first := netip.MustParseAddr("192.0.2.1")
 	second := netip.MustParseAddr("192.0.2.2")
-	r.storeSentEntries(first, fam, raw, false, ribOutEntry{}, "192.0.2.10", false)
-	r.storeSentEntries(second, fam, raw, false, ribOutEntry{}, "192.0.2.11", false)
+	r.storeSentEntries(first, fam, raw, false, ribOutEntry{}, "192.0.2.10", false, nil, 0)
+	r.storeSentEntries(second, fam, raw, false, ribOutEntry{}, "192.0.2.11", false, nil, 0)
 	assert.Equal(t, "192.0.2.10", r.ribOut[first][fam][key].SourcePeer)
 	assert.Equal(t, "192.0.2.11", r.ribOut[second][fam][key].SourcePeer)
 	_, _, err := r.markStaleCommand([]string{"192.0.2.10", "0", "2"})
@@ -139,11 +139,11 @@ func TestRibOutSourceReplay(t *testing.T) {
 	key := ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}
 	raw := []byte{24, 10, 0, 0}
 	peer := netip.MustParseAddr("192.0.2.1")
-	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{StaleLevel: 2}, "192.0.2.10", false)
-	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{}, "", true)
+	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{StaleLevel: 2}, "192.0.2.10", false, nil, 0)
+	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{}, "", true, nil, 0)
 	assert.Equal(t, "192.0.2.10", r.ribOut[peer][fam][key].SourcePeer)
 	assert.Equal(t, uint8(2), r.ribOut[peer][fam][key].StaleLevel)
-	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{}, "", false)
+	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{}, "", false, nil, 0)
 	assert.Empty(t, r.ribOut[peer][fam][key].SourcePeer)
 	assert.Zero(t, r.ribOut[peer][fam][key].StaleLevel)
 	r.removeSentNLRIs(peer, fam, raw, false)

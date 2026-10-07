@@ -169,17 +169,12 @@ func TestQueuedSelfResolvesReplacementConnection(t *testing.T) {
 
 type replacingSessionNLRI struct {
 	nlri.NLRI
-	once              sync.Once
-	beforeReplacement int
-	replace           func()
+	once    sync.Once
+	replace func()
 }
 
 func (n *replacingSessionNLRI) WriteTo(buf []byte, off int) int {
-	if n.beforeReplacement > 0 {
-		n.beforeReplacement--
-	} else {
-		n.once.Do(n.replace)
-	}
+	n.once.Do(n.replace)
 	return n.NLRI.WriteTo(buf, off)
 }
 
@@ -239,7 +234,8 @@ func TestBatchSelfDoesNotCrossReplacementSession(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, byte(msgtype.TypeUPDATE), packet[18])
 				batch.NLRIs = append(slices.Clip(seed.NLRIs), route)
-				route.beforeReplacement = 1 // Replace during the partial rebuild, not the shared build.
+				// Dedup now filters the shared build at the final writer;
+				// replacement must occur while that one build is encoded.
 			}
 			if tc.stale {
 				batch.Stale = 1

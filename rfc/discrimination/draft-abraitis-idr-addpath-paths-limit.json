@@ -82,23 +82,23 @@
       "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates",
-      "unit-sha": "2cc74d9fd3cbc792",
+      "unit-sha": "2f9c11f93cdc7f3d",
       "claim-sha": "e47aaa86df95bb96",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
       "producer-sha": "a5b40993910711b9",
-      "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"false\""
+      "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates",
-      "unit-sha": "2cc74d9fd3cbc792",
+      "unit-sha": "2f9c11f93cdc7f3d",
       "claim-sha": "cfb6f9efbd5695df",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
       "producer-sha": "a5b40993910711b9",
-      "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"true\""
+      "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",

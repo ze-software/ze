@@ -60,12 +60,43 @@ func TestParseStateEvent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addr, st := parseStateEvent(tt.input)
+			addr, st, token := parseStateEvent(tt.input)
 			if addr != tt.wantAddr {
 				t.Errorf("addr = %q, want %q", addr, tt.wantAddr)
 			}
 			if st != tt.wantSt {
 				t.Errorf("state = %q, want %q", st, tt.wantSt)
+			}
+			if token != 0 {
+				t.Errorf("initial replay = %d, want 0 for a tokenless event", token)
+			}
+		})
+	}
+}
+
+// Text transport preserves the full decimal token and rejects malformed values.
+func TestParseStateEventReplayToken(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		input string
+		token uint64
+		valid bool
+	}{
+		{"captured", "initial-replay 18446744073709551615", ^uint64(0), true},
+		{"missing", "", 0, true},
+		{"zero", "initial-replay 0", 0, true},
+		{"malformed", "initial-replay nope", 0, false},
+		{"overflow", "initial-replay 18446744073709551616", 0, false},
+		{"truncated", "initial-replay", 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			peer, state, token := parseStateEvent("peer 192.0.2.1 remote as 65001 state up " + tc.input)
+			if tc.valid {
+				if peer != "192.0.2.1" || state != "up" || token != tc.token {
+					t.Fatalf("parsed (%q, %q, %d), want peer up with token %d", peer, state, token, tc.token)
+				}
+			} else if peer != "" {
+				t.Fatalf("malformed event accepted for peer %q", peer)
 			}
 		})
 	}

@@ -115,6 +115,22 @@ A member inherits the group's whole settings, its `attach process` blocks and it
 
 The route server forwards eligible received routes to other peers without choosing a best path. Receive validation and each destination's export policy still apply.
 
+All forwarding paths share the destination session's final writer ownership
+check. For each native route and outgoing ADD-PATH identifier, the writer
+remembers the source peer and received path that last advertised it. A received
+withdrawal removes only that owner's route; an unknown withdrawal or a withdrawal
+from another source cannot erase a replacement or a locally originated route.
+This is not best-path selection. The latest eligible advertisement still wins
+at a destination without ADD-PATH.
+
+Policy-generated withdrawals keep their per-path intent: an absent route may
+still receive a synthesized withdrawal, but an original withdrawn sibling does
+not inherit that permission. A buffered batch uses its ordered pending ownership,
+so A, B, A-withdraw preserves B before the batch flushes. A write or flush failure
+invalidates that ownership and closes only the failed destination session.
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody, flushWrites -->
+
 When receive validation is enabled, pending and rejected paths are withheld on both the cached forwarding path and the reactor fast path. An UPDATE containing paths with different verdicts forwards only its eligible NLRIs. A later validation change withdraws an advertised path that has become ineligible; recovery replays the retained route with its received attributes, without waiting for another UPDATE. ADD-PATH withdrawals keep the identifier used for the advertisement.
 <!-- source: internal/component/bgp/plugins/rs/server_validation.go -- validationChanged, processValidation -->
 <!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardUpdateCore, forwardValidationWire -->

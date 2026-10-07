@@ -98,6 +98,7 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.RawMessage = msg
 	se.Meta = msg.Meta
 	se.SourcePeerStr = msg.SourcePeerStr
+	se.SourceID = msg.SourceID
 	return se
 }
 
@@ -117,6 +118,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.RemotePort = peer.RemotePort
 	se.EventType = rpc.EventKindState
 	se.State = state
+	se.InitialReplay = peer.InitialReplay
 	se.Reason = reason
 	return se
 }

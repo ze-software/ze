@@ -247,9 +247,9 @@ func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteR
 //
 // unheldRoles names the exclusive roles no process taking delivery of this event
 // holds (pluginserver.Server.UnheldRoles). It reaches a JSON consumer, which is
-// every plugin the SDK parses events for. The text form is a human line and
-// carries no engine bookkeeping, so a text consumer never sees the retraction --
-// and none can act on one, because the SDK builds no event from a text line.
+// every plugin the SDK parses events for. Text consumers parse their own lines:
+// they receive the captured initial-replay receipt but not unheldRoles, so they
+// cannot act on an exclusive-role retraction through this form.
 func AppendStateChange(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason string, unheldRoles []string, encoding string) []byte {
 	if encoding == plugin.EncodingJSON {
 		return appendStateChangeJSON(buf, peer, state, reason, unheldRoles)

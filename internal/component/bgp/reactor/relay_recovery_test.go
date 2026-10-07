@@ -30,6 +30,20 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// recoveryAdvertiseFailed establishes sent history through the actual final
+// writer before stopping the configured source. Bodies already have the
+// destination's negotiated framing, including its assigned ADD-PATH IDs.
+func recoveryAdvertiseFailed(t *testing.T, r *Reactor, destination *Peer, bodies ...[]byte) {
+	t.Helper()
+	failed, _ := newAnnouncePeer(t, "192.0.2.10")
+	failed.recvCtxID = destination.sendContextID()
+	r.peers[failed.Settings().PeerKey()] = failed
+	for _, body := range bodies {
+		require.NoError(t, ownershipWriterForward(t, destination, failed, body, false))
+	}
+	failed.setState(PeerStateStopped)
+}
+
 // RFC 4271 Section 6 advertises the new best route after the
 // failed path is invalidated; RFC 4271 Section 3.1 makes a newer advertisement
 // replace the preceding route rather than coexist with it on a non-ADD-PATH peer.
@@ -101,7 +115,7 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 				Destination: destination.Settings().Address, Family: family.IPv4Unicast, NLRIs: [][]byte{syncOrderPrefixWire}, Cut: 90}
 			session, sequence := recoverySnapshot(destination)
 			// RFC 4271 Section 6: replacement is admitted only at the final writer.
-			retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+			retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 			require.NoError(t, err)
 			require.True(t, retry, "intervening output requires a fresh causal snapshot, not silent success")
 			require.NoError(t, <-writeResult)
@@ -113,7 +127,7 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 			// injected send when the first item completion answers above.
 			session, sequence = recoverySnapshot(destination)
 			// RFC 4271 Section 6: unrelated output does not cancel the required repair.
-			retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+			retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 			require.NoError(t, err)
 			require.False(t, retry)
 			require.Equal(t, 2, calls)
@@ -184,12 +198,12 @@ func TestRecoveryLookupRejectsReconnectedSource(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	session, sequence := recoverySnapshot(destination)
-	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 	require.NoError(t, err)
 	require.True(t, retry)
 	require.Empty(t, conn.written(), "old selected bytes must not acquire the reconnect generation")
 	session, sequence = recoverySnapshot(destination)
-	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 	require.NoError(t, err)
 	require.False(t, retry)
 	require.Equal(t, 2, calls)
@@ -225,6 +239,16 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			if three {
 				override = append([]byte{0, 4, 24, 198, 51, 100}, override[2:]...)
 			}
+			// Recovery removes actual failed-source output, including the
+			// policy-generated MP withdrawal and independent legacy sibling.
+			// RFC 4271 Section 4.3 and RFC 4760 Section 3.
+			seed := [][]byte{ownershipRailBody(family.IPv6Unicast, false, wantMPWithdrawal[3:], 0)}
+			if three {
+				seed = append(seed, ownershipRailBody(family.IPv4Unicast, false, wantWithdraw, 0))
+			}
+			recoveryAdvertiseFailed(t, r, destination, seed...)
+			setup := conn.written()
+			require.Len(t, recoveryWrittenUpdates(t, setup), len(seed))
 			r.api = &pluginserver.Server{}
 			calls := 0
 			r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
@@ -251,12 +275,12 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 			defer cancel()
 			session, sequence := recoverySnapshot(destination)
-			retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+			retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 			require.NoError(t, err)
 			require.False(t, retry, "own sections must not invalidate their lookup receipt")
 			require.Equal(t, 1, calls)
 			var announced, withdrawn, mpWithdrawn int
-			for _, written := range recoveryWrittenUpdates(t, conn.written()) {
+			for _, written := range recoveryWrittenUpdates(t, conn.written()[len(setup):]) {
 				if len(written.NLRI) != 0 {
 					announced++
 					require.Equal(t, wantLegacy, written.NLRI)
@@ -447,6 +471,10 @@ func TestRecoverySourceLossBeforeEnqueueReresolves(t *testing.T) {
 	destination.sendingInitialRoutes.Store(0)
 	destination.session.setSendCtxID(ctxID)
 	destination.session.onMessageReceived = r.notifyMessageReceiver
+	r.clock = clock.RealClock{}
+	recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
+	setup := conn.written()
+	require.Len(t, recoveryWrittenUpdates(t, setup), 1)
 	var once sync.Once
 	r.clock = recoveryClock{Clock: clock.RealClock{}, onNow: func() {
 		once.Do(func() { source.setState(PeerStateStopped) })
@@ -472,15 +500,15 @@ func TestRecoverySourceLossBeforeEnqueueReresolves(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	session, sequence := recoverySnapshot(destination)
-	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 	require.NoError(t, err)
 	require.True(t, retry, "pre-enqueue source loss must preserve the failed owner's obligation")
-	require.Empty(t, conn.written())
+	require.Empty(t, conn.written()[len(setup):])
 	session, sequence = recoverySnapshot(destination)
-	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 	require.NoError(t, err)
 	require.False(t, retry)
-	written := recoveryWrittenUpdates(t, conn.written())
+	written := recoveryWrittenUpdates(t, conn.written()[len(setup):])
 	require.Len(t, written, 1)
 	require.Equal(t, syncOrderPrefixWire, written[0].WithdrawnRoutes)
 }
@@ -501,6 +529,14 @@ func TestRecoveryAddPathWritesEntireLookup(t *testing.T) {
 	destination.session.onMessageReceived = r.notifyMessageReceiver
 	failed := netip.MustParseAddr("192.0.2.10")
 	want := [][]byte{{0, 0, 0, 0, 24, 192, 0, 2}, {0, 0, 0, 7, 24, 192, 0, 2}, {0, 0, 0, 17, 24, 192, 0, 3}}
+	var seed [][]byte
+	for _, raw := range want {
+		// RFC 4271 Section 4.3 and RFC 7911 Section 3.
+		seed = append(seed, ownershipRailBody(family.IPv4Unicast, false, raw, 0))
+	}
+	recoveryAdvertiseFailed(t, r, destination, seed...)
+	setup := conn.written()
+	require.Len(t, recoveryWrittenUpdates(t, setup), len(want))
 	calls := 0
 	owner := ribevents.PublishRecovery(func(ribevents.RecoveryRequest) ([]ribevents.RecoveryRoute, error) {
 		calls++
@@ -517,12 +553,12 @@ func TestRecoveryAddPathWritesEntireLookup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	session, sequence := recoverySnapshot(destination)
-	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 	require.NoError(t, err)
 	require.False(t, retry)
 	require.Equal(t, 1, calls)
 	var got [][]byte
-	for _, written := range recoveryWrittenUpdates(t, conn.written()) {
+	for _, written := range recoveryWrittenUpdates(t, conn.written()[len(setup):]) {
 		require.Empty(t, written.NLRI)
 		got = append(got, written.WithdrawnRoutes)
 	}
@@ -563,13 +599,13 @@ func TestRecoveryDestinationReconnectInvalidatesLookup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 	session, sequence := recoverySnapshot(destination)
-	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+	retry, err := api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 	require.NoError(t, err)
 	require.True(t, retry)
 	require.Empty(t, oldConn.written())
 	require.Empty(t, newConn.written())
 	session, sequence = recoverySnapshot(destination)
-	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender())
+	retry, err = api.relayRecovery(ctx, request, destination, session, sequence, plugin.OperatorSender(), api.recoverySources())
 	require.NoError(t, err)
 	require.False(t, retry)
 	require.Empty(t, oldConn.written())
@@ -622,7 +658,7 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			admitted := make(chan *recoveryAdmission, 1)
 			var released atomic.Int32
-			r, source, destination, _, ctxID := newSyncOrderRailWith(t, func(key fwdKey, items []fwdItem) {
+			r, source, destination, seedConn, ctxID := newSyncOrderRailWith(t, func(key fwdKey, items []fwdItem) {
 				for i := range items {
 					if admission := items[i].recovery; admission != nil {
 						admitted <- admission
@@ -649,6 +685,12 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 			destination.sendingInitialRoutes.Store(0)
 			session := destination.currentSession()
 			session.setSendCtxID(ctxID)
+			// Seed both failed-source slots before arming transport failure
+			// and the onWrite source-loss hook.
+			// RFC 4271 Section 4.3.
+			recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody,
+				ownershipRailBody(family.IPv4Unicast, false, []byte{32, 192, 0, 2, 9}, 0))
+			require.Len(t, recoveryWrittenUpdates(t, seedConn.written()), 2)
 			var once sync.Once
 			session.onWrite = func() {
 				once.Do(func() { source.setState(PeerStateStopped) })

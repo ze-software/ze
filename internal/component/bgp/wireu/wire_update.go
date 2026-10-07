@@ -42,6 +42,7 @@ type WireUpdate struct {
 	sourceCtxID bgpctx.ContextID
 	messageID   uint64          // Unique ID set by reactor after creation
 	sourceID    source.SourceID // Source that sent/created this message
+	sentOrigin  *SentOrigin     // Borrowed only during the reactor's sent callback
 
 	sectionOnce sync.Once
 	sections    wire.UpdateSections
@@ -284,6 +285,38 @@ func (u *WireUpdate) SourceID() source.SourceID {
 // SetSourceID sets the source ID. Called once by reactor after creation.
 func (u *WireUpdate) SetSourceID(id source.SourceID) {
 	u.sourceID = id
+}
+
+// SentPathSource preserves ingress ADD-PATH identity lost by final encoding.
+// Ordinal is cumulative within a family's emitted announcements, legacy first
+// then MP_REACH. An entry proves ADD-PATH presence, including identifier zero.
+type SentPathSource struct {
+	Family  family.Family `json:"family"`
+	Ordinal uint32        `json:"ordinal"`
+	PathID  uint32        `json:"path-id"`
+}
+
+// SentOrigin describes the final writer's actual announcement ownership.
+// The Session owns this reusable value. Callback consumers MUST copy its scalar
+// fields before returning; Paths already owns immutable event-lifetime storage.
+// This receipt is internal causal metadata, never a BGP attribute or payload.
+type SentOrigin struct {
+	SourceOwner uint64
+	Local       bool
+	Paths       []SentPathSource
+}
+
+// SentOrigin borrows the writer's receipt for this synchronous callback only.
+// Received WireUpdates and ordinary payload snapshots do not carry this view.
+func (u *WireUpdate) SentOrigin() *SentOrigin {
+	return u.sentOrigin
+}
+
+// SetSentOrigin binds a reusable sent receipt without allocating a metadata map.
+// The writer clears it after callback return; asynchronous consumers retain
+// copied scalar fields and the owned Paths slice, never this borrowed pointer.
+func (u *WireUpdate) SetSentOrigin(origin *SentOrigin) {
+	u.sentOrigin = origin
 }
 
 // NLRIIterator returns an iterator over the NLRI section.

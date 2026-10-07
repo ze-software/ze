@@ -216,6 +216,7 @@ func (p *Peer) runOnce() error {
 
 	// Create session
 	session := NewSession(p.settings)
+	session.adjOut = &p.adjOut
 	// The RFC 7705 Section 4.2 fallback flag is the Peer's, and this session is one
 	// connection attempt against it: the session that MEETS Bad Peer AS is never the
 	// session that opens with the other AS (session_as_migration.go, openLocalAS).
@@ -602,8 +603,11 @@ func (p *Peer) runOnce() error {
 	// The delivery goroutine drains batches and calls receiver.OnMessageBatchReceived,
 	// then Activate per message. This amortizes subscription lookup and format-mode
 	// computation across all messages in a batch.
-	p.deliverChan = make(chan deliveryItem, deliveryChannelCapacity)
+	deliverChan := make(chan deliveryItem, deliveryChannelCapacity)
+	p.deliverChan = deliverChan
 	deliveryDone := make(chan struct{})
+	publication := &receivePublication{done: deliveryDone}
+	p.receivePublication.Store(publication)
 
 	// Long-lived delivery worker (channel + worker pattern, not per-event).
 	go func() { //nolint:goroutine-lifecycle // channel worker pattern: reads from p.deliverChan
@@ -614,6 +618,7 @@ func (p *Peer) runOnce() error {
 		// deliveryDone closes so shutdown isn't blocked, not continued processing.
 		defer func() {
 			if r := recover(); r != nil {
+				publication.fail()
 				buf := make([]byte, 4096)
 				n := runtime.Stack(buf, false)
 				peerLogger().Error("delivery goroutine panic recovered",
@@ -624,20 +629,22 @@ func (p *Peer) runOnce() error {
 			}
 		}()
 		var batchBuf []deliveryItem
-		for first := range p.deliverChan {
-			batchBuf = drainDeliveryBatch(batchBuf, &first, p.deliverChan)
+		for first := range deliverChan {
+			batchBuf = drainDeliveryBatch(batchBuf, &first, deliverChan)
 			batch := batchBuf
 
 			p.mu.RLock()
 			reactor := p.reactor
 			p.mu.RUnlock()
 			if reactor == nil {
+				publication.fail()
 				continue
 			}
 			reactor.mu.RLock()
 			receiver := reactor.messageReceiver
 			reactor.mu.RUnlock()
 			if receiver == nil {
+				publication.fail()
 				continue
 			}
 
@@ -648,6 +655,7 @@ func (p *Peer) runOnce() error {
 			}
 
 			counts := receiver.OnMessageBatchReceived(&batch[0].peerInfo, msgs)
+			publication.complete(batch[len(batch)-1].msg.MessageID)
 			for i := range batch {
 				count := 0
 				if i < len(counts) {
@@ -663,7 +671,7 @@ func (p *Peer) runOnce() error {
 
 	// Drain delivery channel: close stops accepting new items, range loop in
 	// goroutine processes remaining buffered items before exiting.
-	close(p.deliverChan)
+	close(deliverChan)
 	<-deliveryDone
 	p.deliverChan = nil
 

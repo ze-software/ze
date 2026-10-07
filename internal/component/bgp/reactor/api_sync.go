@@ -219,16 +219,16 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 // sender names the process that reported. The peer's barrier is a SET of
 // route-pushing process names, so a report is credited to the one that sent it
 // and to nothing else (Peer.SignalAPIReady).
-func (r *Reactor) SignalPeerAPIReady(peerAddr string, sender plugin.Sender) {
+func (r *Reactor) SignalPeerAPIReady(peerAddr string, sender plugin.Sender, initialReplay uint64) error {
 	peer, ok := r.lookupPeer(peerAddr)
 	if !ok {
-		slog.Warn("api ready signal for unknown peer; its EOR will be delayed until the API sync timeout",
+		slog.Warn("api ready signal for unknown peer; no replay barrier was credited",
 			"peer", peerAddr, "process", sender.String())
-		return
+		return ErrPeerNotFound
 	}
 
 	slog.Debug("peer api ready signal", "peer", peerAddr, "process", sender.String())
-	peer.SignalAPIReady(sender)
+	return peer.SignalAPIReady(sender, initialReplay)
 }
 
 // SetPeerUpBarrier declares how many barrier-declaring plugins the peer-up

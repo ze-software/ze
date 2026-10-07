@@ -755,10 +755,11 @@ func parseStructuredState(se *rpc.StructuredEvent) *Event {
 		return nil
 	}
 	return &Event{
-		Type:     eventState,
-		PeerAddr: se.PeerAddress,
-		PeerASN:  se.PeerAS,
-		State:    se.State.String(),
+		Type:          eventState,
+		PeerAddr:      se.PeerAddress,
+		PeerASN:       se.PeerAS,
+		State:         se.State.String(),
+		InitialReplay: se.InitialReplay,
 	}
 }
 

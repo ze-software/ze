@@ -204,10 +204,12 @@ grants no reprieve to a CPU-congested daemon.
   NOTIFICATION.
 - **On `EventKeepaliveTimerExpires`:** the callback fires the FSM event
   then calls `sendKeepalive(conn)`.
-- **On `EventHoldTimerExpires`:** the callback sends NOTIFICATION code 4
-  (Hold Timer Expired, subcode 0), fires the FSM event, and signals
-  `errChan` with `ErrHoldTimerExpired`. The session Run loop observes
-  the error and starts the teardown.
+- **On `EventHoldTimerExpires`:** the callback records `ErrHoldTimerExpired`
+  as the close reason before sending NOTIFICATION code 4 (Hold Timer Expired,
+  subcode 0), fires the FSM event, and signals `errChan`. A failed notification
+  write still retires the transport; its delivery error must not replace the
+  already-recorded expiry reason. The session Run loop observes that reason
+  and exits. An earlier recorded close reason remains authoritative.
   <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires signals errChan -->
 - **On a second TCP connection:** retain it until its OPEN arrives, then
   reject it with Cease / Connection Collision. The pending reader bounds the

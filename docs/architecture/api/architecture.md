@@ -1549,15 +1549,15 @@ RIB receives "state up"
 RIB replays: "send bgp <selector> update text nhop set <nh> nlri <family> add <prefix>"
     │
     ▼
-RIB signals: "peer <addr> plugin session ready"
+RIB signals: "request peer <addr> plugin session ready session <captured-token>"
 ```
 
 ### API Sync Protocol
 
-The engine holds this peer's End-of-RIB until every plugin that can push a route
-into the session has pushed it. RFC 4724 Section 4 owes the marker "once it
-completes the initial routing update", and the owner ruled on 2026-08-30 that a
-plugin-injected route belongs to that update.
+Peer-up route replay and Ze's own End-of-RIB have separate lifetimes. Named
+processes report completion for the captured Session; reporters that declare
+`FencesLiveForwards` hold the destination's live-forward replay fence. They do
+not hold Ze's own marker (owner ruling, 2026-09-18).
 
 1. **Session establishment:** `setState` closes the queueing gate
    (`sendingInitialRoutes`) and marks the marker owed (`initialSyncEOROwed`) in
@@ -1574,17 +1574,22 @@ plugin-injected route belongs to that update.
    it. Names rather than a count, because a count is fungible: a process the
    peer attaches for events alone would answer for one that still owes routes.
 4. **Plugins do their peer-up work:** bgp-rib replays the routes it stored for
-   this peer after "state up".
-5. **Each named process reports ready:** `"peer <addr> plugin session ready"`.
-   A plugin with nothing to send reports too, on every peer-up: the barrier
-   cannot tell "finished with nothing to send" from "still working".
-6. **SignalPeerAPIReady:** the engine routes the signal to the peer, which
-   counts it and closes `apiSyncReady` when the last one arrives.
+   this peer after "state up", retaining that event's `initial-replay` token.
+5. **Each named process reports ready:**
+   `"request peer <addr> plugin session ready session <captured-token>"`.
+   A plugin with nothing to send reports too. It must use the original UP
+   event's nonzero token, never fetch the replacement session's token at completion.
+6. **SignalPeerAPIReady:** under the peer's session lock, the engine validates
+   that token against the current, non-retired Session before crediting the
+   sending process. Missing, stale and retired receipts return an error without
+   releasing queued work. The last expected report closes `apiSyncReady`; the
+   last `FencesLiveForwards` reporter lowers the separate replay fence.
+   Explicit operator readiness remains a no-op and cannot credit a process.
 7. **sendInitialRoutes writes what it owns:** config static routes,
    default-originate, the peer-up barrier, then the family routes.
-8. **drainAndCloseQueueGate:** the opQueue is drained and the queueing gate
-   CLOSES here, before the wait. The forwarding rails parked behind the sync are
-   released with it.
+8. **drainAndCloseQueueGate:** the opQueue is drained and new work no longer
+   joins the engine's initial-sync queue. The separate live-forward replay fence
+   remains held until its named reporters finish.
 9. **End-of-RIB, then the marker fact clears:** one marker per negotiated
    family, then `initialSyncEOROwed` goes false. The peer does NOT wait for the
    processes in step 5 first. A process that creates routes is treated like a

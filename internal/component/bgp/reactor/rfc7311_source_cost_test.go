@@ -251,11 +251,14 @@ func TestAIGPCostRecoveryDoesNotReviveWithdrawnRoutes(t *testing.T) {
 			}
 			f.forward(t, f.receive(t, f.body(t, 100)))
 			forwardSocketBarrier(t, f.r)
-			wantFrames := 1
+			const wantFrames = 1
 			if boundary == "source-withdrawal" {
+				withheld := f.conn.written()
 				f.forward(t, f.receive(t, makeUpdateBody([]byte{24, 10, 20, 0}, nil, nil)))
 				forwardSocketBarrier(t, f.r)
-				wantFrames++
+				if !bytes.Equal(withheld, f.conn.written()) {
+					t.Fatal("an original withdrawal without an advertised owner emitted bytes")
+				}
 			}
 			bodies := aigpSocketBodies(t, f.conn)
 			if len(bodies) != wantFrames {

@@ -59,8 +59,6 @@ type mockReactor struct {
 	pausedPeers    []netip.Addr
 	resumedPeers   []netip.Addr
 
-	signalPeerReadyCalls []string // peers passed to SignalPeerAPIReady
-
 	// NLRI batch tracking (used by update_wire integration tests)
 	announcedBatches []struct {
 		peer  string
@@ -116,18 +114,16 @@ func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapab
 func (m *mockReactor) PeerFSMHistory(addr string) []plugin.FSMTransitionRecord {
 	return m.history[addr]
 }
-func (m *mockReactor) GetConfigTree() map[string]any  { return m.configTree }
-func (m *mockReactor) SetConfigTree(_ map[string]any) {}
-func (m *mockReactor) SignalAPIReady()                {}
-func (m *mockReactor) AddAPIProcessCount(_ int)       {}
-func (m *mockReactor) SignalPluginStartupComplete()   {}
-func (m *mockReactor) SignalPeerAPIReady(peer string, _ plugin.Sender) {
-	m.signalPeerReadyCalls = append(m.signalPeerReadyCalls, peer)
-}
-func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)       {}
-func (m *mockReactor) SignalPeerUpBarrier(_ string)           {}
-func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
-func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
+func (m *mockReactor) GetConfigTree() map[string]any                          { return m.configTree }
+func (m *mockReactor) SetConfigTree(_ map[string]any)                         {}
+func (m *mockReactor) SignalAPIReady()                                        {}
+func (m *mockReactor) AddAPIProcessCount(_ int)                               {}
+func (m *mockReactor) SignalPluginStartupComplete()                           {}
+func (m *mockReactor) SignalPeerAPIReady(string, plugin.Sender, uint64) error { return nil }
+func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)                       {}
+func (m *mockReactor) SignalPeerUpBarrier(_ string)                           {}
+func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool)                 {}
+func (m *mockReactor) UnregisterCacheConsumer(_ string)                       {}
 func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string, _ plugin.Sender) error {
 	return nil
 }

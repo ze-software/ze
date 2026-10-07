@@ -7,6 +7,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
 )
@@ -47,9 +48,8 @@ func TestRFC7311DirectLinkCostNeverWrapsOrDisappears(t *testing.T) {
 			}
 			rebuilt = rebuilt[:n]
 		}
-		peer, conn := newAnnouncePeer(t, "192.0.2.2")
-		peer.session.settings.AIGPSession = new(true)
-		fwdBatchHandler(fwdKey{}, []fwdItem{{peer: peer, rawBodies: [][]byte{rebuilt}, sourceMessageID: 1}})
+		// RFC 7311 Section 3.4.3: carry the received path and policy withdrawal intent.
+		conn := aigpForwardToWire(t, body, rebuilt, mods.IsWithdraw())
 		metric, present := aigpReceivedMetric(t, conn.written()[message.HeaderLen:])
 		if present != tc.present || metric != tc.want {
 			t.Fatalf("metric %d link %d: wire %d present=%v, want %d present=%v", tc.metric, tc.link, metric, present, tc.want, tc.present)
@@ -61,4 +61,38 @@ func TestRFC7311DirectLinkCostNeverWrapsOrDisappears(t *testing.T) {
 			}
 		}
 	}
+}
+
+// aigpForwardToWire sends a received path through the real final writer with
+// negotiated framing and captured source/destination ownership. A policy
+// withdrawal retains the original announcement as its synthesized provenance.
+func aigpForwardToWire(t *testing.T, original, transformed []byte, synthesized bool) *recordingConn {
+	t.Helper()
+	peer, conn := newAnnouncePeer(t, "192.0.2.2")
+	source, _ := newAnnouncePeer(t, "192.0.2.1")
+	for _, established := range []*Peer{source, peer} {
+		established.session.localOpen = &message.Open{MyAS: 65000, HoldTime: 90}
+		established.session.peerOpen = &message.Open{MyAS: 65001, HoldTime: 90}
+		established.session.negotiateWith(nil, nil)
+		established.setEncodingContexts(established.session.negotiated)
+		t.Cleanup(established.clearEncodingContexts)
+	}
+	peer.session.settings.AIGPSession = new(true)
+	item := fwdItem{
+		peer: peer, session: peer.currentSession(), authority: adjOutForwarded,
+		rawBodies: [][]byte{transformed}, sourceMessageID: 1,
+		receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+		sourcePeerStr: source.addrString,
+	}
+	var pool fwdPool
+	defer pool.releaseItem(&item)
+	received := wireu.NewWireUpdate(original, source.recvContextID())
+	rebuilt := wireu.NewWireUpdate(transformed, source.recvContextID())
+	// RFC 7911 Section 5: preserve ingress identity and synthesized withdrawal intent.
+	if err := prepareFwdProvenance(&item, received, rebuilt, synthesized); err != nil {
+		t.Fatal(err)
+	}
+	// RFC 7311 Section 3.4.3: write the post-policy metric or its withheld withdrawal.
+	fwdBatchHandler(fwdKey{}, []fwdItem{item})
+	return conn
 }

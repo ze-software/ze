@@ -253,6 +253,17 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 	if err := fwdReleaseSection(src.SourceID(), src.Settings().Address, fam, withdrawn, nil); err != nil {
 		t.Fatal(err)
 	}
+	var path fwdPathKey
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	if err := fwdPathKeyFor(&path, fam, 7, short, true, scratch[:]); err != nil {
+		t.Fatal(err)
+	}
+	fwdPathIDs.mu.RLock()
+	_, retained := fwdPathIDs.byPath[src.SourceID()][path]
+	fwdPathIDs.mu.RUnlock()
+	if !retained {
+		t.Fatal("retained FlowSpec path lost its identifier mapping")
+	}
 	wire = bytes.Clone(withdrawn)
 	if err := fwdPatchPathIDs(wire, fam, &memo, true); err != nil {
 		t.Fatal(err)
@@ -266,6 +277,18 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 	}
 	wire = bytes.Clone(withdrawn)
 	if err := fwdPatchPathIDs(wire, fam, &memo, true); err != nil {
+		t.Fatal(err)
+	}
+	fwdPathIDs.mu.RLock()
+	_, retained = fwdPathIDs.byPath[src.SourceID()][path]
+	fwdPathIDs.mu.RUnlock()
+	if retained {
+		t.Fatal("withdrawal recreated a removed FlowSpec path identifier")
+	}
+	// An absent withdrawal writes temporary zero, which is also a legal
+	// advertised identifier. Only a new announcement allocates a new path.
+	wire = bytes.Clone(withdrawn)
+	if err := fwdPatchPathIDs(wire, fam, &memo, false); err != nil {
 		t.Fatal(err)
 	}
 	if binary.BigEndian.Uint32(wire[:4]) == binary.BigEndian.Uint32(advertised[:4]) {

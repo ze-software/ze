@@ -283,7 +283,7 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 		peer.ReplayGen++
 		gen := peer.ReplayGen
 		rr.mu.Unlock()
-		go rr.replayForPeer(se.PeerAddress, gen)
+		go rr.replayForPeer(se.PeerAddress, gen, se.InitialReplay)
 	case rpc.SessionStateDown:
 		rr.mu.Unlock()
 		rr.handleStateDown(se.PeerAddress)
@@ -451,6 +451,21 @@ func (rr *routeReflector) dispatchText(text string) {
 		if len(fields) >= 7 {
 			peerAddr := fields[1]
 			state := fields[6]
+			var initialReplay uint64
+			for i := 7; i < len(fields); i++ {
+				if fields[i] != "initial-replay" {
+					continue
+				}
+				i++
+				if i == len(fields) {
+					return
+				}
+				token, err := strconv.ParseUint(fields[i], 10, 64)
+				if err != nil {
+					return
+				}
+				initialReplay = token
+			}
 
 			rr.mu.Lock()
 			if rr.peers[peerAddr] == nil {
@@ -463,7 +478,7 @@ func (rr *routeReflector) dispatchText(text string) {
 				peer.ReplayGen++
 				gen := peer.ReplayGen
 				rr.mu.Unlock()
-				go rr.replayForPeer(peerAddr, gen)
+				go rr.replayForPeer(peerAddr, gen, initialReplay)
 			case "down":
 				rr.mu.Unlock()
 				rr.handleStateDown(peerAddr)
@@ -531,7 +546,8 @@ func (rr *routeReflector) peerStatus() any {
 //
 // The gen parameter guards against rapid reconnects: if the peer's ReplayGen
 // has changed by the time replay finishes, this goroutine is stale.
-func (rr *routeReflector) replayForPeer(peerAddr string, gen uint64) {
+// initialReplay MUST be the receipt captured by this replay's peer-up event.
+func (rr *routeReflector) replayForPeer(peerAddr string, gen, initialReplay uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -544,7 +560,7 @@ func (rr *routeReflector) replayForPeer(peerAddr string, gen uint64) {
 		if replayed > 0 {
 			rr.sendEOR(peerAddr, gen)
 		}
-		rr.signalSessionReady(peerAddr, gen)
+		rr.signalSessionReady(peerAddr, gen, initialReplay)
 	}()
 
 	// Full replay from adj-rib-in index 0.
@@ -610,18 +626,16 @@ func (rr *routeReflector) sendEOR(peerAddr string, gen uint64) {
 	logger().Info("sent EOR", "peer", peerAddr, "families", families)
 }
 
-// signalSessionReady tells the engine this plugin has finished the routes it
-// owes the peer's INITIAL routing update.
-//
-// This plugin declares registry.Registration.SignalsSessionReady, so a peer that
-// attaches it with a route-push grant holds its End-of-RIB until this report
-// arrives (reactor/peer_run.go).
-//
-// The generation is checked the way sendEOR checks it: a replay whose peer has
-// since re-established belongs to a session the barrier no longer describes, so
-// reporting for it would release the CURRENT session's End-of-RIB on work done
-// for the previous one. The replay running for that session reports instead.
-func (rr *routeReflector) signalSessionReady(peerAddr string, gen uint64) {
+// signalSessionReady reports completion of this plugin's initial replay so the
+// engine can release live forwards held behind it. End-of-RIB is independent.
+// The local generation check rejects known stale work; the captured receipt also
+// fences a reconnect after that check at the command consumer.
+// initialReplay MUST come from the replay's peer-up event, never a current-session lookup.
+func (rr *routeReflector) signalSessionReady(peerAddr string, gen, initialReplay uint64) {
+	if initialReplay == 0 {
+		logger().Warn("cannot report replay readiness without the peer-up session receipt", "peer", peerAddr)
+		return
+	}
 	rr.mu.RLock()
 	p := rr.peers[peerAddr]
 	stale := p == nil || p.ReplayGen != gen
@@ -633,9 +647,9 @@ func (rr *routeReflector) signalSessionReady(peerAddr string, gen uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 	var tb textbuf.Buffer
-	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready").String()
+	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready session ").Uint(initialReplay).String()
 	if _, _, err := rr.plugin.DispatchCommand(ctx, command); err != nil {
-		logger().Warn("plugin session ready failed; this peer's end-of-rib waits out the api sync timeout",
+		logger().Warn("plugin session ready failed; this peer's live forwards remain fenced",
 			"peer", peerAddr, "error", err)
 	}
 }

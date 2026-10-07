@@ -77,6 +77,7 @@ func establishedPeerInfo(peer *Peer) plugin.PeerInfo {
 		Connect:        s.Connection.Connect,
 		Accept:         s.Connection.Accept,
 		State:          peer.State().PluginState(),
+		InitialReplay:  peer.initialReplayToken(),
 	}
 }
 
@@ -185,6 +186,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			Connect:              s.Connection.Connect,
 			Accept:               s.Connection.Accept,
 			State:                p.State().PluginState(),
+			InitialReplay:        p.initialReplayToken(),
 			BFDSubState:          p.bfdSubState(),
 			UpdatesReceived:      stats.UpdatesReceived,
 			UpdatesSent:          stats.UpdatesSent,
@@ -1615,8 +1617,8 @@ func (a *reactorAPIAdapter) SignalPluginStartupComplete() {
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is
 // complete. sender names the process that reported it.
-func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string, sender plugin.Sender) {
-	a.r.SignalPeerAPIReady(peerAddr, sender)
+func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string, sender plugin.Sender, initialReplay uint64) error {
+	return a.r.SignalPeerAPIReady(peerAddr, sender, initialReplay)
 }
 
 // SetPeerUpBarrier declares how many barrier plugins a peer's peer-up event is

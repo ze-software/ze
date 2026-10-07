@@ -213,12 +213,10 @@ func TestAIGPForwardedMetricsReachFinalWire(t *testing.T) {
 				require.NotZero(t, n)
 				rebuilt = rebuilt[:n]
 			}
-			peer, conn := newAnnouncePeer(t, "192.0.2.2")
-			enabled := true
-			peer.session.settings.AIGPSession = &enabled
 			// This is a received path on the forwarding rail, not a request to
 			// originate an attribute under AIGP_ORIGINATE.
-			fwdBatchHandler(fwdKey{}, []fwdItem{{peer: peer, rawBodies: [][]byte{rebuilt}, sourceMessageID: 1}})
+			// RFC 7311 Section 3.4.3.
+			conn := aigpForwardToWire(t, body, rebuilt, mods.IsWithdraw())
 			metric, present := aigpReceivedMetric(t, conn.written()[message.HeaderLen:])
 			require.Equal(t, tc.present, present)
 			if present {

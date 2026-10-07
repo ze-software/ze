@@ -38,6 +38,9 @@ func init() {
 		// routing update, and replayRoutesWithCursor reports when it is out --
 		// including when there was nothing to replay (rib_replay.go).
 		SignalsSessionReady: true,
+		// Live withdrawals and captured lifecycle cleanup MUST follow this
+		// session's exact valid-history restore, never overtake it.
+		FencesLiveForwards: true,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

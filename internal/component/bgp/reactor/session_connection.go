@@ -443,6 +443,7 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 // attempt that failed, so zeroing there would erase a real retry history.
 func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode uint8) error {
 	s.timers.StopAll()
+	s.setCloseReason(ErrCollisionDump)
 
 	s.mu.Lock()
 	conn := s.conn
@@ -453,12 +454,9 @@ func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode ui
 	}
 
 	// RFC 4271 Section 8.2.2 (OpenSent, Event 23): "releases all BGP resources".
-	// The reason is set BEFORE closeConn, as teardown does: a Run loop that
-	// finds s.conn nil between two reads reads it as "waiting for Accept" and
-	// sleeps until a close reason appears, so without one the session (and the
-	// Peer's hold on it) outlives its connection forever. The errChan signal
-	// wakes Run's cancel goroutine the same way.
-	s.setCloseReason(ErrCollisionDump)
+	// The reason is set before NOTIFICATION I/O: a failed write can close the
+	// transport before closeConn runs. Run must still identify the collision,
+	// including when it reaches the nil-connection branch between reads.
 	s.closeConn()
 	s.logFSMEvent(fsm.EventOpenCollisionDump)
 
@@ -518,6 +516,7 @@ func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Even
 	// Seal first: a conn published after this point would carry a session the
 	// caller believes it has just ended.
 	s.seal()
+	s.setCloseReason(ErrTeardown)
 
 	s.timers.StopAll()
 
@@ -540,9 +539,6 @@ func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Even
 		)
 	}
 
-	// Set close reason BEFORE closing conn so the read loop can identify this
-	// as a teardown (not just a connection reset) after ReadFull returns error.
-	s.setCloseReason(ErrTeardown)
 	s.closeConn()
 	s.logFSMEvent(stopEvent)
 
@@ -607,7 +603,9 @@ func (s *Session) closeConn() {
 }
 
 // setCloseReason atomically stores why the connection is being closed.
-// Only the first reason wins — subsequent calls are no-ops.
+// Only the first reason wins — subsequent calls are no-ops. A teardown owner
+// must record its cause before NOTIFICATION I/O: a failed write retires the
+// transport and wakes Run, which must not mistake that consequence for its cause.
 func (s *Session) setCloseReason(err error) {
 	s.closeReason.CompareAndSwap(nil, &err)
 }

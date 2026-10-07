@@ -91,6 +91,21 @@ func TestFormatStateChange(t *testing.T) {
 	}
 }
 
+// TestTextStateCarriesExactInitialReplay exercises the real text event producer,
+// including an opaque receipt larger than JSON's exact numeric range.
+func TestTextStateCarriesExactInitialReplay(t *testing.T) {
+	peer := plugin.PeerInfo{
+		Address:       netip.MustParseAddr("10.0.0.1"),
+		PeerAS:        65001,
+		InitialReplay: 18446744073709551615,
+	}
+	got := string(AppendStateChange(nil, &peer, rpc.SessionStateUp, "", nil, plugin.EncodingText))
+	want := "peer 10.0.0.1 remote as 65001 state up initial-replay 18446744073709551615\n"
+	if got != want {
+		t.Fatalf("text state = %q, want %q", got, want)
+	}
+}
+
 // TestPeerJSONNameGroup verifies that peer name and group appear in JSON output when set.
 //
 // VALIDATES: JSON events include "name" and "group" in the peer object.

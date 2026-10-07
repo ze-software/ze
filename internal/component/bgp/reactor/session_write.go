@@ -8,6 +8,7 @@ package reactor
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/netip"
 	"slices"
@@ -20,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -134,6 +136,10 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
+	if s.writeFailed != nil {
+		return s.writeFailed
+	}
+
 	// The conn check above is half of a pair. connectionEstablished assigns s.conn,
 	// s.bufReader and s.bufWriter together (session_connection.go), so a session that
 	// has no bufWriter is a session that is not connected, and it owes the caller the
@@ -159,20 +165,30 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 	s.writeBuf.Reset()
 	n := msg.WriteTo(s.writeBuf.Buffer(), 0, nil)
 
-	if msg.Type() == msgtype.TypeUPDATE && n >= message.HeaderLen {
-		// RFC 8669 Section 3.1; this is the private encoded buffer.
-		clearTransmittedLabelIndex(s.writeBuf.Buffer()[message.HeaderLen:n])
+	if msg.Type() == msgtype.TypeUPDATE {
+		if n < message.HeaderLen {
+			return errBuildRejected
+		}
+		if _, err := s.writeOriginatedRawUpdate(s.writeBuf.Buffer()[message.HeaderLen:n], false); err != nil {
+			return err
+		}
+		if err := s.flushWrites(); err != nil {
+			return err
+		}
+		s.resetSendHoldTimer()
+		return nil
 	}
 
-	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
-		s.commitAIGPWrites(false)
+	written, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n])
+	if err == nil && written != n {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		s.retireWrite(err)
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
 		}
 		return err
-	}
-	if msg.Type() == msgtype.TypeUPDATE && n >= message.HeaderLen {
-		s.noteAIGPWrite(s.writeBuf.Buffer()[message.HeaderLen:n])
 	}
 	if err := s.flushWrites(); err != nil {
 		return err
@@ -317,6 +333,7 @@ func (s *Session) sendHoldTimerExpired() {
 	// writeMessage -> resetSendHoldTimer, creating a new timer that
 	// closeConn immediately stops.
 	s.stopSendHoldTimer()
+	s.setCloseReason(ErrSendHoldTimerExpired)
 
 	s.mu.RLock()
 	conn := s.conn
@@ -335,7 +352,6 @@ func (s *Session) sendHoldTimerExpired() {
 	s.logFSMEvent(fsm.EventHoldTimerExpires)
 	s.mu.Unlock()
 
-	s.setCloseReason(ErrSendHoldTimerExpired)
 	s.closeConn()
 
 	select {
@@ -390,6 +406,12 @@ func (s *Session) writeUpdatePreFiltered(update *message.Update) error {
 // function entirely through writeRawUpdateBody, and is answered on the forward
 // rails by egressNextHopIsPeerOwn (forward_next_hop.go).
 func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
+	if s.writeFailed != nil {
+		return s.writeFailed
+	}
+	if s.tearingDown.Load() {
+		return errAdjOutSession
+	}
 	s.writeBuf.Reset()
 	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
 
@@ -404,7 +426,6 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// body is the bytes that will reach the peer. An export filter can replace it,
 	// so every question about what goes on the wire is asked AFTER that.
 	body := s.writeBuf.Buffer()[message.HeaderLen:n]
-	overridden := false
 
 	// Egress gate: originated and injected routes, and the bgp-rs `update text`
 	// re-advertisement, honor the peer's export filter chain here. Forwarded routes
@@ -422,7 +443,6 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		}
 		if override != nil {
 			body = override
-			overridden = true
 		}
 	}
 
@@ -451,56 +471,81 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	}
 
 	if aigpPresent(body) && (!s.settings.AIGPEnabled() || gate && !s.aigpOriginAllowed(body)) {
-		return s.writeUpdateWithoutAIGP(body)
-	}
-
-	if overridden || len(s.pathsLimit) != 0 {
-		return s.writeRawUpdateBody(body)
-	}
-
-	// RFC 8669 Section 3.1; without an override body is our private buffer.
-	clearTransmittedLabelIndex(body)
-
-	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
-		if s.prefixMetrics != nil {
-			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
-		}
+		_, err := s.writeUpdateWithoutAIGP(body, false)
 		return err
 	}
-	s.noteAIGPWrite(body)
-	// Asked only while the answer can still change. This function serves the
-	// forwarding rails as well as the originating ones, and once the connection
-	// has advertised something the walk below is not owed.
-	if !s.advertised.Load() {
-		s.noteAdvertised(updateIsReachable(update))
-	}
 
-	if s.prefixMetrics != nil {
-		s.prefixMetrics.wireBytesSent.With(s.settings.Address.String()).Add(float64(n))
-	}
-
-	if s.onMessageReceived != nil {
-		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
-		// sentMeta and sentSourcePeerStr are the forward-pool per-write fields, both set
-		// under writeMu by fwdBatchHandler and read here in the same writeMu section.
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr, s.sentSourceMessageID)
-	}
-
-	if s.onWrite != nil {
-		s.onWrite()
-	}
-
-	return nil
+	return s.writeRawUpdateBody(body)
 }
 
 // writeRawUpdateBody writes a raw UPDATE body to bufWriter without locking or flushing.
 // Caller must hold writeMu. Fires sent event callback with route metadata.
 func (s *Session) writeRawUpdateBody(body []byte) error {
+	_, err := s.writeUpdateBody(body, false)
+	return err
+}
+
+// writeUpdateBody shares policy and ownership accounting without granting the
+// managed writer a parse-error fallback. Only explicit raw injection may emit
+// opaque bytes; its caller MUST flush and retire the Session before returning.
+// RFC 4271 Section 4.3: "An UPDATE message is used to advertise feasible routes
+// that share common path attributes to a peer, or to withdraw multiple
+// unfeasible routes from service (see 3.1)."
+func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result error) {
+	if s.writeFailed != nil {
+		return false, s.writeFailed
+	}
 	// RFC 7311 Section 3.3: "An AIGP attribute MUST NOT be sent on any BGP
-	// session for which AIGP_SESSION is disabled." This final boundary also
-	// covers prefiltered forwarding and stored-route replay.
+	// session for which AIGP_SESSION is disabled."
 	if !s.settings.AIGPEnabled() && aigpPresent(body) {
-		return s.writeUpdateWithoutAIGP(body)
+		return s.writeUpdateWithoutAIGP(body, raw)
+	}
+	ownership, err := s.beginAdjOut(raw)
+	if err != nil {
+		return false, err
+	}
+	written := false
+	defer func() {
+		if result != nil && written {
+			s.retireWrite(result)
+		}
+	}()
+	defer ownership.release()
+
+	// The session buffer is private; normalize before duplicate comparison.
+	if len(body)+message.HeaderLen > len(s.writeBuf.Buffer()) {
+		return false, wire.ErrUpdateTruncated
+	}
+	copy(s.writeBuf.Buffer()[message.HeaderLen:], body)
+	body = s.writeBuf.Buffer()[message.HeaderLen : message.HeaderLen+len(body)]
+	// RFC 8669 Section 3.1.
+	clearTransmittedLabelIndex(body)
+	if !raw {
+		length, err := ownership.filter(nil, body)
+		if err != nil {
+			return false, err
+		}
+		if ownership.suppressed != 0 {
+			ownership.table.recordSuppressed(ownership.suppressed)
+			sessionLogger().Debug("announce suppressed: peer holds the final wire advertisement",
+				"peer", s.settings.Address, "routes", ownership.suppressed)
+		}
+		if length == 0 {
+			ownership.noteFilteredOperation()
+			return false, nil
+		}
+		if ownership.removed != 0 {
+			handle := getReadBuf(len(body) > message.MaxMsgLen-message.HeaderLen)
+			defer s.returnReadBuffer(handle)
+			ownership.removed, ownership.suppressed = 0, 0
+			clear(ownership.owners)
+			clear(ownership.withdrawn)
+			length, err = ownership.filter(handle.Buf, body)
+			if err != nil {
+				return false, err
+			}
+			body = handle.Buf[:length]
+		}
 	}
 	committed := false
 	var withheld uint64
@@ -516,7 +561,7 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 		}()
 		n, dropped, err := s.filterPathsLimit(handle.Buf, body, changes)
 		if err != nil {
-			return err
+			return false, err
 		}
 		withheld = uint64(dropped)
 		if dropped != 0 {
@@ -524,9 +569,10 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 				"peer", s.settings.Address, "paths", dropped)
 		}
 		if n == 0 {
+			ownership.noteFilteredOperation()
 			s.pathsLimitTotals.routes += withheld
 			s.pathsLimitTotals.updates++
-			return nil
+			return false, nil
 		}
 		body = handle.Buf[:n]
 	}
@@ -539,23 +585,45 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 	buf[17] = byte(totalLen)
 	buf[18] = byte(msgtype.TypeUPDATE)
 	copy(buf[message.HeaderLen:], body)
-	// RFC 8669 Section 3.1; normalize the owned copy, never the shared source.
 	body = buf[message.HeaderLen:totalLen]
-	clearTransmittedLabelIndex(body)
 
-	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
+	if raw {
+		// Observe only the final bytes admitted by the pre-existing policies.
+		// An opaque diagnostic write is not a fabricated local advertisement.
+		_, err := ownership.filter(nil, body)
+		opaque = err != nil
+	}
+
+	written = true
+	if !opaque {
+		s.sentReceipt.SetMessageID(nextMsgID())
+		if err := ownership.record(body); err != nil {
+			return false, err
+		}
+		s.sentReceipt.SetSourceID(0)
+		if ownership.source != nil {
+			s.sentReceipt.SetSourceID(ownership.source.sourceID)
+		}
+	}
+	accepted, err := s.bufWriter.Write(buf[:totalLen])
+	if err == nil && accepted != totalLen {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
 		}
-		return err
+		return opaque, err
 	}
-	s.noteAIGPWrite(body)
+	if !opaque {
+		s.noteAIGPWrite(body)
+	}
 	committed = true
 	s.pathsLimitTotals.routes += withheld
 	// Asked only while the answer can still change, as above. This is the
 	// zero-copy forwarding path and it runs for every relayed UPDATE, so an
 	// armed connection pays one atomic load here rather than a walk of the body.
-	if !s.advertised.Load() {
+	if !opaque && !s.advertised.Load() {
 		s.noteAdvertised(bodyIsReachable(body))
 	}
 
@@ -563,32 +631,87 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 		s.prefixMetrics.wireBytesSent.With(s.settings.Address.String()).Add(float64(totalLen))
 	}
 
-	if s.onMessageReceived != nil {
+	// Ownership is speculative until flush, but its receipt describes exactly
+	// this final emitted body, after policy and PATHS-LIMIT.
+	if !opaque && s.onMessageReceived != nil {
 		sessionLogger().Debug("SendRawUpdateBody", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
 		// Forward-pool raw-body write: sentMeta and sentSourcePeerStr are set under
 		// writeMu by fwdBatchHandler and read here in the same writeMu section.
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr, s.sentSourceMessageID)
+		sourcePeer := s.sentSourcePeerStr
+		if ownership.sourceSet {
+			sourcePeer = ""
+			if ownership.source != nil {
+				sourcePeer = ownership.source.addrString
+			}
+		}
+		s.sentOrigin = wireu.SentOrigin{Local: ownership.sourceSet && ownership.source == nil, Paths: ownership.pathSources}
+		if ownership.source != nil {
+			s.sentOrigin.SourceOwner = ownership.source.sourceOwner
+		}
+		s.sentReceipt.SetSentOrigin(&s.sentOrigin)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, &s.sentReceipt, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, sourcePeer, s.sentSourceMessageID)
+		s.sentReceipt.SetSentOrigin(nil)
+		s.sentOrigin = wireu.SentOrigin{}
 	}
 
 	if s.onWrite != nil {
 		s.onWrite()
 	}
 
-	return nil
+	return opaque, nil
 }
 
 // flushWrites flushes the bufWriter. Caller must hold writeMu.
 // Increments wireWriteErrors on flush failure (TCP write error).
 func (s *Session) flushWrites() error {
+	if s.writeFailed != nil {
+		return s.writeFailed
+	}
 	if err := s.bufWriter.Flush(); err != nil {
-		s.commitAIGPWrites(false)
+		s.retireWrite(err)
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
 		}
 		return err
 	}
 	s.commitAIGPWrites(true)
+	if s.adjOut != nil {
+		s.adjOut.mu.Lock()
+		if s.adjOut.session == s {
+			s.adjOut.pending = false
+		}
+		s.adjOut.mu.Unlock()
+	}
 	return nil
+}
+
+// retireWrite MUST run under writeMu. It seals and closes only this connection;
+// closeConn cannot be called here because it acquires writeMu itself. The read
+// loop and existing error channel own the ordinary FSM teardown afterwards.
+func (s *Session) retireWrite(err error) {
+	if s.writeFailed != nil {
+		return
+	}
+	s.writeFailed = err
+	s.seal()
+	s.setCloseReason(err)
+	s.commitAIGPWrites(false)
+	if s.adjOut != nil {
+		s.adjOut.mu.Lock()
+		if s.adjOut.session == s {
+			s.adjOut.routes = nil
+			s.adjOut.pending = false
+		}
+		s.adjOut.mu.Unlock()
+	}
+	s.pathsLimit = nil
+	if s.conn != nil {
+		closeConnQuietly(s.conn)
+	}
+	select {
+	case s.errChan <- err:
+	default: // The session reader already owns the pending failure.
+	}
 }
 
 // appendFwdDirty tracks a destination session that has unflushed RS fast path
@@ -627,10 +750,18 @@ func (s *Session) flushFwdDirty() {
 			kept++
 			continue
 		}
-		_ = conn.SetWriteDeadline(deadline)
-		_ = dst.flushWrites()
-		_ = conn.SetWriteDeadline(time.Time{})
-		dst.resetSendHoldTimer()
+		err := conn.SetWriteDeadline(deadline)
+		if err == nil {
+			err = dst.flushWrites()
+		}
+		if err != nil {
+			dst.retireWrite(err)
+			sessionLogger().Warn("forward flush failed; destination session retired",
+				"peer", dst.settings.Address, "error", err)
+		} else {
+			_ = conn.SetWriteDeadline(time.Time{})
+			dst.resetSendHoldTimer()
+		}
 		dst.writeMu.Unlock()
 	}
 	for i := kept; i < len(s.fwdDirty); i++ {
@@ -645,16 +776,18 @@ func (s *Session) flushFwdDirty() {
 // Uses zero-allocation path via Update.WriteTo and session write buffer.
 // Concurrent calls are serialized by writeMu.
 func (s *Session) SendUpdate(update *message.Update) error {
-	return s.sendUpdateCounted(context.Background(), update, nil, false)
+	return s.sendUpdateCounted(context.Background(), update, nil, false, nil)
 }
 
 // sendUpdateCounted captures this write's admission result while writeMu is
 // held. Named commits must not count paths withheld by the session as sent.
-func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *pathsLimitSendCounts, replay bool) error {
+func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *pathsLimitSendCounts, replay bool, owner *fwdItem) error {
 	if err := s.writeMu.LockContext(ctx); err != nil {
 		return err
 	}
 	defer s.writeMu.Unlock()
+	s.sentForward = owner
+	defer func() { s.sentForward = nil }()
 
 	// Connection installation and clearing both hold writeMu. Reading it here
 	// avoids acquiring mu while the write lock is held or waiting behind close.
@@ -678,6 +811,11 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if owner != nil && owner.authority == adjOutInitial {
+		if err := s.checkInitialWrite(owner); err != nil {
+			return err
+		}
 	}
 	// A refresh re-advertises an existing Adj-RIB-Out entry. Preserve its
 	// origin when the sent event returns to the RIB plugin; it is not a new
@@ -832,7 +970,6 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	// coupling is the reason the refusal lives in one function rather than two, and
 	// it is what makes this slice safe -- anyone splitting them owes this check.
 	body := s.writeBuf.Buffer()[message.HeaderLen:n]
-	overridden := false
 	if s.egressRouteFilter != nil {
 		suppress, override := s.egressRouteFilter(body)
 		if suppress {
@@ -840,7 +977,6 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 		}
 		if override != nil {
 			body = override
-			overridden = true
 		}
 	}
 
@@ -858,7 +994,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	}
 
 	if aigpPresent(body) && !s.aigpOriginAllowed(body) {
-		if err := s.writeUpdateWithoutAIGP(body); err != nil {
+		if _, err := s.writeUpdateWithoutAIGP(body, false); err != nil {
 			return err
 		}
 		if err := s.flushWrites(); err != nil {
@@ -868,39 +1004,13 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 		return nil
 	}
 
-	if overridden || len(s.pathsLimit) != 0 {
-		if err := s.writeRawUpdateBody(body); err != nil {
-			return err
-		}
-		if err := s.flushWrites(); err != nil {
-			return err
-		}
-		s.resetSendHoldTimer()
-		return nil
-	}
-
-	// RFC 8669 Section 3.1; policy overrides returned through the raw writer.
-	clearTransmittedLabelIndex(body)
-
-	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+	if err := s.writeRawUpdateBody(body); err != nil {
 		return err
 	}
-	// This rail encodes a RouteSpec, so the UPDATE it just wrote always makes a
-	// destination reachable. The override branch above returned through
-	// writeRawUpdateBody, which asks the question of its own body.
-	s.noteAdvertised(true)
-	s.noteAIGPWrite(body)
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
 	s.resetSendHoldTimer()
-
-	// Notify callback after successful send. body is the bytes that reached the
-	// peer, which the override branch returned before ever getting here.
-	if s.onMessageReceived != nil {
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr, s.sentSourceMessageID)
-	}
-
 	return nil
 }
 
@@ -933,31 +1043,13 @@ func (s *Session) sendWithdraw(prefix netip.Prefix, addPath bool) error {
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
 	n := writeWithdrawUpdate(s.writeBuf.Buffer(), 0, prefix, addPath)
-	if len(s.pathsLimit) != 0 {
-		if err := s.writeRawUpdateBody(s.writeBuf.Buffer()[message.HeaderLen:n]); err != nil {
-			return err
-		}
-		if err := s.flushWrites(); err != nil {
-			return err
-		}
-		s.resetSendHoldTimer()
-		return nil
-	}
-
-	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+	if err := s.writeRawUpdateBody(s.writeBuf.Buffer()[message.HeaderLen:n]); err != nil {
 		return err
 	}
-	s.noteAIGPWrite(s.writeBuf.Buffer()[message.HeaderLen:n])
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
 	s.resetSendHoldTimer()
-
-	// Notify callback after successful send
-	if s.onMessageReceived != nil && n >= message.HeaderLen {
-		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr, s.sentSourceMessageID)
-	}
 
 	return nil
 }
@@ -1012,45 +1104,49 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		// Full packet mode - send as-is through bufWriter
 		s.writeMu.Lock()
 		defer s.writeMu.Unlock()
+		if s.writeFailed != nil {
+			return s.writeFailed
+		}
 
 		if len(payload) >= message.HeaderLen && payload[18] == byte(msgtype.TypeUPDATE) {
-			if err := s.writeOriginatedRawUpdate(payload[message.HeaderLen:]); err != nil {
+			opaque, err := s.writeOriginatedRawUpdate(payload[message.HeaderLen:], true)
+			if err != nil {
 				return err
 			}
-			if err := s.flushWrites(); err != nil {
-				return err
-			}
-			s.resetSendHoldTimer()
-			return nil
+			return s.finishRawWrite(opaque)
 		}
-		if _, err := s.bufWriter.Write(payload); err != nil {
+		written, err := s.bufWriter.Write(payload)
+		if err == nil && written != len(payload) {
+			err = io.ErrShortWrite
+		}
+		if err != nil {
+			s.retireWrite(err)
 			return err
 		}
-		if err := s.flushWrites(); err != nil {
-			return err
-		}
-		s.resetSendHoldTimer()
-		return nil
+		return s.finishRawWrite(len(payload) != 0 && !rawControlPacket(payload))
 	}
 
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+	if s.writeFailed != nil {
+		return s.writeFailed
+	}
 
 	if msgType == uint8(msgtype.TypeUPDATE) {
-		if err := s.writeOriginatedRawUpdate(payload); err != nil {
+		opaque, err := s.writeOriginatedRawUpdate(payload, true)
+		if err != nil {
 			return err
 		}
-		if err := s.flushWrites(); err != nil {
-			return err
-		}
-		s.resetSendHoldTimer()
-		return nil
+		return s.finishRawWrite(opaque)
 	}
 
 	// Message body mode - write header + body into session buffer
 	totalLen := message.HeaderLen + len(payload)
 	s.writeBuf.Reset()
 	buf := s.writeBuf.Buffer()
+	if totalLen > len(buf) {
+		return wire.ErrUpdateTruncated
+	}
 
 	// Marker (16 bytes of 0xFF)
 	copy(buf[:message.MarkerLen], message.Marker[:])
@@ -1065,14 +1161,53 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	// Body
 	copy(buf[message.HeaderLen:], payload)
 
-	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
+	written, err := s.bufWriter.Write(buf[:totalLen])
+	if err == nil && written != totalLen {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		s.retireWrite(err)
 		return err
 	}
+	return s.finishRawWrite(!rawControlPacket(buf[:totalLen]))
+}
+
+// finishRawWrite MUST follow a raw write under writeMu. Successful diagnostic
+// emission is success even when Ze then resets its unaccountable session.
+// The reset is a local safety policy, not an RFC 7606 receiver action.
+func (s *Session) finishRawWrite(opaque bool) error {
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
 	s.resetSendHoldTimer()
+	if opaque {
+		sessionLogger().Warn("raw diagnostic bytes sent; retiring session with unaccountable outbound ownership",
+			"peer", s.settings.Address)
+		s.retireWrite(errRawOwnership)
+	}
 	return nil
+}
+
+// rawControlPacket proves an unchanged full packet has no trailing UPDATE or
+// uncertain framing. Refusal here never prevents diagnostic emission.
+// RFC 4271 Section 4.1 defines the Marker, Length and Type header fields.
+func rawControlPacket(packet []byte) bool {
+	header, err := message.ParseHeader(packet)
+	if err != nil {
+		return false
+	}
+	if int(header.Length) != len(packet) {
+		return false
+	}
+	switch header.Type {
+	case msgtype.TypeOPEN, msgtype.TypeNOTIFICATION, msgtype.TypeKEEPALIVE, msgtype.TypeROUTEREFRESH:
+		return true
+	case msgtype.TypeUPDATE:
+		return false
+	default:
+		// The diagnostic API admits unknown message types, whose effects are opaque.
+		return false
+	}
 }
 
 // noteAdvertised records that a message making a destination reachable has been

@@ -219,6 +219,62 @@ stats, err := cs.Commit([]*rib.Route{route}, rib.CommitOptions{SendEOR: false})
 
 **The forward path is where scale matters.** Route reflection of millions of routes needs zero-copy. The build path handles low-volume local origination.
 
+### One final ownership and duplicate boundary
+
+Encoded and pre-encoded managed UPDATEs share the final writer's admission. The existing
+`adjOut` table is bound to one Session and stores one current owner per native
+route and outgoing ADD-PATH presence/ID. Forwarded owners retain stable source
+identity and ingress path identity; local/config/API writes establish local
+ownership. Explicit local withdrawals retain their authority, while automatic
+RIB cleanup and sent replay carry captured ownership rather than impersonating
+an operator.
+
+Policy output is filtered per withdrawal path before PATHS-LIMIT mutates its
+counts. An original withdrawal requires an existing matching owner; a synthesized
+withdrawal may pass when absent, but neither can remove another owner's route.
+Surviving legacy and MP sections are preserved. Removing every route from an
+ordinary UPDATE produces no message, not an accidental End-of-RIB.
+
+Duplicate suppression is performed under the final writer lock, after policy
+and normalization, not by an API post-send record/forget bridge. Native semantic
+keys deliberately omit labels, so local entries also retain exact NLRI evidence
+when it cannot be recovered from that key. A label-only advertisement change
+sends, an identical repeat suppresses, and a forwarded replacement clears the
+local signature. Forwarded entries retain no attribute block.
+
+Explicit diagnostic raw injection uses the same writer and ownership inventory,
+but does not duplicate-suppress a requested UPDATE. Its existing AIGP policy,
+PATHS-LIMIT admission and Label-Index normalization remain in force. Accountable
+final bytes establish local ownership, so a remote source cannot withdraw them.
+Opaque bytes accepted by those policies are emitted and flushed before Ze seals
+and closes that exact Session with a diagnostic safety reason. They produce no
+invented sent-route or AIGP receipt. This is a local sender policy, not an RFC
+7606 receiver obligation; it avoids maintaining a live session with unknowable
+outbound history. Ordinary forwarding never falls back to opaque injection.
+Recognized full-packet UPDATEs retain their existing header reconstruction;
+other full packets with uncertain framing or trailing bytes retire after their
+literal emission. Successful emission returns success even when followed by
+this reset; a failed write or flush retains the actual transport error.
+
+The table follows the ordered buffered frontier. Pending ownership is visible
+only to serialized writer admission until a successful flush commits it. Any
+write or flush failure invalidates it, seals the failed Session and closes that
+connection without recursively taking `writeMu`; a replacement Session is not
+retired by the old writer's failure.
+Existing sent callbacks still follow successful buffered acceptance, before
+flush; they do not prove successful TCP delivery. Their asynchronous RIB
+projection is never consulted for ordinary ownership. Only successful flush
+commits the frontier and pending AIGP receipts. A failed session's earlier
+callback cannot by itself authorize replay or recovery on its replacement.
+The callback borrows a typed `wireu.SentOrigin` view; its scalar source/local
+fields are copied into the existing event payload. The optional received-ADD-PATH
+sidecar owns its backing storage, so returning the writer transaction to its
+pool does not recycle event data. No receipt map is created or cloned for an
+ordinary forward, and arbitrary caller metadata is passed through unchanged.
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, announceSignature -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated, writeRawUpdateBody, flushWrites -->
+
+
 ---
 
 ## *Params Struct Design
@@ -471,33 +527,52 @@ The withdraw rail had a `withdrawFacts` of its own, carrying three fields, while
 When disabled or when each peer has a unique context, the code falls back to per-peer building with no behavior change.
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- groupsEnabled check, announceFacts, withdrawFactsFor -->
 
-### The Adj-RIB-Out on the API Rails
+### Local Duplicate Evidence in the Shared Adj-RIB-Out
 
 RFC 4271 Section 9.2: "A BGP speaker SHOULD NOT advertise a given feasible BGP route from its Adj-RIB-Out if it would produce an UPDATE message containing the same BGP route as was previously advertised."
 
-Each peer keeps a table of what the API rails have sent it. A second announce of a route it already holds, with the same bytes, puts nothing on the wire. Until 2026-09-06 there was no such table, so `announce route X` twice sent two identical UPDATEs, and an operator script that re-announces its set on a timer re-flooded every peer on every tick.
+Every output rail now records through the same final writer. Local advertisements
+retain duplicate evidence; forwarded replacements clear it. A second local
+announce with identical final bytes sends nothing, but an API build cannot
+suppress a route before export policy or independently record a successful send.
 
 | Question | Answer |
 |----------|--------|
-| What is the key | The NLRI exactly as written to the wire, so RFC 7911 ADD-PATH keys on the path identifier too |
-| What is compared | The attribute block the builder emitted for THIS peer: after next-hop resolution, the AS_PATH prepend, the LOCAL_PREF decision and every other `announceFacts` edit. The MP_REACH_NLRI payload and its length octets are cut, so one route's signature does not change with the size of the batch it travelled in |
-| What empties it | A withdrawal removes its route. A session teardown drops the whole table, because the peer reached over the next connection holds nothing (RFC 4271 Section 6.3) |
-| What is never suppressed | A withdrawal, and a batch carrying `NLRIBatch.Replay` |
-| What an operator sees | A debug line on `subsystem=bgp.routes` naming the peer, the family and the count, and a per-peer counter beside it |
+| What is the key | Registered native semantic identity plus outgoing ADD-PATH presence/ID; VPN RD is included and labels/Compatibility are excluded |
+| What is compared | The final normalized attribute signature plus exact native NLRI evidence where the semantic key loses wire bytes; MP_REACH payload and its length octets do not make an individual route depend on batch size |
+| What empties it | An admitted withdrawal removes its route; a session retirement invalidates the whole table |
+| What is never duplicate-suppressed | An authorized withdrawal, and an admitted batch carrying `NLRIBatch.Replay` |
+| What an operator sees | A session debug line naming the peer and suppressed path count, plus the existing per-peer suppression counter |
 
-`Replay` is what keeps a re-send reaching the wire. Such a rail resends routes the peer already holds, over a session that is still up, so without the marker it would answer a request to re-send with silence. Two RIB producers set it, and both had to: `resendRoutesWithCursor` carries `clear bgp rib out`, and `sendRoutes` carries the re-advertisement a ROUTE-REFRESH from the peer asks for. The peer-up replay needs no marker, because the teardown already emptied the table.
+`Replay` keeps an admitted resend reaching the wire instead of satisfying a
+refresh with duplicate suppression. It is not ownership authority. Same-session
+resend and ROUTE-REFRESH carry the stored sent-message receipt and preserve the
+current owner and revision. Deliberate peer-up replay instead carries the
+captured new-Session initial-sync token and explicit local or source/path origin;
+it may populate only an empty slot while that initial phase remains open.
+See [replay cursor](bgp/replay-cursor.md) for the distinct initial and refresh receipts.
 
 Cursor replay clears prior cursor state before its first group and after its
-last group. Each emitted command carries `replay: true` and the group's stale
-level when present. ADD-PATH framing remains explicit even for a zero path
-identifier: `formatCursorCommands` emits `path-information` when the stored
-route has ADD-PATH enabled, not only when its numeric identifier is nonzero.
+last group. Each emitted command carries `replay: true`, the captured sent
+message-ID receipt and the group's stale level when present. Receipts travel as
+lossless decimal strings; stale replay or cleanup cannot overwrite a newer
+writer owner. Replay preserves the existing ownership and revision because the
+projection ignores replay feedback. ADD-PATH framing remains explicit even for
+identifier zero: `formatCursorCommands` emits `path-information` whenever the
+stored route has ADD-PATH enabled.
+The existing sent event also retains the stable source-Peer incarnation and
+received path identity needed when destination encoding removed it. Its scalar
+origin is body-common; extra family/announcement ordinals are emitted only for
+received ADD-PATH paths. Source attributes are not copied into the writer table.
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- resendRoutesWithCursor, formatCursorCommands -->
 
 RFC 2918 Section 4: "Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy." That "shall" is why the refresh rail outranks Section 9.2 here. Until 2026-09-14 `sendRoutes` set no marker, so a refresh on an up session sent the RFC 7313 BoRR and EoRR with no UPDATE between them, and RFC 7313 Section 4 has the receiver purge on the EoRR every route the BoRR marked stale: the refresh withdrew the family instead of restoring it. `test/plugin/plugin-refresh.ci` is the recording.
 
-Two origination paths do NOT record: the config-driven initial sync (`peer_initial_sync.go`) and the `SendRoutes` transaction rail. Neither can cause a wrong suppression, because a route that was never recorded is always sent; a route one of them sent and the API rail then announces is sent twice, exactly as before.
-<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, announceSignature, announceUnit -->
+Config-driven initial sync, transaction sends and API origination all establish
+local ownership at the same final boundary. The old API-only post-send record
+and pre-send forget bridges no longer exist.
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, announceSignature -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- beginAdjOut, allow, recordSection -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- resendRoutesWithCursor -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- sendRoutes -->
 

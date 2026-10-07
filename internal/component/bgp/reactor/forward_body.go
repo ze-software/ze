@@ -659,7 +659,7 @@ func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.En
 					return
 				}
 			} else {
-				id = memo.unframed(0)
+				id = memo.unframed(0, withdraw)
 			}
 			binary.BigEndian.PutUint32(out[off:off+4], id)
 			off += 4

@@ -75,10 +75,20 @@ matches no peer fails with 'no matching peers'.";
     ze:help "Show negotiated capabilities for peer(s).";
   }
   rpc session-peer-ready {
-    description "The daemon signals readiness for the one peer the process serves.
-A request that names no peer, or that names the wildcard peer, is accepted and
-signals nothing.";
+    description "The process reports completion for one peer using
+'session <initial-replay token>' captured from that peer's UP event. Missing,
+stale or retired receipts fail without releasing its live-forward replay
+fence. An explicit operator request is a no-op. A request naming no peer or
+the wildcard peer signals nothing.";
     ze:help "Signal peer-specific plugin init complete.";
+    input {
+      leaf session {
+        type string {
+          pattern '[1-9][0-9]*';
+        }
+        description "Opaque nonzero uint64 initial-replay token captured when this replay began.";
+      }
+    }
   }
   rpc warnings {
     description "Two codes reach this answer. Ze raises prefix-stale where a peer's

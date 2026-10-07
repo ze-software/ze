@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -138,8 +139,11 @@ func announceFactsFor(peer *Peer, fam family.Family, nextHop netip.Addr, isIBGP 
 // announceTarget keeps a build's socket identity out of its byte-equivalence
 // key: peers may share bytes, but a replacement session cannot inherit them.
 type announceTarget struct {
-	peer    *Peer
-	session *Session
+	peer             *Peer
+	session          *Session
+	source           *Peer
+	sourceGeneration uint64
+	sourceState      PeerState
 }
 
 // nlriUnitLen is how many NLRIs of one batch a single UPDATE carries toward one
@@ -186,11 +190,10 @@ func nlriUnitLen(count int, groupUpdates bool) int {
 // Each peer's Adj-RIB-Out decides what it is actually sent. RFC 4271 Section
 // 9.2: "A BGP speaker SHOULD NOT advertise a given feasible BGP route from its
 // Adj-RIB-Out if it would produce an UPDATE message containing the same BGP
-// route as was previously advertised." So a peer that already holds every prefix
-// of a unit, with exactly the bytes this build produced, is sent nothing; a peer
-// that holds some of them is served from a build of its own over the rest. Every
-// peer of the group still shares the one build in the case the table exists to
-// leave alone, which is the case where nothing is suppressed (adj_rib_out.go).
+// route as was previously advertised." The final writer makes that decision
+// after policy and normalization, under the same lock as ownership admission.
+// All peers still share this build; only a writer that suppresses a subset
+// materializes a filtered body.
 //
 // The count returned is ACCEPTANCES: one for each UPDATE written, and one for
 // each peer that needed none because it already held the batch. The callers read
@@ -207,11 +210,6 @@ func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []
 	sent := 0
 	var lastErr error
 	unitLen := nlriUnitLen(len(batch.NLRIs), facts.groupUpdates)
-
-	// partial holds the peers whose Adj-RIB-Out suppresses SOME of this unit's
-	// prefixes. It stays nil in the common case: a unit is one prefix whenever
-	// `group-updates false`, so a peer is either sent it or is not.
-	var partial []announceTarget
 
 	for off := 0; ; off += unitLen {
 		if err := ctx.Err(); err != nil {
@@ -230,46 +228,53 @@ func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []
 			return sent, buildErr
 		}
 
-		built := newAnnounceUnit(update, nlriHandle.Buf, unit, facts)
-		partial = partial[:0]
-
 		for _, target := range targets {
-			peer := target.peer
 			if err := ctx.Err(); err != nil {
 				return sent, err
 			}
-			held := built.heldBy(peer)
-			if held == len(unit.NLRIs) {
-				peer.adjOut.recordSuppressed(held)
-				logAnnounceSuppressed(peer, unit, held)
-				sent++
-				continue
-			}
-			if held > 0 {
-				partial = append(partial, target)
-				continue
-			}
-			if err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath, unit.Replay); err != nil {
+			if err := target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, unit); err != nil {
 				lastErr = err
 				continue
 			}
-			built.recordAll(peer)
 			sent++
-		}
-
-		if len(partial) > 0 {
-			n, err := a.announcePartialToPeers(ctx, partial, &built, maxMsgSize)
-			sent += n
-			if err != nil {
-				lastErr = err
-			}
 		}
 
 		if end >= len(batch.NLRIs) {
 			break
 		}
 	}
+
 	return sent, lastErr
+}
+
+// sendBatchUpdate carries explicit local or captured sent-owner authority all
+// the way to the final writer; no post-send producer mutates adjOut.
+func (target announceTarget) sendBatchUpdate(ctx context.Context, update *message.Update, maxSize int, addPath bool, batch bgptypes.NLRIBatch) error {
+	if batch.InitialReplay == 0 && batch.SentOwnerMessage != 0 && target.peer.withdrawBehindForwards() {
+		return target.queueBehindForwards(batch.SentOwnerMessage, batch.Replay)(ctx, update, maxSize, addPath)
+	}
+	owner := fwdItem{peer: target.peer, session: target.session, originated: true}
+	if batch.SentOwnerMessage != 0 {
+		owner.authority = adjOutExpected
+		owner.expectedMessage = batch.SentOwnerMessage
+	}
+	if batch.InitialReplay != 0 {
+		owner.authority = adjOutInitial
+		owner.initialUpdate = true
+		owner.initialReplay = batch.InitialReplay
+		owner.initialLocal = batch.InitialLocal
+		if !batch.InitialLocal {
+			if target.source == nil {
+				return errAdjOutProvenance
+			}
+			owner.receivedPeer = target.source
+			owner.receivedGeneration = target.sourceGeneration
+			owner.initialSourceState = target.sourceState
+			owner.initialSourcePath = batch.InitialSourcePath
+			owner.initialSourceAddPath = batch.InitialSourceAddPath
+		}
+	}
+	return target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner)
 }
 
 // AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.
@@ -284,11 +289,30 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if batch.InitialReplay != 0 && batch.SentOwnerMessage == 0 {
+		return errAdjOutProvenance
+	}
 	a.r.mu.RLock()
 	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
+	var initialSource *Peer
+	var initialGeneration uint64
+	var initialState PeerState
+	if batch.InitialReplay != 0 && !batch.InitialLocal && batch.InitialSourceOwner != 0 {
+		for _, peer := range a.r.peers {
+			if peer.sourceOwner == batch.InitialSourceOwner && peer.addrString == batch.InitialSourcePeer {
+				initialSource = peer
+				initialGeneration = peer.forwardGeneration.Load()
+				initialState = peer.State()
+				break
+			}
+		}
+	}
 	a.r.mu.RUnlock()
 	if permErr != nil {
 		return permErr
+	}
+	if batch.InitialReplay != 0 && !batch.InitialLocal && initialSource == nil {
+		return errAdjOutProvenance
 	}
 	if len(peers) == 0 {
 		return route.ErrNoPeersMatch
@@ -374,7 +398,19 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		// and a failure to resolve it is not a reason to skip the peer
 		// (family.Family.NeedsNextHop).
 		queued := peer.shouldQueue()
-		target := announceTarget{peer: peer}
+		if batch.SentOwnerMessage != 0 {
+			// A maintenance receipt names an existing session advertisement;
+			// it MUST NOT enter the local origination queue for a later session.
+			if peer.currentSession() == nil {
+				if batch.InitialReplay != 0 {
+					return errAdjOutSession
+				}
+				acceptedCount++
+				continue
+			}
+			queued = false
+		}
+		target := announceTarget{peer: peer, source: initialSource, sourceGeneration: initialGeneration, sourceState: initialState}
 		if !queued {
 			target.session = peer.currentSession()
 		}
@@ -508,6 +544,9 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 	// against a peer that was still coming up -- into hard failures, which turned 19
 	// functional tests red. That is a real question about how send errors should be
 	// reported, but it is a separate one from this guard.
+	if batch.InitialReplay != 0 && lastErr != nil {
+		return lastErr
+	}
 	if acceptedCount == 0 {
 		// Every cause named here is a failure of THIS speaker, and collapsing
 		// one into "no peer carries the family" replaces a true cause with a
@@ -608,6 +647,9 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 	// a property of the connection rather than of the framing. A peer counts as
 	// SERVED: the command did what it asked for, and no route was named to it.
 	writable, unarmed := splitOnAdvertised(peers)
+	if batch.SentOwnerMessage != 0 {
+		writable, unarmed = peers, nil
+	}
 	withheld := make([]string, 0, len(unarmed))
 	var lastErr error
 
@@ -657,17 +699,14 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 			if err := ctx.Err(); err != nil {
 				return sent, withheld, err
 			}
-			// Forget first, and whatever the write does. The peer's Adj-RIB-Out
-			// is a model of what it holds, and after a withdrawal that failed to
-			// write it holds something this speaker can no longer name. Reading
-			// that as "the peer does not have it" re-sends a route it may still
-			// hold; reading it the other way would suppress one it does not.
-			forgetWithdrawn(peer, unit, nlriHandle.Buf, facts.addPath)
-			send := peer.sendUpdateWithSplit
+			target := announceTarget{peer: peer, session: peer.currentSession()}
+			var sendErr error
 			if peer.withdrawBehindForwards() {
-				send = a.queueBehindForwards(peer)
+				sendErr = target.queueBehindForwards(batch.SentOwnerMessage, batch.Replay)(ctx, update, maxMsgSize, facts.addPath)
+			} else {
+				sendErr = target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, batch)
 			}
-			if err := send(ctx, update, maxMsgSize, facts.addPath); err != nil {
+			if err := sendErr; err != nil {
 				lastErr = err
 				continue
 			}
@@ -699,13 +738,21 @@ var errForwardPoolStopped = errors.New("forward pool stopped: update not queued"
 //
 // The write happens later on the worker, which logs a failure: a nil answer
 // means queued, as a forwarded UPDATE's does.
-func (a *reactorAPIAdapter) queueBehindForwards(peer *Peer) func(context.Context, *message.Update, int, bool) error {
+func (target announceTarget) queueBehindForwards(expectedMessage uint64, replay bool) func(context.Context, *message.Update, int, bool) error {
 	return func(_ context.Context, update *message.Update, maxMsgSize int, addPath bool) error {
-		key := fwdKey{peerAddr: peer.settings.PeerKey()}
+		key := fwdKey{peerAddr: target.peer.settings.PeerKey()}
 		s := message.GetSplitter()
 		defer message.PutSplitter(s)
 		return s.Split(update, maxMsgSize, addPath, func(chunk *message.Update) error {
-			if !a.r.fwdPool.dispatchOverflow(key, fwdItem{updates: []*message.Update{chunk}, peer: peer, originated: true}) {
+			item := fwdItem{updates: []*message.Update{chunk}, peer: target.peer, session: target.session, originated: true}
+			if expectedMessage != 0 {
+				item.authority = adjOutExpected
+				item.expectedMessage = expectedMessage
+			}
+			if replay {
+				item.meta = map[string]any{"replay": true}
+			}
+			if !target.peer.reactor.fwdPool.dispatchOverflow(key, item) {
 				return errForwardPoolStopped
 			}
 			return nil
@@ -817,7 +864,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 		// opQueue, which drains when the sync ends, before a replay the fence
 		// still holds. withdrawBehindForwards sends it to the forward queue
 		// instead, behind the replay (withdrawBatchFromPeers).
-		if !peer.shouldQueue() || peer.withdrawBehindForwards() {
+		if batch.SentOwnerMessage != 0 || !peer.shouldQueue() || peer.withdrawBehindForwards() {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {
@@ -2119,19 +2166,25 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 			// rail's own cause (already logged); nothing was sent.
 			return false, errWithdrawTooLarge
 		}
-		err := target.session.sendUpdateWithSplit(ctx, wd, maxMsgSize, facts.addPath, batch.Replay)
+		err := target.sendBatchUpdate(ctx, wd, maxMsgSize, facts.addPath, batch)
 		return err == nil, err
 	case staleModify:
 		// Non-LLGR iBGP peer: apply the depreference mods (NO_EXPORT + LOCAL_PREF=0).
 		if modified == nil {
-			err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath, batch.Replay)
+			err := target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, batch)
 			return err == nil, err
 		}
-		err := target.session.sendBodyWithSplit(ctx, modified, maxMsgSize, facts.addPath, batch.Replay)
+		sections, parseErr := wire.ParseUpdateSections(modified)
+		if parseErr != nil {
+			return false, parseErr
+		}
+		changed := &message.Update{WithdrawnRoutes: sections.Withdrawn(modified),
+			PathAttributes: sections.Attrs(modified), NLRI: sections.NLRI(modified)}
+		err := target.sendBatchUpdate(ctx, changed, maxMsgSize, facts.addPath, batch)
 		return err == nil, err
 	case staleKeep:
 		// LLGR-capable peer: send the stale route unchanged.
-		err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath, batch.Replay)
+		err := target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, batch)
 		return err == nil, err
 	default:
 		panic("BUG: invalid stale readvertise outcome")

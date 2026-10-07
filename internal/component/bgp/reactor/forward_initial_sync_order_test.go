@@ -120,6 +120,9 @@ func newSyncOrderDest(t *testing.T, ctx *bgpctx.EncodingContext, ctxID bgpctx.Co
 	peer.refreshForwardFacts()
 
 	session := NewSession(settings)
+	session.adjOut = &peer.adjOut
+	session.SetSourceID(peer.SourceID())
+	session.setSendCtxID(ctxID)
 	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
 	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
 	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
@@ -164,6 +167,10 @@ func newSyncOrderRailWith(t *testing.T, handler func(fwdKey, []fwdItem)) (*React
 	t.Cleanup(cache.Stop)
 
 	src := makeForwardSourcePeer(t, ctx, ctxID)
+	src.session = NewSession(src.Settings())
+	src.session.adjOut = &src.adjOut
+	src.session.SetSourceID(src.SourceID())
+	src.session.setSendCtxID(ctxID)
 	dst, conn := newSyncOrderDest(t, ctx, ctxID)
 
 	pool := newFwdPool(handler, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
@@ -188,31 +195,38 @@ func newSyncOrderRailWith(t *testing.T, handler func(fwdKey, []fwdItem)) (*React
 func syncOrderPublish(t *testing.T, r *Reactor, ctxID bgpctx.ContextID, updateID uint64, body []byte) *ReceivedUpdate {
 	t.Helper()
 
+	source := r.peers[netip.AddrPortFrom(netip.MustParseAddr(forwardSourceAddr), DefaultBGPPort)]
+	require.NotNil(t, source, "published updates require the registered source Peer")
+
 	wu := wireu.NewWireUpdate(body, ctxID)
 	wu.SetMessageID(updateID)
+	wu.SetSourceID(source.SourceID())
 	update := &ReceivedUpdate{
-		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
-		ReceivedAt:   time.Now(),
+		WireUpdate:         wu,
+		SourcePeerIP:       source.Settings().Address,
+		ReceivedAt:         time.Now(),
+		receivedPeer:       source,
+		receivedGeneration: source.forwardGeneration.Load(),
 	}
 	r.recentUpdates.Add(update)
 	r.recentUpdates.Activate(updateID, 1)
 	return update
 }
 
-// newSyncOrderFixture is newSyncOrderRail with the two things both AC-1 tests
-// need: the forwarded withdraw of syncOrderPrefix, and the announce of the same
-// prefix already queued for the destination.
+// newSyncOrderFixture queues an initial replay and a later withdrawal from the
+// same source. QueueAnnounce would create local ownership, which this remote
+// withdrawal must not remove.
 func newSyncOrderFixture(t *testing.T, updateID uint64) (*Reactor, *Peer, *Peer, *recordingConn, *ReceivedUpdate) {
 	t.Helper()
 
 	r, src, dst, conn, ctxID := newSyncOrderRail(t)
-	update := syncOrderPublish(t, r, ctxID, updateID, syncOrderWithdrawBody)
 
-	// The announce this forwarded withdraw must never overtake. It is queued,
-	// not sent: shouldQueue() is true for a peer inside its initial sync, so the
-	// injection rail parks it here and sendInitialRoutes drains it.
-	require.NoError(t, dst.QueueAnnounce(testRoute(syncOrderPrefix), false, false))
+	// A source-owned replay waits for the reactor's initial sync before the
+	// later live withdrawal. Both must retain their real source identity.
+	replay := syncOrderPublish(t, r, ctxID, updateID-1, syncOrderAnnounceBody)
+	adapter := &reactorAPIAdapter{r: r}
+	require.NoError(t, adapter.forwardUpdateCore(replay, updateID-1, []*Peer{dst}, replayFenceSource(src, true)))
+	update := syncOrderPublish(t, r, ctxID, updateID, syncOrderWithdrawBody)
 
 	return r, src, dst, conn, update
 }
@@ -222,11 +236,9 @@ func newSyncOrderFixture(t *testing.T, updateID uint64) (*Reactor, *Peer, *Peer,
 func assertAnnounceThenWithdraw(t *testing.T, dst *Peer, conn *recordingConn) {
 	t.Helper()
 
-	// Nothing the peer can act on reaches it while the sync is still to run: the
-	// queued announce is in opQueue and the forwarded withdraw is parked behind
-	// it. Never, not Empty: the dispatch gate alone leaves the item in a worker
-	// that drains it microseconds later, so a single sample would pass against a
-	// missing hold.
+	// The source-owned replay and its later withdrawal remain queued until
+	// the reactor's own initial sync completes. Never, not Empty: a dispatch
+	// gate without a matching worker hold drains the items shortly afterward.
 	require.Never(t, func() bool {
 		return len(parseWireUpdates(t, conn.written())) > 0
 	}, 200*time.Millisecond, 5*time.Millisecond,
@@ -303,6 +315,51 @@ func TestForwardedWithdrawWaitsForQueuedAnnounceRSRail(t *testing.T) {
 	require.Equal(t, 1, dispatched, "the destination must be dispatched to, not dropped")
 
 	assertAnnounceThenWithdraw(t, dst, conn)
+}
+
+// TestQueuedLocalAnnounceSurvivesRemoteWithdrawal keeps the distinct local
+// queue case: a remote source cannot remove a route originated by this peer.
+// A later source announcement fences the same writer before the final check.
+func TestQueuedLocalAnnounceSurvivesRemoteWithdrawal(t *testing.T) {
+	for _, rsRail := range []bool{false, true} {
+		name := "core"
+		if rsRail {
+			name = "rs"
+		}
+		t.Run(name, func(t *testing.T) {
+			r, src, dst, conn, ctxID := newSyncOrderRail(t)
+			require.NoError(t, dst.QueueAnnounce(testRoute(syncOrderPrefix), false, false))
+			adapter := &reactorAPIAdapter{r: r}
+			send := func(id uint64, body []byte) {
+				update := syncOrderPublish(t, r, ctxID, id, body)
+				if rsRail {
+					_, dispatched := reactorForwardRS(r, update, id, src.Settings().Address, src)
+					require.Equal(t, 1, dispatched)
+					return
+				}
+				require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dst}, replayFenceSource(src, false)))
+			}
+			send(7250, syncOrderWithdrawBody)
+			marker := append([]byte(nil), syncOrderAnnounceBody...)
+			marker[len(marker)-1] = 3 // 192.0.3.0/24, distinct from the local route.
+			send(7251, marker)
+			dst.sendInitialRoutes()
+			require.Eventually(t, func() bool {
+				return bytes.HasSuffix(conn.written(), marker[len(marker)-4:])
+			}, 5*time.Second, time.Millisecond, "the later marker fences the remote withdrawal")
+			var announcements, withdrawals int
+			for _, update := range parseWireUpdates(t, conn.written()) {
+				if update.announces {
+					announcements++
+				}
+				if update.withdraws {
+					withdrawals++
+				}
+			}
+			require.Equal(t, 1, announcements, "the queued local route reaches the peer")
+			require.Zero(t, withdrawals, "another source cannot withdraw local ownership")
+		})
+	}
 }
 
 // TestForwardedUpdateWaitsForPendingOverflowRSRail pins the SECOND half of the

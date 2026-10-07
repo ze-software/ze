@@ -3,9 +3,7 @@ package reactor
 import (
 	"encoding/binary"
 	"net/netip"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -18,19 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The RFC 7911 identifier table measured at FULL-SIZE UPDATE scale, and the
-// keying rule that bounds it.
-//
-// These two tests began as measurement probes for the Review Gate BLOCKER of
-// plan/spec-rfc7911-generate-own-path-id.md, written before the release point
-// was decided. They logged what they measured and asserted almost nothing. The
-// release contract is settled now, so each one asserts the fact it used to
-// print, and the logs stay because the numbers are what sized the fix.
-//
-// The companion file is forward_path_id_churn_test.go, which drives one path per
-// UPDATE across many cycles. These two take the other two axes: one UPDATE
-// carrying hundreds of withdrawn identifiers, and one received identifier
-// meeting several prefixes.
+// The RFC 7911 keying rule bounds identifier state according to source framing.
+// The companion rfc7911_forward_path_id_churn_test.go drives one path per UPDATE
+// across many cycles. Unknown-withdrawal nonallocation is covered on the actual
+// writer by TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate.
 
 const (
 	// probeSourceFramed and probeSourceUnframed are this file's two ingress
@@ -54,139 +43,6 @@ func fwdPathIDTableSize() (entries, used int) {
 		entries += len(perSource)
 	}
 	return entries, len(fwdPathIDs.used)
-}
-
-// probeWithdrawOnlyBody builds an UPDATE body whose only content is withdrawn routes,
-// ADD-PATH framed, one per identifier in ids, all for the SAME prefix.
-func probeWithdrawOnlyBody(ids []uint32, prefix netip.Prefix) []byte {
-	var withdrawn []byte
-	for _, id := range ids {
-		var idBytes [4]byte
-		binary.BigEndian.PutUint32(idBytes[:], id)
-		withdrawn = append(withdrawn, idBytes[:]...)
-		withdrawn = append(withdrawn, nlri.NewINET(family.IPv4Unicast, prefix, 0).Bytes()...)
-	}
-	body := make([]byte, 0, 4+len(withdrawn))
-	var hdr [2]byte
-	binary.BigEndian.PutUint16(hdr[:], uint16(len(withdrawn)))
-	body = append(body, hdr[:]...)
-	body = append(body, withdrawn...)
-	body = append(body, 0, 0) // total path attribute length
-	return body
-}
-
-// TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys is the leak at the scale a
-// peer can reach in one message.
-//
-// VALIDATES: AC-4 at full-size-UPDATE scale. One withdraw-only UPDATE naming 200
-// identifiers ze never advertised buys 200 table entries while it is being
-// relayed, and holds none of them once the cache evicts it.
-// PREVENTS: the memory this spec's Review Gate opened on. The relay consults no
-// RIB, so it rewrites a withdrawn section exactly as it rewrites an announced
-// one, and every distinct identifier in it used to buy a permanent entry. The
-// entry is 30 to 40 octets for a 5-octet withdraw NLRI, so a peer that sends
-// these at line rate grows the daemon faster than it sends.
-// RFC requirement: RFC7911-2-2 positive -- "the Path Identifier MUST be assigned
-// in such a way that the BGP speaker is able to use the (Prefix, Path
-// Identifier) to uniquely identify a path advertised to a neighbor". The
-// obligation runs over the pairs ze currently advertises, so a value ze
-// advertises no path under is free, and holding it forever buys nothing.
-func TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys(t *testing.T) {
-	ctx, ctxID := registerForwardBodyTestContext(t, true, true)
-	require.True(t, ctx.AddPath(family.IPv4Unicast))
-
-	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
-	dst := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
-
-	const withdrawn = 200
-	ids := make([]uint32, 0, withdrawn)
-	for i := range withdrawn {
-		ids = append(ids, uint32(1_000_000+i))
-	}
-	body := probeWithdrawOnlyBody(ids, netip.MustParsePrefix("10.9.0.0/24"))
-	t.Logf("withdraw-only UPDATE: %d octets on the wire for %d withdrawn NLRIs", message.HeaderLen+len(body), withdrawn)
-
-	wu := wireu.NewWireUpdate(body, ctxID)
-	wu.SetSourceID(probeSourceFramed)
-	wu.SetMessageID(4242)
-
-	update := &ReceivedUpdate{
-		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	}
-	cache := newRecentUpdateCache(100)
-	t.Cleanup(cache.Stop)
-	const consumer = "pathid-withdraw-only-probe"
-	cache.RegisterConsumer(consumer)
-	cache.Add(update)
-	cache.Activate(4242, 1)
-	t.Cleanup(func() { fwdPathIDs.releaseSource(probeSourceFramed) })
-
-	// The handler counts and signals, and releases nothing: runWorker calls
-	// item.done() itself once the handler returns (forward_pool.go), so a
-	// handler that also called it would drive the retain count negative and
-	// evict the entry under the measurement below.
-	var mu sync.Mutex
-	var dispatched int
-	done := make(chan struct{}, 4)
-	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
-		mu.Lock()
-		dispatched += len(items)
-		mu.Unlock()
-		for range items {
-			done <- struct{}{}
-		}
-	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
-	defer testPool.Stop()
-
-	r := &Reactor{
-		attrModHandlers: attrModHandlersWithDefaults(),
-		recentUpdates:   cache,
-		peers: map[netip.AddrPort]*Peer{
-			src.Settings().PeerKey(): src,
-			dst.Settings().PeerKey(): dst,
-		},
-		fwdPool: testPool,
-	}
-
-	beforeEntries, beforeUsed := fwdPathIDTableSize()
-	_, delivered := reactorForwardRS(r, update, 4242, netip.MustParseAddr("10.0.0.1"), src)
-	require.Equal(t, 1, delivered, "the withdraw must reach the destination client")
-
-	// Measured before anything can evict: reactorForwardRS builds every
-	// destination body before it returns, and the entry it retained still has
-	// this test's one cache consumer outstanding.
-	relayedEntries, relayedUsed := fwdPathIDTableSize()
-	t.Logf("fwdPathIDs entries %d -> %d (+%d), used %d -> %d (+%d)",
-		beforeEntries, relayedEntries, relayedEntries-beforeEntries,
-		beforeUsed, relayedUsed, relayedUsed-beforeUsed)
-	t.Logf("octets of wire per entry: %.1f", float64(message.HeaderLen+len(body))/float64(max(relayedEntries-beforeEntries, 1)))
-
-	// EXACT, on both sides. "Fewer than 200 survive" passes on a leak that is
-	// merely slower, and "some were bought" passes on a relay that never ran.
-	require.Equal(t, withdrawn, relayedEntries-beforeEntries,
-		"a withdraw-only UPDATE must buy one entry per identifier it names, which is what makes the release the thing worth testing")
-
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for dispatch")
-	}
-	require.NoError(t, cache.Ack(4242, consumer))
-
-	// Eventually, not immediately: the ack drops this test's consumer, and the
-	// worker drops the retain it took at dispatch. Eviction follows whichever
-	// lands second, so the entry can still be in the cache for the microsecond
-	// between the two.
-	require.Eventually(t, func() bool { return !cache.Contains(4242) }, 2*time.Second, 5*time.Millisecond,
-		"the entry must be evicted, because eviction is where the release runs")
-
-	afterEntries, afterUsed := fwdPathIDTableSize()
-	assert.Equal(t, beforeEntries, afterEntries,
-		"the withdrawn identifiers outlived the UPDATE that carried them, so a peer grows this table from the socket")
-	assert.Equal(t, beforeUsed, afterUsed,
-		"the values did not return to the pool, so the counter must step over paths that no longer exist")
 }
 
 // TestPathIDKeyFollowsWhatTheSourceFramed is the keying rule the bound rests on.

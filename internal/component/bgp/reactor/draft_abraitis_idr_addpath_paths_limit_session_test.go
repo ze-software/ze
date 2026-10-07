@@ -41,6 +41,9 @@ func pathsLimitSession(t *testing.T, limits map[family.Family]uint16) (*Session,
 	s.localOpen = &message.Open{HoldTime: 90}
 	s.peerOpen = &message.Open{ASN4: 65001, HoldTime: 90}
 	s.negotiateWith(local, remote)
+	// Establishment publishes the negotiated wire contexts before any UPDATE.
+	peer.setEncodingContexts(s.negotiated)
+	t.Cleanup(peer.clearEncodingContexts)
 	return s, conn
 }
 
@@ -161,7 +164,13 @@ func TestPathsLimitSessionAcrossUpdates(t *testing.T) {
 			if len(conn.written()) != before {
 				t.Fatal("over-limit batch reached wire (or became a false EOR)")
 			}
-			send(false, 1)
+			// Change MED so this is a replacement, not an exact local duplicate.
+			replacement := pathsLimitUpdate(fam, false, pathsLimitNLRI(1, prefix))
+			replacement.PathAttributes = append(replacement.PathAttributes,
+				0x80, byte(attribute.AttrMED), 4, 0, 0, 0, 1)
+			if err := s.SendUpdate(replacement); err != nil {
+				t.Fatal(err)
+			}
 			send(true, 99) // Unknown withdrawal does not free a slot.
 			send(false, 4)
 			send(true, 0)

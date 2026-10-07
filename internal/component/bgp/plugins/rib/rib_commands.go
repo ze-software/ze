@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -708,7 +709,8 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 
 	for _, route := range routes {
 		cmd := formatRouteCommand(route)
-		meta := map[string]any{metaKeyReplay: true}
+		meta := map[string]any{metaKeyReplay: true,
+			bgptypes.SentOwnerMessageMeta: strconv.FormatUint(route.MsgID, 10)}
 		if route.StaleLevel > 0 {
 			meta["stale"] = route.StaleLevel
 		}

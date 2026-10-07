@@ -15,6 +15,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestStateParserIgnoresReplayReceipt keeps this non-readiness subscriber from
+// mistaking the trailing Session receipt for the state value.
+func TestStateParserIgnoresReplayReceipt(t *testing.T) {
+	for _, state := range []string{"up", "down"} {
+		line := "peer 10.0.0.1 remote as 65001 state " + state + " initial-replay 18446744073709551615\n"
+		peer, got := parseStateEvent(line)
+		if peer != "10.0.0.1" || got != state {
+			t.Fatalf("parsed (%q, %q), want (10.0.0.1, %q)", peer, got, state)
+		}
+	}
+}
+
 type injectedEntry struct {
 	fam   family.Family
 	entry configredist.RouteEntry

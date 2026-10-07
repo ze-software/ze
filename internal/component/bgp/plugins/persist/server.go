@@ -556,7 +556,7 @@ func (ps *PersistServer) handleStructuredState(se *rpc.StructuredEvent) {
 			m.routeReplays.Inc()
 			m.peersTracked.Set(float64(len(ps.peers)))
 		}
-		go ps.replayForPeer(peerAddr, gen)
+		go ps.replayForPeer(peerAddr, gen, se.InitialReplay)
 		return
 	}
 
@@ -593,7 +593,7 @@ func (ps *PersistServer) handleState(peerAddr, text string) {
 			m.routeReplays.Inc()
 			m.peersTracked.Set(float64(len(ps.peers)))
 		}
-		go ps.replayForPeer(peerAddr, gen)
+		go ps.replayForPeer(peerAddr, gen, event.initialReplay)
 		return
 	}
 
@@ -626,7 +626,8 @@ func (ps *PersistServer) handleOpen(peerAddr, text string) {
 
 // replayForPeer replays all stored routes to a peer via cache-forward commands,
 // then sends EOR for each negotiated family.
-func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
+// Callers MUST pass the token captured from the peer-up event.
+func (ps *PersistServer) replayForPeer(peerAddr string, gen, initialReplay uint64) {
 	ps.mu.RLock()
 	peer := ps.peers[peerAddr]
 	if peer == nil || peer.replayGen != gen {
@@ -640,7 +641,7 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 		families := ps.peerFamilies(peerAddr)
 		ps.mu.RUnlock()
 		ps.sendEOR(peerAddr, families)
-		ps.signalSessionReady(peerAddr)
+		ps.signalSessionReady(peerAddr, initialReplay)
 		return
 	}
 
@@ -672,28 +673,28 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 	}
 
 	ps.sendEOR(peerAddr, families)
-	ps.signalSessionReady(peerAddr)
+	ps.signalSessionReady(peerAddr, initialReplay)
 }
 
-// signalSessionReady tells the engine this plugin has finished the routes it
-// owes the peer's INITIAL routing update.
-//
-// This plugin declares registry.Registration.SignalsSessionReady, so a peer
-// that attaches it with a route-push grant holds its End-of-RIB until this
-// report arrives (reactor/peer_run.go). Sent from the two paths replayForPeer
-// COMPLETES on, and from neither generation abort: an abort means a newer
-// establishment already started its own replay, and that replay owns the report
-// for the session the barrier now belongs to.
-func (ps *PersistServer) signalSessionReady(peerAddr string) {
+// signalSessionReady reports completion of this plugin's initial routing update.
+// Both replay completion paths report, including an empty replay. A generation
+// abort does not report, and a late completion carries only its original token.
+// The engine credits that session alone; readiness releases replay fences owned
+// by reporters, not End-of-RIB.
+// Callers MUST pass their replay's captured token, never a current-session lookup.
+func (ps *PersistServer) signalSessionReady(peerAddr string, initialReplay uint64) {
 	if ps.plugin == nil {
+		return
+	}
+	if initialReplay == 0 {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 	var tb textbuf.Buffer
-	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready").String()
+	command := tb.Str("request peer ").Str(peerAddr).Str(" plugin session ready session ").Uint(initialReplay).String()
 	if _, _, err := ps.plugin.DispatchCommand(ctx, command); err != nil {
-		persistLogger().Warn("plugin session ready failed; this peer's end-of-rib waits out the api sync timeout",
+		persistLogger().Warn("plugin session ready failed",
 			"peer", peerAddr, "error", err)
 	}
 }
@@ -735,9 +736,10 @@ func (ps *PersistServer) updateRoute(peer, cmd string) {
 
 // persistEvent holds minimal parsed event data.
 type persistEvent struct {
-	state    string
-	asn      uint32
-	families map[family.Family]bool
+	initialReplay uint64
+	state         string
+	asn           uint32
+	families      map[family.Family]bool
 }
 
 // quickParsePersistEvent extracts event type, message ID, peer address, and full text
@@ -955,6 +957,16 @@ func parsePersistState(text string) *persistEvent {
 			if v, ok := s.Next(); ok {
 				event.state = v
 			}
+		case "initial-replay":
+			value, ok := s.Next()
+			if !ok {
+				return nil
+			}
+			token, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				return nil
+			}
+			event.initialReplay = token
 		}
 	}
 

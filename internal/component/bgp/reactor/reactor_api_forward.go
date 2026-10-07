@@ -634,18 +634,14 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// carrying it (wireu.WellKnown).
 	srcWellKnown := a.r.scanWellKnownEgress(sourceWire.Payload(), update.SourcePeerIP)
 
-	// A destination an egress gate refuses the announcement is sent a WITHDRAWAL
-	// of every route this UPDATE names instead (mods.SetWithdraw, then
-	// buildWithdrawalPayload), never nothing. The destination may hold the
-	// previous generation of the route, and this rail keeps no per-peer
-	// Adj-RIB-Out that could say it does not, so the withdrawal is unconditional:
-	// RFC 7606 Section 2 treat-as-withdraw, "as though all contained routes had
-	// been withdrawn". A withdrawal of a route the destination never held changes
-	// nothing for it. The route-server rail (reactorForwardRS) answers the same.
+	// Policy-denied announcements become source-bound synthesized withdrawals.
+	// The final writer retains absent-owner synthesis but rejects withdrawal of
+	// another source's current route. Original withdrawn siblings remain ordinary.
 	var withdrawals fwdWithdrawal
 	var sectionBase *wireu.WireUpdate
 	var sectionWires []*wireu.WireUpdate
 	for _, peer := range matchingPeers {
+		session := peer.currentSession()
 		nextHopWithheld := false
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -1103,6 +1099,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			}
 
 			item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+			item.session, item.authority = session, adjOutForwarded
 			item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 			item.aigpOrigin = announceOrigin(srcInfo.sender)
 			item.aigpRevision = metricRevision
@@ -1165,7 +1162,20 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				}
 			}
 		dispatch:
+			// RFC 7911 Section 2: preserve ingress identity before final admission.
+			if err := prepareFwdProvenance(&item, update.WireUpdate, peerWire,
+				mods.IsWithdraw() || sourceWire != update.WireUpdate || exportWireOverride != nil); err != nil {
+				fwdLogger().Warn("forward provenance failed", "peer", facts.addr, "err", err)
+				dedup.abandon(candidate)
+				a.r.fwdPool.releaseItem(&item)
+				continue
+			}
 			if srcInfo.recovery != nil {
+				if mods.IsWithdraw() || (item.provenance != nil && item.provenance.synthesizedWithdrawal) {
+					// The admitted recovery owns the obsolete sent slot, not
+					// the policy-denied replacement candidate's source.
+					item.authority = adjOutRecovery
+				}
 				item.supersedeKey = 0 // The operation owns every staged section.
 			}
 			// Dedup borrows this item's buffer. Publish only after the body can

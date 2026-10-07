@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"os"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -402,4 +403,109 @@ func TestSessionRunStopsTimersOnValidationTeardown(t *testing.T) {
 				"AC-3: the hold timer is still armed after Run returned via %s", tc.site)
 		})
 	}
+}
+
+// TestTeardownReasonSurvivesBlockedNotification keeps the peer unread until the
+// real notification write deadline expires. Recording the initiating cause must
+// precede that I/O; retirement must still seal the failed writer and close Run.
+func TestTeardownReasonSurvivesBlockedNotification(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want error
+	}{
+		{"hold", ErrHoldTimerExpired},
+		{"send-hold", ErrSendHoldTimerExpired},
+		{"manual", ErrTeardown},
+		{"automatic", ErrTeardown},
+		{"collision", ErrCollisionDump},
+		{"policy", ErrPolicyTeardown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				session, fc := newHoldExpirySession(t, time.Second)
+				server, client := net.Pipe()
+				t.Cleanup(func() { _ = server.Close(); _ = client.Close() })
+				conn := &observedWriteConn{Conn: server, writing: make(chan struct{})}
+				session.conn = conn
+				session.bufReader = bufio.NewReader(conn)
+				session.bufWriter = bufio.NewWriter(conn)
+				if tc.name == "policy" {
+					session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
+						_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
+						_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
+						session.requestPolicyTeardown(message.NotifyCease, message.NotifyCeaseConnectionRejected)
+						return false
+					}
+				}
+				result := make(chan error, 1)
+				go func() { result <- session.Run(t.Context()) }()
+				triggered := make(chan error, 1)
+				go func() {
+					var err error
+					switch tc.name {
+					case "hold":
+						// RFC 4271 Section 8.2.2, Event 10.
+						session.timers.StartHoldTimer()
+						fc.Add(time.Second)
+					case "send-hold":
+						// RFC 9687 Sections 5 and 7.
+						session.sendHoldTimerExpired()
+					case "manual":
+						// RFC 4271 Section 6.7.
+						err = session.Teardown(message.NotifyCeaseAdminShutdown, "")
+					case "automatic":
+						err = session.teardownAutomatic(message.NotifyCeaseOutOfResources, "")
+					case "collision":
+						// RFC 4271 Section 6.8.
+						err = session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision)
+					case "policy":
+						_, err = client.Write(eorUpdate())
+					}
+					triggered <- err
+				}()
+				select {
+				case <-conn.writing:
+				case <-time.After(runExitDeadline):
+					t.Fatal("teardown never reached its notification write")
+				}
+				synctest.Wait()
+				reason := session.closeReason.Load()
+				require.NotNil(t, reason, "cause must be recorded before notification I/O completes")
+				require.ErrorIs(t, *reason, tc.want)
+
+				// No reader and no artificial transport failure: synctest advances
+				// to the production write deadline while these joins wait.
+				select {
+				case err := <-result:
+					require.ErrorIs(t, err, tc.want)
+				case <-time.After(30 * time.Second):
+					t.Fatal("failed notification left Run alive")
+				}
+				require.NoError(t, <-triggered)
+				synctest.Wait()
+				require.ErrorIs(t, session.writeFailed, os.ErrDeadlineExceeded)
+				require.True(t, session.tearingDown.Load(), "failed notification must still retire the writer")
+				require.Nil(t, session.conn, "Run must still release the connection")
+			})
+		})
+	}
+}
+
+// TestHoldExpiryPreservesEarlierWriteFailure pins the other side of first-cause
+// ownership: an expiry cannot replace a genuine write failure already recorded.
+func TestHoldExpiryPreservesEarlierWriteFailure(t *testing.T) {
+	session, fc := newHoldExpirySession(t, time.Second)
+	server, client := net.Pipe()
+	t.Cleanup(func() { _ = server.Close(); _ = client.Close() })
+	session.conn = server
+	session.bufReader = bufio.NewReader(server)
+	session.bufWriter = bufio.NewWriter(server)
+	prior := errors.New("earlier transport failure")
+	session.writeMu.Lock()
+	session.retireWrite(prior)
+	session.writeMu.Unlock()
+	session.timers.StartHoldTimer()
+	fc.Add(time.Second)
+	require.ErrorIs(t, *session.closeReason.Load(), prior)
+	require.ErrorIs(t, session.Run(t.Context()), prior)
 }

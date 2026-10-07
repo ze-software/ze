@@ -190,11 +190,12 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	// A route sender signaling must leave the registrar barrier shut, and must
 	// release its own.
 	peer := newBarrierPeer(t)
+	peer.session = NewSession(peer.settings)
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
 	peer.resetAPISync([]string{"pusher"})
 	peer.SetPeerUpBarrier(1)
 
-	peer.SignalAPIReady(plugin.ProcessSender("pusher"))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher"), peer.session.initialReplay))
 	barrierShut(t, peer)
 
 	peer.mu.RLock()

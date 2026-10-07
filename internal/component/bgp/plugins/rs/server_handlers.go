@@ -103,7 +103,7 @@ func isDispatchUnknownCommand(err error) bool {
 }
 
 // handleState processes peer state changes.
-// ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}.
+// The state event retains the initial replay receipt captured at peer-up.
 func (rs *routeServer) handleState(event *Event) {
 	peerAddr := event.PeerAddr
 	state := event.State
@@ -113,7 +113,7 @@ func (rs *routeServer) handleState(event *Event) {
 	}
 
 	if state == "up" {
-		rs.handleStateUp(peerAddr)
+		rs.handleStateUp(peerAddr, event.InitialReplay)
 		return
 	}
 
@@ -318,7 +318,7 @@ func (rs *routeServer) claimReplayOwnership() {
 // per-peer lifecycle goroutine (not blocking the event loop).
 // A convergent delta replay loop then covers routes that adj-rib-in may not
 // have stored yet at full-replay time (race between event delivery and replay).
-func (rs *routeServer) handleStateUp(peerAddr string) {
+func (rs *routeServer) handleStateUp(peerAddr string, initialReplay uint64) {
 	// ONE critical section makes the peer a live forward target, captures its
 	// cut, and shuts its replay gate. selectForwardTargets reads them under
 	// rs.mu, so no live forward can select this peer without the matching
@@ -351,7 +351,7 @@ func (rs *routeServer) handleStateUp(peerAddr string) {
 	logger().Debug("peer state applied", "peer", peerAddr, "state", "up", "cut", cut)
 
 	// Spawn per-peer lifecycle goroutine for replay (not blocking event loop).
-	go rs.replayForPeer(peerAddr, gen, cut, done)
+	go rs.replayForPeer(peerAddr, gen, cut, initialReplay, done)
 }
 
 // endReplay opens the replay gate of one peer-up replay. The replay goroutine
@@ -378,7 +378,8 @@ func (rs *routeServer) endReplay(peerAddr string, done chan struct{}) {
 // If the peer's ReplayGen has changed (rapid reconnect), this goroutine is stale
 // and sends nothing more. On every exit it opens done (endReplay), after its
 // End-of-RIB, which releases the live forwards held behind it.
-func (rs *routeServer) replayForPeer(peerAddr string, gen, cut uint64, done chan struct{}) {
+// initialReplay MUST be the receipt captured by this replay's peer-up event.
+func (rs *routeServer) replayForPeer(peerAddr string, gen, cut, initialReplay uint64, done chan struct{}) {
 	defer rs.endReplay(peerAddr, done)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -410,7 +411,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut uint64, done chan
 		// because adj-rib-in is not loaded. Without this, any replay-failure
 		// path left the peer waiting for EOR that would never come.
 		rs.replayFlowSpecs(peerAddr, gen, cut)
-		rs.sendEOR(peerAddr, gen)
+		rs.sendEOR(peerAddr, gen, initialReplay)
 		return
 	}
 
@@ -489,19 +490,16 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut uint64, done chan
 	// Send End-of-RIB per negotiated family (RFC 4271).
 	// Re-check generation: peer may have reconnected during the delta loop.
 	rs.replayFlowSpecs(peerAddr, gen, cut)
-	rs.sendEOR(peerAddr, gen)
+	rs.sendEOR(peerAddr, gen, initialReplay)
 }
 
 // sendEOR sends End-of-RIB markers for each of the peer's negotiated families.
 // Checks generation to avoid sending EOR from a stale replay goroutine.
-func (rs *routeServer) sendEOR(peerAddr string, gen uint64) {
+func (rs *routeServer) sendEOR(peerAddr string, gen, initialReplay uint64) {
 	rs.mu.RLock()
 	p := rs.peers[peerAddr]
-	// A peer with no recorded family gets no marker and still gets the readiness
-	// signal below: the replay has terminated either way, and the count that
-	// holds the peer's End-of-RIB is over PROCESSES, not over families. Leaving
-	// on this branch was what made a family-less peer wait out the whole
-	// barrier timeout.
+	// A peer with no recorded family gets no marker but still reports replay
+	// completion: the live-forward fence counts processes, not families.
 	if p == nil || p.ReplayGen != gen {
 		rs.mu.RUnlock()
 		return
@@ -521,27 +519,19 @@ func (rs *routeServer) sendEOR(peerAddr string, gen uint64) {
 	if len(families) > 0 {
 		logger().Info("sent EOR", "peer", peerAddr, "families", families)
 	}
-	rs.signalSessionReady(peerAddr)
+	rs.signalSessionReady(peerAddr, initialReplay)
 }
 
-// signalSessionReady tells the engine this plugin has finished the routes it
-// owes the peer's INITIAL routing update.
-//
-// RFC 4724 Section 4 owes the End-of-RIB marker once that update completes, and a
-// peer that attaches this plugin with `send [ update ]` is counted into the
-// barrier that holds the marker (reactor/peer_run.go,
-// ProcessBinding.MayPushRoutes). A counted plugin that never signals does not
-// make the marker wrong, it makes it LATE: the barrier runs to its timeout and
-// the peer gets a marker seconds after its initial update was complete. bgp-rib
-// and bgp-watchdog have always signaled; this plugin did not, so every peer that
-// attached a route server paid the timeout.
-//
-// Sent after the per-family EoR above, not before. That EoR is suppressed while
-// the initial sync still owes its own marker (reactor/reactor_api_forward.go), so
-// signaling first would open the barrier and let the sync's marker overtake the
-// last thing this plugin had to say.
-func (rs *routeServer) signalSessionReady(peerAddr string) {
-	rs.peerAction(peerAddr, "plugin session ready")
+// signalSessionReady reports completion of this plugin's initial replay so the
+// engine can release live forwards held behind it. End-of-RIB is independent.
+// initialReplay MUST come from the replay's peer-up event, never a current-session lookup.
+func (rs *routeServer) signalSessionReady(peerAddr string, initialReplay uint64) {
+	if initialReplay == 0 {
+		logger().Warn("cannot report replay readiness without the peer-up session receipt", "peer", peerAddr)
+		return
+	}
+	var tb textbuf.Buffer
+	rs.peerAction(peerAddr, tb.Str("plugin session ready session ").Uint(initialReplay).String())
 }
 
 // replayProgress is what one replay call reports back about the replay's state.

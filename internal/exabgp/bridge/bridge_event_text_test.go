@@ -114,6 +114,13 @@ func TestTextEncoderWritesTheSessionLines(t *testing.T) {
 			want: "neighbor 10.0.0.1 up\n",
 		},
 		{
+			name: "up with Ze initial replay receipt",
+			event: `{"type":"bgp","bgp":{"message":{"type":"state"},
+			         "peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"up",
+			         "initial-replay":"18446744073709551615"}}`,
+			want: "neighbor 10.0.0.1 up\n",
+		},
+		{
 			name: "connected",
 			event: `{"type":"bgp","bgp":{"message":{"type":"state"},
 			         "peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"connected"}}`,

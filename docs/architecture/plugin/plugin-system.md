@@ -378,9 +378,10 @@ replay, so its withdrawals never reach the peer.
 
 A plugin whose routes belong to a peer's INITIAL routing update declares
 `SignalsSessionReady: true` and dispatches
-`request peer <addr> plugin session ready` when those routes are out. The report
-says WHEN this plugin's routes belong, and the engine uses it to order a route
-against the marker while the initial sync runs.
+`request peer <addr> plugin session ready session <captured-token>` through SDK
+`DispatchCommand` when its replay attempts finish, including an empty replay.
+The token comes from the original peer-UP event. This completion report orders
+the plugin's initial contribution; it does not assert successful route delivery.
 
 **The engine does NOT hold the peer's End-of-RIB for that report (owner ruling,
 2026-09-18).** A process that creates routes is treated like a peer when the

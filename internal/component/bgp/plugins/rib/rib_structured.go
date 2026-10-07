@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
@@ -396,6 +397,9 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	if !ok || msg == nil || msg.WireUpdate == nil {
 		return
 	}
+	sourcePaths := msg.SentPathSources
+	sourceOwner := msg.SourceOwner
+	localOrigin := msg.SourceLocal
 
 	wu := msg.WireUpdate
 
@@ -446,11 +450,13 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	}
 
 	// Process IPv4 unicast announces (NLRI section).
+	var ipv4Ordinal uint32
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath,
-			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID}, sourcePeer, replay)
+		ipv4Ordinal = r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath,
+			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
+				SourceID: msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, sourcePaths, 0)
 	}
 
 	// Process MP_REACH_NLRI announces.
@@ -460,8 +466,13 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
+			var ordinal uint32
+			if fam == ipv4Family {
+				ordinal = ipv4Ordinal
+			}
 			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath,
-				ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID}, sourcePeer, replay)
+				ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID,
+					SourceID: msg.SourceID, SourceOwner: sourceOwner, LocalOrigin: localOrigin}, sourcePeer, replay, sourcePaths, ordinal)
 		}
 	}
 
@@ -474,15 +485,15 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 // storeSentEntries walks NLRI bytes and stores ribOutEntry records in ribOut.
 // Caller must hold write lock.
 func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nlriData []byte, addPath bool,
-	entry ribOutEntry, sourcePeer string, replay bool) {
+	entry ribOutEntry, sourcePeer string, replay bool, sources []wireu.SentPathSource, ordinal uint32) uint32 {
 
 	if replay {
-		return
+		return ordinal
 	}
 	split := nlrisplit.Get(fam)
 	if split == nil {
 		logger().Warn("sent: unsupported NLRI family", "family", fam)
-		return
+		return ordinal
 	}
 	if r.ribOut[peerAddr] == nil {
 		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
@@ -490,14 +501,17 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 	if r.ribOut[peerAddr][fam] == nil {
 		r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
 	}
+	sourceIndex := 0
 	_, err := split(nlriData, addPath, func(raw []byte) {
+		stored := entry
+		setSentPathSource(&stored, fam, ordinal, sources, &sourceIndex)
+		ordinal++
 		key, valid := ribOutRouteKey(fam, raw, addPath)
 		if !valid {
 			logger().Warn("sent: invalid NLRI key", "family", fam)
 			return
 		}
 		old, existed := r.ribOut[peerAddr][fam][key]
-		stored := entry
 		stored.AddPath = addPath
 		stored.SourcePeer = sourcePeer
 		if !key.Prefix.IsValid() {
@@ -518,6 +532,7 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 	if err != nil {
 		logger().Warn("sent: invalid NLRI framing", "family", fam, "error", err)
 	}
+	return ordinal
 }
 
 // removeSentNLRIs walks NLRI bytes and removes ribOutEntry records from ribOut.

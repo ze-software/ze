@@ -1050,6 +1050,8 @@ type StructuredEvent struct {
 	Direction     MessageDirection // DirectionSent / DirectionReceived
 	MessageID     uint64           // Unique message ID (0 for non-message events)
 	State         SessionState     // For state events: SessionStateUp, SessionStateDown
+	InitialReplay uint64           // Exact peer-up replay session receipt; zero when absent.
+	SourceID      uint32           // Registry identity for body-common forwarded source.
 	Reason        string           // For state events: close reason
 	RawMessage    any              // *types.RawMessage for wire messages, nil for synthetic events
 	Meta          map[string]any   // Route metadata (sent events only)
@@ -1089,6 +1091,8 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.Direction = DirectionUnspecified
 	se.MessageID = 0
 	se.State = SessionStateUnspecified
+	se.InitialReplay = 0
+	se.SourceID = 0
 	se.Reason = ""
 	se.RawMessage = nil
 	se.Meta = nil

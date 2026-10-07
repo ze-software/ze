@@ -476,6 +476,11 @@ func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 		buf = append(buf, reason...)
 	}
 	buf = append(buf, '"')
+	if peer.InitialReplay != 0 {
+		buf = append(buf, `,"initial-replay":"`...)
+		buf = strconv.AppendUint(buf, peer.InitialReplay, 10)
+		buf = append(buf, '"')
+	}
 	buf = appendUnheldRolesJSON(buf, unheldRoles)
 	buf = append(buf, `}}`...)
 	buf = append(buf, '\n')

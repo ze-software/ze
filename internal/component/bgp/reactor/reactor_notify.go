@@ -240,7 +240,8 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // notifyMessageReceiver notifies the message receiver of a raw BGP message.
 // Called from session when a BGP message is sent or received.
 // peerAddr is used to look up full PeerInfo from the peers map.
-// wireUpdate is non-nil for received UPDATE messages (zero-copy path).
+// wireUpdate owns received UPDATE bytes, or borrows only the sent message-ID
+// receipt. A sent receipt MUST NOT be parsed or retained.
 // ctxID is the encoding context for zero-copy decisions.
 // direction is rpc.DirectionSent or rpc.DirectionReceived.
 // buf is the pool buffer for received messages (nil for sent).
@@ -352,19 +353,24 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 
 	r.mu.RUnlock()
 
+	// Sent UPDATEs reuse the exact writer-owned receipt; received messages and
+	// control messages allocate their own identity here.
+	var messageID uint64
+	if direction == rpc.DirectionSent && msgType == msgtype.TypeUPDATE && wireUpdate != nil {
+		messageID = wireUpdate.MessageID()
+	} else {
+		messageID = nextMsgID()
+	}
 	if receiver == nil {
 		return false
 	}
-
-	// Assign message ID for all message types
-	messageID := nextMsgID()
 	timestamp := r.clock.Now()
 
 	var msg bgptypes.RawMessage
 	var kept bool
 
 	// Zero-copy path for received UPDATE messages
-	if wireUpdate != nil {
+	if wireUpdate != nil && direction == rpc.DirectionReceived {
 		// Set messageID on WireUpdate (single source of truth for UPDATEs)
 		wireUpdate.SetMessageID(messageID)
 		r.invalidateAIGPReceived(peerAddr, wireUpdate)
@@ -424,6 +430,14 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			Meta:            sentMeta,
 			SourcePeerStr:   sentSourcePeerStr,
 			SourceMessageID: sourceMessageID,
+		}
+		if wireUpdate != nil {
+			msg.SourceID = uint32(wireUpdate.SourceID())
+			if origin := wireUpdate.SentOrigin(); origin != nil {
+				msg.SourceOwner = origin.SourceOwner
+				msg.SourceLocal = origin.Local
+				msg.SentPathSources = origin.Paths
+			}
 		}
 
 		// For sent UPDATE messages, create WireUpdate + AttrsWire from body.
@@ -605,6 +619,15 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		receiver.OnMessageSent(&peerInfo, msg)
 		return kept
 	}
+	var publication *receivePublication
+	if hasPeer && msgType == msgtype.TypeUPDATE {
+		publication = peer.acceptedReceive(messageID)
+		defer func() {
+			if publication != nil {
+				publication.fail()
+			}
+		}()
+	}
 
 	// Reactor RS fast path: forward UPDATE directly from the session read
 	// goroutine, bypassing the delivery goroutine and plugin dispatch chain.
@@ -665,12 +688,24 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	// Non-UPDATE messages (OPEN, KEEPALIVE, NOTIFICATION) stay synchronous
 	// because they are infrequent and FSM-critical.
 	if hasPeer && peer.deliverChan != nil && msgType == msgtype.TypeUPDATE {
-		peer.deliverChan <- deliveryItem{peerInfo: peerInfo, msg: msg}
+		select {
+		case peer.deliverChan <- deliveryItem{peerInfo: peerInfo, msg: msg}:
+			publication = nil // The delivery worker owns completion.
+		case <-publication.done:
+			fwdLogger().Error("received UPDATE publication failed", "peer", peerAddr, "message-id", messageID)
+			if kept {
+				r.recentUpdates.Activate(messageID, 0)
+			}
+		}
 		return kept
 	}
 
 	// Synchronous fallback: no delivery channel or non-UPDATE message.
 	consumerCount := receiver.OnMessageReceived(&peerInfo, msg)
+	if publication != nil {
+		publication.complete(messageID)
+		publication = nil
+	}
 	if kept {
 		r.recentUpdates.Activate(messageID, consumerCount)
 	}

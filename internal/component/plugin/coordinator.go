@@ -407,10 +407,11 @@ func (c *Coordinator) OnPostStartup(fn func()) {
 }
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete. No-op without reactor.
-func (c *Coordinator) SignalPeerAPIReady(peerAddr string, sender Sender) {
+func (c *Coordinator) SignalPeerAPIReady(peerAddr string, sender Sender, initialReplay uint64) error {
 	if r := c.getReactor(); r != nil {
-		r.SignalPeerAPIReady(peerAddr, sender)
+		return r.SignalPeerAPIReady(peerAddr, sender, initialReplay)
 	}
+	return nil
 }
 
 // SetPeerUpBarrier declares how many barrier plugins a peer's peer-up event is

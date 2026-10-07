@@ -241,39 +241,13 @@ func adjOutIPv6Signature(t *testing.T, prefixes []string) []byte {
 	require.NoError(t, err)
 	require.NotNil(t, update)
 
-	built := newAnnounceUnit(update, nlriHandle.Buf, batch, facts)
-	require.True(t, built.readable, "an MP_REACH_NLRI the builder wrote must be readable")
-	return built.storedSignature()
-}
-
-// TestNLRIWireAtRefusesAnNLRIPastTheBlock is the reader's bound.
-//
-// nlriWireAt walks a block writeBatchNLRI produced by adding each NLRI's own
-// length, and it is the only reader of that layout. A disagreement between the
-// length and the write would slice past the block, so the bound is checked
-// rather than trusted.
-//
-// VALIDATES: an NLRI whose encoding does not fit the bytes left answers false
-// and returns no slice.
-// PREVENTS: a panic on the announce fan-out, reachable from a length function
-// that under-reports what the writer wrote.
-func TestNLRIWireAtRefusesAnNLRIPastTheBlock(t *testing.T) {
-	route := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
-	size := nlri.LenWithContext(route, false)
-	require.Positive(t, size, "an IPv4 /24 has a wire length")
-
-	block := make([]byte, size)
-
-	wire, end, ok := nlriWireAt(block, route, false, 0)
-	require.True(t, ok, "the whole NLRI fits at offset zero")
-	assert.Len(t, wire, size)
-	assert.Equal(t, size, end)
-
-	_, _, ok = nlriWireAt(block, route, false, 1)
-	assert.False(t, ok, "one octet short is one octet too few")
-
-	_, _, ok = nlriWireAt(block[:size-1], route, false, 0)
-	assert.False(t, ok, "a truncated block cannot answer for a whole NLRI")
+	length := 0
+	for _, route := range batch.NLRIs {
+		length += nlri.LenWithContext(route, facts.addPath)
+	}
+	signature, readable := announceSignature(update.PathAttributes, batch.Family, length)
+	require.True(t, readable, "an MP_REACH_NLRI the builder wrote must be readable")
+	return signature.store()
 }
 
 // TestAnnounceSignatureRefusesAnUnreadableBlock is the signature reader's bound,

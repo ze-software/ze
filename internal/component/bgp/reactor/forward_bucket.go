@@ -89,7 +89,7 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 	parsed := scratch.parsed[:0]
 	for i := range items {
 		var e bucketEligible
-		if items[i].recovery == nil && items[i].sourceMessageID == 0 && len(items[i].rawBodies) == 1 && len(items[i].updates) == 0 && items[i].peerBufIdx == 0 {
+		if items[i].authority == adjOutUnspecified && items[i].provenance == nil && items[i].recovery == nil && items[i].sourceMessageID == 0 && len(items[i].rawBodies) == 1 && len(items[i].updates) == 0 && items[i].peerBufIdx == 0 {
 			if parts, okParse := parseBucketBody(items[i].rawBodies[0]); okParse && parts.wdLen == 0 {
 				e.parts, e.ok = parts, true
 			}

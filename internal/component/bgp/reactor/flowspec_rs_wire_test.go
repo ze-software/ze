@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -208,15 +209,21 @@ func flowForwardPluginServer(t *testing.T, r *Reactor) *pluginserver.Server {
 		}
 	})
 	srv.SetProcessSpawner(mgr)
-	t.Cleanup(srv.Stop)
+	t.Cleanup(func() {
+		srv.Stop()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Wait(ctx); err != nil {
+			t.Error(err)
+		}
+	})
 	if err := srv.StartWithContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range names {
-		lowEventually(t, func() bool {
-			pm := srv.ProcessManager()
-			return pm != nil && pm.GetProcess(name) != nil
-		}, "FlowSpec plugin spawned")
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	if err := srv.WaitForStartupComplete(ctx); err != nil {
+		t.Fatal(err)
 	}
 	return srv
 }

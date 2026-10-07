@@ -86,9 +86,22 @@ func TestRFC7311OtherAIGPTLVsPassedAlongUnchanged(t *testing.T) {
 			require.Equal(t, modifyFailureNone, failure)
 			require.NotNil(t, rebuilt)
 			peer, conn := newAnnouncePeer(t, "192.0.2.2")
+			source, _ := newAnnouncePeer(t, "192.0.2.1")
+			for _, established := range []*Peer{source, peer} {
+				established.session.localOpen = &message.Open{MyAS: 65000, HoldTime: 90}
+				established.session.peerOpen = &message.Open{MyAS: 65001, HoldTime: 90}
+				established.session.negotiateWith(nil, nil)
+				established.setEncodingContexts(established.session.negotiated)
+				t.Cleanup(established.clearEncodingContexts)
+			}
 			enabled := true
 			peer.session.settings.AIGPSession = &enabled
-			fwdBatchHandler(fwdKey{}, []fwdItem{{peer: peer, rawBodies: [][]byte{rebuilt}, sourceMessageID: 1}})
+			fwdBatchHandler(fwdKey{}, []fwdItem{{
+				peer: peer, session: peer.currentSession(), authority: adjOutForwarded,
+				rawBodies: [][]byte{rebuilt}, sourceMessageID: 1,
+				receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+				sourcePeerStr: source.addrString,
+			}})
 			sent := aigpWireValue(t, conn.written()[message.HeaderLen:])
 			require.Len(t, sent, len(received), "the other AIGP TLVs must not be dropped")
 			require.True(t, bytes.Equal(received[11:], sent[11:]), "the other AIGP TLVs must be passed along unchanged: got %x want %x", sent[11:], received[11:])

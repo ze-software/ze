@@ -26,14 +26,15 @@ var (
 // Event represents a parsed BGP event (from text format).
 // Fields are extracted by parseTextState, parseTextOpen, parseTextRefresh.
 type Event struct {
-	Type     string      // Event type: "update", "state", "open", "refresh"
-	MsgID    uint64      // Message ID (for cache-forward)
-	PeerAddr string      // Peer address
-	PeerASN  uint32      // Peer ASN
-	State    string      // State for state events ("up", "down", "connected")
-	Open     *OpenInfo   // OPEN: decoded open data
-	AFI      family.AFI  // Refresh: AFI
-	SAFI     family.SAFI // Refresh: SAFI
+	Type          string      // Event type: "update", "state", "open", "refresh"
+	MsgID         uint64      // Message ID (for cache-forward)
+	PeerAddr      string      // Peer address
+	PeerASN       uint32      // Peer ASN
+	State         string      // State for state events ("up", "down", "connected")
+	InitialReplay uint64      // Captured peer-up session receipt; zero grants no readiness.
+	Open          *OpenInfo   // OPEN: decoded open data
+	AFI           family.AFI  // Refresh: AFI
+	SAFI          family.SAFI // Refresh: SAFI
 }
 
 // FamilyOperation represents a single add or del operation for a family.
@@ -401,6 +402,16 @@ func parseTextState(text string) *Event {
 			if v, ok := s.Next(); ok {
 				event.State = v
 			}
+		case "initial-replay":
+			value, ok := s.Next()
+			if !ok {
+				return nil
+			}
+			token, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				return nil
+			}
+			event.InitialReplay = token
 		}
 	}
 

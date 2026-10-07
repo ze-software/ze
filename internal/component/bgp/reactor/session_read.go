@@ -397,18 +397,12 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	// family-not-negotiated teardown above (RFC 4760 §7). The accepted-message
 	// event must not advance the FSM for a session being closed.
 	if req := s.takePolicyTeardown(); req != nil {
+		s.setCloseReason(ErrPolicyTeardown)
 		s.mu.RLock()
 		conn := s.conn
 		s.mu.RUnlock()
 		s.logNotifyErr(conn, req.code, req.subcode, nil)
 		s.logFSMEvent(fsm.EventUpdateMsgErr)
-		// Record the reason BEFORE closing: closeConn nils s.conn, and a Run
-		// loop that reaches its conn == nil branch with no close reason set
-		// sleeps 10 ms and retries forever (session.go:901-908). Returning the
-		// sentinel is what actually exits Run on both read rails; the close
-		// reason is the belt to that braces, and is what Run reports if the
-		// cancel goroutine wins the race to closeConn first.
-		s.setCloseReason(ErrPolicyTeardown)
 		s.closeConn()
 		return ErrPolicyTeardown, kept
 	}

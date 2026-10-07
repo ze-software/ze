@@ -66,19 +66,31 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 		return false, false, nil
 	}
 
+	if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
+		session.writeMu.Unlock()
+		return true, false, nil
+	}
+	if item.session != session {
+		session.writeMu.Unlock()
+		return true, false, nil
+	}
 	session.sentMeta = item.meta
 	session.sentSourcePeerStr = item.sourcePeerStr
 	session.sentSourceMessageID = item.sourceMessageID
+	session.sentForward = item
+	item.writeBody = 0
 	defer func() {
 		session.sentMeta = nil
 		session.sentSourcePeerStr = ""
 		session.sentSourceMessageID = 0
+		session.sentForward = nil
 		session.writeMu.Unlock()
 	}()
 	for _, body := range item.rawBodies {
 		if err := session.writeRawUpdateBody(body); err != nil {
 			return true, false, session
 		}
+		item.writeBody++
 	}
 	for _, update := range item.updates {
 		// Pre-filtered: forwardUpdateCore already ran this peer's export chain
@@ -86,6 +98,7 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 		if err := session.writeUpdatePreFiltered(update); err != nil {
 			return true, false, session
 		}
+		item.writeBody++
 	}
 	return true, true, session
 }
@@ -386,14 +399,12 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	srcWellKnown := r.scanWellKnownEgress(wire.Payload(), sourcePeerAddr)
 
 	// A client an egress gate refuses the announcement is sent a WITHDRAWAL of
-	// every route this UPDATE names instead (mods.SetWithdraw, then
-	// buildWithdrawalPayload), never nothing, for the reason the general rail
-	// gives (forwardUpdateCore, reactor_api_forward.go): RFC 7606 Section 2
-	// treat-as-withdraw, unconditional because no per-peer Adj-RIB-Out says the
-	// client never held the route.
+	// every route this UPDATE names instead. The final writer preserves absent
+	// synthesized withdrawals without granting authority over another owner.
 	var withdrawals fwdWithdrawal
 	var bySection []*Peer
 	for _, peer := range matchingPeers {
+		session := peer.currentSession()
 		nextHopWithheld := false
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -674,6 +685,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		}
 
 		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+		item.session, item.authority = session, adjOutForwarded
 		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 
 		extendedMessage := facts.extendedMsg
@@ -734,6 +746,14 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			}
 		}
 	dispatch:
+		// RFC 7911 Section 2: preserve ingress identity before final admission.
+		if err := prepareFwdProvenance(&item, update.WireUpdate, peerWire,
+			mods.IsWithdraw() || wire != update.WireUpdate); err != nil {
+			fwdLogger().Warn("forward provenance failed", "peer", facts.addr, "err", err)
+			dedup.abandon(candidate)
+			r.fwdPool.releaseItem(&item)
+			continue
+		}
 		// Dedup borrows this item's buffer. Publish only after the body can
 		// dispatch; an earlier failure MUST abandon before returning its slot.
 		if candidate.valid {
@@ -799,9 +819,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			switch {
 			case handled:
 				pending[i].item.done()
-				if pending[i].item.peerBufIdx > 0 && pending[i].item.peerPoolRef != nil {
-					pending[i].item.peerPoolRef.Return(pending[i].item.peerBufIdx)
-				}
+				r.fwdPool.releaseItem(&pending[i].item)
 				if written {
 					delivered++
 					r.fwdPool.recordForwarded(sourcePeerAddr)

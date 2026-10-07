@@ -41,6 +41,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/yang"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
@@ -821,10 +822,10 @@ func (r *RIBManager) updateRoute(peerSelector string) {
 
 // updateRouteWithMeta sends a route update command with metadata to matching peers.
 // Used by sendRoutes and resendRoutesWithCursor to carry stale level through to egress filters.
-func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[string]any) {
+func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[string]any) error {
 	if r.updateHook != nil {
 		r.updateHook(command, meta)
-		return
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -832,6 +833,7 @@ func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[
 	if err != nil {
 		logger().Warn("update-route-with-meta failed", "peer", peerSelector, "error", err)
 	}
+	return err
 }
 
 // dispatchPeerAction sends a peer lifecycle or route-refresh command through the
@@ -903,6 +905,14 @@ func (r *RIBManager) handleSent(event *Event) {
 		logger().Warn("sent event dropped", "error", err)
 		return
 	}
+	sourcePaths, sourceErr := sentPathSources(event.RouteMeta)
+	if sourceErr != nil {
+		logger().Warn("sent source provenance dropped", "error", sourceErr)
+		return
+	}
+	sourceID, _ := sentUint32(event.RouteMeta["source-id"])
+	sourceOwner := sentSourceOwner(event.RouteMeta)
+	localOrigin, _ := event.RouteMeta[bgptypes.SourceLocalMeta].(bool)
 
 	// Full events carry native bytes even when the family has no text projection.
 	// Intern wire bytes BEFORE acquiring peerMu to maintain lock ordering
@@ -941,10 +951,13 @@ func (r *RIBManager) handleSent(event *Event) {
 	for _, fam := range event.RawNLRIFamilies() {
 		r.storeSentEntries(peerAddr, fam, event.GetRawNLRIBytes(fam), event.AddPath[fam],
 			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: uint64(sourceMessageID),
-				NextHop: sentFamilyNextHop(event, fam)}, sourcePeer, replay)
+				NextHop: sentFamilyNextHop(event, fam), SourceID: sourceID, SourceOwner: sourceOwner,
+				LocalOrigin: localOrigin}, sourcePeer, replay, sourcePaths, 0)
 	}
 
 	for fam, ops := range event.FamilyOps {
+		var ordinal uint32
+		sourceIndex := 0
 		for _, op := range ops {
 			switch op.Action {
 			case routeaction.Add:
@@ -978,7 +991,12 @@ func (r *RIBManager) handleSent(event *Event) {
 						NextHop:         op.NextHop,
 						SourcePeer:      sourcePeer,
 						SourceMessageID: uint64(sourceMessageID),
+						SourceID:        sourceID,
+						SourceOwner:     sourceOwner,
+						LocalOrigin:     localOrigin,
 					}
+					setSentPathSource(&stored, fam, ordinal, sourcePaths, &sourceIndex)
+					ordinal++
 					if existed {
 						old.release()
 					}
@@ -1281,7 +1299,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	// is what signals "plugin session ready", and an empty Adj-RIB-Out still has
 	// to say "nothing to replay, proceed".
 	if cameUp {
-		r.replayRoutesWithCursor(se.PeerAddress, replayGroups)
+		r.replayRoutesWithCursor(se.PeerAddress, replayGroups, se.InitialReplay)
 	}
 }
 
@@ -1340,7 +1358,7 @@ func (r *RIBManager) handleState(event *Event) {
 	// I/O operations after releasing lock. Called on every peer-up, including
 	// with zero groups (see handleStructuredState).
 	if cameUp {
-		r.replayRoutesWithCursor(event.GetPeerAddress(), replayGroups)
+		r.replayRoutesWithCursor(event.GetPeerAddress(), replayGroups, event.InitialReplay)
 	}
 }
 

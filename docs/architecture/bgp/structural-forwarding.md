@@ -17,8 +17,9 @@ replaced and the ordering constraint that keeps them correct.
 | One `Retain(id)` per destination peer, so N destinations meant N entry points | one `retainN(id, peerCount)` per update id, fed by a pending dispatch buffer |
 | Identical path attributes written as separate TCP writes | `fwdBucketMerge` at the batch-handler level merges NLRIs into fewer outbound bodies, inside the negotiated message size limit |
 
-The critical path now touches no `sync.Map`, allocates no string for an NLRI
-key, and issues one cache retain per UPDATE.
+The forwarding builders issue one cache retain per UPDATE. The final writer
+retains one compact native ownership key per advertised recipient path; it does
+not retain forwarded attributes or query the selecting RIB on each UPDATE.
 
 Both forwarding rails key body reuse on effective opaque-attribute treatment,
 not on a plugin or peer role. Ordinary RFC 4271 Section 5 treatment
@@ -97,17 +98,89 @@ the current route.
 <!-- source: internal/component/bgp/reactor/received_update.go -- receivedPeer, receivedGeneration -->
 <!-- source: internal/component/bgp/reactor/peer.go -- forwardCached, forwardGeneration, setState, Stop -->
 
+Both rails converge on the session writer's existing `adjOut`, now the single
+ordinary-send authority as well as the local duplicate cache. Destination
+identity uses the registered native splitter and semantic key, including VPN RD
+and outgoing ADD-PATH presence/identifier, but excluding labels and Compatibility.
+The owner retains stable source-peer identity and received ADD-PATH presence/ID.
+Ordinary withdrawals do not compare the advertisement's message or session
+generation, so a current session can withdraw a GR-retained path. Queued work
+still checks its captured source generation and destination Session under
+`writeMu`.
+
+Producers preserve path provenance before stripping or regenerating identifiers.
+An ordinary unframed path reuses `fwdItem`'s source fields; transformations that
+lose identity use bounded pooled source-section owner slices and output-body
+spans. Original and synthesized withdrawals remain distinct through splitting,
+transcoding and overflow. Item release returns the manifest. Superseding cannot
+collapse different source/session generations or manifested ingress paths.
+Unknown ordinary withdrawals look up outgoing identifiers without minting new
+mappings. Ownership filtering precedes PATHS-LIMIT admission; only the final
+normalized surviving body changes the recipient inventory.
+The table is an ordered buffered frontier under `writeMu`, not a separately
+published successfully-sent cache. Flush success commits it; any write/flush
+failure clears it and seals that exact Session before another send can enter.
+Sent callbacks preserve their existing timing after buffered acceptance, not
+after successful flush or TCP delivery. They remain asynchronous projection
+events, not committed ownership proof. Receipt-fenced cold replay and recovery
+must not treat an old callback alone as authority on a replacement session.
+<!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, adjOutPath -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody, flushWrites -->
+<!-- source: internal/component/bgp/reactor/forward_provenance.go -- prepareFwdProvenance, writePath -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- beginAdjOut, filter, record -->
+
+Withdrawal and recovery fixtures MUST first advertise the affected paths through
+the real Session writer with source identity and negotiated framing. A synthetic
+RIB lookup response alone does not establish a recipient owner. The regression
+fixtures retain that setup on the same Session, then check only the subsequent
+wire output; they do not populate `adjOut` directly or relax its admission guards.
+<!-- source: internal/component/bgp/reactor/session_ownership_writer_test.go -- ownershipWriterForward -->
+<!-- source: internal/component/bgp/reactor/relay_recovery_test.go -- recoveryAdvertiseFailed -->
+
+The unknown-ADD-PATH withdrawal regression also sends one 200-identifier UPDATE
+through the real cached-forwarding writer. It retains that UPDATE until after
+the writer fence and zero-mapping assertion, so allocation followed by cache
+eviction cannot satisfy the bound. The same wire history rejects every unknown
+withdrawal. This is an implementation bound, not a separate RFC uniqueness claim.
+<!-- test: internal/component/bgp/reactor/forward_provenance_ownership_test.go TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate -->
+
+Delayed-worker fixtures bind their gate to the observed destination's worker
+key. Native RS forwarding fans out to other workers too; pausing whichever one
+runs first does not establish that the recipient's operation is still queued.
+The source-generation regression checks the held operation's source, received
+generation and message receipt before restarting its source, then keeps the
+exact recipient withdrawal history as its behavioral assertion.
+<!-- test: internal/component/bgp/reactor/forward_withdrawal_ownership_test.go TestRSWithdrawalOwnershipSourceGeneration -->
+
+The unknown-identifier regression uses a dedicated source Peer: source IDs are
+registered by address, and allocator mappings survive a fixture's session.
+It requires both that source's framed and unframed mapping sets to start and
+finish empty, with no withdrawal on the recipient wire. Another source supplies
+the writer-fence announcement, and the measured source's cleanup releases its
+identifiers only after the forwarding workers stop. A repeated package run
+therefore cannot mistake earlier fixtures' advertised paths for new allocations.
+<!-- test: internal/component/bgp/reactor/forward_provenance_ownership_test.go TestRSWithdrawalOwnershipUnknownPathIDsDoNotAllocate -->
+
+A source-bound operation discarded without output still advances the existing
+causal write sequence. Otherwise a recovery that selected source C could survive
+C's filtered withdrawal merely because another source currently owned the
+destination. Cold recovery must re-snapshot and drain received-event application
+before selecting again; this counter is not a sent-message or delivery metric.
+
 Source-DOWN recovery is a cold selecting-RIB operation, not a second steady-state
 forwarding model. Its replacement uses the existing retained candidate and
 ordinary egress rail. Before querying sent ownership, recovery snapshots the
-destination write sequence, releases `writeMu`, and requires a successful
-applied-delivery receipt from the RIB owner. A peer-generation receipt covers
-the lookup itself, including external IPC, so a source reconnect cannot stamp
-old selected bytes with a new generation or encoding context.
+destination write sequence, releases `writeMu`, then captures each source's
+accepted receive-message cut. It waits for publication into plugin queues before
+requiring successful application from the RIB owner. Scalar accepted/completed
+IDs bridge the fast-forward-before-delivery gap; cold waits broadcast to every
+waiter and are tied to the exact delivery worker, without a hot dispatch lock.
+Source identity, generation, worker, and accepted receive cut fence the lookup,
+including external IPC.
 
 All selected paths and post-policy sections share one final writer admission
-and completion. The writer compares the session, sequence and source generations
-under `writeMu`; an unrelated send causes causal re-resolution, not a dropped
+and completion. The writer compares those causal receipts under `writeMu`;
+an intervening operation causes re-resolution, not a dropped
 repair. RS's joined lifecycle owns that work without a command-expiry timer.
 Hard ownership or writer failures retire the affected destination session
 instead of leaving stale advertisements installed. Sent callbacks stay
@@ -316,12 +389,12 @@ the next-hop gates (next-hop self with no local address, a next hop that is the
 peer's own address, a reflected Link-Local-only next hop off the advertiser's
 segment, a Link-Local-only next hop towards a multihop peer, RFC 8950 without
 Extended Next Hop, a Link-Local-only next hop without capability 77). The
-destination may hold the previous generation of the route, and neither rail
-keeps a per-peer Adj-RIB-Out that could say it does not, so the withdrawal is
-unconditional: RFC 7606 Section 2 treat-as-withdraw, "as though all contained
-routes had been withdrawn". A withdrawal of a route the destination never held
-changes nothing for it. A filter step that could not run is a drop, not a
-reject, and sends nothing.
+destination may hold the previous generation of the route. The final writer
+therefore admits each synthesized withdrawal when its route is absent or still
+owned by that received source path, but refuses it when another source or a
+local advertisement replaced that owner. Original withdrawn siblings remain
+received withdrawals and require a matching owner. A filter step that could not
+run is a drop, not a reject, and sends nothing.
 
 The withdrawal is the RFC 9494 LLGR conversion (`buildWithdrawalPayload`). It
 carries the source UPDATE's own Withdrawn Routes and MP_UNREACH_NLRI beside the

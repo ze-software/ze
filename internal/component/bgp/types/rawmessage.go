@@ -27,6 +27,10 @@ type RawMessage struct {
 	Meta            map[string]any            // Route metadata from ReceivedUpdate (sent events only)
 	SourcePeerStr   string                    // Source peer address for ribOut stale-scoping (sent events only)
 	SourceMessageID uint64                    // Original received generation on every forwarded sent event
+	SourceID        uint32                    // Registry source identity; SourceOwner proves the Peer incarnation.
+	SourceOwner     uint64                    // Stable source Peer incarnation, copied from the borrowed sent receipt.
+	SourceLocal     bool                      // Explicit local announcement origin, never inferred from absent source metadata.
+	SentPathSources []wireu.SentPathSource    // Owned conditional ADD-PATH sidecar for this emitted body.
 
 	// ReactorForwarded is true when reactorForwardRS already forwarded this
 	// UPDATE to eligible RS peers. bgp-rs checks this to skip ForwardCached.

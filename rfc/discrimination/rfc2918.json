@@ -49,12 +49,12 @@
       "rid": "RFC2918-4-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh",
-      "unit-sha": "9306faf697dc8e3b",
+      "unit-sha": "81a4c2ae89e56b71",
       "claim-sha": "08eef7c8adfedc90",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
-      "producer-sha": "d0185d0de2bfb80e",
-      "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/plugins/rib/rib_replay.go::collectGroupedRibOutRoutesForFamily",
+      "producer-sha": "41e954d84046339e",
+      "break": "body of collectGroupedRibOutRoutesForFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2918-4-3",

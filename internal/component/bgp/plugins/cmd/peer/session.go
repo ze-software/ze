@@ -4,6 +4,9 @@
 package peer
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -16,13 +19,28 @@ func init() {
 
 // handlePeerSessionReady signals that a peer-specific API process has completed initialization.
 //
-// ctx.Sender is what the peer's End-of-RIB barrier is keyed on, so it is passed
-// through rather than read here: the barrier names the route-pushing processes
-// this peer waits for, and only the process that sent this command closes its
-// own share of the wait (reactor.Peer.SignalAPIReady).
-func handlePeerSessionReady(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+// ctx.Sender names the reporter and the token identifies the peer-UP replay
+// being completed. Only that reporter's share of the current session's live
+// forward fence can be released; EOR publication has its own lifetime.
+func handlePeerSessionReady(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	var initialReplay uint64
+	if len(args) != 0 {
+		if len(args) != 2 || args[0] != "session" {
+			return nil, fmt.Errorf("plugin session ready expects session <initial-replay token>")
+		}
+		var err error
+		initialReplay, err = strconv.ParseUint(args[1], 10, 64)
+		if err != nil || initialReplay == 0 {
+			return nil, fmt.Errorf("plugin session ready requires a nonzero decimal session token from the peer UP event")
+		}
+	}
+	if !ctx.Sender.IsOperator() && initialReplay == 0 {
+		return nil, fmt.Errorf("plugin session ready requires session <initial-replay token> from the peer UP event")
+	}
 	if ctx.Reactor() != nil && ctx.Peer != "" && ctx.Peer != "*" {
-		ctx.Reactor().SignalPeerAPIReady(ctx.Peer, ctx.Sender)
+		if err := ctx.Reactor().SignalPeerAPIReady(ctx.Peer, ctx.Sender, initialReplay); err != nil {
+			return nil, fmt.Errorf("peer %s readiness refused: %w", ctx.Peer, err)
+		}
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,

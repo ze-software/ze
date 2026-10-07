@@ -46,6 +46,12 @@ func oneRouteRibOut(t *testing.T, r *RIBManager) {
 			"10.0.0.0/24": {MsgID: 9, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	})
+	// This fixture represents a locally injected route, not a source-less
+	// forwarded route. Production sent receipts name that origin explicitly.
+	for key, entry := range r.ribOut[netip.MustParseAddr(replayTestPeer)][family.IPv4Unicast] {
+		entry.LocalOrigin = true
+		r.ribOut[netip.MustParseAddr(replayTestPeer)][family.IPv4Unicast][key] = entry
+	}
 }
 
 // TestPeerUpReplaySkippedOnFirstSession is the regression for the second duplicate

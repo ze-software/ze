@@ -1252,7 +1252,7 @@ func TestHandleStateUpReplay(t *testing.T) {
 		Capabilities: map[string]bool{"route-refresh": true}}
 	rs.mu.Unlock()
 
-	rs.handleStateUp("10.0.0.1")
+	rs.handleStateUp("10.0.0.1", 17)
 
 	require.Eventually(t, func() bool {
 		mu.Lock()
@@ -1319,7 +1319,7 @@ func TestRSSoftDepSkipsReplay(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	rs.handleStateUp("10.0.0.1")
+	rs.handleStateUp("10.0.0.1", 17)
 
 	// Wait for the terminal EOR signal (or fail on a generous timeout). Once
 	// EOR has fired, replayForPeer has run its fallback path and the dispatch
@@ -1413,7 +1413,7 @@ func TestHandleStateUpDelta(t *testing.T) {
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
-	rs.handleStateUp("10.0.0.1")
+	rs.handleStateUp("10.0.0.1", 17)
 
 	require.Eventually(t, func() bool {
 		mu.Lock()
@@ -1460,7 +1460,7 @@ func TestHandleStateUpNonBlocking(t *testing.T) {
 	// handleStateUp should return immediately even though replay blocks.
 	done := make(chan struct{})
 	go func() {
-		rs.handleStateUp("10.0.0.1")
+		rs.handleStateUp("10.0.0.1", 17)
 		close(done)
 	}()
 
@@ -1594,7 +1594,7 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	rs.mu.Unlock()
 
 	// First handleStateUp — goroutine A blocks on DispatchCommand.
-	rs.handleStateUp("10.0.0.1")
+	rs.handleStateUp("10.0.0.1", 17)
 
 	// Wait for goroutine A to enter the hook and block on firstBlock.
 	require.Eventually(t, func() bool {
@@ -1602,7 +1602,7 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	}, 2*time.Second, time.Millisecond, "goroutine A did not enter dispatch hook")
 
 	// Second handleStateUp — simulates rapid reconnect. Goroutine B starts.
-	rs.handleStateUp("10.0.0.1")
+	rs.handleStateUp("10.0.0.1", 18)
 
 	// Wait for goroutine B's hook to return, then let replayForPeer finish.
 	select {

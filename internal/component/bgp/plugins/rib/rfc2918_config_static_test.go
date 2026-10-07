@@ -72,6 +72,7 @@ func TestRFC2918ConfigStaticRetainedForRefresh(t *testing.T) {
 	}
 	// A new plugin advertisement is not a refresh and takes ownership.
 	sent.Meta = nil
+	sent.RawMessage.(*bgptypes.RawMessage).SourceLocal = true
 	r.handleSentStructured(&sent)
 	if groups := r.collectPeerUpReplay(peer, true); len(groups) != 1 {
 		t.Fatalf("replacement plugin route not replayed: %v", groups)

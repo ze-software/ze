@@ -297,6 +297,20 @@ type Session struct {
 	// All access must hold writeMu.
 	writeBuf *wire.SessionBuffer
 
+	// Final ownership is bound to this Session, not copied per route. Standalone
+	// sessions allocate it lazily; Peer construction installs its existing table.
+	// All access, including borrowed producer provenance, MUST hold writeMu.
+	adjOut      *adjRIBOut
+	sentForward *fwdItem
+	// The callback borrows scalar IDs and this typed, reusable origin receipt.
+	sentReceipt wireu.WireUpdate
+	sentOrigin  wireu.SentOrigin
+	// Immutable receipt for this connection's deliberate initial replay. It is
+	// published on peer-UP and expires with Peer.initialSyncEOROwed.
+	initialReplay uint64
+	// A write failure seals this exact connection before any further writer.
+	writeFailed error
+
 	// Negotiated sender limits and advertised path identities, owned by writeMu.
 	pathsLimit       map[capability.Family]*pathsLimitFamily
 	pathsLimitTotals pathsLimitSendCounts
@@ -572,6 +586,7 @@ func NewSession(settings *PeerSettings) *Session {
 	}
 
 	s := &Session{
+		initialReplay:   nextMsgID(),
 		settings:        settings,
 		fsm:             fsm.New(),
 		timers:          fsm.NewTimers(),
@@ -651,6 +666,9 @@ func NewSession(settings *PeerSettings) *Session {
 		//
 		// Subcode 0: RFC 4271 Section 6 -- "If no Error Subcode is specified,
 		// then a zero MUST be used". Hold Timer Expired defines none.
+		// The expiry caused this teardown. A failed NOTIFICATION retires the
+		// writer immediately, so record the cause before that I/O can fail.
+		s.setCloseReason(ErrHoldTimerExpired)
 		s.mu.RLock()
 		conn := s.conn
 		s.mu.RUnlock()

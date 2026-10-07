@@ -39,6 +39,7 @@ type recoveryAdmission struct {
 	written  bool
 	err      error
 	done     chan bool
+	sources  map[*Peer]recoverySourceReceipt
 }
 
 func (admission *recoveryAdmission) current(session *Session) bool {
@@ -46,7 +47,7 @@ func (admission *recoveryAdmission) current(session *Session) bool {
 		admission.retry = true
 		return false
 	}
-	if admission.peer.currentSession() != session {
+	if session.tearingDown.Load() {
 		admission.retry = true
 		return false
 	}
@@ -57,16 +58,34 @@ func (admission *recoveryAdmission) current(session *Session) bool {
 	return true
 }
 
+type recoverySourceReceipt struct {
+	generation uint64
+	cut        receivePublicationCut
+}
+
 // recoverySources binds selected bytes to the sessions present before lookup.
 // The cold map is bounded by configured peers and covers both lookup transports.
-func (a *reactorAPIAdapter) recoverySources() map[*Peer]uint64 {
+func (a *reactorAPIAdapter) recoverySources() map[*Peer]recoverySourceReceipt {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
-	sources := make(map[*Peer]uint64, len(a.r.peers))
+	sources := make(map[*Peer]recoverySourceReceipt, len(a.r.peers))
 	for _, peer := range a.r.peers {
-		sources[peer] = peer.forwardGeneration.Load()
+		sources[peer] = recoverySourceReceipt{generation: peer.forwardGeneration.Load(),
+			cut: peer.receiveCut()}
 	}
 	return sources
+}
+
+// drainRecoverySources closes the gap between a fast-path wire decision and
+// publication of its received event. Only afterward may the process-level
+// applied-event barrier make a cold RIB lookup causally current.
+func drainRecoverySources(ctx context.Context, sources map[*Peer]recoverySourceReceipt) error {
+	for _, source := range sources {
+		if err := source.cut.wait(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // recoverySnapshot takes the sequence only after every preceding writer has
@@ -164,6 +183,10 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 				break
 			}
 			sessions[i] = session // Own this attempt before its barrier or lookup can fail.
+			sources := a.recoverySources()
+			if err := drainRecoverySources(ctx, sources); err != nil {
+				return err
+			}
 			// No session or RIB lock is held across this FIFO barrier. A
 			// receipt MUST prove application, not merely attempted delivery.
 			if err := command.Process.DrainEventsApplied(ctx); err != nil {
@@ -172,7 +195,7 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 			request.Destination = destination.Settings().Address
 			request.SentAddPath = destination.addPathFor(batch.Family)
 			// RFC 4271 Section 6: only the RIB chooses withdrawal or replacement.
-			retry, err := a.relayRecovery(ctx, request, destination, session, sequence, sender)
+			retry, err := a.relayRecovery(ctx, request, destination, session, sequence, sender, sources)
 			if err != nil {
 				return err
 			}
@@ -191,8 +214,7 @@ func (a *reactorAPIAdapter) recoverNLRIBatch(ctx context.Context, batch bgptypes
 // it advertises, to its peers, either withdraws for the routes marked as invalid,
 // or the new best routes before the invalid routes are deleted from the system."
 // Selection and export therefore complete before source ownership is released.
-func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents.RecoveryRequest, destination *Peer, session *Session, sequence uint64, sender plugin.Sender) (bool, error) {
-	sources := a.recoverySources()
+func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents.RecoveryRequest, destination *Peer, session *Session, sequence uint64, sender plugin.Sender, sources map[*Peer]recoverySourceReceipt) (bool, error) {
 	var routes []ribevents.RecoveryRoute
 	var err error
 	if owner := ribevents.RecoveryProvider(); owner != nil {
@@ -236,7 +258,7 @@ func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents
 		return true, nil
 	}
 	admission := &recoveryAdmission{peer: destination, session: session, sequence: sequence,
-		ctx: ctx, done: make(chan bool, 1)}
+		ctx: ctx, done: make(chan bool, 1), sources: sources}
 	// On every pre-dispatch exit this producer MUST release staged references.
 	// After dispatch, releaseItem owns them and the single completion instead.
 	dispatched := false
@@ -286,7 +308,7 @@ func (a *reactorAPIAdapter) relayRecovery(ctx context.Context, request ribevents
 // routes for which there is no replacement route SHALL be advertised to its
 // peers by means of an UPDATE message."
 // Queue order retains earlier forwards before this replacement or withdrawal.
-func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission, sources map[*Peer]uint64, sender plugin.Sender) error {
+func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission, sources map[*Peer]recoverySourceReceipt, sender plugin.Sender) error {
 	if route.Withdraw {
 		return a.queueRecoveryWithdrawal(destination, route, fam, admission)
 	}
@@ -298,11 +320,11 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 	if !source.ok {
 		return errRelayNoSource
 	}
-	generation, present := sources[source.info.peer]
+	receipt, present := sources[source.info.peer]
 	if !present {
 		return errRelayNoSource
 	}
-	if generation != source.generation {
+	if receipt.generation != source.generation || !receipt.cut.current(source.info.peer) {
 		return errRelayNoSource
 	}
 	var spans []relayAttrSpan
@@ -322,7 +344,7 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 }
 
 // queueRecoveryWithdrawal uses destination framing, including the advertised
-// ADD-PATH identifier. The source is deliberately absent: its session is down.
+// ADD-PATH identifier. The session/sequence receipt captures its obsolete owner.
 // RFC 7911 Section 3: "The combination of the address prefix and the Path
 // Identifier can be used to identify a route advertised by a BGP speaker.".
 func (a *reactorAPIAdapter) queueRecoveryWithdrawal(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission) error {
@@ -333,6 +355,7 @@ func (a *reactorAPIAdapter) queueRecoveryWithdrawal(destination *Peer, route *rp
 	}
 	// The staged item owns the cache reference until the operation is released.
 	admission.items = append(admission.items, fwdItem{peer: destination,
+		session: admission.session, authority: adjOutRecovery,
 		rawBodies: [][]byte{update.WireUpdate.Payload()},
 		done:      func() { a.r.recentUpdates.Release(id) }})
 	return nil

@@ -154,8 +154,8 @@ func TestSentNativeIdentityRetainsLatestWire(t *testing.T) {
 	}
 	defer func() { _ = pool.RibOut.Release(handle) }()
 	entry := ribOutEntry{AttrHandle: handle}
-	r.storeSentEntries(peer, fam, raw, true, entry, "192.0.2.10", false)
-	r.storeSentEntries(other, fam, raw, true, entry, "192.0.2.10", false)
+	r.storeSentEntries(peer, fam, raw, true, entry, "192.0.2.10", false, nil, 0)
+	r.storeSentEntries(other, fam, raw, true, entry, "192.0.2.10", false, nil, 0)
 	key, ok := ribOutRouteKey(fam, raw, true)
 	if !ok {
 		t.Fatal("key rejected")
@@ -166,10 +166,10 @@ func TestSentNativeIdentityRetainsLatestWire(t *testing.T) {
 	if !ok || updatedKey != key {
 		t.Fatal("label update changed semantic identity")
 	}
-	r.storeSentEntries(peer, fam, updated, true, entry, "192.0.2.10", false)
+	r.storeSentEntries(peer, fam, updated, true, entry, "192.0.2.10", false, nil, 0)
 	second := bytes.Clone(updated)
 	binary.BigEndian.PutUint32(second[:4], 7)
-	r.storeSentEntries(peer, fam, second, true, entry, "192.0.2.10", false)
+	r.storeSentEntries(peer, fam, second, true, entry, "192.0.2.10", false, nil, 0)
 	if len(r.ribOut[peer][fam]) != 2 {
 		t.Fatal("ADD-PATH identifiers collapsed")
 	}
@@ -221,7 +221,7 @@ func TestSentLabeledWithdrawalCompatibility(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.20")
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
-	r.storeSentEntries(peer, fam, []byte{32, 0, 6, 0x41, 10}, false, ribOutEntry{}, "192.0.2.10", false)
+	r.storeSentEntries(peer, fam, []byte{32, 0, 6, 0x41, 10}, false, ribOutEntry{}, "192.0.2.10", false, nil, 0)
 	r.removeSentNLRIs(peer, fam, []byte{32, 0x80, 0, 0, 10}, false)
 	if len(r.ribOut[peer][fam]) != 0 {
 		t.Fatal("compatibility withdrawal missed labeled identity")
@@ -350,7 +350,7 @@ func TestSentNativeReplayCarriesStaleMetadata(t *testing.T) {
 			ready++
 		}
 	}
-	r.replayRoutesWithCursor(peer.String(), groups)
+	r.replayRoutesWithCursor(peer.String(), groups, 1)
 	if announcements != 1 {
 		t.Fatalf("peer-up replay sent %d announcements", announcements)
 	}
