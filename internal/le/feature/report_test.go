@@ -66,6 +66,7 @@ func TestJudgeRefusesAnEmptyPopulation(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(tree, declarationDir), 0o750); err != nil {
 		t.Fatal(err)
 	}
+	commitFixture(t, tree, fixtureCommitDate, "seed fixture")
 	report, err := Judge(tree)
 	if err != nil {
 		t.Fatal(err)

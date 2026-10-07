@@ -21,6 +21,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/rfc"
+	journal "github.com/ze-software/ze/internal/le/spec/journal"
 )
 
 // immediateSpecDir holds the specs for defects that block a release.
@@ -46,6 +47,12 @@ type evidence struct {
 	tree      string
 	rfc       rfc.Collected
 	immediate map[string]string // spec path -> its Files to Modify section
+	journal   []journal.Row
+	dates     *changeDates
+	// scenarios caches each interop suite's scenario names; catalogErrors
+	// holds the suites whose catalog could not list them.
+	scenarios     map[string]map[string]bool
+	catalogErrors map[string]string
 }
 
 // Check judges every declaration of the tree. The error is for a tree that
@@ -63,7 +70,16 @@ func Check(tree string) ([]Verdict, []error, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	in := evidence{tree: tree, rfc: collected, immediate: immediate}
+	rows, err := journal.HeadRows(tree)
+	if err != nil {
+		return nil, nil, err
+	}
+	dates, err := newChangeDates(tree)
+	if err != nil {
+		return nil, nil, err
+	}
+	in := &evidence{tree: tree, rfc: collected, immediate: immediate, journal: rows, dates: dates,
+		scenarios: map[string]map[string]bool{}, catalogErrors: map[string]string{}}
 	byID := make(map[string]*Declaration, len(declarations))
 	for i := range declarations {
 		byID[declarations[i].ID] = &declarations[i]
@@ -89,17 +105,21 @@ func Check(tree string) ([]Verdict, []error, error) {
 }
 
 // judge computes one non-umbrella declaration's verdict.
-func (in evidence) judge(d *Declaration) Verdict {
+func (in *evidence) judge(d *Declaration) Verdict {
 	verdict := Verdict{Declaration: *d, Unmet: map[Level][]string{}}
 	in.checkPaths(d, &verdict)
+	in.staleDocReview(d, &verdict)
 	if !d.Scope.Implemented() {
 		return verdict
 	}
 	in.criterionRealPath(d, &verdict)
+	criterionInterop(d, &verdict)
 	in.criterionRFC(d, &verdict)
 	in.criterionDocs(d, &verdict)
 	in.criterionDefects(d, &verdict)
+	in.staleDefectReview(d, &verdict)
 	criterionStub(d, &verdict)
+	in.criterionExtra(d, &verdict)
 	verdict.Ceiling = ceilingOf(verdict.Unmet)
 	refuseAboveCeiling(&verdict)
 	return verdict
@@ -128,7 +148,7 @@ func refuseAboveCeiling(verdict *Verdict) {
 
 // checkPaths refuses a declared path that escapes the tree or does not exist
 // (AC-3), whatever the level: a pointer to nothing is a false statement.
-func (in evidence) checkPaths(d *Declaration, verdict *Verdict) {
+func (in *evidence) checkPaths(d *Declaration, verdict *Verdict) {
 	fields := []struct {
 		name  string
 		paths []string
@@ -154,6 +174,11 @@ func (in evidence) checkPaths(d *Declaration, verdict *Verdict) {
 			verdict.Refusals = append(verdict.Refusals, fieldRealPathTests+" "+problem)
 		}
 	}
+	for _, item := range d.Interop {
+		if problem := in.interopItem(item); problem != "" {
+			verdict.Refusals = append(verdict.Refusals, fieldInterop+" "+problem)
+		}
+	}
 	for _, stem := range d.RFCs {
 		if _, known := in.rfc.Metas[stem]; !known {
 			verdict.Refusals = append(verdict.Refusals,
@@ -170,7 +195,7 @@ func (in evidence) checkPaths(d *Declaration, verdict *Verdict) {
 }
 
 // repoPath answers why rel is not an existing path inside the tree, or "".
-func (in evidence) repoPath(rel string) string {
+func (in *evidence) repoPath(rel string) string {
 	if rel == "" {
 		return "is empty"
 	}
@@ -189,7 +214,7 @@ func (in evidence) repoPath(rel string) string {
 
 // testItem answers why a Real-path tests item does not resolve, or "". A Go
 // test is `file.go::TestName` and the named function must be declared there.
-func (in evidence) testItem(item string) string {
+func (in *evidence) testItem(item string) string {
 	file, function, named := strings.Cut(item, goTestSeparator)
 	if problem := in.repoPath(file); problem != "" {
 		return problem
@@ -198,7 +223,10 @@ func (in evidence) testItem(item string) string {
 		if strings.HasSuffix(file, "_test.go") {
 			return "'" + item + "' names a Go test file without '::<TestName>'"
 		}
-		return ""
+		// A-7: a .ci the functional runner never discovers runs nowhere, so the
+		// runner's own suite table answers, not the file's existence.
+		_, problem := functionalRunnerOf(file)
+		return problem
 	}
 	if !declaresFunction(filepath.Join(in.tree, filepath.FromSlash(file)), function) {
 		return "'" + item + "': " + file + " declares no function " + function
@@ -225,7 +253,7 @@ func declaresFunction(file, function string) bool {
 
 // criterionRealPath is S1 with D-6: Supported needs at least one real-path
 // test, and every listed one needs a recorded green run of its present content.
-func (in evidence) criterionRealPath(d *Declaration, verdict *Verdict) {
+func (in *evidence) criterionRealPath(d *Declaration, verdict *Verdict) {
 	if len(d.RealPathTests) == 0 {
 		verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S1: no real-path test is listed")
 		return
@@ -259,7 +287,7 @@ func (in evidence) criterionRealPath(d *Declaration, verdict *Verdict) {
 // must be published as supported by the ledger itself with no open gap on a
 // gated (MUST-level) requirement. The ledger's own Support status is the
 // verdict `./le rfc check` already gates, so it is read, never re-derived.
-func (in evidence) criterionRFC(d *Declaration, verdict *Verdict) {
+func (in *evidence) criterionRFC(d *Declaration, verdict *Verdict) {
 	for _, stem := range d.RFCs {
 		meta, known := in.rfc.Metas[stem]
 		if !known {
@@ -303,7 +331,7 @@ func openGaps(requirements []rfc.Requirement, stem string) []string {
 
 // criterionDocs is S4's presence half: a missing page or review lowers the
 // ceiling below Supported.
-func (in evidence) criterionDocs(d *Declaration, verdict *Verdict) {
+func (in *evidence) criterionDocs(d *Declaration, verdict *Verdict) {
 	if len(d.Docs) == 0 {
 		verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S4: no Docs page is listed")
 	}
@@ -314,7 +342,7 @@ func (in evidence) criterionDocs(d *Declaration, verdict *Verdict) {
 
 // criterionDefects is S5's mechanical half (AC-7): no immediate spec may name a
 // Components path in its Files to Modify.
-func (in evidence) criterionDefects(d *Declaration, verdict *Verdict) {
+func (in *evidence) criterionDefects(d *Declaration, verdict *Verdict) {
 	for _, spec := range sortedKeys(in.immediate) {
 		section := in.immediate[spec]
 		for _, component := range d.Components {

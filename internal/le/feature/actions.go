@@ -28,6 +28,13 @@ var actions = leaction.New(area,
 			{Keyword: keyFeature, Value: "id", Requirement: leaction.Optional},
 		},
 		AnswerArgs: reportAnswer},
+	leaction.Action{Verb: "record-run", Why: "run every real-path test of one feature through the repository's own " +
+		"runners and record a green run in features/runs/<id>.json only when each one was observed passing; " +
+		"a failure, a run that selected nothing, or a file that changed mid-run records nothing",
+		Parameters: []leaction.Parameter{
+			{Keyword: keyFeature, Value: "id", Requirement: leaction.Required},
+		},
+		AnswerArgs: recordRunAnswer},
 )
 
 // Actions answers the command surface as data.
@@ -75,4 +82,23 @@ func reportAnswer(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	return entries, 0
+}
+
+func recordRunAnswer(args leaction.Arguments) (any, int) {
+	tree, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	id := args.One(keyFeature)
+	if id == "" {
+		leaction.ReportError(errors.New("feature record-run feature <id>: the id is empty"))
+		return nil, 2
+	}
+	record, err := RecordRun(tree, id)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	return record, 0
 }

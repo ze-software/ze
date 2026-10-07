@@ -1,0 +1,14 @@
+# Test: a developer runs `le feature check`, `le feature report` and `| json`
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+# over a declaration tree and reads the verdict, the refusal and the report
+# shapes through the built le binary.
+#
+# VALIDATES: spec-feature-maturity-declared AC-12, AC-13 and D-6: a declaration
+# whose real-path test has no recorded green run is reported at Experimental and
+# refused at Supported, through the real entry point.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test fixture ui/le-feature-answers
+expect=exit:code=0
+expect=stdout:contains=OK

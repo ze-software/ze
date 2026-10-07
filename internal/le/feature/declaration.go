@@ -48,7 +48,7 @@ const (
 var knownFields = []string{
 	fieldName, fieldPage, fieldKind, fieldScope, fieldScopeGaps, fieldLevel,
 	fieldParts, fieldComponents, fieldRealPathTests, fieldInterop, fieldRFCs,
-	fieldDocs, fieldDocReview, fieldDefectReview, fieldStubEvidence,
+	fieldDocs, fieldDocReview, fieldDefectReview, fieldStubEvidence, fieldExtraCriteria,
 }
 
 // listSeparator separates the items of a list-valued cell.
@@ -79,6 +79,7 @@ type Declaration struct {
 	DocReview     Attestation
 	DefectReview  Attestation
 	StubEvidence  []string
+	Extra         []ExtraCriterion
 	Description   string
 }
 
@@ -176,6 +177,9 @@ func (d *Declaration) admit(cells map[string]string, where string) error {
 	d.RFCs = list(cells[fieldRFCs])
 	d.Docs = list(cells[fieldDocs])
 	d.StubEvidence = list(cells[fieldStubEvidence])
+	if d.Extra, err = extraCriteria(cells[fieldExtraCriteria], where); err != nil {
+		return err
+	}
 	if d.DocReview, err = attestation(cells, fieldDocReview, where); err != nil {
 		return err
 	}

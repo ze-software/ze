@@ -33,6 +33,15 @@ ERROR rather than a skipped test, so a fixture and its registry cannot silently
 disagree. Nothing depends on the order: each scenario gets its own setup, check
 and teardown.
 
+A reader outside a suite asks for its scenarios through the suite's catalog.
+Each lab registers one in its `register.go` (`interoplab.RegisterCatalog`,
+`internal/le/interoplab/catalog.go`), built on the same `Discover` call and
+checker map its runner uses, so a name cited elsewhere is a name the runner
+runs. `./le feature check` resolves a feature's Interop entry
+`<suite>/<scenario>` this way, and names the registered suites when it refuses
+one it does not know.
+<!-- source: internal/le/interoplab/catalog.go -- RegisterCatalog, CatalogNamed -->
+
 A scenario directory carries only declarative inputs its runner reads: `ze.conf`
 plus the peer configuration and argument files that topology needs. Assertions
 never live there. They are typed Go checkers under `internal/le/interoplab/`:

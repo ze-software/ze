@@ -10,11 +10,14 @@
 package feature
 
 import (
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
@@ -46,8 +49,47 @@ func fixtureTree(t *testing.T, edit func(string) string) string {
 	for rel, content := range files {
 		writeFile(t, tree, rel, content)
 	}
+	writeFile(t, tree, "test/interop-fixture/scenarios/widget-peer/README", "a scenario directory\n")
 	recordGreenRuns(t, tree, "widget", "test/plugin/widget.ci", "internal/widget/widget_test.go::TestWidget")
+	commitFixture(t, tree, fixtureCommitDate, "seed fixture")
 	return tree
+}
+
+// fixtureCommitDate is older than every attestation in passingDeclaration, so a
+// review dated 2026-10-07 is current against the seeded tree.
+const fixtureCommitDate = "2026-10-01T12:00:00Z"
+
+// commitFixture commits every file of tree at date, initializing the repository
+// on first use: the staleness criteria read change dates from git.
+func commitFixture(t *testing.T, tree, date, message string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(tree, ".git")); err != nil {
+		fixtureGit(t, tree, date, "init", "--quiet", "--initial-branch=main")
+		fixtureGit(t, tree, date, "config", "user.email", "test@example.com")
+		fixtureGit(t, tree, date, "config", "user.name", "Ze Test")
+		fixtureGit(t, tree, date, "config", "commit.gpgsign", "false")
+	}
+	fixtureGit(t, tree, date, "add", "--all")
+	fixtureGit(t, tree, date, "commit", "--quiet", "--message="+message)
+}
+
+func fixtureGit(t *testing.T, tree, date string, args ...string) {
+	t.Helper()
+	cmd := exec.CommandContext(t.Context(), "git", append([]string{"-C", tree}, args...)...)
+	cmd.Env = append(os.Environ(), "GIT_AUTHOR_DATE="+date, "GIT_COMMITTER_DATE="+date)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v: %s", args[0], err, output)
+	}
+}
+
+// The fixture interop suite: one scenario, widget-peer, resolved through
+// interoplab.Discover exactly as a real suite's catalog is.
+func init() {
+	interoplab.RegisterCatalog(interoplab.Catalog{Suite: "fixture",
+		Scenarios: func(root string) ([]interoplab.ScenarioSource, error) {
+			return interoplab.Discover(filepath.Join(root, "test", "interop-fixture", "scenarios"), "",
+				map[string]interoplab.Checker{"widget-peer": func(context.Context, *interoplab.CheckContext) error { return nil }})
+		}})
 }
 
 func writeFile(t *testing.T, tree, rel, content string) {
@@ -220,4 +262,85 @@ func TestCheckRefusesUmbrellaAboveWorstPart(t *testing.T) {
 		}
 	}
 	t.Fatal("no verdict for the umbrella")
+}
+
+// protocolWith turns the passing declaration into a protocol feature carrying
+// the Interop cell interop ("" for none).
+func protocolWith(interop string) func(string) string {
+	return func(text string) string {
+		text = strings.Replace(text, "| Kind | daemon |", "| Kind | protocol |", 1)
+		if interop == "" {
+			return text
+		}
+		return strings.Replace(text, "| Docs |", "| Interop | "+interop+" |\n| Docs |", 1)
+	}
+}
+
+// TestCheckRefusesUnresolvedScenario is AC-4: an Interop entry its suite's
+// catalog does not list is refused, naming the suite and the name; a listed
+// one resolves and satisfies S2 for a protocol feature.
+func TestCheckRefusesUnresolvedScenario(t *testing.T) {
+	verdict := judgeOne(t, fixtureTree(t, protocolWith("fixture/widget-peer")))
+	if len(verdict.Refusals) > 0 {
+		t.Fatalf("a resolving scenario was refused: %v", verdict.Refusals)
+	}
+	verdict = judgeOne(t, fixtureTree(t, protocolWith("fixture/no-such-peer")))
+	requireRefused(t, &verdict, "suite fixture runs no scenario named 'no-such-peer'")
+	verdict = judgeOne(t, fixtureTree(t, protocolWith("nolab/widget-peer")))
+	requireRefused(t, &verdict, "no interop suite 'nolab' is registered")
+}
+
+// TestCheckRefusesSupportedProtocolWithoutInterop is S2: a protocol feature
+// with no interop scenario, or only a stub one, stays below Supported.
+func TestCheckRefusesSupportedProtocolWithoutInterop(t *testing.T) {
+	verdict := judgeOne(t, fixtureTree(t, protocolWith("")))
+	requireRefused(t, &verdict, "S2: no non-stub interop scenario")
+	verdict = judgeOne(t, fixtureTree(t, func(text string) string {
+		text = protocolWith("fixture/widget-peer")(text)
+		return strings.Replace(text, "| Docs |", "| Stub evidence | fixture/widget-peer |\n| Docs |", 1)
+	}))
+	requireRefused(t, &verdict, "S2: no non-stub interop scenario")
+}
+
+// TestCheckRefusesStaleDefectReview is AC-8: a journal row dated after the
+// Defect review and naming a Components path owes a re-review.
+func TestCheckRefusesStaleDefectReview(t *testing.T) {
+	tree := fixtureTree(t, same)
+	writeFile(t, tree, "plan/journal/widget-class.md", "# Class\n\n| Date | Spec | Surface | Symptom | Fix |\n"+
+		"|------|------|---------|---------|-----|\n"+
+		"| 2026-10-08 | - | internal/widget | drops a peer | - |\n")
+	commitFixture(t, tree, "2026-10-08T12:00:00Z", "journal row")
+	verdict := judgeOne(t, tree)
+	requireRefused(t, &verdict, "re-review owed: journal class widget-class row 2026-10-08 names internal/widget")
+}
+
+// TestCheckRefusesStaleDocReview is D-8(b): a Docs page changed after the Doc
+// review refuses the declaration at ANY level, Experimental included, because a
+// known-false sentence is never published.
+func TestCheckRefusesStaleDocReview(t *testing.T) {
+	tree := fixtureTree(t, func(text string) string {
+		return strings.Replace(text, "| Level | supported |", "| Level | experimental |", 1)
+	})
+	writeFile(t, tree, "docs/widget.md", "# Widget\n\nWidgets now go to one peer.\n")
+	commitFixture(t, tree, "2026-10-09T12:00:00Z", "docs change")
+	verdict := judgeOne(t, tree)
+	requireRefused(t, &verdict, "Doc review 2026-10-07 is older than the change to docs/widget.md on 2026-10-09")
+}
+
+// TestCheckRefusesUnmetExtraCriterion is AC-11: an extra criterion gating the
+// declared level whose pointer does not resolve refuses the level; an
+// attested or resolving one does not.
+func TestCheckRefusesUnmetExtraCriterion(t *testing.T) {
+	withExtra := func(cell string) func(string) string {
+		return func(text string) string {
+			return strings.Replace(text, "| Docs |", "| Extra criteria | "+cell+" |\n| Docs |", 1)
+		}
+	}
+	verdict := judgeOne(t, fixtureTree(t, withExtra("supported: fuzzed parser = internal/widget/widget_test.go::TestWidget; "+
+		"experimental: lab injection = 2026-10-07: read the injected bytes against Send")))
+	if len(verdict.Refusals) > 0 {
+		t.Fatalf("met extra criteria were refused: %v", verdict.Refusals)
+	}
+	verdict = judgeOne(t, fixtureTree(t, withExtra("supported: fuzzed parser = internal/widget/widget_test.go::FuzzWidget")))
+	requireRefused(t, &verdict, "extra criterion 'fuzzed parser'")
 }
