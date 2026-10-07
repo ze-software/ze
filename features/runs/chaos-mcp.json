@@ -1,0 +1,26 @@
+{
+  "feature": "chaos-mcp",
+  "runs": [
+    {
+      "test": "test/chaos-web/mcp-problems.ci",
+      "test-blob": "417fd5bbc946035234021f0b6aa8aa79cf44a7a6",
+      "commit": "9da5b119f55c5eb2061ff3934a3298ec2b46d45f",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/chaos-web/mcp-resources-served.ci",
+      "test-blob": "4f6d7a2bd51a7a72e86bf3af2438108edbb486f5",
+      "commit": "9da5b119f55c5eb2061ff3934a3298ec2b46d45f",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/chaos-web/mcp-status.ci",
+      "test-blob": "87f4b79a77e1a776ecc1639a7f7692bb0f5a7e4c",
+      "commit": "9da5b119f55c5eb2061ff3934a3298ec2b46d45f",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}
