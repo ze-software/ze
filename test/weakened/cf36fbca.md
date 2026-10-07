@@ -6,4 +6,5 @@ the suite only because it takes its original name back.
 
 | Test | Reason |
 |------|--------|
-| snapshot_test | New test TestAnUnreadableCopyIsKeptAndReported, nothing removed: it skips only as root, which reads a file with no permission bits, so the unreadable copy AC-5 needs cannot be built there (testing.md permits t.Skip with a reason for a test that cannot run everywhere). The unstageable half of AC-5 is TestAnUnstageableCopyIsKeptAndReported, which runs everywhere |
+| TestArchivePrefix | ArchivePrefix is deleted: its prefix never matched a dated archive name, so commit-revisions pruned nothing. ArchiveMatcher replaces it, and TestArchiveMatcher checks the default format's own names, including that a shared prefix with the wrong host or a leading word does not match |
+| TestArchivePrefix_NoTimeTokens | Same deletion. TestArchiveMatcher_NoTimeTokens keeps the case: a format with no {date} or {time} matches exactly ze-r1.conf, and pruning leaves both that file and a foreign .conf |

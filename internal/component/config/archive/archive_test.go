@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -453,22 +454,296 @@ func TestChangeTracker_IndependentNames(t *testing.T) {
 	assert.True(t, ct.HasChanged("c", content))
 }
 
-// --- ArchivePrefix tests ---
+// --- ArchiveMatcher tests ---
 
-func TestArchivePrefix(t *testing.T) {
-	sys := system.SystemConfig{Host: "router1"}
-	prefix := archive.ArchivePrefix("{name}-{host}-{date}-{time}", "ze.conf", &sys, "backup")
-	assert.NotEmpty(t, prefix)
-	assert.Contains(t, prefix, "ze-router1-")
+// TestArchiveMatcher checks which names the matcher accepts for one block.
+//
+// VALIDATES: a name matches only when it is the whole format with {date} as 8
+// digits, {time} as 6 digits and every other token as its literal value.
+// PREVENTS: pruning a file that only shares a prefix, a suffix or a shape with
+// this block's archive copies.
+func TestArchiveMatcher(t *testing.T) {
+	sys := system.SystemConfig{Host: "router1", Domain: "example.net"}
+	tests := []struct {
+		format string
+		file   string
+		want   bool
+	}{
+		{"{name}-{host}-{date}-{time}", "ze-router1-20261007-120001.conf", true},
+		{"{name}-{host}-{date}-{time}", "ze-router1-2026107-120001.conf", false},
+		{"{name}-{host}-{date}-{time}", "ze-router1-20261007-1200011.conf", false},
+		{"{name}-{host}-{date}-{time}", "ze-router1-2026100a-120001.conf", false},
+		{"{name}-{host}-{date}-{time}", "ze-router1-20261007-120001.conf.bak", false},
+		{"{name}-{host}-{date}-{time}", "old-ze-router1-20261007-120001.conf", false},
+		{"{name}-{host}-{date}-{time}", "ze-router2-20261007-120001.conf", false},
+		{"{date}-{name}", "20261007-ze.conf", true},
+		{"{date}-{name}", "foo.conf", false},
+		{"{date}-{name}", "20261007-other.conf", false},
+		{"{host}.{domain}-{date}", "router1.example.net-20261007.conf", true},
+		{"{host}.{domain}-{date}", "router1Xexample.net-20261007.conf", false},
+		{"{time}-{archive}", "120001-backup.conf", true},
+		{"{time}-{archive}", "120001-offsite.conf", false},
+		{"", "ze-router1-20261007-120001.conf", true},
+	}
+	for _, tt := range tests {
+		matcher := matcherFor(t, tt.format, &sys, "backup")
+		assert.Equal(t, tt.want, matcher.MatchString(tt.file), "format %q file %q", tt.format, tt.file)
+	}
 }
 
-func TestArchivePrefix_NoTimeTokens(t *testing.T) {
+// TestArchiveMatcher_NoTimeTokens checks a format that names one fixed file.
+//
+// VALIDATES: the matcher accepts exactly that file, so pruning never removes
+// it and never touches anything else in the directory.
+// PREVENTS: a format without {date} or {time} widening to other files.
+func TestArchiveMatcher_NoTimeTokens(t *testing.T) {
 	sys := system.SystemConfig{Host: "r1"}
-	prefix := archive.ArchivePrefix("{name}-{host}", "ze.conf", &sys, "backup")
-	assert.Equal(t, "ze-r1.conf", prefix)
+	matcher := matcherFor(t, "{name}-{host}", &sys, "backup")
+	assert.True(t, matcher.MatchString("ze-r1.conf"))
+	assert.False(t, matcher.MatchString("ze-r1.conf.conf"))
+	assert.False(t, matcher.MatchString("ze-r1-20261007.conf"))
+
+	dir := t.TempDir()
+	for _, name := range []string{"ze-r1.conf", "foo.conf"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(name), 0o600))
+	}
+	require.NoError(t, archive.PruneFileArchives("file://"+dir, 1, matcher))
+	assert.ElementsMatch(t, []string{"ze-r1.conf", "foo.conf"}, dirNames(t, dir))
+}
+
+// TestArchiveMatcher_PrunesRealFilenames prunes files FormatFilename names at
+// real timestamps, beside foreign .conf files that are older than all of them.
+//
+// VALIDATES: commit-revisions removes the oldest archive copy for the default
+// format and for {date} or {time} at the start, middle and end of the format.
+// PREVENTS: a format starting with a time token matching every .conf file in
+// the directory, and a matcher that matches no real archive name.
+func TestArchiveMatcher_PrunesRealFilenames(t *testing.T) {
+	sys := system.SystemConfig{Host: "r1", Domain: "example.net"}
+	tests := []struct {
+		name   string
+		format string
+	}{
+		{"default format", ""},
+		{"default format spelled out", archive.DefaultFilenameFormat},
+		{"date then time", "{archive}-{date}-{time}"},
+		{"time before date", "{name}-{time}-{date}"},
+		{"date only, last", "{host}.{domain}-{date}"},
+		{"time only, last", "{name}{time}"},
+		{"date first", "{date}-{time}-{name}"},
+		{"time first", "{time}-{archive}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			foreign := writeForeignConfs(t, dir)
+			written := writeArchiveCopies(t, dir, tt.format, &sys, "backup")
+
+			require.NoError(t, archive.PruneFileArchives("file://"+dir, 2, matcherFor(t, tt.format, &sys, "backup")))
+
+			want := append([]string{written[1], written[2]}, foreign...)
+			assert.ElementsMatch(t, want, dirNames(t, dir))
+		})
+	}
+}
+
+// TestArchiveMatcher_DateFirstSparesOtherFiles prunes a format that starts
+// with {date} in a directory holding an operator file and another block's copies.
+//
+// VALIDATES: only this block's copies are counted and removed.
+// PREVENTS: an empty filename prefix that counts and deletes every .conf file.
+func TestArchiveMatcher_DateFirstSparesOtherFiles(t *testing.T) {
+	sys := system.SystemConfig{Host: "r1"}
+	dir := t.TempDir()
+	foreign := writeForeignConfs(t, dir)
+	other := writeArchiveCopies(t, dir, "{date}-{archive}", &sys, "offsite")
+	own := writeArchiveCopies(t, dir, "{date}-{name}", &sys, "backup")
+
+	require.NoError(t, archive.PruneFileArchives("file://"+dir, 1, matcherFor(t, "{date}-{name}", &sys, "backup")))
+
+	want := append(append([]string{own[2]}, other...), foreign...)
+	assert.ElementsMatch(t, want, dirNames(t, dir))
+}
+
+// TestArchiveMatcher_SharedDirectory prunes two blocks that write to one
+// directory with one format that holds {archive}.
+//
+// VALIDATES: each block counts and prunes only its own copies.
+// PREVENTS: one block's pruning removing the other block's archives.
+func TestArchiveMatcher_SharedDirectory(t *testing.T) {
+	sys := system.SystemConfig{Host: "r1"}
+	format := "{date}-{time}-{archive}"
+	dir := t.TempDir()
+	local := writeArchiveCopies(t, dir, format, &sys, "local")
+	offsite := writeArchiveCopies(t, dir, format, &sys, "offsite")
+
+	require.NoError(t, archive.PruneFileArchives("file://"+dir, 2, matcherFor(t, format, &sys, "local")))
+	assert.ElementsMatch(t, append([]string{local[1], local[2]}, offsite...), dirNames(t, dir))
+
+	require.NoError(t, archive.PruneFileArchives("file://"+dir, 2, matcherFor(t, format, &sys, "offsite")))
+	assert.ElementsMatch(t, []string{local[1], local[2], offsite[1], offsite[2]}, dirNames(t, dir))
+}
+
+// archiveStamps are three real write times, oldest first, crossing midnight.
+var archiveStamps = []time.Time{
+	time.Date(2026, 10, 5, 23, 59, 58, 0, time.UTC),
+	time.Date(2026, 10, 6, 9, 15, 0, 0, time.UTC),
+	time.Date(2026, 10, 7, 12, 0, 1, 0, time.UTC),
+}
+
+// writeArchiveCopies writes one archive copy per archiveStamps entry, named by
+// FormatFilename and dated by its stamp, and returns the names oldest first.
+func writeArchiveCopies(t *testing.T, dir, format string, sys *system.SystemConfig, archiveName string) []string {
+	t.Helper()
+	var written []string
+	for _, ts := range archiveStamps {
+		name := archive.FormatFilename(format, "ze.conf", sys, archiveName, ts)
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(path, []byte(name), 0o600))
+		require.NoError(t, os.Chtimes(path, ts, ts))
+		written = append(written, name)
+	}
+	return written
+}
+
+// writeForeignConfs writes .conf files no archive block wrote, older than every
+// archive copy, so a matcher that admits them would prune them first.
+func writeForeignConfs(t *testing.T, dir string) []string {
+	t.Helper()
+	names := []string{"foo.conf", "other-backup.conf", "20260101.conf"}
+	old := archiveStamps[0].Add(-time.Hour)
+	for _, name := range names {
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(path, []byte("x"), 0o600))
+		require.NoError(t, os.Chtimes(path, old, old))
+	}
+	return names
+}
+
+// dirNames lists the entry names in dir.
+func dirNames(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	return names
+}
+
+// matcherFor builds the matcher of one archive block for ze.conf.
+func matcherFor(t *testing.T, format string, sys *system.SystemConfig, archiveName string) *regexp.Regexp {
+	t.Helper()
+	matcher, err := archive.ArchiveMatcher(format, "ze.conf", sys, archiveName)
+	require.NoError(t, err)
+	return matcher
+}
+
+// TestArchiveMatcher_InvalidUTF8 builds a matcher from a host name that is not
+// valid UTF-8, directly and through a notifier commit with commit-revisions set.
+//
+// VALIDATES: the matcher reports an error, and the notifier returns it as the
+// block's error after writing the copy, without pruning.
+// PREVENTS: a panic in the daemon's archive path from regexp.MustCompile, which
+// refuses a pattern that is not valid UTF-8.
+func TestArchiveMatcher_InvalidUTF8(t *testing.T) {
+	sys := system.SystemConfig{Host: "r\xff1", CommitRevisions: 1}
+	_, err := archive.ArchiveMatcher(archive.DefaultFilenameFormat, "ze.conf", &sys, "backup")
+	require.Error(t, err)
+
+	dir := t.TempDir()
+	foreign := writeForeignConfs(t, dir)
+	configs := []archive.ArchiveConfig{{Name: "backup", Location: "file://" + dir, Filename: "{date}-{host}", Trigger: archive.TriggerCommit}}
+	errs := archive.NewNotifier("ze.conf", configs, &sys, nil)([]byte("config"))
+	require.Len(t, errs, 1)
+	assert.ErrorContains(t, errs[0], "archive backup: archive filename matcher")
+	assert.Len(t, dirNames(t, dir), len(foreign)+1)
+}
+
+// TestNewNotifier_Prunes commits once through a notifier with commit-revisions
+// 2 and a format that starts with {date}, beside two older copies.
+//
+// VALIDATES: the editor-commit path prunes to the cap and leaves the .conf
+// files no archive block wrote.
+// PREVENTS: pruning wired on the scheduler paths but not on the notifier.
+func TestNewNotifier_Prunes(t *testing.T) {
+	sys := system.SystemConfig{Host: "r1", CommitRevisions: 2}
+	dir := t.TempDir()
+	foreign := writeForeignConfs(t, dir)
+	copies := writeArchiveCopies(t, dir, "{date}-{time}-{host}", &sys, "backup")
+	configs := []archive.ArchiveConfig{{Name: "backup", Location: "file://" + dir, Filename: "{date}-{time}-{host}", Trigger: archive.TriggerCommit}}
+
+	errs := archive.NewNotifier("ze.conf", configs, &sys, nil)([]byte("config"))
+	require.Empty(t, errs)
+
+	names := dirNames(t, dir)
+	assert.Len(t, names, len(foreign)+2)
+	assert.Subset(t, names, append([]string{copies[2]}, foreign...))
+	assert.NotContains(t, names, copies[0])
+	assert.NotContains(t, names, copies[1])
 }
 
 // --- PruneFileArchives tests ---
+
+// TestPruneFileArchives_EqualTimesByName prunes copies restored in batches of
+// five, as a copy without preserved times leaves them: each batch shares one
+// modification time, and the batches holding the newest names were restored
+// first.
+//
+// VALIDATES: within one modification time the copies go by name, so with
+// {date} before {time} the chronologically older copy goes first.
+// PREVENTS: the order sort.Slice leaves equal elements in deciding which copy
+// is deleted; on this input it puts the newest name of the oldest batch first.
+func TestPruneFileArchives_EqualTimesByName(t *testing.T) {
+	sys := system.SystemConfig{Host: "r1"}
+	dir := t.TempDir()
+	base := time.Date(2026, 10, 7, 13, 0, 0, 0, time.UTC)
+	var names []string
+	for i := range 40 { // past the 12 entries below which sort.Slice is stable
+		name := archive.FormatFilename(archive.DefaultFilenameFormat, "ze.conf", &sys, "backup", base.Add(time.Duration(i)*time.Hour))
+		restored := base.Add(time.Duration((39-i)/5) * time.Minute)
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(path, []byte(name), 0o600))
+		require.NoError(t, os.Chtimes(path, restored, restored))
+		names = append(names, name)
+	}
+
+	require.NoError(t, archive.PruneFileArchives("file://"+dir, 38, r1Matcher(t)))
+	assert.ElementsMatch(t, append(append([]string{}, names[:35]...), names[37:]...), dirNames(t, dir))
+}
+
+// TestPruneFileArchives_ReportsFailures prunes a directory that does not exist
+// and, when the test does not run as root (root removes entries from a
+// read-only directory), a directory whose entries cannot be removed.
+//
+// VALIDATES: both failures come back as an error, and nothing is removed.
+// PREVENTS: commit-revisions silently keeping more files than the cap.
+func TestPruneFileArchives_ReportsFailures(t *testing.T) {
+	require.Error(t, archive.PruneFileArchives("file://"+filepath.Join(t.TempDir(), "absent"), 1, r1Matcher(t)))
+
+	if os.Geteuid() != 0 {
+		sys := system.SystemConfig{Host: "r1"}
+		dir := t.TempDir()
+		copies := writeArchiveCopies(t, dir, archive.DefaultFilenameFormat, &sys, "backup")
+		require.NoError(t, os.Chmod(dir, 0o500))
+		t.Cleanup(func() { // so TempDir can remove it
+			if err := os.Chmod(dir, 0o700); err != nil {
+				t.Log(err)
+			}
+		})
+
+		require.Error(t, archive.PruneFileArchives("file://"+dir, 1, r1Matcher(t)))
+		assert.ElementsMatch(t, copies, dirNames(t, dir))
+	}
+}
+
+// r1Matcher matches the default-format archive copies of ze.conf on host r1.
+func r1Matcher(t *testing.T) *regexp.Regexp {
+	t.Helper()
+	return matcherFor(t, archive.DefaultFilenameFormat, &system.SystemConfig{Host: "r1"}, "backup")
+}
 
 func TestPruneFileArchives_KeepsNewest(t *testing.T) {
 	dir := t.TempDir()
@@ -486,7 +761,7 @@ func TestPruneFileArchives_KeepsNewest(t *testing.T) {
 		require.NoError(t, os.Chtimes(path, ts, ts))
 	}
 
-	archive.PruneFileArchives(location, 2, "ze-r1-")
+	require.NoError(t, archive.PruneFileArchives(location, 2, r1Matcher(t)))
 
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
@@ -508,7 +783,7 @@ func TestPruneFileArchives_IgnoresNonMatchingFiles(t *testing.T) {
 	require.NoError(t, os.Chtimes(filepath.Join(dir, "ze-r1-20260101-000000.conf"), ts1, ts1))
 	require.NoError(t, os.Chtimes(filepath.Join(dir, "ze-r1-20260102-000000.conf"), ts2, ts2))
 
-	archive.PruneFileArchives(location, 1, "ze-r1-")
+	require.NoError(t, archive.PruneFileArchives(location, 1, r1Matcher(t)))
 
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
@@ -524,7 +799,7 @@ func TestPruneFileArchives_UnderLimit(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "ze-r1-20260101-000000.conf"), []byte("a"), 0o600))
 
-	archive.PruneFileArchives(location, 5, "ze-r1-")
+	require.NoError(t, archive.PruneFileArchives(location, 5, r1Matcher(t)))
 
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
@@ -532,12 +807,12 @@ func TestPruneFileArchives_UnderLimit(t *testing.T) {
 }
 
 func TestPruneFileArchives_NonFileScheme(t *testing.T) {
-	archive.PruneFileArchives("https://example.com/archive", 1, "ze-")
+	require.NoError(t, archive.PruneFileArchives("https://example.com/archive", 1, r1Matcher(t)))
 }
 
 func TestPruneFileArchives_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
-	archive.PruneFileArchives("file://"+dir, 1, "ze-")
+	require.NoError(t, archive.PruneFileArchives("file://"+dir, 1, r1Matcher(t)))
 }
 
 // --- RedactURL tests ---

@@ -9,11 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -54,8 +57,9 @@ type ArchiveConfig struct {
 }
 
 // Notifier is called after a successful save to archive the config
-// to configured locations. Returns a slice of errors (one per failed location).
-// Returns nil if all locations succeed or no locations are configured.
+// to configured locations. Returns a slice of errors: one per location whose
+// write failed, and one per location written whose commit-revisions pruning
+// failed. Returns nil if all locations succeed or no locations are configured.
 type Notifier func(content []byte) []error
 
 // NewNotifier creates a Notifier for the given named archive configs.
@@ -75,14 +79,27 @@ func NewNotifier(configFile string, configs []ArchiveConfig, sys *system.SystemC
 			if eventFn != nil {
 				eventFn(ac.Name, filename, content)
 			}
-			if sys.CommitRevisions > 0 {
-				prefix := ArchivePrefix(ac.Filename, configFile, sys, ac.Name)
-				PruneFileArchives(ac.Location, sys.CommitRevisions, prefix)
+			if err := pruneAfterWrite(ac, configFile, sys); err != nil {
+				errs = append(errs, fmt.Errorf("archive %s: %w", ac.Name, err))
 			}
 		}
 
 		return errs
 	}
+}
+
+// pruneAfterWrite applies commit-revisions to the location one archive block
+// has just written to. A cap of 0 keeps every file. Every archive write path
+// calls it: the notifier, the boot archive and each daily or hourly archive.
+func pruneAfterWrite(ac ArchiveConfig, configFile string, sys *system.SystemConfig) error {
+	if sys.CommitRevisions == 0 {
+		return nil
+	}
+	matcher, err := ArchiveMatcher(ac.Filename, configFile, sys, ac.Name)
+	if err != nil {
+		return err
+	}
+	return PruneFileArchives(ac.Location, sys.CommitRevisions, matcher)
 }
 
 // FormatFilename generates a filename by substituting tokens in the format string.
@@ -94,20 +111,30 @@ func FormatFilename(format, configFile string, sys *system.SystemConfig, archive
 		format = DefaultFilenameFormat
 	}
 
-	base := filepath.Base(configFile)
-	ext := filepath.Ext(base)
-	name := strings.TrimSuffix(base, ext)
-
 	r := strings.NewReplacer(
-		"{name}", name,
+		"{name}", configBaseName(configFile),
 		"{host}", sys.Host,
 		"{domain}", sys.Domain,
-		"{date}", ts.Format("20060102"),
-		"{time}", ts.Format("150405"),
+		"{date}", ts.Format(dateLayout),
+		"{time}", ts.Format(timeLayout),
 		"{archive}", archiveName,
 	)
 
 	return r.Replace(format) + ".conf"
+}
+
+// Layouts of the {date} and {time} filename tokens. ArchiveMatcher derives
+// the digit count it accepts from their length.
+const (
+	dateLayout = "20060102"
+	timeLayout = "150405"
+)
+
+// configBaseName is the {name} token: the config file name without directory
+// or extension.
+func configBaseName(configFile string) string {
+	base := filepath.Base(configFile)
+	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
 // RedactURL sanitizes a URL string by replacing any embedded password with "xxxxx".
@@ -277,75 +304,103 @@ func ExtractConfigs(tree *config.Tree) []ArchiveConfig {
 	return configs
 }
 
-// ArchivePrefix computes the stable (non-time-varying) filename prefix for
-// an archive block by generating two filenames at different times and
-// returning their common prefix. Only files matching this prefix are
-// considered for pruning, preventing deletion of unrelated .conf files.
-func ArchivePrefix(format, configFile string, sys *system.SystemConfig, archiveName string) string {
-	t1 := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	t2 := time.Date(2000, 1, 2, 1, 0, 0, 0, time.UTC)
-	f1 := FormatFilename(format, configFile, sys, archiveName, t1)
-	f2 := FormatFilename(format, configFile, sys, archiveName, t2)
-
-	n := min(len(f1), len(f2))
-	i := 0
-	for i < n && f1[i] == f2[i] {
-		i++
+// ArchiveMatcher returns the pattern that a file name matches when this
+// archive block could have written it: the whole format, with {date} as 8
+// digits, {time} as 6 digits, every other token as its literal value, and the
+// .conf extension. Pruning counts and removes only matching files, so a file
+// that differs from the format anywhere but in those digits is never touched,
+// even when the format starts with {date} or {time}. A file someone else gave
+// a name of the same shape is counted as one of this block's copies.
+//
+// The literal parts are quoted first and the tokens replaced in the quoted
+// text: QuoteMeta escapes each brace, so a token reads `\{name\}` there.
+//
+// The error is an operating error, not a Ze defect: Go's regexp refuses a
+// pattern that is not valid UTF-8, and the config file name, the host, the
+// domain, the block name and the format all come from outside Ze.
+func ArchiveMatcher(format, configFile string, sys *system.SystemConfig, archiveName string) (*regexp.Regexp, error) {
+	if format == "" {
+		format = DefaultFilenameFormat
 	}
-	return f1[:i]
+
+	r := strings.NewReplacer(
+		regexp.QuoteMeta("{name}"), regexp.QuoteMeta(configBaseName(configFile)),
+		regexp.QuoteMeta("{host}"), regexp.QuoteMeta(sys.Host),
+		regexp.QuoteMeta("{domain}"), regexp.QuoteMeta(sys.Domain),
+		regexp.QuoteMeta("{date}"), "[0-9]{"+strconv.Itoa(len(dateLayout))+"}",
+		regexp.QuoteMeta("{time}"), "[0-9]{"+strconv.Itoa(len(timeLayout))+"}",
+		regexp.QuoteMeta("{archive}"), regexp.QuoteMeta(archiveName),
+	)
+
+	matcher, err := regexp.Compile("^" + r.Replace(regexp.QuoteMeta(format)) + `\.conf$`)
+	if err != nil {
+		return nil, fmt.Errorf("archive filename matcher: %w", err)
+	}
+	return matcher, nil
 }
 
-// PruneFileArchives removes the oldest .conf files from a file:// archive
-// location, keeping at most maxKeep files. Only files whose name starts
-// with prefix are considered (prevents deleting unrelated .conf files).
-// Non-file schemes are silently ignored.
-func PruneFileArchives(location string, maxKeep uint16, prefix string) {
+// PruneFileArchives removes the oldest files that matcher accepts from a
+// file:// archive location, keeping at most maxKeep of them; build matcher
+// with ArchiveMatcher. Files are ordered by modification time, and files with
+// equal times by name, so the choice is the same on every run. A file that
+// is gone by the time it is examined is skipped. Non-file schemes are
+// ignored: the receiving server decides what to keep. The error reports a
+// directory that cannot be read and every file that could not be removed.
+func PruneFileArchives(location string, maxKeep uint16, matcher *regexp.Regexp) error {
 	parsed, err := url.Parse(location)
-	if err != nil || parsed.Scheme != schemeFile {
-		return
+	if err != nil {
+		return errors.New("prune: archive location does not parse")
+	}
+	if parsed.Scheme != schemeFile {
+		return nil
 	}
 
 	dir := parsed.Path
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return
-	}
-
-	var confFiles []os.DirEntry
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		if strings.HasSuffix(e.Name(), ".conf") && strings.HasPrefix(e.Name(), prefix) {
-			confFiles = append(confFiles, e)
-		}
-	}
-
-	if len(confFiles) <= int(maxKeep) {
-		return
+		return fmt.Errorf("prune %s: %w", dir, err)
 	}
 
 	type fileWithTime struct {
 		name    string
 		modTime time.Time
 	}
-	files := make([]fileWithTime, 0, len(confFiles))
-	for _, e := range confFiles {
-		info, err := e.Info()
-		if err != nil {
+	var files []fileWithTime
+	for _, e := range entries {
+		if e.IsDir() {
 			continue
+		}
+		if !matcher.MatchString(e.Name()) {
+			continue
+		}
+		info, err := e.Info()
+		if errors.Is(err, fs.ErrNotExist) {
+			continue // removed since the listing: nothing left to prune
+		}
+		if err != nil {
+			return fmt.Errorf("prune: %w", err)
 		}
 		files = append(files, fileWithTime{name: e.Name(), modTime: info.ModTime()})
 	}
 
+	if len(files) <= int(maxKeep) {
+		return nil
+	}
+
 	sort.Slice(files, func(i, j int) bool {
+		if files[i].modTime.Equal(files[j].modTime) {
+			return files[i].name < files[j].name
+		}
 		return files[i].modTime.Before(files[j].modTime)
 	})
 
-	toRemove := len(files) - int(maxKeep)
-	for i := range toRemove {
-		os.Remove(filepath.Join(dir, files[i].name)) //nolint:errcheck // best-effort pruning
+	var errs []error
+	for _, f := range files[:len(files)-int(maxKeep)] {
+		if err := os.Remove(filepath.Join(dir, f.name)); err != nil {
+			errs = append(errs, fmt.Errorf("prune: %w", err))
+		}
 	}
+	return errors.Join(errs...)
 }
 
 // ChangeTracker tracks config content changes per archive name using SHA-256 hashes.

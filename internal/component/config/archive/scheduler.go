@@ -103,9 +103,8 @@ func (s *Scheduler) fireAll(ctx context.Context) {
 		if s.eventFn != nil {
 			s.eventFn(ac.Name, filename, content)
 		}
-		if sys.CommitRevisions > 0 {
-			prefix := ArchivePrefix(ac.Filename, s.configPath, &sys, ac.Name)
-			PruneFileArchives(ac.Location, sys.CommitRevisions, prefix)
+		if pruneErr := pruneAfterWrite(ac, s.configPath, &sys); pruneErr != nil {
+			slog.Warn("archive scheduler: boot archive prune failed", "name", ac.Name, "error", pruneErr)
 		}
 	}
 }
@@ -143,9 +142,8 @@ func (s *Scheduler) fireByTrigger(ctx context.Context, trigger string) {
 		if s.eventFn != nil {
 			s.eventFn(ac.Name, filename, content)
 		}
-		if sys.CommitRevisions > 0 {
-			prefix := ArchivePrefix(ac.Filename, s.configPath, &sys, ac.Name)
-			PruneFileArchives(ac.Location, sys.CommitRevisions, prefix)
+		if pruneErr := pruneAfterWrite(ac, s.configPath, &sys); pruneErr != nil {
+			slog.Warn("archive scheduler: archive prune failed", "name", ac.Name, "trigger", trigger, "error", pruneErr)
 		}
 	}
 }
