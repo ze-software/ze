@@ -11,12 +11,13 @@
 | Scope gaps | PADI rate limiting and Service-Name filtering have unit coverage only |
 | Level | experimental |
 | Components | internal/component/l2tp/pppoe |
+| Real-path tests | test/pppoe/pppoe-basic.ci, test/pppoe/pppoe-concurrent-l2tp.ci, test/pppoe/pppoe-padr-flood.ci, test/pppoe/pppoe-per-mac-cap.ci, test/pppoe/pppoe-service-name.ci, test/pppoe/pppoe-vlan.ci |
 | Interop | pppoe/01-pppoe-chap-ipv4, pppoe/02-ze-ac-pppd-client, pppoe/pppoe-empty-service-name, pppoe/pppoe-padr-replay |
 | RFCs | rfc2516 |
 | Docs | docs/guide/pppoe.md |
 | Doc review | 2026-10-07: checked auth-method default chap-md5 and allow-no-auth in internal/component/l2tp/yang/ze-l2tp-conf.yang; every source anchor resolves |
 | Defect review | 2026-10-07: open: spec-pppoe-padt-ends-session, spec-pppoe-lcp-option-reject, spec-pppoe-subscribers-produce-no-accounting-or-telemetry; journal rows naming a Component, not each re-verified here: blanket-mechanism-hid-missing-cases.md:8, false-synchronization-claim.md:35, feature-test-missing-build-tag.md:13, gate-excludes-part-of-its-population.md:12, gate-excludes-part-of-its-population.md:140, plugin-startup-barrier-deadlock.md:3, registry-read-outruns-its-lazy-creation.md:11, unwired-feature.md:9, unwired-feature.md:80 |
-| Extra criteria | supported: test/pppoe runs under a declared functional suite = test/pppoe/pppoe-basic.ci; supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
+| Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
 ## Description
 

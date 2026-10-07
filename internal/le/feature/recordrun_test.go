@@ -122,5 +122,5 @@ func TestCheckRefusesACIOutsideTheFunctionalRunner(t *testing.T) {
 	})
 	writeFile(t, tree, "test/nosuch/widget.ci", "cmd=foreground:seq=1:exec=ze\n")
 	verdict := judgeOne(t, tree)
-	requireRefused(t, &verdict, "no functional suite named 'nosuch'")
+	requireRefused(t, &verdict, "runs test/nosuch/")
 }

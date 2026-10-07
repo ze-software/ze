@@ -55,9 +55,18 @@ Supported requires, among the criteria the report names:
 | S6 not stub-only | at least one real-path or interop item not listed in Stub evidence |
 | Extra criteria | every extra criterion gating Supported resolves |
 
-A real-path `.ci` must sit in `test/<suite>/` for a suite the functional runner
-declares (`testfunctional.SuiteNamed`): a file the runner never discovers runs
-nowhere, so it is refused even though it exists. An Interop entry is
+A real-path test file counts only when a runner of the repository runs it, and
+each runner's own declaration answers, never a list kept by the check
+(`runnerOf` in `internal/le/feature/runner.go`). A `.ci` is
+`test/<dir>/<name>.ci` and is accepted when a functional suite is named `<dir>`
+(`testfunctional.SuiteNamed`), when `le test bgp <dir>` walks it
+(`cli.BgpRunnerDir`, which is how `test/chaos-web/` runs), or when a harness
+package registers a `le test <dir>` command (how `test/pppoe/` runs). An `.et`
+sits anywhere under the directory the editor runner walks
+(`cli.EditorSuiteDir`, `cli.EditorTestSuffix`). A file none of them walks runs
+nowhere, so it is refused even though it exists. A Docs or Page path that a
+registered derived artifact produces (`derived.All`) resolves even when the
+checkout has not rendered it yet. An Interop entry is
 `<suite>/<scenario>` and resolves through the suite's catalog, which each lab
 registers from the same `interoplab.Discover` call its runner makes
 (`interoplab.RegisterCatalog`); an unknown suite or scenario is refused at every
@@ -83,10 +92,14 @@ recorded.
 
 `./le feature record-run feature <id>` is the writer. It runs each real-path
 item through the repository's own runner, `go test -run ^Name$ -v` for a Go test
-and the functional runner over an isolated binary set for a `.ci`, and writes the
-record only when every item was observed passing. The exit code alone is not
-the observation: the item's own PASS line must be in the output, because a
-`-run` pattern that matched nothing exits 0. A failure, a missing PASS line, or
+and the runner `runnerOf` answers for a `.ci` or `.et`, over an isolated binary
+set, and writes the record only when every item was observed passing. The exit
+code alone is not the observation: the item's own PASS line must be in the
+output, ending with the selector that runner was given (the stem for a `.ci`,
+the repository path for an `.et`), because a `-run` pattern that matched
+nothing exits 0. A `test/pppoe/` test declares `option=netns-link` and skips
+outside `./le test qemu pppoe-test`, so elsewhere record-run observes a skip,
+not a pass, and records nothing. A failure, a missing PASS line, or
 a test file that changed during the run writes nothing.
 
 ## Attestations

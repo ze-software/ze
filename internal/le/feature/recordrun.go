@@ -137,20 +137,23 @@ func observedPass(item string, seen observation) string {
 		}
 		return "the output shows no '--- PASS: " + function + "' line, so the run did not prove it passed"
 	}
-	stem := strings.TrimSuffix(path.Base(file), path.Ext(file))
+	runner, problem := runnerOf(file)
+	if problem != "" {
+		return problem
+	}
 	for line := range strings.Lines(seen.output) {
 		fields := strings.Fields(line)
 		if len(fields) < 3 {
 			continue
 		}
-		if fields[len(fields)-1] != stem {
+		if fields[len(fields)-1] != runner.selector {
 			continue
 		}
 		if fields[len(fields)-3] == "PASS" {
 			return ""
 		}
 	}
-	return "the output shows no PASS line for " + stem + ", so the run did not prove it passed"
+	return "the output shows no PASS line for " + runner.selector + ", so the run did not prove it passed"
 }
 
 func writeRunRecord(tree string, record *RunRecord) error {
@@ -173,8 +176,9 @@ func excerpt(output string) string {
 }
 
 // repoRunner runs an item through the runner that owns its kind: `go test` for
-// a Go test, the functional runner for a .ci. The isolated binary set a .ci
-// runs against is built once, on the first .ci, and released by release.
+// a Go test, the runner runnerOf answers for a .ci or .et. The isolated binary
+// set a functional test runs against is built once, on the first one, and
+// released by release.
 // Not safe for concurrent use.
 type repoRunner struct {
 	tree      string
@@ -191,25 +195,18 @@ func (r *repoRunner) run(item string) (observation, error) {
 			"-count=1", "-v", "./"+path.Dir(file))
 		return r.exec(argv, r.toolchain.Environment(gotoolchain.EnvOptions{Test: true, Procs: true}))
 	}
-	suite, problem := functionalRunnerOf(file)
+	runner, problem := runnerOf(file)
 	if problem != "" {
 		return observation{}, errors.New(problem)
 	}
 	if !r.prepared {
 		set, err := testfunctional.Prepare(r.toolchain, "feature-record-run")
 		if err != nil {
-			return observation{}, errors.New("cannot build the isolated binaries a .ci runs against: " + err.Error())
+			return observation{}, errors.New("cannot build the isolated binaries a functional test runs against: " + err.Error())
 		}
 		r.set, r.prepared = set, true
 	}
-	argv := []string{filepath.Join(r.set.Dir, testfunctional.LE), "test"}
-	for _, arg := range suite.Args {
-		if arg == testfunctional.AllTests {
-			continue
-		}
-		argv = append(argv, arg)
-	}
-	argv = append(argv, strings.TrimSuffix(path.Base(file), path.Ext(file)))
+	argv := runner.argv(filepath.Join(r.set.Dir, testfunctional.LE))
 	return r.exec(argv, r.set.Environment(r.toolchain))
 }
 
@@ -235,27 +232,6 @@ func (r *repoRunner) exec(argv, environ []string) (observation, error) {
 			", so whether it passes is unknown")
 	}
 	return observation{exited: runErr == nil, output: out.String()}, nil
-}
-
-// functionalRunnerOf answers the suite whose runner discovers the .ci at rel,
-// or why none does. The functional runner walks test/<suite>/ for the suite
-// named by that directory, the same mapping internal/le/rfc's carriers use.
-func functionalRunnerOf(rel string) (testfunctional.Suite, string) {
-	if !strings.HasSuffix(rel, ".ci") {
-		return testfunctional.Suite{}, "'" + rel + "' is neither a Go test (file.go::TestName) nor a .ci"
-	}
-	parts := strings.Split(rel, "/")
-	if len(parts) != 3 {
-		return testfunctional.Suite{}, "'" + rel + "' is not test/<suite>/<name>.ci, which is where the functional runner looks"
-	}
-	if parts[0] != "test" {
-		return testfunctional.Suite{}, "'" + rel + "' is not test/<suite>/<name>.ci, which is where the functional runner looks"
-	}
-	suite, held := testfunctional.SuiteNamed(parts[1])
-	if !held {
-		return testfunctional.Suite{}, "'" + rel + "': no functional suite named '" + parts[1] + "' runs test/" + parts[1] + "/"
-	}
-	return suite, ""
 }
 
 // headCommit answers HEAD, which a record carries for a reader.

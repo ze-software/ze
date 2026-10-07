@@ -69,6 +69,12 @@ func BigRunnerCIDirs() []string {
 	return names
 }
 
+// BgpRunnerDir reports whether `le test bgp <dir>` walks test/<dir>, the
+// question bgpCIRunnerDirs answers for this runner's own argument check.
+func BgpRunnerDir(dir string) bool {
+	return bgpCIRunnerDirs[dir]
+}
+
 // CmdBgp is the harness command `le test bgp`, registered by
 // internal/le/test/bgp. It answers the process exit code.
 func CmdBgp(args []string) int {

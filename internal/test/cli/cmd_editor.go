@@ -18,6 +18,16 @@ import (
 
 // CmdEditor is the harness command `le test editor`, registered by
 // internal/le/test/editor. It answers the process exit code.
+
+// EditorSuiteDir is the directory under test/ the editor runner walks, and
+// EditorTestSuffix the suffix of the files it discovers there, recursively. The
+// runner reads both, so a reader outside it (internal/le/feature) asks here
+// which files this runner runs.
+const (
+	EditorSuiteDir   = "editor"
+	EditorTestSuffix = ".et"
+)
+
 func CmdEditor(args []string) int {
 	if err := cmdEditorMain(args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err) //nolint:errcheck // terminal output
@@ -76,7 +86,7 @@ Examples:
 		return fmt.Errorf("find base dir: %w", err)
 	}
 
-	testDir := runner.SuiteDir(baseDir, "editor", *draft)
+	testDir := runner.SuiteDir(baseDir, EditorSuiteDir, *draft)
 	testArgs := fs.Args()
 	if *dir != "" {
 		if filepath.IsAbs(*dir) {
@@ -137,7 +147,7 @@ func discoverEditorTests(tests *runner.EditorTests, testDir, baseDir string) err
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || !strings.HasSuffix(path, ".et") {
+		if d.IsDir() || !strings.HasSuffix(path, EditorTestSuffix) {
 			return nil
 		}
 

@@ -10,10 +10,10 @@
 | Scope | complete |
 | Level | experimental |
 | Components | internal/chaos/mcp, internal/chaos/watchdog |
+| Real-path tests | test/chaos-web/mcp-problems.ci, test/chaos-web/mcp-resources-served.ci, test/chaos-web/mcp-status.ci |
 | Docs | docs/guide/mcp/chaos.md |
 | Doc review | 2026-10-07: six tools chaos_status, chaos_problems, chaos_peers, chaos_scenario, chaos_control, chaos_execute in internal/chaos/mcp/tools.go |
 | Defect review | 2026-10-07: no journal row or immediate spec names internal/chaos/mcp |
-| Extra criteria | supported: the chaos-web MCP .ci run in a suite the functional runner declares = test/chaos-web/mcp-status.ci |
 
 ## Description
 

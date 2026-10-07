@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/rfc"
 	journal "github.com/ze-software/ze/internal/le/spec/journal"
 )
@@ -207,9 +208,24 @@ func (in *evidence) repoPath(rel string) string {
 		return "'" + rel + "' escapes the repository"
 	}
 	if _, err := os.Stat(filepath.Join(in.tree, filepath.FromSlash(clean))); err != nil {
+		if derivedArtifact(clean) {
+			return ""
+		}
 		return "'" + rel + "' does not exist"
 	}
 	return ""
+}
+
+// derivedArtifact reports whether rel is a registered derived artifact. Such a
+// page is gitignored and rebuilt by `./le` when a command names it, so a fresh
+// checkout that has not rendered it yet is not missing it.
+func derivedArtifact(rel string) bool {
+	for _, artifact := range derived.All() {
+		if artifact.Path == rel {
+			return true
+		}
+	}
+	return false
 }
 
 // testItem answers why a Real-path tests item does not resolve, or "". A Go
@@ -223,9 +239,9 @@ func (in *evidence) testItem(item string) string {
 		if strings.HasSuffix(file, "_test.go") {
 			return "'" + item + "' names a Go test file without '::<TestName>'"
 		}
-		// A-7: a .ci the functional runner never discovers runs nowhere, so the
-		// runner's own suite table answers, not the file's existence.
-		_, problem := functionalRunnerOf(file)
+		// A-7: a file no runner discovers runs nowhere, so the runners' own
+		// declarations answer, not the file's existence (runner.go).
+		_, problem := runnerOf(file)
 		return problem
 	}
 	if !declaresFunction(filepath.Join(in.tree, filepath.FromSlash(file)), function) {
