@@ -11,10 +11,11 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **13 / 171** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Test files that expect a specific error | Q2 | **1919 / 5437** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Tests with no reachable failure call | Q1 | **129 / 34641 (floor 126)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
+| Test files that expect a specific error | Q2 | **1930 / 5462** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-6 further metric(s) are within threshold and are listed in full below.
+5 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -22,7 +23,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**126 / 34541 (floor 126)** (ok)
+**129 / 34641 (floor 126)** (attention)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -63,7 +64,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### Test files that expect a specific error
 
-**1919 / 5437** (attention)
+**1930 / 5462** (attention)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -105,9 +106,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**34576 test functions** (ok)
+**34676 test functions** (ok)
 
-5437 Go test files, 88 fuzz targets, 137 benchmarks, 2125 .ci scenarios, 172 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+5462 Go test files, 88 fuzz targets, 137 benchmarks, 2126 .ci scenarios, 172 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
@@ -122,7 +123,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 645 | 34 | 129 | 35 |
+| 2026 | 646 | 34 | 129 | 35 |
 
 ## Integrity
 

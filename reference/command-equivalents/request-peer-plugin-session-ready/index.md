@@ -5,7 +5,7 @@ Signal that per\-peer plugin setup is complete\.
 ## Ze command
 
 - Registry path: `request peer plugin session ready`
-- Usage: `request peer <selector> plugin session ready`
+- Usage: `request peer <selector> plugin session <session> ready`
 - Mode: Daemon
 - Wire method: `ze-plugin:session-peer-ready`
 - Backends: any backend
@@ -21,13 +21,14 @@ Signal that per\-peer plugin setup is complete\.
 - Command pipes: none
 - Pipe aliases: none
 
-The daemon closes this process\'s share of the peer\'s End\-of\-RIB barrier\, so the peer stops waiting for routes from this process\. The signal is keyed on the sending process\, so one process does not release another\. A peer of \'\*\'\, and an empty peer\, are both ignored\.
+The daemon closes this sending process\'s share of the peer\'s live\-forward replay fence only for the captured peer\-UP session token\. Missing\, stale or retired process receipts fail without releasing queued work\. An explicit operator request is a no\-op\; it cannot credit a named process\. A peer of \'\*\'\, and an empty peer\, signal nothing\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
 | `selector` | string | yes | any value of this type | Peer selector | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
+| `session` | string | no | any value of this type | Captured peer\-UP initial\-replay token\. | The opaque nonzero uint64 initial\-replay token captured from the peer\-UP event whose replay this process finished\. Never fetch a new token to finish old replay work\. |
 
 ## Mapping intents
 

@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -364,10 +364,10 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <td>SHOULD</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L181" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L138" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L182" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L139" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L190" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L141" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L191" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L142" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L9" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L10" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></span></div>
 </div></td>
@@ -513,20 +513,20 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 </div>
 <h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-6"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6</code></a></h3>
 <p>A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The unit tests assert the exact identifier sequence that reached the wire, for ipv4/unicast and ipv6/unicast: announced [0 1 1 4] and withdrawn [99 0] across eight sends, which pins the withheld path, the replacement at capacity, the unknown withdrawal that frees nothing, and the reuse after a real withdrawal. TestPathsLimitForwardWritersShareState proves raw forwarding and re-encoded forwarding draw on one per-session budget, forwarding [5 7] and never 6. test/plugin/paths-limit-live.ci carries the same requirement at the daemon: it starts ze and a peer that advertises ipv4 1 and ipv6 2, drives the real `ze send bgp * update text` CLI over SSH, and asserts by hex, in sequence groups, that an excess identifier never reaches the wire before the next different-prefix sentinel and appears only after a withdrawal and an explicit retry. Six records: the four unit tags over the admission guard in pathsLimitSection, and the two .ci tags by revert of that same function, each citing the expect directive its red was tied to. The enforcing code is Session.pathsLimitSection, reached from writeRawUpdateBody through filterPathsLimit, which is why the route-server fast path is covered by the same state. 2026-09-25 re-audit: commit 1fb33e8098 renamed the carrier&#39;s exec heads (ze-peer to le test peer, ze-test fixture to le test fixture) and changed no assertion, so the judgement above still describes what it judged. Re-judged 2026-09-27 by QF-2 after the row was replaced by the verbatim §3 sentence; the obligation is the one the note above judged, and the tagged units are unchanged. Enforced stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates, internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2 moved. The unit tests assert the exact identifier sequence that reached the wire, for ipv4/unicast and ipv6/unicast: announced [0 1 1 4] and withdrawn [99 0] across eight sends, which pins the withheld path, the replacement at capacity, the unknown withdrawal that frees nothing, and the reuse after a real withdrawal. TestPathsLimitForwardWritersShareState proves raw forwarding and re-encoded forwarding draw on one per-session budget, forwarding [5 7] and never 6. test/plugin/paths-limit-live.ci carries the same requirement at the daemon: it starts ze and a peer that advertises ipv4 1 and ipv6 2, drives the real `ze send bgp * update text` CLI over SSH, and asserts by hex, in sequence groups, that an excess identifier never reaches the wire before the next different-prefix sentinel and appears only after a withdrawal and an explicit retry. Six records: the four unit tags over the admission guard in pathsLimitSection, and the two .ci tags by revert of that same function, each citing the expect directive its red was tied to. The enforcing code is Session.pathsLimitSection, reached from writeRawUpdateBody through filterPathsLimit, which is why the route-server fast path is covered by the same state. 2026-09-25 re-audit: commit 1fb33e8098 renamed the carrier&#39;s exec heads (ze-peer to le test peer, ze-test fixture to le test fixture) and changed no assertion, so the judgement above still describes what it judged. Re-judged 2026-09-27 by QF-2 after the row was replaced by the verbatim §3 sentence; the obligation is the one the note above judged, and the tagged units are unchanged. Enforced stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L182" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L191" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L139" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L142" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L10" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></td>
@@ -534,14 +534,14 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L181" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L190" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L138" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L141" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L9" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></td>
@@ -700,7 +700,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
                 </div>
             </div>
         </footer>

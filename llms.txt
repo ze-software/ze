@@ -15,15 +15,15 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 52 shipped or experimental feature cards, 473 CLI commands, 38 config sections, 94 plugin registrations, 52 direct Go dependencies, 43 weekly change entries.
-- Test evidence counts: 34,500+ unit tests, 88 fuzz targets, 2,100+ end-to-end transcript steps, 160 interop scenarios across 9 target implementations.
+- Test evidence counts: 34,600+ unit tests, 88 fuzz targets, 2,100+ end-to-end transcript steps, 160 interop scenarios across 9 target implementations.
 - Release inventory preview pending owner classification: [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-10-06.
+- Generated date: 2026-10-07.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 34,500+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 34,600+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 88 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -45,50 +45,24 @@ Useful commands: `go test -race -run TestName ./internal/...`, `./le test fuzz r
 
 ## Feature inventory
 
-### Built for demanding operators. (33 cards: 33 current)
+### Built for demanding operators. (1 cards: 1 current)
 Ze starts with a configuration and protocol engine. The shipped network operating system adds BGP, interface management, FIB programming, plugins, operator tools, a minimal appliance runtime, and diagnostics as one product.
-- AI Tool Interfaces [automate, current]: chips: MCP, Generated, AI tools; MCP exposes CLI/API commands; AI tools read structured output; Plugins expose discoverable tools; link: https://ze-software.net/features/ai-first/index.md
-- SSH CLI [operate, current]: chips: Built-in SSH, RBAC; Manage Ze without OS shell accounts; Profiles, audit, and accounting; commit, rollback, diff, completion; link: https://ze-software.net/features/cli-commands/index.md
-- YANG Configuration [operate, current]: chips: YANG, ExaBGP; Schema-driven validation; One model feeds every surface; Plugin defined config and commands; link: https://ze-software.net/features/bgp-configuration/index.md
-- Output Formatting [operate, current]: chips: Shell-like pipes, Offline; table, json, yaml, ndjson; match, count, first/last; Offline via ze format; Every command, no rendering flags; link: https://ze-software.net/features/formatting/index.md
-- Web Workbench [operate, current]: chips: HTMX, SSE; YANG-driven config tree; Same CLI grammar in browser; Live updates via SSE; link: https://ze-software.net/features/web-interface/index.md
-- Looking Glass [operate, current]: chips: Routes, Topology, Birdwatcher; Peer and route viewer; Topology graph; SSE streaming for live state; link: https://ze-software.net/features/looking-glass/index.md
-- System Readiness [operate, current]: chips: ze doctor, ze explain; Offline pre-start checks; Health, warnings, and errors; Structured remediation with `ze explain`; link: https://ze-software.net/guides/production-diagnostics/index.md
-- Native BGP Engine [routing, current]: chips: BGP, IPv4/IPv6, FlowSpec; Full implementation in Go; Lazy parsing, buffer-first encoding; Negotiated capabilities; link: https://ze-software.net/features/bgp-protocol/index.md
-- Static Routes [routing, current]: chips: ECMP, BFD, PBR; Named tables, policy routing; BFD-tracked failover; Multi-path ECMP groups; link: https://ze-software.net/guides/static-routes/index.md
-- BFD [routing, current]: chips: RFC 5880, Auth; Single-hop and multi-hop; GTSM, jitter, BGP integration; SHA1/MD5 auth, echo mode; Strict mode holds a BGP peer down until BFD is up; link: https://ze-software.net/features/bgp-protocol/index.md
-- MRT Recording [routing, current]: chips: RFC 6396, Analysis; Updates, messages, RIB snapshots; Strftime file rotation; Show, inject, replay, filter; link: https://ze-software.net/guides/mrt-analysis/index.md
-- DNS Resolver [services, current]: chips: Cache, Pipes; Built-in cached resolver; | resolve and | origin pipe operators; No external daemon needed; link: https://ze-software.net/features/dns-resolver/index.md
-- Plugin System [automate, current]: chips: ExaBGP, RPKI, Policy; Plugins add commands, RPCs, events; YANG roots join CLI and web; Independent, composable; Each plugin declares what its failure means; link: https://ze-software.net/reference/plugins/index.md
-- Programmable [automate, current]: chips: REST, gRPC, gNMI; REST API, gRPC, gNMI; Shared engine for identical output; Automate from any language; link: https://ze-software.net/features/api-commands/index.md
-- AI-First Design [automate, current]: chips: Self-describing, Skills; Self-describing command catalogue from the live binary; Every command is an automation surface; Structured diagnostics and repair plans; link: https://ze-software.net/features/ai-first/index.md
-- MCP Integration [automate, current]: chips: MCP, OAuth 2.1; Streamable HTTP transport, OAuth 2.1 resource server; Server-initiated elicitation, task-augmented tool calls; MCP Apps UI with embedded panels; link: https://ze-software.net/features/mcp-integration/index.md
-- ExaBGP Compatibility [automate, current]: chips: Migration, Bridge; Automatic config migration; Plugin bridge for existing workflows; Migration path for existing scripts; link: https://ze-software.net/features/exabgp-compatibility/index.md
-- Evidence Over Claims [observe, current]: chips: Fuzz, Interop, Docker; Unit, functional, fuzz, chaos; Performance benchmarks; Interop vs FRR, BIRD, GoBGP; link: https://ze-software.net/features/interoperability-testing/index.md
-- Development Activity [observe, current]: chips: Heatmap, Live data; A year of commits and added lines, at a glance; Built from git history each time; Current Go code composition; link: https://ze-software.net/project/activity/index.md
-- Prometheus Telemetry [observe, current]: chips: Netdata, Prometheus; 138 metrics from /proc and /sys; Netdata naming, drop-in replacement; Existing Grafana dashboards keep working; link: https://ze-software.net/guides/monitoring/index.md
-- Health Registry [observe, current]: chips: HTTP, 503; /health HTTP endpoint; Per-component status checks; BGP, FIB, IPsec, L2TP, VPP; link: https://ze-software.net/features/index.md
-- Host Inventory [observe, current]: chips: CPU, NIC, SMART; CPU, NIC, DMI, memory, thermal; SMART disk health and self-tests; JSON output for pipelines; link: https://ze-software.net/features/index.md
-- Crash Capture [observe, current]: chips: Panic, Syslog; Automatic panic stack traces; Ring buffer context (last 64 entries); show crashes CLI command; link: https://ze-software.net/features/index.md
-- Tech-Support Bundle [observe, current]: chips: Offline, JSON; 20 modules, pure Go, no shell-outs; Structured JSON per module; Privacy-by-default, gokrazy-safe; link: https://ze-software.net/features/index.md
-- Production Diagnostics [observe, current]: chips: CLI, MCP; 11 built-in tools replacing ss, dmesg, lsof; tcpdump, traceroute, ping, mtr; All exposed via MCP for AI debugging; link: https://ze-software.net/guides/production-diagnostics/index.md
-- Secure by Default [secure, current]: chips: SSH, RBAC, RPKI, ASPA; SSH access to the CLI; RPKI route origin validation; No other daemons needed; link: https://ze-software.net/reference/plugins/index.md
-- TACACS+ AAA [secure, current]: chips: RFC 8907, Accounting; SSH login via TACACS+; Command accounting START/STOP; Server failover, local fallback; link: https://ze-software.net/guides/tacacs/index.md
-- Audit Trail [secure, current]: chips: Commits, Auth; Config commit, discard, and reload; Failed auth on every interface; Filter by action, actor, and time; link: https://ze-software.net/guides/audit/index.md
-- PKI Store [secure, current]: chips: X.509, TLS; YANG-modelled certificate management; Chain validation, expiry checks; Shared by IPsec, TLS, mutual auth; Local CA issues 24-hour certs to Ze's components; link: https://ze-software.net/features/index.md
-- Minimal Appliance Mode [platform, current]: chips: Appliance, Server; Kernel, init, Ze runtime; No package manager or general shell; ISO/PXE bare-metal install; Linux server with systemd; link: https://ze-software.net/guides/appliance/index.md
-- Runs Itself [platform, current]: chips: Update, Systemd; Binary self-update; Built-in readiness checks; No orchestrator needed; link: https://ze-software.net/features/introspection/index.md
-- Docker Support [platform, current]: chips: Daemon only, Scratch, Compose; Static binary on scratch base; Compose support included; Optional build tags; link: https://ze-software.net/features/index.md
-- Feature Gates [platform, current]: chips: 36 subsystems, Default on; Compile out whole subsystems, BGP included; Smaller binary, smaller attack surface; Config fails closed on blocks the build lacks; link: https://ze-software.net/guides/quickstart/index.md
+- Policy Routing [services, current]: chips: nftables, PBR; L3/L4 match criteria; Table steering, next-hop actions; TCP-MSS clamping, interface wildcards; link: https://ze-software.net/guides/policy-routing/index.md
 
-### Experimental and growing. (19 cards: 19 experimental)
-Implemented and tested, still waiting for production evidence.
+### Experimental and growing. (51 cards: 51 experimental)
+Implemented, still waiting for production evidence or for a named part to be finished.
+- Output Formatting [operate, experimental]: chips: Shell-like pipes, Offline; table, json, yaml, ndjson; match, count, first/last; Offline via ze pipe; Every command, no rendering flags; link: https://ze-software.net/features/formatting/index.md
+- Web Workbench [operate, experimental]: chips: HTMX, SSE; YANG-driven config tree; Same CLI grammar in browser; Live updates via SSE; link: https://ze-software.net/features/web-interface/index.md
+- Looking Glass [operate, experimental]: chips: Routes, Topology, Birdwatcher; Peer and route viewer; Topology graph; SSE streaming for live state; link: https://ze-software.net/features/looking-glass/index.md
+- Development Activity [observe, experimental]: chips: Heatmap, Rebuilt each publish; A year of commits and added lines, at a glance; Built from git history each time; Current Go code composition; link: https://ze-software.net/project/activity/index.md
+- Tech-Support Bundle [observe, experimental]: chips: Offline, JSON; 20 modules, pure Go, no shell-outs; Structured JSON per module; Privacy-by-default, gokrazy-safe; link: https://ze-software.net/features/index.md
+- Audit Trail [secure, experimental]: chips: Commits, Auth; Config commit, discard, and reload; Failed auth on every interface; Filter by action, actor, and time; link: https://ze-software.net/guides/audit/index.md
+- PKI Store [secure, experimental]: chips: X.509, TLS; YANG-modelled certificate management; Chain validation, expiry checks; Shared by IPsec, TLS, mutual auth; Local CA issues 24-hour certs to Ze's components; link: https://ze-software.net/features/index.md
 - IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; CRL and OCSP revocation checks on EAP-TLS; link: https://ze-software.net/features/index.md
 - L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS and LAC with PPP; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/guides/l2tp/index.md
 - PPPoE Access [services, experimental]: chips: RFC 2516, PPP; Access concentrator with discovery FSM; Shared PPP driver with L2TP; PAP, CHAP-MD5, and MS-CHAPv2 authentication; link: https://ze-software.net/guides/pppoe/index.md
 - Interface Management [services, experimental]: chips: Netlink, DHCP; Ethernet, VLAN, bridge, WireGuard; 8 tunnel kinds, DHCP client; NTP sync, offload tuning, mirroring; IPv6 Router Advertisements, the radvd role; link: https://ze-software.net/features/interfaces/index.md
 - Firewall [services, experimental]: chips: nftables, NAT; 15 match types, 19 actions; SNAT, DNAT, masquerade; FlowSpec-to-firewall bridge; DNS-sourced address groups, TTL-tracked; link: https://ze-software.net/guides/firewall/index.md
-- Policy Routing [services, experimental]: chips: nftables, PBR; L3/L4 match criteria; Table steering, next-hop actions; TCP-MSS clamping, interface wildcards; link: https://ze-software.net/guides/policy-routing/index.md
 - VPP Data Plane [services, experimental]: chips: DPDK, GoVPP; FIB programming via GoVPP; MPLS label operations; Per-interface Prometheus metrics; link: https://ze-software.net/guides/vpp/index.md
 - MPLS / LDP / RSVP-TE [routing, experimental]: chips: Labels, Signaling; Kernel MPLS FIB, push/swap/pop; LDP discovery and sessions; RSVP-TE ERO, bandwidth admission; link: https://ze-software.net/features/index.md
 - OSPFv2 / OSPFv3 [routing, experimental]: chips: RFC 2328, RFC 5340, ECMP; One ospf engine, IPv4 and IPv6 address families; SPF/ABR, NSSA, virtual links, NBMA/P2MP; Redistribution, SR, BFD, graceful restart; Interface cost priced from link speed; link: https://ze-software.net/guides/ospf/index.md
@@ -102,6 +76,32 @@ Implemented and tested, still waiting for production evidence.
 - Segment Routing [routing, experimental]: chips: SAFI 73, SRv6; SR-Policy NLRI (RFC 9830), SAFI 73; MPLS and SRv6 binding SID, tunnel encap; ExaBGP bridge for SR-Policy migration; link: https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy
 - Fleet Management [automate, experimental]: chips: Managed config, TLS hub; Per-client configuration and pinned hub certificate; Cached config with reconnect and heartbeat; Version hashing and two-phase fetch; link: https://ze-software.net/guides/fleet-config/index.md
 - IRR Route Filtering [secure, experimental]: chips: IRR, as-set; Prefix-lists from IRR data, live in the engine; Sourced from PeeringDB and RADB; Opt-in per peer, group or global filter chain; link: https://ze-software.net/guides/irr-filtering/index.md
+- AI Tool Interfaces [automate, experimental]: chips: MCP, Generated, AI tools; MCP exposes CLI/API commands; AI tools read structured output; Plugins expose discoverable tools; link: https://ze-software.net/features/ai-first/index.md
+- SSH CLI [operate, experimental]: chips: Built-in SSH, RBAC; Manage Ze without OS shell accounts; Profiles, audit, and accounting; commit, rollback, diff, completion; link: https://ze-software.net/features/cli-commands/index.md
+- YANG Configuration [operate, experimental]: chips: YANG, ExaBGP; Schema-driven validation; One model feeds every surface; Plugin defined config and commands; link: https://ze-software.net/features/bgp-configuration/index.md
+- System Readiness [operate, experimental]: chips: ze doctor, ze explain; Offline pre-start checks; Health, warnings, and errors; Structured remediation with `ze explain`; link: https://ze-software.net/guides/production-diagnostics/index.md
+- Native BGP Engine [routing, experimental]: chips: BGP, IPv4/IPv6, FlowSpec; Full implementation in Go; Lazy parsing, buffer-first encoding; Negotiated capabilities; link: https://ze-software.net/features/bgp-protocol/index.md
+- Static Routes [routing, experimental]: chips: ECMP, BFD, PBR; Named tables, policy routing; BFD-tracked failover; Multi-path ECMP groups; link: https://ze-software.net/guides/static-routes/index.md
+- BFD [routing, experimental]: chips: RFC 5880, Auth; Single-hop and multi-hop; GTSM, jitter, BGP integration; SHA1/MD5 auth, echo mode; Strict mode holds a BGP peer down until BFD is up; link: https://ze-software.net/features/bgp-protocol/index.md
+- MRT Recording [routing, experimental]: chips: RFC 6396, Analysis; Updates, messages, RIB snapshots; Strftime file rotation; Show, inject, replay, filter; link: https://ze-software.net/guides/mrt-analysis/index.md
+- DNS Resolver [services, experimental]: chips: Cache, Pipes; Built-in cached resolver; | resolve and | origin pipe operators; No external daemon needed; link: https://ze-software.net/features/dns-resolver/index.md
+- Plugin System [automate, experimental]: chips: ExaBGP, RPKI, Policy; Plugins add commands, RPCs, events; YANG roots join CLI and web; Independent, composable; Each plugin declares what its failure means; link: https://ze-software.net/reference/plugins/index.md
+- Programmable [automate, experimental]: chips: REST, gRPC, gNMI; REST API, gRPC, gNMI; Shared engine for identical output; Automate from any language; link: https://ze-software.net/features/api-commands/index.md
+- AI-First Design [automate, experimental]: chips: Self-describing, Skills; Self-describing command catalogue from the live binary; Every command is an automation surface; Structured diagnostics and repair plans; link: https://ze-software.net/features/ai-first/index.md
+- MCP Integration [automate, experimental]: chips: MCP, OAuth 2.1; Streamable HTTP transport, OAuth 2.1 resource server; Server-initiated elicitation, task-augmented tool calls; MCP Apps UI with embedded panels; link: https://ze-software.net/features/mcp-integration/index.md
+- ExaBGP Compatibility [automate, experimental]: chips: Migration, Bridge; Automatic config migration; Plugin bridge for existing workflows; Migration path for existing scripts; link: https://ze-software.net/features/exabgp-compatibility/index.md
+- Evidence Over Claims [observe, experimental]: chips: Fuzz, Interop, Docker; Unit, functional, fuzz, chaos; Performance benchmarks; Interop vs FRR, BIRD, GoBGP; link: https://ze-software.net/features/interoperability-testing/index.md
+- Prometheus Telemetry [observe, experimental]: chips: Netdata, Prometheus; Prometheus metrics from /proc and /sys; Netdata metric names and labels; Built for existing Grafana dashboards; link: https://ze-software.net/guides/monitoring/index.md
+- Health Registry [observe, experimental]: chips: HTTP, 503; /health HTTP endpoint; Per-component status checks; BGP, FIB, IPsec, L2TP, VPP; link: https://ze-software.net/features/index.md
+- Host Inventory [observe, experimental]: chips: CPU, NIC, SMART; CPU, NIC, DMI, memory, thermal; SMART disk health and self-tests; JSON output for pipelines; link: https://ze-software.net/features/index.md
+- Crash Capture [observe, experimental]: chips: Panic, Syslog; Automatic panic stack traces; Ring buffer context (last 64 entries); show crashes CLI command; link: https://ze-software.net/features/index.md
+- Production Diagnostics [observe, experimental]: chips: CLI, MCP; Built-in tools replacing ss, dmesg, lsof; tcpdump, traceroute, ping, mtr; All exposed via MCP for AI debugging; link: https://ze-software.net/guides/production-diagnostics/index.md
+- Secure by Default [secure, experimental]: chips: SSH, RBAC, RPKI, ASPA; SSH access to the CLI; RPKI route origin validation; No other daemons needed; link: https://ze-software.net/reference/plugins/index.md
+- TACACS+ AAA [secure, experimental]: chips: RFC 8907, Accounting; SSH login via TACACS+; Command accounting START/STOP; Server failover, local fallback; link: https://ze-software.net/guides/tacacs/index.md
+- Minimal Appliance Mode [platform, experimental]: chips: Appliance, Server; Kernel, init, Ze runtime; No package manager or general shell; ISO/PXE bare-metal install; Linux server with systemd; link: https://ze-software.net/guides/appliance/index.md
+- Runs Itself [platform, experimental]: chips: Update, Systemd; Binary self-update; Built-in readiness checks; No orchestrator needed; link: https://ze-software.net/features/introspection/index.md
+- Docker Support [platform, experimental]: chips: Daemon only, Scratch, Compose; Static binary on scratch base; Compose support included; Optional build tags; link: https://ze-software.net/features/index.md
+- Feature Gates [platform, experimental]: chips: 36 subsystems, Default on; Compile out whole subsystems, BGP included; Smaller binary, smaller attack surface; Config fails closed on blocks the build lacks; link: https://ze-software.net/guides/quickstart/index.md
 
 ## Configuration model roots
 
@@ -382,7 +382,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request peer eorr` (daemon; wire ze-bgp:peer-eorr; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> eorr`): Finish an Enhanced Route Refresh cycle \(RFC 7313\)\.
 - `request peer flush` (daemon; wire ze-bgp:peer-flush; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> flush`): Wait until all queued updates for a peer are sent\.
 - `request peer pause` (daemon; wire ze-bgp:peer-pause; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> pause`): Pause reading from a peer\'s TCP socket\.
-- `request peer plugin session ready` (daemon; wire ze-plugin:session-peer-ready; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> plugin session ready`): Signal that per\-peer plugin setup is complete\.
+- `request peer plugin session ready` (daemon; wire ze-plugin:session-peer-ready; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, session:string; usage `request peer <selector> plugin session <session> ready`): Signal that per\-peer plugin setup is complete\.
 - `request peer refresh` (daemon; wire ze-bgp:peer-refresh; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> refresh`): Ask a peer to re\-send all routes \(RFC 2918\)\.
 - `request peer resume` (daemon; wire ze-bgp:peer-resume; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `request peer <selector> resume`): Resume reading from a previously paused peer\.
 - `request peer teardown` (daemon; wire ze-bgp:peer-teardown; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, cease-subcode:uint; usage `request peer <selector> teardown <cease-subcode>`): Tear down a peer session\.

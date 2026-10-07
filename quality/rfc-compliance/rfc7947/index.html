@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Supported</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 7947 - Internet Exchange BGP Route Server</h1>
     <p>Every requirement this repository extracted from RFC 7947, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -123,7 +123,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33.3%</strong><b>6 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>6</strong><b>of 2 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -186,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -200,7 +199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Supported</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -255,7 +254,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Enrolled: BGP Route Server: two MUST-level transparency requirements over the reactor-native RS forwarding path (internal/component/bgp/reactor/forward_rs.go), plus the advisory-level RFC7947-x-1, which the gate does not require but which is proven anyway. RFC7947-x-1 (SHOULD NOT prepend own AS for RS clients -- Section 2.2.2.1 calls it &#34;a recommendation rather than a requirement&#34;, so it is not MUST-level and the gate does not require it) has both polarities: TestReactorForwardRSTransparent proves an RS client&#39;s forwarded body is byte-identical (no prepend), TestReactorForwardRSEBGPPrepend proves a non-RS eBGP peer DOES get the local AS prepended, so the no-prepend is confined to RS clients. RFC7947-x-2 (MUST NOT rewrite NEXT_HOP) is {single-polarity: positive}: the byte-identical transparency test proves it, and it has no natural negative, NEXT_HOP transparency not being RS-specific. RFC7947-x-3 is NOT MUST-level and the gate does not require it: Section 2.2.3 reads &#34;this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value&#34;, so the row is [SHOULD] and the earlier MUST here misquoted it. The same transparency test proves Ze meets it anyway: medPropagationAllowedTo (internal/component/bgp/reactor/forward_med.go) never applies the automatic RFC 4271 Section 5.1.4 strip to a route server client. An operator&#39;s own `del { med; }` policy still removes the metric upstream of that predicate (test/plugin/med-removal-configured.ci, against an rs-client receiver), which is Section 5.1.4&#39;s required removal mechanism rather than an exception to this recommendation. RFC7947-x-4 (per-client import/export policy applied on each redistribution) has both polarities: TestReactorForwardRSFallback proves an export-filtered client is routed to the per-client policy path, TestReactorForwardRSBasic proves an unfiltered client is forwarded directly. The x-5 SHOULD (path-hiding mitigation) and x-6 MAY (add-path) are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Supported</p>
+<p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
 <li>Transparent RS forwarding for RS clients by default: no AS_PATH prepend, no NEXT_HOP rewrite, MED preserved (verbatim wire forwarding)</li>
@@ -402,7 +401,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7947-x-1"><code>RFC7947-x-1</code></a></h3>
 <p>the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7947 Section 2.2.2.1: &#34;As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.&#34; TestReactorForwardRSTransparent requires exact body identity, including the nonempty path; TestReactorForwardRSEBGPPrepend now has reachable NLRI, although its growth-only assertion remains weaker than an exact path oracle. The complete pair is independently supplied by TestRelayStoredRouteRSClientPreservesASPath/TestRelayStoredRoutePlainEBGPPrependsLocalAS and bgp-rs-relay-aspath-transparency.ci, which pin [65001] versus [65000,65001] on the plugin/replay path. checkRouteServerASPath additionally requires BIRD to decode exactly the originating client AS, a route present, and both sessions surviving. All seven tagged covers read; ordinary-peer controls confine the RS exception. Producers forwardUpdateCore/forwardUpdateValidated and the separate reactorForwardRS use destination RSClient facts for prepend decisions. No assertion of runtime completion is made here. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend, internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent moved. RFC 7947 Section 2.2.2.1: &#34;As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.&#34; TestReactorForwardRSTransparent requires exact body identity, including the nonempty path; TestReactorForwardRSEBGPPrepend now has reachable NLRI, although its growth-only assertion remains weaker than an exact path oracle. The complete pair is independently supplied by TestRelayStoredRouteRSClientPreservesASPath/TestRelayStoredRoutePlainEBGPPrependsLocalAS and bgp-rs-relay-aspath-transparency.ci, which pin [65001] versus [65000,65001] on the plugin/replay path. checkRouteServerASPath additionally requires BIRD to decode exactly the originating client AS, a route present, and both sessions surviving. All seven tagged covers read; ordinary-peer controls confine the RS exception. Producers forwardUpdateCore/forwardUpdateValidated and the separate reactorForwardRS use destination RSClient facts for prepend decisions. No assertion of runtime completion is made here. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -447,7 +446,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 </div>
 <h3><a href="#rfc7947-x-2"><code>RFC7947-x-2</code></a></h3>
 <p>As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the &#34;third-party&#34; next-hop feature described in Section 5.1.3. of [RFC4271]. (§2.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7947 Section 2.2.1: &#34;As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the &#34;third-party&#34; next-hop feature described in Section 5.1.3. of [RFC4271].&#34; The sole current carrier TestReactorForwardRSTransparent forwards a body with NEXT_HOP 10.0.0.254 and reachable NLRI to an RS client and requires complete byte identity. A dropped/changed next-hop fails, and nonempty output excludes the no-forward false positive. Existing single-polarity annotation remains justified for the default transparent path: ordinary forwarding also preserves next-hop unless an explicit policy requests a rewrite; changing that policy would test another feature, not create this rule&#39;s confining negative. peerForwardFacts/buildForwardFacts and forwarding producer path were read. One positive cover, zero negative, with the existing annotation rather than a fabricated pair. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent moved. RFC 7947 Section 2.2.1: &#34;As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the &#34;third-party&#34; next-hop feature described in Section 5.1.3. of [RFC4271].&#34; The sole current carrier TestReactorForwardRSTransparent forwards a body with NEXT_HOP 10.0.0.254 and reachable NLRI to an RS client and requires complete byte identity. A dropped/changed next-hop fails, and nonempty output excludes the no-forward false positive. Existing single-polarity annotation remains justified for the default transparent path: ordinary forwarding also preserves next-hop unless an explicit policy requests a rewrite; changing that policy would test another feature, not create this rule&#39;s confining negative. peerForwardFacts/buildForwardFacts and forwarding producer path were read. One positive cover, zero negative, with the existing annotation rather than a fabricated pair. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -462,7 +461,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 </div>
 <h3><a href="#rfc7947-x-3"><code>RFC7947-x-3</code></a></h3>
 <p>Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value. (§2.2.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7947 Section 2.2.3: &#34;Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.&#34; TestReactorForwardRSTransparent requires body identity with MED 100; TestForwardKeepsMEDForRouteServerClient pins no MED operation/no rebuild; med-not-propagated-across-as.ci separately compares complete actual UPDATEs at an RS client (MED retained unchanged) and ordinary eBGP destination (MED absent). applyFactsMED uses the RS destination exception and otherwise records suppression of a received, unmodified metric. Thus both propagation and unchanged value are asserted, and preserving MED for all destinations would fail the negative. No source capability was widened. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent moved. RFC 7947 Section 2.2.3: &#34;Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.&#34; TestReactorForwardRSTransparent requires body identity with MED 100; TestForwardKeepsMEDForRouteServerClient pins no MED operation/no rebuild; med-not-propagated-across-as.ci separately compares complete actual UPDATEs at an RS client (MED retained unchanged) and ordinary eBGP destination (MED absent). applyFactsMED uses the RS destination exception and otherwise records suppression of a received, unmodified metric. Thus both propagation and unchanged value are asserted, and preserving MED for all destinations would fail the negative. No source capability was widened. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -787,7 +786,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
                 </div>
             </div>
         </footer>

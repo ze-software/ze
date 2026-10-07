@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>1 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>48.3%</strong><b>14 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>34.5%</strong><b>10 of 29 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -407,12 +407,12 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-4-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L33" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L34" title="internal/component/bgp/reactor/flowspec_origin_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecOriginationOmitsConfiguredNextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L28" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L16" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L500" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L35" title="internal/component/bgp/reactor/flowspec_origin_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecOriginationOmitsConfiguredNextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L28" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L29" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L501" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
 </div></td>
@@ -514,7 +514,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L893" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></td>
@@ -524,7 +524,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -539,7 +539,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L24" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L420" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecIPv4Basic</code></a></td>
@@ -554,7 +554,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L23" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -637,7 +637,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 </div>
 <h3><a href="#rfc5575-4-8"><code>RFC5575-4-8</code></a></h3>
 <p>Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC5575 Section 4: &#39;Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.&#39; Historical identity only; live RFC8955 Section 4 requires zero Length of Next-Hop Network Address on advertisement and ignoring the received Network Address. Independently reread all five tagged functions: TestFlowSpecUpdateIgnoresConfiguredNextHop pins zero length and unchanged NLRI; TestRFC8955NextHopIgnoredForFlowSpec pins generation eligibility, one candidate and the identical nonwithdraw selected rule/action for empty, self and non-address next hops including a legacy self NEXT_HOP; TestFlowSpecOriginationOmitsConfiguredNextHop reads literal complete TCP frames for all four flow/flow-vpn families through config, API batch and both queue drains with absent/IPv4/IPv6 hop controls; TestFlowSpecForwardingOmitsNextHop and TestFlowSpecRouteServerOmitsNextHop pin exact zero-hop MP_REACH, NLRI/RD/action and no withdrawal across destination rewrites and received hops. The route-server fixture uses real RIB authorization and plugin bus, unlike the isolated forward fixture&#39;s deliberate eligibility callback. Producers are buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop/applyNextHopFamily/mpReachNextHopHandler and entryNextHopAddr. These current output and receipt assertions independently resolve the old isolated-encoder gap; stored producer halts establish reachability only. All four audit questions pass collectively and both polarities have distinct controls/challenges. No execution or fingerprint verification was performed in this read-only audit; independent live-peer/VPP acceptance remains pending.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop, internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2 moved. RFC5575 Section 4: &#39;Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.&#39; Historical identity only; live RFC8955 Section 4 requires zero Length of Next-Hop Network Address on advertisement and ignoring the received Network Address. Independently reread all five tagged functions: TestFlowSpecUpdateIgnoresConfiguredNextHop pins zero length and unchanged NLRI; TestRFC8955NextHopIgnoredForFlowSpec pins generation eligibility, one candidate and the identical nonwithdraw selected rule/action for empty, self and non-address next hops including a legacy self NEXT_HOP; TestFlowSpecOriginationOmitsConfiguredNextHop reads literal complete TCP frames for all four flow/flow-vpn families through config, API batch and both queue drains with absent/IPv4/IPv6 hop controls; TestFlowSpecForwardingOmitsNextHop and TestFlowSpecRouteServerOmitsNextHop pin exact zero-hop MP_REACH, NLRI/RD/action and no withdrawal across destination rewrites and received hops. The route-server fixture uses real RIB authorization and plugin bus, unlike the isolated forward fixture&#39;s deliberate eligibility callback. Producers are buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop/applyNextHopFamily/mpReachNextHopHandler and entryNextHopAddr. These current output and receipt assertions independently resolve the old isolated-encoder gap; stored producer halts establish reachability only. All four audit questions pass collectively and both polarities have distinct controls/challenges. No execution or fingerprint verification was performed in this read-only audit; independent live-peer/VPP acceptance remains pending.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -663,7 +663,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L28" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L29" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -688,7 +688,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L28" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1050,7 +1050,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
                 </div>
             </div>
         </footer>

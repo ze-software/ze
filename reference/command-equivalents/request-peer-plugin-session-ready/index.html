@@ -54,7 +54,7 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>request peer plugin session ready</code></dd></div>
-<div><dt>Usage</dt><dd><code>request peer &lt;selector&gt; plugin session ready</code></dd></div>
+<div><dt>Usage</dt><dd><code>request peer &lt;selector&gt; plugin session &lt;session&gt; ready</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-plugin:session-peer-ready</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
@@ -65,12 +65,15 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>The daemon closes this process&#39;s share of the peer&#39;s End-of-RIB barrier, so the<br>peer stops waiting for routes from this process. The signal is keyed on the<br>sending process, so one process does not release another. A peer of &#39;*&#39;, and an<br>empty peer, are both ignored.</p>
+<h3>Description</h3><p>The daemon closes this sending process&#39;s share of the peer&#39;s<br>live-forward replay fence only for the captured peer-UP session token.<br>Missing, stale or retired process receipts fail without releasing queued work.<br>An explicit operator request is a no-op; it cannot credit a named process.<br>A peer of &#39;*&#39;, and an empty peer, signal nothing.</p>
 <h3>Arguments</h3>
 <table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>selector</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Peer selector</td><td>The value is an IP address, a peer name, an AS pattern such as as65001, a
 glob, or * for every peer. &#39;pause&#39; and &#39;resume&#39; refuse a selector that matches more than
 one peer, and the other commands act on each peer it matches.</td></tr>
+<tr><td><code>session</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Captured peer-UP initial-replay token.</td><td>The opaque nonzero uint64 initial-replay token captured from
+the peer-UP event whose replay this process finished. Never fetch a new token
+to finish old replay work.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -134,7 +137,7 @@ one peer, and the other commands act on each peer it matches.</td></tr>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
                 </div>
             </div>
         </footer>

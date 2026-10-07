@@ -93,7 +93,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#known-vendor-limitations">Known Vendor Limitations</a></li>
 <li><a href="#related-documents">Related Documents</a></li>
 </ol></nav>
-<p>For BGP terminology used in this document, see <a href="../../../reference/feature-status/">docs/features.md</a>.</p>
+<p>For BGP terminology used in this document, see <a href="../../../features/bgp-protocol/">BGP protocol</a>.</p>
 <p><code>ai/rules/interop-and-goal-validation.md</code> states when an interop test is owed.
 This page is the infrastructure it is owed against.</p>
 <h2 id="the-suites-one-per-protocol-area">The suites, one per protocol area</h2>
@@ -148,6 +148,19 @@ owning checker registry. A scenario with no checker, or a nil checker, is an
 ERROR rather than a skipped test, so a fixture and its registry cannot silently
 disagree. Nothing depends on the order: each scenario gets its own setup, check
 and teardown.</p>
+<p>A reader outside a suite asks for its scenarios through the suite's catalog.
+Each lab registers one in its <code>register.go</code> (<code>interoplab.RegisterCatalog</code>,
+<code>internal/le/interoplab/catalog.go</code>), built on the same <code>Discover</code> call and
+checker map its runner uses, so a name cited elsewhere is a name the runner
+runs. <code>./le feature check</code> resolves a feature's Interop entry
+<code>&lt;suite&gt;/&lt;scenario&gt;</code> this way, and names the registered suites when it refuses
+one it does not know. The catalog also declares <code>RunScenario</code>, which runs ONE
+scenario through the lab's own <code>RunAt</code> with the name as its selector, winning
+over the lab's selector variable. <code>./le feature record-run</code> records an interop
+green run through it, against the scenario directory's git tree id, so a
+feature's Supported claim needs a current green run of each scenario it counts
+(<code>docs/contributing/feature-maturity.md</code>, "Recorded runs").</p>
+<!-- source: internal/le/interoplab/catalog.go -- RegisterCatalog, CatalogNamed, Catalog.RunScenario -->
 <p>A scenario directory carries only declarative inputs its runner reads: <code>ze.conf</code>
 plus the peer configuration and argument files that topology needs. Assertions
 never live there. They are typed Go checkers under <code>internal/le/interoplab/</code>:
@@ -1332,7 +1345,13 @@ NOTIFICATION, reconnect F-bit or received-stale-policy behavior.</p>
 and adds AIGP on the general forwarding path. The received metric is 100;
 source-link cost 7 and destination-link cost 43 must produce 107 and Ze's
 next hop at FRR. GoBGP is the unchanged-next-hop control and must retain 100.
-A third-party next hop initially has no distance: the rewritten route must
+The fixture's ASes are in one administrative domain. FRR 10.3.1 requires both
+<code>neighbor ... aigp</code> and <code>neighbor ... oad</code> to retain received AIGP on eBGP;
+<code>aigp</code> alone leaves the route installed but discards its AIGP attribute.
+<code>oad</code> keeps the session eBGP, including its AS-path and next-hop assertions.
+See the pinned <a href="https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_attr.c#L3421-L3427" target="_blank" rel="noopener">FRR receive gate</a>.</p>
+<!-- source: test/interop/scenarios/bgp-nexthop-self-local-auto-frr/frr.conf -- AIGP-enabled OAD neighbor -->
+<p>A third-party next hop initially has no distance: the rewritten route must
 be absent while the unchanged control holds it. An SDK route installation
 with metric 11 restores 111, then metric 7 produces 107; replacing that
 distance with zero withdraws the whole rewritten route, and restoring 7
@@ -1878,7 +1897,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
                 </div>
             </div>
         </footer>

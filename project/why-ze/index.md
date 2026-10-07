@@ -249,7 +249,7 @@ third-party integrations, gRPC would scale better.
 
 ## Further reading
 
-- [Feature list](../../reference/feature-status/index.md) for the complete feature inventory.
+- [Feature list](https://ze-software.net/reference/feature-status/) for the complete feature inventory.
 - [Comparison](https://github.com/ze-software/ze/blob/main/docs/comparison.md) for a feature-by-feature comparison with other BGP daemons.
 - [Design document](https://github.com/ze-software/ze/blob/main/docs/DESIGN.md) for architecture and principles.
 - [Quick start](../../guides/quickstart/index.md) to try Ze yourself.

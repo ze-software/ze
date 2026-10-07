@@ -224,7 +224,7 @@ netdata {
 
 ### OS Metrics (Netdata-compatible)
 
-Ze exports 138 OS metrics matching Netdata's Prometheus format exactly (same names, labels, values), acting as a drop-in replacement for Netdata's `/api/v1/allmetrics?format=prometheus` endpoint. Existing Grafana dashboards built against Netdata continue to work unchanged.
+Ze exports OS metrics from `/proc` and `/sys` named and labeled after Netdata's Prometheus exporter (its `/api/v1/allmetrics?format=prometheus` endpoint), so dashboards built on Netdata's metric names can read them. No test compares the names, the values or the metric count against a running Netdata.
 
 Metric name format: `{prefix}_{context}_{units}_average{chart="...",dimension="...",family="..."}`, where `{prefix}` is `telemetry.prometheus.netdata.prefix`.
 

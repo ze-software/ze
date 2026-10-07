@@ -15,8 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 18.2% | 6 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-| Audit verdicts | 13 | of 13 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Proven by a recorded break | 9.1% | 3 of 33 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -47,7 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -164,10 +163,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L171) | unit/verify | revert, verified |
+| negative | [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L171) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L268) | unit/verify | unproven |
-| positive | [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L170) | unit/verify | revert, verified |
-| positive | [`TestRFC9687Event29ReleasesTheLivePeersRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_rib_release_test.go#L47) | unit/verify | revert, verified |
+| positive | [`TestRFC9687Event29ReleasesHoldTimerAndConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L170) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9687Event29ReleasesTheLivePeersRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_rib_release_test.go#L47) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L173) | unit/verify | unproven |
 
 ### [`RFC9687-4.3-4`](#rfc9687-4.3-4)
@@ -218,7 +217,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Each time the local system sends a BGP message, it restarts the | SendHoldTimer (§4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9687 Section 4.3: "Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped." Row 4.3-9 separately owns the zero-time exception. All four current carriers read: TestRFC9687SendRestartsTheSendHoldTimer, TestRFC9687EveryWriterRestartsTheSendHoldTimer, TestRFC9687RemainingWritersRestartSendHold and TestRFC9687SilenceDoesNotRestartTheSendHoldTimer. Together the positive cases cover SendRawMessage, writeMessage, SendUpdate, sendWithdraw, sendRawUpdateBody, SendAnnounce, SendUpdateHeld, both fwdBatchHandler encodings and flushFwdDirty. The new writer matrix pins the exact advanced deadline as well as an armed timer and Established beyond the old deadline, distinguishing restart from stop. The no-send negative requires Run exit and Idle for the same clock advance. resetSendHoldTimer stores Now+duration only when armed; fwdBatchHandler resets after successful flush. The prior named writer holes are covered without changing production timers. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold moved. RFC 9687 Section 4.3: "Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped." Row 4.3-9 separately owns the zero-time exception. All four current carriers read: TestRFC9687SendRestartsTheSendHoldTimer, TestRFC9687EveryWriterRestartsTheSendHoldTimer, TestRFC9687RemainingWritersRestartSendHold and TestRFC9687SilenceDoesNotRestartTheSendHoldTimer. Together the positive cases cover SendRawMessage, writeMessage, SendUpdate, sendWithdraw, sendRawUpdateBody, SendAnnounce, SendUpdateHeld, both fwdBatchHandler encodings and flushFwdDirty. The new writer matrix pins the exact advanced deadline as well as an armed timer and Established beyond the old deadline, distinguishing restart from stop. The no-send negative requires Run exit and Idle for the same clock advance. resetSendHoldTimer stores Now+duration only when armed; fwdBatchHandler resets after successful flush. The prior named writer holes are covered without changing production timers. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

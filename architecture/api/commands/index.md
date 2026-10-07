@@ -375,6 +375,30 @@ plugin session bye       # Disconnect
 ```
 <!-- source: internal/core/ipc/yang/ze-plugin-api.yang -- session RPCs -->
 
+Peer-specific replay completion is a different command:
+
+```
+request peer <addr> plugin session ready session <captured-token>
+```
+
+`<captured-token>` is the nonzero decimal `initial-replay` value from the peer-UP
+event that started this replay. Empty replays must report it too. The peer
+atomically validates the current, non-retired Session and credits only the
+sending process. Missing/stale receipts fail without releasing live forwards;
+looking up a fresh token to finish old work is forbidden. Explicit operator
+readiness is a no-op, not authority to release a named process's replay fence.
+Ze's own End-of-RIB does not wait for these reports.
+
+SDK producers send this complete YANG command with `DispatchCommand`, not
+`DispatchCommandArgs`: the latter accepts an exact plugin command registration,
+whereas this builtin is registered by its `ze-plugin:session-peer-ready` wire
+method. Completion means that the producer finished its replay attempts, not
+that every history entry was delivered. A rejected entry cannot strand the
+live-forward fence; independent entries are still attempted, and completion
+always retains the original token.
+<!-- source: internal/component/bgp/plugins/cmd/peer/session.go -- handlePeerSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- SignalAPIReady, creditAPIReady -->
+
 ### BGP Plugin Configuration
 
 ```

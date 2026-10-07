@@ -336,12 +336,12 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L31" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L32" title="internal/component/bgp/reactor/flowspec_origin_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecOriginationOmitsConfiguredNextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L25" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L26" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L14" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_mixed_test.go#L16" title="internal/component/bgp/reactor/flowspec_forward_mixed_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingKeepsLegacyNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L32" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L33" title="internal/component/bgp/reactor/flowspec_origin_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecOriginationOmitsConfiguredNextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L26" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L15" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/encode/flow-encode.ci#L11" title="test/encode/flow-encode.ci" target="_blank" rel="noopener"><code>flow-encode.ci</code></a></span></div>
 </div></td>
@@ -826,7 +826,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L26" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -846,7 +846,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L25" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L26" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1910,7 +1910,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
                 </div>
             </div>
         </footer>

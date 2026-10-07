@@ -4,7 +4,7 @@ Ze validates protocol correctness against production BGP daemons in two compleme
 live session interop tests (Docker containers running real daemons) and byte-level wire format
 validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).
 
-For BGP terminology used in this document, see [docs/features.md](../../../reference/feature-status/index.md).
+For BGP terminology used in this document, see [BGP protocol](../../../features/bgp-protocol/index.md).
 
 `ai/rules/interop-and-goal-validation.md` states when an interop test is owed.
 This page is the infrastructure it is owed against.
@@ -29,6 +29,20 @@ owning checker registry. A scenario with no checker, or a nil checker, is an
 ERROR rather than a skipped test, so a fixture and its registry cannot silently
 disagree. Nothing depends on the order: each scenario gets its own setup, check
 and teardown.
+
+A reader outside a suite asks for its scenarios through the suite's catalog.
+Each lab registers one in its `register.go` (`interoplab.RegisterCatalog`,
+`internal/le/interoplab/catalog.go`), built on the same `Discover` call and
+checker map its runner uses, so a name cited elsewhere is a name the runner
+runs. `./le feature check` resolves a feature's Interop entry
+`<suite>/<scenario>` this way, and names the registered suites when it refuses
+one it does not know. The catalog also declares `RunScenario`, which runs ONE
+scenario through the lab's own `RunAt` with the name as its selector, winning
+over the lab's selector variable. `./le feature record-run` records an interop
+green run through it, against the scenario directory's git tree id, so a
+feature's Supported claim needs a current green run of each scenario it counts
+(`docs/contributing/feature-maturity.md`, "Recorded runs").
+<!-- source: internal/le/interoplab/catalog.go -- RegisterCatalog, CatalogNamed, Catalog.RunScenario -->
 
 A scenario directory carries only declarative inputs its runner reads: `ze.conf`
 plus the peer configuration and argument files that topology needs. Assertions
@@ -1174,6 +1188,12 @@ NOTIFICATION, reconnect F-bit or received-stale-policy behavior.
 and adds AIGP on the general forwarding path. The received metric is 100;
 source-link cost 7 and destination-link cost 43 must produce 107 and Ze's
 next hop at FRR. GoBGP is the unchanged-next-hop control and must retain 100.
+The fixture's ASes are in one administrative domain. FRR 10.3.1 requires both
+`neighbor ... aigp` and `neighbor ... oad` to retain received AIGP on eBGP;
+`aigp` alone leaves the route installed but discards its AIGP attribute.
+`oad` keeps the session eBGP, including its AS-path and next-hop assertions.
+See the pinned [FRR receive gate](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_attr.c#L3421-L3427).
+<!-- source: test/interop/scenarios/bgp-nexthop-self-local-auto-frr/frr.conf -- AIGP-enabled OAD neighbor -->
 A third-party next hop initially has no distance: the rewritten route must
 be absent while the unchanged control holds it. An SDK route installation
 with metric 11 restores 111, then metric 7 produces 107; replacing that

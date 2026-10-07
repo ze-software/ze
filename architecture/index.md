@@ -140,4 +140,4 @@ Selected routes move through a shared route-decision pipeline:
 | Config syntax | [config-reference.md](https://github.com/ze-software/ze/blob/main/docs/config-reference.md) |
 | BGP FSM | [bgp-fsm.md](https://github.com/ze-software/ze/blob/main/docs/bgp-fsm.md) |
 | Plugin architecture | [plugin-overview.md](https://github.com/ze-software/ze/blob/main/docs/plugin-overview.md) |
-| Feature inventory | [features.md](https://ze-software.net/reference/feature-status/) |
+| Feature inventory | [feature status](https://ze-software.net/reference/feature-status/) |

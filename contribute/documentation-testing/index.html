@@ -563,8 +563,10 @@ that stopped early must not read as a file that broke no rule.</p>
 plugins register themselves, then queries <code>registry.All()</code> and
 <code>registry.FamilyMap()</code>. It walks the <code>.ci</code> files and reads the native functional
 suite catalog from <code>internal/le/test/functional</code>. It compares those facts with
-claims in <code>docs/DESIGN.md</code>, <code>docs/comparison.md</code>, <code>README.md</code>,
-<code>docs/features.md</code>, and <code>docs/functional-tests.md</code>.</p>
+claims in <code>docs/DESIGN.md</code>, <code>docs/comparison.md</code>, <code>README.md</code>, and
+<code>docs/functional-tests.md</code>. <code>docs/features.md</code> is not among them: that page is
+rendered from <code>features/*.md</code>, so its status cells hold only the vocabulary's
+labels (<code>docs/contributing/feature-maturity.md</code>).</p>
 <p><code>internal/le/doc/yangcontract.Answer</code> imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree
 looking for <code>ze:command</code> extensions. For each extension it checks
@@ -704,7 +706,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 22:02 UTC</span>
+                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
                 </div>
             </div>
         </footer>

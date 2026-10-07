@@ -381,7 +381,7 @@ startup counters then use the same registry that the exporter serves.</p>
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics, metricsUpdateLoop -->
 <!-- source: internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang -->
 <h3 id="os-metrics-netdata-compatible">OS Metrics (Netdata-compatible)</h3>
-<p>Ze exports 138 OS metrics matching Netdata's Prometheus format exactly (same names, labels, values), acting as a drop-in replacement for Netdata's <code>/api/v1/allmetrics?format=prometheus</code> endpoint. Existing Grafana dashboards built against Netdata continue to work unchanged.</p>
+<p>Ze exports OS metrics from <code>/proc</code> and <code>/sys</code> named and labeled after Netdata's Prometheus exporter (its <code>/api/v1/allmetrics?format=prometheus</code> endpoint), so dashboards built on Netdata's metric names can read them. No test compares the names, the values or the metric count against a running Netdata.</p>
 <p>Metric name format: <code>{prefix}_{context}_{units}_average{chart="...",dimension="...",family="..."}</code>, where <code>{prefix}</code> is <code>telemetry.prometheus.netdata.prefix</code>.</p>
 <table>
 <thead>
@@ -1120,7 +1120,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
                 </div>
             </div>
         </footer>

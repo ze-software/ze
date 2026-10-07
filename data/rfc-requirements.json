@@ -1081,14 +1081,14 @@
           "gated": false,
           "positive-test": "`internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go` `TestPathsLimitSessionAcrossUpdates` (unit/verify), `internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go` `TestPathsLimitForwardWritersShareState` (unit/verify), `test/plugin/paths-limit-live.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go` `TestPathsLimitSessionAcrossUpdates` (unit/verify), `internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go` `TestPathsLimitForwardWritersShareState` (unit/verify), `test/plugin/paths-limit-live.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState",
               "file": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go",
-              "line": 182,
+              "line": 191,
               "carrier": "unit/verify",
               "claim": "-- re-encoded forwarding cannot exceed a prefix's limit after raw forwarding has consumed its slot.",
               "tags": 1,
@@ -1105,15 +1105,15 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates",
               "file": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go",
-              "line": 139,
+              "line": 142,
               "carrier": "unit/verify",
               "claim": "-- excess paths for the same prefix never reach the wire, including a later all-withheld batch and a retry after an unknown withdrawal.",
               "tags": 1,
               "proof": {
-                "route": "mutant",
+                "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
-                "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"false\"",
+                "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -1139,7 +1139,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState",
               "file": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go",
-              "line": 181,
+              "line": 190,
               "carrier": "unit/verify",
               "claim": "-- raw forwarding admits the first path and re-encoded forwarding admits a different prefix under the same session limit.",
               "tags": 1,
@@ -1156,15 +1156,15 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates",
               "file": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go",
-              "line": 138,
+              "line": 141,
               "carrier": "unit/verify",
               "claim": "-- paths within the peer's limit reach the wire; replacements and reuse after withdrawal remain allowed across UPDATEs.",
               "tags": 1,
               "proof": {
-                "route": "mutant",
+                "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
-                "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"true\"",
+                "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -1191,7 +1191,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "The unit tests assert the exact identifier sequence that reached the wire, for ipv4/unicast and ipv6/unicast: announced [0 1 1 4] and withdrawn [99 0] across eight sends, which pins the withheld path, the replacement at capacity, the unknown withdrawal that frees nothing, and the reuse after a real withdrawal. TestPathsLimitForwardWritersShareState proves raw forwarding and re-encoded forwarding draw on one per-session budget, forwarding [5 7] and never 6. test/plugin/paths-limit-live.ci carries the same requirement at the daemon: it starts ze and a peer that advertises ipv4 1 and ipv6 2, drives the real `ze send bgp * update text` CLI over SSH, and asserts by hex, in sequence groups, that an excess identifier never reaches the wire before the next different-prefix sentinel and appears only after a withdrawal and an explicit retry. Six records: the four unit tags over the admission guard in pathsLimitSection, and the two .ci tags by revert of that same function, each citing the expect directive its red was tied to. The enforcing code is Session.pathsLimitSection, reached from writeRawUpdateBody through filterPathsLimit, which is why the route-server fast path is covered by the same state. 2026-09-25 re-audit: commit 1fb33e8098 renamed the carrier's exec heads (ze-peer to le test peer, ze-test fixture to le test fixture) and changed no assertion, so the judgement above still describes what it judged. Re-judged 2026-09-27 by QF-2 after the row was replaced by the verbatim §3 sentence; the obligation is the one the note above judged, and the tagged units are unchanged. Enforced stands.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates",
+              "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2"
+            ]
           }
         },
         {
@@ -37395,7 +37399,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSessionSendAnnounceAcceptsLinkLocalSecondAddress` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceAppendsLinkLocalWhenSection3Holds` (unit/verify), `test/exabgp-compat/encoding/conf-llnh-update.ci` (functional/verify), `test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSendAnnounceRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress` (unit/verify), `internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go` `TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink` (unit/verify), `test/encode/new-v6.ci` (functional/verify)",
-          "note": "**audit: weak**",
+          "note": "**audit: weak, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -37492,7 +37496,10 @@
             "verdict": "weak",
             "meaning": "the tests pass over code that does not enforce the requirement",
             "note": "RFC2545 Section 3: \"A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop.\" Read all nine current carriers. Announce/default-originate positives and conf-llnh-update.ci require global-then-link-local exact wire; new-v6.ci requires global alone; adj-rib-in-replay-rfc2545-next-hop.ci requires pair preservation on both live and explicit replay arrivals. Session guards require ErrNextHopUnencodable and empty socket for IPv4/unset first address and a global second address. The third-party static negative requires global-only and rejects the speaker-owned link-local after another router global. These are not whole-clause enforcement: TestSendAnnounceRefusesUnusableIPv6NextHop tests netip.Addr{}, not actual IPv6 ::, and no tagged carrier tests multicast first addresses. Producer internal/component/bgp/reactor/reactor_wire.go::nextHopGlobalOctets, lines 116-123, admits actual :: and ff02::1: both pass Is6/not-Is4In6 and internal/core/bgp/attribute/nexthop_form.go::ValidateGlobalNextHop rejects only link-local unicast. Read Peer.SendAnnounce -\u003e Session.SendAnnounce -\u003e validateAnnounceNextHop/writeAnnounceUpdate -\u003e bufWriter.Write/flush; the peer-own gate does not reject those values for an ordinary peer. [INFERENCE] They can therefore be emitted as the first IPv6 next-hop address, although neither is a global unicast next-hop router. Section 2 equates site-local and global within unicast scope, not unspecified or multicast. This is an existing implemented producer defect with missing invalid-input isolation, not an absent-feature request. Downgrade enforced to weak; no gap/partial annotation exists and no speculative source fix is proposed. Independent source rejudgment 2026-10-06, full RFC and all current carriers read. Scoped git diff HEAD is empty for both moved positive carriers and reactor_wire.go, forward_next_hop.go and nexthop_form.go: these are preexisting stale judgment debt/defects relative to HEAD, not introduced by the current mechanical edit. No test, mutation, build, lint, formatter, canonical stamp or live named-peer run was executed. FRR execution remains pending; classify panic records prove reachability only.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds"
+            ]
           }
         },
         {
@@ -37503,7 +37510,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSessionSendAnnounceAcceptsLinkLocalSecondAddress` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRFC2545NextHops` (interop/nightly), `test/exabgp-compat/encoding/conf-llnh-update.ci` (functional/verify), `test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress` (unit/verify), `test/encode/new-v6.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -37583,7 +37590,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC2545 Section 3: \"The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field.\" Read all eight current covers. new-v6.ci requires complete frames with 800E26 0002 01 10 and one address; conf-llnh-update.ci requires 800E36 0002 01 20 and both addresses. Announce, direct-session and default-originate positives independently construct expected length-32 MP_REACH bytes at a socket. The replay fixture checks length 32 on both live and explicit stored replay, with observer ordering/causality. writeAnnounceUpdate derives 16/32 from the second address, UpdateBuilder.buildMPReach preserves order, MPReachNLRI.WriteTo uses the summed length and relay writeMPReach emits len(nextHop). Exact assertions distinguish both length branches. Non-link-local-second rejection is primarily 3-1 evidence rather than an isolated length violation; the separate global-only fixture supplies the length contrast. Registered checkRFC2545NextHops additionally checks exact FRR two-entry global/link-local versus sole-global sets and surviving session, but is not claimed executed. Retain enforced for length clauses only, not all RFC2545 behavior. Independent source rejudgment 2026-10-06, full RFC and all current carriers read. Scoped git diff HEAD is empty for both moved positive carriers and reactor_wire.go, forward_next_hop.go and nexthop_form.go: these are preexisting stale judgment debt/defects relative to HEAD, not introduced by the current mechanical edit. No test, mutation, build, lint, formatter, canonical stamp or live named-peer run was executed. FRR execution remains pending; classify panic records prove reachability only.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds"
+            ]
           }
         },
         {
@@ -37594,7 +37604,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRFC2545NextHops` (interop/nightly), `test/exabgp-compat/encoding/conf-llnh-update.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceOmitsLinkLocalWhenPeerOffLink` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRFC2545NextHops` (interop/nightly), `test/exabgp-compat/encoding/conf-llnh-lla-only.ci` (functional/verify)",
-          "note": "**audit: weak**",
+          "note": "**audit: weak, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -37674,7 +37684,11 @@
             "verdict": "weak",
             "meaning": "the tests pass over code that does not enforce the requirement",
             "note": "RFC2545 Section 3: \"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Also: \"In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16).\" Read all eight current covers: announce/default-originate pairs, both compatibility .ci files and both FRR checker tags. Socket pairs require length 32 for configured speaker-owned global and length 16 plus absence of pair for off-link destination. Functional/FRR next-hop-off-link negatives also change ownership from speaker-owned to third-party; link_scope.go::linkLocalNextHop returns for third-party before SharesSubnet, so those negatives cannot independently discriminate the global-subnet check. Compatibility configs change local-address too (fd00::2 versus ::1). Existing producer defect: internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf, lines 387-405, returns immediately when destOnLink is true without examining the received global entity. Both forwardUpdateSection and reactorForwardRSSection consume this function; next-hop unchanged/auto preserves the received pair. [INFERENCE] A received global-plus-link-local pair whose global entity shares no connected subnet with the speaker is retained toward an on-link external destination. No tagged 3-3 carrier exercises that exclusion. The historical 3-6 split acknowledges third-party inclusion debt but does not remove the whole iff sentence from this unannotated row. The RFC permission for internal advertisement to remove link-local does not excuse external retention when the global condition fails. Downgrade enforced to weak; no partial/gap annotation stands, and no absent feature expansion or speculative fix is proposed. Independent source rejudgment 2026-10-06, full RFC and all current carriers read. Scoped git diff HEAD is empty for both moved positive carriers and reactor_wire.go, forward_next_hop.go and nexthop_form.go: these are preexisting stale judgment debt/defects relative to HEAD, not introduced by the current mechanical edit. No test, mutation, build, lint, formatter, canonical stamp or live named-peer run was executed. FRR execution remains pending; classify panic records prove reachability only.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink"
+            ]
           }
         },
         {
@@ -37706,7 +37720,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceOmitsLinkLocalWhenPeerOffLink` (unit/verify), `test/encode/new-v6.ci` (functional/verify)",
           "negative-test": "`test/exabgp-compat/encoding/conf-llnh-update.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -37750,7 +37764,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "(a) forbidden: a second address or a length other than 16 when the inclusion condition does not hold. (b) TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the global-only form with length 0x10 and NotContains the 32-octet form; new-v6.ci pins 01 10 plus one address byte for byte; conf-llnh-update.ci is the negative, asserting the field is not reduced to 16 while the condition holds.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink"
+            ]
           }
         },
         {
@@ -50945,7 +50962,7 @@
         "audited": 7,
         "discrimination-records": 11,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 3
       },
       "requirements": [
         {
@@ -51219,14 +51236,14 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/rib/rfc2918_config_static_test.go` `TestRFC2918ConfigStaticRetainedForRefresh` (unit/verify), `internal/component/bgp/plugins/rib/rib_test.go` `TestHandleRefresh_InternalState` (unit/verify), `internal/component/bgp/reactor/rfc2918_replay_feedback_test.go` `TestRefreshSentFeedbackRetainsReplayOrigin` (unit/verify), `internal/component/bgp/reactor/rfc2918_replay_feedback_test.go` `TestRFC2918RefreshRunsCurrentExportPolicy` (unit/verify), `test/plugin/refresh-config-static.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/plugins/rib/rfc2918_config_static_test.go` `TestRFC2918RefreshDoesNotSendToDownPeer` (unit/verify), `internal/component/bgp/plugins/rib/rib_test.go` `TestHandleRefresh_PeerNotUp` (unit/verify), `internal/component/bgp/reactor/rfc2918_replay_feedback_test.go` `TestRFC2918RefreshRunsCurrentExportPolicy` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer",
               "file": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go",
-              "line": 82,
+              "line": 83,
               "carrier": "unit/verify",
               "claim": "-- a refresh from a peer with no established session emits neither routes nor markers, even when Adj-RIB-Out contains a route.",
               "tags": 1,
@@ -51276,8 +51293,8 @@
               "proof": {
                 "route": "revert",
                 "state": "verified",
-                "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
-                "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "producer": "internal/component/bgp/plugins/rib/rib_replay.go::collectGroupedRibOutRoutesForFamily",
+                "break": "body of collectGroupedRibOutRoutesForFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -51292,10 +51309,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
                 "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -51326,10 +51344,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::sendUpdateCounted",
                 "break": "body of sendUpdateCounted replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -51343,10 +51362,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
                 "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -51355,7 +51375,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Read all of RFC 2918 Section 4, including the advertised-family precondition: 'Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the \u003cAFI, SAFI\u003e carried in the message, based on its outbound route filtering policy.' Read all seven tagged carriers, including both policy polarities. rib_test.go::TestHandleRefresh_InternalState seeds two IPv4 routes plus an IPv6 control, requests IPv4, parses every emitted command with the production update parser, and asserts exactly the two requested routes plus replay metadata. It also checks both markers and retained families; its separate marker capture does not itself prove ordering. rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh ingests a real sent UPDATE through handleSentStructured, invokes handleRefreshStructured, parses its replay, and checks the exact prefix and packed attributes. It also distinguishes refresh ownership feedback from an ordinary replacement. The same file's TestRFC2918RefreshDoesNotSendToDownPeer observes both output hooks and forbids routes and markers. The older rib_test.go::TestHandleRefresh_PeerNotUp remains weak by itself: it asserts only peerUp remains false and cannot detect a send. Its weakness is not used as negative evidence. reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy supplies an established peer and negotiated IPv4 family, sends the same Replay batch with policy accept then reject, and asserts one policy call plus new wire bytes for acceptance, then a second policy call and byte-identical wire for rejection. These are two distinct assertions, not one wearing both polarities; current export rejection is the meaningful negative of the policy clause. TestRefreshSentFeedbackRetainsReplayOrigin checks [true,false] sent-event metadata for immediate and queued refresh, followed by an ordinary announcement; it observes feedback rather than decoding socket bytes. test/plugin/refresh-config-static.ci supplies the independent full-stack proof boundary: exact initial UPDATE, live ROUTE-REFRESH, then exact BoRR, identical configured UPDATE, and EoRR. Producers read: rib.go::handleRefresh and rib_structured.go::handleRefreshStructured select the peer/family inventory through ribout_entry.go::collectRibOutRoutes; sendRoutes applies replay metadata to FormatAnnounceCommand output; handleSentStructured retains configured advertisements and ignores replay ownership feedback; reactor_api_batch.go::AnnounceNLRIBatch and announceBatchToPeers, peer_initial_sync.go::sendInitialRoutes, session_write.go::sendUpdateCounted/writeUpdateGated and egress_inject_filter.go::exportFilterForBody carry replay through current egress policy. Together the tests discriminate omitted replay, wrong-family replay, configured-route omission, ownership loss and bypassed current policy, covering the whole sentence rather than storage-only state. This is a source-based semantic rejudgment, not a claim of new execution. Parent's observed gate reports stale positive records for TestRFC2918ConfigStaticRetainedForRefresh against handleSentStructured, TestHandleRefresh_InternalState against sendRoutes, and refresh-config-static.ci against handleSentStructured; native renewals are owed after the ADD-PATH changes. The down-peer and reactor replay/policy records are not reported stale for this row in that gate, and unrelated reactor records must not be refreshed on this judgment. No tests, mutations, builds, stamping, resealing or checks were run here.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh"
+            ]
           }
         },
         {
@@ -79730,7 +79753,7 @@
         "audited": 93,
         "discrimination-records": 212,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 16
       },
       "requirements": [
         {
@@ -81803,10 +81826,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
                 "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -81977,10 +82001,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
                 "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -82064,10 +82089,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
                 "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -82929,10 +82955,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_connection.go::teardown",
                 "break": "body of teardown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -83279,10 +83306,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
                 "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -83362,10 +83390,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
                 "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -83388,10 +83417,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
                 "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -84178,10 +84208,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_connection.go::CloseWithNotification",
                 "break": "body of CloseWithNotification replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -84692,10 +84723,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
                 "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -84726,10 +84758,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
                 "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -84752,10 +84785,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
                 "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -84935,10 +84969,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
                 "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -86156,10 +86191,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
                 "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -86438,10 +86474,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
                 "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -86560,10 +86597,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::WithdrawNLRIBatch",
                 "break": "body of WithdrawNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -86586,10 +86624,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -104237,7 +104276,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc4724_eor_test.go` `TestBuildEOR_IPv4Unicast` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncEORReachesTheSilentFamilyToo` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestRoutePushingBindingsCountBothRails` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncMarkerWaitsForNoProcess` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkNoFamilyEndOfRIB` (interop/nightly)",
           "negative-test": "`internal/component/bgp/message/rfc4724_eor_test.go` `TestIsEndOfRIBAnyFamily` (unit/verify), `internal/component/bgp/reactor/rfc4724_reactor_b_test.go` `TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -104334,7 +104373,14 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Positives: sendInitialRoutes puts one End-of-RIB per negotiated family on the wire, including a silent family and a no-MP session. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: while a plugin producing the initial update has not acknowledged peer-up, sendInitialRoutes is observed waiting and nothing is on the wire (EORSent 0); after the acknowledgement exactly the IPv4 unicast marker is written. Red on a marker sent ahead of the initial update or not sent after it. TestIsEndOfRIBAnyFamily is a neighbouring detector rule.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails"
+            ]
           }
         },
         {
@@ -105161,7 +105207,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc4724_eor_test.go` `TestBuildEOR_IPv4Unicast` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncEORReachesTheSilentFamilyToo` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc4724_eor_test.go` `TestIsEndOfRIBAnyFamily` (unit/verify), `internal/component/bgp/reactor/rfc4724_reactor_b_test.go` `TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -105213,7 +105259,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Positive TestInitialSyncEORReachesTheSilentFamilyToo proves the marker is sent including for a family with no routes. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: no End-of-RIB before the initial update for IPv4 unicast completes (plugin barrier held, sendInitialRoutes observed waiting, wire empty), then exactly that marker once it does. TestBuildEOR_IPv4Unicast proves encoding only.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo"
+            ]
           }
         },
         {
@@ -105608,7 +105657,7 @@
         "audited": 7,
         "discrimination-records": 14,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -105984,10 +106033,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
                 "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -131567,7 +131617,7 @@
         "audited": 8,
         "discrimination-records": 14,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 4
       },
       "requirements": [
         {
@@ -131596,10 +131646,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -131622,10 +131673,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -131663,10 +131715,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -131698,10 +131751,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -131943,7 +131997,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/flowspec_wire_contract_test.go` `TestFlowSpecUpdateIgnoresConfiguredNextHop` (unit/verify), `internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go` `TestRFC8955NextHopIgnoredForFlowSpec` (unit/verify), `internal/component/bgp/reactor/flowspec_forward_wire_test.go` `TestFlowSpecForwardingOmitsNextHop` (unit/verify), `internal/component/bgp/reactor/flowspec_origin_wire_test.go` `TestFlowSpecOriginationOmitsConfiguredNextHop` (unit/verify), `internal/component/bgp/reactor/flowspec_rs_wire_test.go` `TestFlowSpecRouteServerOmitsNextHop` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/flowspec_wire_contract_test.go` `TestFlowSpecUpdateIgnoresConfiguredNextHop` (unit/verify), `internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go` `TestRFC8955NextHopIgnoredForFlowSpec` (unit/verify), `internal/component/bgp/reactor/flowspec_forward_wire_test.go` `TestFlowSpecForwardingOmitsNextHop` (unit/verify), `internal/component/bgp/reactor/flowspec_origin_wire_test.go` `TestFlowSpecOriginationOmitsConfiguredNextHop` (unit/verify), `internal/component/bgp/reactor/flowspec_rs_wire_test.go` `TestFlowSpecRouteServerOmitsNextHop` (unit/verify)",
-          "note": "{superseded: restated RFC8955-4-3} RFC 8955 §4 splits the sentence into \"Length of the Next-Hop Network Address MUST be set to 0\" (RFC8955-4-3) and \"Network Address of the Next-Hop field MUST be ignored\" (RFC8955-4-4)",
+          "note": "**audit: enforced, shifted** {superseded: restated RFC8955-4-3} RFC 8955 §4 splits the sentence into \"Length of the Next-Hop Network Address MUST be set to 0\" (RFC8955-4-3) and \"Network Address of the Next-Hop field MUST be ignored\" (RFC8955-4-4)",
           "nightly-only": false,
           "superseded": {
             "disposition": "restated",
@@ -132015,7 +132069,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop",
               "file": "internal/component/bgp/reactor/flowspec_rs_wire_test.go",
-              "line": 28,
+              "line": 29,
               "carrier": "unit/verify",
               "claim": "-- received forwarding addresses are ignored even when they name the recipient, rather than causing a loop-gate withdrawal.",
               "tags": 1,
@@ -132092,7 +132146,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop",
               "file": "internal/component/bgp/reactor/flowspec_rs_wire_test.go",
-              "line": 27,
+              "line": 28,
               "carrier": "unit/verify",
               "claim": "-- the running route server advertises the exact native rule and rate action with an empty next hop.",
               "tags": 1,
@@ -132110,7 +132164,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC5575 Section 4: 'Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.' Historical identity only; live RFC8955 Section 4 requires zero Length of Next-Hop Network Address on advertisement and ignoring the received Network Address. Independently reread all five tagged functions: TestFlowSpecUpdateIgnoresConfiguredNextHop pins zero length and unchanged NLRI; TestRFC8955NextHopIgnoredForFlowSpec pins generation eligibility, one candidate and the identical nonwithdraw selected rule/action for empty, self and non-address next hops including a legacy self NEXT_HOP; TestFlowSpecOriginationOmitsConfiguredNextHop reads literal complete TCP frames for all four flow/flow-vpn families through config, API batch and both queue drains with absent/IPv4/IPv6 hop controls; TestFlowSpecForwardingOmitsNextHop and TestFlowSpecRouteServerOmitsNextHop pin exact zero-hop MP_REACH, NLRI/RD/action and no withdrawal across destination rewrites and received hops. The route-server fixture uses real RIB authorization and plugin bus, unlike the isolated forward fixture's deliberate eligibility callback. Producers are buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop/applyNextHopFamily/mpReachNextHopHandler and entryNextHopAddr. These current output and receipt assertions independently resolve the old isolated-encoder gap; stored producer halts establish reachability only. All four audit questions pass collectively and both polarities have distinct controls/challenges. No execution or fingerprint verification was performed in this read-only audit; independent live-peer/VPP acceptance remains pending.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop",
+              "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2"
+            ]
           }
         },
         {
@@ -176218,7 +176276,7 @@
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Partial",
       "public-coverage": "Attribute codec and presentation; receive validation; per-session enablement; configured origination; next-hop-self accumulation; retained-generation re-advertisement; native and forked best-path reselection.",
-      "public-remaining": "Native next-hop-self source-cost propagation is not currently established end to end: its FRR scenario fails before the later recursive metric transitions. Automatic origination policies are not enabled. Origination accepts explicitly configured metrics and remains subject to the domain and next-hop restrictions in Section 3.4.1.",
+      "public-remaining": "Automatic origination policies are not enabled. Origination accepts explicitly configured metrics and remains subject to the domain and next-hop restrictions in Section 3.4.1.",
       "summary-path": "rfc/short/rfc7311.md",
       "shard-path": "rfc/requirements/rfc7311.md",
       "source-path": "rfc/full/rfc7311.txt",
@@ -176243,7 +176301,7 @@
         "tags": 77,
         "units": 77,
         "audited": 12,
-        "discrimination-records": 31,
+        "discrimination-records": 43,
         "escapes": 0,
         "stale-records": 0
       },
@@ -176398,7 +176456,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go` `TestRFC7311OtherAIGPTLVsPassedAlongUnchanged` (unit/verify), `internal/core/bgp/attribute/rfc7311_aigp_test.go` `TestParseAIGPMultipleTLVs` (unit/verify), `internal/core/bgp/attribute/rfc7311_tlv_test.go` `TestRFC7311OtherAIGPTLVsSurviveTheCodec` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go` `TestRFC7311OtherAIGPTLVsPassedAlongUnchanged` (unit/verify), `internal/core/bgp/attribute/rfc7311_aigp_test.go` `TestAIGPWriteToMultipleTLVs` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -176475,7 +176533,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Judge 2026-09-30. Reactor TestRFC7311OtherAIGPTLVsPassedAlongUnchanged drives a received [T1 100][T1 7][T9 abcd] through applyFactsAIGP, buildModifiedPayload and fwdBatchHandler to the socket, transparent and next-hop-self, under a policy replacement that drops the other TLVs (R1(b)); the octets after the first TLV reach the wire unchanged. Codec half TestRFC7311OtherAIGPTLVsSurviveTheCodec. Judge break: OpCopy of received[:11] on both rails turned both subtests red. Supersedes the earlier wrong verdict: the tags now prove the other-TLV passing, not first-TLV use.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged",
+              "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2"
+            ]
           }
         },
         {
@@ -176580,7 +176642,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPConfiguredOriginationRejectsOutsideDomain",
               "file": "internal/component/bgp/reactor/rfc7311_processing_test.go",
-              "line": 242,
+              "line": 240,
               "carrier": "unit/verify",
               "claim": "-- a route whose path leaves that domain reaches the socket without AIGP.",
               "tags": 1
@@ -176589,7 +176651,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPConfiguredOriginationRejectsOutsideDomain",
               "file": "internal/component/bgp/reactor/rfc7311_processing_test.go",
-              "line": 241,
+              "line": 239,
               "carrier": "unit/verify",
               "claim": "-- configured origination keeps AIGP for an explicitly permitted in-domain AS_PATH (the legacy ID maps to Section 3.4.1).",
               "tags": 1
@@ -176604,7 +176666,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPReceiveValidatesEveryTLV` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPReceiveValidatesEveryTLV` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -176630,7 +176692,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Forbidden: acting on, or passing along, a malformed AIGP, or escalating beyond ignoring it. TestAIGPReceiveValidatesEveryTLV (IBGP, AIGP enabled) appends a truncated trailing TLV and asserts require.Equal(!malformed, present) on the payload leaving enforceRFC7606 (the bytes passed along), require.NoError (quietly, no session reset) and the NLRI kept (route not withdrawn). The well-formed half (unknown TLV plus duplicate metric) keeps the metric, so a blanket AIGP strip goes red.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV",
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV#2"
+            ]
           }
         },
         {
@@ -176736,7 +176802,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPSessionReceiveBoundary` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPSessionReceiveBoundary` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -176762,7 +176828,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Forbidden: an EBGP (non-confederation) session defaulting AIGP_SESSION to enabled. TestAIGPSessionReceiveBoundary case external-default (peer AS 65002, local 65001, AIGPSession nil) asserts require.Equal(false, present) for AIGP after enforceRFC7606, which goes red on an enabled default; external-enabled shows the item is honoured when set; internal-default keeps AIGP, so the check is not a blanket strip.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary",
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary#2"
+            ]
           }
         },
         {
@@ -176954,7 +177024,15 @@
               "line": 165,
               "carrier": "unit/verify",
               "claim": "-- next-hop-self does accumulate distance.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -176963,7 +177041,15 @@
               "line": 164,
               "carrier": "unit/verify",
               "claim": "-- an unchanged next hop preserves the complete received attribute despite a policy replacement.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -176975,14 +177061,14 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7311_direct_link_test.go` `TestRFC7311DirectLinkCostNeverWrapsOrDisappears` (unit/verify), `internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPForwardedMetricsReachFinalWire` (unit/verify), `internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go` `TestRFC7311RecursiveAIGPChangeReachesWire` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7311_direct_link_test.go` `TestRFC7311DirectLinkCostNeverWrapsOrDisappears` (unit/verify), `internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPForwardedMetricsReachFinalWire` (unit/verify), `internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go` `TestRFC7311RecursiveAIGPChangeReachesWire` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
               "file": "internal/component/bgp/reactor/rfc7311_direct_link_test.go",
-              "line": 21,
+              "line": 22,
               "carrier": "unit/verify",
               "claim": "-- adding a direct-link cost within range emits its exact sum.",
               "tags": 1,
@@ -177002,7 +177088,15 @@
               "line": 167,
               "carrier": "unit/verify",
               "claim": "-- an ordinary sum is not clamped prematurely.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "negative",
@@ -177025,7 +177119,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
               "file": "internal/component/bgp/reactor/rfc7311_direct_link_test.go",
-              "line": 20,
+              "line": 21,
               "carrier": "unit/verify",
               "claim": "-- adding a direct-link cost above the available metric range saturates at the uint64 maximum.",
               "tags": 1,
@@ -177045,7 +177139,15 @@
               "line": 166,
               "carrier": "unit/verify",
               "claim": "-- overflowing addition saturates at the unsigned maximum.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -177069,7 +177171,13 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC7311 Section 3.4.3: \"In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff. Increasing the AIGP value MUST NOT cause the value to wrap around.\" All six tagged covers (three units) read. TestAIGPForwardedMetricsReachFinalWire requires exact final wire 100+30=130 and (max-5)+30=max. TestRFC7311DirectLinkCostNeverWrapsOrDisappears requires 100+7=107 and (max-5)+7=max. TestRFC7311RecursiveAIGPChangeReachesWire uses actual recursive Loc-RIB changes: initial 100+200+7=307; recursive max-5 overflows terminal addition; max-50 remains finite after terminal 7 but overflows source 100 addition; intervening and final recursive 400 yield exact 507. Finite and overflow controls isolate arithmetic, not malformed-attribute errors. Producers igpcost.Add/Resolve saturate recursive and terminal accumulation; applyFactsAIGP/replayAIGP saturate source addition. Consumer assertions inspect final UPDATE AIGP and distinguish finite recovery from reusing previously sent maximum. No new in-scope defect found. Independent supplemental source rejudgment 2026-10-06. Full RFC and every current tagged unit read. Scoped git diff HEAD for processing, direct-link and cost-boundaries carrier files is empty: their stale units are preexisting judgment debt relative to HEAD, not current mechanical edits. All prior enforced verdicts retained; no upgrade_reason is needed. No tests, semantic mutants or named peers executed; live named-peer proof remains pending and producer-halt records are not semantic evidence.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+              "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2",
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2"
+            ]
           }
         },
         {
@@ -177090,7 +177198,15 @@
               "line": 169,
               "carrier": "unit/verify",
               "claim": "-- zero/ordinary metrics retain their arithmetic value.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -177099,7 +177215,15 @@
               "line": 168,
               "carrier": "unit/verify",
               "claim": "-- a near-maximum metric never wraps to a preferred low metric.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -177111,7 +177235,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPForwardedMetricsReachFinalWire` (unit/verify), `internal/component/sysrib/rfc7311_metric_test.go` `TestAIGPRecursiveDistanceUsesReceivedMetrics` (unit/verify), `internal/component/sysrib/rfc7311_metric_test.go` `TestAIGPRecursiveStaticDistance` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPForwardedMetricsReachFinalWire` (unit/verify), `internal/component/sysrib/rfc7311_metric_test.go` `TestAIGPRecursiveDistanceUsesReceivedMetrics` (unit/verify), `internal/component/sysrib/rfc7311_metric_test.go` `TestAIGPRecursiveStaticDistance` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -177121,7 +177245,15 @@
               "line": 171,
               "carrier": "unit/verify",
               "claim": "-- transparent forwarding never adds that distance.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "negative",
@@ -177148,7 +177280,15 @@
               "line": 170,
               "carrier": "unit/verify",
               "claim": "-- next-hop-self adds the resolved interior distance.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -177173,7 +177313,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC7311 Section 3.4.3: \"Suppose R1 changes the next hop of the route from R2 to R1. If R1's route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2. This distance is either the IGP-computed distance from R1 to R2 or some value determined by policy. However, A MUST be increased by a non-zero amount.\" All six covers (three units) read. TestAIGPForwardedMetricsReachFinalWire requires final wire 130 from received 100 and distance 30 after next-hop-self; unchanged next hop retains 100 despite policy replacement, with direction/NLRI and source-immutability assertions. TestAIGPRecursiveDistanceUsesReceivedMetrics distinguishes received 100+200 from MED-like 9000/8000 and adds terminal interior 30 exactly once, yielding 330 and then 530. TestAIGPRecursiveStaticDistance ignores recursive static preference 9000, resolves terminal 30, rejects an unresolved chain and requires nonrecursive static distance 25. sysrib.IGPMetric delegates to igpcost.Resolve; its non-BGP nonrecursive branch returns terminal Metric; applyFactsAIGP consumes that distance. Resolver and wire adder are complementary separate tests, not a live IGP topology. No new in-scope defect found. Independent supplemental source rejudgment 2026-10-06. Full RFC and every current tagged unit read. Scoped git diff HEAD for processing, direct-link and cost-boundaries carrier files is empty: their stale units are preexisting judgment debt relative to HEAD, not current mechanical edits. All prior enforced verdicts retained; no upgrade_reason is needed. No tests, semantic mutants or named peers executed; live named-peer proof remains pending and producer-halt records are not semantic evidence.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2"
+            ]
           }
         },
         {
@@ -177194,7 +177338,15 @@
               "line": 173,
               "carrier": "unit/verify",
               "claim": "-- zero with no configured link cost withdraws the route instead of announcing an unqualified next hop.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -177203,7 +177355,15 @@
               "line": 172,
               "carrier": "unit/verify",
               "claim": "-- a non-zero increment is required for next-hop-self.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -177215,14 +177375,14 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7311_direct_link_test.go` `TestRFC7311DirectLinkCostNeverWrapsOrDisappears` (unit/verify), `internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPForwardedMetricsReachFinalWire` (unit/verify), `internal/component/bgp/reactor/rfc7311_source_cost_test.go` `TestRFC7311SourceLinkCostReachesRecipient` (unit/verify), `internal/component/bgp/reactor/rfc7311_source_cost_test.go` `TestRFC7311UnknownCostWithdrawsUntilMetricRecovers` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7311_direct_link_test.go` `TestRFC7311DirectLinkCostNeverWrapsOrDisappears` (unit/verify), `internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPForwardedMetricsReachFinalWire` (unit/verify), `internal/component/bgp/reactor/rfc7311_source_cost_test.go` `TestRFC7311SourceLinkCostReachesRecipient` (unit/verify), `internal/component/bgp/reactor/rfc7311_source_cost_test.go` `TestRFC7311UnknownCostWithdrawsUntilMetricRecovers` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
               "file": "internal/component/bgp/reactor/rfc7311_direct_link_test.go",
-              "line": 19,
+              "line": 20,
               "carrier": "unit/verify",
               "claim": "-- an unresolved direct link with no configured cost withdraws the route instead of announcing next-hop-self without its required increment.",
               "tags": 1,
@@ -177242,7 +177402,15 @@
               "line": 175,
               "carrier": "unit/verify",
               "claim": "-- no configured link cost cannot silently advertise an unchanged metric after next-hop-self.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "negative",
@@ -177282,7 +177450,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
               "file": "internal/component/bgp/reactor/rfc7311_direct_link_test.go",
-              "line": 18,
+              "line": 19,
               "carrier": "unit/verify",
               "claim": "-- an unresolved direct link with configured cost 7 advertises received metric 100 as 107 after next-hop-self.",
               "tags": 1,
@@ -177302,7 +177470,15 @@
               "line": 174,
               "carrier": "unit/verify",
               "claim": "-- a direct link's non-zero configured cost is accumulated without an IGP.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+                "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -177343,7 +177519,13 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 7311 Section 3.4.3, in the context of EBGP neighbors with a direct link running no IGP: 'Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount.' Re-read all four tagged units under internal/component/bgp/reactor/: rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire, rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears, rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient and TestRFC7311UnknownCostWithdrawsUntilMetricRecovers. The first two directly call the arithmetic producer but now distinguish an exact withdrawal from an attribute-free announcement. The source-cost test closes their prior integration gap: a received UPDATE enters notifyMessageReceiver and the cache, then general ForwardUpdate or the live RS cached fallback through ForwardUpdatesDirect, finally reaching the worker/session socket. No IGP distance is available; source costs 7 and 19 deliberately differ from destination cost 43. The recipient must contain the same NLRI, no withdrawal, rewritten local NEXT_HOP, exact AIGP TLV/flags and metrics 107 or 119, with received source bytes unchanged. Transparent controls preserve metric 100, including unavailable cost, and boundary cases saturate rather than wrap as required by the surrounding paragraph. Unknown/resolved-zero controls on both rails require the exact withdrawn prefix with no announcement or attributes, both initially and after a prior metric-107 advertisement; supplying distance 11 restores the retained received metric as 111, without a new source UPDATE. These are substantive source-to-recipient assertions, not direct helper success or mere AIGP absence. Producing symbols: forward_aigp.go::sourceAIGPLinkMetric, aigpIncrement, applyFactsAIGP; reactor_api_forward.go::forwardUpdateSection and ForwardUpdate; forward_rs.go::sourceUsesCachedForward and reactorForwardRS (AIGP selects cached forwarding). Native panic records prove applyFactsAIGP reachability only, not arithmetic, source provenance or withdrawal semantics. The optional metric-comparability SHOULD is not silently promoted to this MUST row. No new checks, semantic mutation execution or interop pass is claimed.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+              "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2",
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+              "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2"
+            ]
           }
         },
         {
@@ -177763,7 +177945,7 @@
         "audited": 5,
         "discrimination-records": 10,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -177790,7 +177972,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/routerefresh_test.go` `TestRouteRefreshSubtypes` (unit/verify), `internal/component/bgp/plugins/rib/rfc7313_sequence_test.go` `TestRFC7313BoRRRoutesEoRRInOneSequence` (unit/verify), `internal/component/bgp/plugins/rib/rfc7313_test.go` `TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR` (unit/verify), `internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go` `TestDispatchBGPPeerBoRR` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} both refresh producers, RIBManager.handleRefresh (internal/component/bgp/plugins/rib/rib.go) and handleRefreshStructured (rib_structured.go), dispatch the BoRR before sendRoutes in one straight-line path with no input that selects a re-advertisement without it, so no refusal path exists to drive a negative; the reading that takes the negative from a peer's re-advertisement lacking the BoRR has nothing to test either, because ze's receipt of BoRR/EoRR is log-only (RFC7313-4-4/4-5 gaps)",
+          "note": "**audit: enforced, shifted** {single-polarity} both refresh producers, RIBManager.handleRefresh (internal/component/bgp/plugins/rib/rib.go) and handleRefreshStructured (rib_structured.go), dispatch the BoRR before sendRoutes in one straight-line path with no input that selects a re-advertisement without it, so no refusal path exists to drive a negative; the reading that takes the negative from a peer's re-advertisement lacking the BoRR has nothing to test either, because ze's receipt of BoRR/EoRR is log-only (RFC7313-4-4/4-5 gaps)",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
@@ -177811,7 +177993,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence",
               "file": "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go",
-              "line": 139,
+              "line": 149,
               "carrier": "unit/verify",
               "claim": "-- in response to a normal route refresh request, the BoRR is sent before the first route of the re-advertisement, on both rails (rib.go handleRefresh, rib_structured.go handleRefreshStructured).",
               "tags": 1,
@@ -177847,7 +178029,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Single-polarity positive, marker accepted (no input selects a re-advertisement without the BoRR; BoRR/EoRR receipt is log-only, RFC7313-4-4/4-5 gaps, so no handling-of-absence negative exists). TestRFC7313BoRRRoutesEoRRInOneSequence asserts [BoRR, route, route, EoRR] on both rails (handleRefresh, handleRefreshStructured) in response to a peer normal ROUTE-REFRESH; observed red with handleRefresh broken. The BoRR is written raw at once and the routes after it, so no queue can put a route ahead of it. Supplementary positives: BoRR subtype encoding (routerefresh_test.go), dispatch to SendBoRR, BoRR-first on both rails (rfc7313_test.go); no records for those.",
-            "freshness": "fresh",
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence"
+            ],
             "upgrade-reason": "The row text changed, not the units: the quote was narrowed to the verbatim peer-requested span, and the 'initiated locally' clause, the only part the earlier weak verdict found unproven, is now RFC7313-4-13 {feature-declined}. Re-read TestRFC7313BoRRRoutesEoRRInOneSequence, rfc7313_test.go, dispatch_test.go and routerefresh_test.go against RFC 7313 Section 4."
           }
         },
@@ -177859,7 +178044,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/routerefresh_test.go` `TestRouteRefreshSubtypes` (unit/verify), `internal/component/bgp/plugins/rib/rfc7313_sequence_test.go` `TestRFC7313BoRRRoutesEoRRInOneSequence` (unit/verify), `internal/component/bgp/plugins/rib/rfc7313_test.go` `TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR` (unit/verify), `internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go` `TestDispatchBGPPeerEoRR` (unit/verify), `internal/component/bgp/reactor/rfc7313_refresh_order_test.go` `TestRFC7313EoRRFollowsTheRoutesItCloses` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7313_refresh_order_test.go` `TestRFC7313EoRRFollowsTheRoutesItCloses` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -177892,16 +178077,17 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence",
               "file": "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go",
-              "line": 142,
+              "line": 152,
               "carrier": "unit/verify",
               "claim": "-- the EoRR is sent after the last route of the re-advertisement, which carries every route of the family's Adj-RIB-Out, on both rails.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
                 "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -177945,7 +178131,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged after the D-8 fix: BoRR/EoRR now ride the peer's opQueue as PeerOpRefreshMarker (Peer.sendRefreshMarker, gate read and append under one p.mu hold, same predicate as shouldQueue minus the state check sendRouteRefresh already makes); both drains write the marker in place, count RefreshSent on send, and drop a marker whose session is no longer the peer's. Order at the rib (sendRoutes then EoRR) stays proven by TestRFC7313BoRRRoutesEoRRInOneSequence (observed red). Order on the wire now proven by TestRFC7313EoRRFollowsTheRoutesItCloses through reactorAPIAdapter SendBoRR/AnnounceNLRIBatch/SendEoRR on a recording socket: + outside the sync [eor, borr, route, eorr], - during the sync (inputs forced toward the violation: route held in the queue) nothing leaves early and after the drain [borr, route, eorr, eor]; both counters asserted. Author's red-first log showed [borr eorr route eor] before the fix; records observed on sendQueuedRefreshMarker (+) and sendRefreshMarker (-). {single-polarity} marker correctly removed (R1 route b). Not covered by a test: the stale-session drop branch (a guard, logged).",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence"
+            ]
           }
         },
         {
@@ -190219,7 +190408,7 @@
         "audited": 9,
         "discrimination-records": 20,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -190701,10 +190890,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
                 "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -191005,7 +191195,7 @@
         "audited": 12,
         "discrimination-records": 19,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 2
       },
       "requirements": [
         {
@@ -191243,10 +191433,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -191269,10 +191460,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -198342,8 +198534,8 @@
         "met-below": 0,
         "optional-not-offered": 0,
         "derived-from-other-rows": 0,
-        "tags": 58,
-        "units": 58,
+        "tags": 57,
+        "units": 57,
         "audited": 9,
         "discrimination-records": 16,
         "escapes": 0,
@@ -198409,9 +198601,9 @@
           "section": "2",
           "text": "A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route. (Section 2)",
           "gated": true,
-          "positive-test": "`internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go` `TestForwardPathIDsFreedOnRelayedWithdraw` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go` `TestForwardPathIDWithdrawCarriesTheAnnouncedValue` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go` `TestForwardPathIDKeepsTheSourceOfARebuiltFrame` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go` `TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDDiffersForTwoSourcePeers` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDMatchesAnnounceAndWithdraw` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDSurvivesAttributeChange` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDSeparatesNonAddPathSources` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDBoundaryReceivedValues` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDIdenticalForEveryDestination` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDReleaseReturnsValues` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_test.go` `TestForwardPathIDsDifferForCollidingSources` (unit/verify), `internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go` `TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys` (unit/verify), `internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go` `TestPathIDKeyFollowsWhatTheSourceFramed` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkAddPathReadvertiseCollision` (interop/nightly), `test/plugin/adj-rib-in-replay-addpath-source.ci` (functional/verify)",
+          "positive-test": "`internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go` `TestForwardPathIDsFreedOnRelayedWithdraw` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go` `TestForwardPathIDWithdrawCarriesTheAnnouncedValue` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go` `TestForwardPathIDKeepsTheSourceOfARebuiltFrame` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go` `TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDDiffersForTwoSourcePeers` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDMatchesAnnounceAndWithdraw` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDSurvivesAttributeChange` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDSeparatesNonAddPathSources` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDBoundaryReceivedValues` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDIdenticalForEveryDestination` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go` `TestForwardPathIDReleaseReturnsValues` (unit/verify), `internal/component/bgp/reactor/rfc7911_forward_path_id_test.go` `TestForwardPathIDsDifferForCollidingSources` (unit/verify), `internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go` `TestPathIDKeyFollowsWhatTheSourceFramed` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkAddPathReadvertiseCollision` (interop/nightly), `test/plugin/adj-rib-in-replay-addpath-source.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7911_forward_path_id_test.go` `TestForwardPathIDStableAcrossUpdates` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -198427,7 +198619,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDKeepsTheSourceOfARebuiltFrame",
               "file": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go",
-              "line": 292,
+              "line": 295,
               "carrier": "unit/verify",
               "claim": "-- \"A BGP speaker that re-advertises a route MUST generate its own Path Identifier\", and the path it generates one for is the one the source sent, whatever ze did to the bytes on the way out.",
               "tags": 1
@@ -198436,7 +198628,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt",
               "file": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go",
-              "line": 320,
+              "line": 323,
               "carrier": "unit/verify",
               "claim": "-- \"the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor\". A pair that is still advertised is still ze's to name, whatever else the UPDATE carrying it withdrew.",
               "tags": 1
@@ -198445,7 +198637,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDWithdrawCarriesTheAnnouncedValue",
               "file": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go",
-              "line": 232,
+              "line": 235,
               "carrier": "unit/verify",
               "claim": "-- ze's identifier names the path for as long as ze advertises it, the withdraw included.",
               "tags": 1
@@ -198454,7 +198646,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go::TestForwardPathIDsFreedOnRelayedWithdraw",
               "file": "internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go",
-              "line": 196,
+              "line": 199,
               "carrier": "unit/verify",
               "claim": "-- \"the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor\". A value is free to name a second path once no advertisement of the first one is outstanding, and the relayed withdraw is that point.",
               "tags": 1
@@ -198535,18 +198727,9 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go::TestPathIDKeyFollowsWhatTheSourceFramed",
               "file": "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go",
-              "line": 208,
+              "line": 64,
               "carrier": "unit/verify",
               "claim": "-- \"the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor\". Both keyings satisfy it, because uniqueness is asked of the PAIR: one identifier shared across prefixes still names one path per prefix.",
-              "tags": 1
-            },
-            {
-              "polarity": "positive",
-              "unit": "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go::TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys",
-              "file": "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go",
-              "line": 89,
-              "carrier": "unit/verify",
-              "claim": "-- \"the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor\". The obligation runs over the pairs ze currently advertises, so a value ze advertises no path under is free, and holding it forever buys nothing.",
               "tags": 1
             },
             {
@@ -198572,7 +198755,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged after the 2-1 tags were added to the doc comments of the two forward_path_id_test.go units; bodies unchanged. Negative TestForwardPathIDStableAcrossUpdates requires the emitted identifier differ from the received 0xDEADBEEF; positive TestForwardPathIDsDifferForCollidingSources requires a ze-generated identifier per source path. Other gen/churn units unchanged.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go::TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys"
+            ]
           }
         },
         {
@@ -199948,7 +200134,7 @@
       "enrolment-reason": "BGP Route Server: two MUST-level transparency requirements over the reactor-native RS forwarding path (internal/component/bgp/reactor/forward_rs.go), plus the advisory-level RFC7947-x-1, which the gate does not require but which is proven anyway. RFC7947-x-1 (SHOULD NOT prepend own AS for RS clients -- Section 2.2.2.1 calls it \"a recommendation rather than a requirement\", so it is not MUST-level and the gate does not require it) has both polarities: TestReactorForwardRSTransparent proves an RS client's forwarded body is byte-identical (no prepend), TestReactorForwardRSEBGPPrepend proves a non-RS eBGP peer DOES get the local AS prepended, so the no-prepend is confined to RS clients. RFC7947-x-2 (MUST NOT rewrite NEXT_HOP) is {single-polarity: positive}: the byte-identical transparency test proves it, and it has no natural negative, NEXT_HOP transparency not being RS-specific. RFC7947-x-3 is NOT MUST-level and the gate does not require it: Section 2.2.3 reads \"this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value\", so the row is [SHOULD] and the earlier MUST here misquoted it. The same transparency test proves Ze meets it anyway: medPropagationAllowedTo (internal/component/bgp/reactor/forward_med.go) never applies the automatic RFC 4271 Section 5.1.4 strip to a route server client. An operator's own `del { med; }` policy still removes the metric upstream of that predicate (test/plugin/med-removal-configured.ci, against an rs-client receiver), which is Section 5.1.4's required removal mechanism rather than an exception to this recommendation. RFC7947-x-4 (per-client import/export policy applied on each redistribution) has both polarities: TestReactorForwardRSFallback proves an export-filtered client is routed to the per-client policy path, TestReactorForwardRSBasic proves an unfiltered client is forwarded directly. The x-5 SHOULD (path-hiding mitigation) and x-6 MAY (add-path) are not gated.",
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
-      "public-status": "Supported",
+      "public-status": "Partial",
       "public-coverage": "Transparent RS forwarding for RS clients by default: no AS_PATH prepend, no NEXT_HOP rewrite, MED preserved (verbatim wire forwarding); per-client import/export policy applied on redistribution. Sections 2.2.2.1 and 2.2.3 state the AS_PATH and MULTI_EXIT_DISC rules as recommendations, so an operator policy may override each. On the client side of the same document, Section 2.2.2.2 (RFC7947-2.2.2.2-1) asks that a leftmost-AS check be possible to disable; ze runs no ingress leftmost-AS check at all, so a route ze receives from a route server whose leftmost AS_PATH AS is another client's is accepted in every configuration (`LoopIngress`, `internal/component/bgp/reactor/filter/loop.go`). The walk that bounds this row against the RFC's own text is `rfc/extraction/rfc7947.json`.",
       "public-remaining": "Optional per-peer next-hop override and path-hiding mitigation (add-path) are operator-configured. A modify policy with `as-path-prepend` or `del { med; }` also changes what an RS client receives. Section 2.1 requires a route server to accept every UPDATE it receives from a client for inclusion in its Adj-RIB-In, and ze does not: `notifyMessageReceiver` (`internal/component/bgp/reactor/reactor_notify.go`) returns at the ordered ingress step loop's non-accept branch, ahead of the cache add, ahead of `reactorForwardRS` and ahead of the plugin dispatch, so an UPDATE a filter denied is absent from `show bgp adj-rib-in`. `LoopIngress` denies with no operator configuration, so the path is reachable by default. Thomas ruled on 2026-08-30 that ze stores such an UPDATE first and marks the entry filtered; that work is homed in `plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md`, which reserves the id RFC7947-2.1-1, and site 2.1:1 of the extraction sign-off records the relocation.",
       "summary-path": "rfc/short/rfc7947.md",
@@ -199988,7 +200174,7 @@
           "gated": false,
           "positive-test": "`internal/component/bgp/reactor/rfc7947_forward_rs_test.go` `TestReactorForwardRSTransparent` (unit/verify), `internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go` `TestRelayStoredRouteRSClientPreservesASPath` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRouteServerASPath` (interop/nightly), `test/plugin/bgp-rs-relay-aspath-transparency.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7947_forward_rs_test.go` `TestReactorForwardRSEBGPPrepend` (unit/verify), `internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go` `TestRelayStoredRoutePlainEBGPPrependsLocalAS` (unit/verify), `test/plugin/bgp-rs-relay-aspath-transparency.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -200059,7 +200245,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 7947 Section 2.2.2.1: \"As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.\" TestReactorForwardRSTransparent requires exact body identity, including the nonempty path; TestReactorForwardRSEBGPPrepend now has reachable NLRI, although its growth-only assertion remains weaker than an exact path oracle. The complete pair is independently supplied by TestRelayStoredRouteRSClientPreservesASPath/TestRelayStoredRoutePlainEBGPPrependsLocalAS and bgp-rs-relay-aspath-transparency.ci, which pin [65001] versus [65000,65001] on the plugin/replay path. checkRouteServerASPath additionally requires BIRD to decode exactly the originating client AS, a route present, and both sessions surviving. All seven tagged covers read; ordinary-peer controls confine the RS exception. Producers forwardUpdateCore/forwardUpdateValidated and the separate reactorForwardRS use destination RSClient facts for prepend decisions. No assertion of runtime completion is made here. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend",
+              "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent"
+            ]
           }
         },
         {
@@ -200070,7 +200260,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7947_forward_rs_test.go` `TestReactorForwardRSTransparent` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no \"confined\" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent",
+          "note": "**audit: enforced, shifted** {single-polarity} NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no \"confined\" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
@@ -200092,7 +200282,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 7947 Section 2.2.1: \"As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the \"third-party\" next-hop feature described in Section 5.1.3. of [RFC4271].\" The sole current carrier TestReactorForwardRSTransparent forwards a body with NEXT_HOP 10.0.0.254 and reachable NLRI to an RS client and requires complete byte identity. A dropped/changed next-hop fails, and nonempty output excludes the no-forward false positive. Existing single-polarity annotation remains justified for the default transparent path: ordinary forwarding also preserves next-hop unless an explicit policy requests a rewrite; changing that policy would test another feature, not create this rule's confining negative. peerForwardFacts/buildForwardFacts and forwarding producer path were read. One positive cover, zero negative, with the existing annotation rather than a fabricated pair. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent"
+            ]
           }
         },
         {
@@ -200103,7 +200296,7 @@
           "gated": false,
           "positive-test": "`internal/component/bgp/reactor/forward_med_test.go` `TestForwardKeepsMEDForRouteServerClient` (unit/verify), `internal/component/bgp/reactor/rfc7947_forward_rs_test.go` `TestReactorForwardRSTransparent` (unit/verify), `test/plugin/med-not-propagated-across-as.ci` (functional/verify)",
           "negative-test": "`test/plugin/med-not-propagated-across-as.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -200147,7 +200340,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 7947 Section 2.2.3: \"Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.\" TestReactorForwardRSTransparent requires body identity with MED 100; TestForwardKeepsMEDForRouteServerClient pins no MED operation/no rebuild; med-not-propagated-across-as.ci separately compares complete actual UPDATEs at an RS client (MED retained unchanged) and ordinary eBGP destination (MED absent). applyFactsMED uses the RS destination exception and otherwise records suppression of a received, unmodified metric. Thus both propagation and unchanged value are asserted, and preserving MED for all destinations would fail the negative. No source capability was widened. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent"
+            ]
           }
         },
         {
@@ -215406,7 +215602,7 @@
         "audited": 8,
         "discrimination-records": 34,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 2
       },
       "requirements": [
         {
@@ -215417,7 +215613,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted` (unit/verify), `internal/component/bgp/reactor/rfc8654_rib_recovery_test.go` `TestRFC8654TreatAsWithdrawRemovesInstalledRoutes` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedAttributeDiscard` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606AttributeLengthConflictTreatAsWithdraw` (unit/verify), `internal/component/bgp/reactor/rfc8654_rib_recovery_test.go` `TestRFC8654TreatAsWithdrawRemovesInstalledRoutes` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedAttributeDiscard` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -215439,10 +215635,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
                 "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -215499,10 +215696,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
                 "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -215545,7 +215743,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independent current-source renewal. RFC8654 Section 3 (rfc/full/rfc8654.txt): \"Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].\" The complete current cover set exercises exact None and TreatAsWithdraw validator results, an extended structural overrun yielding exact NOTIFICATION 3/1 with no dispatch, and isolated malformed ATOMIC_AGGREGATE/AGGREGATOR discard versus intact valid controls through both readers. TestRFC8654TreatAsWithdrawRemovesInstalledRoutes installs two routes with an otherwise valid 4097-octet UPDATE, changes only ORIGIN to 3, requires actual Adj-RIB-In and Loc-RIB removal and recipient TCP withdrawals, then requires fresh ORIGIN=1 recovery in storage, recipient TCP and both Loc-RIB publication callbacks on the same Established session without NOTIFICATION. Its retained ForwardHandles preserve publication evidence until producer cleanup; observers do not modify routing state. Source tracing confirms enforceRFC7606 dispatches the classified action, processMessage synthesizes withdrawals, notifyMessageReceiver publishes WireUpdate.Payload rather than the original malformed body, and the RIB and RS consumers process those withdrawals. The retained semantic observation valid-origin1-recovery-treated-as-withdraw failed specifically at fresh recovery while all eight discard controls passed; that historical targeted observation is distinct from current native producer-dependence records and is not claimed freshly rerun here. This judges implemented extended-message integration with RFC7606, not an independent audit of every incorporated RFC7606 clause. The fixture has no alternate source: live-source RS withdrawal/replacement remains excluded and unimplemented by this proof; source-DOWN replacement evidence must not be substituted for it.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/session_read.go::processMessage"
+            ]
           }
         },
         {
@@ -216219,7 +216420,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/header_test.go` `TestValidateLengthWithMax` (unit/verify), `internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go` `TestRFC8654FatalLengthReleasesInstalledRoutes` (unit/verify), `internal/component/bgp/reactor/rfc8654_rib_recovery_test.go` `TestRFC8654FatalLengthReelectsAlternateBest` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/header_test.go` `TestValidateLengthWithMax` (unit/verify), `internal/component/bgp/message/rfc8654_length_bounds_test.go` `TestRFC8654LengthBoundsPerTypeAndCapability` (unit/verify), `internal/component/bgp/reactor/rfc8654_bad_length_session_test.go` `TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling` (unit/verify), `internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go` `TestRFC8654ValidLengthRetainsInstalledRoutes` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -216330,7 +216531,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independent semantic rejudgment: RFC8654 Section 5: \"Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].\" RFC4271 Section 6 says: \"Before the invalid routes are deleted from the system, it advertises, to its peers, either withdraws for the routes marked as invalid, or the new best routes before the invalid routes are deleted from the system.\" Current fatal-length controls observe exact Notification 1/2, EOF/session loss, Adj-RIB-In/Loc-RIB removal and real downstream withdrawal. The formerly failing TestRFC8654FatalLengthReelectsAlternateBest now passes in job-enum-recovery-causal-race-941bd345.log with original-best preboundary, surviving source attributes on actual TCP, no transient withdrawal of the replaced route, and no-survivor withdrawal. Source retains the detached RS withdrawal inventory in a joined DOWN lifecycle, and recovery uses actual sent ownership/generation with applied-delivery drain before lookup. Omitting that drain now fails the newer-target ownership consumer assertion on both direct and external transports; forgetting prior delivery failure fails strict-drain assertions on both, while legitimate success controls pass. The race log also passes final-worker re-resolution, reconnect/generation refusal, full native Add-Path/pruning and hard-failure destination retirement. This replaces the obsolete failing-TCP objection with observed consumer evidence; canonical and foreign carrier proof remains separate. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
+              "internal/component/bgp/reactor/relay_recovery.go::recoverNLRIBatch"
+            ]
           }
         },
         {
@@ -228178,7 +228383,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop",
               "file": "internal/component/bgp/reactor/flowspec_rs_wire_test.go",
-              "line": 26,
+              "line": 27,
               "carrier": "unit/verify",
               "claim": "-- self/explicit rewrites and received IPv4/IPv6 next hops cannot alter or withhold an authorized FlowSpec rule.",
               "tags": 1,
@@ -228238,7 +228443,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop",
               "file": "internal/component/bgp/reactor/flowspec_rs_wire_test.go",
-              "line": 25,
+              "line": 26,
               "carrier": "unit/verify",
               "claim": "-- real route-server ingress, covering-route authorization and recipient TCP deliver all four FlowSpec families with zero next-hop length and unchanged rule/RD/actions.",
               "tags": 1,
@@ -252731,7 +252936,7 @@
         "audited": 43,
         "discrimination-records": 96,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 3
       },
       "requirements": [
         {
@@ -252913,10 +253118,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
                 "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -253357,10 +253563,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -253391,10 +253598,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
                 "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -261779,7 +261987,7 @@
         "audited": 13,
         "discrimination-records": 6,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 3
       },
       "requirements": [
         {
@@ -261877,10 +262085,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
                 "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -261903,10 +262112,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
                 "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -261920,10 +262130,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
                 "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -262100,7 +262311,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc9687_reactor_b_test.go` `TestRFC9687EveryWriterRestartsTheSendHoldTimer` (unit/verify), `internal/component/bgp/reactor/rfc9687_remaining_writers_test.go` `TestRFC9687RemainingWritersRestartSendHold` (unit/verify), `internal/component/bgp/reactor/rfc9687_test.go` `TestRFC9687SendRestartsTheSendHoldTimer` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc9687_test.go` `TestRFC9687SilenceDoesNotRestartTheSendHoldTimer` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -262160,7 +262371,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 9687 Section 4.3: \"Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.\" Row 4.3-9 separately owns the zero-time exception. All four current carriers read: TestRFC9687SendRestartsTheSendHoldTimer, TestRFC9687EveryWriterRestartsTheSendHoldTimer, TestRFC9687RemainingWritersRestartSendHold and TestRFC9687SilenceDoesNotRestartTheSendHoldTimer. Together the positive cases cover SendRawMessage, writeMessage, SendUpdate, sendWithdraw, sendRawUpdateBody, SendAnnounce, SendUpdateHeld, both fwdBatchHandler encodings and flushFwdDirty. The new writer matrix pins the exact advanced deadline as well as an armed timer and Established beyond the old deadline, distinguishing restart from stop. The no-send negative requires Run exit and Idle for the same clock advance. resetSendHoldTimer stores Now+duration only when armed; fwdBatchHandler resets after successful flush. The prior named writer holes are covered without changing production timers. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold"
+            ]
           }
         },
         {

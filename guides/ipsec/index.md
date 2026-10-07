@@ -1291,7 +1291,7 @@ boundaries; neither is a claim that every IKE extension is implemented.
 
 - The generated [configuration reference](https://ze-software.net/reference/configuration/#ipsec-vpn) covers every IPsec and XFRM configuration leaf.
 - [Monitoring](../monitoring/index.md) covers the health registry and operational visibility.
-- [Feature inventory](../../reference/feature-status/index.md) shows the maturity of each IKE and IPsec capability.
+- [Feature inventory](https://ze-software.net/reference/feature-status/) shows the maturity of each IKE and IPsec capability.
 
 <!-- source: internal/component/ike/engine/fsm.go -- IKE exchange state machine -->
 <!-- source: internal/component/ike/engine/responder.go -- responder role -->
