@@ -6,3 +6,4 @@ the suite only because it takes its original name back.
 
 | Test | Reason |
 |------|--------|
+| judgeOne | Nothing left the suite: its three assertions (Check error, parse problems, widget verdict found) moved unchanged into judgeOn, which judgeOne now calls with fixtureToday so every fixture run is judged on a fixed day instead of the wall clock |

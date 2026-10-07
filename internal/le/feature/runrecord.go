@@ -9,10 +9,16 @@
 // the reason rfc/discrimination/<stem>.json is: the published page is derived
 // on any checkout, CI included, and a record under tmp/ exists on one machine
 // only. "Newer than the last change to the test" is decided by CONTENT, not by
-// a date: each run carries the git blob id the test file had when it ran, and a
-// run is current exactly when that id equals the file's blob id now. A date
-// comparison would need git history the shallow CI checkout does not hold, and
-// would call a reverted edit stale.
+// the git history of the file: each run carries the git blob id the test file
+// had when it ran, and a run matches its test exactly when that id equals the
+// file's blob id now. A history comparison would need git history the shallow
+// CI checkout does not hold, and would call a reverted edit stale.
+//
+// Owner decision 2026-10-07, run staleness option (c): a run matching its
+// content still counts for runAgeDaysMax days only. The blob id covers the test
+// file and nothing it reads, so a run outlived the fixture change of
+// f02d58da88; keying on every package the test imports would stale most runs on
+// every commit. The age bound re-proves on a schedule what the id cannot see.
 //
 // The owner's reading of D-6 covers interop scenarios too: an Interop entry
 // counted toward a level needs a recorded green run of the scenario as it is
@@ -29,6 +35,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -83,13 +90,31 @@ const (
 	runStateCurrent
 	// runStateNotRun: the test exists and no green run is recorded for it.
 	runStateNotRun
-	// runStateStale: a green run is recorded, and the test changed since.
-	runStateStale
+	// runStateChanged: a green run is recorded, and the test or scenario
+	// changed since.
+	runStateChanged
+	// runStateAged: a green run is recorded for the present content, and it is
+	// older than runAgeDaysMax days.
+	runStateAged
 )
 
+// runAgeDaysMax is how many days a recorded green run counts for: a run is
+// current on the day it was recorded and for the runAgeDaysMax days after, so
+// day 30 counts and day 31 does not.
+const runAgeDaysMax = 30
+
+// runAnswer is one item's run state, with the date of the run it was read from
+// ("" for runStateNotRun).
+type runAnswer struct {
+	state runState
+	date  string
+}
+
 // loadRunRecord reads features/runs/<id>.json. A missing file is an empty
-// record, which is the truthful answer for a feature nothing has run.
-func loadRunRecord(tree, id string) (RunRecord, error) {
+// record, which is the truthful answer for a feature nothing has run. A run
+// whose date does not parse, or falls after today, refuses the record: it
+// would never age out.
+func loadRunRecord(tree, id string, today time.Time) (RunRecord, error) {
 	rel := runRecordRel(id)
 	raw, err := os.ReadFile(filepath.Join(tree, rel)) //nolint:gosec // rel is built from a declaration id, itself a directory entry
 	if errors.Is(err, os.ErrNotExist) {
@@ -109,13 +134,49 @@ func loadRunRecord(tree, id string) (RunRecord, error) {
 		if run.Result != runResultPass {
 			return RunRecord{}, errors.New(rel + ": run of " + run.Test + " has result '" + run.Result + "'; only a pass is recorded")
 		}
+		if problem := runDateProblem(run.Date, today); problem != "" {
+			return RunRecord{}, errors.New(rel + ": run of " + run.Test + " " + problem)
+		}
 	}
 	for _, run := range record.Interop {
 		if run.Result != runResultPass {
 			return RunRecord{}, errors.New(rel + ": run of " + run.Scenario + " has result '" + run.Result + "'; only a pass is recorded")
 		}
+		if problem := runDateProblem(run.Date, today); problem != "" {
+			return RunRecord{}, errors.New(rel + ": run of " + run.Scenario + " " + problem)
+		}
 	}
 	return record, nil
+}
+
+// runDateProblem answers why date cannot date a run judged on today, or "".
+func runDateProblem(date string, today time.Time) string {
+	recorded, err := time.Parse(attestationLayout, date)
+	if err != nil {
+		return "has date '" + date + "', not YYYY-MM-DD"
+	}
+	if recorded.After(today) {
+		return "is dated " + date + ", after today " + today.Format(attestationLayout) +
+			": a run is never recorded in the future"
+	}
+	return ""
+}
+
+// runAgeDays answers how many whole days before today date is. date passed
+// runDateProblem in loadRunRecord, the only source of a judged run.
+func runAgeDays(date string, today time.Time) int {
+	recorded, err := time.Parse(attestationLayout, date)
+	if err != nil {
+		panic("BUG: a run date reached the age check unvalidated: " + err.Error())
+	}
+	return int(today.Sub(recorded).Hours()) / 24
+}
+
+// calendarDay answers the UTC calendar day of now at midnight, the day a run's
+// Date names and the day the check judges ages on.
+func calendarDay(now time.Time) time.Time {
+	year, month, day := now.UTC().Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 }
 
 func runRecordRel(id string) string {
@@ -123,36 +184,88 @@ func runRecordRel(id string) string {
 	return tb.Str(runRecordDir).Byte('/').Str(id).Str(".json").String()
 }
 
-// stateOf answers whether item has a current green run in record. blob is the
-// item's file's blob id now.
-func (r RunRecord) stateOf(item, blob string) runState {
-	state := runStateNotRun
+// stateOf answers whether item has a current green run in record on today.
+// blob is the item's file's blob id now.
+func (r RunRecord) stateOf(item, blob string, today time.Time) runAnswer {
+	answer := runAnswer{state: runStateNotRun}
 	for _, run := range r.Runs {
 		if run.Test != item {
 			continue
 		}
-		if run.TestBlob == blob {
-			return runStateCurrent
-		}
-		state = runStateStale
+		answer = preferredRun(answer, judgeRun(run.TestBlob == blob, run.Date, today))
 	}
-	return state
+	return answer
 }
 
 // scenarioStateOf answers whether the Interop entry item has a current green
-// run in record. tree is the scenario directory's git tree id now.
-func (r RunRecord) scenarioStateOf(item, tree string) runState {
-	state := runStateNotRun
+// run in record on today. tree is the scenario directory's git tree id now.
+func (r RunRecord) scenarioStateOf(item, tree string, today time.Time) runAnswer {
+	answer := runAnswer{state: runStateNotRun}
 	for _, run := range r.Interop {
 		if run.Scenario != item {
 			continue
 		}
-		if run.ScenarioTree == tree {
-			return runStateCurrent
-		}
-		state = runStateStale
+		answer = preferredRun(answer, judgeRun(run.ScenarioTree == tree, run.Date, today))
 	}
-	return state
+	return answer
+}
+
+// judgeRun answers the state of one recorded run of an item: changed when its
+// content id no longer matches, aged when it matches and is older than
+// runAgeDaysMax days on today, current otherwise.
+func judgeRun(sameContent bool, date string, today time.Time) runAnswer {
+	if !sameContent {
+		return runAnswer{state: runStateChanged, date: date}
+	}
+	if runAgeDays(date, today) > runAgeDaysMax {
+		return runAnswer{state: runStateAged, date: date}
+	}
+	return runAnswer{state: runStateCurrent, date: date}
+}
+
+// preferredRun answers which of two runs of one item speaks for it: a current
+// run over any other, then a run of the present content that aged, then a run
+// of changed content, then no run.
+func preferredRun(held, next runAnswer) runAnswer {
+	if runRank(next.state) > runRank(held.state) {
+		return next
+	}
+	return held
+}
+
+func runRank(state runState) int {
+	switch state {
+	case runStateNotRun:
+		return 1
+	case runStateChanged:
+		return 2
+	case runStateAged:
+		return 3
+	case runStateCurrent:
+		return 4
+	case runStateUnspecified:
+		panic("BUG: a run answer holds no run state")
+	}
+	panic("BUG: a run answer holds an unknown run state")
+}
+
+// problem answers why item has no current green run, or "" when it has one.
+// content names what a changed run no longer matches ("test", "scenario");
+// rel is the record the run would be in.
+func (a runAnswer) problem(item, content, rel string) string {
+	switch a.state {
+	case runStateCurrent:
+		return ""
+	case runStateNotRun:
+		return item + " exists, not run (no green run recorded in " + rel + ")"
+	case runStateChanged:
+		return item + " stale: " + content + " changed since its recorded green run"
+	case runStateAged:
+		return item + " stale: older than " + strconv.Itoa(runAgeDaysMax) + " days (recorded " + a.date + ")"
+	case runStateUnspecified:
+		panic("BUG: a run answer holds no run state")
+	}
+	panic("BUG: a run answer holds an unknown run state")
 }
 
 // blobID answers the git blob id of the file at rel: SHA-1 over

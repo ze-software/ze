@@ -6,6 +6,7 @@ package feature
 
 import (
 	"errors"
+	"strconv"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -31,12 +32,17 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "record-run", Why: "run every real-path test and every counted interop scenario of one feature " +
 		"through the repository's own runners and record a green run in features/runs/<id>.json only when " +
 		"each one was observed passing; a failure, a run that selected nothing, or a file or scenario " +
-		"directory that changed mid-run records nothing",
+		"directory that changed mid-run records nothing. `due <days>` does the same for every feature " +
+		"holding a recorded run older than <days> days (at most 30, the age a run stops counting)",
 		Parameters: []leaction.Parameter{
-			{Keyword: keyFeature, Value: "id", Requirement: leaction.Required},
+			{Keyword: keyFeature, Value: "id", Requirement: leaction.Optional},
+			{Keyword: keyDue, Value: "days", Requirement: leaction.Optional},
 		},
 		AnswerArgs: recordRunAnswer},
 )
+
+// keyDue selects every feature holding a run older than the day count.
+const keyDue = "due"
 
 // Actions answers the command surface as data.
 func Actions() leaction.List { return actions.Actions() }
@@ -91,6 +97,17 @@ func recordRunAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
+	if args.Has(keyDue) {
+		if args.Has(keyFeature) {
+			leaction.ReportError(errors.New("feature record-run: give feature <id> or due <days>, not both"))
+			return nil, 2
+		}
+		return recordDueAnswer(tree, args.One(keyDue))
+	}
+	if !args.Has(keyFeature) {
+		leaction.ReportError(errors.New("feature record-run: give feature <id> or due <days>"))
+		return nil, 2
+	}
 	id := args.One(keyFeature)
 	if id == "" {
 		leaction.ReportError(errors.New("feature record-run feature <id>: the id is empty"))
@@ -102,4 +119,21 @@ func recordRunAnswer(args leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	return record, 0
+}
+
+func recordDueAnswer(tree, value string) (any, int) {
+	days, err := strconv.Atoi(value)
+	if err != nil {
+		leaction.ReportError(errors.New("feature record-run due <days>: '" + value + "' is not a whole number of days"))
+		return nil, 2
+	}
+	due, allRecorded, err := RecordDue(tree, days)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	if !allRecorded {
+		return due, 1
+	}
+	return due, 0
 }

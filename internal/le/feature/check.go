@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/derived"
@@ -60,6 +61,13 @@ type evidence struct {
 // Check judges every declaration of the tree. The error is for a tree that
 // cannot be read; a refused declaration is a Verdict with Refusals.
 func Check(tree string) ([]Verdict, []error, error) {
+	return checkOn(tree, calendarDay(time.Now()))
+}
+
+// checkOn is Check judging on today, the one date source of the check: a dirty
+// path's change date and a recorded run's age both read it, so a test fixes the
+// day by passing it.
+func checkOn(tree string, today time.Time) ([]Verdict, []error, error) {
 	declarations, problems, err := Load(tree)
 	if err != nil {
 		return nil, nil, err
@@ -76,7 +84,7 @@ func Check(tree string) ([]Verdict, []error, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	dates, err := newChangeDates(tree)
+	dates, err := newChangeDates(tree, today)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -269,13 +277,14 @@ func declaresFunction(file, function string) bool {
 }
 
 // criterionRealPath is S1 with D-6: Supported needs at least one real-path
-// test, and every listed one needs a recorded green run of its present content.
+// test, and every listed one needs a recorded green run of its present content
+// no older than runAgeDaysMax days.
 func (in *evidence) criterionRealPath(d *Declaration, verdict *Verdict) {
 	if len(d.RealPathTests) == 0 {
 		verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S1: no real-path test is listed")
 		return
 	}
-	record, err := loadRunRecord(in.tree, d.ID)
+	record, err := loadRunRecord(in.tree, d.ID, in.dates.today)
 	if err != nil {
 		verdict.Refusals = append(verdict.Refusals, err.Error())
 		return
@@ -286,16 +295,9 @@ func (in *evidence) criterionRealPath(d *Declaration, verdict *Verdict) {
 		if err != nil {
 			continue // checkPaths already refused a missing file.
 		}
-		switch record.stateOf(item, blob) {
-		case runStateCurrent:
-		case runStateNotRun:
-			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported],
-				"S1: "+item+" exists, not run (no green run recorded in "+runRecordRel(d.ID)+")")
-		case runStateStale:
-			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported],
-				"S1: "+item+" changed since its recorded green run")
-		case runStateUnspecified:
-			panic("BUG: stateOf answered no run state")
+		answer := record.stateOf(item, blob, in.dates.today)
+		if problem := answer.problem(item, "test", runRecordRel(d.ID)); problem != "" {
+			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S1: "+problem)
 		}
 	}
 }

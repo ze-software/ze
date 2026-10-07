@@ -48,8 +48,8 @@ Supported requires, among the criteria the report names:
 
 | Criterion | Evidence the check reads |
 |-----------|--------------------------|
-| S1 real path | at least one real-path test, and a recorded green run of each one's present content |
-| S2 interop | for a protocol feature, at least one Interop scenario not listed in Stub evidence, and a recorded green run of each such scenario's present directory |
+| S1 real path | at least one real-path test, and a recorded green run of each one's present content, no more than 30 days old |
+| S2 interop | for a protocol feature, at least one Interop scenario not listed in Stub evidence, and a recorded green run of each such scenario's present directory, no more than 30 days old |
 | S3 RFC | each listed enrolled stem published as supported by the RFC ledger, with no gated requirement marked `{gap}`; an unenrolled stem is reported as a bound |
 | S4 docs | a Docs page and a Doc review |
 | S5 defects | no `plan/immediate/` spec naming a Components path in its Files to Modify, and a Defect review no older than the newest journal row naming one ("re-review owed") |
@@ -92,8 +92,17 @@ the declarations: under `runs`, each real-path test with the git blob id of its
 file when it passed; under `interop`, each Interop entry that counts toward a
 level (every one not listed in Stub evidence, and every extra criterion pointer
 naming one) with the git tree id of its scenario directory when it passed. A run
-is current while that id is unchanged; editing the test or anything in the
-scenario directory makes the run stale. Only passes are recorded.
+is current while that id is unchanged AND it is no more than 30 days old
+(`runAgeDaysMax` in `internal/le/feature/runrecord.go`): recorded on day 0, it
+counts on day 30 and is stale on day 31. Editing the test or anything in the
+scenario directory makes the run stale at once, and the check says which:
+`stale: test changed since its recorded green run` (or `scenario changed`)
+against `stale: older than 30 days (recorded <date>)`. The age bound exists
+because the id covers the test file and nothing it reads: a run outlived a
+fixture change in f02d58da88, and keying the id on every package a test imports
+would stale most runs on every commit. Ages are counted in UTC calendar days,
+the day `record-run` dates a run with; a run dated after today refuses its
+record, because it would never age out. Only passes are recorded.
 
 Both ids are computed over the working tree, so a run recorded before a commit
 stays current through it, and a shallow CI checkout needs no history. The tree
@@ -134,6 +143,20 @@ exactly one scenario, under that name, passed, with no setup error and exit
 code 0. A failed scenario, a report of another scenario or of none, a run that
 outlasts its two-hour deadline, or a scenario directory that changed during the
 run writes nothing.
+
+`./le feature record-run due <days>` re-records, one feature at a time, every
+feature holding a recorded run older than `<days>` days, and reports each with
+its oldest run's date and whether it recorded; one refused feature does not
+stop the others, and any refusal exits 1. `<days>` is at most 30, since a bound
+above it would skip runs that already stopped counting; a feature with no
+record is not due, because a first record is a decision, not a refresh. **A
+maintainer runs it before a release**, with a margin (`due 23` re-records
+everything that would age out within a week), and commits the records it
+writes. No workflow does this: `.github/workflows/evidence-nightly.yml` holds
+`contents: read` and no workflow in the repository writes back to it, so a
+nightly re-record would need a CI write path the owner has not granted. Until
+one exists, a run nobody re-records ages out and the feature drops below
+Supported on the page, which is the truthful answer.
 
 ## Attestations
 

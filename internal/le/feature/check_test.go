@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/rfc"
@@ -147,9 +148,19 @@ func recordGreenRuns(t *testing.T, tree, id string, scenarios []string, items ..
 
 func same(text string) string { return text }
 
+// fixtureToday is the day judgeOne judges on: the day recordGreenRuns dates
+// its runs, so every fixture run is current by age unless a case moves the day.
+var fixtureToday = time.Date(2026, time.October, 7, 0, 0, 0, 0, time.UTC)
+
 func judgeOne(t *testing.T, tree string) Verdict {
 	t.Helper()
-	verdicts, problems, err := Check(tree)
+	return judgeOn(t, tree, fixtureToday)
+}
+
+// judgeOn is judgeOne with the check judging on today.
+func judgeOn(t *testing.T, tree string, today time.Time) Verdict {
+	t.Helper()
+	verdicts, problems, err := checkOn(tree, today)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +254,7 @@ func TestCheckRefusesSupportedWithoutGreenRun(t *testing.T) {
 	tree = fixtureTree(t, same)
 	writeFile(t, tree, "test/plugin/widget.ci", "cmd=foreground:seq=1:exec=ze changed\n")
 	verdict = judgeOne(t, tree)
-	requireRefused(t, &verdict, "test/plugin/widget.ci changed since its recorded green run")
+	requireRefused(t, &verdict, "test/plugin/widget.ci stale: test changed since its recorded green run")
 }
 
 func TestCheckRefusesStubOnlySupported(t *testing.T) {
@@ -271,7 +282,7 @@ func TestCheckRefusesUmbrellaAboveWorstPart(t *testing.T) {
 	if err := os.Remove(filepath.Join(tree, runRecordRel("widget"))); err != nil {
 		t.Fatal(err)
 	}
-	verdicts, _, err := Check(tree)
+	verdicts, _, err := checkOn(tree, fixtureToday)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,12 +393,12 @@ func TestCheckRefusesInteropWithoutCurrentRun(t *testing.T) {
 	tree = fixtureTree(t, protocolWith(fixtureScenario))
 	writeFile(t, tree, fixtureScenarioDir+"/README", "an edited scenario directory\n")
 	verdict = judgeOne(t, tree)
-	requireRefused(t, &verdict, "S2: "+fixtureScenario+" changed since its recorded green run")
+	requireRefused(t, &verdict, "S2: "+fixtureScenario+" stale: scenario changed since its recorded green run")
 
 	tree = fixtureTree(t, protocolWith(fixtureScenario))
 	writeFile(t, tree, fixtureScenarioDir+"/frr.conf", "an untracked file the runner would read\n")
 	verdict = judgeOne(t, tree)
-	requireRefused(t, &verdict, "S2: "+fixtureScenario+" changed since its recorded green run")
+	requireRefused(t, &verdict, "S2: "+fixtureScenario+" stale: scenario changed since its recorded green run")
 
 	tree = fixtureTree(t, func(text string) string {
 		return strings.Replace(text, "| Docs |", "| Extra criteria | supported: lab = "+fixtureScenario+" |\n| Docs |", 1)

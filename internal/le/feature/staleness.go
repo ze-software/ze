@@ -32,12 +32,14 @@ const gitDeadline = time.Minute
 // changeDates answers, per repository path, the date it last changed. Not safe
 // for concurrent use.
 type changeDates struct {
-	tree   string
-	today  string
+	tree string
+	// today is the day the check judges on, a UTC calendar day: the change
+	// date of a dirty path and the age of a recorded run (runrecord.go).
+	today  time.Time
 	cached map[string]string
 }
 
-func newChangeDates(tree string) (*changeDates, error) {
+func newChangeDates(tree string, today time.Time) (*changeDates, error) {
 	shallow, err := gitOutput(tree, "rev-parse", "--is-shallow-repository")
 	if err != nil {
 		return nil, err
@@ -46,7 +48,7 @@ func newChangeDates(tree string) (*changeDates, error) {
 		return nil, errors.New("the checkout is shallow, so no change date can be read and no Doc review " +
 			"staleness can be judged; fetch the full history (fetch-depth: 0)")
 	}
-	return &changeDates{tree: tree, today: time.Now().Format(attestationLayout), cached: map[string]string{}}, nil
+	return &changeDates{tree: tree, today: today, cached: map[string]string{}}, nil
 }
 
 // of answers the date rel last changed, YYYY-MM-DD.
@@ -58,7 +60,7 @@ func (c *changeDates) of(rel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	date := c.today
+	date := c.today.Format(attestationLayout)
 	if dirty == "" {
 		committed, err := gitOutput(c.tree, "log", "-1", "--format=%cs", "--", rel)
 		if err != nil {
@@ -200,21 +202,11 @@ func (in *evidence) interopRun(id, item string) string {
 	if err != nil {
 		return item + ": " + err.Error()
 	}
-	record, err := loadRunRecord(in.tree, id)
+	record, err := loadRunRecord(in.tree, id, in.dates.today)
 	if err != nil {
 		return err.Error()
 	}
-	switch record.scenarioStateOf(item, tree) {
-	case runStateCurrent:
-		return ""
-	case runStateNotRun:
-		return item + " exists, not run (no green run recorded in " + runRecordRel(id) + ")"
-	case runStateStale:
-		return item + " changed since its recorded green run"
-	case runStateUnspecified:
-		panic("BUG: scenarioStateOf answered no run state")
-	}
-	panic("BUG: scenarioStateOf answered an unknown run state")
+	return record.scenarioStateOf(item, tree, in.dates.today).problem(item, "scenario", runRecordRel(id))
 }
 
 // countedInterop answers the Interop entries that count toward a level: every
