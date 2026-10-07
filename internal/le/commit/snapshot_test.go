@@ -223,3 +223,121 @@ func runCommitScript(t *testing.T, root, script string) string {
 	}
 	return string(output)
 }
+
+// TestAPreparedBlobSurvivesAnOrdinaryGC validates A-2 of
+// plan/spec-commit-stages-in-a-private-index.md: the snapshot blob `create`
+// writes is unreferenced until the script commits it, so a collection between
+// preparation and the run is the one thing that could lose it.
+//
+// The method is both collections. `git gc` with its default expiry keeps a
+// young unreachable object, so the script still commits the prepared content.
+// `git gc --prune=now` does collect it, and then the script must fail over the
+// missing object with HEAD and the shared index untouched.
+//
+// VALIDATES: a prepared script survives the collection git runs on its own,
+// and fails closed under the one that removes its blob.
+// PREVENTS: a script prepared before a collection committing a tree that lacks
+// its path, or failing after it has moved HEAD.
+func TestAPreparedBlobSurvivesAnOrdinaryGC(t *testing.T) {
+	t.Run("default expiry", func(t *testing.T) {
+		root := newCommitRepository(t)
+		t.Setenv("CLAUDE_CODE_SESSION_ID", "gc-default-fixture")
+		configureCommitAuthor(t, root)
+		writeCommitFixture(t, root, "mine.txt", "prepared before the collection\n")
+		prepared, err := Create(root, &Options{Subject: "survive a gc", Files: []string{"mine.txt"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		runCommitGit(t, root, "gc", "-q")
+
+		output := runCommitScript(t, root, prepared.Script)
+		if content := runCommitGitOutput(t, root, "show", "HEAD:mine.txt"); content != "prepared before the collection\n" {
+			t.Fatalf("after git gc the commit carried %q\n%s", content, output)
+		}
+	})
+	t.Run("prune now", func(t *testing.T) {
+		root := newCommitRepository(t)
+		t.Setenv("CLAUDE_CODE_SESSION_ID", "gc-prune-fixture")
+		configureCommitAuthor(t, root)
+		writeCommitFixture(t, root, "mine.txt", "prepared before the collection\n")
+		prepared, err := Create(root, &Options{Subject: "lose the blob", Files: []string{"mine.txt"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		// The working tree moves on, so no index or file still names the blob.
+		writeCommitFixture(t, root, "mine.txt", "edited after preparation\n")
+		runCommitGit(t, root, "gc", "-q", "--prune=now")
+		head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
+		indexBefore := runCommitGitOutput(t, root, "ls-files", "-s")
+
+		command := exec.CommandContext(t.Context(), "bash", filepath.Join(root, filepath.FromSlash(prepared.Script)))
+		command.Dir = root
+		output, err := command.CombinedOutput()
+		if err == nil {
+			t.Fatalf("the script committed with its snapshot blob collected:\n%s", output)
+		}
+		// The failure must be the missing blob, not some other refusal that would
+		// pass this test for the wrong reason. `update-index --index-info`
+		// accepts an entry whose object is gone; `git commit` is what refuses to
+		// write the tree, measured 2026-10-07, and it still refuses before HEAD
+		// or the shared index moves.
+		if !strings.Contains(string(output), "invalid object") ||
+			!strings.Contains(string(output), "'mine.txt'") {
+			t.Fatalf("the script failed, but not over the collected blob:\n%s", output)
+		}
+		if now := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD")); now != head {
+			t.Fatalf("the failed script moved HEAD:\n%s", output)
+		}
+		if indexAfter := runCommitGitOutput(t, root, "ls-files", "-s"); indexAfter != indexBefore {
+			t.Fatalf("the failed script changed the shared index:\nbefore %s\nafter %s", indexBefore, indexAfter)
+		}
+	})
+}
+
+// TestAPeerStagedEntryForANamedPathIsResetToTheCommit settles A-3 of
+// plan/spec-commit-stages-in-a-private-index.md for the case the other tests
+// leave open: a peer has staged THIS block's path in the shared index.
+//
+// The method is a peer `git add` of the named path with its own content after
+// preparation, then the run. The repair rewrites the shared index entry for
+// every named path to what was committed, so the peer's staged ENTRY is
+// replaced; its CONTENT is what the peer staged from the working tree, and the
+// working tree is never written, so it stays on disk and the drift note names
+// the path.
+//
+// VALIDATES: the committed content is the prepared one, the shared index agrees
+// with HEAD for the path afterwards, and the peer's content is still on disk
+// and reported.
+// PREVENTS: an unannounced loss of a peer's edit to a path both sessions name.
+func TestAPeerStagedEntryForANamedPathIsResetToTheCommit(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "same-path-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "shared.txt", "the author's content\n")
+	prepared, err := Create(root, &Options{Subject: "carry shared.txt", Files: []string{"shared.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, "shared.txt", "the peer's content\n")
+	runCommitGit(t, root, "add", "--", "shared.txt")
+
+	output := runCommitScript(t, root, prepared.Script)
+
+	if content := runCommitGitOutput(t, root, "show", "HEAD:shared.txt"); content != "the author's content\n" {
+		t.Fatalf("the commit carried %q, want the prepared content\n%s", content, output)
+	}
+	if staged := strings.TrimSpace(runCommitGitOutput(t, root, "diff", "--cached", "--name-only", "--", "shared.txt")); staged != "" {
+		t.Fatalf("the shared index still differs from HEAD for shared.txt: %q", staged)
+	}
+	onDisk, err := os.ReadFile(filepath.Join(root, "shared.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(onDisk) != "the peer's content\n" {
+		t.Fatalf("the run changed the peer's working-tree content: %q", onDisk)
+	}
+	if !strings.Contains(output, "these paths changed on disk after this commit was prepared") ||
+		!strings.Contains(output, "shared.txt") {
+		t.Fatalf("the run did not report the peer's content it left on disk:\n%s", output)
+	}
+}

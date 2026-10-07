@@ -7,7 +7,7 @@
 | Depends | `plan/spec-ledger-shards-per-commit-session.md` (both touch `internal/le/commit/prepare.go`) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-07 |
 
 Product code landed in `a9f2207a3` and `06f6185cb`. End-to-end proof and
 closure remain outstanding.
@@ -126,8 +126,8 @@ care is irrelevant to whether that holds.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A `git ls-files -s` line is a stable interchange for `update-index --index-info` | git's own documented format | the script cannot rebuild the index | `snapshot_test.go` round-trips it | confirmed |
-| A-2 | The object database keeps the snapshot blob alive between preparation and the run | blobs are unreferenced until the commit, so `gc --prune=now` could collect them | a script prepared long ago fails at `update-index` with an unknown object | not validated by a test | UNVALIDATED |
-| A-3 | Repairing the shared index for this block's paths cannot destroy another session's staged entry | the repair names only `block.Paths` | a peer's staged path is reset | the current `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit` covers a different foreign path; the same-path case remains to resolve | UNVALIDATED |
+| A-2 | The object database keeps the snapshot blob alive between preparation and the run | blobs are unreferenced until the commit, so `gc --prune=now` could collect them | a script prepared long ago fails with an unknown object | `TestAPreparedBlobSurvivesAnOrdinaryGC` (2026-10-07): under `git gc` with its default expiry the script commits the prepared content; under `git gc --prune=now` the blob is collected and the run fails over `invalid object ... for 'mine.txt'` with HEAD and the shared index unchanged. Measured: `update-index --index-info` ACCEPTS the missing object, and `git commit` is the step that refuses | confirmed (fail-closed bound: a script older than `gc.pruneExpire` can fail, never mis-commit) |
+| A-3 | Repairing the shared index for this block's paths cannot destroy another session's staged entry | the repair names only `block.Paths` | a peer's staged path is reset | foreign path: `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit`. Same path: `TestAPeerStagedEntryForANamedPathIsResetToTheCommit` (2026-10-07) shows the repair REPLACES a peer's staged entry for a path this block names, while the peer's content stays in the working tree and the drift note names the path | confirmed for a foreign path; QUALIFIED for the same path: the entry is reset, the content survives on disk. A peer that staged a path and then edited it again keeps only the newer edit on disk. Staging in the shared index is itself banned for every session (`ai/rules/git-safety.md`), so that entry has no sanctioned writer |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -178,7 +178,10 @@ care is irrelevant to whether that holds.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| an end-to-end run in a throwaway repository, with a foreign path staged | not written | an agent commits while a peer holds the index | MISSING. See "What Remains" |
+| `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit` | `internal/le/commit/snapshot_test.go` | an agent commits while a peer holds the index, moves HEAD and edits a named path (AC-1, AC-2, AC-3, AC-5) | PASS 2026-10-07 |
+| `TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex` | `internal/le/commit/snapshot_test.go` | a removal reaches the commit and the shared index agrees (AC-4) | PASS 2026-10-07 |
+| `TestABlockLeavesTheSharedIndexAloneWhenItsCommitFails` | `internal/le/commit/snapshot_test.go` | a failed block changes neither HEAD nor the shared index | PASS 2026-10-07 |
+| `TestAPreparedBlobSurvivesAnOrdinaryGC`, `TestAPeerStagedEntryForANamedPathIsResetToTheCommit` | `internal/le/commit/snapshot_test.go` | A-2 and A-3 | added and PASS 2026-10-07 |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -320,4 +323,7 @@ evidence rows below describe that dated record; they are not a fresh test run.
 | Journal row | written, `plan/journal/concurrent-session-corruption.md`, seventh occurrence |
 | PROVEN | the snapshot round-trip and the rendered block shape, by the two unit tests. The drift-rewrite trap was measured directly on 2026-09-06 |
 | Current proof source | `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit` in `internal/le/commit/snapshot_test.go` now runs the generated script after a peer commit, a foreign staged path and a later edit. It asserts the committed population, peer ancestry, preserved working-tree edit, shared index and drift report. This supersedes the September 6 statement that no end-to-end test existed; no current pass is claimed |
-| Remains | (1) run and map the existing script regressions to AC-1, AC-2 and AC-5; (2) validate A-2 and A-3, including whether A-3 covers a peer staging the same named path; (3) resolve the pre-preparation ownership limitation without silently shrinking the goal; (4) closure sections |
+| Done 2026-10-07 | (1) the script regressions run green and are mapped in the Functional Tests table: AC-1, AC-2, AC-3, AC-5 by `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit`, AC-4 by `TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex`, AC-6 by `TestSnapshotRefusesAPathGitStagedNothingFor`. (2) A-2 confirmed with a fail-closed bound and A-3 confirmed with the same-path qualification, see the Assumptions table. Package run: `./le job run label unit-pkg quiet command go test -count=1 ./internal/le/commit/...` exit 0 |
+| Observed live 2026-10-07 | commit `c14ec85d74` succeeded and its shared-index repair then failed on `.git/index.lock` held by another process, leaving three paths `MM`. Re-running the two repair lines cleared it. Already journaled twice in `plan/journal/concurrent-session-corruption.md` (2026-10-04, 2026-10-05); not in this spec's ACs, but AC-5 ("no other entry in the shared index moved" and this block's paths show committed) does not hold on that path |
+| OWNER DECISION | the Known Limitation "an interloper's edit ALREADY in the working tree when preparation runs is still carried" is a gap against the stated Goal ("the author's care is irrelevant"). The spec cannot close without the owner choosing: accept it as a recorded limitation (goal narrowed to edits after preparation), or scope a follow-up mechanism |
+| Remains | the owner decision above, then closure: `/ze-close` by an independent reviewer. Owed by the main thread: `./le go lint run`, `./le verify worktree` |
