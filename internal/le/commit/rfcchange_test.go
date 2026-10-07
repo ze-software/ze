@@ -178,3 +178,40 @@ func TestCommitDropsTheUsedApprovalRows(t *testing.T) {
 		t.Fatalf("the commit does not carry %q: %q", want, prepared.RFCApprovals.Trailers)
 	}
 }
+
+// TestAnotherSessionsApprovalAdmitsNothing proves that the owner's approval
+// stays owned by the commit session that recorded it, under the approval-file
+// contract that superseded the shared test/rfc-changed.md ledger.
+//
+// The method is the one collision the shared ledger allowed: session B records
+// an approval for exactly the unit session A changes, and session A prepares
+// its commit. The approval file is named after B, so A's gate must not read it.
+//
+// VALIDATES: rfcChangeProblems reads only this commit session's approval file.
+// PREVENTS: the silent failure recorded in
+// plan/journal/concurrent-session-corruption.md, where a commit landed carrying
+// another session's record of an owner decision.
+// MUTATION: name the foreign session in the rfc.ApprovalPath call of
+// rfcChangeProblems and the change is admitted.
+func TestAnotherSessionsApprovalAdmitsNothing(t *testing.T) {
+	root := approvalRepository(t)
+	const foreignSession = "feed5678"
+	if _, err := rfc.Approve(root, foreignSession, approvalUnit, approvalReason); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := approvalCreate(t, root, approvalTagged)
+	if err == nil {
+		t.Fatal("another session's approval admitted this session's change to a tagged unit")
+	}
+	if !strings.Contains(err.Error(), "./le rfc approve unit "+approvalUnit+" reason") {
+		t.Fatalf("the refusal does not ask for this session's own approval:\n%s", err)
+	}
+	foreign, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rfc.ApprovalPath(foreignSession))))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !strings.Contains(string(foreign), approvalReason) {
+		t.Fatalf("the refused create changed the other session's approval file:\n%s", foreign)
+	}
+}

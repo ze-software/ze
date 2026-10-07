@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-07 |
 
 The original migration landed in `27a41cb32`.
 
@@ -131,8 +131,8 @@ must not recreate `test/rfc-changed/` to match its original design.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The eight-hex commit session is stable for the life of a session | `lepath.CommitSession` stores it under `tmp/` and reuses it | a session writes two shards | `commitsession.go`, read at the producer | confirmed |
-| A-2 | Every existing row in the two flat files has an owning session that can claim it | the flat files held rows from landed commits and from pending ones | a row is orphaned at migration | the migration itself | UNVALIDATED |
-| A-3 | `LandedRows` correctly proves a row's text is at HEAD | current regression covers landed pruning and unlanded refusal | a landed row keeps refusing, or an unlanded one is dropped | `TestALandedRowIsDroppedRatherThanBlockingTheNextCommit` in `internal/le/commit/ledger_test.go`; current run still owed | UNVALIDATED |
+| A-2 | Every existing row in the two flat files has an owning session that can claim it | the flat files held rows from landed commits and from pending ones | a row is orphaned at migration | audited from git 2026-10-07: at `27a41cb32^` the flat `test/weakened.md` held 5 rows, all added by the landed `18d7ffc8e0`, and `test/rfc-changed.md` held 3 rows, all added by the landed `5001022d13` (`git log -S` on each row). Every row the migration removed was already carried by a commit, so none lost its owner. A row pending only in some session's working tree at that moment is not observable from git | confirmed |
+| A-3 | `LandedRows` correctly proves a row's text is at HEAD | current regression covers landed pruning and unlanded refusal | a landed row keeps refusing, or an unlanded one is dropped | `TestALandedRowIsDroppedRatherThanBlockingTheNextCommit` in `internal/le/commit/ledger_test.go`, run 2026-10-07: PASS | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -174,7 +174,8 @@ must not recreate `test/rfc-changed/` to match its original design.
 | shard reading and foreign-shard refusal | `internal/le/commit/ledger_test.go` | AC-2, AC-4 | landed `27a41cb32` |
 | ledger audit over shards | `internal/le/testweakened/audit_test.go` | AC-1, AC-5, AC-6 | landed `27a41cb32` |
 | parity between the ledger reader and the gate | `internal/le/testweakened/parity_test.go` | AC-5, AC-6 | landed `27a41cb32` |
-| landed row pruning with an unlanded-row refusal control | `internal/le/commit/ledger_test.go`, `TestALandedRowIsDroppedRatherThanBlockingTheNextCommit` | AC-3 | source inspected September 20; not run in this reconciliation |
+| landed row pruning with an unlanded-row refusal control | `internal/le/commit/ledger_test.go`, `TestALandedRowIsDroppedRatherThanBlockingTheNextCommit` | AC-3 | PASS 2026-10-07 |
+| `TestAnotherSessionsApprovalAdmitsNothing` | `internal/le/commit/rfcchange_test.go` | RFC approval ownership under the superseding approval-file contract: session B's approval for the unit session A changed does not admit A's commit | added 2026-10-07. Green; red with `rfcChangeProblems` pointed at the foreign session's approval path |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -185,7 +186,7 @@ must not recreate `test/rfc-changed/` to match its original design.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le test weakened check` over a populated directory | not written | an author asks whose rows are in the ledger | MISSING. See "What Remains" |
+| `./le test weakened check` over a populated directory | `TestCheckMatchesProducerDiagnosticsAndExitCodes` (`internal/le/test/weakened/parity_test.go`) asserts the rendered line `holds 0 row(s), and is yours`; live run below | an author asks whose rows are in the ledger | PASS 2026-10-07. Live run over this checkout printed `test/weakened parses (57 session(s), 326 row(s))`, every shard with its rows, and `test/weakened/cf36fbca.md holds 0 row(s), and is yours` for this commit session. No commit was prepared |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -220,7 +221,9 @@ must not recreate `test/rfc-changed/` to match its original design.
 | 16 | Any changed source file referenced by existing doc anchors? | Yes | `docs/architecture/testing/test-health.md` covers weakened shards and RFC approval trailers. `docs/features/ai-first.md` covers the commit namespace. `docs/contributing/rfc-implementation-guide.md` must retain the current approval-file and trailer contract; no RFC ledger is restored |
 | 1, 2, 4-9, 11-15, 17 | - | No | no operator-facing surface changed |
 
-## Original Implementation Steps (landed migration record)
+## Implementation Steps
+
+The original steps, kept as the landed migration record.
 
 1. **Phase: Wiring (MANDATORY FIRST)** - `lepath.CommitSession` and `ShardPath`,
    with a failing test that two sessions resolve two paths.
@@ -322,5 +325,8 @@ the test exists, but no current run is claimed here.
 | Documentation | the three pages and `ai/rules/testing.md` landed in `27a41cb32` |
 | Journal row | written, `plan/journal/concurrent-session-corruption.md`, fifth occurrence, marked FIXED 2026-09-06; the work it names landed the same day as `27a41cb32` |
 | Historical proof record | September 6 recorded AC-1, AC-2, AC-4, AC-5 and AC-6 through `ledger_test.go`, `audit_test.go` and `parity_test.go`; this is not a new pass |
-| Current evidence to collect | Run the existing AC-3 regression, validate A-2 by auditing the original migration for orphaned rows, and exercise the populated `check` command. A-2 and A-3 remain unvalidated here |
-| Remains | Current AC evidence, the migration audit, functional command proof, confirmation that RFC approval ownership survives the superseding contract, and closure sections |
+| Current evidence, 2026-10-07 | `./le job run label unit-pkg quiet command go test -count=1 ./internal/le/commit/... ./internal/le/test/weakened/...` exit 0. AC-1 and AC-2 by `TestTwoSessionsKeepTheirOwnLedgerRowsThroughCreate`, AC-3 by `TestALandedRowIsDroppedRatherThanBlockingTheNextCommit`, AC-4 by `TestCheckMatchesProducerDiagnosticsAndExitCodes` plus the live `./le test weakened check` run in the Functional Tests table, AC-5 by `TestAuditHonoursWeakeningRowOnlyInTheCommitThatCarriesIt`, AC-6 by `TestCreateStillRefusesAWeakeningItsOwnShardDoesNotName`. The package moved from `internal/le/testweakened` to `internal/le/test/weakened` after this spec was written; Files to Modify and the Wiring Test name the old path |
+| Migration audit | A-2 confirmed from git, see the Assumptions table |
+| RFC approval ownership | `TestAnotherSessionsApprovalAdmitsNothing` proves the superseding contract keeps the owner's approval with the session that recorded it, observed red under a mutation |
+| Owed by the main thread | `./le go lint run`, `./le verify worktree` |
+| Remains | closure only: `/ze-close` by an independent reviewer |
