@@ -44,6 +44,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/doc/ste"
 	_ "github.com/ze-software/ze/internal/le/doc/wiring"
 	_ "github.com/ze-software/ze/internal/le/doc/yangcontract"
+	_ "github.com/ze-software/ze/internal/le/feature"
 	_ "github.com/ze-software/ze/internal/le/go/extract"
 	_ "github.com/ze-software/ze/internal/le/go/lint"
 	_ "github.com/ze-software/ze/internal/le/go/module"
