@@ -124,7 +124,7 @@ func TestCategorySplitsCommittedBacklogFromIdeaCapture(t *testing.T) {
 		// Terminal: the work is finished, so it is not open backlog.
 		"done":           Other,
 		"unknown":        Other,
-		statusUnparsed:   Other,
+		StatusUnparsed:   Other,
 		"":               Other,
 		"never-heard-of": Other,
 	}
@@ -287,7 +287,7 @@ func TestCollectDistinguishesUnparsedFromUnknown(t *testing.T) {
 	got := byName(inventory)
 	for name, want := range map[string]string{
 		"fixture-readable":  "ready",
-		"fixture-no-table":  statusUnparsed,
+		"fixture-no-table":  StatusUnparsed,
 		"fixture-no-status": "unknown",
 	} {
 		if got[name].Status != want {

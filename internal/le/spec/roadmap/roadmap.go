@@ -144,13 +144,14 @@ func Collect(ctx context.Context, root, revision string) (Snapshot, error) {
 }
 
 func itemDiagnostics(item *Item) {
-	switch item.Status {
-	case "skeleton", "design", "ready", "in-progress", "verification", "blocked", "deferred":
-	case "unparsed":
+	// The parse markers are checked before the vocabulary, because Parse writes
+	// them in place of a Status the spec failed to declare.
+	switch {
+	case item.Status == specstatus.StatusUnparsed:
 		item.Diagnostics = append(item.Diagnostics, "metadata table unavailable")
-	case "unknown":
+	case item.Status == specstatus.StatusUnknown:
 		item.Diagnostics = append(item.Diagnostics, "status unavailable")
-	default:
+	case !specstatus.Declared(item.Status):
 		item.Diagnostics = append(item.Diagnostics, "unrecognized declared status: "+item.Status)
 	}
 	if item.Title == "" {

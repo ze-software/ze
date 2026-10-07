@@ -21,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -56,21 +57,20 @@ const SkeletonTTLDays = SkeletonTTLWeeks * 7
 // about one vocabulary, and turns a typo in any of them into a compile error
 // rather than a spec that is silently filed somewhere else.
 //
-// This is NOT the status vocabulary. That lives in ai/rules/planning.md and in
-// the oneOf call that validates a spec's Status row
-// (internal/le/hookruntime.validateSpecText), and a third copy here would drift
-// from both. A status named nowhere here is still counted, still categorized
-// and still printed: every reader below has a default.
+// The constants are not the whole status vocabulary: Vocabulary below is, and
+// it names `done`, which no enumeration here ranks. A status named nowhere here
+// is still counted, still categorized and still printed: every reader below has
+// a default.
 //
 // That default is the whole safety property, and it is what the session-start
 // summary lacked until 2026-08-29: it kept a seven-name list of its own and
 // counted only what the list named, so two `done` specs went unreported.
 const (
-	// statusUnparsed is reported for a spec that carries no metadata table. It
-	// is distinct from statusUnknown, which means the table was read and the
+	// StatusUnparsed is reported for a spec that carries no metadata table. It
+	// is distinct from StatusUnknown, which means the table was read and the
 	// Status row was absent from it.
-	statusUnparsed     = "unparsed"
-	statusUnknown      = "unknown"
+	StatusUnparsed     = "unparsed"
+	StatusUnknown      = "unknown"
 	statusInProgress   = "in-progress"
 	statusVerification = "verification"
 	statusReady        = "ready"
@@ -78,7 +78,21 @@ const (
 	statusSkeleton     = "skeleton"
 	statusBlocked      = "blocked"
 	statusDeferred     = "deferred"
+	statusDone         = "done"
 )
+
+// Vocabulary is every Status a spec may declare, as ai/rules/planning.md lists
+// it. It is the one declaration: the spec validation hook
+// (internal/le/hookruntime.validateSpecText) refuses a Status outside it, and the
+// release roadmap flags one. The parse markers unparsed and unknown are answers
+// this package gives about a spec, never a Status a spec declares.
+var Vocabulary = []string{
+	statusSkeleton, statusDesign, statusReady, statusInProgress, statusVerification,
+	statusBlocked, statusDeferred, statusDone,
+}
+
+// Declared reports whether status is in Vocabulary.
+func Declared(status string) bool { return slices.Contains(Vocabulary, status) }
 
 // Category maps a spec status to its inventory category. A status named nowhere
 // here lands in Other, which is correct for a terminal state such as `done` and
@@ -171,7 +185,7 @@ func metaField(rows []string, field string) string {
 // StatusOrder returns the shared inventory sort key. Unrecognized states sort last.
 func StatusOrder(status string) int {
 	switch status {
-	case statusUnparsed:
+	case StatusUnparsed:
 		// Sorted first: a spec the inventory cannot read is the one row a
 		// reader must act on, and burying it reads as "nothing to see".
 		return 0
@@ -220,11 +234,11 @@ func gitDate(ctx context.Context, root, rel string) string {
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {
-		return statusUnknown
+		return StatusUnknown
 	}
 	s := strings.TrimSpace(string(out))
 	if s == "" {
-		return statusUnknown
+		return StatusUnknown
 	}
 	return s
 }
@@ -293,10 +307,10 @@ func Parse(data []byte, rel string, warn func(string)) (Spec, error) {
 			var tb textbuf.Buffer
 			warn(tb.Str("spec-status: ").Str(rel).Str(" has no '| Field | Value |' metadata table").String())
 		}
-		s.Status = statusUnparsed
+		s.Status = StatusUnparsed
 	}
 	if s.Status == "" {
-		s.Status = statusUnknown
+		s.Status = StatusUnknown
 	}
 	if s.Depends == "" {
 		s.Depends = "-"
@@ -341,9 +355,9 @@ func StatusPhrases(root string) ([]string, error) {
 		case !found:
 			// Same fail-closed split loadSpec makes: no table at all is an
 			// authoring error, an absent Status row inside one is not.
-			status = statusUnparsed
+			status = StatusUnparsed
 		case status == "":
-			status = statusUnknown
+			status = StatusUnknown
 		}
 		counts[status]++
 	}

@@ -64,6 +64,7 @@ func Markdown(snapshot *Snapshot, localLinks bool) string {
 		"| verification | Committed implementation awaiting independent review and closure; still open |\n" +
 		"| blocked | Waiting on a declared prerequisite |\n" +
 		"| deferred | Explicitly postponed; still counted |\n" +
+		"| done | Declared complete; still counted until the spec is removed |\n" +
 		"| unparsed / unknown / other values | Metadata needs attention; still counted |\n\n" +
 		"The report records declared status only. Phase text and checkboxes do not establish completion. Removed specs require source verification before a delivery claim.\n")
 	return out.String()

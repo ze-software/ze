@@ -13,7 +13,7 @@ validates it on every write.
 
 | Field | Purpose | Values |
 |-------|---------|--------|
-| Status | Current state | `skeleton`, `design`, `ready`, `in-progress`, `verification`, `blocked`, `deferred` |
+| Status | Current state | `skeleton`, `design`, `ready`, `in-progress`, `verification`, `blocked`, `deferred`, `done` |
 | Handoff | Who closes this spec | `verify` for the two-session handoff, `-` for closure in the same session |
 | Depends | Blocking prerequisite | A spec filename, or `-` |
 | Phase | Multi-phase progress | `N/M`, or `-` for single-phase |
@@ -28,6 +28,11 @@ validates it on every write.
 | `verification` | Implementation complete and committed, awaiting an independent review and closure. Reached only under `Handoff: verify` |
 | `blocked` | Waiting on the prerequisite named in Depends |
 | `deferred` | Explicitly postponed |
+| `done` | Declared complete. Closure removes the spec, so a `done` spec is one whose removal has not landed |
+
+<!-- source: internal/le/spec/status/specstatus.go -- Vocabulary, Declared -->
+The Status values are declared once, in `Vocabulary`. The validation hook and
+the release roadmap both read it.
 
 | Event | Status change | Phase | Updated |
 |-------|--------------|-------|---------|

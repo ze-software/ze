@@ -706,8 +706,8 @@ func validateSpecText(root, text string) ([]string, []string) {
 		if len(statusMatch) > 1 {
 			status = statusMatch[1]
 		}
-		if !oneOf(status, "skeleton", "design", "ready", "in-progress", "verification", "blocked", "deferred", "done") {
-			errors = append(errors, "Invalid Status '"+status+"'. Must be: skeleton, design, ready, in-progress, verification, blocked, deferred, done")
+		if !specstatus.Declared(status) {
+			errors = append(errors, "Invalid Status '"+status+"'. Must be: "+strings.Join(specstatus.Vocabulary, ", "))
 		}
 		if !regexp.MustCompile(`(?m)^\| Updated \| *\d{4}-\d{2}-\d{2}`).MatchString(text) {
 			warnings = append(warnings, "Metadata: Updated field should have a date (YYYY-MM-DD)")

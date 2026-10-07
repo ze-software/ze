@@ -48,12 +48,11 @@ type Inventory []Spec
 // buys a position and nothing else, which is why "verification" is here
 // (committed work in flight, so it belongs beside in-progress) and "done" is not
 // (terminal, so the sorted tail below prints it last). The vocabulary itself
-// lives in ai/rules/planning.md and in the oneOf call that validates a spec's
-// Status row (internal/le/hookruntime.validateSpecText); a third copy here would
-// drift from both.
+// is Vocabulary in specstatus.go, which the hook that validates a spec's Status
+// row reads; a second copy here would drift from it.
 var reportingOrder = []string{
-	statusUnparsed, statusInProgress, statusVerification, statusReady,
-	statusDesign, statusSkeleton, statusBlocked, statusDeferred, statusUnknown,
+	StatusUnparsed, statusInProgress, statusVerification, statusReady,
+	statusDesign, statusSkeleton, statusBlocked, statusDeferred, StatusUnknown,
 }
 
 // summaryOrder answers the statuses the summary line names, in print order: the

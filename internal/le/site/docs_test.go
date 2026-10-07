@@ -92,6 +92,10 @@ func TestEveryDocsProducerSourceExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pages: %v", err)
 	}
+	// 148 recovered pages, less project/roadmap/, which the roadmap producer owns.
+	if len(pages) != 147 {
+		t.Errorf("the docs producer publishes %d pages, want the 147 the recovered registry names", len(pages))
+	}
 	destinations := map[string]string{}
 	for _, page := range pages {
 		_, derived := liveDocSources[page.Source]

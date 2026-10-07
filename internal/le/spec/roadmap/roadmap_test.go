@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/derived"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
 func fixtureGit(t *testing.T, root, input string, args ...string) string {
@@ -411,5 +412,38 @@ func TestRoadmapIndexMatchesSnapshot(t *testing.T) {
 	}
 	if artifact.Complete(root) {
 		t.Fatal("historical index claimed HEAD freshness")
+	}
+}
+
+// TestRoadmapStatusVocabularyIsTheSpecVocabulary proves the roadmap reads the
+// one Status vocabulary rather than a copy of its own. Every declared Status is
+// accepted without a diagnostic and owns a legend row, `done` included, which a
+// private copy once omitted; a Status outside the vocabulary is still flagged.
+func TestRoadmapStatusVocabularyIsTheSpecVocabulary(t *testing.T) {
+	root := fixtureRepository(t)
+	files := map[string]string{"plan/spec-outside.md": fixtureSpec("Outside", "surprising", "-")}
+	for _, status := range specstatus.Vocabulary {
+		files["plan/spec-declared-"+status+".md"] = fixtureSpec("Declared "+status, status, "-")
+	}
+	snapshot, err := Collect(t.Context(), root, fixtureCommit(t, root, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range snapshot.Items {
+		if item.Name == "outside" {
+			if !slices.Contains(item.Diagnostics, "unrecognized declared status: surprising") {
+				t.Errorf("a Status outside the vocabulary carries no diagnostic: %v", item.Diagnostics)
+			}
+			continue
+		}
+		if len(item.Diagnostics) != 0 {
+			t.Errorf("declared Status %q is flagged: %v", item.Status, item.Diagnostics)
+		}
+	}
+	_, legend, _ := strings.Cut(Markdown(&snapshot, false), "## Status legend")
+	for _, status := range specstatus.Vocabulary {
+		if !strings.Contains(legend, "\n| "+status+" | ") {
+			t.Errorf("the status legend has no row for declared Status %q", status)
+		}
 	}
 }

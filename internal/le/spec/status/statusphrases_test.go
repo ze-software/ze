@@ -110,7 +110,7 @@ func TestASpecWithNoTableCountsAsUnparsed(t *testing.T) {
 	if got := total(t, phrases); got != 2 {
 		t.Errorf("the counts sum to %d over 2 specs: %v", got, phrases)
 	}
-	if !strings.Contains(strings.Join(phrases, ", "), statusUnparsed) {
+	if !strings.Contains(strings.Join(phrases, ", "), StatusUnparsed) {
 		t.Errorf("the breakdown does not name the unreadable spec: %v", phrases)
 	}
 }

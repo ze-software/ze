@@ -77,7 +77,12 @@ func TestTheFeaturesPageKeepsTheDataFilesOwnOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if len(data.Sections) != 2 {
+		t.Fatalf("the fixture holds %d sections, want the published core and experimental 2", len(data.Sections))
+	}
+
 	previous := -1
+	cards := 0
 	for _, section := range data.Sections {
 		at := strings.Index(page, `<section id="`+section.ID+`" aria-labelledby="`+section.ID+`-title"`)
 		if at < 0 {
@@ -88,6 +93,7 @@ func TestTheFeaturesPageKeepsTheDataFilesOwnOrder(t *testing.T) {
 		}
 		previous = at
 		for _, card := range section.Cards {
+			cards++
 			at := strings.Index(page, ">"+card.Title+"</a></h3>")
 			if at < 0 {
 				t.Fatalf("the page carries no card titled %q", card.Title)
@@ -97,6 +103,9 @@ func TestTheFeaturesPageKeepsTheDataFilesOwnOrder(t *testing.T) {
 			}
 			previous = at
 		}
+	}
+	if cards != 52 {
+		t.Fatalf("the fixture holds %d cards, want the published 52 shipped and experimental", cards)
 	}
 }
 
@@ -136,8 +145,12 @@ func TestTheFeatureLegendFollowsItsOwnCategoryOrder(t *testing.T) {
 	}
 }
 
-// VALIDATES: the feature page and mirror retain the shared navigation and links.
-func TestTheFeaturesPageUsesTheSharedShell(t *testing.T) {
+// VALIDATES: the features page reads as the published page and carries the same
+// chrome, and its mirror is the published mirror byte for byte. The goldens are
+// the gh-pages 2fa8fa2ad page with one edit: spec-release-roadmap replaced the
+// four roadmap cards with a link to the release inventory, and the hero and the
+// note stopped naming them. Every shipped card reads as it was published.
+func TestTheFeaturesPageReadsAsThePublishedPage(t *testing.T) {
 	paths := featuresPaths(t)
 
 	routes, err := renderFeatures(paths)
@@ -165,9 +178,16 @@ func TestTheFeaturesPageUsesTheSharedShell(t *testing.T) {
 		}
 	}
 
+	got := visibleText(mainContent(t, page))
+	want := visibleText(readFixture(t, "published-features-body.html"))
+	if got != want {
+		t.Errorf("the features page reads as\n  %q\nthe published page reads as\n  %q", got, want)
+	}
+
 	mirror := readArtifact(t, paths.Output, "features/"+pageMirrorFile)
-	if !strings.Contains(mirror, "[Learn more](https://ze-software.net/features/ai-first/)") {
-		t.Error("the feature mirror lost its capability link")
+	if mirror != readFixture(t, "published-features.md") {
+		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q",
+			mirror, readFixture(t, "published-features.md"))
 	}
 }
 
