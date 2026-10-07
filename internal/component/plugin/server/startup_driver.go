@@ -101,9 +101,11 @@ type startupSink interface {
 	// the final OK response (engine signals the reactor API-ready).
 	onRunning()
 
-	// postReady publishes the negotiated callback transport after the final
-	// barrier, before onRunning and the OK let either side enter runtime.
-	postReady(input *rpc.ReadyInput)
+	// postReady publishes the negotiated callback transport on the connection
+	// captured by the driver, after the final barrier and before onRunning and
+	// the OK let either side enter runtime. Stop may have cleared the process's
+	// connection pointer; the captured transport still owns the final response.
+	postReady(conn *pluginipc.PluginConn, input *rpc.ReadyInput)
 
 	// transition advances the barrier from one stage to the next and records
 	// the new process stage. It returns false to abort the handshake without an
@@ -229,7 +231,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	if !sink.transition(plugin.StageReady, plugin.StageRunning) {
 		return errStartupBarrierAborted
 	}
-	sink.postReady(&readyInput)
+	sink.postReady(conn, &readyInput)
 	sink.onRunning()
 	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
 		return fmt.Errorf("stage 5 respond: %w", err)

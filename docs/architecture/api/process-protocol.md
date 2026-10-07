@@ -244,6 +244,15 @@ an added validation) therefore touches one place.
 <!-- source: internal/component/plugin/server/startup.go -- engineStartupSink -->
 <!-- source: internal/component/plugin/server/subsystem.go -- hubStartupSink -->
 
+The driver retains the connection it captured at handshake entry through the
+final ready acknowledgement, including bridge publication. A concurrent
+`Process.Stop` closes that transport and clears the process's connection field;
+publication must not look it up again. A stopped transport still fails the final
+response, so the engine rolls startup back rather than treating cancellation as
+successful readiness.
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+<!-- source: internal/component/plugin/server/startup.go -- engineStartupSink.postReady, handleProcessStartupRPC -->
+
 **Filter Declaration (Stage 1):**
 
 Plugins may include a `filters` list in their `declare-registration` to offer named

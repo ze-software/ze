@@ -801,11 +801,12 @@ func (e *engineStartupSink) onRunning() {
 	}
 }
 
-// PostReady publishes bridge callbacks when requested, before the final OK
-// allows the SDK to activate the bridge and close its startup pipe.
-func (e *engineStartupSink) postReady(input *rpc.ReadyInput) {
+// PostReady publishes bridge callbacks on the handshake's captured transport,
+// before the final OK allows the SDK to activate the bridge and close its pipe.
+// Stop can already have cleared proc.Conn; the final OK reports that closure.
+func (e *engineStartupSink) postReady(conn *plugipc.PluginConn, input *rpc.ReadyInput) {
 	if input.Transport == "bridge" && e.proc.Bridge() != nil {
-		e.proc.Conn().SetBridge(e.proc.Bridge())
+		conn.SetBridge(e.proc.Bridge())
 		logger().Debug("rpc startup: switched to bridge transport", "plugin", e.proc.Name())
 	}
 }

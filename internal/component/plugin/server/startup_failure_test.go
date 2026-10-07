@@ -214,3 +214,93 @@ func TestStartupBridgePublicationBoundary(t *testing.T) {
 		})
 	}
 }
+
+// stoppingStartupSink reproduces cancellation after the final barrier, when
+// the driver owns a transport that Process.Stop has removed from the process.
+type stoppingStartupSink struct {
+	*engineStartupSink
+	stopped bool
+}
+
+func (s *stoppingStartupSink) transition(from, to plugin.PluginStage) bool {
+	if !s.engineStartupSink.transition(from, to) {
+		return false
+	}
+	if to == plugin.StageRunning {
+		s.proc.Stop()
+		s.stopped = true
+	}
+	return true
+}
+
+// TestStartupStopBeforeBridgePublication drives the actual SDK and engine
+// handshake through a deterministic Stop at the final barrier. Publication must
+// use the driver's transport, not re-read the now-cleared process connection.
+// The final response must still fail; cancellation must not become success.
+func TestStartupStopBeforeBridgePublication(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+	const pluginName = "startup-stop-publication"
+	started := make(chan struct{})
+	sdkDone := make(chan struct{})
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		p.OnStarted(func(context.Context) error {
+			close(started)
+			return nil
+		})
+		err := p.Run(t.Context(), sdk.Registration{})
+		close(sdkDone)
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+	s, spawner := newLifecycleStartupServer(t)
+	if err := spawner.SpawnMore([]plugin.PluginConfig{{
+		Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	s.procManager.Store(spawner.pm)
+	proc := spawner.pm.GetProcess(pluginName)
+	if err := proc.InitConns(); err != nil {
+		t.Fatal(err)
+	}
+	conn := proc.Conn()
+	sink := &stoppingStartupSink{engineStartupSink: &engineStartupSink{s: s, proc: proc}}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	err := runStartupHandshake(ctx, sink)
+	if !sink.stopped {
+		t.Fatalf("handshake never reached the stop boundary: %v", err)
+	}
+	if proc.Conn() != nil {
+		t.Fatal("Stop did not clear the process connection")
+	}
+	if !conn.HasBridge() {
+		t.Fatal("publication skipped the driver's captured transport")
+	}
+	if err == nil || !strings.Contains(err.Error(), "stage 5 respond:") {
+		t.Fatalf("stopped handshake must fail the final response, got %v", err)
+	}
+	// The SDK treats a stage-5 connection close as graceful shutdown, so its
+	// return value is not a readiness receipt. Runtime entry is the boundary.
+	select {
+	case <-sdkDone:
+	case <-ctx.Done():
+		t.Fatal("SDK did not exit after startup Stop")
+	}
+	select {
+	case <-started:
+		t.Fatal("SDK entered runtime after startup Stop")
+	default:
+	}
+	if proc.Bridge().Activated() {
+		t.Fatal("SDK activated the bridge after startup Stop")
+	}
+	if _, err := proc.Bridge().SendCallback(ctx, "test", nil); !errors.Is(err, rpc.ErrBridgeClosed) {
+		t.Fatalf("stopped bridge callback: %v, want ErrBridgeClosed", err)
+	}
+}

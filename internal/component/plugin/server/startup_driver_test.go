@@ -56,8 +56,10 @@ func (r *recordingSink) onReady(*rpc.ReadyInput) error {
 	return nil
 }
 
-func (r *recordingSink) onRunning()                { r.order = append(r.order, "OnRunning") }
-func (r *recordingSink) postReady(*rpc.ReadyInput) { r.order = append(r.order, "PostReady") }
+func (r *recordingSink) onRunning() { r.order = append(r.order, "OnRunning") }
+func (r *recordingSink) postReady(*ipc.PluginConn, *rpc.ReadyInput) {
+	r.order = append(r.order, "PostReady")
+}
 
 func (r *recordingSink) transition(from, to plugin.PluginStage) bool {
 	r.order = append(r.order, "Transition")
