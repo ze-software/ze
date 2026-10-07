@@ -7,7 +7,7 @@
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BGP group before any row edit, parent R-11) |
 | Phase | 2/48 |
 | Handoff | - |
-| Updated | 2026-10-06 |
+| Updated | 2026-10-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -692,6 +692,184 @@ Pending runs and commit boundaries below describe that earlier checkpoint.
 Owner's pause boundary: finish the current AIGP carrier repair, commit all work
 authored in this session, update this plan and write a progress report, then pause.
 Do not start another repair lane. This is not spec closure or scope reduction.
+
+### AIGP boundary diagnosis, 2026-10-07
+
+Owner: "ok - next step", approving the proposed distinction between Ze's
+outgoing AIGP bytes and FRR's receive/display boundary. The pause boundary above
+still applies after this repair.
+
+The requested native retry now passes Docker setup and peer readiness. It fails
+on FRR's decoded `10.10.2.0/24`: the route and self next hop are present, but
+metric 107 is absent. The prior shared-document commit boundary is resolved;
+source and documentation landed in the recorded continuation commits.
+
+Independent traces covered FRR's parser/display contract and Ze's forwarding
+writer. The diagnostic-only raw-capture overlay returned `started:[]`, so it
+supplied no packet evidence. The incident is recorded in
+`plan/journal/silent-fall-through.md`; this repair does not change that surface.
+
+Host tcpdump captured the unmodified native scenario. Independent TCP reassembly
+shows source metric100, FRR-bound and wire-recipient metric107 with Ze's next hop,
+and unchanged GoBGP metric100. The exact outgoing AIGP attribute is
+`801a0b01000b000000000000006b`. FRR10.3.1's `bgp_attr_aigp` requires both
+`PEER_FLAG_AIGP` and `BGP_PEER_EBGP_OAD`; the fixture had only `neighbor ... aigp`.
+Adding `neighbor ... oad` preserves eBGP and all existing assertions.
+Independent review accepted the fixture and documentation correction.
+
+The fresh corrected run passes direct107 and recovery111/107, then fails after
+distance zero: GoBGP loses the unchanged-next-hop `10.10.3.0/24` control.
+`job-aigp-frr-oad-correction-52a0d30f.log` records that failure. The second host
+capture proves this order: Ze withdraws from FRR; FRR returns the withdrawal;
+Ze then withdraws the injector's route from GoBGP. In the general route-server
+path, `processForward` forwards before updating its source-keyed inventory.
+The rejected AS-loop announcement did not establish FRR's ownership, but its
+later attribute-free withdrawal is forwarded.
+
+The owner selected **Repair route-server ownership**, not **Constrain FRR's
+fixture role**. Production repair is now authorized; no outbound fixture filter
+or weaker AIGP assertion is authorized. The pause boundary follows this repair.
+The existing forward-all model remains: this is not a new best-path-selection
+feature.
+
+Selected design: extend the existing recipient `adjOut` table with source/path
+ownership and make final session writes its sole producer. The source inventory
+cannot answer which source currently owns a destination's advertisement; the
+RIB's asynchronous sent projection cannot answer a hot-path write decision.
+No second route store, per-withdrawal RPC or new selection algorithm is added.
+
+| Boundary | Contract |
+|----------|----------|
+| Live owner | Stable source-peer identity and received path identity, including negotiated ADD-PATH; ordinary withdrawal equality ignores the new UPDATE's message revision and the source's previous session generation. |
+| Queued operation | Check captured source generation and destination session again under the final write lock. A removed/recreated peer is not the old owner. |
+| Cold lookup receipt | Capture destination ordering before source receive-publication cuts; await those cuts before the existing applied-event drain and RIB lookup. Recheck source cuts and destination ordering at admission. Filtered source operations still invalidate the causal receipt without pretending bytes were sent. |
+| Source restart | A current-session withdrawal may remove its own GR-retained route; it may not remove a replacement from another source. |
+| Synthesized withdrawal | Preserve an internally synthesized withdrawal when no owner exists, including AIGP's initial cost-withheld wire proof. An existing different/local owner still prevents it. Original received withdrawals gain no such authority. |
+| Buffered output | Ordered pending writes influence the next write's owner decision. A failed write/flush invalidates that destination's ownership and retires that exact session. The frontier has no independently readable committed view; existing asynchronous sent callbacks retain their buffered-acceptance timing and do not prove flush or delivery. |
+| Local origin | Actual local advertisements replace forwarded ownership. Explicit authorized local withdrawals retain their authority; automatic replay/cleanup keeps its captured source and revision fences. |
+| Deliberate peer-up replay | Restore local API history and forwarded sent history whose exact source, received path and received revision still exist, under the captured new-session initial fence. Preserve its logical receipt while minting new wire message IDs. Changed source history is ineligible; this adds no new received-route election and assumes no optional Adj-RIB-In plugin. |
+| Duplicate suppression | Keep origination's exact-wire comparison, including changed labels when canonical withdrawal identity ignores those labels. Forwarded entries retain owner metadata, not copied attributes. |
+| Bound | One recipient entry per advertised native path; pooled transient provenance/filtering is bounded by message and in-flight cache limits. |
+| Readiness | Even zero-route replay reports the original event's session token. The actual readiness owner rejects stale or missing process receipts atomically; a delayed report cannot release a replacement session's live-forward fence. A rejected history group is logged, its cursor state reset, and remaining independent groups attempted before reporting completion. Completion means the producer finished its attempts, not that TCP delivered them. Preserve the distinction between EOR and the replay/live-forward fence. |
+
+The regression-only phase added real TCP and real writer carriers, then the
+native full-feature `-race` run observed semantic failures before production
+edits: lost recipient routes and unwanted withdrawals on every tested forwarding
+rail, including identical attributes, collapsed source paths and replaced
+destination sessions. Evidence:
+`job-rs-withdrawal-ownership-before-0f2f306c.log` (reactor 5.748s).
+Writer/state and producer/provenance implementation now form one coordinated
+cutover; neither partial half is acceptance. Main owns integration, native
+verification, independent review and scoped landing.
+
+| ID | Required proof | Current evidence |
+|----|----------------|------------------|
+| AC-W1 | A source whose announcement was rejected cannot withdraw another source's advertised route. The unchanged AIGP scenario reaches every 11/7/zero/7 transition with GoBGP100 retained. | `TestRSReturnedWithdrawalPreservesOtherSource`; unchanged native scenario passed in `job-aigp-ownership-final-native-23d4b44a.log`. |
+| AC-W2 | Legitimate withdrawals still reach their recipients; an older source cannot remove a route now advertised under another source. Preserve the existing forward-all and departure-recovery contracts. | `TestRSWithdrawalKeepsCurrentDestinationOwner`, `TestRSWithdrawalOwnershipRetainedSource`, and the recovery tests in the complete package race run. |
+| AC-W3 | Mixed UPDATEs retain announcements and owned withdrawals while excluding unowned withdrawals. Native family identity, RD and negotiated Path Identifier remain distinct. | `TestRSMixedWithdrawalPreservesAnnouncementSibling`, `TestRSWithdrawalOwnershipCollapsedMixed`, `TestRSWithdrawalOwnershipFamilyRDIsolation`, and `TestRSWithdrawalOwnershipNativeIdentity`. |
+| AC-W4 | The protection applies to cached general forwarding, external-plugin forwarding and the reactor fast rail. Source/destination replacement, replay, write failure and synthesized policy withdrawals retain truthful ownership. | `TestRSWithdrawalOwnershipRails` exercises the forwarding API and writer rails; source/destination-generation, stored/sent replay, mixed-synthesized-intent and final-writer failure tests passed. This API-path proof is not claimed as a separate forked route-server interop run. |
+| AC-W5 | Keep deterministic failing-before/passing-after regression proof, the original native interop proof, independent review and scoped commits. No RFC-tagged assertion is weakened or silently changed. | Preserved pre-fix red archive; final native and race logs below; independent boundary/concurrency/proof reviews; source commit `b880c5a9a7`. Approved fixture/claim changes and observed discrimination records are in that commit. |
+
+The owner separately approved correcting the explicit local-origin metadata in
+`TestRFC2918ConfigStaticRetainedForRefresh`, with all assertions and the RFC claim
+unchanged. Its native discrimination receipt was refreshed in
+`job-rfc2918-local-origin-discrimination-588c72a9.log`.
+RFC prose alone is not a ledger tag; obsolete readiness tests that only capture
+command strings are replaced by real command-consumer and peer-fence proof,
+not re-pinned to the new token spelling.
+
+Boundary evidence is preserved outside `tmp` in
+`/home/thomas/ze-recovery/bgp-20261005T230453160053Z/aigp-boundary-20261007T095015Z.tar.gz`
+(SHA-256 `f1df9c15b896f713a04624308d2ada475934b2e0ae29c30a7e05cf2f086348d7`);
+all 15 archived members were compared byte-for-byte with their originals.
+The independently reviewed FRR correction is commit `01ad560278`; the separate
+capture-activation incident is commit `fe5e81b264`. Ownership repair and final
+carrier acceptance remain open.
+
+
+### Ownership integration decisions, 2026-10-07
+
+The unchanged `bgp-nexthop-self-local-auto-frr` scenario passed in
+`job-aigp-rs-ownership-integrated-52a0d30f.log`. Its measured Ze image and retained
+inputs/logs are preserved in
+`/home/thomas/ze-recovery/bgp-20261005T230453160053Z/ownership-green-20261007T133622Z-9a5381e4/ownership-evidence.tar.gz`
+(SHA-256 `caa9dd06f19089f083df33ef205bc157ffa0d6c94bfab1de2faa5f30a3fb8742`).
+The archive does not contain successful checker response bodies or an immutable
+FRR image identity. Its test-source snapshots are archive-time bytes, not a
+complete historical checkout.
+
+Broader package and repeated-race runs exposed remaining fixture mismatches,
+a plugin-startup cancellation panic, and teardown-cause masking after failed
+notification writes. The latter two require production repairs; the earlier
+interop pass is not final acceptance of those later edits.
+
+| Owner decision | Preserved proof or boundary |
+|----------------|----------------------------|
+| Correct other-TLV, direct-link and forwarded-metric AIGP fixtures | Supply actual source/session/context receipts and synthesized provenance; preserve all metric, TLV, withdrawal and input-immutability assertions and claims. |
+| Correct the PATHS-LIMIT replacement fixture | Change attributes on the existing path so it is a real replacement rather than an exact duplicate; preserve exact wire identifiers and both claims. |
+| Correct remaining SendHold batch fixtures | Establish source-owned history before advancing the clock; preserve every deadline assertion and the RFC9687 claim. |
+| Retire the obsolete 200-allocation probe | Preserve one retained 200-ID UPDATE in the actual-writer nonallocation regression; remove the mock-based test and its inaccurate RFC7911 tag, not the surviving identifier-uniqueness tests. |
+| Preserve raw injection, then reset after opaque output | After accepted opaque bytes are successfully flushed, retire that exact connection. This supersedes the initial diagnostic-only managed-write freeze, after the owner asked for the RFC distinction. It is Ze's sender-side safety policy, not an RFC7606 receiver rule. |
+
+The raw correction must preserve the pre-existing AIGP origination,
+negotiated PATHS-LIMIT, Label-Index normalization and recognized-UPDATE header
+behavior. It must not use a normal forwarding parser error as permission to
+send opaque bytes. No long-lived unknown-ownership state or exception to
+recovery teardown is authorized.
+
+### Ownership repair landing and proof, 2026-10-07
+
+Source commit `b880c5a9a7` carries the complete ownership cutover, source and
+session receipts, producer migration, teardown-cause correction, and the
+owner-selected raw reset-after-flush policy. The startup cancellation
+prerequisite landed separately as `6201025f8c`. Both committed trees passed
+the native distro, appliance, setup, host and installer build matrix.
+
+| Executed proof | Result and boundary |
+|----------------|---------------------|
+| Unchanged native AIGP carrier | `job-aigp-ownership-final-native-23d4b44a.log`: one scenario passed, none failed, with rebuilt production images. No fixture filtering or AIGP assertion change. |
+| Actual raw CLI | `job-ownership-raw-cli-smoke-25b2059b.log`: `send-raw-reaches-one-peer` passed through isolated native-built daemon and runner binaries. |
+| Complete reactor and RIB packages under race | `job-ownership-final-complete-packages-race-a95e6797.log`: both passed after the last fixture corrections. |
+| Targeted repeated concurrency proof | `job-ownership-final-stress-race20-02e07e8d.log`: 61 root tests each passed 20 executions. This is targeted race20, not 20 runs of the entire package population. |
+| Plugin server | Complete package passed in `job-ownership-final-integrated-race-af7b14b0.log`; that log remains red overall because two other packages' new fixtures failed. The two startup publication roots each passed 20 executions in `job-startup-captured-transport-race20-resumed-f489c68d.log`. |
+| Approved RFC fixtures | Native records cover RFC2918, both other-TLV claims, both PATHS-LIMIT claims, four direct-link claims, twelve forwarded-metric claims and the remaining-writers SendHold claim. The last receipts are `job-ownership-approved-discrimination-18-resumed-3eb25147.log` and `job-ownership-sendhold-discrimination-528d042e.log`. These are observed producer-halt discrimination, not a new claim of semantic mutation coverage for each whole RFC requirement. |
+
+The two final fixture repairs supplied the missing buffered reader in the
+earlier-close-cause test and separated production command parsing from a
+raw-attribute representation assertion in the external RIB event test.
+Existing tagged refresh callers retain every assertion. The external event
+test proves two retained route identities through the command consumers,
+not TCP delivery or the absence of event-loop blocking.
+
+The readiness SDK tests exercise every producer's empty replay and the real
+stale/current receipt consumer. Populated and error-path producer cases in
+that carrier are RIB-only: they do not establish populated persist replay or
+RR's replay-error exit. `test/weakened/cbdef303.md` at the source commit records
+this limit beside the retired mock command-string tests.
+
+The unrelated answer-allocation result remains 28 against 27 under race,
+with no established cause or baseline comparison. Its journal row is committed
+in `4d770ef50b`; neither production encoding nor the ceiling was changed.
+The generated readiness contract landed in wiki `ad06d64` and site `2258321885`.
+The rendered CLI row was checked in Chromium. After those artifacts changed,
+`job-ownership-doc-check-final-8f993e41.log` reports Documentation tests PASSED,
+including all 3025 digest anchors. Nothing was pushed. The parent and child
+remain open for the broader acceptance paused by the owner.
+
+Final evidence is retained outside `tmp` at
+`/home/thomas/ze-recovery/bgp-20261005T230453160053Z/ownership-final-native-20261007T202201Z-8b1edbd8/ownership-final-evidence.tar.gz`,
+SHA256 `936c74e7ba8aa9f927f9ef0d9688dbe4d3844513e83ce03ba3484f1490eadb1c`
+(independently checked after sealing). Its 25 top-level members include exact
+container-image exports, event/inspect evidence and nested source/log archives.
+The native Ze image is
+`sha256:532f65ae2aa0bcada169151fc6cb92aaa9ce5ca577e92540e6a24393c10dbcfd`;
+the FRR image is
+`sha256:f90d26a9fd5c14fc5795a73b4254ac88bc3186c45bbeb220a225fb6182de812c`.
+Images predate the ownership commit metadata; production sources did not change
+between that native run and landing. Initial and corrected fixture snapshots
+are separate. Successful per-assertion response bodies and the wire JSONL were
+not retained, so the archive supports the native aggregate verdict and immutable
+inputs, not a claim that those individual responses can be re-read.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

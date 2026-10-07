@@ -7,7 +7,7 @@
 | Depends | `spec-rfc-requirement-quote-hand-backfill` (closed 2026-09-27, `f265152e15`) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-06 |
+| Updated | 2026-10-07 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -85,6 +85,18 @@ authored RFC records/corrections are committed; evidence limits remain explicit.
 Neither child nor parent is closed. The owner requested a pause after the current
 AIGP repair, scoped commits and a progress report, without dropping remaining
 acceptance criteria.
+
+Progress, 2026-10-07: FRR's same-domain prerequisite is committed in `01ad560278`;
+the resulting route-server withdrawal-ownership repair is committed in
+`b880c5a9a7`, with startup transport lifetime repaired separately in `6201025f8c`.
+The unchanged native AIGP scenario now passes all 11/7/zero/7 transitions.
+Complete reactor/RIB packages passed under race once, 61 selected roots each
+passed 20 executions, and all five committed build flavors passed. Child
+AC-W1–W5 and its "Ownership repair landing and proof" section retain the logs,
+archive, approved fixture changes and coverage limits. Wiki `ad06d64` and site
+`2258321885` publish the captured-session readiness contract locally; nothing
+was pushed. The owner-requested pause follows this checkpoint, with remaining
+forwarding, LLGR, OSPF and RFC acceptance still open. Neither spec is closed.
 
 | Stays in the parent | Why |
 |---------------------|-----|
