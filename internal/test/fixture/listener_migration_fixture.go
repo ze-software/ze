@@ -83,20 +83,23 @@ func listenerMigration(ctx context.Context, _ []string) error {
 	}
 	defer daemon.stop()
 
+	// The held connections MUST stay open across the reload, so they close
+	// together when the run ends rather than at the end of each iteration.
 	held := make([]*listenerMigrationConn, len(services))
+	defer closeListenerMigrationConns(held)
+
 	for index, service := range services {
 		conn, err := dialListenerMigration(ctx, service, service.before)
 		if err != nil {
 			return fmt.Errorf("before reload: %w", err)
 		}
-		defer conn.close()
+		held[index] = conn
 		if service.status, err = conn.get(service.path); err != nil {
 			return fmt.Errorf("before reload: %s on port %d: %w", service.name, service.before, err)
 		}
 		if service.status == http.StatusBadRequest {
 			return fmt.Errorf("before reload: %s on port %d answered 400: the probe speaks the wrong protocol", service.name, service.before)
 		}
-		held[index] = conn
 	}
 
 	accepted, err := daemon.reload(ctx, listenerMigrationConfig(services, true))
@@ -274,4 +277,14 @@ func (c *listenerMigrationConn) get(path string) (int, error) {
 
 func (c *listenerMigrationConn) close() {
 	_ = c.conn.Close() //nolint:errcheck // fixture teardown
+}
+
+// closeListenerMigrationConns closes every connection dialed so far. A nil
+// entry is a service the run returned before dialing.
+func closeListenerMigrationConns(held []*listenerMigrationConn) {
+	for _, conn := range held {
+		if conn != nil {
+			conn.close()
+		}
+	}
 }
