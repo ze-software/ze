@@ -109,9 +109,9 @@ option=env:var=ze.ssh.insecure:value=true
 option=env:var=ze.ssh.port:value=$PORT2
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=policy routes applied
 cmd=foreground:seq=2:exec=sleep 5
 cmd=foreground:seq=3:exec=ze cli -c "show firewall ruleset pr | json"
-expect=stderr:contains=policy routes applied
 expect=stdout:contains="steer-webmark-1"
 expect=stdout:contains="steer-webmark-2"
 reject=stdout:contains="steer-webmark"

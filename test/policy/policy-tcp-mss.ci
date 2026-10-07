@@ -33,8 +33,8 @@ option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=policy routes applied
 cmd=foreground:seq=2:exec=le test fixture policy/policy-tcp-mss:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=policy routes applied
 expect=stdout:contains=table inet ze_pr
 expect=stdout:contains=tcp option maxseg size set 1436

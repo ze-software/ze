@@ -1,0 +1,61 @@
+{
+  "feature": "policy-routing",
+  "runs": [
+    {
+      "test": "test/policy/policy-boot-apply.ci",
+      "test-blob": "9ecafeb3f89597366aaab2b6508661d55de09e77",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/policy/policy-interface-list.ci",
+      "test-blob": "9fbfba49ee7c4ff1f4218cb4f341bc06af4b0a62",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/policy/policy-interface-list-counters.ci",
+      "test-blob": "190f04b9966f3ca8cde96c744904f34ab0850f04",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/policy/policy-next-hop.ci",
+      "test-blob": "c6f84988d3adf3ced782cf1e3688eaa354dceb5d",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/policy/policy-reload.ci",
+      "test-blob": "0b4a980395c6ace946bfa35902331faa0b6a8649",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/policy/policy-set-table.ci",
+      "test-blob": "0921d93058bb63bb1eab6f28a9d9443cd1256e92",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/policy/policy-tcp-flags.ci",
+      "test-blob": "e9df75b21aff74023c45b2174724d42c9221717e",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/policy/policy-tcp-mss.ci",
+      "test-blob": "1e54dd6d95467f92a96c2df45c9a75a1b86d7c31",
+      "commit": "4e3b405d948294d3d0a90f4d2c9169ff2448a54e",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}

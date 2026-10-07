@@ -8,11 +8,11 @@
 | Page | docs/guide/policy-routing.md |
 | Kind | daemon |
 | Scope | complete |
-| Level | experimental |
+| Level | supported |
 | Components | internal/plugins/policyroute |
 | Real-path tests | test/policy/policy-boot-apply.ci, test/policy/policy-interface-list.ci, test/policy/policy-interface-list-counters.ci, test/policy/policy-next-hop.ci, test/policy/policy-reload.ci, test/policy/policy-set-table.ci, test/policy/policy-tcp-flags.ci, test/policy/policy-tcp-mss.ci |
 | Docs | docs/guide/policy-routing.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the auto-managed next-hop table range 2000-2999 matches tableReservedMax and ze-policyroute-conf.yang |
+| Doc review | 2026-10-07: Description re-read against code after the guest run: actions (buildActions, translate.go), wildcard interfaces (config.go), one term per interface (ruleTerms), verify/apply reload (register.go) and the auto table range 2000-2999 (autoTableBase/autoTableMax, marks.go) all hold |
 | Defect review | 2026-10-07: journal one-members-bad-input-fails-every-member (2026-09-09) taken as open; no plan/immediate spec names internal/plugins/policyroute |
 
 ## Description
