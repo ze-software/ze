@@ -24,10 +24,10 @@ const leName = linuxle.Name
 // leTestWord is the first word of every harness command: `le test <name>`.
 const leTestWord = "test"
 
-// guestLeRel answers where the host writes the guest le, relative to the
+// GuestLeRel answers where the host writes the guest le, relative to the
 // checkout the guest mounts at GuestWorkspace. It sits under tmp/, never under
 // bin/le-*, which is launcher territory.
-func guestLeRel(goarch string) string {
+func GuestLeRel(goarch string) string {
 	return filepath.Join("tmp", "qemu", "linux-"+goarch, leName)
 }
 
@@ -49,7 +49,7 @@ func buildGuestLe(root, goarch string) (string, error) {
 	}
 	admission.Out = os.Stderr
 
-	output := filepath.Join(root, guestLeRel(goarch))
+	output := filepath.Join(root, GuestLeRel(goarch))
 	environment := append(toolchain.Environment(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
 	if _, code := admission.Run("qemu-build-le", linuxle.Argv(tags, output), root, environment); code != 0 {

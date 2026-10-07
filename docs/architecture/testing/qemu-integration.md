@@ -52,6 +52,7 @@ Both entry points run one VM for the whole population, never one VM per test.
 | `./le test qemu netns-test suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects only the seven ASPA cases |
 | `./le test qemu run ... command "./le test qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Four of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
 | `./le test qemu run ... command "./le test qemu all-tests only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
+| `./le test qemu run ... command "./le test qemu all-tests test test/<dir>/<name>.ci"` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature record-run` reaches a capability-gated test this way |
 
 `all-tests` discovers the suites' tests through the native runner, so a new
 `needs-linux` test needs no registration there. `netns-test` uses the explicit

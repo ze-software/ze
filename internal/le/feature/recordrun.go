@@ -32,6 +32,8 @@ import (
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	testqemu "github.com/ze-software/ze/internal/le/test/qemu"
+	testrunner "github.com/ze-software/ze/internal/test/runner"
 )
 
 // itemRunDeadline bounds one item's run. An expired deadline is an error, never
@@ -41,6 +43,23 @@ const itemRunDeadline = 20 * time.Minute
 // scenarioRunDeadline bounds one interop scenario's run, image builds
 // included. An expired deadline is an error, never a red and never a pass.
 const scenarioRunDeadline = 2 * time.Hour
+
+// guestRunDeadline bounds one guest run: a boot, the package install, and the
+// one test. An expired deadline is an error, never a red and never a pass.
+const guestRunDeadline = time.Hour
+
+// guestCommandTimeout is what `le test qemu run` gives the guest command, inside
+// guestRunDeadline.
+const guestCommandTimeout = "3000s"
+
+// guestPackages are what a capability-gated test shells out to in the guest
+// beyond its base image: `ip`, `nft`, `setcap` for the per-test namespace
+// suites, `ping`, and the module loader (docs/architecture/testing/qemu-integration.md).
+const guestPackages = "coreutils nftables iproute2 iputils-ping kmod iptables libcap"
+
+// guestBinariesRel is where the guest daemons are cross-built, inside the
+// checkout because the guest reaches it as /workspace.
+const guestBinariesRel = "tmp/qemu/feature-record-run"
 
 // excerptOctetsMax bounds the run output quoted in a refusal.
 const excerptOctetsMax = 4000
@@ -78,7 +97,7 @@ func RecordRun(tree, id string) (RunRecord, error) {
 	if err != nil {
 		return RunRecord{}, err
 	}
-	runner := &repoRunner{tree: tree, toolchain: toolchain}
+	runner := &repoRunner{tree: tree, toolchain: toolchain, needsGuest: testrunner.NeedsGuest}
 	defer runner.release()
 
 	return recordRun(tree, id, runners{item: runner.run, scenario: catalogScenarioRunner(tree)}, commit,
@@ -316,6 +335,10 @@ type repoRunner struct {
 	toolchain gotoolchain.Toolchain
 	set       testfunctional.BinarySet
 	prepared  bool
+	// needsGuest is the runner's own answer to "does this host skip that .ci
+	// because its home is the QEMU guest" (runner.NeedsGuest).
+	needsGuest func(path string) (bool, error)
+	guestBuilt bool
 }
 
 func (r *repoRunner) run(item string) (observation, error) {
@@ -324,21 +347,73 @@ func (r *repoRunner) run(item string) (observation, error) {
 		var tb textbuf.Buffer
 		argv := r.toolchain.GoTest(gotoolchain.TestOptions{}, "-run", tb.Byte('^').Str(function).Byte('$').String(),
 			"-count=1", "-v", "./"+path.Dir(file))
-		return r.exec(argv, r.toolchain.Environment(gotoolchain.EnvOptions{Test: true, Procs: true}))
+		return r.exec(argv, r.toolchain.Environment(gotoolchain.EnvOptions{Test: true, Procs: true}), itemRunDeadline)
 	}
 	runner, problem := runnerOf(file)
 	if problem != "" {
 		return observation{}, errors.New(problem)
 	}
-	if !r.prepared {
-		set, err := testfunctional.Prepare(r.toolchain, "feature-record-run")
+	if err := r.prepare(); err != nil {
+		return observation{}, err
+	}
+	if path.Ext(file) == ciSuffix {
+		guest, err := r.needsGuest(filepath.Join(r.tree, file))
 		if err != nil {
-			return observation{}, errors.New("cannot build the isolated binaries a functional test runs against: " + err.Error())
+			return observation{}, err
 		}
-		r.set, r.prepared = set, true
+		if guest {
+			return r.runInGuest(file)
+		}
 	}
 	argv := runner.argv(filepath.Join(r.set.Dir, testfunctional.LE))
-	return r.exec(argv, r.set.Environment(r.toolchain))
+	return r.exec(argv, r.set.Environment(r.toolchain), itemRunDeadline)
+}
+
+// prepare builds the isolated host set once, on the first functional item.
+func (r *repoRunner) prepare() error {
+	if r.prepared {
+		return nil
+	}
+	set, err := testfunctional.Prepare(r.toolchain, "feature-record-run")
+	if err != nil {
+		return errors.New("cannot build the isolated binaries a functional test runs against: " + err.Error())
+	}
+	r.set, r.prepared = set, true
+	return nil
+}
+
+// runInGuest runs the .ci at file in a throwaway QEMU guest, through the
+// suite `le test qemu all-tests` gives its directory, because this host skips
+// it (runner.NeedsGuest): a skip is never a pass, so the host run proves
+// nothing. The guest daemons are cross-built once into the checkout, which the
+// guest mounts. The observation is the guest runner's own output, so the
+// test's own PASS line is still what observedPass looks for.
+func (r *repoRunner) runInGuest(file string) (observation, error) {
+	goarch := testqemu.GuestArch()
+	binaries := filepath.Join(guestBinariesRel, "linux-"+goarch, "bin")
+	if !r.guestBuilt {
+		if err := testfunctional.PrepareGuest(r.toolchain, filepath.Join(r.tree, binaries), goarch); err != nil {
+			return observation{}, errors.New("cannot cross-build the guest ze for linux/" + goarch + ": " + err.Error())
+		}
+		r.guestBuilt = true
+	}
+	var command textbuf.Buffer
+	command.Str("ZE_BIN=").Str(filepath.ToSlash(filepath.Join(binaries, "ze"))).
+		Str(" ZE_STRIPPED_BIN=").Str(filepath.ToSlash(filepath.Join(binaries, "ze-stripped"))).
+		Byte(' ').Str(filepath.ToSlash(testqemu.GuestLeRel(goarch))).
+		Str(" test qemu all-tests test ").Str(file)
+	argv := []string{filepath.Join(r.set.Dir, testfunctional.LE), "test", "qemu", "run",
+		"packages", guestPackages, "timeout", guestCommandTimeout, "command", command.String()}
+	seen, err := r.exec(argv, r.set.Environment(r.toolchain), guestRunDeadline)
+	if err != nil {
+		return observation{}, errors.New("the QEMU guest route (`le test qemu run`): " + err.Error())
+	}
+	if !seen.exited {
+		seen.output = "record-run: " + file + " is skipped on this host (option=needs-linux), so it ran in " +
+			"the QEMU guest through `le test qemu run`; that route failed, and a failure before the guest " +
+			"booted means the route is unavailable on this host\n" + seen.output
+	}
+	return seen, nil
 }
 
 func (r *repoRunner) release() {
@@ -347,8 +422,8 @@ func (r *repoRunner) release() {
 	}
 }
 
-func (r *repoRunner) exec(argv, environ []string) (observation, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), itemRunDeadline)
+func (r *repoRunner) exec(argv, environ []string, deadline time.Duration) (observation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // argv is built from a declaration item that passed the check's path resolution
@@ -359,7 +434,7 @@ func (r *repoRunner) exec(argv, environ []string) (observation, error) {
 	cmd.Stderr = &out
 	runErr := cmd.Run()
 	if ctx.Err() != nil {
-		return observation{}, errors.New("did not finish inside " + itemRunDeadline.String() +
+		return observation{}, errors.New("did not finish inside " + deadline.String() +
 			", so whether it passes is unknown")
 	}
 	return observation{exited: runErr == nil, output: out.String()}, nil

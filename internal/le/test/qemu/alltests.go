@@ -31,6 +31,7 @@ package testqemu
 import (
 	"debug/elf"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -432,6 +433,11 @@ type allTestsRun struct {
 	// and integration phases compile and run whole, so the report says the run
 	// was filtered rather than leaving a reader to infer it.
 	LinuxOnly bool
+	// Test narrows the run to one .ci, named by its repository path: the VM
+	// suite that walks its directory runs it alone, and no other suite or
+	// phase runs. `le feature record-run` reaches a capability-gated test this
+	// way, because outside the guest the runner skips it.
+	Test string
 	// Parallel is the concurrency a scaled suite takes, and Timeout the
 	// wall-clock cap each suite runs under.
 	Parallel string
@@ -563,6 +569,9 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 	}
 
 	environ := a.environment()
+	if a.Test != "" {
+		return a.executeOne(environ)
+	}
 	report := AllTestsReport{Planned: plannedPhases()}
 	if a.LinuxOnly {
 		report.Selection = linuxOnlySelection
@@ -836,6 +845,63 @@ func setEnv(environ []string, key, value string) []string {
 // A suite that answers 0 without printing a count executed no test, and this
 // is where that becomes a failure rather than a phase the summary counts as
 // passed.
+// executeOne runs the one .ci at a.Test through the VM suite that walks its
+// directory, under the shim, environment and namespace preparation the whole
+// run gives that suite. The runner prints the test's own PASS or SKIP line,
+// which is what a caller reads: the exit code alone does not say the test ran.
+func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
+	suite, err := vmSuiteFor(a.Test)
+	if err != nil {
+		leaction.ReportError(err)
+		return AllTestsReport{}, 1
+	}
+	report := AllTestsReport{Planned: []string{suitePhaseName(suite.Name)}, Selection: a.Test}
+	a.note(plan(report.Planned))
+	if suite.Namespace == perTest {
+		if err := a.prepareNamespace(environ); err != nil {
+			leaction.ReportError(err)
+			return report, 1
+		}
+	}
+	report.add(a.suite(suite, environ))
+	if len(report.Failed) > 0 {
+		return report, 1
+	}
+	return report, 0
+}
+
+// errNotOneCI refuses a test narrowing that names no test/<dir>/<name>.ci.
+var errNotOneCI = errors.New("qemu: all-tests test takes test/<dir>/<name>.ci")
+
+// vmSuiteFor answers the VM suite that runs the .ci at rel, test/<dir>/<name>.ci,
+// with its all-tests flag replaced by the test's stem, so the suite selects that
+// one file. A suite walks the directory its last word names.
+func vmSuiteFor(rel string) (vmSuite, error) {
+	parts := strings.Split(rel, "/")
+	if len(parts) != 3 {
+		return vmSuite{}, fmt.Errorf("%w, got %s", errNotOneCI, rel)
+	}
+	if parts[0] != "test" {
+		return vmSuite{}, fmt.Errorf("%w, got %s", errNotOneCI, rel)
+	}
+	stem, isCI := strings.CutSuffix(parts[2], ".ci")
+	if !isCI {
+		return vmSuite{}, fmt.Errorf("%w, got %s", errNotOneCI, rel)
+	}
+	for _, suite := range vmSuites {
+		words := slices.DeleteFunc(slices.Clone(suite.Args), func(word string) bool { return word == allTests })
+		if len(words) == 0 {
+			continue
+		}
+		if words[len(words)-1] != parts[1] {
+			continue
+		}
+		suite.Args = append(words, stem)
+		return suite, nil
+	}
+	return vmSuite{}, errors.New("qemu: no VM suite runs test/" + parts[1] + "/")
+}
+
 func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 	name := suitePhaseName(suite.Name)
 	if slices.Contains(a.Skip, suite.Name) {

@@ -4,6 +4,7 @@
 package runner
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -176,4 +177,20 @@ func applyNetnsLinkGate(r *Record) {
 	if len(r.NetnsLinks) > 0 && !netnsActive() {
 		r.SkipReason = skipReasonNetnsLink
 	}
+}
+
+// NeedsGuest answers whether this host skips the .ci at path because it
+// declares `option=needs-linux` and the host is not Linux or lacks a declared
+// capability. Such a test's home is the QEMU guest (`le test qemu all-tests`),
+// and the answer is this parser's own skip decision, so a caller routing the
+// test there never restates the gate.
+func NeedsGuest(path string) (bool, error) {
+	record, err := NewEncodingTests(filepath.Dir(path)).parseAndAdd(path)
+	if err != nil {
+		return false, err
+	}
+	if !record.NeedsLinux {
+		return false, nil
+	}
+	return record.SkipReason != "", nil
 }

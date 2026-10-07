@@ -343,7 +343,7 @@ func (r *Run) keepAlive(ctx context.Context, report *RunReport, vm *exec.Cmd) (R
 	hint.Reset()
 	fmt.Fprintln(os.Stderr, hint.Str("Run a guest test: ").Str(ssh).Str(" 'cd /workspace && ").Str(runner.EnvNoBuild).Str("=1 ZE_BIN=").
 		Str(settingOr(runBinaryEntry.Key, runBinaryEntry.Default)).Byte(' ').
-		Str(guestLeRel(GuestArch())).Str(" test bgp parse 264 -v'").String()) //nolint:errcheck // progress output
+		Str(GuestLeRel(GuestArch())).Str(" test bgp parse 264 -v'").String()) //nolint:errcheck // progress output
 	timer := time.NewTimer(r.Options.Timeout)
 	defer timer.Stop()
 	select {

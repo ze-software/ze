@@ -205,14 +205,41 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 		return append(argv, "-tags", tags, "-o", filepath.Join(binaries, name), "./cmd/ze")
 	}
 
-	dutTags := append([]string{"ze_core", "ze_distro", "ze_setup", "zetest"}, tc.Features...)
-	commands := [][]string{
-		build(cover, tagString(tc, dutTags...), "ze"),
-		build(cover, tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
-		// NOT instrumented: le is the harness, not the subject.
-		build(nil, tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE),
+	// NOT instrumented: le is the harness, not the subject.
+	return append(daemonBuildCommands(tc, binaries, cover),
+		build(nil, tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE))
+}
+
+// daemonBuildCommands answers the builds of the two daemons a test runs
+// against, ze and ze-stripped, into binaries.
+func daemonBuildCommands(tc gotoolchain.Toolchain, binaries string, extra []string) [][]string {
+	build := func(tags, name string) []string {
+		argv := []string{"go", "build"}
+		argv = append(argv, extra...)
+		return append(argv, "-tags", tags, "-o", filepath.Join(binaries, name), "./cmd/ze")
 	}
-	return commands
+	dutTags := append([]string{"ze_core", "ze_distro", "ze_setup", "zetest"}, tc.Features...)
+	return [][]string{
+		build(tagString(tc, dutTags...), "ze"),
+		build(tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
+	}
+}
+
+// PrepareGuest builds ze and ze-stripped for linux/goarch into binaries, the
+// pair a QEMU guest runs a test against; `le test qemu run` builds the guest le
+// itself. The toolchain's environment turns CGO off, so the binaries carry no
+// dynamic loader the musl guest lacks.
+func PrepareGuest(tc gotoolchain.Toolchain, binaries, goarch string) error {
+	if err := os.MkdirAll(binaries, 0o750); err != nil {
+		return err
+	}
+	environ := tc.Environment(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: goarch})
+	for _, argv := range daemonBuildCommands(tc, binaries, nil) {
+		if gaterun.Stream(argv, tc.Root, environ) != 0 {
+			return ErrBuildFailed
+		}
+	}
+	return nil
 }
 
 // tagString renders one -tags value: the parts asked for, then whatever ZE_TAGS

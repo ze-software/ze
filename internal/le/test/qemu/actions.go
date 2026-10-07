@@ -49,6 +49,9 @@ const area = "test qemu"
 // population never sits in an untyped positional slot (ai/rules/cli.md).
 const onlyKeyword = "only"
 
+// testKeyword names the one .ci an all-tests run narrows to.
+const testKeyword = "test"
+
 var actions = leaction.New(area,
 	leaction.Action{Verb: "vpp-hugepages-test", Why: "boot-time hugepage reservation, end to end: build an appliance carrying" +
 		" image.hugepages, boot it, then assert `show host kernel` and `show host" +
@@ -144,9 +147,11 @@ var actions = leaction.New(area,
 			" VM-appropriate concurrency, the unit pass, and the integration-tagged tests." +
 			" Refuses to start outside the guest, or with a suite list that has a hole in it." +
 			" `only needs-linux` narrows the functional suites to the .ci tests marked" +
-			" option=needs-linux, which is the tight loop for a change to a Linux-only path",
+			" option=needs-linux, which is the tight loop for a change to a Linux-only path." +
+			" `test <path>` runs that one .ci through the suite that walks its directory, and nothing else",
 		Parameters: []leaction.Parameter{
 			{Keyword: onlyKeyword, Value: linuxOnlySelection, Requirement: leaction.Optional},
+			{Keyword: testKeyword, Value: "test/<dir>/<name>.ci", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runAllTestsHere,
 	},
@@ -315,6 +320,8 @@ func runAllTestsHere(args leaction.Arguments) (any, int) {
 		}
 		run.LinuxOnly = true
 	}
+
+	run.Test = args.One(testKeyword)
 
 	report, code := run.Execute()
 	if len(report.Phases) == 0 {
