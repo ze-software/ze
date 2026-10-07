@@ -796,6 +796,13 @@ func (s *server) Shutdown(ctx context.Context) error {
 			s.web.server.Shutdown(ctx) // ignore error
 		}
 
+		s.modificationMu.Lock()
+		if s.cancelPrevDiagnostics != nil {
+			s.cancelPrevDiagnostics()
+			s.cancelPrevDiagnostics = nil
+		}
+		s.modificationMu.Unlock()
+
 		// drop all the active views
 		s.session.Shutdown(ctx)
 		s.state = serverShutDown
@@ -838,6 +845,9 @@ func recordClientInfo(clientName string) {
 
 		// https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-03/msg00954.html
 		{"Eglot", "gopls/client:eglot"},
+
+		// https://github.com/emacs-lsp/lsp-mode/blob/master/lsp-mode.el#L8320
+		{"emacs", "gopls/client:lsp-mode"},
 
 		// https://github.com/govim/govim/pull/1189
 		{"govim", "gopls/client:govim"},
