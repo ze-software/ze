@@ -1,0 +1,12 @@
+{
+  "feature": "graceful-listener-migration",
+  "runs": [
+    {
+      "test": "test/reload/listener-migration-web-lg-mcp.ci",
+      "test-blob": "cd25b2a577535baf2725d51ab30b6e1a06a21069",
+      "commit": "b080fe755e3e8adb1f66f6c8308f3f1047b5fc6f",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}

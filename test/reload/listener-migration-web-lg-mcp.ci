@@ -1,0 +1,20 @@
+# Test: a SIGHUP reload moves the web, looking-glass and MCP listeners
+# VALIDATES: a reload whose config changes the listen port of the web server,
+#   the looking glass and the MCP server moves each listener without a restart:
+#   the new port answers, the old port refuses new connections, and a connection
+#   accepted on the old port before the reload still answers after it.
+# PREVENTS: a listen-address change that needs a daemon restart, or one that
+#   leaves the old port open, or one that cuts the connections it had accepted.
+#
+# The fixture (internal/test/fixture/listener_migration_fixture.go) starts the
+# daemon itself, on six free ports it picks, because the runner leases two and
+# the scenario needs a before and an after port for each of three services. It
+# returns an error, reported through ZE-OBSERVER-FAIL, at the first service whose
+# migration does not hold.
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture reload/listener-migration:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=OK: web moved from port
+expect=stdout:contains=OK: looking-glass moved from port
+expect=stdout:contains=OK: mcp moved from port
