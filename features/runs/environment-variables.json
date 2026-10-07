@@ -1,0 +1,47 @@
+{
+  "feature": "environment-variables",
+  "runs": [
+    {
+      "test": "test/ui/cli-env-list.ci",
+      "test-blob": "b56da5c1009252a2727aa1256aa9901ec5c1c90a",
+      "commit": "d70bbec7fcf911d53a29d287c7538ed0c66bc621",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/ui/cli-env-get.ci",
+      "test-blob": "2150ff5ba1bcaa70fde3e9ef47629844a656215a",
+      "commit": "d70bbec7fcf911d53a29d287c7538ed0c66bc621",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/ui/cli-env-get-log-subsystem.ci",
+      "test-blob": "2ff8d937d6d71b02340fd0d912c88ce097887c24",
+      "commit": "d70bbec7fcf911d53a29d287c7538ed0c66bc621",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/ui/env-pid-file.ci",
+      "test-blob": "d3d07423f07c512d69020e428c20ad5186e08d19",
+      "commit": "d70bbec7fcf911d53a29d287c7538ed0c66bc621",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/ui/env-pprof-serves.ci",
+      "test-blob": "761ba44a412486d582506d293861c27072f53b5a",
+      "commit": "d70bbec7fcf911d53a29d287c7538ed0c66bc621",
+      "date": "2026-10-07",
+      "result": "pass"
+    },
+    {
+      "test": "test/ui/env-cli-format.ci",
+      "test-blob": "d207bc8db4fb540bad068ff9cbdbb0daeb617a96",
+      "commit": "d70bbec7fcf911d53a29d287c7538ed0c66bc621",
+      "date": "2026-10-07",
+      "result": "pass"
+    }
+  ]
+}

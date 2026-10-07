@@ -1,0 +1,31 @@
+# Test: ze.pid.file makes the daemon write its PID to the named file at startup
+#       and remove it at a clean shutdown.
+# VALIDATES: writePIDFile and removePIDFile (cmd/ze/hub/pidfile.go), called from
+#            runYANGConfig (cmd/ze/hub/main.go) with the path the env var names.
+#            The file is read while the daemon runs, then the daemon is stopped
+#            with SIGTERM and the file must be gone.
+# PREVENTS: an env var the registry lists that no longer writes the file a
+#           supervisor reads, and a stale PID file left behind after a stop.
+#
+# RUN GREEN on 2026-10-07, and observed RED first: with removePIDFile
+# (cmd/ze/hub/pidfile.go) returning before the remove, ze.pid survives the stop.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=ze.pid.file:value=ze.pid
+
+tmpfs=env.conf:terminator=EOF_CONF
+environment {
+	cli {
+		format {
+			default text;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start env.conf:name=daemon:ready=Ze running
+cmd=foreground:seq=2:exec=cat ze.pid:exit=0
+expect=stdout:pattern=(?m)^[1-9][0-9]*$
+cmd=stop:seq=3:name=daemon:signal=term
+expect=file:path=ze.pid:absent=true

@@ -1,0 +1,30 @@
+# Test: ze.pprof starts the Go profiling server on the address it names.
+# VALIDATES: zeDispatch (cmd/ze/ze_core_dispatch.go) reads ze.pprof and calls
+#            startPprof (cmd/ze/pprof.go); the probe fetches /debug/pprof/ from
+#            that address and requires the net/http/pprof index page.
+# PREVENTS: an env var the registry lists that no longer starts the server an
+#           operator profiles a live daemon through.
+#
+# RUN GREEN on 2026-10-07, and observed RED first: with zeDispatch ignoring
+# ze.pprof, the probe's dial is refused and it reports the index never answered.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=ze.pprof:value=127.0.0.1:$PORT
+
+tmpfs=env.conf:terminator=EOF_CONF
+environment {
+	cli {
+		format {
+			default text;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start env.conf:name=daemon:ready=Ze running
+expect=stderr:contains=pprof server listening on 127.0.0.1:
+cmd=foreground:seq=2:exec=le test fixture ui/pprof-probe $PORT:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=pprof index answered at http://127.0.0.1:
+cmd=stop:seq=3:name=daemon:signal=term

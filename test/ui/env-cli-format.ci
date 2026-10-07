@@ -1,0 +1,16 @@
+# Test: ze.cli.format sets the default rendering of a `ze cli -c` answer.
+# VALIDATES: configuredDefault (internal/component/command/pipe.go) reads
+#            ze.cli.format when the command carries no format pipe, so
+#            `show env get ze.log` answers JSON rather than the text form.
+# PREVENTS: an env var the registry lists that no longer changes the format an
+#           operator's scripts parse.
+#
+# RUN GREEN on 2026-10-07, and observed RED first: with configuredDefault
+# ignoring ze.cli.format, the answer is the text form and lacks the JSON key.
+
+option=env:var=ze.cli.format:value=json
+
+cmd=foreground:seq=1:exec=ze cli -c "show env get ze.log"
+expect=exit:code=0
+expect=stdout:contains="key": "ze.log"
+reject=stdout:contains=Key:
