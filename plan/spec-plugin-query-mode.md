@@ -494,12 +494,13 @@ N-A. No RFC governs the plugin RPC.
 | 2 (implementation, independent diff pass) | 0 | 1 | The live start carried the process-group attributes and not the group stop. Fixed with `KillGroupOnCancel`, plus four nits |
 | 3 (closure, this context, every lens) | 0 | 2 | Discovery: `ai/INDEX.md` carried no keyword row for the command its own Discovery table names. Documentation: `docs/guide/command-reference.md` documents `show plugin list` by hand and carried no sibling section |
 | 4 (closure, re-read after the round 3 edits) | 0 | 0 | Clean. The round 3 edits are prose and a YANG revision date; `./le doc yang-contract command-contract` and `./le cli grammar` re-run green after them |
+| 5 (re-closure audit, 2026-10-07) | 0 | 0 | Closed by `a561fd4f82`, re-added byte-identical by the bulk commit `90b0b314ef`; the round 4 artifact no longer exists. Re-verified at the producers: the nine planned unit tests exist and pass (`go test -run 'TestQueryMode\|TestDeclaration'` over `internal/component/plugin/cli`, `pkg/plugin/sdk`, `internal/component/plugin`), the three `.ci` files exist, `### show plugin declarations` in `docs/guide/command-reference.md` matches `declarationBudget`, `defaultQueryTimeout` and the five `state*` constants in `declarations.go`, and both follow-up specs and `plan/learned/013-inertness-is-unreachability.md` exist. The one path citer, `plan/spec-plugin-declaration-fields-on-registration.md`, is repointed to the bare stem and `docs/architecture/cli/plugin-modes.md` |
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/plugin-query-mode-8e533ac8-8f4a-4ba7-ac45-ed497b31f2a8.md` (78 files) |
-| `./le spec review check` | `review_gate: OK (56 code files, clean, hashes match ...)` |
-| Rounds | 4 |
+| Artifact | `tmp/review/plugin-query-mode-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` (run 5); the round 4 artifact `tmp/review/plugin-query-mode-8e533ac8-8f4a-4ba7-ac45-ed497b31f2a8.md` no longer exists |
+| `./le spec review check` | run 5 result in the closure commit body; run 4 read `review_gate: OK (56 code files, clean, hashes match ...)` |
+| Rounds | 5 |
 | Reviewer lenses used | wiring, functional-test coverage, documentation drift, removed-behavior audit, data flow, edge cases, security, allocation bounds, logic correctness, altitude and simplicity, project rules, the six-question Go style pass |
 
 ### Findings fixed
@@ -700,8 +701,8 @@ N-A. No RFC governs the plugin RPC.
 
 The command-reference section formerly listed here is present in the current
 tree. Its historical omission remains in Review Gate finding 10 and the
-journal. This spec remains open pending its closure audit; the two live
-follow-up owners above do not establish that closure.
+journal. The closure audit of 2026-10-07 (Review Gate run 5) found nothing
+outstanding beyond the two rows above, each owned by its own spec.
 
 ## Pre-Commit Verification
 

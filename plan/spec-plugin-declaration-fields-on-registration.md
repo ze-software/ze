@@ -20,11 +20,11 @@ a plugin runs: config operations, filters, doctor checks, show enrichers, schema
 budgets and the failure policy. An operator asking what a plugin declares gets
 two of them.
 
-**Provenance:** `plan/spec-plugin-query-mode.md` records the declaration-query
-implementation and its 2026-09-09 delivery. Its "Commands and pipes only"
-decision assigns the remaining fields to this follow-up, and its Work Not Done
-table still names this file. The query-mode spec remains live pending its own
-closure audit; this spec owns the additional fields regardless of that closure.
+**Provenance:** the closed spec `spec-plugin-query-mode` (in git history,
+closed 2026-10-07) records the declaration-query implementation and its
+2026-09-09 delivery; `docs/architecture/cli/plugin-modes.md` (Query Mode) is
+the durable page. Its "Commands and pipes only" decision assigned the remaining
+fields to this follow-up, and its Work Not Done table named this file.
 `plan/learned/013-inertness-is-unreachability.md` carries the recorded decision.
 
 ## Required Reading
