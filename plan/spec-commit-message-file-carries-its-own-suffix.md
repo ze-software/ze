@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-07 |
 
 <!-- Backfilled. The work was commissioned straight from a journal row and
      skipped the spec step, so this records what the work IS, what its evidence
@@ -140,7 +140,9 @@ Goal: a script and its message are ONE artifact. Neither can be taken by a later
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| the two `Create`-driving tests added by `bc987697e1` | `internal/le/commit/message_path_test.go` | AC-1, AC-3 | landed, and observed red against the old derivation |
+| `TestTwoCreatesUnderOneTagKeepTheirOwnMessages`, `TestAppendUnderOneTagGivesEachBlockItsOwnMessage` (added by `bc987697e1`) | `internal/le/commit/message_path_test.go` | AC-1, AC-2 | landed, and observed red against the old derivation. Both use an EXPLICIT tag, so neither reaches the automatic walk: the earlier AC-3 mapping was wrong |
+| `TestTheAutomaticTagWalkStepsOverATakenLetter` | `internal/le/commit/message_path_test.go` | AC-3 and the a..z boundary | added 2026-10-07. Green; red with the `continue` on a taken letter removed from `nextTag` (second create answered letter a) |
+| `TestACreateThatWritesNoScriptLeavesNoMessageHoldingAName` | `internal/le/commit/message_path_test.go` | AC-4, dry run and refused-after-reservation as two subtests | added 2026-10-07. Green; both subtests red with the `os.Remove` in `Create`'s `keepReservation` defer removed |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -234,6 +236,12 @@ Goal: a script and its message are ONE artifact. Neither can be taken by a later
   is not closed here. Its ledger half is
   `plan/spec-ledger-shards-per-commit-session.md` and its index half is
   `plan/spec-commit-stages-in-a-private-index.md`.
+- A create that writes its message and then fails to write its SCRIPT leaves
+  that non-empty message behind: `Create` sets `keepReservation` once the
+  message is written, and the deferred cleanup removes only an empty file. The
+  orphan holds a random suffix nobody else draws, so it takes no name from a
+  later create; it is clutter in `tmp/`, not a collision. AC-4 as written
+  ("no empty artifact") holds.
 
 ## Checklist
 
@@ -265,17 +273,20 @@ Goal: a script and its message are ONE artifact. Neither can be taken by a later
 
 ## Current Condition and What Remains
 
-The rows below retain the September 6 evidence record. `allocateMessage` in
-`internal/le/commit/script.go` still reserves a random-suffixed path with
-`O_EXCL`. `allocateScript` draws a separate suffix, so AC-2 remains an explicit
-proof obligation; message isolation alone does not establish it. No new test
-result is recorded here.
+Re-checked 2026-10-07 against the tree. `allocateMessage` in
+`internal/le/commit/script.go` reserves a random-suffixed path with `O_EXCL`,
+and `allocateScript` draws a separate suffix. AC-2 does not need the two
+suffixes to agree: the script's own `git commit -F` line names its message,
+which is the derivation AC-2 asks for, and two creates under one session and
+one tag get two different message paths, so no guess at session and tag
+reaches one.
 
 | Item | State |
 |------|-------|
-| Product code | LANDED at `bc987697e1`. Reachability checked: `git rev-list HEAD \| grep -c '^bc987697e1'` answers 1 |
-| Documentation | landed in the same commit |
+| Product code | LANDED at `bc987697e1`. Reachability re-checked 2026-10-07: `git rev-list HEAD \| grep -c '^bc987697e1'` answers 1 |
+| Documentation | landed in the same commit. `docs/contributing/committing.md` ("The `message=` line carries a random suffix") read 2026-10-07 and matches `nextTag`, `allocateMessage`, `allocateScript` |
 | Journal row | written in `plan/journal/pointer-shared-across-the-names-it-indexes.md` |
-| PROVEN | AC-1 and AC-3. Both tests drive `Create` and both were observed red against the old derivation |
-| ASSERTED, not proven | AC-2 and AC-4. They are read off the code and the commit message; no test names either one |
-| Remains | a test for AC-4 (a failed and a dry-run `create` leave no artifact), a test for AC-2, and the closure sections |
+| PROVEN | AC-1 and AC-2 by `TestTwoCreatesUnderOneTagKeepTheirOwnMessages` (asserts each script's `git commit -F` names its own message under one session and tag) and `TestAppendUnderOneTagGivesEachBlockItsOwnMessage`. AC-3 and the a..z boundary by `TestTheAutomaticTagWalkStepsOverATakenLetter`. AC-4 by `TestACreateThatWritesNoScriptLeavesNoMessageHoldingAName`. The two new tests were each observed red under a mutation of the producer, recorded in the Unit Tests table |
+| Package run | `./le job run label unit-pkg quiet command go test -count=1 ./internal/le/commit/...` exit 0 on 2026-10-07 |
+| Owed by the main thread | `./le go lint run`, `./le verify worktree` |
+| Remains | closure only: `/ze-close` by an independent reviewer |
