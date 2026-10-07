@@ -1177,6 +1177,12 @@ NOTIFICATION, reconnect F-bit or received-stale-policy behavior.
 and adds AIGP on the general forwarding path. The received metric is 100;
 source-link cost 7 and destination-link cost 43 must produce 107 and Ze's
 next hop at FRR. GoBGP is the unchanged-next-hop control and must retain 100.
+The fixture's ASes are in one administrative domain. FRR 10.3.1 requires both
+`neighbor ... aigp` and `neighbor ... oad` to retain received AIGP on eBGP;
+`aigp` alone leaves the route installed but discards its AIGP attribute.
+`oad` keeps the session eBGP, including its AS-path and next-hop assertions.
+See the pinned [FRR receive gate](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_attr.c#L3421-L3427).
+<!-- source: test/interop/scenarios/bgp-nexthop-self-local-auto-frr/frr.conf -- AIGP-enabled OAD neighbor -->
 A third-party next hop initially has no distance: the rewritten route must
 be absent while the unchanged control holds it. An SDK route installation
 with metric 11 restores 111, then metric 7 produces 107; replacing that
