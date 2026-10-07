@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | tooling |
-| Depends | `plan/spec-ledger-shards-per-commit-session.md` (both touch `internal/le/commit/prepare.go`) |
+| Depends | - (`spec-ledger-shards-per-commit-session`, which also touched `internal/le/commit/prepare.go`, closed 2026-10-07) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-07 |

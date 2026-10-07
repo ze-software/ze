@@ -164,6 +164,48 @@ func TestCheckFailsClosedForEveryLedgerShape(t *testing.T) {
 	}
 }
 
+// TestCheckPrintsEveryShardAndItsRows proves the answer `./le test weakened
+// check` gives to "whose rows are in the ledger": every session's shard, each
+// row it holds, and the mark on this session's own shard only.
+//
+// The method is a population of two shards, a peer's holding two rows and this
+// session's holding one, read through Check with no paths, which is the
+// branch the verb runs. The single-shard fixture above cannot tell a renderer
+// that prints only the author's own shard from one that prints them all.
+//
+// VALIDATES: ReadShards reads every shard and shardPopulation renders each one
+// with its rows, marking only the shard ShardPath names for this session.
+// PREVENTS: a check that hides a peer's pending rows, which is the population
+// an author needs to see before committing next to that peer.
+func TestCheckPrintsEveryShardAndItsRows(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	root := newParityRepository(t)
+	const peerSession = "a0b1c2d3"
+	peerShard := ShardPath(WeakenedDir, peerSession)
+	writeParityFile(t, root, peerShard, fixtureLedgerHeader+
+		"| TestPeerOne | the peer's first reason |\n"+
+		"| TestPeerTwo | the peer's second reason |\n")
+	writeParityFile(t, root, fixtureShard, fixtureLedgerHeader+
+		"| TestMine | this session's reason |\n")
+
+	population := Check(Request{Root: root, Session: fixtureSession})
+	want := "Weakened-test check: test/weakened parses (2 session(s), 3 row(s)).\n" +
+		"  " + fixtureShard + " holds 1 row(s), and is yours\n" +
+		"    | TestMine |\n" +
+		"  " + peerShard + " holds 2 row(s)\n" +
+		"    | TestPeerOne |\n" +
+		"    | TestPeerTwo |\n"
+	if population.ExitCode() != 0 || population.Text() != want {
+		t.Fatalf("population = code %d, text %q, want %q",
+			population.ExitCode(), population.Text(), want)
+	}
+	if len(population.Shards) != 2 || population.Shards[1].Mine {
+		t.Fatalf("population.Shards = %+v, want the peer's shard read and not marked as this session's",
+			population.Shards)
+	}
+}
+
 func TestCheckDoesNotReadLedgerWhenPopulationIsClean(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 
