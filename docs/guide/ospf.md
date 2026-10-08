@@ -7,7 +7,7 @@ Ze includes an experimental native OSPF engine under the `ospf` config root. The
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy -->
 <!-- source: internal/plugins/ospf/v3/transport/transport.go -- Transport -->
 
-SPF builds one graph per area from Router-LSAs and Network-LSAs, enforces the RFC 2328 two-way check, derives next-hops from Router-LSA link data, merges equal-cost next-hops, and inserts one `locrib.Path` per next-hop with OSPF admin distance 110. The kernel FIB path is Loc-RIB -> sysrib -> fibkernel, not redistribution events.
+SPF builds one graph per area from Router-LSAs and Network-LSAs, enforces the RFC 2328 two-way check, derives next-hops from Router-LSA link data, merges equal-cost next-hops, and inserts one `locrib.Path` per next-hop, which the Loc-RIB ranks at the OSPF distance `rib { distance { ospf } }` declares (default 110). The kernel FIB path is Loc-RIB -> sysrib -> fibkernel, not redistribution events.
 <!-- source: internal/plugins/ospf/spf/graph.go -- BuildGraph -->
 <!-- source: internal/plugins/ospf/spf/spf.go -- Compute -->
 <!-- source: internal/plugins/ospf/spf/route.go -- BuildRoutes -->
@@ -144,7 +144,7 @@ each peer's delivery to it is derived from the rule. See
 [Route Filters and Redistribution](redistribution.md), "Route Redistribution".
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 
-Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one `locrib.Path` with admin distance 110.
+Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one `locrib.Path`, ranked at the declared OSPF distance (default 110).
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal, ComputeExternalWith, betterExternal -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6ExternalReader -->
 

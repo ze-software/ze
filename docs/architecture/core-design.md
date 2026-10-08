@@ -1655,37 +1655,60 @@ Every protocol's administrative distance is declared once, in `rib { distance
 whether or not an operator writes the block: `parseAdminDistanceConfig`
 (`internal/component/sysrib/sysrib.go`) fills it from the schema defaults.
 
-The declaration has to reach the PRODUCER, not just the RIB, and that is why a
+The declaration has to reach the Loc-RIB, not just sysrib, and that is why a
 seam exists. `locrib.selectBest` (`internal/core/rib/locrib/entry.go`) ranks
-paths on the distance stamped on the `locrib.Path`, and `(*sysRIB).run` consumes
-one already-arbitrated best per prefix, so a value resolved in sysrib alone
-would change no cross-protocol selection. `internal/core/rib/distance` carries
-the resolved table from sysrib, which publishes it on every configure and
-rollback, to the five producers that stamp: the BGP RIB plugin, IS-IS SPF, OSPF
-SPF, the static plugin and the connected plugin. Each reads it at the stamp
-rather than at construction, so a reload takes effect.
+paths across protocols, and `(*sysRIB).run` consumes one already-arbitrated best
+per prefix, so a value resolved in sysrib alone would change no cross-protocol
+selection. `internal/core/rib/distance` carries the resolved table from sysrib,
+which publishes it at start, on every configure and on rollback, to the Loc-RIB,
+the seam's one reader.
+<!-- source: internal/component/sysrib/register.go -- publishDistances -->
+<!-- source: internal/core/rib/distance/distance.go -- Set, Of, Resolve -->
 
-The seam is PROCESS-GLOBAL, and sysrib is its only publisher, so a producer in a
-forked plugin process never sees a declaration. The engine closes that on the
-route-install path: `applyRouteInstall`
-(`internal/component/plugin/server/dispatch_route.go`) re-stamps the distance
-from the declaration when a forked plugin's route arrives, taking the wire value
-as the fallback so a protocol the declaration does not name keeps what its
-producer chose.
+Producers do not carry a distance. BGP, OSPF, IS-IS, static, connected and a
+forked plugin over route-install hand their paths to the Loc-RIB without one,
+and the Loc-RIB looks the distance up by protocol each time it ranks a path:
+`(*PathGroup).upsert` sets `Path.AdminDistance` from `resolvedDistance`, which
+reads the declaration for the path's protocol (`DistanceProtocol` maps a BGP
+path to `ebgp` or `ibgp` by its class). Because the lookup happens in the
+engine's Loc-RIB, a producer in a forked plugin process, which never sees the
+process-global seam, is ranked by the declaration all the same.
+<!-- source: internal/core/rib/locrib/entry.go -- upsert -->
+<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, DistanceProtocol -->
+<!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
 
-Each producer keeps its classical value as a bootstrap, reachable only before the
-first configure. An unset seam reports that it did not answer rather than
-returning 0, because 0 is the BEST distance and the one `connected` holds, so a
-zero stamped by accident would beat every other protocol.
+The one exception is a static route's own `distance` leaf. It travels as
+`Path.DistanceOverride` (over route-install, the optional `distance` field) and
+wins over the distance declared for `static`. No other producer sets an
+override.
+<!-- source: internal/plugins/static/config.go -- parseRouteDistance -->
+<!-- source: internal/plugins/static/locrib.go -- DistanceOverride -->
 
-A bootstrap constant and the YANG default it stands in for must hold the same
-number, and `TestBootstrapDistancesMatchTheDeclaration`
+A reload that changes `rib { distance { } }` re-ranks the routes already
+installed, not only the ones inserted after it. After publishing a changed
+table, sysrib calls `(*RIB).Reselect`, which re-resolves every stored path's
+distance, re-runs selection per prefix, and dispatches a change for each prefix
+whose best path, its distance, or its equal-cost set moved. Those changes reach
+sysrib and the FIB as ordinary Loc-RIB changes.
+<!-- source: internal/component/sysrib/register.go -- reselectLocRIB -->
+<!-- source: internal/core/rib/locrib/distance.go -- Reselect, reselectShard -->
+
+Before sysrib's first publish, `Resolve` falls back to a bootstrap table holding
+the classical values. A protocol neither the declaration nor the bootstrap names,
+with no override, ranks at `UndeclaredDistance` (255), the worst distance, so it
+wins only a prefix no declared protocol holds. No path is ever ranked at a zero
+nobody chose, because 0 is the BEST distance and the one `connected` holds.
+<!-- source: internal/core/rib/locrib/distance.go -- UndeclaredDistance -->
+
+The bootstrap table and the YANG defaults it stands in for must hold the same
+numbers, and `TestBootstrapDistancesMatchTheDeclaration`
 (`internal/component/sysrib`) holds them equal. The two agree today, so nothing
-observable changes when they come apart: the seam publishes the schema defaults
-at process start and the constants are never read. The check derives its
-population from the packages that call the seam rather than from a list of
-producers, so a protocol added to `rib { distance { } }` and a producer added
-beside it are both covered with no edit to the check.
+observable changes when they come apart: sysrib publishes the schema defaults
+at start and the bootstrap is read only in the window before. A second check,
+`TestOnlyTheLocRIBReadsTheDistanceSeam`, refuses a call to the seam's `Of` or
+`Resolve` outside `internal/core/rib/locrib`, so no producer can start stamping
+again.
+<!-- source: internal/component/sysrib/distance_bootstrap_test.go -- TestBootstrapDistancesMatchTheDeclaration, TestOnlyTheLocRIBReadsTheDistanceSeam -->
 
 **Which protocols insert, and what winning means.** Every protocol that competes
 for a MAIN-table prefix inserts a `locrib.Path`: BGP, OSPF, IS-IS, static and

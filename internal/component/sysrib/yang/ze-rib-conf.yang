@@ -76,9 +76,9 @@ module ze-rib-conf {
                 description "A static route is one the operator wrote under the static
                              configuration. The default 10 ranks a static route above
                              every dynamic protocol declared here and below a connected
-                             route. The range is 1 to 255. sysrib applies the value to
-                             each route that arrives under the protocol name static.
-                             Raise it to more than 20 to let an eBGP route win the
+                             route. The range is 1 to 255. The Loc-RIB ranks each static
+                             route at this value unless the route carries its own
+                             distance leaf, which wins over it. Raise it to more than 20 to let an eBGP route win the
                              same prefix.";
                 ze:help
                     "Static routes.";
@@ -92,12 +92,9 @@ module ze-rib-conf {
                 description "An eBGP route comes from a peer in another autonomous
                              system. The default 20 ranks eBGP above every IGP declared
                              here and below a static route. The range is 1 to 255. The
-                             BGP RIB plugin stamps this value on each path it inserts.
-                             The Loc-RIB ranks the paths on what it stamped, so the
-                             value decides selection before sysrib sees the route. The
-                             seam that carries it is process-global: a BGP RIB running
-                             in a forked plugin process keeps its own bootstrap 20 and
-                             nothing reports that.";
+                             Loc-RIB looks this value up for each eBGP path when it
+                             ranks it, so it decides selection before sysrib sees the
+                             route, and a change re-ranks the routes already installed.";
                 ze:help
                     "External BGP routes.";
             }
@@ -108,9 +105,9 @@ module ze-rib-conf {
                 }
                 default 110;
                 description "The default 110 ranks OSPF below eBGP and above IS-IS. The
-                             range is 1 to 255. The OSPF SPF installer stamps this value
-                             on each path it puts in the Loc-RIB, and its bootstrap 110
-                             applies until sysrib publishes the declaration. One value
+                             range is 1 to 255. The Loc-RIB ranks each OSPF path at this
+                             value when it ranks it, and a change re-ranks the routes
+                             already installed. One value
                              covers every OSPF route: Ze declares no separate distance
                              for an external LSA.";
                 ze:help
@@ -123,10 +120,9 @@ module ze-rib-conf {
                 }
                 default 115;
                 description "The default 115 ranks IS-IS below OSPF and above iBGP. The
-                             range is 1 to 255. The IS-IS SPF installer stamps this
-                             value on each path it puts in the Loc-RIB, and its
-                             bootstrap 115 applies until sysrib publishes the
-                             declaration. One value covers level 1 and level 2: Ze
+                             range is 1 to 255. The Loc-RIB ranks each IS-IS path at
+                             this value when it ranks it, and a change re-ranks the
+                             routes already installed. One value covers level 1 and level 2: Ze
                              declares no separate distance for each level.";
                 ze:help
                     "IS-IS routes.";
@@ -140,10 +136,8 @@ module ze-rib-conf {
                 description "An iBGP route comes from a peer in the same autonomous
                              system. The default 200 is the highest of the six declared
                              here, so an iBGP route loses the prefix to any other
-                             protocol that holds it. The range is 1 to 255. The BGP RIB
-                             plugin stamps this value on each path it inserts, and its
-                             bootstrap 200 applies until sysrib publishes the
-                             declaration. The eBGP distance is a separate leaf, so the
+                             protocol that holds it. The range is 1 to 255. The Loc-RIB
+                             ranks each iBGP path at this value when it ranks it. The eBGP distance is a separate leaf, so the
                              two BGP classes rank apart.";
                 ze:help
                     "Internal BGP routes.";

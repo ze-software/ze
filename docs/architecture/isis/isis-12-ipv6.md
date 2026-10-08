@@ -34,7 +34,8 @@ per-family differences are the Loc-RIB family and the AFI label on the
 installed-routes gauge. The insert, diff, ECMP and remove logic is identical.
 
 The IPv6 install is the **same** FIB path as IPv4: a Loc-RIB path with the IS-IS
-protocol ID and admin distance 115. It is not a redistribute event.
+protocol ID, ranked by the Loc-RIB at the declared IS-IS distance (default
+115). It is not a redistribute event.
 
 <!-- source: internal/plugins/isis/spf/install.go -- NewInstaller, NewInstallerV6, newInstaller -->
 

@@ -6,7 +6,8 @@ computation, bidirectional redistribution, and `default-information originate`.
 ## Decisions
 
 - **Two route paths that are never merged.** FIB install is
-  `locrib.Path` to sysrib to fibkernel at AdminDistance 110. Redistribution is
+  `locrib.Path` to sysrib to fibkernel, ranked at the declared OSPF distance
+  (default 110). Redistribution is
   the redistribution events path in and out, and it never touches the kernel.
   OSPF resolves intra, then inter, then E1, then E2 internally and publishes ONE
   winning `locrib.Path` per prefix. Path TYPE is the primary key: E1 always

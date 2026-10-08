@@ -11,7 +11,8 @@ area ranges.
   the Type 3 and Type 4 metrics it advertises and the cost-to-ABR input to
   Section 16.2. Inter-area candidates are appended to the existing route table,
   `selectBestRoutes` resolves intra above inter, and one `locrib.Path` per
-  prefix is published at AdminDistance 110.
+  prefix is published, ranked by the Loc-RIB at the declared OSPF distance
+  (default 110).
   <!-- source: internal/plugins/ospf/spf/interarea.go -- ComputeInterArea, IsABR -->
   <!-- source: internal/plugins/ospf/spf/summary.go -- collectSummaryNetworks -->
 - **Summary LSAs go into the shared LSDB store and reuse the Section 13 flooding

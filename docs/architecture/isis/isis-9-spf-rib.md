@@ -23,14 +23,16 @@ bit, followed by RFC 2966 inter-level leaking.
 
 This is the load-bearing call. IS-IS becomes a Loc-RIB source exactly as BGP is:
 the installer inserts a `locrib.Path` carrying the IS-IS protocol ID, an
-instance, the next hop, admin distance 115 and the metric.
+instance, the next hop and the metric. It carries no distance: the Loc-RIB
+ranks the path at `rib { distance { isis } }` (default 115) when it ranks it
+(`docs/architecture/core-design.md`, System RIB).
 
 Redistribute events feed the redistribute orchestrator, which exports routes to
 **other protocols**, and never install to the FIB. The protocol ID is registered
 once and exposed by an accessor, so the redistribution layer reuses the same
 identity.
 
-<!-- source: internal/plugins/isis/spf/install.go -- ProtocolID, DefaultAdminDistance, Installer, RouteSink -->
+<!-- source: internal/plugins/isis/spf/install.go -- ProtocolID, Installer, RouteSink -->
 
 After the inserted path, the Loc-RIB best-path to sysrib to FIB chain is the same
 machinery that already installs static, connected and BGP routes. The novelty
