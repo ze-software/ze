@@ -2,6 +2,9 @@
 
 Text versions of RFCs relevant to ZeBGP implementation.
 
+Best-practice and Informational documents that must not create requirements live in
+`reference/ietf/`, not here. See `reference/README.md`.
+
 ## Core Protocol
 
 | RFC | Title | Status |

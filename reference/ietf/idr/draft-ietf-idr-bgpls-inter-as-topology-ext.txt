@@ -1,0 +1,896 @@
+
+
+
+
+IDR Working Group                                                A. Wang
+Internet-Draft                                             China Telecom
+Intended status: Standards Track                                 H. Chen
+Expires: 2 April 2027                                         Individual
+                                                           K. Talaulikar
+                                                           Cisco Systems
+                                                               S. Zhuang
+                                                     Huawei Technologies
+                                                                  C. Lin
+                                                    New H3C Technologies
+                                                       29 September 2026
+
+
+           BGP-LS Extensions for Inter-AS Topology Retrieval
+             draft-ietf-idr-bgpls-inter-as-topology-ext-46
+
+Abstract
+
+   This document specifies the procedures for distributing Border
+   Gateway Protocol-Link State (BGP-LS) key parameters for inter-domain
+   links between two Autonomous Systems (ASes).  It defines a new type
+   within the BGP-LS Network Layer Reachability Information (NLRI) for
+   an Inter-AS Link, along with three new Type-Length-Values (TLVs)
+   descriptors for the BGP-LS Inter-AS Link.
+
+   These extensions and procedures allow network operators to collect
+   inter-domain interconnect information and automatically compute the
+   inter-AS topology using information provided by the BGP-LS protocol.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 2 April 2027.
+
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 1]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Requirements Language . . . . . . . . . . . . . . . . . . . .   3
+   3.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   3
+   4.  Inter-AS Domain Scenarios . . . . . . . . . . . . . . . . . .   3
+   5.  Inter-AS Link NLRI  . . . . . . . . . . . . . . . . . . . . .   4
+   6.  Inter-AS Link Descriptor TLVs . . . . . . . . . . . . . . . .   6
+     6.1.  Remote AS Number TLV  . . . . . . . . . . . . . . . . . .   7
+     6.2.  IPv4 Remote ASBR ID . . . . . . . . . . . . . . . . . . .   7
+     6.3.  IPv6 Remote ASBR ID . . . . . . . . . . . . . . . . . . .   8
+   7.  Advertisement of IGP Information for Inter-AS Links . . . . .   8
+   8.  Solutions for other Alternative Scenarios . . . . . . . . . .   9
+   9.  Inter-AS Topology Use Case  . . . . . . . . . . . . . . . . .  11
+   10. Operational Considerations  . . . . . . . . . . . . . . . . .  11
+   11. Security Considerations . . . . . . . . . . . . . . . . . . .  13
+   12. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
+     12.1.  New BGP-LS NLRI type . . . . . . . . . . . . . . . . . .  14
+     12.2.  New Inter-AS Link Descriptors  . . . . . . . . . . . . .  14
+   13. Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  14
+   14. References  . . . . . . . . . . . . . . . . . . . . . . . . .  14
+     14.1.  Normative References . . . . . . . . . . . . . . . . . .  14
+     14.2.  Informative References . . . . . . . . . . . . . . . . .  15
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  15
+
+1.  Introduction
+
+   BGP-LS [RFC9552] describes the use of the BGP protocol for
+   advertising Link-State topology information.  It enables applications
+   such as Software-Defined Network Controllers [RFC7426] to collect the
+   underlay network topology.  [RFC9552] covers the advertisement of
+   topology information from within an Interior Gateway Protocol (IGP)
+   domain.  If the network has more than one IGP domain, and these
+   domains interconnect with each other via Inter-AS links, there is no
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 2]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   mechanism within [RFC9552] to advertise the interconnect topology
+   information.
+
+   This document defines the Inter-AS Link NLRI and some new TLVs for
+   BGP-LS to cover scenarios where a network controller needs to get the
+   interconnection topology information between different AS domains
+   when such information is sourced from IGPs.  These additions may also
+   be used as an alternative to [RFC9086] for a BGP-LS topology scenario
+   defined in Section 8.
+
+   Automatically building the inter-AS view is possible when the sender
+   and receiver of BGP-LS are upgraded to support the extensions.  The
+   correlation depends on the accuracy of the information that is
+   available to a BGP-LS receiver/consumer.
+
+2.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+3.  Terminology
+
+   The following terms are defined in this document:
+
+   *  DC: Data Center
+
+   *  SDN: Software-Defined Network
+
+4.  Inter-AS Domain Scenarios
+
+   Figure 1 illustrates the multi-domain scenarios discussed in this
+   document.  Typically, an SDN controller can retrieve the topology of
+   IGP A and IGP B individually via BGP-LS, but it cannot obtain
+   topology connection information between these two IGP domains, as IGP
+   protocols do generally not run over the Inter-AS links.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 3]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   In Figure 1, S2 (in IGP domain A) and T1 (in IGP domain B) are
+   connected to the SDN controller via BGP-LS, but they can only report
+   the topology information within the IGP A and IGP B, respectively.
+   They cannot report the Inter-AS topology information between them
+   because there is no IGP protocol runs over the Inter-AS links.  The
+   border routers SB1/SB3 (in IGP A) and TB2/TB4 (in IGP B) are aware of
+   the Inter-AS links connecting them, and can advertise such
+   information via underlying OSPF [RFC5392] or IS-IS [RFC9346];
+   however, [RFC9552] currently lacks an encoding to convey this
+   information in BGP-LS.
+
+                             +-----------------+
+                      +------+ SDN Controller  +-----+
+                      |      +-----------------+     |
+                      |                              |
+                      |BGP-LS                        |BGP-LS
+                      |                              |
+      +---------------+-------+               +------+--------------+
+      | +--+         +|-+   +-+-+           +-+-+   +|-+        +--+|
+      | |S1+---------+S2+---+SB1+-----------+TB2+---+T1+--------+T2||
+      | +-++         +--+   +-+-+           +-+-+   +--+        +-++|
+      |   |                   |               |                   | |
+      |   |                   |               |                   | |
+      | +-++        +--+    +-+-+           +-+-+   +--+        +-++|
+      | |S4+--------+S3+----+SB3+-----------+TB4+---+T3+--------+T4||
+      | +--+        +--+    +-+-+           +-+-+   +--+        +--+|
+      |                       |               |                     |
+      |                       |               |                     |
+      |       IGP A           |               |      IGP B          |
+      +-----------------------+               +---------------------+
+
+                  Figure 1: Inter-AS Domain Scenario
+
+5.  Inter-AS Link NLRI
+
+   [RFC9552] defines four NLRI types (Node, Link, IPv4 Topology Prefix,
+   and IPv6 Topology Prefix) to carry the topology and prefix
+   information.  For an Inter-AS link, since the two ends of the link
+   belong to different IGP domains and the link does not run an IGP
+   protocol, it is not appropriate to advertise its information using
+   the existing NLRI types listed above.
+
+   This document defines a new NLRI type 7 (see Section 12) within the
+   BGP-LS NLRI, referred to as the Inter-AS Link NLRI.  The Inter-AS
+   Link NLRI is encoded in the format shown in Figure 2:
+
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 4]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+
+     |  Protocol-ID  |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                           Identifier                          |
+     |                           (8 octets)                          |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     //              Local Node Descriptors (variable)              //
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     //           Inter-AS Link Descriptors (variable)              //
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+               Figure 2: Inter-AS Link NLRI Format
+
+   This section describes the encoding of the Inter-AS Link NLRI while
+   the more detailed procedures for sourcing of this information from
+   the underlying IGP are described in Section 7.
+
+   The "Protocol-ID" field is set to the value indicating the source
+   protocol of the Inter-AS Link information, as specified in
+   Section 5.2 of [RFC9552].
+
+   The semantics of the "Identifier" field are the same as defined in
+   [RFC9552] and MUST be set to the BGP-LS Instance Identifier to
+   identify the IGP domain into which the information associated with
+   the Inter-AS link is advertised.  Therefore, the "Identifier" values
+   for the two half-links (refer to Section 5.2.2 of [RFC9552]) of the
+   Inter-AS link SHOULD be different depending on the configuration of
+   BGP-LS Instance Identifier for the two IGP domains.  The consumer of
+   the Inter-AS Link NLRI MUST use the combination of Autonomous System
+   TLV (512) in the Local Node Descriptors and BGP-LS Instance
+   Identifier to distinguish the IGP domains in different ASes.  This
+   behavior for Inter-AS Link NLRI takes precedence over the requirement
+   in Section 5.2 of [RFC9552] to assign unique BGP-LS Instance
+   Identifier to routing protocol instances operating in different IGP
+   domains.
+
+   The "Local Node Descriptors" field is encoded using the TLV 256, as
+   defined in Section 5.2.1.2 of [RFC9552],to identify the ASBR
+   associated with the specific half-link of the Inter-AS link.  The
+   following Sub-TLVs are included as the Local Node Descriptors:
+
+   - Autonomous System (TLV 512) (Section 5.2.1.4 of [RFC9552]) MUST be
+   included.
+
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 5]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   - OSPF Area-ID (TLV 514) (Section 5.2.1.4 of [RFC9552]) MUST be
+   included only in the case of OSPF when the Inter-AS TE LSA from which
+   information is sourced is being flooded with an area scope.  It MUST
+   NOT be included when the LSA is flooded with AS scope.
+
+   - IGP Router ID (TLV 515) MUST be included, encoded for either OSPF
+   or IS-IS, depending on the source protocol, as specified in
+   Section 5.2.1.4 of [RFC9552].
+
+   - One or both of the IPv4 and IPv6 Router-IDs of the ASBR using TLV
+   1028 and/or TLV 1029 [RFC9552], depending on whether the ASBR is
+   configured with one or both of the IPv4 and IPv6 TE Router-IDs.  If
+   both are known, then both MUST be present.  (Note: while [RFC9552]
+   introduced these TLVs for use in the BGP-LS attribute, this document
+   also leverages them for use in the NLRI.)
+
+
+   The Inter-AS Link Descriptors are encoded as TLVs that identify the
+   specific half-link of the Inter-AS link.  Section 6 of this document
+   introduces the TLVs that MUST be included as the Inter-AS Link
+   Descriptors:
+
+   - Remote AS Number (TLV 270), and
+
+   - One or both of IPv4 and IPv6 Remote ASBR ID using TLV 271 and/or
+   TLV 272, depending on whether the Remote ASBR is configured with one
+   or both of the IPv4 and IPv6 TE Router-IDs.
+
+   Additionally, the following TLVs MUST be included as Inter-AS Link
+   Descriptors if they are being advertised in the underlying IGP
+   advertisement of the Inter-AS link, as they help identify individual
+   links when there is more than one Inter-AS link between two ASBRs.
+
+   - Link Local/Remote Identifiers (TLV 258), Section 5.2.2 of [RFC9552]
+
+   - IPv4 Interface Address (TLV 259), Section 5.2.2 of [RFC9552]
+
+   - IPv4 Neighbor Address (TLV 260), Section 5.2.2 of [RFC9552]
+
+   - IPv6 Interface Address (TLV 261), Section 5.2.2 of [RFC9552]
+
+   - IPv6 Neighbor Address (TLV 262), Section 5.2.2 of [RFC9552]
+
+6.  Inter-AS Link Descriptor TLVs
+
+   This document introduces three TLVs for inclusion as Inter-AS Link
+   Descriptors within the Inter-AS Link NLRI for the advertisement of
+   Inter-AS link information via BGP-LS.
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 6]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   +-----------+---------------------+--------------+----------------+
+   |  TLV Code | Description         |IS-IS/OSPF TLV| Reference      |
+   |   Point   |                     |   /Sub-TLV   | (RFC/Section)  |
+   +-----------+---------------------+--------------+----------------+
+   |    270    |Remote AS Number     |   24/21      | [RFC9346]/3.4.1|
+   |           |                     |              | [RFC5392]/3.3.1|
+   |    271    |IPv4 Remote ASBR ID  |   25/22      | [RFC9346]/3.4.2|
+   |           |                     |              | [RFC5392]/3.3.2|
+   |    272    |IPv6 Remote ASBR ID  |   26/24      | [RFC9346]/3.4.3|
+   |           |                     |              | [RFC5392]/3.3.3|
+   +-----------+---------------------+--------------+----------------+
+                Figure 3: Inter-AS Link Descriptor TLVs
+
+   The encoding of these TLVs is aligned with the corresponding
+   advertisements in [RFC9346] and [RFC5392], which keeps the BGP-LS
+   protocol agnostic to the underlying protocol.
+
+6.1.  Remote AS Number TLV
+
+   The Remote AS Number TLV specifies the AS number of the neighboring
+   AS to which the advertised link connects.
+
+   The Remote AS Number TLV is TLV Type 270.  Its format is as follows:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |              Type             |             Length            |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Remote AS Number                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+              Figure 4: Remote AS Number TLV Format
+
+   The Remote AS Number field has 4 octets in length.
+
+
+6.2.  IPv4 Remote ASBR ID
+
+   The IPv4 Remote ASBR ID TLV specifies the IPv4 identifier of the
+   remote ASBR to which the advertised Inter-AS link connects.  The
+   value is taken from the IPv4 Remote ASBR ID Sub-TLV [RFC5392] (OSPF)
+   or the IPv4 Remote ASBR Identifier Sub-TLV [RFC9346] (IS-IS), which
+   identifies the remote ASBR by its TE Router ID.  A BGP-LS consumer
+   correlates this value with the IPv4 Router-ID of Local Node TLV
+   (1028) advertised for the corresponding half-link.
+
+   The IPv4 Remote ASBR ID TLV is TLV Type 271 and is 4 octets in
+   length.  Its format is as follows:
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 7]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |              Type             |             Length            |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Remote ASBR ID                          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+               Figure 5:  IPv4 Remote ASBR ID TLV Format
+
+6.3.  IPv6 Remote ASBR ID
+
+   The IPv6 Remote ASBR ID TLV specifies the IPv6 identifier of the
+   remote ASBR to which the advertised Inter-AS link connects.  The
+   value is taken from the IPv6 Remote ASBR ID Sub-TLV [RFC5392] (OSPF)
+   or the IPv6 Remote ASBR Identifier Sub-TLV [RFC9346] (IS-IS), which
+   identifies the remote ASBR by its TE Router ID.  A BGP-LS consumer
+   correlates this value with the IPv6 Router-ID of Local Node TLV
+   (1028) advertised for the corresponding half-link.
+
+   The IPv6 Remote ASBR ID TLV is TLV Type 272 and is 16 octets in
+   length.  Its format is as follows:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |              Type             |             Length            |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Remote ASBR ID                          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Remote ASBR ID (continued)              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Remote ASBR ID (continued)              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Remote ASBR ID (continued)              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+              Figure 6:  IPv6 Remote ASBR ID TLV Format
+
+   The IPv6 Remote ASBR ID TLV MUST be included if the neighboring ASBR
+   has an IPv6 address.
+
+   If the neighboring ASBR does not have an IPv6 address, the IPv4
+   Remote ASBR ID TLV MUST be included instead.  If both are known, then
+   both MUST be present.
+
+7.  Advertisement of IGP Information for Inter-AS Links
+
+   Advertisement of Inter-AS Links along with their TE information is
+   done in IGPs as follows:
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 8]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   - In OSPFv2 via the Inter-AS-TE-v2 LSA [RFC5392]
+
+   - In OSPFv3 via the Inter-AS-TE-v3 LSA[RFC5392]
+
+   - In IS-IS via the Inter-AS Reachability Information TLV (TLV 141)
+   [RFC9346]
+
+   As indicated in Section 5 and Section 6, the routers that connect to
+   an SDN controller via the BGP-LS protocol within each domain will
+   advertise the information from the above IGPs for the Inter-AS link.
+   The consumer of such information can then retrieve the Inter-AS
+   topology from it.
+
+   When advertising these Inter-AS Links from the IGPs into BGP-LS as
+   Inter-AS Links, with the exception of the Inter-AS Link Descriptors,
+   the sourcing of information for the Inter-AS Link NLRI follows the
+   same procedures as specified in [RFC9552].  The information about the
+   Remote AS Number and the IPv4/IPv6 Remote ASBR IDs specified in
+   Section 6 is derived from the Remote AS Number and IPv4/IPv6 Remote
+   ASBR ID TLVs specified for OSPF/IS-IS in [RFC5392] and [RFC9346]
+   respectively.  The rest of the Inter-AS Link Descriptor TLVs of the
+   Inter-AS Link NLRI are sourced from the base OSPF/ISIS TE TLVs that
+   were originally introduced for normal IGP links and which are also
+   encoded for the Inter-AS TE links as specified in [RFC5392] and
+   [RFC9346]; their procedures are therefore the same as in [RFC9552].
+
+   The OSPF/IS-IS Inter-AS Link advertisements also include various link
+   properties (e.g., TE metric, Admin Groups, SRLGs, etc.) which are
+   encoded using the same TLVs as for normal IGP links.  These link
+   properties are advertised using their corresponding BGP-LS TLVs as
+   specified in [RFC9552] and other BGP-LS extensions in the BGP-LS
+   Attribute associated with the Inter-AS Link NLRI of that specific
+   link.
+
+8.  Solutions for other Alternative Scenarios
+
+   In some scenarios, a router running BGP-LS may also act as an ASBR.
+   Take the topology in following figure as the example:
+
+   In this alternative topology, it is SB1, which is also an ASBR in IGP
+   A, runs the BGP-LS protocol with an SDN controller.  All other
+   information is kept the same as that in Figure 1.
+
+
+
+
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                  [Page 9]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+                             +-----------------+
+                      +------+  SDN Controller +-----+
+                      |      +-----------------+     |
+                      |                              |
+                      +-------+BGP-LS                |BGP-LS
+                              |                      |
+      +-----------------------+               +------+--------------+
+      | +--+         +--+   +-+-+           +-+-+   ++-+        +--+|
+      | |S1+---------+S2+---+SB1+-----------+TB2+---+T1+--------+T2||
+      | +-++         +--+   +-+-+           +-+-+   +--+        +-++|
+      |   |                   |               |                   | |
+      |   |                   |               |                   | |
+      | +-++        +--+    +-+-+           +-+-+   +--+        +-++|
+      | |S4+--------+S3+----+SB3+-----------+TB4+---+T3+--------+T4||
+      | +--+        +--+    +-+-+           +-+-+   +--+        +--+|
+      |                       |               |                     |
+      |                       |               |                     |
+      |       IGP A           |               |      IGP B          |
+      +-----------------------+               +---------------------+
+
+                  Figure 7: Alternative Inter-AS Domain Scenario
+
+   To retrieve the Inter-AS topology among IGP A and IGP B in
+   alternative scenario in Figure 7, one possible solution is to utilize
+   the BGP EPE [RFC9086] solution on SB1 (reports the local information
+   via the Link NLRI with Protocol-ID set to 'BGP'), plus the solution
+   proposed in Section 5 of this document that pass the BGP-LS Inter-AS
+   NLRI on another ASBR (e.g., SB3 in Figure 7 with Protocol-ID' set to
+   'OSPF' or 'IS-IS').
+
+   Another solution for the use case shown in Figure 7 allows SB1 to
+   directly put into BGP-LS an Inter-AS Link NLRI indicating the source
+   is a local route (directly connected interface or static route) that
+   the ASBR uses to get to the Inter-AS link.  Given this topology, SB1
+   sends the BGP-LS with the Inter-AS NLRI with the following settings:
+
+   Protocol-ID – set to 'Direct' or 'Static configuration' per
+   definition in Section 5.2 of [RFC9552],
+
+   Local Node Descriptors include: Autonomous System (TLV 512)
+   (Section 5.2 of [RFC9552]), IGP Router-ID (TLV 515) (Section 5.2 of
+   [RFC9552]), and Inter-AS Link Descriptors (per Section 6).
+
+   The above information on SB1 is configured locally, and the same
+   information on SB3 is from OSPF/IS-IS.
+
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                 [Page 10]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   Alignment between the two sides of the Inter-AS link (e.g. SB1 – TB2)
+   that uses the source of “static” or “direct” is made by a controller
+   mapping the AS-number and IP Address supported by the Inter-AS Link
+   information (Section 5 and Section 6).
+
+9.  Inter-AS Topology Use Case
+
+   Section 3.3 of [RFC8735] (Traffic Engineering for Multi-domain)
+   describes a scenario in which a service provider needs to perform
+   end-to-end traffic engineering across multiple domains.  To program
+   the end-to-end path, and let the traffic pass the non-congested
+   links, especially the links that interconnect to the different
+   domains, an SDN controller that covers all these domains which belong
+   to the service provider needs to know the Inter-AS topology
+   information from the Inter-AS Link NLRI via the BGP-LS.  It binds the
+   half-link information from each domain together, calculates the end-
+   to-end path for the assured service traffic and uses the final path
+   information to control the transmission of the assured traffic.
+
+   The use case can also be explained via the scenario described in
+   Figure 1.
+
+   If S1 wants to send traffic to T2 with assured performance, it should
+   know the end-to-end path from the SDN controller, especially the
+   connection topology among the four border routers (SB1, SB3, TB2 and
+   TB4).
+
+   Such connection topology information is sent by S2 and T1
+   respectively via the BGP-LS protocol, to the SDN controller.  The SDN
+   controller can then stitch the two IGP domain topologies together,
+   calculate the end-to-end path that spans two IGP domains and their
+   interconnection links, guide the traffic from S1 (in IGP A) to T2 (in
+   IGP B) to traverse the desired nodes and links.
+
+   If there are no interconnection links from the Inter-AS NLRI that is
+   defined in this document, an SDN controller cannot stitch the two IGP
+   domains together and is unable to calculate the end-to-end path for
+   the communication nodes located in different domains.
+
+10.  Operational Considerations
+
+   The extensions defined in this document are intended primarily for
+   deployments in which a controller collects topology information from
+   multiple ASes under a common administrative control.  A typical
+   deployment consists of one or more BGP-LS speakers in each AS
+   advertising the intra-AS topology together with the Inter-AS Link
+   NLRIs to a centralized or logically centralized controller.  The
+   controller correlates the information advertised from the two ends of
+
+
+
+Wang, et al.              Expires 2 April 2027                 [Page 11]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   an Inter-AS link and constructs an inter-AS topology as described in
+   Section 9.
+
+   The Inter-AS Link NLRI introduces additional topology state into BGP-
+   LS.  The amount of additional state is generally proportional to the
+   number of Inter-AS links advertised to the controller.  In networks
+   containing a large number of ASes or Inter-AS links, operators should
+   consider the resulting increase in BGP-LS state, update processing,
+   and controller processing.  Changes to an Inter-AS link or its
+   associated attributes may result in BGP-LS updates in addition to the
+   updates associated with the intra-AS topology.  Operators should
+   therefore apply the same scaling, filtering, and session-engineering
+   practices used for other BGP-LS topology information, and should
+   advertise only the Inter-AS topology information required by the
+   consuming applications.
+
+   Deployment of the extensions does not require all routers in an AS to
+   support the Inter-AS Link NLRI.  Only the routers that originate the
+   relevant Inter-AS information into the IGP, the BGP-LS speakers that
+   export this information, and the BGP-LS consumers that process the
+   new NLRI need to support the corresponding functions.  This allows
+   the extensions to be introduced incrementally.  A BGP-LS consumer
+   that does not support the Inter-AS Link NLRI cannot use the
+   information defined in this document to construct the corresponding
+   Inter-AS links.
+
+   An Inter-AS link is normally represented by information learned from
+   each side of the link.  The controller correlates these
+   advertisements using the local and remote AS information and the ASBR
+   identifiers carried in the Inter-AS Link NLRI.  If the two
+   advertisements cannot be correlated, the controller may observe an
+   unpaired or incomplete Inter-AS link rather than a complete link
+   between the two ASes.
+
+   When troubleshooting such a condition, an operator should first
+   verify that the Inter-AS link information is correctly originated on
+   both ASBRs and is present in the corresponding OSPF or IS-IS
+   advertisements described in Section 7.  The operator should then
+   verify that the BGP-LS speakers have received the information and
+   advertised the corresponding Inter-AS Link NLRIs to the controller.
+   Either the IPv6 Remote ASBR ID or IPv4 Remote ASBR ID is present in
+   the Inter-AS Link Descriptors.  In particular, the Remote AS Number
+   and the IPv4 and/or IPv6 Remote ASBR ID should be checked for
+   consistency with the Inter-AS Link Descriptors advertised from the
+   opposite side of the link.  Operators should also check BGP-LS
+   import/export policies and filtering along the path to the
+   controller, since filtering one of the advertisements may leave the
+   controller with only one half of the Inter-AS link.
+
+
+
+Wang, et al.              Expires 2 April 2027                 [Page 12]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   Implementations are encouraged to provide operational visibility into
+   Inter-AS Link NLRIs, including their source protocol, local and
+   remote AS numbers, local and remote ASBR identifiers, and whether the
+   controller was able to correlate the advertisements from the two ends
+   of a link.  Such information can help distinguish an error in the
+   underlying IGP advertisement from filtering or propagation problems
+   in BGP-LS and from a correlation failure at the controller.
+
+   The topology information described in this document can reveal
+   information about interconnections between ASes.  Operators should
+   therefore control the scope of its distribution using existing BGP
+   policy mechanisms.  In particular, advertisements should be limited
+   to the BGP-LS consumers that require the information.
+
+11.  Security Considerations
+
+   BGP-LS security is specified in [RFC9552].  This extension to BGP-LS
+   focuses on scenarios where a single-entity-operated network includes
+   multiple IGP domains composed of its backbone network, several
+   Metropolitan-Area Networks (MANs), and Data Centers (DCs).  The
+   configuration of these networks, operated by a single administrative
+   entity, creates a "walled garden".  Within this single administrative
+   domain, the network operator needs to monitor and engineer traffic
+   flows traversing a network that spans multiple Autonomous Systems
+   (ASes).  The network operator can obtain this Inter-AS topology
+   information via the procedure described in this document.
+
+   A single administrative domain consisting of two ASes that passes
+   information about Inter-AS Link characteristics does not cause issues
+   within a controlled administrative domain.  However, the Inter-AS
+   Link NLRI and its characteristics (Link/Local Identifier, IPv4
+   Interface Address, IPv4 Neighbor Address, IPv6 Interface Address,
+   IPv6 Neighbor Address, Multi-Topology Identifier, Remote-AS Number,
+   IPv4 Remote ASBR ID, and IPv6 Remote ASBR ID) constitute critical
+   network information.  As such, operators SHOULD handle this critical
+   information in a manner that restricts it to the controlled
+   administrative domain or filters it before it leaves the controlled
+   administrative domain.
+
+
+12.  IANA Considerations
+
+   This document requests IANA to maintain the allocated codepoints
+   under the "Border Gateway Protocol - Link State (BGP-LS) Parameters"
+   registry group as follows:
+
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                 [Page 13]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+12.1.  New BGP-LS NLRI type
+
+   IANA has allocated (via Early Allocation) a codepoint for the Inter-
+   AS Link NLRI type from the "BGP-LS NLRI Types" registry under the
+   "Border Gateway Protocol - Link State (BGP-LS) Parameters" group:
+
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |    Type       |   NLRI Type       |        Reference          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |       7       | Inter-AS Link NLRI|      This document        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+              Figure 8:  Inter-AS Link NLRI Codepoint
+
+12.2.  New Inter-AS Link Descriptors
+
+   IANA has allocated (via Early Allocation) codepoints for the
+   following TLVs from "BGP-LS NLRI and Attribute TLVs" registry under
+   the "Border Gateway Protocol - Link State (BGP-LS) Parameters" group.
+   They are used as Inter-AS Link Descriptor TLVs:
+
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |   TLV Code Point  |   Description         |      Reference        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |      270          | Remote AS Number      |     This document     |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |      271          |  IPv4 Remote ASBR ID  |     This document     |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |      272          |  IPv6 Remote ASBR ID  |     This document     |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+              Figure 9:  BGP-LS Inter-AS Link Descriptors TLV
+
+13.  Acknowledgements
+
+   The authors would like to thank Susan Hares, Mohamed Boucadair,
+   Mahesh Jethanandani, Éric Vyncke, Acee Lindem, Jie Dong, Shaowen Ma,
+   Jeff Tantsura and Dhruv Dhody for their valuable comments and
+   suggestions.
+
+14.  References
+
+14.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                 [Page 14]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   [RFC5392]  Chen, M., Zhang, R., and X. Duan, "OSPF Extensions in
+              Support of Inter-Autonomous System (AS) MPLS and GMPLS
+              Traffic Engineering", RFC 5392, DOI 10.17487/RFC5392,
+              January 2009, <https://www.rfc-editor.org/info/rfc5392>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC9346]  Chen, M., Ginsberg, L., Previdi, S., and D. Xiaodong, "IS-
+              IS Extensions in Support of Inter-Autonomous System (AS)
+              MPLS and GMPLS Traffic Engineering", RFC 9346,
+              DOI 10.17487/RFC9346, February 2023,
+              <https://www.rfc-editor.org/info/rfc9346>.
+
+   [RFC9552]  Talaulikar, K., Ed., "Distribution of Link-State and
+              Traffic Engineering Information Using BGP", RFC 9552,
+              DOI 10.17487/RFC9552, December 2023,
+              <https://www.rfc-editor.org/info/rfc9552>.
+
+14.2.  Informative References
+
+   [RFC7426]  Haleplidis, E., Ed., Pentikousis, K., Ed., Denazis, S.,
+              Hadi Salim, J., Meyer, D., and O. Koufopavlou, "Software-
+              Defined Networking (SDN): Layers and Architecture
+              Terminology", RFC 7426, DOI 10.17487/RFC7426, January
+              2015, <https://www.rfc-editor.org/info/rfc7426>.
+
+   [RFC8735]  Wang, A., Huang, X., Kou, C., Li, Z., and P. Mi,
+              "Scenarios and Simulation Results of PCE in a Native IP
+              Network", RFC 8735, DOI 10.17487/RFC8735, February 2020,
+              <https://www.rfc-editor.org/info/rfc8735>.
+
+   [RFC9086]  Previdi, S., Talaulikar, K., Ed., Filsfils, C., Patel, K.,
+              Ray, S., and J. Dong, "Border Gateway Protocol - Link
+              State (BGP-LS) Extensions for Segment Routing BGP Egress
+              Peer Engineering", RFC 9086, DOI 10.17487/RFC9086, August
+              2021, <https://www.rfc-editor.org/info/rfc9086>.
+
+Authors' Addresses
+
+   Aijun Wang
+   China Telecom
+   Beiqijia Town, Changping District
+   Beijing
+   Beijing, 102209
+   China
+   Email: wangaj3@chinatelecom.cn
+
+
+
+Wang, et al.              Expires 2 April 2027                 [Page 15]
+
+Internet-Draft             BGP-LS-Inter-AS-Ext            September 2026
+
+
+   Huaimo Chen
+   Individual
+   Boston, MA
+   United States of America
+   Email: hchen.ietf@gmail.com
+
+
+   Ketan Talaulikar
+   Cisco Systems
+   India
+   Email: ketant.ietf@gmail.com
+
+
+   Shunwan Zhuang
+   Huawei Technologies
+   Huawei Building, No.156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: zhuangshunwan@huawei.com
+
+
+   Changwang Lin
+   New H3C Technologies
+   8 Yongjia North Road
+   Beijing
+   100094
+   China
+   Email: linchangwang.04414@h3c.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Wang, et al.              Expires 2 April 2027                 [Page 16]

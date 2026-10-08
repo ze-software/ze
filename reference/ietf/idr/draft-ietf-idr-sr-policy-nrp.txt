@@ -1,0 +1,504 @@
+
+
+
+
+IDR Working Group                                                J. Dong
+Internet-Draft                                                     Z. Hu
+Intended status: Standards Track                     Huawei Technologies
+Expires: 20 January 2027                                         R. Pang
+                                                            China Unicom
+                                                            19 July 2026
+
+
+        BGP SR Policy Extensions for Network Resource Partition
+                    draft-ietf-idr-sr-policy-nrp-13
+
+Abstract
+
+   Segment Routing (SR) Policy is a set of candidate paths, each
+   consisting of one or more segment lists and the associated
+   information.  The header of a packet steered in an SR Policy is
+   augmented with an ordered list of segments associated with that SR
+   Policy.  A Network Resource Partition (NRP) is a subset of network
+   resources allocated in the underlay network which can be used to
+   support one or a group of RFC 9543 network slice services.
+
+   In networks where there are multiple NRPs, an SR Policy may be
+   associated with a particular NRP.  The association between SR Policy
+   and NRP needs to be specified, so that for service traffic which is
+   steered into the SR Policy, the header of the packets can be
+   augmented with the information associated with the NRP.  An SR Policy
+   candidate path can be distributed using BGP SR Policy.  This document
+   defines the extensions to BGP SR Policy to specify the NRP which the
+   SR Policy candidate path is associated with.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 20 January 2027.
+
+
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 1]
+
+Internet-Draft            BGP SR Policy for NRP                July 2026
+
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  NRP Identifier of SR Policy . . . . . . . . . . . . . . . . .   4
+   3.  Procedures  . . . . . . . . . . . . . . . . . . . . . . . . .   5
+   4.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .   6
+   5.  Operational Considerations  . . . . . . . . . . . . . . . . .   6
+   6.  Security Considerations . . . . . . . . . . . . . . . . . . .   6
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   7
+   8.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .   7
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   7
+     9.1.  Normative References  . . . . . . . . . . . . . . . . . .   7
+     9.2.  Informative References  . . . . . . . . . . . . . . . . .   8
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   9
+
+1.  Introduction
+
+   The concept of Segment Routing (SR) policy is defined in [RFC9256].
+   An SR Policy is a set of candidate paths, each consisting of one or
+   more segment lists.  The headend of an SR Policy may learn multiple
+   candidate paths for an SR Policy.  The header of a packet steered in
+   an SR Policy is augmented with an ordered list of segments associated
+   with that SR Policy.  The BGP extensions to distribute SR Policy
+   candidate paths are defined in [RFC9830].
+
+   [RFC9543] discusses the general framework, components, and interfaces
+   for requesting and operating network slices using IETF technologies.
+   It also introduces the concept of Network Resource Partition (NRP),
+   which is a subset of the resources and associated policies in the
+   underlay network.  The network slices defined in [RFC9543] can be
+   realized by mapping one or more connectivity constructs to an NRP.
+   [RFC9732] describes the framework and the candidate component
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 2]
+
+Internet-Draft            BGP SR Policy for NRP                July 2026
+
+
+   technologies for providing NRP-based enhanced VPN services based on
+   Traffic Engineering and VPN technologies.  Enhanced VPN can be used
+   for the realization of network slice services defined in [RFC9543].
+
+   As described in [I-D.ietf-teas-nrp-scalability], one data plane
+   approach to enable NRP and network slice is to carry a dedicated NRP
+   selector ID [I-D.ietf-teas-ns-ip-mpls] in the data packet to identify
+   the NRP the packet belongs to, so that the packet can be processed
+   and forwarded using the subset of network resources allocated to the
+   NRP.
+
+   In networks where there are multiple NRPs, an SR Policy may be
+   associated with a particular NRP.  [I-D.ietf-spring-sr-policy-nrp]
+   describes the association of SR Policy candidate path with NRP under
+   the SR Policy architecture.  This document defines the extensions to
+   BGP to specify the control plane NRP ID [I-D.ietf-teas-ns-ip-mpls]
+   that is associated with an SR Policy candidate path.
+   [I-D.ietf-teas-ns-ip-mpls] describes several approaches for
+   identifying an NRP in the data plane (which is called NRP Selector).
+   This document addresses the case where a dedicated NRP Selector ID is
+   used domain-wide in the data plane, in which case the control plane
+   NRP ID is linked to the NRP Selector ID in the data plane.  Other
+   approaches of NRP Selector do not require explicit signaling of the
+   NRP ID in the SR Policy and are out of the scope of this document.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+1.2.  Terminology
+
+   The following terminology is used in this document:
+
+   Network Resource Partition (NRP): refer to the definition in
+   [RFC9543]
+
+   NRP Domain: refer to the definition in [I-D.ietf-teas-ns-ip-mpls]
+
+   NRP Identifier (NRP ID): refer to the definition in
+   [I-D.ietf-teas-ns-ip-mpls]
+
+   NRP Selector ID: refer to the definition in
+   [I-D.ietf-teas-ns-ip-mpls]
+
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 3]
+
+Internet-Draft            BGP SR Policy for NRP                July 2026
+
+
+2.  NRP Identifier of SR Policy
+
+   In order to specify the NRP the candidate path of SR Policy is
+   associated with, a new sub-TLV called "NRP ID" sub-TLV is defined in
+   the BGP Tunnel Encapsulation Attribute [RFC9012].  The NRP ID sub-TLV
+   can be carried in the BGP Tunnel Encapsulation Attribute with the
+   tunnel type set to SR Policy.  The use of the NRP ID sub-TLV in other
+   tunnel types is outside the scope of this document.
+
+   The NRP ID sub-TLV has the following format:
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |     Type      |   Length      |     Flags     |   Reserved    |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                         NRP ID (4 octets)                     |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                         Figure 1. NRP ID Sub-TLV
+
+   where:
+
+   *  Type: 123 (assigned by IANA)
+
+   *  Length: The Length field MUST be set to 6 octets
+
+   *  Flags: 1-octet flag field.  None is defined in this document.  The
+      flags MUST be set to zero on transmission and MUST be ignored on
+      receipt.
+
+   *  Reserved: 1 octet of reserved bits.  It MUST be set to zero on
+      transmission and MUST be ignored on receipt.
+
+   *  NRP ID: A 32-bit identifier which uniquely identifies an NRP in an
+      NRP domain [I-D.ietf-teas-ns-ip-mpls].  Value 0 is reserved, which
+      MUST NOT be used by the sender.  On receipt of the NRP ID TLV, if
+      the NRP ID is 0, the NRP ID TLV MUST be ignored.
+
+   The BGP SR Policy encoding structure for the Subsequent Address
+   Family Identifier (SAFI) 73 Network Layer Reachability Information
+   (NLRI) and the associated attributes is specified in [RFC9830].  The
+   encoding structure of BGP SR Policy NLRI with the associated NRP ID
+   is expressed as below:
+
+
+
+
+
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 4]
+
+Internet-Draft            BGP SR Policy for NRP                July 2026
+
+
+            SR Policy SAFI NLRI: <Distinguisher, Policy-Color, Endpoint>
+            Attributes:
+               Tunnel Encaps Attribute (23)
+                  Tunnel Type: SR Policy (15)
+                      Binding SID
+                      SRv6 Binding SID
+                      Preference
+                      Priority
+                      Policy Name
+                      Policy Candidate Path Name
+                      Explicit NULL Label Policy (ENLP)
+                      NRP ID
+                      Segment List
+                          Weight
+                          Segment
+                          Segment
+                          ...
+                      ...
+                Figure 2. SR Policy Encoding with NRP ID sub-TLV
+
+
+   The NRP ID sub-TLV is OPTIONAL and MUST NOT appear more than once for
+   one SR Policy candidate path.
+
+3.  Procedures
+
+   When a candidate path of SR Policy is instantiated within an NRP, and
+   a domain-wide data plane NRP Selector ID is used for identifying the
+   resources of the NRP, the originating node of SR Policy MUST include
+   the NRP ID sub-TLV in the BGP Tunnel Encapsulation Attribute of the
+   BGP SR Policy.  The setting of other fields and attributes in BGP SR
+   Policy follows the mechanism as defined in [RFC9830].  The cases
+   where the NRP Selector is realized by other data plane mechanisms is
+   out of the scope of this document.
+
+   On reception of an SR Policy NLRI with NRP ID sub-TLV in the BGP
+   Tunnel Encapsulation Attribute , a BGP speaker determines if it is
+   valid and usable according to the rules defined in Section 4.2 of
+   [RFC9830].
+
+   The selected best routes of the SR Policy SAFI is passed on to the SR
+   Policy Module (SRPM) for further processing as described in
+   Section 4.2.2 of [RFC9830].
+
+
+
+
+
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 5]
+
+Internet-Draft            BGP SR Policy for NRP                July 2026
+
+
+4.  Error Handling
+
+   The error handling of the BGP Update messages for BGP SR Policy SAFI
+   with the NRP extensions defined in this document follows the
+   procedures in section 5 of [RFC9830].
+
+   The NRP ID sub-TLV is considered malformed if the length field of the
+   sub-TLV is not 6 octets.  If the NRP ID sub-TLV appears more than
+   once, or its format is considered malformed, the NRP ID information
+   associated with the BGP SR Policy NLRI is considered malformed and
+   the "treat-as-withdraw" strategy of [RFC7606] MUST be applied.
+
+5.  Operational Considerations
+
+   The mechanism specified in this document adds additional information
+   to the SR Policy candidate paths advertisement in BGP.  As the number
+   of NRP increases, the number of SR Policies and candidate paths may
+   also increase, and the amount of information exchanged between the
+   network controller and the headend nodes for provisioning SR Policy
+   would increase proportional to the number of SR Policies and
+   candidate paths.  However, there is no change to the SR Policy
+   advertisment procedure, and no change to BGP best-path selection.  As
+   SR Policy candidate paths advertised using BGP are only installed by
+   the corresponding headend nodes, the increase of SR Policy and
+   candidate path information does not impact the state maintained on
+   the transit nodes.
+
+   Although the updates to SR Policy architecture in
+   [I-D.ietf-spring-sr-policy-nrp] allow different candidate paths in
+   one SR Policy to be associated with different NRPs, in normal network
+   scenarios it is considered that no matter which candidate path is
+   active, the association between an SR Policy and NRP is consistent.
+   In such case all candidate paths of one SR Policy SHOULD be
+   associated with the same NRP.  The cases where different candidate
+   paths of an SR Policy are associated with different NRPs is valid but
+   NOT RECOMMENDED.
+
+6.  Security Considerations
+
+   The security considerations of BGP data integrity and authentication
+   in [RFC4271] apply to this document.  The security considerations of
+   SR Policy architecture [RFC9256] and using BGP for SR Policy
+   information advertisement in [RFC9830] apply to this document.
+
+   The security considerations of SR Policy NRP extensions
+   [I-D.ietf-spring-sr-policy-nrp] apply to this document.  Incorrect
+   association of NRP ID with SR Policy can affect traffic isolation and
+   resource guarantee.  And the adverisement of the associated NRP ID of
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 6]
+
+Internet-Draft            BGP SR Policy for NRP                July 2026
+
+
+   SR Policy constitutes a risk to confidentiality of mission-critical
+   or commercially sensitive information.  It is the responsibility of
+   the network operator to ensure that only trusted nodes (that include
+   both routers and controller applications) within the SR domain are
+   configured to send and receive such information, and to ensure the
+   correctness of NRP association.
+
+7.  IANA Considerations
+
+   IANA has assigned the sub-TLV type as defined in Section 2 from "BGP
+   Tunnel Encapsulation Attribute sub-TLVs" registry in the "Border
+   Gateway Protocol (BGP) Tunnel Encapsulation" registry group.
+
+             Value     Description                     Reference
+             ----------------------------------------------------
+              123        NRP ID                       This document
+
+8.  Acknowledgments
+
+   The authors would like to thank Guoqi Xu, Lei Bao, Haibo Wang,
+   Shunwan Zhuang and Susan Hares for their review and discussion of
+   this document.
+
+9.  References
+
+9.1.  Normative References
+
+   [I-D.ietf-spring-sr-policy-nrp]
+              Yue, Chen, R., Dong, J., Lin, C., and J. Wenying, "Segment
+              Routing Policy Extension for Network Resource Partition",
+              Work in Progress, Internet-Draft, draft-ietf-spring-sr-
+              policy-nrp-02, 6 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-spring-
+              sr-policy-nrp-02>.
+
+   [I-D.ietf-teas-ns-ip-mpls]
+              Saad, T., Beeram, V. P., Dong, J., Halpern, J. M., and S.
+              Peng, "Realizing Network Slices in IP/MPLS Networks", Work
+              in Progress, Internet-Draft, draft-ietf-teas-ns-ip-mpls-
+              08, 24 June 2026, <https://datatracker.ietf.org/doc/html/
+              draft-ietf-teas-ns-ip-mpls-08>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 7]
+
+Internet-Draft            BGP SR Policy for NRP                July 2026
+
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC7606]  Chen, E., Ed., Scudder, J., Ed., Mohapatra, P., and K.
+              Patel, "Revised Error Handling for BGP UPDATE Messages",
+              RFC 7606, DOI 10.17487/RFC7606, August 2015,
+              <https://www.rfc-editor.org/info/rfc7606>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC9012]  Patel, K., Van de Velde, G., Sangli, S., and J. Scudder,
+              "The BGP Tunnel Encapsulation Attribute", RFC 9012,
+              DOI 10.17487/RFC9012, April 2021,
+              <https://www.rfc-editor.org/info/rfc9012>.
+
+   [RFC9256]  Filsfils, C., Talaulikar, K., Ed., Voyer, D., Bogdanov,
+              A., and P. Mattes, "Segment Routing Policy Architecture",
+              RFC 9256, DOI 10.17487/RFC9256, July 2022,
+              <https://www.rfc-editor.org/info/rfc9256>.
+
+   [RFC9543]  Farrel, A., Ed., Drake, J., Ed., Rokui, R., Homma, S.,
+              Makhijani, K., Contreras, L., and J. Tantsura, "A
+              Framework for Network Slices in Networks Built from IETF
+              Technologies", RFC 9543, DOI 10.17487/RFC9543, March 2024,
+              <https://www.rfc-editor.org/info/rfc9543>.
+
+   [RFC9830]  Previdi, S., Filsfils, C., Talaulikar, K., Ed., Mattes,
+              P., and D. Jain, "Advertising Segment Routing Policies in
+              BGP", RFC 9830, DOI 10.17487/RFC9830, September 2025,
+              <https://www.rfc-editor.org/info/rfc9830>.
+
+9.2.  Informative References
+
+   [I-D.ietf-teas-nrp-scalability]
+              Dong, J., Li, Z., Gong, L., Yang, G., and G. S. Mishra,
+              "Scalability Considerations for Network Resource
+              Partition", Work in Progress, Internet-Draft, draft-ietf-
+              teas-nrp-scalability-09, 11 February 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-teas-
+              nrp-scalability-09>.
+
+
+
+
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 8]
+
+Internet-Draft            BGP SR Policy for NRP                July 2026
+
+
+   [RFC9732]  Dong, J., Bryant, S., Li, Z., Miyasaka, T., and Y. Lee, "A
+              Framework for NRP-Based Enhanced Virtual Private
+              Networks", RFC 9732, DOI 10.17487/RFC9732, March 2025,
+              <https://www.rfc-editor.org/info/rfc9732>.
+
+Authors' Addresses
+
+   Jie Dong
+   Huawei Technologies
+   Email: jie.dong@huawei.com
+
+
+   Zhibo Hu
+   Huawei Technologies
+   Email: huzhibo@huawei.com
+
+
+   Ran Pang
+   China Unicom
+   Email: pangran@chinaunicom.cn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Dong, et al.             Expires 20 January 2027                [Page 9]

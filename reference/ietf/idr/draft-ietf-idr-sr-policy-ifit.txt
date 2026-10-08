@@ -1,0 +1,952 @@
+
+
+
+
+IDR                                                               F. Qin
+Internet-Draft                                              China Mobile
+Intended status: Standards Track                                 H. Yuan
+Expires: 19 October 2026                                        UnionPay
+                                                                 S. Yang
+                                                           China Telecom
+                                                                 T. Zhou
+                                                             G. Fioccola
+                                                                  Huawei
+                                                           17 April 2026
+
+
+                BGP SR Policy Extensions to Enable IFIT
+                    draft-ietf-idr-sr-policy-ifit-12
+
+Abstract
+
+   Segment Routing (SR) policy is a set of candidate SR paths consisting
+   of one or more segment lists and necessary path attributes.  It
+   enables instantiation of an ordered list of segments with a specific
+   intent for traffic steering.  In-situ Flow Information Telemetry
+   (IFIT) refers to network OAM data plane on-path telemetry techniques,
+   in particular the most popular are In-situ OAM (IOAM) and Alternate
+   Marking.  This document defines extensions to BGP to distribute SR
+   policies carrying IFIT information.  So that IFIT methods can be
+   enabled automatically when the SR policy is applied.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 19 October 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 1]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  Motivation  . . . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  IFIT methods for SR Policy  . . . . . . . . . . . . . . . . .   4
+   4.  IFIT Attributes in SR Policy  . . . . . . . . . . . . . . . .   5
+   5.  IFIT Attributes Sub-TLV . . . . . . . . . . . . . . . . . . .   6
+     5.1.  IOAM Pre-allocated Trace Option Sub-TLV . . . . . . . . .   8
+     5.2.  IOAM Incremental Trace Option Sub-TLV . . . . . . . . . .   8
+     5.3.  IOAM Directly Export Option Sub-TLV . . . . . . . . . . .   9
+     5.4.  IOAM Edge-to-Edge Option Sub-TLV  . . . . . . . . . . . .  10
+     5.5.  Enhanced Alternate Marking (EAM) sub-TLV  . . . . . . . .  11
+   6.  SR Policy Operations with IFIT Attributes . . . . . . . . . .  11
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  12
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .  13
+   9.  Contributors  . . . . . . . . . . . . . . . . . . . . . . . .  13
+   10. Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  13
+   11. References  . . . . . . . . . . . . . . . . . . . . . . . . .  13
+     11.1.  Normative References . . . . . . . . . . . . . . . . . .  14
+     11.2.  Informative References . . . . . . . . . . . . . . . . .  15
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  16
+
+1.  Introduction
+
+   Segment Routing (SR) policy [RFC9256] is a set of candidate SR paths
+   consisting of one or more segment lists and necessary path
+   attributes.  It enables instantiation of an ordered list of segments
+   with a specific intent for traffic steering.
+
+   In-situ Flow Information Telemetry (IFIT) denotes a family of flow-
+   oriented on-path telemetry techniques (e.g. IOAM, Alternate Marking),
+   which can provide high-precision flow insight and real-time network
+   issue notification (e.g., jitter, latency, packet loss).In
+   particular, IFIT refers to network OAM (Operations, Administration,
+   and Maintenance) data plane on-path telemetry techniques, including
+   In-situ OAM (IOAM) [RFC9197] and Alternate Marking [RFC9341].  It can
+   provide flow information on the entire forwarding path on a per-
+   packet basis in real time.
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 2]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   An automatic network requires the Service Level Agreement (SLA)
+   monitoring on the deployed service.  So that the system can quickly
+   detect the SLA violation or the performance degradation, hence to
+   change the service deployment.  For this reason, the SR policy native
+   IFIT can facilitate the closed loop control and enable the automation
+   of SR service.
+
+   This document defines extensions to Border Gateway Protocol (BGP) to
+   distribute SR policies carrying IFIT information.  So that IFIT
+   behavior can be enabled automatically when the SR policy is applied.
+
+   This BGP extension allows to signal the IFIT capabilities together
+   with the SR-policy.  In this way IFIT methods are automatically
+   activated and running.  The flexibility and dynamicity of the IFIT
+   applications are given by the use of additional functions on the
+   controller and on the network nodes, but this is out of scope here.
+
+   The BGP extension, defined in this document, allows to centrally
+   distribute SR Policies and can be considered as a centralized control
+   solution, while [I-D.ietf-idr-bgp-ifit-capabilities] defines the IFIT
+   NHC Characteristic and allows a distributed solution.  Therefore,
+   this document enables the IFIT application in networks where there is
+   a controller and it helps network operators to deploy IFIT in their
+   networks.
+
+   IFIT is a solution focusing on network domains according to [RFC8799]
+   that introduces the concept of specific domain solutions.  A network
+   domain consists of a set of network devices or entities within a
+   single administration.  As mentioned in [RFC8799], for a number of
+   reasons, such as policies, options supported, style of network
+   management and security requirements, it is suggested to limit
+   applications including the emerging IFIT techniques to a controlled
+   domain.  Hence, the IFIT methods MUST be typically deployed in such
+   controlled domains.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in BCP 14 [RFC2119]
+   [RFC8174] when, and only when, they appear in all capitals, as shown
+   here.
+
+2.  Motivation
+
+   IFIT Methods are being introduced in multiple protocols and in
+   particular for Segment Routing over the MPLS data plane (SR-MPLS) and
+   Segment Routing over IPv6 data plane (SRv6).
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 3]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   It is worth mentioning that, at the moment, the IFIT methods (IOAM
+   and Alternate Marking) are more mature for SRv6 compared to SR-MPLS.
+   The reference documents are [RFC9486], [RFC9343] and [RFC9947] for
+   SRv6.
+
+   The definition of these data plane IFIT methods for SR-MPLS and SRv6
+   imply requirements for various routing protocols, such as BGP, and
+   this document aims to define BGP extensions to distribute SR policies
+   carrying IFIT information.  This allows to signal the IFIT
+   capabilities so IFIT methods are automatically configured and ready
+   to run when the SR Policy candidate paths are distributed through
+   BGP.
+
+   It is to be noted that, for PCEP (Path Computation Element
+   Communication Protocol), [I-D.ietf-pce-pcep-ifit] proposes the
+   extensions to PCEP to distribute paths carrying IFIT information and
+   therefore to enable IFIT methods for SR policy too.  These documents
+   complement the deployment scenario described in
+   [I-D.ietf-ippm-alt-mark-deployment] and
+   [I-D.song-opsawg-ifit-framework].
+   [I-D.zhou-srv6ops-am-deployment-status] reports several deployment
+   cases of Alternate Marking in operator networks.
+
+3.  IFIT methods for SR Policy
+
+   In-situ Operations, Administration, and Maintenance (IOAM) [RFC9197]
+   records operational and telemetry information in the packet while the
+   packet traverses a path between two points in the network.  In terms
+   of the classification given in RFC 7799 [RFC7799] IOAM could be
+   categorized as Hybrid Type 1.  IOAM mechanisms can be leveraged where
+   active OAM do not apply or do not offer the desired results.  When SR
+   policy enables the IOAM, the IOAM header will be inserted into every
+   packet of the traffic that is steered into the SR paths.
+
+   The Alternate Marking [RFC9341] technique is an hybrid performance
+   measurement method, per RFC 7799 [RFC7799] classification of
+   measurement methods.  Because this method is based on marking
+   consecutive batches of packets.  It can be used to measure packet
+   loss, latency, and jitter on live traffic.
+
+   This document aims to define the control plane.  While the relevant
+   documents for the data plane application of IOAM and Alternate
+   Marking are respectively [RFC9486], [RFC9343] and [RFC9947] for
+   Segment Routing over IPv6 data plane (SRv6).
+
+
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 4]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+4.  IFIT Attributes in SR Policy
+
+   As defined in [RFC9830], a new SAFI is defined (the SR Policy SAFI
+   with codepoint 73) as well as a new NLRI.  The NLRI contains the SR
+   Policy candidate path and, according to [RFC9830], the content of the
+   SR Policy Candidate Path is encoded in the Tunnel Encapsulation
+   Attribute defined in [RFC9012] using a new Tunnel-Type called SR
+   Policy Type with codepoint 15.  The SR Policy encoding structure is
+   as follows:
+
+      SR Policy SAFI NLRI: <Distinguisher, Color, Endpoint>
+      Attributes:
+         Tunnel Encapsulation Attribute (23)
+            Tunnel Type: SR Policy (15)
+                Binding SID
+                Preference
+                Priority
+                SR Policy Name
+                SR Policy Candidate Path Name
+                Explicit NULL Label Policy (ENLP)
+                Segment List
+                    Weight
+                    Segment
+                    Segment
+                    ...
+                ...
+
+   A candidate path includes multiple SR paths, each of which is
+   specified by a segment list.  IFIT can be applied to the candidate
+   path, so that all the SR paths can be monitored in the same way.  The
+   new SR Policy encoding structure is expressed as below:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 5]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+      SR Policy SAFI NLRI: <Distinguisher, Color, Endpoint>
+      Attributes:
+         Tunnel Encapsulation Attribute (23)
+            Tunnel Type: SR Policy (15)
+                Binding SID
+                Preference
+                Priority
+                SR Policy Name
+                SR Policy Candidate Path Name
+                Explicit NULL Label Policy (ENLP)
+                IFIT Attributes
+                Segment List
+                    Weight
+                    Segment
+                    Segment
+                    ...
+                ...
+
+   IFIT attributes can be attached at the candidate path level as sub-
+   TLVs.  There may be different IFIT tools.  The following sections
+   will describe the requirement and usage of different IFIT tools, and
+   define the corresponding sub-TLV encoding in BGP.
+
+   Once the IFIT attributes are signalled, if a packet arrives at the
+   headend and, based on the types of steering described in [RFC9256],
+   it may get steered into an SR Policy where IFIT methods are applied.
+   Therefore it will be managed consequently with the corresponding IOAM
+   or Alternate Marking information according to the enabled IFIT
+   methods.
+
+   Note that the IFIT attributes here described can also be generalized
+   and included as sub-TLVs for other SAFIs and NLRIs.
+
+5.  IFIT Attributes Sub-TLV
+
+   The format of the IFIT Attributes Sub-TLV is defined as follows:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+                                   +---------------+---------------+
+                                   |      Type     |    Length     |
+   +-------------------------------+---------------+---------------+
+   |                                                               |
+   //                           sub-TLVs                          //
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                  Figure 1: Fig. 1 IFIT Attributes Sub-TLV
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 6]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   Where:
+
+   Type: TBD1 (to be assigned by IANA).
+
+   Length: the total length of the value field not including Type and
+   Length fields.
+
+   sub-TLVs currently defined:
+
+      * IOAM Pre-allocated Trace Option Sub-TLV,
+
+      * IOAM Incremental Trace Option Sub-TLV,
+
+      * IOAM Directly Export Option Sub-TLV,
+
+      * IOAM Edge-to-Edge Option Sub-TLV,
+
+      * Enhanced Alternate Marking (EAM) sub-TLV.
+
+   The presence of the IFIT Attributes Sub-TLV implies support of IFIT
+   methods (IOAM and/or Alternate Marking).  It is worth mentioning that
+   IOAM and Alternate Marking can be activated one at a time or can
+   coexist; so it is possible to have only IOAM or only Alternate
+   Marking enabled as Sub-TLVs.  The sub-TLVs currently defined for IOAM
+   and Alternate Marking are detailed in the next sections.
+
+   In case of empty IFIT Attributes Sub-TLV, i.e. no further IFIT sub-
+   TLV and Length=0, IFIT methods will not be activated.  If two IFIT
+   Sub-TLVs are duplicated, they are considered invalid and the BGP
+   process will ignore them.
+
+   It is expected to have a single IFIT Sub-TLV under the Tunnel Type SR
+   Policy.  The validation of the individual fields of the IFIT
+   Attributes sub-TLVs are handled by the SRPM (SR Policy Module).  For
+   example, if two conflicting IOAM sub-TLVs are present (e.g. Pre-
+   allocated Trace Option and Incremental Trace Option) it means that
+   they are not usable and none of the two methods will be activated.
+   The same applies in case there is more than one instance of the sub-
+   TLV of the same type.
+
+   The process of stopping IFIT methods can be done by setting empty
+   IFIT Attributes Sub-TLV, while, for modifying IFIT methods
+   parameters, the IFIT Attributes Sub-TLVs can be updated accordingly.
+   Additionally the backward compatibility is guaranteed, since an
+   implementation that does not understand IFIT Attributes Sub-TLV can
+   simply ignore it.
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 7]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+5.1.  IOAM Pre-allocated Trace Option Sub-TLV
+
+   The IOAM tracing data is expected to be collected at every node that
+   a packet traverses to ensure visibility into the entire path a packet
+   takes within an IOAM domain.  The preallocated tracing option will
+   create pre-allocated space for each node to populate its information.
+
+   The format of IOAM pre-allocated trace option sub-TLV is defined as
+   follows:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +---------------+---------------+-------------------------------+
+   |    Type=1     |   Length=6    |    Namespace ID               |
+   +---------------+---------------+--------------+--------+-------+
+   |         IOAM Trace Type                      | Flags  | Rsvd  |
+   +----------------------------------------------+--------+-------+
+
+          Figure 2: Fig. 2 IOAM Pre-allocated Trace Option Sub-TLV
+
+   Where:
+
+   Type: 1 (to be assigned by IANA).
+
+   Length: 6, it is the total length of the value field (not including
+   Type and Length fields).
+
+   Namespace ID: A 16-bit identifier of an IOAM-Namespace.  The
+   definition is the same as described in section 4.4 of [RFC9197].
+
+   IOAM Trace Type: A 24-bit identifier which specifies which data types
+   are used in the node data list.  The definition is the same as
+   described in section 4.4 of [RFC9197].
+
+   Flags: A 4-bit field.  The definition is the same as described in
+   [RFC9322] and section 4.4 of [RFC9197].
+
+   Rsvd: A 4-bit field reserved for further usage.  It MUST be zero and
+   ignored on receipt.
+
+5.2.  IOAM Incremental Trace Option Sub-TLV
+
+   The incremental tracing option contains a variable node data fields
+   where each node allocates and pushes its node data immediately
+   following the option header.
+
+   The format of IOAM incremental trace option sub-TLV is defined as
+   follows:
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 8]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +---------------+---------------+-------------------------------+
+   |    Type=2     |   Length=6    |    Namespace ID               |
+   +---------------+---------------+--------------+--------+-------+
+   |         IOAM Trace Type                      | Flags  | Rsvd  |
+   +----------------------------------------------+--------+-------+
+
+           Figure 3: Fig. 3 IOAM Incremental Trace Option Sub-TLV
+
+   Where:
+
+   Type: 2 (to be assigned by IANA).
+
+   Length: 6, it is the total length of the value field (not including
+   Type and Length fields).
+
+   All the other fields definition is the same as the pre-allocated
+   trace option sub-TLV in section 5.1.
+
+5.3.  IOAM Directly Export Option Sub-TLV
+
+   IOAM directly export option is used as a trigger for IOAM data to be
+   directly exported to a collector without being pushed into in-flight
+   data packets.
+
+   The format of IOAM directly export option sub-TLV is defined as
+   follows:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+                                   +---------------+---------------+
+                                   |    Type=3     |   Length=12   |
+   +-----------------------------------------------+---------------+
+   |        Namespace ID           |            Flags              |
+   +-------------------------------+---------------+---------------+
+   |               IOAM Trace Type                 |      Rsvd     |
+   +-----------------------------------------------+---------------+
+   |                         Flow ID                               |
+   +---------------------------------------------------------------+
+
+            Figure 4: Fig. 4 IOAM Directly Export Option Sub-TLV
+
+   Where:
+
+   Type: 3 (to be assigned by IANA).
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026                [Page 9]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   Length: 12, it is the total length of the value field (not including
+   Type and Length fields).
+
+   Namespace ID: A 16-bit identifier of an IOAM-Namespace.  The
+   definition is the same as described in section 4.4 of [RFC9197].
+
+   Flags: A 16-bit field.  The definition is the same as described in
+   section 3.2 of [RFC9326].
+
+   IOAM Trace Type: A 24-bit identifier which specifies which data types
+   are used in the node data list.  The definition is the same as
+   described in section 4.4 of [RFC9197].
+
+   Rsvd: A 4-bit field reserved for further usage.  It MUST be zero and
+   ignored on receipt.
+
+   Flow ID: A 32-bit flow identifier.  The definition is the same as
+   described in section 3.2 of [RFC9326].
+
+5.4.  IOAM Edge-to-Edge Option Sub-TLV
+
+   The IOAM edge to edge option is to carry data that is added by the
+   IOAM encapsulating node and interpreted by IOAM decapsulating node.
+
+   The format of IOAM edge-to-edge option sub-TLV is defined as follows:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+                                   +---------------+---------------+
+                                   |    Type=4     |    Length=4   |
+   +-----------------------------------------------+---------------+
+   |        Namespace ID           |         IOAM E2E Type         |
+   +-------------------------------+-------------------------------+
+
+             Figure 5: Fig. 5 IOAM Edge-to-Edge Option Sub-TLV
+
+   Where:
+
+   Type: 4 (to be assigned by IANA).
+
+   Length: 4, it is the total length of the value field (not including
+   Type and Length fields).
+
+   Namespace ID: A 16-bit identifier of an IOAM-Namespace.  The
+   definition is the same as described in section 4.6 of [RFC9197].
+
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026               [Page 10]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   IOAM E2E Type: A 16-bit identifier which specifies which data types
+   are used in the E2E option data.  The definition is the same as
+   described in section 4.6 of [RFC9197].
+
+5.5.  Enhanced Alternate Marking (EAM) sub-TLV
+
+   The format of Enhanced Alternate Marking (EAM) sub-TLV is defined as
+   follows:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+                                   +---------------+---------------+
+                                   |    Type=5     |   Length=4    |
+   +-------------------------------+-------+-------+-------+-+-+---+
+   |           FlowMonID                   |     Period    |H|E| R |
+   +---------------------------------------+---------------+-+-+---+
+
+            Figure 6: Fig. 6 Enhanced Alternate Marking Sub-TLV
+
+   Where:
+
+   Type: 5 (to be assigned by IANA).
+
+   Length: 4, it is the total length of the value field (not including
+   Type and Length fields).
+
+   FlowMonID: A 20-bit identifier to uniquely identify a monitored flow
+   within the measurement domain.  The definition is the same as
+   described in section 5.3 of [RFC9343].
+
+   Period: Time interval between two alternate marking period.  The unit
+   is second.
+
+   H: A flag indicating that the measurement is Hop-By-Hop.
+
+   E: A flag indicating that the measurement is end to end.
+
+   R: A 2-bit field reserved for further usage.  It MUST be zero and
+   ignored on receipt.
+
+6.  SR Policy Operations with IFIT Attributes
+
+   The details of SR Policy installation and use are specified in
+   [RFC9256].  This document complements SR Policy Operations described
+   in [RFC9830] by adding the IFIT Attributes.
+
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026               [Page 11]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   The operations described in [RFC9830] are always valid.  The only
+   difference is the addition of IFIT Attributes Sub-TLVs for the SR
+   Policy NLRI, that can affect its acceptance by a BGP speaker, but the
+   implementation MAY provide an option for ignoring the unrecognized or
+   unsupported IFIT sub-TLVs.  SR Policy NLRIs that have been determined
+   acceptable, usable and valid can be evaluated for propagation,
+   including the IFIT information.
+
+   The error handling actions are also described in [RFC9830],indeed a
+   BGP Speaker MUST perform the syntactic validation of the SR Policy
+   NLRI to determine if it is malformed, including the TLVs/sub-TLVs.
+   In case of any error detected, either at the attribute or its TLV/
+   sub-TLV level, the "treat-as-withdraw" strategy MUST be applied.
+
+   The validation of the IFIT Attributes sub-TLVs introduced in this
+   document MUST be performed to determine if they are malformed or
+   invalid.  The validation of the individual fields of the IFIT
+   Attributes sub-TLVs are handled by the SRPM (SR Policy Module).
+
+7.  IANA Considerations
+
+   This document defines a new sub-TLV in the registry "BGP Tunnel
+   Encapsulation Attribute sub-TLVs" to be assigned by IANA:
+
+   Codepoint    Description                      Reference
+   -------------------------------------------------------------
+   TBD1         IFIT Attributes Sub-TLV          This document
+
+   This document requests creation of a new registry called "IFIT
+   Attributes Sub-TLVs".  The allocation policy of this registry is
+   "Specification Required" according to RFC 8126 [RFC8126].
+
+   The following initial Sub-TLV codepoints are assigned by this
+   document:
+
+   Value   Description                                Reference
+   -------------------------------------------------------------
+   1       IOAM Pre-allocated Trace Option Sub-TLV    This document
+
+   2       IOAM Incremental Trace Option Sub-TLV      This document
+
+   3       IOAM Directly Export Option Sub-TLV        This document
+
+   4       IOAM Edge-to-Edge Option Sub-TLV           This document
+
+   5       Enhanced Alternate Marking Sub-TLV         This document
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026               [Page 12]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+8.  Security Considerations
+
+   The security mechanisms of the base BGP security model apply to the
+   extensions described in this document as well.  See the Security
+   Considerations section of [RFC9830].
+
+   SR operates within a trusted SR domain RFC 8402 [RFC8402] and its
+   security considerations also apply to BGP sessions when carrying SR
+   Policy information.  The isolation of BGP SR Policy SAFI peering
+   sessions may be used to ensure that the SR Policy information is not
+   advertised outside the SR domain.  Additionally, only trusted nodes
+   (that include both routers and controller applications) within the SR
+   domain must be configured to receive such information.
+
+   Implementation of IFIT methods (IOAM and Alternate Marking) are
+   mindful of security and privacy concerns, as explained in RFC 9197
+   [RFC9197] and Alternate Marking [RFC9341].  Anyway incorrect IFIT
+   parameters in the BGP extension SHOULD NOT have an adverse effect on
+   the SR Policy as well as on the network, since it affects only the
+   operation of the telemetry methodology.
+
+   IFIT data MUST be propagated in a limited domain in order to avoid
+   malicious attacks and solutions to ensure this requirement are
+   respectively discussed in [RFC9197] and [RFC9343].
+
+   IFIT methods (IOAM and Alternate Marking) are applied within a
+   controlled domain where the network nodes are locally administered.
+   A limited administrative domain provides the network administrator
+   with the means to select, monitor and control the access to the
+   network, making it a trusted domain also for the BGP extensions
+   defined in this document.
+
+9.  Contributors
+
+   The following people provided relevant contributions to this
+   document:
+
+   Yali Wang
+   Huawei
+   Email: wangyali11@huawei.com
+
+10.  Acknowledgements
+
+   The authors of this document would like to thank Ketan Talaulikar,
+   Joel Halpern, Jie Dong for their comments and review of this
+   document.
+
+11.  References
+
+
+
+Qin, et al.              Expires 19 October 2026               [Page 13]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+11.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC7799]  Morton, A., "Active and Passive Metrics and Methods (with
+              Hybrid Types In-Between)", RFC 7799, DOI 10.17487/RFC7799,
+              May 2016, <https://www.rfc-editor.org/info/rfc7799>.
+
+   [RFC8126]  Cotton, M., Leiba, B., and T. Narten, "Guidelines for
+              Writing an IANA Considerations Section in RFCs", BCP 26,
+              RFC 8126, DOI 10.17487/RFC8126, June 2017,
+              <https://www.rfc-editor.org/info/rfc8126>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8402]  Filsfils, C., Ed., Previdi, S., Ed., Ginsberg, L.,
+              Decraene, B., Litkowski, S., and R. Shakir, "Segment
+              Routing Architecture", RFC 8402, DOI 10.17487/RFC8402,
+              July 2018, <https://www.rfc-editor.org/info/rfc8402>.
+
+   [RFC8799]  Carpenter, B. and B. Liu, "Limited Domains and Internet
+              Protocols", RFC 8799, DOI 10.17487/RFC8799, July 2020,
+              <https://www.rfc-editor.org/info/rfc8799>.
+
+   [RFC9012]  Patel, K., Van de Velde, G., Sangli, S., and J. Scudder,
+              "The BGP Tunnel Encapsulation Attribute", RFC 9012,
+              DOI 10.17487/RFC9012, April 2021,
+              <https://www.rfc-editor.org/info/rfc9012>.
+
+   [RFC9197]  Brockners, F., Ed., Bhandari, S., Ed., and T. Mizrahi,
+              Ed., "Data Fields for In Situ Operations, Administration,
+              and Maintenance (IOAM)", RFC 9197, DOI 10.17487/RFC9197,
+              May 2022, <https://www.rfc-editor.org/info/rfc9197>.
+
+   [RFC9256]  Filsfils, C., Talaulikar, K., Ed., Voyer, D., Bogdanov,
+              A., and P. Mattes, "Segment Routing Policy Architecture",
+              RFC 9256, DOI 10.17487/RFC9256, July 2022,
+              <https://www.rfc-editor.org/info/rfc9256>.
+
+
+
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026               [Page 14]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   [RFC9322]  Mizrahi, T., Brockners, F., Bhandari, S., Gafni, B., and
+              M. Spiegel, "In Situ Operations, Administration, and
+              Maintenance (IOAM) Loopback and Active Flags", RFC 9322,
+              DOI 10.17487/RFC9322, November 2022,
+              <https://www.rfc-editor.org/info/rfc9322>.
+
+   [RFC9326]  Song, H., Gafni, B., Brockners, F., Bhandari, S., and T.
+              Mizrahi, "In Situ Operations, Administration, and
+              Maintenance (IOAM) Direct Exporting", RFC 9326,
+              DOI 10.17487/RFC9326, November 2022,
+              <https://www.rfc-editor.org/info/rfc9326>.
+
+   [RFC9341]  Fioccola, G., Ed., Cociglio, M., Mirsky, G., Mizrahi, T.,
+              and T. Zhou, "Alternate-Marking Method", RFC 9341,
+              DOI 10.17487/RFC9341, December 2022,
+              <https://www.rfc-editor.org/info/rfc9341>.
+
+   [RFC9343]  Fioccola, G., Zhou, T., Cociglio, M., Qin, F., and R.
+              Pang, "IPv6 Application of the Alternate-Marking Method",
+              RFC 9343, DOI 10.17487/RFC9343, December 2022,
+              <https://www.rfc-editor.org/info/rfc9343>.
+
+   [RFC9486]  Bhandari, S., Ed. and F. Brockners, Ed., "IPv6 Options for
+              In Situ Operations, Administration, and Maintenance
+              (IOAM)", RFC 9486, DOI 10.17487/RFC9486, September 2023,
+              <https://www.rfc-editor.org/info/rfc9486>.
+
+   [RFC9830]  Previdi, S., Filsfils, C., Talaulikar, K., Ed., Mattes,
+              P., and D. Jain, "Advertising Segment Routing Policies in
+              BGP", RFC 9830, DOI 10.17487/RFC9830, September 2025,
+              <https://www.rfc-editor.org/info/rfc9830>.
+
+11.2.  Informative References
+
+   [I-D.ietf-idr-bgp-ifit-capabilities]
+              Fioccola, G., Pang, R., Wang, S., Decraene, B., Zhuang,
+              S., and H. Wang, "Advertising In-situ Flow Information
+              Telemetry (IFIT) Capabilities in BGP", Work in Progress,
+              Internet-Draft, draft-ietf-idr-bgp-ifit-capabilities-08,
+              15 October 2025, <https://datatracker.ietf.org/doc/html/
+              draft-ietf-idr-bgp-ifit-capabilities-08>.
+
+
+
+
+
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026               [Page 15]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   [I-D.ietf-ippm-alt-mark-deployment]
+              Fioccola, G., Zhu, K., Graf, T., Zhang, L., and M. Nilo,
+              "Alternate Marking Deployment Framework", Work in
+              Progress, Internet-Draft, draft-ietf-ippm-alt-mark-
+              deployment-05, 25 February 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-ippm-
+              alt-mark-deployment-05>.
+
+   [I-D.ietf-pce-pcep-ifit]
+              Yuan, H., 王雪荣, Yang, P., Li, W., and G. Fioccola, "Path
+              Computation Element Communication Protocol (PCEP)
+              Extensions to Enable IFIT", Work in Progress, Internet-
+              Draft, draft-ietf-pce-pcep-ifit-08, 2 January 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-pce-
+              pcep-ifit-08>.
+
+   [I-D.song-opsawg-ifit-framework]
+              Song, H., Qin, F., Chen, H., Jin, J., and J. Shin,
+              "Framework for In-situ Flow Information Telemetry", Work
+              in Progress, Internet-Draft, draft-song-opsawg-ifit-
+              framework-21, 23 October 2023,
+              <https://datatracker.ietf.org/doc/html/draft-song-opsawg-
+              ifit-framework-21>.
+
+   [I-D.zhou-srv6ops-am-deployment-status]
+              Zhou, T. and Z. Li, "Alternate Marking Deployment Status
+              and Considerations", Work in Progress, Internet-Draft,
+              draft-zhou-srv6ops-am-deployment-status-00, 4 March 2024,
+              <https://datatracker.ietf.org/doc/html/draft-zhou-srv6ops-
+              am-deployment-status-00>.
+
+   [RFC9947]  Fioccola, G., Zhou, T., Mishra, G., Wang, X., Zhang, G.,
+              and M. Cociglio, "Application of the Alternate-Marking
+              Method to the Segment Routing Header", RFC 9947,
+              DOI 10.17487/RFC9947, March 2026,
+              <https://www.rfc-editor.org/info/rfc9947>.
+
+Authors' Addresses
+
+   Fengwei Qin
+   China Mobile
+   No. 32 Xuanwumenxi Ave., Xicheng District
+   Beijing
+   China
+   Email: qinfengwei@chinamobile.com
+
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026               [Page 16]
+
+Internet-Draft             bgp-sr-policy-ifit                 April 2026
+
+
+   Hang Yuan
+   UnionPay
+   1899 Gu-Tang Rd., Pudong
+   Shanghai
+   China
+   Email: yuanhang@unionpay.com
+
+
+   Shunxing Yang
+   China Telecom
+   Guangzhou
+   China
+   Email: yangsx@chinatelecom.cn
+
+
+   Tianran Zhou
+   Huawei
+   156 Beiqing Rd., Haidian District
+   Beijing
+   100095
+   China
+   Email: zhoutianran@huawei.com
+
+
+   Giuseppe Fioccola
+   Huawei
+   Viale Martesana, 12
+   20055 Vimodrone (Milan)
+   Italy
+   Email: giuseppe.fioccola@huawei.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Qin, et al.              Expires 19 October 2026               [Page 17]

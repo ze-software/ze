@@ -1,0 +1,560 @@
+
+
+
+
+IDR Working Group                                                  Z. Li
+Internet-Draft                                                    Huawei
+Intended status: Standards Track                                 H. Chen
+Expires: 21 March 2027                                         Futurewei
+                                                                C. Loibl
+                                               Next Layer Communications
+                                                               G. Mishra
+                                                            Verizon Inc.
+                                                                  Y. Zhu
+                                                           China Telecom
+                                                               S. Zhuang
+                                                                  Huawei
+                                                       17 September 2026
+
+
+                    BGP Flow Specification for SRv6
+                    draft-ietf-idr-flowspec-srv6-10
+
+Abstract
+
+   This document specifies extensions to BGP Flow Specification (BGP-FS)
+   to enable filtering of IPv6 packets based on the structural
+   components of an SRv6 Segment Identifier (SID) present in the IPv6
+   Destination Address (representing the active segment of an SRv6
+   path).
+
+Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 1]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+   This Internet-Draft will expire on 21 March 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Definitions and Acronyms  . . . . . . . . . . . . . . . . . .   3
+   3.  The Flow Specification Encoding for SRv6  . . . . . . . . . .   4
+     3.1.  Component Type TBD1 - SRv6 SID Structure Match  . . . . .   4
+     3.2.  Encoding Examples . . . . . . . . . . . . . . . . . . . .   6
+       3.2.1.  Example 1: Matching Locator and Function Range  . . .   6
+   4.  Security Considerations . . . . . . . . . . . . . . . . . . .   7
+   5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   7
+   6.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .   7
+   7.  Contributors  . . . . . . . . . . . . . . . . . . . . . . . .   7
+   8.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   8
+     8.1.  Normative References  . . . . . . . . . . . . . . . . . .   8
+     8.2.  Informative References  . . . . . . . . . . . . . . . . .   9
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   9
+
+1.  Introduction
+
+   [RFC8955] defines the BGP Flow Specification (BGP-FS) Network Layer
+   Reachability Information (NLRI) to distribute traffic filtering
+   rules, which consist of an n-tuple of matching criteria applied to IP
+   packets.  [RFC8956] extends this framework to IPv6 data packets.
+   Additionally, [I-D.ietf-idr-flowspec-l2vpn] extends Flowspec rules
+   for Layer 2 Ethernet frames, and [I-D.ietf-idr-flowspec-v2] specifies
+   BGP Flow Specification Version 2.
+
+   Segment Routing over IPv6 (SRv6) [RFC8754] leverages the IPv6 data
+   plane using a Segment Routing Header (SRH) to instantiate Segment
+   Routing policy paths.  The SRv6 Network Programming architecture
+   [RFC8986] defines the structure of an SRv6 Segment Identifier (SID),
+   typically formatted as LOC:FUNCT:ARG::, where:
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 2]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+   *  LOC (Locator): A routable prefix assigned to an SRv6 node that
+      instantiates the SID.  Operators may choose variable locator
+      lengths.
+
+   *  FUNCT (Function): An opaque identifier bound to a local function
+      executed on the node (e.g., End, End.X, End.DT4).
+
+   *  ARG (Argument): Optional arguments appended immediately following
+      the FUNCT field for specialized local processing.
+
+   Existing IPv6 BGP-FS components [RFC8956] allow matching against the
+   entire 128-bit IPv6 Destination Address (DA).  However, SRv6 SIDs
+   embed structured sub-fields (Locator, Function, and Argument) within
+   the IPv6 DA.  Filtering traffic based solely on a full 128-bit mask
+   lacks the flexibility needed to apply policy rules to specific SRv6
+   functions or argument ranges across different locators.
+
+   This document defines a new BGP Flow Specification component type to
+   support sub-field matching for SRv6 SIDs.  The matching field is
+   evaluated against the IPv6 Destination Address (or active SID within
+   an SRH when present, as shown in Figure 1).  To support this feature,
+   a BGP-FS NLRI with AFI = 2 (IPv6) MUST be used.
+
+               +-----------------------------+
+    IPv6 Header|     SA      |     DA        |<-- Match Field
+               +--------------------^--------+
+                                    |
+               +--------------------|--------+
+               |             +-------------+ |     +-------------------+
+               |             | Segment[0]  +-------> Loc | Func | Arg  |
+               |             +-------------+ |     +-------------------+
+               |             | Segment[1]  | |
+               |             +-------------+ |
+               |             |    ...      | |
+      SR Header|             +-------------+ |
+     (RFC 8754)|             | Segment[n]  | |
+               |             +-------------+ |
+               |             +-------------+ |
+               |             ~  Option TLV ~ |
+               |             +-------------+ |
+               +-----------------------------+
+
+                           Figure 1: Match Field
+
+2.  Definitions and Acronyms
+
+   *  BGP FS: BGP Flow Specification
+
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 3]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+   *  FS: Flow Specification
+
+   *  SR: Segment Routing
+
+   *  SRH: SR Header.
+
+   *  SRv6: IPv6 Segment Routing, SRv6 is a method of forwarding IPv6
+      packets on the network based on the concept of source routing.
+
+   *  SID: Segment Identifier
+
+   *  BSID: Binding SID
+
+3.  The Flow Specification Encoding for SRv6
+
+   A Flow Specification NLRI consists of zero or more matching
+   components.  Components Type 1 through 13 are defined in [RFC8955]
+   and [RFC8956].  This document defines a new component type for SRv6
+   SID sub-field filtering.
+
+3.1.  Component Type TBD1 - SRv6 SID Structure Match
+
+   An SRv6 SID consists of Locator, Function, and Argument fields as
+   defined in [RFC8986].  In operational scenarios, operators may need
+   to filter traffic matching specific locators, functions, or
+   arguments, or combinations thereof.
+
+   The new component type TBD1 (SRv6 SID Structure Match) allows fine-
+   grained matching on these individual fields or aggregated field
+   combinations.
+
+   Encoding: <type, LOC-Len, FUNCT-Len, ARG-Len, [op, value]+>
+
+   o type (1 octet):  Indicates the new component type (TBD1, to be
+         assigned by IANA).
+
+   o LOC-Len (1 octet):  Length of the Locator field in bits.
+
+   o FUNCT-Len (1 octet):  Length of the Function field in bits.
+
+   o ARG-Len (1 octet):  Length of the Argument field in bits.
+
+   o [op, value]+:  A sequence of one or more {operator, value} pairs
+         specifying the matching logic applied to the SID sub-fields.
+
+   Validation Constraint:
+
+
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 4]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+   The sum of LOC-Len, FUNCT-Len, and ARG-Len MUST NOT exceed 128 bits.
+   If (LOC-Len + FUNCT-Len + ARG-Len) > 128, the NLRI is considered
+   malformed, and BGP Error Handling MUST be applied according to
+   [RFC7606] and [RFC4760].
+
+   The Operator byte (op) is encoded as follows:
+
+                       0   1   2   3   4   5   6   7
+                     +---+---+---+---+---+---+---+---+
+                     | e | a | field type|lt |gt |eq |
+                     +---+---+---+---+---+---+---+---+
+
+   The operator semantics follow the Numeric Operator definition in
+   [RFC8955]:
+
+   e - end-of-list bit.  Set in the last {op, value} pair in the
+   sequence.
+
+   a - AND bit.  If unset, the previous term is logically ORed with the
+   current one.  If set, the operation is a logical AND.  It should be
+   unset in the first operator byte of a sequence.  The AND operator has
+   higher priority than OR for the purposes of evaluating logical
+   expressions.
+
+   field type:
+
+   000:  SID's LOC
+
+   001:  SID's FUNCT
+
+   010:  SID's ARG
+
+   011:  SID's LOC:FUNCT
+
+   100:  SID's FUNCT:ARG
+
+   101:  SID's LOC:FUNCT:ARG
+
+   lt, gt, eq - Less-than, Greater-than, and Equal-to comparison
+   operators, evaluated bitwise or numerically between the extracted SID
+   sub-field and the provided value.
+
+   The length of the Value field following the operator byte is
+   determined by the selected field type, rounded up to the nearest byte
+   boundary (i.e., ceil(bits / 8)).
+
+
+
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 5]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+   +----------------------+-------------------------------------------+
+   | Field Type           | Value Field Length & Contents             |
+   +======================+===========================================+
+   | SID's LOC            | ceil(LOC-Len / 8) octets                  |
+   +----------------------+-------------------------------------------+
+   | SID's FUNCT          | ceil(FUNCT-Len / 8) octets                |
+   +----------------------+-------------------------------------------+
+   | SID's ARG            | ceil(ARG-Len / 8) octets                  |
+   +----------------------+-------------------------------------------+
+   | SID's LOC:FUNCT      | ceil((LOC-Len + FUNCT-Len) / 8) octets    |
+   +----------------------+-------------------------------------------+
+   | SID's FUNCT:ARG      | ceil((FUNCT-Len + ARG-Len) / 8) octets    |
+   +----------------------+-------------------------------------------+
+   | SID's LOC:FUNCT:ARG  | ceil((LOC-Len+FUNCT-Len+ARG-Len)/8) octets|
+   +----------------------+-------------------------------------------+
+
+3.2.  Encoding Examples
+
+3.2.1.  Example 1: Matching Locator and Function Range
+
+   Consider a rule targeting all SRv6 traffic directed to Locator
+   2001:db8:3::/48 with a Function ID within the range [0x0100, 0x0300].
+
+   Given:
+
+   *  LOC-Len = 48 bits (6 octets)
+
+   *  FUNCT-Len = 16 bits (2 octets)
+
+   *  ARG-Len = 64 bits (8 octets)
+
+   Hexadecimal Encoding Sequence:
+
+          Some Parts of SID
+                |
+   length       v             LOC==20010db80003  FUN>=100  FUN<=300
+   0x11       TBD1 30 10 40   01 2001 0db8 0003  4b 0100   8d 0300
+                   ^  ^   ^
+                   |  |   |
+       Length of LOC FUN ARG
+
+   Detailed Field Breakdown:
+
+
+
+
+
+
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 6]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+   Decoded:
+            Value
+            0x11     length       17 octets (if len<240, 1 octet)
+            TBD1     type         type TBD1 - Some Parts of SID
+            0x30     LOC Length   = 48 (bits)
+            0x10     FUNCT Length = 16 (bits)
+            0x40     ARG Length   = 64 (bits)
+            0x01     op           LOC  ==
+            0x2001   value        LOC's value = 2001:db8:3
+            0x0db8
+            0x0003
+            0x4b     op           "AND", FUNCT >=
+            0x0100   value        FUNCT's value = 0100
+            0x8d     op           end-of-list, "AND", FUNCT <=
+            0x0300   value        FUNCT's value = 0300
+
+4.  Security Considerations
+
+   This document introduces no new security vulnerabilities beyond those
+   already documented in [RFC8955] and [RFC8956].  Because Flowspec
+   rules can result in packet dropping or rate-limiting, implementations
+   MUST verify the authorization of BGP peers sending SRv6 Flowspec
+   rules to prevent potential Denial-of-Service (DoS) attacks or traffic
+   hijacking.
+
+
+5.  IANA Considerations
+
+   Under "Flow Spec Component Types" registry, IANA is requested to
+   assign the following values:
+
+    +-------+------------+---------------------------+---------------+
+    | Value | IPv4 Name  | IPv6 Name                 | Reference     |
+    +-------+------------+---------------------------+---------------+
+    | TBD1  | Unassigned | SRv6 SID Structure Match  | This Document |
+    +-------+------------+---------------------------+---------------+
+
+6.  Acknowledgments
+
+   The authors would like to thank Joel Halpern, Jeffrey Haas, Ketan
+   Talaulikar, Aijun Wang, Dhruv Dhody, Ming Shen and Rainsword Wang for
+   their valuable suggestions and comments.
+
+7.  Contributors
+
+
+
+
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 7]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+      Lei Li
+      Huawei
+      P.R. China
+      Email: lily.lilei@huawei.com
+
+      Yanhe Fan
+      Casa Systems
+      United States of America
+      Email: yfan@casa-systems.com
+
+      Lei Liu
+      Fujitsu
+      United States of America
+      Email: liulei.kddi@gmail.com
+
+      Xufeng Liu
+      Volta Networks
+      United States of America
+      Email: xufeng.liu.ietf@gmail.com
+
+8.  References
+
+8.1.  Normative References
+
+   [I-D.ietf-idr-flowspec-v2]
+              Hares, S., Eastlake, D. E., Yadlapalli, C., and S.
+              Maduschke, "BGP Flow Specification Version 2", Work in
+              Progress, Internet-Draft, draft-ietf-idr-flowspec-v2-04,
+              28 April 2024, <https://datatracker.ietf.org/doc/html/
+              draft-ietf-idr-flowspec-v2-04>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC4760]  Bates, T., Chandra, R., Katz, D., and Y. Rekhter,
+              "Multiprotocol Extensions for BGP-4", RFC 4760,
+              DOI 10.17487/RFC4760, January 2007,
+              <https://www.rfc-editor.org/info/rfc4760>.
+
+   [RFC7153]  Rosen, E. and Y. Rekhter, "IANA Registries for BGP
+              Extended Communities", RFC 7153, DOI 10.17487/RFC7153,
+              March 2014, <https://www.rfc-editor.org/info/rfc7153>.
+
+
+
+
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 8]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+   [RFC7606]  Chen, E., Ed., Scudder, J., Ed., Mohapatra, P., and K.
+              Patel, "Revised Error Handling for BGP UPDATE Messages",
+              RFC 7606, DOI 10.17487/RFC7606, August 2015,
+              <https://www.rfc-editor.org/info/rfc7606>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8955]  Loibl, C., Hares, S., Raszuk, R., McPherson, D., and M.
+              Bacher, "Dissemination of Flow Specification Rules",
+              RFC 8955, DOI 10.17487/RFC8955, December 2020,
+              <https://www.rfc-editor.org/info/rfc8955>.
+
+   [RFC8956]  Loibl, C., Ed., Raszuk, R., Ed., and S. Hares, Ed.,
+              "Dissemination of Flow Specification Rules for IPv6",
+              RFC 8956, DOI 10.17487/RFC8956, December 2020,
+              <https://www.rfc-editor.org/info/rfc8956>.
+
+8.2.  Informative References
+
+   [I-D.ietf-idr-flowspec-l2vpn]
+              Weiguo, H., Eastlake, D. E., Litkowski, S., and S. Zhuang,
+              "BGP Dissemination of L2 Flow Specification Rules", Work
+              in Progress, Internet-Draft, draft-ietf-idr-flowspec-
+              l2vpn-27, 16 March 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-idr-
+              flowspec-l2vpn-27>.
+
+   [RFC8754]  Filsfils, C., Ed., Dukes, D., Ed., Previdi, S., Leddy, J.,
+              Matsushima, S., and D. Voyer, "IPv6 Segment Routing Header
+              (SRH)", RFC 8754, DOI 10.17487/RFC8754, March 2020,
+              <https://www.rfc-editor.org/info/rfc8754>.
+
+   [RFC8986]  Filsfils, C., Ed., Camarillo, P., Ed., Leddy, J., Voyer,
+              D., Matsushima, S., and Z. Li, "Segment Routing over IPv6
+              (SRv6) Network Programming", RFC 8986,
+              DOI 10.17487/RFC8986, February 2021,
+              <https://www.rfc-editor.org/info/rfc8986>.
+
+Authors' Addresses
+
+   Zhenbin Li
+   Huawei
+   156 Beiqing Road
+   Beijing, 100095
+   P.R. China
+   Email: robinli314@163.com
+
+
+
+Li, et al.                Expires 21 March 2027                 [Page 9]
+
+Internet-Draft       BGP Flow Specification for SRv6      September 2026
+
+
+   Huaimo Chen
+   Futurewei
+   Boston, MA,
+   United States of America
+   Email: hchen.ietf@gmail.com
+
+
+   Christoph Loibl
+   Next Layer Communications
+   Mariahilfer Guertel 37/7
+   1150 Vienna
+   Austria
+   Email: cl@tix.at
+
+
+   Gyan S. Mishra
+   Verizon Inc.
+   13101 Columbia Pike
+   Silver Spring,  MD 20904
+   United States of America
+   Phone: 301 502-1347
+   Email: gyan.s.mishra@verizon.com
+
+
+   Yongqing Zhu
+   China Telecom
+   109, West Zhongshan Road, Tianhe District
+   Guangzhou
+   510000
+   China
+   Email: zhuyq8@chinatelecom.cn
+
+
+   Shunwan Zhuang
+   Huawei
+   156 Beiqing Road
+   Beijing
+   100095
+   P.R. China
+   Email: zhuangshunwan@huawei.com
+
+
+
+
+
+
+
+
+
+
+
+Li, et al.                Expires 21 March 2027                [Page 10]

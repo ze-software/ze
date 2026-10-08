@@ -1,0 +1,392 @@
+
+
+
+
+Network Working Group                                            J. Dong
+Internet-Draft                                       Huawei Technologies
+Intended status: Standards Track                                 M. Chen
+Expires: 7 March 2027                                         Individual
+                                                               R. Raszuk
+                                                                  Arrcus
+                                                        3 September 2026
+
+
+  RT-Constrain Optimization in Hierarchical Route Reflection Scenarios
+                 draft-ietf-idr-rtc-hierarchical-rr-06
+
+Abstract
+
+   The Route Target (RT) Constrain mechanism specified in RFC 4684 is
+   used to build a route distribution graph in order to restrict the
+   propagation of Virtual Private Network (VPN) routes.  In network
+   scenarios where hierarchical route reflection (RR) is used, the
+   existing RT-Constrain mechanism cannot guarantee a correct route
+   distribution graph.  This document describes the problem scenario and
+   proposes solutions to address the RT-Constrain issue in hierarchical
+   RR scenarios.
+
+Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 7 March 2027.
+
+
+
+
+
+
+Dong, et al.              Expires 7 March 2027                  [Page 1]
+
+Internet-Draft  RT-Constrain in Hierarchical RR Scenario  September 2026
+
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Problem Statement . . . . . . . . . . . . . . . . . . . . . .   2
+   3.  Solutions . . . . . . . . . . . . . . . . . . . . . . . . . .   4
+     3.1.  Add-path Based Solution . . . . . . . . . . . . . . . . .   4
+     3.2.  Allowing Duplicated CLUSTER_ID  . . . . . . . . . . . . .   5
+   4.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   5
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .   5
+   6.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   5
+   7.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   5
+     7.1.  Normative References  . . . . . . . . . . . . . . . . . .   5
+     7.2.  Informative References  . . . . . . . . . . . . . . . . .   6
+   Appendix A.  Another Possible Solution  . . . . . . . . . . . . .   6
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   7
+
+1.  Introduction
+
+   The Route Target (RT) Constrain mechanism specified in [RFC4684] is
+   used to build a route distribution graph in order to restrict the
+   propagation of Virtual Private Network (VPN) routes.  In network
+   scenarios where hierarchical route reflection (RR) is used, the
+   existing advertisment rules of RT membership information as defined
+   in section 3.2 of [RFC4684] cannot guarantee a correct route
+   distribution graph.
+
+   This document describes the problem scenario and proposes solutions
+   to address the RT-Constrain issue in hierarchical RR scenarios.
+
+2.  Problem Statement
+
+
+
+
+
+
+
+Dong, et al.              Expires 7 March 2027                  [Page 2]
+
+Internet-Draft  RT-Constrain in Hierarchical RR Scenario  September 2026
+
+
+                                +-----+
+                        Clu-1   | RR-1|
+                                +-----+
+                                / / \ \
+                        ------/  /   \  \--------
+                       /        /     \          \
+                     /  Clu-2  /       \   Clu-3  \
+                 +-/---+  +---/-+      +\----+  +--\--+
+                 |RR-21|  |RR-22|      |RR-31|  |RR-32|
+                 +-----+  +-----+      +-----+  +-----+
+                    | \    / |            | \    / |
+                    |   \/   |            |   \/   |
+                    |   /\   |            |   /\   |
+                    | /    \ |            | /    \ |
+                 +-----+  +-----+      +-----+  +-----+
+                 | PE-1|  | PE-2|      | PE-3|  | PE-4|
+                 +-----+  +-----+      +-----+  +-----+
+
+                   RT-1     RT-1         RT-1     RT-1
+                 +-----+  +-----+      +-----+  +-----+
+                 |VPN-1|  |VPN-1|      |VPN-1|  |VPN-1|
+                 +-----+  +-----+      +-----+  +-----+
+                Figure 1. RT-Constrain with Hierarchical RRs
+
+   As shown in Figure 1, hierarchical RRs are deployed in the network,
+   RR-21, RR-22 and RR-31, RR-32 are level-1 route-reflectors which
+   connect to the PEs, and are also the clients of the level-2 route-
+   reflector RR-1.  RR-21 and RR22 are in RR cluster 1, RR-31 and RR-32
+   are in RR cluster 2.  If each PE advertises RT membership information
+   of RT-1 to the upstream RRs, after the best path selection, the
+   level-1 RRs (RR-21, RR-22, RR-31 and RR-32 would create the
+   CLUSTER_LIST attribute, prepend their local CLUSTER_ID and then
+   advertise the best path to RR-1 and their clients respectively.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Dong, et al.              Expires 7 March 2027                  [Page 3]
+
+Internet-Draft  RT-Constrain in Hierarchical RR Scenario  September 2026
+
+
+   On receipt of the RT-Constrain routes from the level-1 RRs, RR-1
+   selects one of the received routes as the best route, here assume the
+   route received from RR-21 is selected by RR-1 as the best route.
+   Then RR-1 needs to advertise the best RT-Constrain route to RR-21,
+   RR-22, RR31 and RR-32 to create the route distribution graph of VPN-
+   1.  RR-1 would prepend its CLUSTER_ID to the CLUSTER_LIST of the
+   path.  According to the rules in Section 3.2 of [RFC4684], it sets
+   the ORIGINATOR_ID to its own router-id, and sets the NEXT_HOP to the
+   local address for the session.  Then RR-1 would advertise this route
+   to RR-21, RR-22, RR-31 and RR-32 respectively.  On receipt of the RT-
+   Constrain route from RR-1, RR-21 and RR-22 checks the CLUSTER_LIST
+   and find its own CLUSTER_ID in the list, so this route will be
+   ignored by RR-21 and RR-22.  As a result, RR-21 and RR-22 will not
+   form the outbound filter of RT-1 towards RR-1, hence it will not
+   advertise the VPN routes of VPN-1 to RR-1.
+
+3.  Solutions
+
+   This document specifies 2 solutions for the RTC issue in hierarchical
+   RR scenario.
+
+3.1.  Add-path Based Solution
+
+   This section provides one solution which is based on the add-path
+   mechanism defined in [RFC7911].  It makes use of the add-path
+   mechanism for RTC route advertisement between the hierarchical RRs.
+   The solution is summerized as follows:
+
+   *  The route-reflector clients which themselves are also route-
+      reflectors SHOULD be identified, then BGP add-paths [RFC7911]
+      SHOULD be enabled for RT membership NLRI on the BGP sessions
+      between the higher layer RR and the lower layer RRs to ensure that
+      sufficient RT-Constrain routes can be advertised by the higher
+      layer RR to the lower layer RRs to pass BGP loop detection.  In
+      this case normal BGP path advertisement rules as defined in
+      [RFC4271] SHOULD be applied.  The number of RT-Constrain routes to
+      be advertised with add-path mechanism is a local decision of
+      operators.  To ensure that sufficient RT-Constrain routes are
+      advertised to build the distribution graph, the RECOMMENDED add-
+      path number is the maximum number of the BGP client sessions in
+      the same cluster plus 1.
+
+   *  When advertising an RT membership NLRI to a route-reflector client
+      which is not a lower layer RR, the advertisement rule as defined
+      in section 3.2 of [RFC4684] SHOULD be applied.
+
+
+
+
+
+
+Dong, et al.              Expires 7 March 2027                  [Page 4]
+
+Internet-Draft  RT-Constrain in Hierarchical RR Scenario  September 2026
+
+
+   With the above advertisement rule, RR-1 in figure 1 SHOULD advertise
+   to RR-21 the RT-Constrain routes received from RR-21, RR-22 and RR-
+   31, then the RTC route from RR-31 will pass the BGP loop detection on
+   RR-21 and RR-22, and the route from RR-21 will pass the BGP loop
+   detection on RR-31 and RR-32, thus the route distribution graph can
+   be set up correctly.
+
+3.2.  Allowing Duplicated CLUSTER_ID
+
+   This section provides another solution for the distribution of RT-
+   Constrain routes in hierarchical RR scenarios.  As the RT-Constrain
+   route may be ignored due to duplicated CLUSTER_ID in the CLUSTER_LIST
+   of the received BGP Update, one knob can be introduced to control
+   whether CLUSTER_ID duplication is allowed or not, and the times of
+   duplication of any CLUSTER_ID allowed in the received CLUSTER_LIST
+   can be configurable.
+
+   In the scenario shown in Figure 1, this knob can be enabled on all
+   the level-1 RRs (RR-21, RR-22, RR-31 and RR-32) respectively, so that
+   the RT-Constrain route received from the RR-1 can pass the route
+   selection, and the route distribution graph can be set up correctly.
+
+4.  IANA Considerations
+
+   This document makes no request of IANA.
+
+5.  Security Considerations
+
+   This document does not change the security properties of BGP based
+   VPNs and [RFC4684].
+
+6.  Acknowledgements
+
+   The authors would like to thank Yaqun Xiao for the discussion of RT-
+   Constrain issue in hierarchical RR scenario.  Many people have made
+   valuable comments and suggestions, including Susan Hares, Jeffrey
+   Haas, Stephane Litkowski, Vitkovský Adam, Xiaohu Xu, Uttaro James,
+   Shyam Sethuram, Saikat Ray and Bruno Decraene.
+
+7.  References
+
+7.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+
+
+
+Dong, et al.              Expires 7 March 2027                  [Page 5]
+
+Internet-Draft  RT-Constrain in Hierarchical RR Scenario  September 2026
+
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC4684]  Marques, P., Bonica, R., Fang, L., Martini, L., Raszuk,
+              R., Patel, K., and J. Guichard, "Constrained Route
+              Distribution for Border Gateway Protocol/MultiProtocol
+              Label Switching (BGP/MPLS) Internet Protocol (IP) Virtual
+              Private Networks (VPNs)", RFC 4684, DOI 10.17487/RFC4684,
+              November 2006, <https://www.rfc-editor.org/info/rfc4684>.
+
+   [RFC7911]  Walton, D., Retana, A., Chen, E., and J. Scudder,
+              "Advertisement of Multiple Paths in BGP", RFC 7911,
+              DOI 10.17487/RFC7911, July 2016,
+              <https://www.rfc-editor.org/info/rfc7911>.
+
+7.2.  Informative References
+
+   [RFC9107]  Raszuk, R., Ed., Decraene, B., Ed., Cassar, C., Åman, E.,
+              and K. Wang, "BGP Optimal Route Reflection (BGP ORR)",
+              RFC 9107, DOI 10.17487/RFC9107, August 2021,
+              <https://www.rfc-editor.org/info/rfc9107>.
+
+Appendix A.  Another Possible Solution
+
+   This section specifies one possible solution which proposes
+   modifications to the intra-AS advertisement rule of RTC route.
+
+   Since the advertisement of RT-Constrain route is to set up a route
+   distribution graph and not to guide the data packet forwarding,
+   actually all the available RT-Constrain routes should be considered
+   in setting up the route distribution graph, not just the best one.
+   Thus the following advertisment rule for RT membership information is
+   proposed to replace the rule i and ii in section 3.2 of [RFC4684]:
+
+   *  When advertising an RT membership NLRI to a route-reflector peer
+      (either client or non-client), the route which has the most
+      disjoint path comparing to the route received from this peer
+      SHOULD be selected and advertised.  The most disjoint path is the
+      path whose CLUSTER_LIST and ORIGINATOR_ID attributes are diverse
+      from the attributes of the path received from this peer.  This is
+      analagous to the mechanism specified in [RFC9107], where per-peer
+      route selection is perfomed by the route reflector.
+
+   With the above advertisement rule, RR-1 in figure 1 would advertise
+   to RR-21 the RT-Constrain route received from RR-31 or RR-32, which
+   is the most disjoint alternative route compared with the route
+
+
+
+Dong, et al.              Expires 7 March 2027                  [Page 6]
+
+Internet-Draft  RT-Constrain in Hierarchical RR Scenario  September 2026
+
+
+   received from RR-21.  In this way, RR-21 will not discard the RT-
+   constrain route received from RR-1, and the route distribution graph
+   can be set up correctly.
+
+Authors' Addresses
+
+   Jie Dong
+   Huawei Technologies
+   Huawei Campus, No. 156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: jie.dong@huawei.com
+
+
+   Mach(Guoyi) Chen
+   Individual
+   Email: mach.chen@outlook.com
+
+
+   Robert Raszuk
+   Arrcus
+   Email: robert@raszuk.net
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Dong, et al.              Expires 7 March 2027                  [Page 7]

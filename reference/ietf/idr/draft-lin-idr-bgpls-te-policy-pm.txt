@@ -1,0 +1,840 @@
+
+
+
+
+IDR Working Group                                                 C. Lin
+Internet-Draft                                      New H3C Technologies
+Intended status: Standards Track                                  Y. Liu
+Expires: 10 April 2027                                      China Mobile
+                                                                  Y. Zhu
+                                                           China Telecom
+                                                                 R. Chen
+                                                         ZTE Corporation
+                                                      A. B. MahendraBabu
+                                                           Cisco Systems
+                                                          7 October 2026
+
+
+          BGP-LS Advertisement of SR Policy Performance Metric
+                  draft-lin-idr-bgpls-te-policy-pm-10
+
+Abstract
+
+   This document describes a way to advertise the performance metrics
+   for Traffic Engineering (TE) Policy using BGP Link State (BGP-LS).
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 10 April 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 1]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  Advertisement of SR Policy Performance Metric . . . . . . . .   3
+     2.1.  Scope of Measurement  . . . . . . . . . . . . . . . . . .   4
+   3.  Relationship to RFC 9857  . . . . . . . . . . . . . . . . . .   5
+   4.  Extensions for Round-trip TE Performance Metric . . . . . . .   7
+     4.1.  Round-trip Delay TLV  . . . . . . . . . . . . . . . . . .   7
+     4.2.  Min/Max Round-trip Delay TLV  . . . . . . . . . . . . . .   8
+     4.3.  Round-trip Delay Variation TLV  . . . . . . . . . . . . .   8
+     4.4.  Round-trip Loss TLV . . . . . . . . . . . . . . . . . . .   9
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .  10
+   6.  Management Considerations . . . . . . . . . . . . . . . . . .  10
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  11
+   8.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  12
+     8.1.  Normative References  . . . . . . . . . . . . . . . . . .  12
+     8.2.  Informative References  . . . . . . . . . . . . . . . . .  12
+   Appendix A.  Cross WG Information . . . . . . . . . . . . . . . .  14
+     A.1.  Link to Spring WG . . . . . . . . . . . . . . . . . . . .  14
+     A.2.  Interaction with PCE WG . . . . . . . . . . . . . . . . .  14
+     A.3.  Interaction with SRV6ops Recommendations  . . . . . . . .  14
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  14
+
+1.  Introduction
+
+   BGP Link State (BGP-LS) can be used to distribute link-state and
+   traffic engineering (TE) information to external components
+   [RFC9552].  [RFC9857] describes the mechanism for BGP-LS to
+   distribute the information of TE policies.
+
+   In some network scenarios, the controller needs to obtain the
+   performance information of TE Policies, which can be used in service
+   placement to meet better customer requirements and utilize network
+   resources more efficiently.
+
+   [I-D.ietf-spring-stamp-srpm-mpls] and
+   [I-D.ietf-spring-stamp-srpm-srv6] describe the procedures for
+   Performance Measurement in SR networks, using STAMP as defined in
+   [RFC8762].  The described procedure is used for SR paths [RFC8402]
+   (including SR Policies [RFC9256]).
+
+   This document describes a way to advertise the performance metrics
+   for Traffic Engineering (TE) Policy using BGP Link State (BGP-LS).
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 2]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  Advertisement of SR Policy Performance Metric
+
+   [RFC8571] defines several Link Attribute TLVs for BGP-LS to carry the
+   IGP Traffic Engineering Performance Metric Extensions:
+
+   +================+===================================+
+   | TLV Code Point | Description                       |
+   +================+===================================+
+   | 1114           | Unidirectional Link Delay         |
+   +----------------+-----------------------------------+
+   | 1115           | Min/Max Unidirectional Link Delay |
+   +----------------+-----------------------------------+
+   | 1116           | Unidirectional Delay Variation    |
+   +----------------+-----------------------------------+
+   | 1117           | Unidirectional Link Loss          |
+   +----------------+-----------------------------------+
+
+        Table 1: Link Attribute TLVs for Performance
+                     Metric Extensions
+
+   The above TLVs can be reused to report performance metrics for TE
+   Policies.  The scope of measurement and advertisement is described in
+   Section 2.1.
+
+   When used to describe the performance metric of the SR Policy NLRI,
+   they are carried in the optional non-transitive BGP Path Attribute
+   "BGP-LS Attribute" defined in [RFC9552].  The semantics of the above
+   TLVs comply with [RFC8571], except for that they are extended to
+   describe TE Policies besides IGP links.
+
+   The performance metric of SR Policy may be measured at the headend,
+   for example, by using STAMP for SR Policy
+   [I-D.ietf-spring-stamp-srpm-mpls] and
+   [I-D.ietf-spring-stamp-srpm-srv6].  But the measurement methods are
+   out of the scope of this document.
+
+   The existing performance metrics above are all unidirectional.
+   However, there are also requirements to advertise round-trip
+   performance metrics for TE Policies.  The BGP-LS extensions for
+   round-trip TE performance metrics are defined in the Section 4.
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 3]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+2.1.  Scope of Measurement
+
+   The TLVs defined in this document and the reused TLVs from [RFC8571]
+   can be used to report performance metrics at two levels:
+
+   *  SID-List level: When a metric is associated with a specific SID
+      list, the TLV is carried as a sub-TLV of the corresponding SR
+      Segment List TLV [RFC9857] of the SR Policy Candidate Path NLRI.
+
+   *  Candidate Path level: When a metric is associated with a
+      particular SR candidate path, the TLV is carried as a top-level
+      TLV in the BGP-LS Attribute associated with the SR Policy
+      Candidate Path NLRI [RFC9857].
+
+   When multiple SID lists are active and load balanced for a candidate
+   path, a candidate-path-level metric represents the performance
+   measured across all active SID lists, which may be a weighted
+   aggregate (weighted by the weight associated with each SID list, as
+   defined in [RFC9256]).  A value measured for a single SID list MUST
+   NOT be advertised as representing the entire candidate path.  In such
+   cases, the metric MUST be reported at the SID-List level.
+
+   When a candidate path or SID list becomes inactive, or when a SID
+   list or its weight changes, the metrics associated with the affected
+   SID list or candidate path SHOULD be re-advertised with updated
+   information.  When a candidate path or SID list is no longer active,
+   the associated metrics that are no longer valid SHOULD be withdrawn
+   and the latest measurement for the newly active SID list or candidate
+   path SHOULD be advertised.
+
+   A PCE MAY advertise these measurements on behalf of the headend, as
+   permitted by [RFC9857].  In this case, the measurements remain
+   associated with the exact headend, candidate path, and SID list
+   through the corresponding SR Policy Candidate Path NLRI as defined in
+   [RFC9857].  The measurement information MUST remain associated with
+   the exact headend, candidate path, and SID list for which the
+   measurement was performed.  A value measured for one SID list MUST
+   NOT be advertised as representing the entire candidate path.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 4]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+   BGP-LS distributes state information; it does not by itself indicate
+   when a measurement was taken or whether the measurement session
+   remains operational.  A stale value may therefore remain associated
+   with a live SR Policy Candidate Path NLRI after the measurement
+   session fails or becomes idle.  The absence of a performance metric
+   TLV in a BGP-LS update MUST be interpreted as "no current value is
+   advertised" -- it MUST NOT be interpreted as a zero value and it does
+   not imply withdrawal of the SR Policy Candidate Path NLRI.  A BGP-LS
+   consumer MUST NOT retain a previously received value for a given
+   metric after an updated BGP-LS Attribute omits that TLV; the value
+   MUST be considered invalid until a new measurement is advertised.
+
+   For each TLV defined in this document and reused from [RFC8571], only
+   one instance of a given metric type is permitted per container (i.e.,
+   per SR Segment List TLV for SID-List level metrics, or per BGP-LS
+   Attribute for Candidate Path level metrics).  If multiple instances
+   of the same metric type appear in a container, the first
+   syntactically valid instance MUST be used, and subsequent instances
+   MUST be ignored.  This rule is consistent with [RFC9857].
+
+3.  Relationship to RFC 9857
+
+   [RFC9857] defines a mechanism for advertising SR Policy information
+   using BGP-LS, including the SR Policy Candidate Path NLRI and
+   associated state TLVs.  In particular, [RFC9857] defines:
+
+   *  The SR Metric Constraint sub-TLV (Type 1215) for reporting
+      optimization metrics and constraints at the candidate path level
+      (Section 5.6.6 of [RFC9857])
+
+   *  The SR Segment List Metric sub-TLV (Type 1207) for reporting
+      computed metrics at the segment list level (Section 5.7.2 of
+      [RFC9857])
+
+   The metrics defined in [RFC9857] are computed path metrics, which are
+   derived by the computation entity (i.e., the headend or the
+   controller when the path is delegated).  These include the
+   optimization metric with its margin and bound used for path
+   computation, as well as the computed metric values of the resulting
+   path.  They represent the computed or planned characteristics of an
+   SR Policy based on the underlying IGP link-state TE metrics.
+
+
+
+
+
+
+
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 5]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+   In contrast, this document reuses the IGP Traffic Engineering
+   Performance Metric Extensions TLVs defined in [RFC8571] (Types
+   1114-1117) and extends their applicability to SR Policies.  These
+   TLVs are used to advertise measured operational performance metrics,
+   which are obtained through active or passive measurement of the
+   actual traffic forwarding behavior.  The round-trip extensions
+   defined in Section 4 follow the same approach for bidirectional
+   performance characteristics.
+
+   The key distinctions between the two documents are:
+
+   *  Source of metrics: [RFC9857] reports computed or planned metrics
+      from the path computation entity, while this document reports
+      measured operational performance from actual traffic forwarding.
+
+   *  TLV namespace: [RFC9857] uses the SR Policy Metric Types (e.g.,
+      Types 1207 and 1215) within the SR Policy Attribute, while this
+      document reuses the Link Attribute TLVs (Types 1114-1117) from
+      [RFC8571].
+
+   *  Directionality: The SR Policy Metric Types in [RFC9857] are
+      unidirectional, while this document also defines round-trip
+      (bidirectional) performance metrics.
+
+   *  Use case: [RFC9857] provides SR Policy state information for path
+      computation, reoptimization, service placement, and network
+      visualization, while this document additionally enables
+      operational monitoring and reoptimization based on measured
+      performance metrics.
+
+   When both types of metrics are present, a consumer SHOULD treat them
+   as complementary information:
+
+   *  The computed metrics from [RFC9857] indicate the computed path
+      metric values from the computation entity (i.e., the headend or
+      the controller when the path is delegated), which can be used for
+      path validation and network visualization.
+
+   *  The measured metrics from this document indicate the actual
+      operational performance, which may vary due to network conditions,
+      congestion, or anomalies.  These provide additional information
+      for service placement and reoptimization decisions based on
+      measured performance.
+
+
+
+
+
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 6]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+4.  Extensions for Round-trip TE Performance Metric
+
+   The round-trip performance metrics defined in this section describe
+   the measured performance of a packet traveling from the headend to
+   the endpoint and back.  An SR Policy identifies the forward path from
+   the headend to the endpoint.  The reverse path of a round-trip
+   measurement is not explicitly identified by the SR Policy and may be
+   an IGP path, another SR Policy, or a path selected by the measurement
+   procedure.  The reverse path may change independently of the
+   advertised candidate path.
+
+   The reverse path is not identified by any TLV defined in this
+   document or in [RFC9857].  Therefore, a receiver MUST NOT assume that
+   the reverse path is congruent with the forward path, nor that the
+   reverse path is represented by the advertised SR Policy Candidate
+   Path NLRI.  The round-trip metric value applies only to the
+   combination of the advertised forward path and an unspecified reverse
+   path.
+
+4.1.  Round-trip Delay TLV
+
+   This TLV advertises the average round-trip delay for SR Policy.  As
+   described in Section 2.1, this TLV can be used at either the SID-List
+   level or the Candidate Path level.
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |A|  Reserved   |                   Delay                       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                   Figure 1: Round-trip Delay TLV Format
+
+   where:
+
+   *  Type: TBD
+
+   *  Length: 4 octets
+
+   *  Reserved: Reserved for future use.  MUST be set to 0 when sent and
+      MUST be ignored when received.
+
+   *  A: Anomalous (A) Bit. Same semantics as the A Bit in
+      Unidirectional Link Delay TLV [RFC8571].
+
+
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 7]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+   *  Delay: A 24-bit unsigned integer in microseconds.  Same semantics
+      as the Delay field in Unidirectional Link Delay TLV [RFC8571],
+      except that the delay is round-trip.
+
+4.2.  Min/Max Round-trip Delay TLV
+
+   This TLV advertises the minimum and maximum round-trip delay for SR
+   Policy.  As described in Section 2.1, this TLV can be used at either
+   the SID-List level or the Candidate Path level.
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |A|  Reserved   |                 Min Delay                     |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |    Reserved   |                 Max Delay                     |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+               Figure 2: Min/Max Round-trip Delay TLV Format
+
+   where:
+
+   *  Type: TBD
+
+   *  Length: 8 octets
+
+   *  Reserved: Reserved for future use.  MUST be set to 0 when sent and
+      MUST be ignored when received.
+
+   *  A: Anomalous (A) Bit. Same semantics as the A Bit in Min/Max
+      Unidirectional Link Delay TLV [RFC8571].
+
+   *  Min Delay: A 24-bit unsigned integer in microseconds.  Same
+      semantics as the Min Delay field in Min/Max Unidirectional Link
+      Delay TLV [RFC8571], except that the delay is round-trip.
+
+   *  Max Delay: A 24-bit unsigned integer in microseconds.  Same
+      semantics as the Max Delay field in Min/Max Unidirectional Link
+      Delay TLV [RFC8571], except that the delay is round-trip.
+
+4.3.  Round-trip Delay Variation TLV
+
+   This TLV advertises the average round-trip delay variation for SR
+   Policy.  As described in Section 2.1, this TLV can be used at either
+   the SID-List level or the Candidate Path level.
+
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 8]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |    Reserved   |              Delay Variation                  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+              Figure 3: Round-trip Delay Variation TLV Format
+
+   where:
+
+   *  Type: TBD
+
+   *  Length: 4 octets
+
+   *  Reserved: Reserved for future use.  MUST be set to 0 when sent and
+      MUST be ignored when received.
+
+   *  Delay Variation: A 24-bit unsigned integer in microseconds.  Same
+      semantics as the Delay Variation field in Unidirectional Delay
+      Variation TLV [RFC8571], except that the delay variation is round-
+      trip.
+
+4.4.  Round-trip Loss TLV
+
+   This TLV advertises the round-trip loss for SR Policy.  As described
+   in Section 2.1, this TLV can be used at either the SID-List level or
+   the Candidate Path level.
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |A|  Reserved   |                  Loss                         |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                    Figure 4: Round-trip Loss TLV Format
+
+   where:
+
+   *  Type: TBD
+
+   *  Length: 4 octets
+
+   *  Reserved: Reserved for future use.  MUST be set to 0 when sent and
+      MUST be ignored when received.
+
+
+
+Lin, et al.               Expires 10 April 2027                 [Page 9]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+   *  A: Anomalous (A) Bit. Same semantics as the A Bit in
+      Unidirectional Link Loss TLV [RFC8571].
+
+   *  Loss: A 24-bit unsigned integer representing packet loss as a
+      percentage.  Same semantics as the Link Loss field in
+      Unidirectional Link Loss TLV [RFC8571], except that the loss is
+      round-trip.
+
+5.  Security Considerations
+
+   The procedures and protocol extensions defined in this document do
+   not affect the BGP security model.
+
+   The sub-TLVs introduced in this document allow an operator to
+   advertise state information of SR Policy (e.g., bandwidth, delay),
+   which may be sensitive and dynamic in nature.
+
+   In very large networks, instability could occur if measurement
+   intervals are configured at a frequency that overwhelms the
+   processing capacity for announcement intervals.  Therefore, care must
+   be taken when configuring these values.  Implementations SHOULD NOT
+   allow the inter-update timer to be set lower than the measurement
+   interval.  Additionally, implementations SHOULD enforce configurable
+   constraints to mitigate the risk of instability.
+
+   For a discussion of BGP security, refer to the "Security
+   Considerations" section of [RFC4271].  Analyses of BGP security
+   issues are also provided in [RFC4272] and [RFC6952].  Security
+   considerations related to the acquisition and distribution of BGP-LS
+   information are discussed in [RFC9552], [RFC9830], and [RFC9857].
+
+   The mechanism proposed in this document is subject to the same
+   vulnerabilities as any other protocol that relies on BGP-LS.
+
+6.  Management Considerations
+
+   An implementation SHOULD allow the operator to specify neighbors to
+   which Link-State NLRIs will be advertised and from which Link-State
+   NLRIs will be accepted.
+
+   An implementation SHOULD allow the operator to control the content of
+   advertisements, such as whether or not to advertise latency, packet
+   loss rate, bidirectional latency, and bidirectional packet loss rate.
+
+   An implementation SHOULD allow the operator to control advertisement
+   thresholds to avoid frequent announcements.
+
+
+
+
+
+Lin, et al.               Expires 10 April 2027                [Page 10]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+7.  IANA Considerations
+
+   IANA maintains a registry called "BGP-LS NLRI and Attribute TLVs"
+   under the "Border Gateway Protocol - Link State (BGP-LS) Parameters"
+   registry group.
+
+   This document defines the following new TLV code points for round-
+   trip performance metrics of SR Policies:
+
+   +================+==================+==============================+
+   | TLV Code Point | Description      | Reference                    |
+   +================+==================+==============================+
+   | TBD            | Round-trip Delay | Section 4.1 of this document |
+   +----------------+------------------+------------------------------+
+   | TBD            | Min/Max Round-   | Section 4.2 of this document |
+   |                | trip Delay       |                              |
+   +----------------+------------------+------------------------------+
+   | TBD            | Round-trip Delay | Section 4.3 of this document |
+   |                | Variation        |                              |
+   +----------------+------------------+------------------------------+
+   | TBD            | Round-trip Loss  | Section 4.4 of this document |
+   +----------------+------------------+------------------------------+
+
+       Table 2: New BGP-LS TLVs for Round-trip Performance Metrics
+
+   This document also extends the applicability of the Link Attribute
+   TLVs (Types 1114-1117) defined in [RFC8571] to SR Policies.  IANA is
+   requested to update the corresponding entries in the "BGP-LS NLRI and
+   Attribute TLVs" registry to include a reference to this document in
+   addition to [RFC8571] for the following TLVs:
+
+   +================+===========================+======================+
+   | TLV Code Point | Description               | Reference            |
+   +================+===========================+======================+
+   | 1114           | Unidirectional Link       | [RFC8571], Section 2 |
+   |                | Delay                     | of this document     |
+   +----------------+---------------------------+----------------------+
+   | 1115           | Min/Max Unidirectional    | [RFC8571], Section 2 |
+   |                | Link Delay                | of this document     |
+   +----------------+---------------------------+----------------------+
+   | 1116           | Unidirectional Delay      | [RFC8571], Section 2 |
+   |                | Variation                 | of this document     |
+   +----------------+---------------------------+----------------------+
+   | 1117           | Unidirectional Link       | [RFC8571], Section 2 |
+   |                | Loss                      | of this document     |
+   +----------------+---------------------------+----------------------+
+
+         Table 3: BGP-LS Link Attribute TLVs Extended for SR Policy
+
+
+
+Lin, et al.               Expires 10 April 2027                [Page 11]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+8.  References
+
+8.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC6952]  Jethanandani, M., Patel, K., and L. Zheng, "Analysis of
+              BGP, LDP, PCEP, and MSDP Issues According to the Keying
+              and Authentication for Routing Protocols (KARP) Design
+              Guide", RFC 6952, DOI 10.17487/RFC6952, May 2013,
+              <https://www.rfc-editor.org/info/rfc6952>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8571]  Ginsberg, L., Ed., Previdi, S., Wu, Q., Tantsura, J., and
+              C. Filsfils, "BGP - Link State (BGP-LS) Advertisement of
+              IGP Traffic Engineering Performance Metric Extensions",
+              RFC 8571, DOI 10.17487/RFC8571, March 2019,
+              <https://www.rfc-editor.org/info/rfc8571>.
+
+   [RFC9552]  Talaulikar, K., Ed., "Distribution of Link-State and
+              Traffic Engineering Information Using BGP", RFC 9552,
+              DOI 10.17487/RFC9552, December 2023,
+              <https://www.rfc-editor.org/info/rfc9552>.
+
+   [RFC9830]  Previdi, S., Filsfils, C., Talaulikar, K., Mattes, P., and
+              D. Jain, "Advertising Segment Routing Policies in BGP",
+              RFC 9830, DOI 10.17487/RFC9830, September 2025,
+              <https://www.rfc-editor.org/info/rfc9830>.
+
+   [RFC9857]  Previdi, S., Talaulikar, K., Dong, J., Gredler, H., and J.
+              Tantsura, "Advertisement of Segment Routing Policies using
+              BGP Link-State", RFC 9857, DOI 10.17487/RFC9857, October
+              2025, <https://www.rfc-editor.org/info/rfc9857>.
+
+8.2.  Informative References
+
+
+
+
+
+Lin, et al.               Expires 10 April 2027                [Page 12]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+   [RFC4272]  Voigt, T., "BGP Security Vulnerabilities Analysis",
+              RFC 4272, DOI 10.17487/RFC4272, January 2006,
+              <https://www.rfc-editor.org/info/rfc4272>.
+
+   [RFC8402]  Filsfils, C., Ed., Previdi, S., Ed., Ginsberg, L.,
+              Decraene, B., Litkowski, S., and R. Shakir, "Segment
+              Routing Architecture", RFC 8402, DOI 10.17487/RFC8402,
+              July 2018, <https://www.rfc-editor.org/info/rfc8402>.
+
+   [RFC8762]  Mirsky, G., Ed., Ruffini, S., Gray, E., Drake, J., Bryant,
+              S., and A. Vainshtein, "Simple Two-Way Active Measurement
+              Protocol", RFC 8762, DOI 10.17487/RFC8762, March 2020,
+              <https://www.rfc-editor.org/info/rfc8762>.
+
+   [RFC9256]  Filsfils, C., Talaulikar, K., Ed., Voyer, D., Bogdanov,
+              A., and P. Mattes, "Segment Routing Policy Architecture",
+              RFC 9256, DOI 10.17487/RFC9256, July 2022,
+              <https://www.rfc-editor.org/info/rfc9256>.
+
+   [I-D.ietf-spring-stamp-srpm-mpls]
+              Gandhi, R., Filsfils, C., Voyer, D., Chen, M., and R. F.
+              Foote, "Performance Measurement Using Simple Two-Way
+              Active Measurement Protocol (STAMP) for Segment Routing
+              over the MPLS Data Plane", Work in Progress, Internet-
+              Draft, draft-ietf-spring-stamp-srpm-mpls-06, 22 July 2026,
+              <https://datatracker.ietf.org/doc/draft-ietf-spring-stamp-
+              srpm-mpls/>.
+
+   [I-D.ietf-spring-stamp-srpm-srv6]
+              Gandhi, R., Filsfils, C., Voyer, D., Chen, M., and R. F.
+              Foote, "Performance Measurement Using Simple Two-Way
+              Active Measurement Protocol (STAMP) for Segment Routing
+              over the SRv6 Data Plane", Work in Progress, Internet-
+              Draft, draft-ietf-spring-stamp-srpm-srv6-03, 6 July 2026,
+              <https://datatracker.ietf.org/doc/draft-ietf-spring-stamp-
+              srpm-srv6/>.
+
+   [I-D.draft-gandhi-pce-pm]
+              Gandhi, R., Wen, B., Barth, C., Dhody, D., and A. Stone,
+              "PCEP Extensions for Performance Measurement for SR-TE and
+              MPLS-TE LSPs", Work in Progress, Internet-Draft, draft-
+              gandhi-pce-pm-14, 23 July 2026,
+              <https://datatracker.ietf.org/doc/draft-gandhi-pce-pm/>.
+
+
+
+
+
+
+
+
+Lin, et al.               Expires 10 April 2027                [Page 13]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+Appendix A.  Cross WG Information
+
+   This section describes cross-working group information for use during
+   the IETF review process.  This section will be removed by the RFC
+   editor prior to publication.
+
+A.1.  Link to Spring WG
+
+   [I-D.ietf-spring-stamp-srpm-mpls] and
+   [I-D.ietf-spring-stamp-srpm-srv6] describe the procedures for
+   Performance Measurement in SR networks, using STAMP as defined in
+   [RFC8762].  The described procedure is used for SR paths [RFC8402]
+   (including SR Policies [RFC9256]).  These SPRING features require the
+   implementation of this document.
+
+   This document describes a way to advertise the performance metrics
+   for Traffic Engineering (TE) Policy using BGP Link State (BGP-LS).
+
+A.2.  Interaction with PCE WG
+
+   Stateful Path Computation Element Communication Protocol (PCEP)
+   extensions have been defined for TE LSPs for Segment Routing (SR) and
+   RSVP.  [I-D.draft-gandhi-pce-pm] describes the PCEP extensions for
+   enabling and notifying end-to-end performance measurement including
+   liveness detection for both PCE-Initiated and PCC- Initiated LSPs for
+   SR-TE over MPLS and IPv6 data planes, and MPLS-TE using RSVP to an
+   Active Stateful PCE.
+
+   BGP-LS and PCEP are two distinct methods for reporting SR Policy
+   performance metrics.  Implementers can choose between BGP-LS and PCEP
+   based on actual deployment requirements.
+
+A.3.  Interaction with SRV6ops Recommendations
+
+   This optimization feature could be distributed to external components
+   using BGP-LS extension defined in this document.
+
+Authors' Addresses
+
+   Changwang Lin
+   New H3C Technologies
+   Email: linchangwang.04414@h3c.com
+
+
+   Yisong Liu
+   China Mobile
+   Email: liuyisong@chinamobile.com
+
+
+
+
+Lin, et al.               Expires 10 April 2027                [Page 14]
+
+Internet-Draft     BGP-LS TE Policy Performance Metric      October 2026
+
+
+   Yongqing Zhu
+   China Telecom
+   Guangzhou
+   Email: zhuyq8@chinatelecom.cn
+
+
+   Ran Chen
+   ZTE Corporation
+   China
+   Email: chen.ran@zte.com.cn
+
+
+   Aravind Babu MahendraBabu
+   Cisco Systems
+   India
+   Email: aramahen@cisco.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.               Expires 10 April 2027                [Page 15]

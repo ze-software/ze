@@ -1,0 +1,563 @@
+
+
+
+
+
+
+Network Working Group                                       J. Hawkinson
+Request for Comments: 1930                                    BBN Planet
+BCP: 6                                                          T. Bates
+Category: Best Current Practice                                      MCI
+                                                              March 1996
+
+
+          Guidelines for creation, selection, and registration
+                      of an Autonomous System (AS)
+
+Status of this Memo
+
+   This document specifies an Internet Best Current Practices for the
+   Internet Community, and requests discussion and suggestions for
+   improvements.  Distribution of this memo is unlimited.
+
+Abstract
+
+   This memo discusses when it is appropriate to register and utilize an
+   Autonomous System (AS), and lists criteria for such.  ASes are the
+   unit of routing policy in the modern world of exterior routing, and
+   are specifically applicable to protocols like EGP (Exterior Gateway
+   Protocol, now at historical status; see [EGP]), BGP (Border Gateway
+   Protocol, the current de facto standard for inter-AS routing; see
+   [BGP-4]), and IDRP (The OSI Inter-Domain Routing Protocol, which the
+   Internet is expected to adopt when BGP becomes obsolete; see [IDRP]).
+   It should be noted that the IDRP equivalent of an AS is the RDI, or
+   Routing Domain Identifier.
+
+Table of Contents
+
+   1. Introduction ............................................    2
+   2. Motivation ..............................................    2
+   3. Definitions .............................................    2
+   4. Common errors in allocating ASes ........................    5
+   5. Criteria for the decision -- do I need an AS?  ..........    5
+   5.1 Sample Cases ...........................................    6
+   5.2 Other Factors ..........................................    7
+   6. Speculation .............................................    7
+   7. One prefix, one origin AS ...............................    8
+   8. IGP issues ..............................................    8
+   9. AS Space exhaustion .....................................    8
+   10. Reserved AS Numbers ....................................    9
+   11. Security Considerations ................................    9
+   12. Acknowledgments ........................................    9
+   13. References .............................................    9
+   14. Authors' Addresses .....................................   10
+
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 1]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+1. Introduction
+
+   This memo discusses when it is appropriate to register and utilize an
+   Autonomous System (AS), and lists criteria for such.  ASes are the
+   unit of routing policy in the modern world of exterior routing, and
+   are specifically applicable to protocols like EGP (Exterior Gateway
+   Protocol, now at historical status; see [EGP]), BGP (Border Gateway
+   Protocol, the current de facto standard for inter-AS routing; see
+   [BGP-4]), and IDRP (The OSI Inter-Domain Routing Protocol, which the
+   Internet is expected to adopt when BGP becomes obsolete; see [IDRP]).
+   It should be noted that the IDRP equivalent of an AS is the RDI, or
+   Routing Domain Identifier.
+
+2. Motivation
+
+   This memo is aimed at network operators and service providers who
+   need to understand under what circumstances they should make use of
+   an AS.  It is expected that the reader is familiar with routing
+   protocols and will be someone who configures and operates Internet
+   networks.  Unfortunately, there is a great deal of confusion in how
+   ASes should be used today; this memo attempts to clear up some of
+   this confusion, as well as acting as a simple guide to today's
+   exterior routing.
+
+3. Definitions
+
+   This document refers to the term "prefix" throughout. In the current
+   classless Internet (see [CIDR]), a block of class A, B, or C networks
+   may be referred to by merely a prefix and a mask, so long as such a
+   block of networks begins and ends on a power-of-two boundary. For
+   example, the networks:
+
+        192.168.0.0/24
+        192.168.1.0/24
+        192.168.2.0/24
+        192.168.3.0/24
+
+   can be simply referred to as:
+
+        192.168.0.0/22
+
+   The term "prefix" as it is used here is equivalent to "CIDR block",
+   and in simple terms may be thought of as a group of one or more
+   networks. We use the term "network" to mean classful network, or "A,
+   B, C network".
+
+   The definition of AS has been unclear and ambiguous for some time.
+   [BGP-4] states:
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 2]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+      The classic definition of an Autonomous System is a set of routers
+      under a single technical administration, using an interior gateway
+      protocol and common metrics to route packets within the AS, and
+      using an exterior gateway protocol to route packets to other ASes.
+      Since this classic definition was developed, it has become common
+      for a single AS to use several interior gateway protocols and
+      sometimes several sets of metrics within an AS.  The use of the
+      term Autonomous System here stresses the fact that, even when
+      multiple IGPs and metrics are used, the administration of an AS
+      appears to other ASes to have a single coherent interior routing
+      plan and presents a consistent picture of what networks are
+      reachable through it.
+
+   To rephrase succinctly:
+
+      An AS is a connected group of one or more IP prefixes run by one
+      or more network operators which has a SINGLE and CLEARLY DEFINED
+      routing policy.
+
+   Routing policy here is defined as how routing decisions are made in
+   the Internet today.  It is the exchange of routing information
+   between ASes that is subject to routing policies. Consider the case
+   of two ASes, X and Y exchanging routing information:
+
+                NET1 ......  ASX  <--->  ASY  ....... NET2
+
+   ASX knows how to reach a prefix called NET1.  It does not matter
+   whether NET1 belongs to ASX or to some other AS which exchanges
+   routing information with ASX, either directly or indirectly; we just
+   assume that ASX knows how to direct packets towards NET1.  Likewise
+   ASY knows how to reach NET2.
+
+   In order for traffic from NET2 to NET1 to flow between ASX and ASY,
+   ASX has to announce NET1 to ASY using an exterior routing protocol;
+   this means that ASX is willing to accept traffic directed to NET1
+   from ASY. Policy comes into play when ASX decides to announce NET1 to
+   ASY.
+
+   For traffic to flow, ASY has to accept this routing information and
+   use it.  It is ASY's privilege to either use or disregard the
+   information that it receives from ASX about NET1's reachability. ASY
+   might decide not to use this information if it does not want to send
+   traffic to NET1 at all or if it considers another route more
+   appropriate to reach NET1.
+
+   In order for traffic in the direction of NET1 to flow between ASX and
+   ASY, ASX must announce that route to ASY and ASY must accept it from
+   ASX:
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 3]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+                    resulting packet flow towards NET1
+                  <<===================================
+                                    |
+                                    |
+                     announce NET1  |  accept NET1
+                    --------------> + ------------->
+                                    |
+                        AS X        |    AS Y
+                                    |
+                     <------------- + <--------------
+                       accept NET2  |  announce NET2
+                                    |
+                                    |
+                   resulting packet flow towards NET2
+                   ===================================>>
+
+   Ideally, though seldom practically, the announcement and acceptance
+   policies of ASX and ASY are symmetrical.
+
+   In order for traffic towards NET2 to flow, announcement and
+   acceptance of NET2 must be in place (mirror image of NET1). For
+   almost all applications connectivity in just one direction is not
+   useful at all.
+
+   It should be noted that, in more complex topologies than this
+   example, traffic from NET1 to NET2 may not necessarily take the same
+   path as traffic from NET2 to NET1; this is called asymmetrical
+   routing.  Asymmetrical routing is not inherently bad, but can often
+   cause performance problems for higher level protocols, such as TCP,
+   and should be used with caution and only when necessary. However,
+   assymetric routing may be a requirement for mobile hosts and
+   inherently asymmetric siutation, such a satelite download and a modem
+   upload connection.
+
+   Policies are not configured for each prefix separately but for groups
+   of prefixes.  These groups of prefixes are ASes.
+
+   An AS has a globally unique number (sometimes referred to as an ASN,
+   or Autonomous System Number) associated with it; this number is used
+   in both the exchange of exterior routing information (between
+   neighboring ASes), and as an identifier of the AS itself.
+
+   In routing terms, an AS will normally use one or more interior
+   gateway protocols (IGPs) when exchanging reachability information
+   within its own AS. See "IGP Issues".
+
+
+
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 4]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+4. Common errors in allocating ASes
+
+   The term AS is often confused or even misused as a convenient way of
+   grouping together a set of prefixes which belong under the same
+   administrative umbrella, even if within that group of prefixes there
+   are various different routing policies. Without exception, an AS must
+   have only one routing policy.
+
+   It is essential that careful consideration and coordination be
+   applied during the creation of an AS. Using an AS merely for the sake
+   of having an AS is to be avoided, as is the worst-case scenario of
+   one AS per classful network (the IDEAL situation is to have one
+   prefix, containing many longer prefixes, per AS). This may mean that
+   some re-engineering may be required in order to apply the criteria
+   and guidelines for creation and allocation of an AS that we list
+   below; nevertheless, doing so is probably the only way to implement
+   the desired routing policy.
+
+   If you are currently engineering an AS, careful thought should be
+   taken to register appropriately sized CIDR blocks with your
+   registration authority in order to minimize the number of advertised
+   prefixes from your AS.  In the perfect world that number can, and
+   should, be as low as one.
+
+   Some router implementations use an AS number as a form of tagging to
+   identify interior as well as exterior routing processes.  This tag
+   does not need to be unique unless routing information is indeed
+   exchanged with other ASes. See "IGP Issues".
+
+5. Criteria for the decision -- do I need an AS?
+
+   *    Exchange of external routing information
+
+        An AS must be used for exchanging external routing information
+        with other ASes through an exterior routing protocol. The cur-
+        rent recommended exterior routing protocol is BGP, the Border
+        Gateway Protocol. However, the exchange of external routing
+        information alone does not constitute the need for an AS. See
+        "Sample Cases" below.
+
+   *    Many prefixes, one AS
+
+        As a general rule, one should try to place as many prefixes as
+        possible within a given AS, provided all of them conform to the
+        same routing policy.
+
+
+
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 5]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+   *    Unique routing policy
+
+        An AS is only needed when you have a routing policy which is
+        different from that of your border gateway peers. Here routing
+        policy refers to how the rest of the Internet makes routing
+        decisions based on information from your AS. See "Sample
+        Cases" below to see exactly when this criteria will apply.
+
+5.1 Sample Cases
+
+   *    Single-homed site, single prefix
+
+        A separate AS is not needed; the prefix should be placed in an
+        AS of the provider. The site's prefix has exactly the same rout-
+        ing policy as the other customers of the site's service
+        provider, and there is no need to make any distinction in rout-
+        ing information.
+
+        This idea may at first seem slightly alien to some, but it high-
+        lights the clear distinction in the use of the AS number as a
+        representation of routing policy as opposed to some form of
+        administrative use.
+
+        In some situations, a single site, or piece of a site, may find
+        it necessary to have a policy different from that of its
+        provider, or the rest of the site. In such an instance, a sepa-
+        rate AS must be created for the affected prefixes. This situa-
+        tion is rare and should almost never happen. Very few stub sites
+        require different routing policies than their parents. Because
+        the AS is the unit of policy, however, this sometimes occurs.
+
+   *    Single-homed site, multiple prefixes
+
+        Again, a separate AS is not needed; the prefixes should be
+        placed in an AS of the site's provider.
+
+   *    Multi-homed site
+
+        Here multi-homed is taken to mean a prefix or group of prefixes
+        which connects to more than one service provider (i.e. more than
+        one AS with its own routing policy). It does not mean a network
+        multi-homed running an IGP for the purposes of resilience.
+
+        An AS is required; the site's prefixes should be part of a
+        single AS, distinct from the ASes of its service providers.
+        This allows the customer the ability to have a different repre-
+        sentation of policy and preference among the different service
+        providers.
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 6]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+        This is ALMOST THE ONLY case where a network operator should
+        create its own AS number. In this case, the site should ensure
+        that it has the necessary facilities to run appropriate routing
+        protocols, such as BGP4.
+
+5.2 Other factors
+
+
+   *    Topology
+
+        Routing policy decisions such as geography, AUP (Acceptable Use
+        Policy) compliance and network topology can influence decisions
+        of AS creation. However, all too often these are done without
+        consideration of whether or not an AS is needed in terms of
+        adding additional information for routing policy decisions by
+        the rest of the Internet. Careful consideration should be taken
+        when basing AS creation on these type of criteria.
+
+   *    Transition / "future-proofing"
+
+        Often a site will be connected to a single service provider but
+        has plans to connect to another at some point in the future.
+        This is not enough of a reason to create an AS before you really
+        need it.  The AS number space is finite and the limited amount
+        of re-engineering needed when you connect to another service
+        provider should be considered as a natural step in transition.
+
+   *    History
+
+        AS number application forms have historically made no reference
+        to routing policy. All too often ASes have been created purely
+        because it was seen as "part of the process" of connecting to
+        the Internet. The document should be used as a reference from
+        future application forms to show clearly when an AS is needed.
+
+6. Speculation
+
+   1) If provider A and provider B have a large presence in a
+   geographical area (or other routing domain), and many customers are
+   multi-homed between them, it makes sense for all of those customers
+   to be placed within the same AS. However, it is noted that case
+   should only be looked at if practical to do so and fully coordinated
+   between customers and service providers involved.
+
+   2) Sites should not be forced to place themselves in a separate AS
+   just so that someone else (externally) can make AS-based policy
+   decisions. Nevertheless, it may occasionally be necessary to split
+   up an AS or a prefix into two ASes for policy reasons. Those making
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 7]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+   external policy may request the network operators make such AS
+   changes, but the final decision is up to those network operators
+   who manage the prefixes in question, as well as the ASes containing
+   them. This is, of course, a trade off -- it will not always be
+   possible to implement all desired routing policies.
+
+7. One prefix, one origin AS
+
+   Generally, a prefix can should belong to only one AS. This is a
+   direct consequence of the fact that at each point in the Internet
+   there can be exactly one routing policy for traffic destined to each
+   prefix. In the case of an prefix which is used in neighbor peering
+   between two ASes, a conscious decision should be made as to which AS
+   this prefix actually resides in.
+
+   With the introduction of aggregation it should be noted that a prefix
+   may be represented as residing in more than one AS, however, this is
+   very much the exception rather than the rule. This happens when
+   aggregating using the AS_SET attribute in BGP, wherein the concept of
+   origin is lost. In some cases the origin AS is lost altogether if
+   there is a less specific aggregate announcement setting the
+   ATOMIC_AGGREGATE attribute.
+
+8. IGP Issues
+
+   As stated above, many router vendors require an identifier for
+   tagging their IGP processes. However, this tag does not need to be
+   globally unique. In practice this information is never seen by
+   exterior routing protocols. If already running an exterior routing
+   protocol, it is perfectly reasonable to use your AS number as an IGP
+   tag; if you do not, choosing from the private use range is also
+   acceptable (see "Reserved AS Numbers"). Merely running an IGP is not
+   grounds for registration of an AS number.
+
+   With the advent of BGP4 it becomes necessary to use an IGP that can
+   carry classless routes. Examples include OSPF [OSPF] and ISIS [ISIS].
+
+9. AS Space exhaustion
+
+   The AS number space is a finite amount of address space. It is
+   currently defined as a 16 bit integer and hence limited to 65535
+   unique AS numbers. At the time of writing some 5,100 ASes have been
+   allocated and a little under 600 ASes are actively routed in the
+   global Internet. It is clear that this growth needs to be continually
+   monitored. However, if the criteria applied above are adhered to,
+   then there is no immediate danger of AS space exhaustion. It is
+   expected that IDRP will be deployed before this becomes an issue.
+   IDRP does not have a fixed limit on the size of an RDI.
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 8]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+10. Reserved AS Numbers
+
+   The Internet Assigned Numbers Authority (IANA) has reserved the
+   following block of AS numbers for private use (not to be advertised
+   on the global Internet):
+
+                           64512 through 65535
+
+11. Security Considerations
+
+   There are few security concerns regarding the selection of ASes.
+
+   AS number to owner mappings are public knowledge (in WHOIS), and
+   attempting to change that would serve only to confuse those people
+   attempting to route IP traffic on the Internet.
+
+12. Acknowledgments
+
+   This document is largely based on [RIPE-109], and is intended to have
+   a wider scope than purely the RIPE community; this document would not
+   exist without [RIPE-109].
+
+13. References
+
+   [RIPE-109]
+        Bates, T., Lord, A., "Autonomous System Number Application
+        Form & Supporting Notes", RIPE 109, RIPE NCC, 1 March 1994.
+        URL: ftp://ftp.ripe.net/ripe/docs/ripe-109.txt.
+
+   [BGP-4]
+        Rekhter, Y. and T. Li, "A Border Gateway Protocol 4 (BGP-4)",
+        RFC 1654, T.J. Watson Research Center, cisco Systems, July 1994.
+
+   [EGP]
+        Mills, D., "Exterior Gateway Protocol Formal Specifications",
+        STD 18, RFC 904, International Telegraph and Telephone Co.,
+        April 1984.
+
+   [IDRP]
+        Kunzinger, C., Editor, "OSI Inter-Domain Routing Protocol
+        (IDRP)", ISO/IEC 10747, Work In Progress, October 1993.
+
+   [CIDR]
+        Fuller, V., T. Li, J. Yu, and K. Varadhan, "Classless
+        Inter-Domain Routing (CIDR): an Address Assignment and
+        Aggregation Strategy", RFC 1519, BARRnet, cisco, MERIT, OARnet,
+        September 1993.
+
+
+
+
+Hawkinson & Bates        Best Current Practice                  [Page 9]
+
+RFC 1930            Guidelines for creation of an AS          March 1996
+
+
+   [OSPF]
+        Moy, J., "OSPF Version 2", RFC 1583, March 1994.
+
+   [ISIS]
+        Callon, R., "Use of OSI IS-IS for Routing in TCP/IP and Multi-
+        Protocol Environments", RFC 1195, Digital Equipment
+        Corporation, December 1990.
+
+14. Authors' Addresses
+
+   John Hawkinson
+   BBN Planet Corporation
+   150 CambridgePark Drive
+   Cambridge, MA 02139
+
+   Phone:  +1 617 873 3180
+   EMail: jhawk@bbnplanet.com
+
+
+   Tony Bates
+   MCI
+   2100 Reston Parkway
+   Reston, VA 22094
+
+   Phone: +1 703 715 7521
+   EMail: Tony.Bates@mci.net
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hawkinson & Bates        Best Current Practice                 [Page 10]
+

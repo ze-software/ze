@@ -1,0 +1,672 @@
+
+
+
+
+Network Working Group                                         M. McBride
+Internet-Draft                                                 Futurewei
+Intended status: Best Current Practice                         D. Madory
+Expires: 16 October 2026                                          Kentik
+                                                             J. Tantsura
+                                                                  Nvidia
+                                                               R. Raszuk
+                                                 NTT Network Innovations
+                                                                   H. Li
+                                                                     HPE
+                                                                J. Heitz
+                                                                   Cisco
+                                                               G. Mishra
+                                                            Verizon Inc.
+                                                           14 April 2026
+
+
+                           AS Path Prepending
+                 draft-ietf-grow-as-path-prepending-19
+
+Abstract
+
+   Autonomous System (AS) path prepending is a tool to manipulate the
+   BGP AS_PATH attribute through prepending one or more Autonomous
+   System Numbers (ASNs).  AS path prepending is used to deprioritize a
+   route in the presence of a route with a shorter AS_PATH.  By
+   prepending a local ASN multiple times, ASes can make advertised AS
+   paths appear artificially longer.  However, excessive AS path
+   prepending has caused routing issues in the Internet.  This document
+   provides guidance for the use of AS path prepending, including
+   alternative solutions, in order to avoid negatively affecting the
+   Internet.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 1]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+   This Internet-Draft will expire on 16 October 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  Sample Use Cases  . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  Potential Problems  . . . . . . . . . . . . . . . . . . . . .   4
+     3.1.  Cascading and Ripple Effects of Prepending  . . . . . . .   4
+     3.2.  Excessive Prepending  . . . . . . . . . . . . . . . . . .   5
+       3.2.1.  Prepending during a routing leak  . . . . . . . . . .   6
+       3.2.2.  Prepending to All . . . . . . . . . . . . . . . . . .   7
+     3.3.  Memory  . . . . . . . . . . . . . . . . . . . . . . . . .   7
+   4.  Alternatives to AS Path Prepending  . . . . . . . . . . . . .   8
+   5.  Best Practices  . . . . . . . . . . . . . . . . . . . . . . .   8
+   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   9
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  10
+   8.  Acknowledgement . . . . . . . . . . . . . . . . . . . . . . .  10
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  10
+     9.1.  Normative References  . . . . . . . . . . . . . . . . . .  10
+     9.2.  Informative References  . . . . . . . . . . . . . . . . .  10
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  11
+
+1.  Introduction
+
+   The Border Gateway Protocol (BGP) [RFC4271] specifies the AS_PATH
+   attribute, which enumerates Autonomous Systems (ASes) a route update
+   has traversed.  Per Section 5.1.2 of [RFC4271], If a BGP UPDATE
+   message is propagated to an external peer, then the local AS number
+   is prepended to the AS_PATH attribute, and the NEXT_HOP attribute is
+   updated with an IP address of the router that should be used as a
+   next hop to the network.  If the UPDATE message is propagated to an
+   internal peer, then the AS_PATH attribute and the NEXT_HOP attribute
+   are passed unmodified.
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 2]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+   A common practice among operators is to prepend multiple entries of
+   an AS (known as AS Path Prepending) in order to deprioritize a route
+   or a path.  So far, this has not caused many problems.  However, the
+   practice is increasing, with both IPv4 and IPv6, and there are now
+   inherent risks to the global Internet, especially with excessive AS
+   Path Prepending.  Prepending may be employed in an excessive manner
+   such that it renders routes vulnerable to disruption or misdirection.
+
+   [RFC8195] discusses using BGP Large Communities for Traffic
+   Engineering (TE) through selective AS_PATH prepending.  The present
+   document provides additional and specific guidance to operators for a
+   safe use of AS path prepending.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  Sample Use Cases
+
+   There are various reasons that AS path prepending is in use in
+   networks.  The following use cases apply to influencing inbound
+   traffic (traffic entering the originating AS) via AS_PATH prepending:
+
+   *  Prefer one Internet Service Provider (ISP) over another ISP on the
+      same Autonomous System Border Router (ASBR) or across different
+      ASBRs for the multihoming case.
+
+   *  Prefer one ASBR over another ASBR in the same site or between
+      sites.
+
+   *  Utilize one path exclusively and another path solely as a backup.
+
+   *  Influence path selection to prefer one path over another, which
+      may indirectly reflect operator intent regarding available
+      capacity.
+
+   *  Conditionally prefer one ASBR over another ASBR within the same
+      site or between sites for lowest latency path based on geographic
+      location.
+
+   *  An ISP doesn't accept TE using BGP Communities.  Prepending is the
+      only available option to influence path selection by a source AS.
+
+
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 3]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+   The illustration shown in Figure 1, from [Path_Prepending_in_BGP],
+   shows how AS Prepending is typically used.  E is prepending its ASN
+   twice in advertisements to C.  As a result, B observes different
+   AS_PATH lengths via C and D.
+
+
+
+                  +---+    +---+
+              +---| D |----| F |
+              |   +---+    +---+
+   +---+   +---+             |
+   | A |---| B |             |
+   +---+   +---+             |
+              |   +---+    +---+
+              +---| C |----| E |
+                  +---+    +---+
+                           <-E prepends 2x to C
+
+   B receives AS_PATH C E E E via C and AS_PATH D F E via D
+
+
+                      Figure 1: Path Prepending in BGP
+
+   In Figure 1, ASes A, B, C, D, E, and F all have a different ASN.  B
+   will normally prefer the path via C to send traffic to E, as this
+   represents the shorter AS path for B.  If E is instructed to prepend
+   two instances of its own ASN when advertising its routes to C, then B
+   will now see a different situation, where the AS path via D
+   represents the shorter path.  Through the use of selective
+   prepending, E is able to alter the routing decision of B, even though
+   B is not an adjacent neighbor of E.  The result is that traffic from
+   A and B will be passed via D and F to reach E, rather than via C.  In
+   this way prepending implements action at a distance where the routing
+   decisions made by non-adjacent ASes may be influenced by selective AS
+   Path prepending.
+
+3.  Potential Problems
+
+   This section discusses examples which illustrate problems of AS path
+   prepending.
+
+3.1.  Cascading and Ripple Effects of Prepending
+
+   Care should be taken in prepending, as prepending can cause ripple
+   effects with multiple ASes performing the same set of prepends in the
+   same path direction.  This may result in unintended forwarding where
+   the valid preferred path becomes now de-preferred.
+
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 4]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+                            <-5x     <-5x     <-5x
+                  +---+    +---+    +---+    +---+
+              +---| D |----| F |----| H |----| J |
+              |   +---+    +---+    +---+    +---+
+   +---+   +---+             |                 |
+   | A |---| B |             |                 |
+   +---+   +---+        13x<-|                 |
+              |   +---+    +---+    +---+    +---+
+              +---| C |----| E |----| G |----| I |
+                  +---+    +---+    +---+    +---+
+
+
+
+                     Figure 2: Prepending ripple effect
+
+   In Figure 2, A, B, C, D, E, F, G, H, I and J are all part of
+   different ASes and can help illustrate the ripple effect of
+   prepending.  With no prepending, B will normally prefer the path via
+   D to send traffic to a source attached to J, as this represents the
+   preferred path.  If E, unnecessarily, prepends 13 additional
+   instances of its own AS number, when advertising routes to C, and no
+   AS limit check is enforced by peers, there is no change to the
+   preferred path from B to J and only causes an increase in the AS
+   Path.  If ISP J then decides to prepend 5 additional instances
+   (making it 5+1) of its own ASN when advertising to H, and ISP H also
+   prepends 5 additional instances of its own AS when advertising to F,
+   and ISP F also prepends 5 additional instances of its own ASN when
+   advertising to D, B now sees 19 AS hops for prefixes coming from D to
+   get to J.  The path with 18 AS hops coming from C is now preferred.
+   B will send all of its traffic through I to reach J.  This is a
+   scenario where providers decide to de-prefer a path.  However, the
+   same de-preference of a path gets cascaded in the same announcement
+   direction and, as a result, the path that should not be preferred,
+   through C, ends up being the preferred path.  If E then decides to
+   further increase its AS path prepending, then the preferred path
+   changes again for B to use D to get to J.  Usage of BGP Large
+   Communities, along with care being taken when prepending is performed
+   between providers, can help mitigate the potential adverse impacts of
+   large prepending.
+
+3.2.  Excessive Prepending
+
+   The risk of excessive use of AS path prepending can be illustrated
+   with real-world examples that have been anonymized using
+   documentation prefixes [RFC5737] and ASes [RFC5398] . Consider the
+   prefix 198.51.100.0/24 which is normally announced with an inordinate
+   amount of prepending. 198.51.100.0/24 is announced to the world along
+   the following AS path:
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 5]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+   64496 64511 64511 64511 64511 64511 64511 64511 64511 64511 64511
+   64511 64511 64511 64511 64511 64511 64511 64511 64511 64511 64511
+   64511 64511
+
+   In this example, the origin AS with ASN 64511 appears 23 consecutive
+   times before being passed on to a single upstream (AS with ASN
+   64496), which passes it on to the global Internet, prepended-to-all.
+   An attacker, wanting to intercept or manipulate traffic to this
+   prefix, could enlist a datacenter to allow announcements of the same
+   prefix with a fabricated AS path such as 999999 64496 64511.  Here
+   the fictional AS with ASN 999999 represents the shady datacenter.
+   This malicious route would be preferred due to the shortened AS path
+   length and might go unnoticed by the true origin, even if route-
+   monitoring had been implemented.  Standard BGP route monitoring
+   checks a route’s origin and upstream and both would be intact in this
+   scenario.  The length of the prepending gives the attacker room to
+   craft an AS path that would appear plausible to the casual observer,
+   comply with origin validation mechanisms, and not be detected by off-
+   the-shelf route monitoring.  While the root cause of the attacker
+   problem is prefix hijacking, the blast radius of an existing
+   hijacking incident will most likely be increased by excessive as-path
+   prepending.
+
+3.2.1.  Prepending during a routing leak
+
+   In April 2010, a service provider experienced a routing leak.  While
+   analyzing that leak, something peculiar was noticed.  When ranking
+   the approximately 50,000 prefixes involved in the leak based on how
+   many ASes accepted the leaked routes, most of the impact was
+   constrained to Country A routes.  However, two of the top five most-
+   propagated leaked routes were Country B routes.
+
+   During the routing leak, nearly all of the ASes of the Internet
+   preferred the Country A leaked routes for 192.0.2.0/21 and
+   198.51.100.0/22 because, at the time, these two Country B prefixes
+   were being announced to the entire Internet along the following
+   excessively prepended AS path: 64496 64500 64511 64511 64511 64511
+   64511 64511.  Virtually any illegitimate route would be preferred
+   over the legitimate route.  In this case, the victim is all but
+   ensuring their victimhood.
+
+   There was only a single upstream seen in the prepending example from
+   above, so the prepending was achieving nothing except incurring risk.
+   You would think such mistakes would be relatively rare, especially
+   now, 10 years later.  As it turns out, there is quite a lot of
+   prepending-to-all going on right now and during leaks, it doesn’t go
+   well for those who make this mistake.  While one can debate the
+   merits of prepending to a subset of multiple transit providers, it is
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 6]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+   difficult to see the utility in prepending to every provider.  In
+   this configuration, the prepending is no longer shaping route
+   propagation.  It is simply incentivizing ASes to choose another
+   origin if one were to suddenly appear whether by mistake or
+   otherwise.
+
+3.2.2.  Prepending to All
+
+   Based on analysis done in 2019 [Excessive_AS_Path_Prepending], out of
+   approximately 750,000 routes in the IPv4 global routing table, nearly
+   60,000 BGP routes are prepended to 95% or more of hundreds of BGP
+   sources.  About 8% of the global routing table, or 1 out of every 12
+   BGP routes, is configured with prepends to virtually the entire
+   Internet.  The 60,000 routes include entities of every stripe:
+   governments, financial institutions, even important parts of Internet
+   infrastructure.
+
+   Much of the worst propagation of leaked routes during big leak events
+   have been due to routes being prepended-to-all.  The AS64505 leak of
+   April 2014 (>320,000 prefixes) was prepended-to-all.  And the AS64506
+   leak of June 2015 (>260,000 prefixes) was also prepended-to-all.
+   Prepended-to-all prefixes are those seen as prepended by all (or
+   nearly all) of the ASes of the Internet.  In this configuration,
+   prepending is no longer shaping route propagation but is simply
+   incentivizing ASes to choose another origin if one were to suddenly
+   appear whether by mistake or otherwise.  The percentage of the IPv4
+   table that is prepended-to-all is growing at 0.5% per year.  The IPv6
+   table is growing slower at 0.2% per year.  The reasons for using
+   prepend-to-all appears to be due to 1) the AS forgetting to remove
+   the prepending for one of its transit providers when it is no longer
+   needed and 2) the AS attempting to de-prioritize traffic from transit
+   providers over settlement-free peers and 3) there are simply a lot of
+   errors in BGP routing.  Consider the prepended AS path below:
+
+   64496 64501 64501 64510 64510 64501 64510 64501 64501 64510 64510
+   64501 64501 64510
+
+   The prepending here involves a mix of two distinct ASNs (64501 and
+   64510) with the last two digits transposed.
+
+3.3.  Memory
+
+   Long AS Paths cause an increase in memory usage by BGP speakers.  A
+   concern about an AS path longer than 255 is the potential extra
+   complexity required to process it, because it needs to be encoded in
+   more than one AS_SEQUENCE in the AS_PATH BGP path attribute.
+
+
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 7]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+4.  Alternatives to AS Path Prepending
+
+   Various options, to provide path preference without needing to use AS
+   path prepending, include:
+
+   *  Use predefined communities that are mapped to a particular
+      behavior when propagated.
+
+   *  Announce more specific routes on the preferred path.
+
+   *  The BGP Origin Code is an attribute that is used for path
+      selection and can be used as a high order tie-breaker.  The three
+      origin codes are IGP, EGP and INCOMPLETE [RFC4271].  When AS Paths
+      are of equivalent length, users could advertise paths, with IGP or
+      EGP origin, over the preferred path while the other ASBRs (which
+      would otherwise need to prepend N times) advertises with an
+      INCOMPLETE origin code.
+
+   *  The Multi Exit Discriminator (MED) is an optional non-transitive
+      attribute that can be used to influence path preference instead of
+      using as-path.  MED is non-transitive so it cannot influence an AS
+      more than one AS hop away.
+
+5.  Best Practices
+
+   A summary of the best current practices when using AS path prepending
+   is provided below:
+
+   *  Network operators should ensure prepending is used judiciously, as
+      excessive prepending is common and can reduce effectiveness.
+      Operators are encouraged to enumerate what the routing policies
+      are intended to achieve before concluding that prepending is a
+      solution.
+
+   *  The neighbor, to which prepending is used, may have an
+      unconditional preference for customer routes and prepending
+      doesn't work.  It is helpful to check with neighbors to see if
+      they will honor the prepend to avoid wasting effort and
+      potentially causing further vulnerabilities.
+
+   *  As shown in Figure 3 (reproduced from
+      [Excessive_AS_Path_Prepending]), prepending more than 5 times
+      rarely provides any benefit.  Note that routing patterns may
+      change over time and may be different in various parts of the
+      internet.  A looking glass, as provided by many Internet Service
+      Providers, can be used to get a better understanding of as-path
+      length of an IP address prefix of interest.
+
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 8]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+     +------------------------------------+
+   90|                                    |
+     |      X                             |
+   80|     X X                            |
+     |     X X                            |
+   70|     X X                            |
+     |    X  X                            |
+   60|    X  X                            |
+     |    X  X                            |
+   50|   X    X                           |
+     |   X    X                           |
+   40|   X     X                          |
+     |   X     X                          |
+   30|   X     X                          |
+     |   X      X                         |
+   20|   X       XX                       |
+     |  XX         XX                     |
+   10| XX            XXXX                 |
+     |XX                 XXXXXXXXXXXXXXXXX|
+     +------------------------------------+
+                 5         10          15
+
+   X Axis = unique AS Paths in millions
+
+
+                      Figure 3: AS Path Length in IPv4
+
+   *  Don't prepend ASNs that you don't own.  Using non-local ASNs can
+      lead to route rejection, misconfigurations, or unintended AS path
+      validation failures.
+
+   *  Don't prepend if your AS is single homed.
+
+   *  Prepending-to-all is a self-inflicted and needless risk that
+      serves little purpose.  Those excessively prepending their routes
+      should consider this risk and adjust their routing configuration.
+
+   *  The Internet is typically around 5 ASes deep with the largest
+      AS_PATH being 16-20 ASNs.  Some have added 100 or more AS Path
+      Prepends and operators should therefore consider limiting the
+      maximum AS-path length being accepted through aggressive filter
+      policies.
+
+6.  IANA Considerations
+
+   This document does not make any request of IANA.
+
+
+
+
+
+McBride, et al.          Expires 16 October 2026                [Page 9]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+7.  Security Considerations
+
+
+   Long prepending may make a network more vulnerable to route hijacking
+   which will exist whenever there is a well connected peer that is
+   willing to forge their AS_PATH or allows announcements with a fake AS
+   path.  Guards to prevent such routes with long AS paths should be
+   enabled.  Also, using Autonomous System Provider Authorization (ASPA)
+   objects in the Resource Public Key Infrastructure (RPKI), to verify
+   the BGP AS_PATH attribute of advertised routes, would provide
+   detection and mitigation of route leaks and improbable AS paths.
+
+   For a more comprehensive discussion of BGP Operations and Security,
+   see [RFC7454].
+
+8.  Acknowledgement
+
+
+   The authors would like to thank Greg Skinner, Randy Bush, David
+   Farmer, Nick Hilliard, Martijn Schmidt, Michael Still, Geoff Huston,
+   Jeffrey Haas, Alejandro Acosta and Martin Pels for contributing to
+   this document.  A special thank you to Mohamed Boucadair for an
+   extensive review.
+
+9.  References
+
+9.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC7454]  Durand, J., Pepelnjak, I., and G. Doering, "BGP Operations
+              and Security", BCP 194, RFC 7454, DOI 10.17487/RFC7454,
+              February 2015, <https://www.rfc-editor.org/info/rfc7454>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+9.2.  Informative References
+
+
+
+
+McBride, et al.          Expires 16 October 2026               [Page 10]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+   [Excessive_AS_Path_Prepending]
+              Madory, D., "Excessive AS Path Prepending", Article APNIC,
+              2019, <https://blog.apnic.net/2019/07/15/excessive-bgp-as-
+              path-prepending-is-a-self-inflicted-vulnerability/>.
+
+   [Path_Prepending_in_BGP]
+              Huston, J., "Path Prepending in BGP", Article APNIC, 2019,
+              <https://labs.apnic.net/index.php/2019/10/27/path-
+              prepending-in-bgp/>.
+
+   [RFC5398]  Huston, G., "Autonomous System (AS) Number Reservation for
+              Documentation Use", RFC 5398, DOI 10.17487/RFC5398,
+              December 2008, <https://www.rfc-editor.org/info/rfc5398>.
+
+   [RFC5737]  Arkko, J., Cotton, M., and L. Vegoda, "IPv4 Address Blocks
+              Reserved for Documentation", RFC 5737,
+              DOI 10.17487/RFC5737, January 2010,
+              <https://www.rfc-editor.org/info/rfc5737>.
+
+   [RFC8195]  Snijders, J., Heasley, J., and M. Schmidt, "Use of BGP
+              Large Communities", RFC 8195, DOI 10.17487/RFC8195, June
+              2017, <https://www.rfc-editor.org/info/rfc8195>.
+
+Authors' Addresses
+
+   Mike McBride
+   Futurewei
+   Email: michael.mcbride@futurewei.com
+
+
+   Doug Madory
+   Kentik
+   Email: dmadory@kentik.com
+
+
+   Jeff Tantsura
+   Nvidia
+   Email: jefftant.ietf@gmail.com
+
+
+   Robert Raszuk
+   NTT Network Innovations
+   940 Stewart Dr
+   Sunnyvale, CA 94085
+   United States of America
+   Email: robert@raszuk.net
+
+
+
+
+
+McBride, et al.          Expires 16 October 2026               [Page 11]
+
+Internet-Draft  Recommendations for Autonomous System (A      April 2026
+
+
+   Hongwei Li
+   HPE
+   Email: flycoolman@gmail.com
+
+
+   Jakob Heitz
+   Cisco
+   170 West Tasman Drive
+   San Jose, CA 95134
+   United States of America
+   Email: jheitz@cisco.com
+
+
+   Gyan Mishra
+   Verizon Inc.
+   Email: gyan.s.mishra@verizon.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+McBride, et al.          Expires 16 October 2026               [Page 12]

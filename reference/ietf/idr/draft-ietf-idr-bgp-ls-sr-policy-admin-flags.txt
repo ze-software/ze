@@ -1,0 +1,481 @@
+IDR Working Group                                           C. Lin, Ed.
+Internet Draft                                     New H3C Technologies
+Intended status: Standards Track                            Z. Ali, Ed.
+Expires: January 20, 2027                           Cisco Systems, Inc.
+                                                                Y. Liu
+                                                           China Mobile
+                                                               Ran.Chen
+                                                                    ZTE
+                                                            A. Karboubi
+                                                                  Ciena
+                                                          July 19, 2026
+
+
+     Advertisement of SR Policy Operational States using BGP Link-State
+               draft-ietf-idr-bgp-ls-sr-policy-admin-flags-00
+
+
+Abstract
+
+   This document defines the extension of BGP Link-State to advertise
+   the operational state of the candidate path or segment list,
+   facilitating the operation and maintenance of the SR Policy.
+
+Status of this Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as Internet-
+   Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six
+   months and may be updated, replaced, or obsoleted by other documents
+   at any time.  It is inappropriate to use Internet-Drafts as
+   reference material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html
+
+   This Internet-Draft will expire on January 29, 2027.
+
+
+
+
+
+
+Lin, et al.           Expires January 20, 2027                [Page 1]
+
+Internet-Draft    BGP-LS for SR Policy Admin Flags            July 2026
+
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors. All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document. Please review these documents
+   carefully, as they describe your rights and restrictions with
+   respect to this document. Code Components extracted from this
+   document must include Simplified BSD License text as described in
+   Section 4.e of the Trust Legal Provisions and are provided without
+   warranty as described in the Simplified BSD License.
+
+Table of Contents
+
+
+   1. Introduction...................................................2
+   2. Terminology....................................................3
+   3. Extension of SR Candidate Path State...........................3
+   4. Extension of SR Segment List TLV...............................3
+   5. Operations.....................................................4
+   6. Security Considerations........................................4
+   7. IANA Considerations............................................4
+   8. References.....................................................5
+      8.1. Normative References......................................5
+      8.2. Informative References....................................6
+   9. Acknowledgments................................................7
+   Appendix A. Cross WG Information..................................8
+      A.1. Link to Spring WG.........................................8
+      A.2. Interaction with PCE WG...................................8
+      A.3. Interaction with SRV6ops Recommendations..................8
+   Authors' Addresses................................................9
+
+  1. Introduction
+
+   Segment routing (SR) [RFC8402] is a source routing paradigm that
+   explicitly indicates the forwarding path for packets at the ingress
+   node. The ingress node steers packets into a specific path according
+   to the Segment Routing Policy (SR Policy) as defined in [RFC9256].
+   An SR Policy may have multiple candidate paths that are provisioned
+   or signaled [RFC9830] [RFC8664] from one of more sources.
+
+   [I-D.lin-idr-sr-policy-admin-flags] proposes an extension to the BGP
+   SR Policy that sets the operational state of the candidate path or
+   the segment list, facilitating the operation and maintenance of the
+   SR Policy.
+
+Lin, et al.           Expires January 20, 2027                [Page 2]
+
+Internet-Draft    BGP-LS for SR Policy Admin Flags            July 2026
+
+
+   This document defines extensions to BGP-LS to advertise defines the
+   extension of BGP Link-State to advertise the operational state of
+   the candidate path or segment list.
+
+  2. Terminology
+
+   The definitions of the basic terms are identical to those found in
+   Segment Routing Policy Architecture [RFC9256].
+
+  3. Extension of SR Candidate Path State
+
+   As defined in [RFC9857], the SR Candidate Path State TLV provides
+   the operational status and attributes of the SR Policy at the
+   candidate path level.
+
+   New bits in Flags field of the SR Candidate Path State TLV are
+   defined:
+
+     - BI-Flag (Bit TBD): Indicates the CP is configured as "backup
+       ineligible".
+
+     - IS-Flag(Bit TBD): Indicates the CP is configured as "Ignore
+       service route's Prefix SID". It allows traffic to a BGP service
+       route to be steered over an SR policy without imposing the
+       service route's prefix label or SRv6 Service SID.
+
+     - PE-Flag (Bit TBD): Indicates that the CP is set to "candidate
+       path eligible" as defined in [I-D. ietf-spring-sr-policy-
+       eligibility].
+
+     - IFN-flag (Bit TBD) (Install Final Node-sid flag) as defined in
+       [I-D. ietf-spring-srv6-policy-sid-list-opt]: indicate the
+       endpoint node SID is included in installing SID list(s) of the
+       Candidate Path (CP) when set. If set to 1, the endpoint node SID
+       MUST be included when installing the SR Policy SID list(s) used
+       to carry the data traffic. If set to 0, the endpoint node SID
+       MUST NOT be included when installing the SR Policy SID list(s)
+       used to carry the data traffic.
+
+  4. Extension of SR Segment List TLV
+
+   As defined in [RFC9857], The SR Segment List TLV is used to report a
+   single SID-List of a candidate path.  Multiple instances of this TLV
+   may be used to report multiple SID-Lists of a candidate path.
+
+   Two New bits in Flags field of the SR Segment List TLV is defined:
+
+
+
+Lin, et al.           Expires January 20, 2027                [Page 3]
+
+Internet-Draft    BGP-LS for SR Policy Admin Flags            July 2026
+
+
+     - S-Flag(Bit TBD): Indicates the SR Segment is in an administrative
+       shut state when set and not in administrative shut state when
+       clear.
+
+     - PE-Flag(Bit TBD): When set, indicates the Segment List is in an
+       eligible state (capable of forwarding traffic).
+       When cleared, indicates the Segment List is ineligible (cannot
+       forward traffic).
+
+  5. Operations
+
+   The document does not bring new operation beyond the description of
+   operations defined in Section 6 of [RFC9857]. The existing
+   operations defined in [RFC9857] can apply to this document directly.
+
+  6. Security Considerations
+
+   Procedures and protocol extensions defined in this document do not
+   affect the security considerations discussed in [RFC9857].
+
+   This document defines new bits in the Flags field of the SR
+   Candidate Path State TLV to indicate the operational state of the
+   candidate path. Similarly, new bits in the Flags field of the SR
+   Segment List TLV are defined to report the operational state of the
+   segment list. The values of these bits determine the state of the
+   candidate path or segment list within the SR policy and may
+   consequently affect packet forwarding in the network. Therefore,
+   when configuring, querying, or reporting these administrative flags
+   in the BGP control plane, appropriate measures MUST be taken to
+   protect such mission-critical or commercially sensitive information.
+
+  7. IANA Considerations
+
+   This document requests four bits in the flag field of "SR Candidate
+   Path State TLV" [RFC9857] under the "BGP-LS Node Descriptor, Link
+   Descriptor, Prefix Descriptor, and Attribute TLVs" registry.
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.           Expires January 20, 2027                [Page 4]
+
+Internet-Draft    BGP-LS for SR Policy Admin Flags            July 2026
+
+
+   Bit     Description                                Reference
+   -----------------------------------------------------------------
+   TBA     S-Flag: The CP is configured               This document
+           as "backup ineligible"
+   -----------------------------------------------------------------
+   TBA     IS-Flag: The CP is configured              This document
+           as "Ignore service route's Prefix SID"
+   -----------------------------------------------------------------
+   TBA     PE-Flag: The CP is configured              This document
+           as "candidate path eligible"
+   -----------------------------------------------------------------
+   TBA     IFN-flag: The CP is configured             This document
+           as "Install Final Node-sid"
+   -----------------------------------------------------------------
+
+
+   This document requests two bits in the flag field of "SR Segment
+   List TLV" [RFC9857] under the "BGP-LS Node Descriptor, Link
+   Descriptor, Prefix Descriptor, and Attribute TLVs" registry.
+
+
+
+   Bit     Description                                  Reference
+   ------------------------------------------------------------------
+   TBA     S-Flag: Indicates that the CP is in an       This document
+           administrative shut state when set and not
+           in an administrative shut state when clear.
+   ------------------------------------------------------------------
+   TBA     PE-Flag: Indicates the Segment List is in    This document
+           an eligible state (capable of forwarding
+           traffic) when set and not in an eligible
+           state when clear.
+   ------------------------------------------------------------------
+8. References
+
+  8.1. Normative References
+
+   [RFC9857] Previdi, S., Talaulikar, K., Dong, J., Gredler, H., and
+             Tantsura, J., "Advertisement of Segment Routing Policies
+             using BGP Link-State", RFC 9857, DOI 10.17487/RFC9857,
+             October 2025, <https://www.rfc-editor.org/info/rfc9857>.
+
+   [RFC9830] Previdi, S., Filsfils, C., Talaulikar, K., Mattes, P., and
+             D. Jain, "Advertising Segment Routing Policies in BGP",
+             RFC 9830, DOI 10.17487/RFC9830, September 2025,
+             <https://www.rfc-editor.org/info/rfc9830>.
+
+
+
+Lin, et al.           Expires January 20, 2027                [Page 5]
+
+Internet-Draft    BGP-LS for SR Policy Admin Flags            July 2026
+
+
+   [I-D. lin-idr-sr-policy-admin-flags] Lin, C., Li, J., and Chen, R.,
+             "BGP SR Policy Extensions for Administrative Flags",
+             draft-lin-idr-sr-policy-admin-flags (work in progress),
+             February 2025.
+
+   [I-D. ietf-spring-sr-policy-eligibility] Karboubi, A., Shah, H.,
+             Sivalaban, S., Stone, A. and Schmutz, C., "Eligibility
+             Concept in Segment Routing Policies", draft-ietf-spring-
+             sr-policy-eligibility-00 (work in progress), January 2026.
+
+   [I-D. draft-ietf-spring-srv6-policy-sid-list-opt] Z. Ali, C. Lin, Y.
+             Liu, R. Chen and C. Li, "SRv6 Policy SID List
+             Optimization", Work in Progress, Internet-Draft, draft-
+             ietf-spring-srv6-policy-sid-list-opt, 25 November
+             2025,<https://datatracker.ietf.org/doc/html/draft-ietf-
+             spring-srv6-policy-sid-list-opt-00>.
+
+   [I-D. draft-all-pce-srv6-policy-sid-list-optimization] Z. Ali, C.
+             Lin, Y. Liu, R. Chen and C. Li, "Path Computation Element
+             Communication Protocol (PCEP) extensions for SRv6 Policy
+             SID List Optimization", Work in Progress, Internet-Draft,
+             draft-all-pce-srv6-policy-sid-list-optimization, 02 March
+             2026, <https://datatracker.ietf.org/doc/html/draft-all-
+             pce-srv6-policy-sid-list-optimization-04>.
+
+   [RFC2119] Bradner, S., "Key words for use in RFCs to Indicate
+             Requirement Levels", BCP 14, RFC 2119, DOI
+             10.17487/RFC2119, March 1997, <https://www.rfc-
+             editor.org/info/rfc2119>.
+
+   [RFC8174] Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+             2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+             May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8402] Filsfils, C., Ed., Previdi, S., Ed., Ginsberg, L.,
+             Decraene, B., Litkowski, S., and R. Shakir, "Segment
+             Routing Architecture", RFC 8402, DOI 10.17487/RFC8402,
+             July 2018, <https://www.rfc-editor.org/info/rfc8402>.
+
+   [RFC9256] Filsfils, C., Talaulikar, K., Voyer, D., Bogdanov, A., and
+             P. Mattes, "Segment Routing Policy Architecture", RFC
+             9256, DOI 10.17487/RFC9256, July 2022, <https://www.rfc-
+             editor.org/info/rfc9256>.
+
+  8.2. Informative References
+
+   TBD
+
+
+Lin, et al.           Expires January 20, 2027                [Page 6]
+
+Internet-Draft    BGP-LS for SR Policy Admin Flags            July 2026
+
+
+  9. Acknowledgments
+
+   The authors would like to thank the following for their valuable
+   contributions of this document:
+
+   TBD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.           Expires January 20, 2027                [Page 7]
+
+Internet-Draft    BGP-LS for SR Policy Admin Flags            July 2026
+
+
+Appendix A. Cross WG Information
+
+   This section describes cross-working group information for use
+   during the IETF review process. This section will be removed by the
+   RFC editor prior to publication.
+
+A.1. Link to Spring WG
+
+   This document implements the features defined in Section 4 of [I-
+   D.ietf-spring-sr-policy-eligibility], Section 8.2 of [RFC9256], and
+   Section 3.2 of [I-D.draft-ietf-spring-srv6-policy-sid-list-opt] via
+   BGP-LS. These SPRING features require the implementation of this
+   document.
+
+A.2. Interaction with PCE WG
+
+   The BGP extension defined by this document also may be implemented
+   by a new TLV of PCEP according to Section 4.3 of [I-D. draft-
+   karboubi-spring-sidlist-optimized-cs-sr].
+
+   The optimization feature implemented in BGP by this document also
+   could be implemented in PCEP according to Section 3.1 of [I-D.
+   draft-ietf-spring-srv6-policy-sid-list-opt]. [I-D. draft-all-pce-
+   srv6-policy-sid-list-optimization] specifies a PCEP extension to
+   indicate whether the endpoint's node SID needs to be included or
+   excluded when installing the SRv6 Policy.
+
+A.3. Interaction with SRV6ops Recommendations
+
+   This optimization feature could be distributed to external
+   components using BGP-LS extension defined in this document.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.           Expires January 20, 2027                [Page 8]
+
+Internet-Draft    BGP-LS for SR Policy Admin Flags            July 2026
+
+
+Authors' Addresses
+
+   Changwang Lin (editor)
+   New H3C Technologies
+   China
+   Email: linchangwang.04414@h3c.com
+
+   Zafar Ali (editor)
+   Cisco Systems, Inc.
+   Email: zali@cisco.com
+
+   Yisong Liu
+   China Mobile
+   32 Xuanwumen West Street
+   Beijing
+   Xicheng District, 100053
+   China
+   Email: liuyisong@chinamobile.com
+
+   Ran Chen
+   ZTE Corporation
+
+   Email: chen.ran@zte.com.cn
+
+   Amal Karboubi
+   Ciena
+   Email: akarboub@ciena.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.           Expires January 20, 2027                [Page 9]
+

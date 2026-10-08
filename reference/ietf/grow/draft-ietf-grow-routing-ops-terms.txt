@@ -1,0 +1,952 @@
+
+
+
+
+Global Routing Operations                                      T. Fiebig
+Internet-Draft                                                       TUW
+Intended status: Informational                                W. Tremmel
+Expires: 5 April 2027                                             DE-CIX
+                                                          2 October 2026
+
+
+        Currently Used Terminology in Global Routing Operations
+                  draft-ietf-grow-routing-ops-terms-03
+
+Abstract
+
+   Operating the global routing ecosystem entails a diverse set of
+   interacting components, while operational practice evolved over time.
+   In that time, terms emerged, disappeared, and sometimes changed their
+   meaning.
+
+   To aid operators and implementers in reading contemporary drafts,
+   this document provides an overview of terms and abbreviations used in
+   the global routing operations community.  The document explicitly
+   does not serve as an authoritative source of correct terminology, but
+   instead strives to provide an overview of practice.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 5 April 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 1]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Providing input on the draft: . . . . . . . . . . . . . .   2
+     1.2.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  Scope of the Document . . . . . . . . . . . . . . . . . . . .   3
+   3.  Acronyms  . . . . . . . . . . . . . . . . . . . . . . . . . .   3
+   4.  Used Terminology by Topic . . . . . . . . . . . . . . . . . .   5
+     4.1.  General Terms . . . . . . . . . . . . . . . . . . . . . .   5
+     4.2.  Neighbor Relation Terms . . . . . . . . . . . . . . . . .   9
+     4.3.  Routing Terms . . . . . . . . . . . . . . . . . . . . . .  10
+     4.4.  Security Terms  . . . . . . . . . . . . . . . . . . . . .  13
+   5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  14
+   6.  Security Considerations . . . . . . . . . . . . . . . . . . .  14
+   7.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  14
+     7.1.  Normative References  . . . . . . . . . . . . . . . . . .  14
+     7.2.  Informative References  . . . . . . . . . . . . . . . . .  14
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  16
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  17
+
+1.  Introduction
+
+   The practical operation of the global routing ecosystem entails a
+   diverse set of interacting components, while operational practice
+   evolved over time.  In that time, terms emerged, disappeared, and
+   sometimes changed their meaning.
+
+   To aid operators and implementers in reading contemporary drafts,
+   this document provides an overview of terms and abbreviations used in
+   the global routing operations community.
+
+1.1.  Providing input on the draft:
+
+   While this draft is being edited, you may provide suggestions for
+   additional abbreviations and terms to be included at:
+
+   https://files.measurement.network/apps/forms/s/
+   CMXjrtCPD8QyG6CAWmSLmg4y
+
+
+
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 2]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+1.2.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  Scope of the Document
+
+   This document is explicitly descriptive, i.e., provides a collection
+   of terms that are currently being used along with the context and
+   definitions with which their use was observed.  It is not an
+   authoritative source of terminology, and only provides a snapshot of
+   how certain terms have been used at the time of publication.  As
+   such, any terms and summaries in this document are subject to change.
+
+3.  Acronyms
+
+   The following acronyms are commonly used in the context of global
+   routing operations:
+
+   ACL:
+      Access Control List
+
+   ASN:
+      Autonomous System Number
+
+   BGP:
+      Border Gateway Protocol
+
+   ASPA:
+      Autonomous System Provider Authorization
+
+   BFD:
+      Bidirectional Forwarding Detection
+
+   CE:
+      Customer Edge Router
+
+   DFZ:
+      Default Free Zone
+
+   EGP:
+      Exterior Gateway Protocol
+
+   EIGRP:
+      Enhanced Interior Gateway Routing Protocol
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 3]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   GRT:
+      Global Routing Table
+
+   ICMP:
+      Internet Control Message Protocol
+
+   IGP:
+      Interior Gateway Protocol
+
+   IRR:
+      Internet Routing Registry
+
+   IXP:
+      Internet Exchange Point
+
+   LIR:
+      Local Internet Registry
+
+   MED:
+      Multi Exit Discriminator
+
+   MPLS:
+      Multiprotocol Label Switching
+
+   NIR:
+      National Internet Registry
+
+   OSPF:
+      Open Shortest Path First
+
+   RIR:
+      Regional Internet Registry
+
+   NLRI:
+      Network Layer Reachability Information
+
+   OTC:
+      Only To Customer BGP Attribute
+
+   P:
+      Provider Router
+
+   PE:
+      Provider Edge Router
+
+   PMTUD:
+      Path MTU Discovery
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 4]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   uRPF:
+      Unicast Reverse Path Forwarding
+
+   VRF:
+      Virtual Routing and Forwarding
+
+   RPKI:
+      Resource Public Key Infrastructure
+
+   ROA:
+      Route Origin Authorization
+
+   ROV:
+      Route Origin Validation
+
+4.  Used Terminology by Topic
+
+   This section describes terms used in the context of global routing
+   operations, grouped by topic.  Terms may have a different meaning
+   depending on the context in which they are used.  Hence, terms may
+   appear in multiple subsections with different descriptions.
+
+4.1.  General Terms
+
+   This section describes general terms used in the context of global
+   routing operations, regardless of context.
+
+   Autonomous System:
+      A connected group of one or more IP prefixes run by one or more
+      network operators which has a SINGLE and CLEARLY DEFINED routing
+      policy.
+
+   Autonomous System Number:
+      A 32-bit number uniquely identifying an Autonomous System.
+
+   AS Confederation Identifier:
+      is according to [RFC5065] an externally visible autonomous system
+      number that identifies a BGP confederation as a whole.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 5]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   Bidirectional Forwarding Detection:
+      BFD is a protocol used by BGP to check if a configured neighbor is
+      reachable.  Packets are sent rapidly between two systems (rapidly
+      means in the 100ms time range).  If no packets are received from
+      the neighbor for a given time, the neighbor is considered to be no
+      longer reachable.  This lack of reachability is then signaled to
+      other protocols like BGP.  BFD is defined in [RFC5880].  Its
+      application for IPv4 and IPv6 is defined in [RFC5881].  [RFC5882]
+      is about the general application of BFD and [RFC5883] describes
+      BFD on multihop paths.
+
+   BGP:
+      Border Gateway Protocol, Version 4 [RFC4271].  BGP is the routing
+      protocol used for Internet (IPv4 and IPv6) routing.  It is also
+      used by many other applications.
+
+   BGP Path Attribute:
+      BGP update messages for prefixes contain not only the AS-Path but
+      also other attributes.  BGP Path Attributes fall into four
+      different categories: well-known mandatory, well-known
+      discretionary, optional transitive, optional non-transitive.
+
+   Well-known mandatory BGP Path Attribute:
+      A BGP Path Attribute that needs to be understood by all BGP
+      implementations and must be included in all BGP routes.
+
+   Well-known discretionary BGP Path Attribute:
+      A BGP Path Attribute that needs to be understood by all BGP
+      implementations but is not required to be included in BGP routes.
+
+   Optional transitive BGP Path Attribute:
+      Optional transitive BGP Path Attributes are conditionally carried
+      in BGP routes based on their defining feature.  Implementations
+      that do not understand an optional transitive Path Attribute are
+      expected to propagate the attribute to their neighbors.
+
+   Optional non-transitive BGP Path Attribute:
+      Optional non-transitive BGP Path Attributes are conditionally
+      carried in BGP routes based on their defining feature.
+      Implementations that do not understand an optional non-transitive
+      Path Attribute will discard them and they are not propagated to
+      their neighbors as a result.
+
+   Enhanced Interior Gateway Routing Protocol:
+      EIGRP is an IGP defined by Cisco in the 1980s to distribute
+      routing information within a network.  It was later openly
+      specified in [RFC7868].
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 6]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   Exterior Gateway Protocol:
+      EGP was a predecessor to BGP.  First defined in 1982 in [RFC827],
+      it became obsolete once BGP was widely used (around 1994).
+      Additionally, as a general term, it is used for protocols used to
+      exchange routing information between ASes.  In that meaning, BGP
+      is currently the only EGP.
+
+   Interior Gateway Protocol:
+      An IGP is a protocol running inside an Autonomous System.  It is
+      typically used to distribute the IP addresses of router
+      interfaces.
+
+   IS-IS:
+      The Intermediate System to Intermediate System protocol is an IGP
+      running directly on top of layer 2.  It is typically used to
+      distribute interface addresses within a network.  IS-IS was
+      originally defined by OSI in ISO DP 10589.  It was later published
+      in the IETF in [RFC1195].
+
+   Local Internet Registry:
+      An LIR is an organization/company which receives IP address
+      resources or Autonomous System Numbers as an allocation from a
+      Regional Internet Registry and assigns these resources to end
+      users.
+
+   Open Shortest Path First:
+      OSPF is a link state routing protocol.  It is used as an IGP.  It
+      was first specified in [RFC2328].
+
+   Regional Internet Registry:
+      An RIR is an entity responsible for allocating IP addresses and AS
+      numbers to NIRs and LIRs.  There are currently five RIRs: Afrinic,
+      APNIC, ARIN, LACNIC, and RIPE NCC.  Each is responsible for a
+      different region.
+
+   Routing Information Protocol:
+      RIP is an old and by now obsolete protocol which was used to
+      distribute routing information.  RIP is no longer in use.  It was
+      originally defined in [RFC1058].
+
+   RIPE:
+      RIPE is shorthand for Réseaux IP Européens, which is the community
+      of network operators in the RIPE NCC's service region.  See also
+      RIPE NCC.
+
+
+
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 7]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   RIPE NCC:
+      The RIPE NCC, sometimes also just called the NCC, is the RIR for
+      75 countries spanning Europe, parts of central Asia, and the
+      Middle East.
+
+   Operator:
+      Individual, group of people, or organizational unit responsible
+      for operating BGP speakers, i.e., making administrative changes,
+      as well as defining and setting policies for all BGP speakers
+      within an organization.
+
+   Router:
+      In this document, router always refers to a BGP speaker.
+
+   Customer Edge (CE) Router:
+      Router at the customer's premises, may be connected to PE routers.
+
+   Cone:
+      The set of ASes who are either direct downstreams of an AS, or in
+      the cone of any of those ASes.  Depending on the context this also
+      includes the joint set of prefixes that may be originated by ASes
+      in a cone.
+
+   Global Routing Table:
+      The set of all routes for an address family that have been
+      received from external BGP Neighbors.
+
+   Route Selection:
+      The process when a BGP speaker applies the locally configured
+      policy to select the best route from multiple available options
+      according to that policy.  See "Decision Process" in [RFC4271].
+
+   Network Layer Reachability Information:
+      General description for network destinations.  Often called
+      "prefixes".
+
+   Default Free Zone:
+      Part of the Internet where routers do not carry default routes.
+
+   Round Trip Time:
+      The Round Trip Time between two hosts is the time measured
+      (typically in seconds or milliseconds) that it takes from sending
+      out a packet until receiving a reply.
+
+   TCP:
+      The Transmission Control Protocol is part of the TCP/IP protocol
+      stack.  It is a connection oriented protocol taking care that
+      everything which is sent is also received.
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 8]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   TCP-AO:
+      The Transmission Control Protocol Authentication Option [RFC5925]
+      is used to provide authentication and integrity for BGP.
+
+   TCP-MD5:
+      MD5 is a hashing algorithm, used to generate a checksum over given
+      data.  In the context of BGP, it typically refers to the obsolete
+      TCP-MD5 feature [RFC2385].  It has been replaced by TCP-AO.
+
+   Time To Live:
+      The TTL is a counter in the IPv4 header which is decreased every
+      time a packet is forwarded by a router.  If this counter hits
+      zero, the packet is discarded and an ICMP Time Exceeded message is
+      sent back to the originator of the packet.  It was replaced by the
+      Hop Limit field in IPv6.
+
+4.2.  Neighbor Relation Terms
+
+   This section lists terms used to describe relationships between
+   different ASes.
+
+   AS Confederation:
+      According to [RFC5065] a collection of autonomous systems
+      represented and advertised as a single AS number to BGP speakers
+      that are not members of the local BGP confederation.
+
+   ICMP:
+      Internet Control Message Protocol - this protocol is used to
+      signal errors when forwarding packets.
+
+   Cone:
+      The set of ASes who are either direct downstreams of an AS, or in
+      the cone of any of those ASes.  Depending on the context this also
+      includes the joint set of prefixes that may be originated by ASes
+      in a cone.
+
+   Network edge:
+      Last routers under the control of an operator connected to routers
+      of other networks.
+
+   Mutual Transit:
+      When two directly connected ASes both advertise a full BGP table
+      to each other.  (See: [I-D.ietf-sidrops-aspa-verification])
+
+
+
+
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                  [Page 9]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   Upstream Provider / Transit Provider:
+      In a direct relationship between two ASes the one announcing
+      either the full BGP routing table to the other or allowing the
+      other to point a default route to itself.  (See: [RFC9234], also
+      known as the provider in a customer-provider relationship.)
+
+   Downstream Customer:
+      In a direct relationship between two ASes the one receiving a full
+      BGP table from the other or pointing a default route to the other.
+      (See: [RFC9234], also known as the customer in a customer-provider
+      relationship.)
+
+   Peer:
+      Two directly connected ASes who only advertise routes they
+      originate or learned from their downstreams to each other.  (See:
+      [RFC9234])
+
+   Providing Transit:
+      Forwarding packets destined for addresses in an advertised prefix,
+      while advertising a full BGP table or default route to the
+      neighbor.
+
+   Providing Upstream:
+      See: Providing Transit
+
+   Provider (P) Router:
+      A router within the core of a provider's network, usually implying
+      the use of MPLS within the provider's network.  Connected to other
+      P and PE routers.
+
+   Provider Edge (PE) Router:
+      Like Network Edge, usually implying the use of MPLS within the
+      provider's network.  Connected to other PE, P, and CE routers.
+
+   Depeering:
+      Removing sessions with a neighboring AS.
+
+   Neighbor:
+      An AS to which an established BGP session exists.
+
+4.3.  Routing Terms
+
+   This section describes terms specific to technical aspects of
+   routing.
+
+   BGP Speaker:
+      A device exchanging routes with other BGP speakers using the BGP
+      protocol.
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                 [Page 10]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   Full Table:
+      A routing table containing a route to all prefixes in the GRT but
+      not the default route.
+
+   Exporting a Prefix:
+      Advertising a prefix to a neighbor.
+
+   Importing a Prefix:
+      Accepting a prefix advertised by a neighbor and considering it for
+      route selection and import into the local AS' routing table.
+
+   Network edge:
+      Last routers under the control of an operator.
+
+   Originating a Prefix:
+      Announcing a prefix with only your AS in the AS-Path.
+
+   Propagating a Prefix:
+      Advertising a prefix you have received from another AS and adding
+      your AS to the AS_PATH before announcing the prefix to further
+      neighboring ASes.
+
+   BGP Neighbor:
+      Also just 'Neighbor'.  Two BGP speakers that exchange NLRI using
+      the BGP protocol are neighbors.
+
+   Peer:
+      A BGP neighbor, if not used to describe the peering relationship.
+
+   Prepending:
+      Adding one or more instances of an AS number to the left-hand side
+      of the AS_PATH, typically to influence route selection.
+
+   Traffic Engineering:
+      Making changes to properties of imported and exported NLRI to
+      influence route selection, and thereby the flow of traffic.
+
+   Converging:
+      Used to describe the process of a BGP speaker learning and
+      evaluating all routes from its neighbors, and finding the
+      preferred route for each destination.  Reconverging is often also
+      used to describe an ongoing selection process reevaluating all
+      routes sent by neighbors, e.g., after a loss of connectivity to
+      one or multiple neighbors.
+
+
+
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                 [Page 11]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   Route Reflector:
+      A Route Reflector is an iBGP speaker which sends all prefixes it
+      receives out to its Route Reflector Clients.  It is a central
+      component for network designs that do not use a full mesh for iBGP
+      speakers.
+
+   Route Reflector Client:
+      A Route Reflector CLient is an iBGP speaking node with usually
+      only one iBGP connection to a Route Reflector.
+
+   Default Route:
+      The default route is a route which covers every destination for
+      which there is no specific route in the routing table.  The
+      destination of the default-route is often called the default
+      destination or the gateway of last resort.
+
+   Blackholing:
+      As a general term, blackholing refers to packets silently being
+      dropped, i.e., without the sender being notified via an ICMP or
+      ICMP6 message.  For the additional meaning in the context of
+      network security, please see below.
+
+   Multi Exit Discriminator:
+      MED is a metric in BGP which is used to signal neighboring ASes
+      with multiple entry points to the network which inbound traffic
+      path for a prefix is preferred.
+
+   Local Preference:
+      The local preference is the first evaluated BGP Attribute in the
+      best path selection process when comparing multiple NLRI for the
+      same prefix.  It is an integer value, and NLRI with a higher local
+      preference will be preferred.  It is redistributed via iBGP inside
+      an Autonomous System}
+
+   MPLS:
+      Multiprotocol Label Switching is a procedure to make routing
+      decisions faster.  When a packet enters a network it will get a
+      label attached signaling which route it should take to its
+      destination and which priority it has.
+
+   L2VPN:
+      A Layer 2 Virtual Private Network connects two physically distant
+      networks in a way that makes them appear to be one.  Packets
+      between hosts in those 2 connected networks can communicate as if
+      on the same layer 2 network via switching.
+
+
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                 [Page 12]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   Router:
+      Generally a term for a system forwarding network traffic on Layer
+      3.  In the context of BGP, this usually refers to a BGP speaker.
+
+4.4.  Security Terms
+
+   This section describes terms used in the context of routing security.
+
+   Route Flapping:
+      A route that is constantly announced and withdrawn or otherwise
+      sees constant change.
+
+   BGP Hijack / Route Hijack:
+      A route hijack occurs when an AS announces a route that it is not
+      authorized to announce, causing traffic to be diverted from its
+      intended route or destination.  A route hijack may result from
+      either accidental misconfiguration or malicious action.
+
+   Route Leak:
+      The propagation of one or more routing announcements beyond their
+      intended scope, in violation of intended routing policies.  Route
+      leaks may be accidental or malicious.  (See [RFC7908].)
+
+   Update Storm:
+      A continuous high volume stream of BGP Updates sent to one or
+      multiple neighbors.
+
+   Cascading Update Storm:
+      When an update storm traverses beyond directly connected
+      neighbors.
+
+   Blackholing:
+      Announcing prefixes grouped by a specific community to inform all
+      neighbors observing the announcement that traffic to the
+      destination should be dropped.
+
+   ROA:
+      Route Origin Authorization - a cryptographically signed object in
+      the RPKI through which an IP address block holder authorizes an
+      Autonomous System to originate routes to one or more prefixes.  A
+      prefix entry may optionally specify a maximum prefix length.  (See
+      [RFC9582].)
+
+   RPKI:
+      Resource Public Key Infrastructure represents the allocation
+      hierarchy of IP address space and Autonomous System numbers and
+      supports cryptographically verifiable statements about Internet
+      number resources and their use.  (See [RFC6480].)
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                 [Page 13]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   RPKI validator:
+      An RPKI validator is a piece of software that fetches RPKI
+      certificates and ROAs from RPKI publication points, checks the
+      signatures of the certificates and ROAs.
+
+   RPKI-RTR Protocol:
+      The RPKI to Router Protocol is used to communicate a validator's
+      view on the RPKI to routers, providing and maintaining a list of
+      certified prefixes and their allowed originating AS numbers.  RTR
+      may be an independent daemon, or can also be integrated in an RPKI
+      validator.
+
+   DDOS:
+      A distributed denial of service (DDOS) attack is an attack against
+      a system via the Internet.  The attacker uses multiple (sometimes
+      millions of) network sources to send more traffic towards the
+      attacked system than it can handle.  Collateral damage is quite
+      often the network infrastructure to which the attacked system is
+      connected to.
+
+5.  IANA Considerations
+
+   This document does not require any IANA actions.
+
+6.  Security Considerations
+
+   This document describes currently used terminology and does not make
+   recommendations.  As such, it does not have security considerations.
+
+7.  References
+
+7.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+7.2.  Informative References
+
+   [RFC827]   Rosen, E., "Exterior Gateway Protocol (EGP)", RFC 827,
+              DOI 10.17487/RFC827, October 1982,
+              <https://www.rfc-editor.org/info/rfc827>.
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                 [Page 14]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   [RFC1058]  Hedrick, C., "Routing Information Protocol", RFC 1058,
+              DOI 10.17487/RFC1058, June 1988,
+              <https://www.rfc-editor.org/info/rfc1058>.
+
+   [RFC1195]  Callon, R., "Use of OSI IS-IS for routing in TCP/IP and
+              dual environments", RFC 1195, DOI 10.17487/RFC1195,
+              December 1990, <https://www.rfc-editor.org/info/rfc1195>.
+
+   [RFC2328]  Moy, J., "OSPF Version 2", STD 54, RFC 2328,
+              DOI 10.17487/RFC2328, April 1998,
+              <https://www.rfc-editor.org/info/rfc2328>.
+
+   [RFC2385]  Heffernan, A., "Protection of BGP Sessions via the TCP MD5
+              Signature Option", RFC 2385, DOI 10.17487/RFC2385, August
+              1998, <https://www.rfc-editor.org/info/rfc2385>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC5065]  Traina, P., McPherson, D., and J. Scudder, "Autonomous
+              System Confederations for BGP", RFC 5065,
+              DOI 10.17487/RFC5065, August 2007,
+              <https://www.rfc-editor.org/info/rfc5065>.
+
+   [RFC5880]  Katz, D. and D. Ward, "Bidirectional Forwarding Detection
+              (BFD)", RFC 5880, DOI 10.17487/RFC5880, June 2010,
+              <https://www.rfc-editor.org/info/rfc5880>.
+
+   [RFC5881]  Katz, D. and D. Ward, "Bidirectional Forwarding Detection
+              (BFD) for IPv4 and IPv6 (Single Hop)", RFC 5881,
+              DOI 10.17487/RFC5881, June 2010,
+              <https://www.rfc-editor.org/info/rfc5881>.
+
+   [RFC5882]  Katz, D. and D. Ward, "Generic Application of
+              Bidirectional Forwarding Detection (BFD)", RFC 5882,
+              DOI 10.17487/RFC5882, June 2010,
+              <https://www.rfc-editor.org/info/rfc5882>.
+
+   [RFC5883]  Katz, D. and D. Ward, "Bidirectional Forwarding Detection
+              (BFD) for Multihop Paths", RFC 5883, DOI 10.17487/RFC5883,
+              June 2010, <https://www.rfc-editor.org/info/rfc5883>.
+
+   [RFC5925]  Touch, J., Mankin, A., and R. Bonica, "The TCP
+              Authentication Option", RFC 5925, DOI 10.17487/RFC5925,
+              June 2010, <https://www.rfc-editor.org/info/rfc5925>.
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                 [Page 15]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   [RFC6480]  Lepinski, M. and S. Kent, "An Infrastructure to Support
+              Secure Internet Routing", RFC 6480, DOI 10.17487/RFC6480,
+              February 2012, <https://www.rfc-editor.org/info/rfc6480>.
+
+   [RFC7454]  Durand, J., Pepelnjak, I., and G. Doering, "BGP Operations
+              and Security", BCP 194, RFC 7454, DOI 10.17487/RFC7454,
+              February 2015, <https://www.rfc-editor.org/info/rfc7454>.
+
+   [RFC7868]  Savage, D., Ng, J., Moore, S., Slice, D., Paluch, P., and
+              R. White, "Cisco's Enhanced Interior Gateway Routing
+              Protocol (EIGRP)", RFC 7868, DOI 10.17487/RFC7868, May
+              2016, <https://www.rfc-editor.org/info/rfc7868>.
+
+   [RFC7908]  Sriram, K., Montgomery, D., McPherson, D., Osterweil, E.,
+              and B. Dickson, "Problem Definition and Classification of
+              BGP Route Leaks", RFC 7908, DOI 10.17487/RFC7908, June
+              2016, <https://www.rfc-editor.org/info/rfc7908>.
+
+   [RFC9234]  Azimov, A., Bogomazov, E., Bush, R., Patel, K., and K.
+              Sriram, "Route Leak Prevention and Detection Using Roles
+              in UPDATE and OPEN Messages", RFC 9234,
+              DOI 10.17487/RFC9234, May 2022,
+              <https://www.rfc-editor.org/info/rfc9234>.
+
+   [RFC9582]  Snijders, J., Maddison, B., Lepinski, M., Kong, D., and S.
+              Kent, "A Profile for Route Origin Authorizations (ROAs)",
+              RFC 9582, DOI 10.17487/RFC9582, May 2024,
+              <https://www.rfc-editor.org/info/rfc9582>.
+
+   [I-D.ietf-sidrops-aspa-verification]
+              Azimov, A., Bogomazov, E., Bush, R., Patel, K., Snijders,
+              J., and K. Sriram, "BGP AS_PATH Verification Based on
+              Autonomous System Provider Authorization (ASPA) Objects",
+              Work in Progress, Internet-Draft, draft-ietf-sidrops-aspa-
+              verification-23, 23 September 2025,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-
+              aspa-verification-17>.
+
+Acknowledgements
+
+   This document is based on [RFC7454] and we thank the original authors
+   for their work.
+
+   We thank the following people for reviewing this draft and suggesting
+   changes:
+
+   *  Gert Doerring
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                 [Page 16]
+
+Internet-Draft                  BGP TERMS                   October 2026
+
+
+   *  Jeff Haas
+
+   *  Nick Hilliard
+
+   *  Geng Nan
+
+   *  Martin Pels
+
+   *  Job Snijders
+
+   *  Berislav Todorovic
+
+   *  Maximilian Wilhelm
+
+   *  Emile Aben
+
+   *  Doris Hauser
+
+Authors' Addresses
+
+   Tobias Fiebig
+   TU Wien
+   Treitlstr. 3
+   1040 Wien
+   Austria
+   Phone: +43 676 930 22 52
+   Email: tobias.fiebig@tuwien.ac.at
+
+
+   Wolfgang Tremmel
+   DE-CIX Management GmbH
+   Lindleystr. 12
+   60314 Frankfurt
+   Germany
+   Phone: +49 69 1730 902 0
+   Email: wolfgang.tremmel@de-cix.net
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Fiebig & Tremmel          Expires 5 April 2027                 [Page 17]

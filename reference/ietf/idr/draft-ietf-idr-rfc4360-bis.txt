@@ -1,0 +1,1064 @@
+
+
+
+
+IDR Working Group                                              S. Sangli
+Internet-Draft                                                       HPE
+Obsoletes: 4360 (if approved)                                N. Kao, Ed.
+Updates: 5701 (if approved)                       Individual Contributor
+Intended status: Standards Track                            13 July 2026
+Expires: 14 January 2027
+
+
+                   BGP Extended Communities Attribute
+                     draft-ietf-idr-rfc4360-bis-09
+
+Abstract
+
+   This document describes the "Extended Communities" BGP-4 attribute.
+   This attribute provides a mechanism for labeling information carried
+   in BGP-4.  These labels can be used to control the distribution of
+   this information, or for other applications.
+
+   This document obsoletes RFC 4360.
+
+   This document also updates RFC 5701 by adding an "Operational
+   Considerations" section.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 14 January 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 1]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+   This document may contain material from IETF Documents or IETF
+   Contributions published or made publicly available before November
+   10, 2008.  The person(s) controlling the copyright in some of this
+   material may not have granted the IETF Trust the right to allow
+   modifications of such material outside the IETF Standards Process.
+   Without obtaining an adequate license from the person(s) controlling
+   the copyright in such materials, this document may not be modified
+   outside the IETF Standards Process, and derivative works of it may
+   not be created outside the IETF Standards Process, except to format
+   it for publication as an RFC or to translate it into languages other
+   than English.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  BGP Extended Communities Attribute  . . . . . . . . . . . . .   4
+     2.1.  BGP Extended Communities Attribute Encoding . . . . . . .   4
+   3.  Defined BGP Extended Community Types  . . . . . . . . . . . .   5
+     3.1.  Two-Octet AS-Specific Extended Community  . . . . . . . .   5
+     3.2.  IPv4-Address-Specific Extended Community  . . . . . . . .   6
+     3.3.  Opaque Extended Community . . . . . . . . . . . . . . . .   7
+     3.4.  Notes about the AS-Specific Extended Community for 4-Octet
+           ASes  . . . . . . . . . . . . . . . . . . . . . . . . . .   7
+   4.  Route Target Community  . . . . . . . . . . . . . . . . . . .   7
+   5.  Route Origin Community  . . . . . . . . . . . . . . . . . . .   8
+   6.  Operational Considerations  . . . . . . . . . . . . . . . . .   8
+   7.  Error Handling  . . . . . . . . . . . . . . . . . . . . . . .  10
+   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  10
+   9.  Security Considerations . . . . . . . . . . . . . . . . . . .  13
+   10. Contributors  . . . . . . . . . . . . . . . . . . . . . . . .  15
+   11. Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  15
+   12. References  . . . . . . . . . . . . . . . . . . . . . . . . .  15
+     12.1.  Normative References . . . . . . . . . . . . . . . . . .  15
+     12.2.  Informative References . . . . . . . . . . . . . . . . .  16
+   Appendix A.  Comparison with RFC4360  . . . . . . . . . . . . . .  18
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  19
+
+
+
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 2]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+1.  Introduction
+
+   The BGP Extended Communities attribute provides a mechanism for
+   labeling information carried in BGP-4 [BGP-4].  It provides two
+   important enhancements over the existing BGP Communities attribute
+   [RFC1997]:
+
+   *  An extended range, ensuring that communities can be assigned for a
+      plethora of uses, without fear of overlap.
+
+   *  The addition of a Type Field provides structure for the community
+      space.
+
+   The addition of structure allows the usage of policy-based on the
+   application for which the community value will be used.  For example,
+   one can filter out all communities of a particular type, or allow
+   only certain values for a particular type of community.  It also
+   allows one to specify whether a particular community is transitive or
+   non-transitive across an Autonomous System (AS) boundary.  Without
+   structure, this can only be accomplished by explicitly enumerating
+   all community values that will be denied or allowed and passed to BGP
+   speakers in neighboring ASes based on the transitive property.
+
+   This document obsoletes [RFC4360].
+
+
+   The encodings described in this document do not support IPv6-Address-
+   Specific use-cases.  For such use-cases, one may consider using IPv6-
+   Address-Specific BGP Extended Communities [RFC5701].  This document
+   also attaches Section 6 to [RFC5701].
+
+   The two-octet AS-specific Extended Community Section 3.1 defined in
+   this document does not support non-mappable four-octet AS Numbers
+   [RFC6793].  The use of four-octet AS-specific Extended Communities
+   [RFC5668] should be considered where support for four-octet AS
+   Numbers is desired.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 3]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+2.  BGP Extended Communities Attribute
+
+   The Extended Communities attribute is a transitive optional BGP
+   attribute, with the Type Code 16.  The attribute consists of a set of
+   "extended communities".  All routes with the Extended Communities
+   attribute belong to the communities listed in the attribute.
+
+2.1.  BGP Extended Communities Attribute Encoding
+
+   Each Extended Community is encoded as an 8-octet quantity inside
+   the BGP Extended Communities attribute, as follows:
+      - Type Field  : 1 or 2 octets
+      - Value Field : Remaining octets
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |  Type high    |  Type low(*)  |                               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+          Value                |
+      |                                                               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+      (*) Present for Extended Types only, used for the Value field
+          otherwise.
+
+      Type Field:
+         Two classes of Type Field are introduced: Regular Type and
+         Extended Type.
+
+         The size of the Type Field for Regular Types is 1 octet, and
+         the size of the Type Field for Extended Types is 2 octets.
+
+         The value of the high-order octet of the Type Field determines
+         if an extended community is a Regular Type or an Extended Type.
+         The class of a type (Regular or Extended) is not encoded in the
+         structure of the type itself.  The class of a type is specified
+         in the document that defines the type, the IANA BGP Transitive
+         Extended Community Types registry [IANA-BGP-EC-TRANS], and the
+         IANA BGP Non-Transitive Extended Community Types registry
+         [IANA-BGP-EC-NONTRANS].
+
+         The high-order octet of the Type Field is as shown below:
+             0 1 2 3 4 5 6 7
+            +-+-+-+-+-+-+-+-+
+            |I|T|           |
+            +-+-+-+-+-+-+-+-+
+
+            I - IANA authority bit
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 4]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+               Value 0:  IANA-assignable type using the "First Come
+                  First Served" policy
+
+               Value 1:  This Type Field space is for IANA assignable
+                  types per the allocation policies defined in
+                  [RFC7153].
+
+            T - Transitive bit
+               Value 0:  The community is transitive across ASes
+
+               Value 1:  The community is non-transitive across ASes
+
+            Remaining 6 bits:
+               Together with the I and T bits, indicate the Type of the
+               extended community.
+
+      Value Field:
+         The encoding of the Value Field is dependent on the "type" of
+         the community as specified by the Type Field.
+
+   Two extended communities are declared equal only when all 8 octets of
+   the community are equal.
+
+   The two members in the tuple <Type, Value> should be enumerated to
+   specify any community value.  The remaining octets of the community
+   are interpreted based on the value of the Type Field.
+
+3.  Defined BGP Extended Community Types
+
+   This section introduces a few extended types and defines the format
+   of the Value Field for those types.  The types introduced here
+   provide "templates", where each template is identified by the high-
+   order octet of the extended community Type Field, and the low-order
+   octet (sub-type) is used to indicate a particular type of extended
+   community.
+
+3.1.  Two-Octet AS-Specific Extended Community
+
+   This is an extended type with Type Field composed of 2 octets and
+   Value Field composed of 6 octets.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | 0x00 or 0x40  |   Sub-Type    |    Global Administrator       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                     Local Administrator                       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 5]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   The value of the high-order octet of this extended type is either
+   0x00 or 0x40.  The low-order octet of this extended type is used to
+   indicate sub-types.
+
+   The Value Field consists of two sub-fields:
+      Global Administrator sub-field: 2 octets
+         This sub-field SHOULD be set to the Autonomous System number of
+         the router that attaches the extended community, unless:
+
+         *  For a non-mappable four-octet Autonomous System number
+            [RFC6793], AS_TRANS [RFC6793] SHOULD be used in this sub-
+            field.
+
+         *  Should the operational requirements arise, it MAY contain an
+            arbitrary value chosen by the operator, provided it is
+            allowed by the specific extended community.
+
+      Local Administrator sub-field: 4 octets
+         The organization identified by Autonomous System number in the
+         Global Administrator sub-field can encode any information in
+         this sub-field.  The format and meaning of the value encoded in
+         this sub-field should be defined by the sub-type of the
+         community.
+
+3.2.  IPv4-Address-Specific Extended Community
+
+   This is an extended type with Type Field composed of 2 octets and
+   Value Field composed of 6 octets.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | 0x01 or 0x41  |   Sub-Type    |    Global Administrator       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | Global Administrator (cont.)  |    Local Administrator        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   The value of the high-order octet of this extended type is either
+   0x01 or 0x41.  The low-order octet of this extended type is used to
+   indicate sub-types.
+
+   The Value field consists of two sub-fields:
+      Global Administrator sub-field: 4 octets
+         This sub-field contains an IPv4 unicast address assigned by one
+         of the Internet registries.
+
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 6]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+      Local Administrator sub-field: 2 octets
+         The organization that has been assigned the IPv4 address in the
+         Global Administrator sub-field can encode any information in
+         this sub-field.  The format and meaning of the value encoded in
+         this sub-field should be defined by the sub-type of the
+         community.
+
+3.3.  Opaque Extended Community
+
+   This is an extended type with Type Field composed of 2 octets and
+   Value Field composed of 6 octets.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | 0x03 or 0x43  |   Sub-Type    |                Value          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Value (cont.)                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   The value of the high-order octet of this extended type is either
+   0x03 or 0x43.  The low-order octet of this extended type is used to
+   indicate sub-types.
+
+   This is a generic community of extended type.  The value of the sub-
+   type that should define the Value Field is to be assigned by IANA.
+
+3.4.  Notes about the AS-Specific Extended Community for 4-Octet ASes
+
+   A 4-Octet AS-Specific type of extended community is defined in
+   [RFC5668] and otherwise not covered in this document.
+
+4.  Route Target Community
+
+   The Route Target Community identifies one or more routers that may
+   receive a set of routes (that carry this community) carried by BGP.
+   This is transitive across the Autonomous System boundary.
+
+   The Route Target Community is of an extended type.
+
+   The value of the high-order octet of the Type Field for the Route
+   Target Community can be 0x00 (as defined in Section 3.1), 0x01 (as
+   defined in Section 3.2), or 0x02 (as defined in [RFC5668]).  The
+   value of the low-order octet of the Type Field for this community is
+   0x02.
+
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 7]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   When the value of the high-order octet of the Type Field is 0x00 or
+   0x02, the Local Administrator sub-field contains a number from a
+   numbering space that is administered by the organization to which the
+   Autonomous System number carried in the Global Administrator sub-
+   field has been assigned by an appropriate authority.
+
+   When the value of the high-order octet of the Type Field is 0x01, the
+   Local Administrator sub-field contains a number from a numbering
+   space that is administered by the organization to which the IPv4
+   address carried in the Global Administrator sub-field has been
+   assigned by an appropriate authority.
+
+   One possible use of the Route Target Community is specified in
+   [RFC4364].
+
+5.  Route Origin Community
+
+   The Route Origin Community identifies one or more routers that inject
+   a set of routes (that carry this community) into BGP.  This is
+   transitive across the Autonomous System boundary.
+
+   The Route Origin Community is of an extended type.
+
+   The value of the high-order octet of the Type Field for the Route
+   Origin Community can be 0x00 (as defined in Section 3.1), 0x01 (as
+   defined in Section 3.2), or 0x02 (as defined in [RFC5668]).  The
+   value of the low-order octet of the Type Field for this community is
+   0x03.
+
+   When the value of the high-order octet of the Type Field is 0x00 or
+   0x02, the Local Administrator sub-field contains a number from a
+   numbering space that is administered by the organization to which the
+   Autonomous System number carried in the Global Administrator sub-
+   field has been assigned by an appropriate authority.
+
+   When the value of the high-order octet of the Type Field is 0x01, the
+   Local Administrator sub-field contains a number from a numbering
+   space that is administered by the organization to which the IPv4
+   address carried in the Global Administrator sub-field has been
+   assigned by an appropriate authority.
+
+   One possible use of the Route Origin Community is specified in
+   [RFC4364].
+
+6.  Operational Considerations
+
+   This section is also attached to [RFC5701].
+
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 8]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   Since the encodings of the extended communities are unchanged, this
+   document poses no backward compatibility issues with [RFC4360].
+
+   A BGP speaker may use the Extended Communities attribute to control
+   which routing information it accepts or distributes to its peers.
+
+   The Extended Communities attribute MUST NOT be used to modify the BGP
+   best path selection algorithm in a way that leads to forwarding
+   loops.
+
+   A BGP speaker receiving a route that doesn't have the Extended
+   Communities attribute MAY append this attribute to the route when
+   propagating it to its peers.
+
+   A BGP speaker receiving a route with the Extended Communities
+   attribute MAY modify this attribute according to the local policy.
+
+   By default, if a range of routes is to be aggregated and the
+   resultant aggregate's path attributes do not carry the
+   ATOMIC_AGGREGATE attribute, then the resulting aggregate MAY have an
+   Extended Communities path attribute that contains the set union of
+   all the Extended Communities from all of the aggregated routes.  The
+   default behavior could be overridden via local configuration, in
+   which case handling the Extended Communities attribute in the
+   presence of route aggregation becomes a matter of the local policy of
+   the BGP speaker that performs the aggregation.
+
+   A route may carry both the BGP Communities attribute, as defined in
+   [RFC1997], and the BGP Extended Communities attribute.  In this case,
+   the BGP Communities attribute is handled as specified in [RFC1997],
+   and the BGP Extended Communities attribute is handled as specified in
+   this document.
+
+   Non-transitive extended communities MUST NOT be sent (originated or
+   propagated) across an Autonomous System boundary unless explicitly
+   configured to do so.  Non-transitive extended communities SHOULD NOT
+   be removed when advertising the route within the same BGP AS
+   Confederation (as defined in [RFC5065]).
+
+   By default, when a BGP speaker receives routes with non-transitive
+   extended communities across Autonomous System or Confederation
+   Member-AS boundaries, it SHOULD NOT remove these extended
+   communities.  The behavior MAY be configurable.  The BGP speaker
+   SHOULD also allow local policies to perform operations on these
+   extended communities, such as matching, deleting, and modifying.
+
+   For example, consider a router R1 with the following BGP sessions:
+
+
+
+
+Sangli & Kao             Expires 14 January 2027                [Page 9]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   *  eBGP session S1 connects to a neighbor outside the AS
+      Confederation.
+
+   *  eBGP session S2 connects to a neighbor within the same AS
+      Confederation.
+
+   *  iBGP session S3 connects to an iBGP neighbor.
+
+   For a route P1 with a non-transitive extended community N1 attached,
+   the default behavior is:
+
+   *  R1 should not remove N1 from P1 on receipt by default.
+
+   *  R1 must not originate or propagate P1 with N1 attached over
+      session S1 without explicit configuration.
+
+   *  R1 should not remove N1 when advertising P1 over sessions S2 and
+      S3 without explicit configuration.
+
+7.  Error Handling
+
+   [RFC7606], Section 7.14, defines the error handling procedure for the
+   Extended Communities attribute.
+
+8.  IANA Considerations
+
+   This document obsoletes [RFC4360], but it does not change the IANA
+   Considerations of [RFC7153] that updated [RFC4360] and created the
+   "Border Gateway Protocol (BGP) Extended Communities" [IANA-BGP-EC]
+   registry group along with the registries therein corresponding to the
+   specifications in this document.  Therefore, IANA should continue to
+   manage those registries as per [RFC7153].
+
+   However, IANA is requested to replace all references to [RFC4360]
+   with this document in the "BGP Path Attributes"
+   [IANA-BGP-PATH-ATTRIBUTES] registry, the "BGP Extended Communities"
+   [IANA-BGP-EC] registry group, and the "IPFIX Entities" [IANA-IPFIX]
+   registry group.
+
+   IANA is requested to list this document as an additional reference
+   for the following entries in the "BGP Transitive Extended Community
+   Types" registry [IANA-BGP-EC-TRANS]:
+
+
+
+
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 10]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+     +=======+===========================================+===========+
+     | TYPE  | NAME                                      | REFERENCE |
+     | VALUE |                                           |           |
+     +=======+===========================================+===========+
+     | 0x00  | Transitive Two-Octet AS-Specific Extended | [RFC7153] |
+     |       | Community (Sub-Types are defined in the   | [this     |
+     |       | "Transitive Two-Octet AS-Specific         | document] |
+     |       | Extended Community Sub-Types" registry    |           |
+     |       | [IANA-BGP-EC-TRANS-TWO-OCTET-AS])         |           |
+     +-------+-------------------------------------------+-----------+
+     | 0x01  | Transitive IPv4-Address-Specific Extended | [RFC7153] |
+     |       | Community (Sub-Types are defined in the   | [this     |
+     |       | "Transitive IPv4-Address-Specific         | document] |
+     |       | Extended Community Sub-Types" registry    |           |
+     |       | [IANA-BGP-EC-TRANS-IPV4])                 |           |
+     +-------+-------------------------------------------+-----------+
+     | 0x03  | Transitive Opaque Extended Community      | [RFC7153] |
+     |       | (Sub-Types are defined in the "Transitive | [this     |
+     |       | Opaque Extended Community Sub-Types"      | document] |
+     |       | registry [IANA-BGP-EC-TRANS-OPAQUE])      |           |
+     +-------+-------------------------------------------+-----------+
+
+              Table 1: BGP Transitive Extended Community Types
+
+   IANA is requested to list this document as an additional reference
+   for the following entries in the "BGP Non-Transitive Extended
+   Community Types" registry [IANA-BGP-EC-NONTRANS] :
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 11]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   +=======+==============================================+===========+
+   | TYPE  | NAME                                         | REFERENCE |
+   | VALUE |                                              |           |
+   +=======+==============================================+===========+
+   | 0x40  | Non-Transitive Two-Octet AS-Specific         | [RFC7153] |
+   |       | Extended Community (Sub-Types are defined in | [this     |
+   |       | the "Non-Transitive Two-Octet AS-Specific    | document] |
+   |       | Extended Community Sub-Types" registry       |           |
+   |       | [IANA-BGP-EC-NONTRANS-TWO-OCTET-AS])         |           |
+   +-------+----------------------------------------------+-----------+
+   | 0x41  | Non-Transitive IPv4-Address-Specific         | [RFC7153] |
+   |       | Extended Community (Sub-Types are defined in | [this     |
+   |       | the "Non-Transitive IPv4-Address-Specific    | document] |
+   |       | Extended Community Sub-Types" registry       |           |
+   |       | [IANA-BGP-EC-NONTRANS-IPV4])                 |           |
+   +-------+----------------------------------------------+-----------+
+   | 0x43  | Non-Transitive Opaque Extended Community     | [RFC7153] |
+   |       | (Sub-Types are defined in the "Non-          | [this     |
+   |       | Transitive Opaque Extended Community Sub-    | document] |
+   |       | Types" registry                              |           |
+   |       | [IANA-BGP-EC-NONTRANS-OPAQUE])               |           |
+   +-------+----------------------------------------------+-----------+
+
+           Table 2: BGP Non-Transitive Extended Community Types
+
+   IANA is requested to list this document as an additional reference
+   for the following entries in the "Transitive Four-Octet AS-Specific
+   Extended Community Sub-Types" registry
+   [IANA-BGP-EC-TRANS-FOUR-OCTET-AS]:
+
+       +================+==============+===========================+
+       | SUB-TYPE VALUE | NAME         | REFERENCE                 |
+       +================+==============+===========================+
+       | 0x02           | Route Target | [RFC5668] [this document] |
+       +----------------+--------------+---------------------------+
+       | 0x03           | Route Origin | [RFC5668] [this document] |
+       +----------------+--------------+---------------------------+
+
+            Table 3: Transitive Four-Octet AS-Specific Extended
+                            Community Sub-Types
+
+   Furthermore, IANA is requested to add the note below to the following
+   registries under the "BGP Extended Communities" registry group:
+
+   *  BGP Transitive Extended Community Types [IANA-BGP-EC-TRANS]
+
+   *  BGP Non-Transitive Extended Community Types [IANA-BGP-EC-NONTRANS]
+
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 12]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   *  Transitive Two-Octet AS-Specific Extended Community Sub-Types
+      [IANA-BGP-EC-TRANS-TWO-OCTET-AS]
+
+   *  Non-Transitive Two-Octet AS-Specific Extended Community Sub-Types
+      [IANA-BGP-EC-NONTRANS-TWO-OCTET-AS]
+
+   *  Transitive Four-Octet AS-Specific Extended Community Sub-Types
+      [IANA-BGP-EC-TRANS-FOUR-OCTET-AS]
+
+   *  Non-Transitive Four-Octet AS-Specific Extended Community Sub-Types
+      [IANA-BGP-EC-NONTRANS-FOUR-OCTET-AS]
+
+   *  Transitive IPv4-Address-Specific Extended Community Sub-Types
+      [IANA-BGP-EC-TRANS-IPV4]
+
+   *  Non-Transitive IPv4-Address-Specific Extended Community Sub-Types
+      [IANA-BGP-EC-NONTRANS-IPV4]
+
+   *  Transitive Opaque Extended Community Sub-Types
+      [IANA-BGP-EC-TRANS-OPAQUE]
+
+   *  Non-Transitive Opaque Extended Community Sub-Types
+      [IANA-BGP-EC-NONTRANS-OPAQUE]
+
+   *  Transitive IPv6-Address-Specific Extended Community Types
+      [IANA-BGP-EC-TRANS-IPV6]
+
+   *  Non-Transitive IPv6-Address-Specific Extended Community Types
+      [IANA-BGP-EC-NONTRANS-IPV6]
+
+   "When an Extended Community requests allocation for a code point of
+   both transitive and non-transitive variants for the same type/sub-
+   type, it is recommended that the same value be assigned to them."
+
+9.  Security Considerations
+
+   BGP Extended Communities provide a general mechanism for labeling BGP
+   routes and thus share security considerations similar to BGP
+   Communities [RFC1997] and BGP Large Communities [RFC8092].
+
+   Since any intermediate BGP speaker along the route propagation path
+   may have added, deleted, or altered the BGP Extended Communities
+   attribute, deployments relying on such an attribute carried in the
+   BGP Update message must trust every other BGP speaker in the path.
+   However, specifying the mechanism to provide such trust is beyond the
+   scope of this document.
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 13]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   The BGP Extended Communities attribute itself does not protect the
+   integrity of each extended community value.  The operator should be
+   aware that any BGP speaker along the path can alter the attribute
+   without notice.  Protecting the integrity of the handling of BGP
+   Extended Communities attribute in a manner consistent with the intent
+   of expressed BGP routing policies falls within the broader scope of
+   securing BGP and is therefore not addressed here.
+
+   Additionally, extended communities are used in several specialized
+   ways to implement or augment other BGP signaling mechanisms.  For
+   example, the route-target extended community, defined in this
+   document, is used to signal Layer 3 VPN membership.  In some
+   scenarios, these mechanisms are used to construct internal
+   infrastructure.  Therefore, these extended communities carry
+   information private to a specific administrative domain.  Leaking
+   such extended communities into other administrative domains poses
+   significant security risks.
+
+   To prevent information leakage or privacy breaches across different
+   administrative domains, proper filtering of the extended communities
+   should always be exercised:
+
+   *  Operators should filter transitive and non-transitive extended
+      communities at the boundary of different administrative domains on
+      both transmission and reception using appropriate routing
+      policies, since this prevents extended communities outside the
+      administrative domain from interacting inappropriately with the
+      operator's network.
+
+   *  Implementations should provide policy mechanisms to filter
+      extended communities based on type, and possibly sub-type, to
+      permit filtering the entire class of extended communities.
+      Implementations may also provide the flexibility to match or
+      inverse-match a set of extended communities for building permit/
+      deny lists.
+
+   *  Implementations that understand the internal format of a defined
+      extended community should provide per-community match capability.
+      Implementations that don't understand the internal format may
+      match against the value field opaquely.
+
+   *  Implementations should provide mechanisms to strip all extended
+      communities at the boundary of administrative domains.
+
+   *  Implementations may strip all extended communities by default
+      while providing knobs to modify the default behavior.
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 14]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+10.  Contributors
+
+   Dan Tappan and Yakov Rekhter were the authors of [RFC4360] and,
+   therefore, are contributing authors of this document.
+
+11.  Acknowledgements
+
+   We wish to thank John Hawkinson, Jeffrey Haas, Bruno Rijsman, Bill
+   Fenner, and Alex Zinin for their suggestions and feedback on the
+   original [RFC4360].
+
+   We thank Yakov Rekhter and Alfred Hoenes for pointing out several
+   errors in [RFC4360].
+
+   We also wish to thank Bruno Decraene, Laurent Vanbever, and Pierre
+   Francois for pointing out inconsistencies regarding the procedures
+   for originating non-transitive extended communities in
+   [I-D.decraene-idr-rfc4360-clarification].
+
+   We also thank Jeffrey Haas, Robert Raszuk, Bruno Decraene, Linda
+   Dunbar, Yingzhen Qu, Jie Dong, Lizhen Qiang, Erik Auerswald, Aijun
+   Wang, John Scudder, and Job Snijders for their suggestions and
+   feedback on this document.
+
+12.  References
+
+12.1.  Normative References
+
+   [RFC1997]  Chandra, R., Traina, P., and T. Li, "BGP Communities
+              Attribute", RFC 1997, DOI 10.17487/RFC1997, August 1996,
+              <https://www.rfc-editor.org/info/rfc1997>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [BGP-4]    Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC5065]  Traina, P., McPherson, D., and J. Scudder, "Autonomous
+              System Confederations for BGP", RFC 5065,
+              DOI 10.17487/RFC5065, August 2007,
+              <https://www.rfc-editor.org/info/rfc5065>.
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 15]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   [RFC5668]  Rekhter, Y., Sangli, S., and D. Tappan, "4-Octet AS
+              Specific BGP Extended Community", RFC 5668,
+              DOI 10.17487/RFC5668, October 2009,
+              <https://www.rfc-editor.org/info/rfc5668>.
+
+   [RFC5701]  Rekhter, Y., "IPv6 Address Specific BGP Extended Community
+              Attribute", RFC 5701, DOI 10.17487/RFC5701, November 2009,
+              <https://www.rfc-editor.org/info/rfc5701>.
+
+   [RFC6793]  Vohra, Q. and E. Chen, "BGP Support for Four-Octet
+              Autonomous System (AS) Number Space", RFC 6793,
+              DOI 10.17487/RFC6793, December 2012,
+              <https://www.rfc-editor.org/info/rfc6793>.
+
+   [RFC7153]  Rosen, E. and Y. Rekhter, "IANA Registries for BGP
+              Extended Communities", RFC 7153, DOI 10.17487/RFC7153,
+              March 2014, <https://www.rfc-editor.org/info/rfc7153>.
+
+   [RFC7606]  Chen, E., Ed., Scudder, J., Ed., Mohapatra, P., and K.
+              Patel, "Revised Error Handling for BGP UPDATE Messages",
+              RFC 7606, DOI 10.17487/RFC7606, August 2015,
+              <https://www.rfc-editor.org/info/rfc7606>.
+
+   [RFC8092]  Heitz, J., Ed., Snijders, J., Ed., Patel, K., Bagdonas,
+              I., and N. Hilliard, "BGP Large Communities Attribute",
+              RFC 8092, DOI 10.17487/RFC8092, February 2017,
+              <https://www.rfc-editor.org/info/rfc8092>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [IANA-BGP-EC-TRANS]
+              IANA, "BGP Transitive Extended Community Types",
+              <https://www.iana.org/assignments/bgp-extended-
+              communities/bgp-extended-communities.xhtml#transitive>.
+
+   [IANA-BGP-EC-NONTRANS]
+              IANA, "BGP Non-Transitive Extended Community Types",
+              <https://www.iana.org/assignments/bgp-extended-
+              communities/bgp-extended-communities.xhtml#non-
+              transitive>.
+
+12.2.  Informative References
+
+   [RFC4360]  Sangli, S., Tappan, D., and Y. Rekhter, "BGP Extended
+              Communities Attribute", RFC 4360, DOI 10.17487/RFC4360,
+              February 2006, <https://www.rfc-editor.org/info/rfc4360>.
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 16]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   [RFC4364]  Rosen, E. and Y. Rekhter, "BGP/MPLS IP Virtual Private
+              Networks (VPNs)", RFC 4364, DOI 10.17487/RFC4364, February
+              2006, <https://www.rfc-editor.org/info/rfc4364>.
+
+   [I-D.decraene-idr-rfc4360-clarification]
+              Decraene, B., Vanbever, L., and P. Francois, "RFC 4360
+              Clarification Request", Work in Progress, Internet-Draft,
+              draft-decraene-idr-rfc4360-clarification-00, 19 October
+              2009, <https://datatracker.ietf.org/doc/html/draft-
+              decraene-idr-rfc4360-clarification-00>.
+
+   [IANA-BGP-PATH-ATTRIBUTES]
+              IANA, "BGP Path Attributes",
+              <https://www.iana.org/assignments/bgp-parameters/bgp-
+              parameters.xhtml#bgp-parameters-2>.
+
+   [IANA-BGP-EC]
+              IANA, "BGP Extended Communities",
+              <https://www.iana.org/assignments/bgp-extended-
+              communities/bgp-extended-communities.xhtml>.
+
+   [IANA-BGP-EC-TRANS-TWO-OCTET-AS]
+              IANA, "Transitive Two-Octet AS-Specific Extended Community
+              Sub-Types", <https://www.iana.org/assignments/bgp-
+              extended-communities/bgp-extended-communities.xhtml#trans-
+              two-octet-as>.
+
+   [IANA-BGP-EC-NONTRANS-TWO-OCTET-AS]
+              IANA, "Non-Transitive Two-Octet AS-Specific Extended
+              Community Sub-Types", <https://www.iana.org/assignments/
+              bgp-extended-communities/bgp-extended-
+              communities.xhtml#non-trans-two-octet-as>.
+
+   [IANA-BGP-EC-TRANS-IPV4]
+              IANA, "Transitive IPv4-Address-Specific Extended Community
+              Sub-Types", <https://www.iana.org/assignments/bgp-
+              extended-communities/bgp-extended-communities.xhtml#trans-
+              ipv4>.
+
+   [IANA-BGP-EC-NONTRANS-IPV4]
+              IANA, "Non-Transitive IPv4-Address-Specific Extended
+              Community Sub-Types", <https://www.iana.org/assignments/
+              bgp-extended-communities/bgp-extended-
+              communities.xhtml#non-trans-ipv4>.
+
+
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 17]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   [IANA-BGP-EC-TRANS-OPAQUE]
+              IANA, "Transitive Opaque Extended Community Sub-Types",
+              <https://www.iana.org/assignments/bgp-extended-
+              communities/bgp-extended-communities.xhtml#trans-opaque>.
+
+   [IANA-BGP-EC-NONTRANS-OPAQUE]
+              IANA, "Non-Transitive Opaque Extended Community Sub-
+              Types", <https://www.iana.org/assignments/bgp-extended-
+              communities/bgp-extended-communities.xhtml#non-trans-
+              opaque>.
+
+   [IANA-BGP-EC-TRANS-FOUR-OCTET-AS]
+              IANA, "Transitive Four-Octet AS-Specific Extended
+              Community Sub-Types", <https://www.iana.org/assignments/
+              bgp-extended-communities/bgp-extended-
+              communities.xhtml#trans-four-octet-as>.
+
+   [IANA-BGP-EC-NONTRANS-FOUR-OCTET-AS]
+              IANA, "Non-Transitive Four-Octet AS-Specific Extended
+              Community Sub-Types", <https://www.iana.org/assignments/
+              bgp-extended-communities/bgp-extended-
+              communities.xhtml#non-trans-four-octet-as>.
+
+   [IANA-IPFIX]
+              IANA, "IPFIX Entities",
+              <https://www.iana.org/assignments/ipfix/ipfix.xhtml>.
+
+   [IANA-BGP-EC-TRANS-IPV6]
+              IANA, "Transitive IPv6-Address-Specific Extended Community
+              Types", <https://www.iana.org/assignments/bgp-extended-
+              communities/bgp-extended-communities.xhtml#trans-ipv6>.
+
+   [IANA-BGP-EC-NONTRANS-IPV6]
+              IANA, "Non-Transitive IPv6-Address-Specific Extended
+              Community Types", <https://www.iana.org/assignments/bgp-
+              extended-communities/bgp-extended-communities.xhtml#non-
+              trans-ipv6>.
+
+Appendix A.  Comparison with RFC4360
+
+   The encodings and definitions of the extended communities are
+   unchanged in this document.
+
+   Besides addressing known errata in [RFC4360], this document updates
+   the following:
+
+   *  Section 3 now includes references to the case for the 4-Octet
+      Autonomous System number.
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 18]
+
+Internet-Draft     BGP Extended Communities Attribute          July 2026
+
+
+   *  Section 6 clarifies the operations of non-transitive extended
+      communities across Autonomous System or Confederation Member-AS
+      boundaries.
+
+   *  Section 7 is added to describe the error handling procedures.
+
+   *  Section 8 is updated to reflect the current IANA registry status.
+      The update splits the "BGP Extended Communities Type" registry
+      into transitive and non-transitive registries.  This section also
+      contains similar updates for the Sub-Types defined.
+
+   *  Section 9 is updated to reflect the current security practice.
+
+Authors' Addresses
+
+   Srihari Sangli
+   HPE
+   Mahadevapura, Bengaluru, KA 560048
+   India
+   Email: ssangli@juniper.net
+
+
+   Nat Kao (editor)
+   Individual Contributor
+   Email: pyxislx@gmail.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sangli & Kao             Expires 14 January 2027               [Page 19]

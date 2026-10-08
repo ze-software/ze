@@ -1,0 +1,560 @@
+
+
+
+
+IDR                                                         J. Haas, Ed.
+Internet-Draft                                                       HPE
+Intended status: Standards Track                           S. Hares, Ed.
+Expires: 28 December 2026                        Hickory Hill Consulting
+                                                           K. Patel, Ed.
+                                                                  Arrcus
+                                                            26 June 2026
+
+
+       IANA Registrations for the BGP Finite State Machine (FSM)
+                     draft-ietf-idr-bgp-fsm-iana-02
+
+Abstract
+
+   The Border Gateway Protocol, version 4 (BGP-4) finite state machine
+   (FSM) is defined in RFC 4271.  Over the years, various extensions to
+   BGP have been authored that update the protocol's FSM.  Some elements
+   of the FSM are enumerated.  Those elements are referred to across BGP
+   extensions in their respective state machine changes, and may also be
+   used for management purposes in things such as YANG (RFC 7950).
+
+   To provide consistent naming and enumeration of these FSM elements,
+   this document requests IANA to create and maintain registries for
+   elements in the BGP FSM.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 28 December 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 1]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   3
+     2.1.  Border Gateway Protocol (BGP-4) FSM Elements Registry . .   3
+     2.2.  Names in the Border Gateway Protocol (BGP-4) FSM Elements
+           Registry  . . . . . . . . . . . . . . . . . . . . . . . .   3
+     2.3.  Border Gateway Protocol (BGP-4) FSM Session Attribute
+           Sub-Registries  . . . . . . . . . . . . . . . . . . . . .   4
+       2.3.1.  Border Gateway Protocol (BGP-4) FSM Mandatory Session
+               Attributes  . . . . . . . . . . . . . . . . . . . . .   4
+       2.3.2.  Border Gateway Protocol (BGP-4) FSM Optional Session
+               Attributes  . . . . . . . . . . . . . . . . . . . . .   5
+     2.4.  Border Gateway Protocol (BGP-4) FSM Events
+           Sub-Registry  . . . . . . . . . . . . . . . . . . . . . .   6
+       2.4.1.  Border Gateway Protocol (BGP-4) FSM Events  . . . . .   6
+   3.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
+   4.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   9
+     4.1.  Normative References  . . . . . . . . . . . . . . . . . .   9
+     4.2.  Informative References  . . . . . . . . . . . . . . . . .   9
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  10
+   Contributors  . . . . . . . . . . . . . . . . . . . . . . . . . .  10
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  10
+
+1.  Introduction
+
+   Section 8 of [RFC4271] defines BGP's finite state machine (FSM).
+   Some elements of the FSM are enumerated.  These include:
+
+   *  Session attributes (variables), which may be:
+
+      -  Mandatory and MUST be supported by all BGP-4 implementations on
+         all BGP connections.
+
+      -  Optional and MAY be supported, either per connection or per
+         local system.
+
+   *  Events, which may be:
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 2]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+      -  Administrative events.
+
+      -  Timer events.
+
+      -  TCP connection-based events.
+
+      -  BGP message-based events.
+
+   While the core FSM is defined in [RFC4271], extensions specified in
+   other BGP documents may update FSM procedures.  Consistent
+   enumeration and naming of these FSM elements is necessary for
+   procedural clarity.  Additionally, management mechanisms such as YANG
+   [RFC7950] modules may expose BGP protocol state covered by these
+   elements.
+
+   This document requests IANA to create and maintain appropriate
+   registries for these FSM elements.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  IANA Considerations
+
+2.1.  Border Gateway Protocol (BGP-4) FSM Elements Registry
+
+   IANA is requested to create a new registry, titled, "BGP-4 Finite
+   State Machine (FSM) Elements".  This is a new registry grouping
+   distinct from the existing Border Gateway Protocol (BGP) Parameters
+   registry group.  The registration policy for the contents of this
+   registry and its sub-registries shall be "IETF Review with Designated
+   Experts".  The designated experts for these registries are the IDR WG
+   chairs.
+
+   The "Border Gateway Protocol (BGP-4) Finite State Machine (FSM)
+   Elements" registry will contain the following sub-registries:
+
+2.2.  Names in the Border Gateway Protocol (BGP-4) FSM Elements Registry
+
+   Elements in this registry may have names that are very long.  As an
+   example, some [RFC4271] FSM events have compound names joined with
+   the underscore character.  To ease display of those compound names,
+   this registry replaces the underscore character with the space
+   character.
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 3]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+   Identifiers, such as those used in YANG (see Section 4.3 of
+   [RFC9907]), that represent entries in this registry MUST provide a
+   reference to the registered Value for a given entry in the
+   appropriate sub-registry.  It is RECOMMENDED that the full Name be
+   included in the descriptive text or comments for such identifiers.
+
+2.3.  Border Gateway Protocol (BGP-4) FSM Session Attribute Sub-
+      Registries
+
+   The Border Gateway Protocol (BGP-4) FSM Session Attribute Sub-
+   Registries will consist of entries with the following fields:
+
+   *  Value (a 16-bit unsigned integer)
+   *  Name
+   *  Reference
+
+2.3.1.  Border Gateway Protocol (BGP-4) FSM Mandatory Session Attributes
+
+   +=======+=====================+========================+
+   | Value | Name                | Reference              |
+   +=======+=====================+========================+
+   | 0     | Reserved            | This document          |
+   +-------+---------------------+------------------------+
+   | 1     | State               | Section 8 of [RFC4271] |
+   +-------+---------------------+------------------------+
+   | 2     | ConnectRetryCounter | Section 8 of [RFC4271] |
+   +-------+---------------------+------------------------+
+   | 3     | ConnectRetryTimer   | Section 8 of [RFC4271] |
+   +-------+---------------------+------------------------+
+   | 4     | ConnectRetryTime    | Section 8 of [RFC4271] |
+   +-------+---------------------+------------------------+
+   | 5     | HoldTimer           | Section 8 of [RFC4271] |
+   +-------+---------------------+------------------------+
+   | 6     | HoldTime            | Section 8 of [RFC4271] |
+   +-------+---------------------+------------------------+
+   | 7     | KeepaliveTimer      | Section 8 of [RFC4271] |
+   +-------+---------------------+------------------------+
+   | 8     | KeepaliveTime       | Section 8 of [RFC4271] |
+   +-------+---------------------+------------------------+
+
+                           Table 1
+
+
+
+
+
+
+
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 4]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+2.3.2.  Border Gateway Protocol (BGP-4) FSM Optional Session Attributes
+
+   +==========+====================================+==================+
+   | Value (a | Name                               | Reference        |
+   | 16-bit   |                                    |                  |
+   | unsigned |                                    |                  |
+   | integer) |                                    |                  |
+   +==========+====================================+==================+
+   | 0        | Reserved                           | This document.   |
+   +----------+------------------------------------+------------------+
+   | 1        | AcceptConnectionsUnconfiguredPeers | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 2        | AllowAutomaticStart                | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 3        | AllowAutomaticStop                 | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 4        | CollisionDetectEstablishedState    | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 5        | DampPeerOscillations               | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 6        | DelayOpen                          | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 7        | DelayOpenTime                      | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 8        | DelayOpenTimer                     | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 9        | IdleHoldTime                       | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 10       | IdleHoldTimer                      | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 11       | PassiveTcpEstablishment            | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 12       | SendNOTIFICATIONwithoutOPEN        | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+   +----------+------------------------------------+------------------+
+   | 13       | TrackTcpState                      | Section 8 of     |
+   |          |                                    | [RFC4271]        |
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 5]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+   +----------+------------------------------------+------------------+
+   | 14       | SendHoldTimer                      | Section 4.1 of   |
+   |          |                                    | [RFC9687]        |
+   +----------+------------------------------------+------------------+
+   | 15       | SendHoldTime                       | Section 4.1 of   |
+   |          |                                    | [RFC9687]        |
+   +----------+------------------------------------+------------------+
+   | 16       | BfdEnabled                         | Section 3 of     |
+   |          |                                    | [BGP-BFD-STRICT] |
+   +----------+------------------------------------+------------------+
+   | 17       | BfdStrictEnabled                   | Section 3 of     |
+   |          |                                    | [BGP-BFD-STRICT] |
+   +----------+------------------------------------+------------------+
+   | 18       | BfdHoldTime                        | Section 3 of     |
+   |          |                                    | [BGP-BFD-STRICT] |
+   +----------+------------------------------------+------------------+
+   | 19       | BfdHoldTimer                       | Section 3 of     |
+   |          |                                    | [BGP-BFD-STRICT] |
+   +----------+------------------------------------+------------------+
+   | 20       | BfdStrictNegotiated                | Section 3 of     |
+   |          |                                    | [BGP-BFD-STRICT] |
+   +----------+------------------------------------+------------------+
+
+                                 Table 2
+
+2.4.  Border Gateway Protocol (BGP-4) FSM Events Sub-Registry
+
+   The Border Gateway Protocol (BGP-4) FSM Events Sub-Registries will
+   consist of entries with the following fields:
+
+   *  Value
+   *  Name
+   *  Event Type
+   *  Reference
+
+2.4.1.  Border Gateway Protocol (BGP-4) FSM Events
+
+   +=====+==========================+==============+==================+
+   |Value| Name                     |Event Type    | Reference        |
+   +=====+==========================+==============+==================+
+   |0    | Reserved                 |-             | This document.   |
+   +-----+--------------------------+--------------+------------------+
+   |1    | ManualStart              |Administrative| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |2    | ManualStop               |Administrative| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 6]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+   |3    | AutomaticStart           |Administrative| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |4    | ManualStart with         |Administrative| Section 8 of     |
+   |     | PassiveTcpEstablishment  |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |5    | AutomaticStart with      |Administrative| Section 8 of     |
+   |     | PassiveTcpEstablishment  |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |6    | AutomaticStart with      |Administrative| Section 8 of     |
+   |     | DampPeerOscillations     |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |7    | AutomaticStart with      |Administrative| Section 8 of     |
+   |     | DampPeerOscillations and |              | [RFC4271]        |
+   |     | PassiveTcpEstablishment  |              |                  |
+   +-----+--------------------------+--------------+------------------+
+   |8    | AutomaticStop            |Administrative| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |9    | ConnectRetryTimer        |Timer         | Section 8 of     |
+   |     | Expires                  |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |10   | HoldTimer Expires        |Timer         | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |11   | KeepaliveTimer Expires   |Timer         | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |12   | DelayOpenTimer Expires   |Timer         | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |13   | IdleHoldTimer Expires    |Timer         | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |14   | TcpConnection Valid      |TCP Connection| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |15   | Tcp CR Invalid           |TCP Connection| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |16   | Tcp CR Acked             |TCP Connection| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |17   | TcpConnectionConfirmed   |TCP Connection| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |18   | TcpConnectionFails       |TCP Connection| Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 7]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+   +-----+--------------------------+--------------+------------------+
+   |19   | BGPOpen                  |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |20   | BGPOpen with             |BGP Message   | Section 8 of     |
+   |     | DelayOpenTimer running   |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |21   | BGPHeaderErr             |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |22   | BGPOpenMsgErr            |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |23   | OpenCollisionDump        |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |24   | NotifMsgVerErr           |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |25   | NotifMsg                 |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |26   | KeepAliveMsg             |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |27   | UpdateMsg                |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |28   | UpdateMsgErr             |BGP Message   | Section 8 of     |
+   |     |                          |              | [RFC4271]        |
+   +-----+--------------------------+--------------+------------------+
+   |29   | SendHoldTimer Expires    |Timer         | Section 4.2 of   |
+   |     |                          |              | [RFC9687]        |
+   +-----+--------------------------+--------------+------------------+
+   |30   | BfdAdminDown             |BFD Protocol  | Section 4 of     |
+   |     |                          |Event         | [BGP-BFD-STRICT] |
+   +-----+--------------------------+--------------+------------------+
+   |31   | BfdDown                  |BFD Protocol  | Section 4 of     |
+   |     |                          |Event         | [BGP-BFD-STRICT] |
+   +-----+--------------------------+--------------+------------------+
+   |32   | BfdUp                    |BFD Protocol  | Section 4 of     |
+   |     |                          |Event         | [BGP-BFD-STRICT] |
+   +-----+--------------------------+--------------+------------------+
+   |33   | BfdDisabled              |Configuration | Section 4 of     |
+   |     |                          |              | [BGP-BFD-STRICT] |
+   +-----+--------------------------+--------------+------------------+
+   |34   | BfdHoldTimerExpires      |Timer         | Section 4 of     |
+   |     |                          |              | [BGP-BFD-STRICT] |
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 8]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+   +-----+--------------------------+--------------+------------------+
+   |35   | BfdStrictConfigChanged   |Configuration | Section 4 of     |
+   |     |                          |              | [BGP-BFD-STRICT] |
+   +-----+--------------------------+--------------+------------------+
+
+                                 Table 3
+
+3.  Security Considerations
+
+   This document does not introduce any new security considerations to
+   the BGP protocol.
+
+4.  References
+
+4.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC9687]  Snijders, J., Cartwright-Cox, B., and Y. Qu, "Border
+              Gateway Protocol 4 (BGP-4) Send Hold Timer", RFC 9687,
+              DOI 10.17487/RFC9687, November 2024,
+              <https://www.rfc-editor.org/info/rfc9687>.
+
+   [BGP-BFD-STRICT]
+              Zheng, M., Lindem, A., Haas, J., and A. Fu, "BGP BFD
+              Strict-Mode", Work in Progress, Internet-Draft, draft-
+              ietf-idr-bgp-bfd-strict-mode-16, 22 December 2025,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-idr-bgp-
+              bfd-strict-mode-16>.
+
+4.2.  Informative References
+
+   [RFC7950]  Bjorklund, M., Ed., "The YANG 1.1 Data Modeling Language",
+              RFC 7950, DOI 10.17487/RFC7950, August 2016,
+              <https://www.rfc-editor.org/info/rfc7950>.
+
+
+
+
+Haas, et al.            Expires 28 December 2026                [Page 9]
+
+Internet-Draft          IANA Registry for BGP FSM              June 2026
+
+
+   [RFC9907]  Bierman, A., Boucadair, M., Ed., and Q. Wu, "Guidelines
+              for Authors and Reviewers of Documents Containing YANG
+              Data Models", BCP 216, RFC 9907, DOI 10.17487/RFC9907,
+              March 2026, <https://www.rfc-editor.org/info/rfc9907>.
+
+Acknowledgements
+
+   Thanks to Tom Petch, Ketan Talaulikar, and Acee Lindem for their
+   review on this document.
+
+Contributors
+
+   TBD
+
+Authors' Addresses
+
+   Jeffrey Haas (editor)
+   HPE
+   Email: jeffrey.haas@hpe.com
+
+
+   Susan Hares (editor)
+   Hickory Hill Consulting
+   7453 Hickory Hill
+   Saline, MI 48176
+   United States of America
+   Phone: +1-734-604-0332
+   Email: shares@ndzh.com
+
+
+   Keyur Patel (editor)
+   Arrcus
+   2077 Gateway Place
+   Suite #400
+   San Jose, CA 95119
+   United States of America
+   Email: keyur@arrcus.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Haas, et al.            Expires 28 December 2026               [Page 10]

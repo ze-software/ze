@@ -1,0 +1,171 @@
+
+
+
+
+
+
+Network Working Group                                          G. Huston
+Request for Comments: 5398                                 December 2008
+Category: Informational
+
+
+    Autonomous System (AS) Number Reservation for Documentation Use
+
+Status of This Memo
+
+   This memo provides information for the Internet community.  It does
+   not specify an Internet standard of any kind.  Distribution of this
+   memo is unlimited.
+
+Copyright Notice
+
+   Copyright (c) 2008 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (http://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.
+
+Abstract
+
+   To reduce the likelihood of conflict and confusion when relating
+   documented examples to deployed systems, two blocks of Autonomous
+   System numbers (ASNs) are reserved for use in examples in RFCs,
+   books, documentation, and the like.  This document describes the
+   reservation of two blocks of ASNs as reserved numbers for use in
+   documentation.
+
+1.  Introduction
+
+   To reduce the likelihood of conflict and confusion when relating
+   documented examples to deployed systems, two blocks of Autonomous
+   System numbers (ASNs) are reserved for use in examples in RFCs,
+   books, documentation, and the like.  This document describes the
+   reservation of two blocks of ASNs as reserved numbers for use in
+   documentation.
+
+   The problems such conflicts may cause have already been encountered
+   with IPv4 addresses where literal use of documented examples in a
+   production environment causes address and routing conflicts with
+   existing services.  Since private-use ASNs already have a context of
+   use in deployed networks, these ASNs cannot be used in many example
+
+
+
+
+Huston                       Informational                      [Page 1]
+
+RFC 5398             ASN Documentation Reservation         December 2008
+
+
+   situations.  In making an explicit allocation of a set of AS numbers
+   reserved for documentation use, it is intended that any such
+   operational problems may be avoided in the future.
+
+   Similar considerations have been applied to IPv4 addresses
+   [IANA.IPv4], IPv6 addresses [RFC3849], and domain names [RFC2606],
+   and reservations have been made for similar purposes.
+
+2.  ASNs for Documentation Use
+
+   To allow documentation to accurately describe deployment examples,
+   the use of public or private-use AS numbers is inappropriate, and a
+   reserved block of AS numbers is required.  This ensures that
+   documentation does not clash with public- or private-use AS numbers
+   in deployed networks, and mitigates the risks to operational
+   integrity of the network through inappropriate use of documentation
+   to perform literal configuration of routing elements on production
+   systems.
+
+   To allow for examples relating to the transition to use of 32-bit AS
+   numbers to be correctly described, a reservation of two blocks of AS
+   numbers is proposed in this document.  One reserved block of 16
+   contiguous AS numbers is to lie in the range of numbers that can be
+   expressed as a 16-bit AS number value (i.e., values less than 65536),
+   and a second reserved block of 16 contiguous AS numbers is to lie in
+   the range of numbers that can only be expressed as 32-bit AS numbers
+   (values greater than 65535).
+
+3.  Operational Implications
+
+   This assignment implies that BGP operational configurations should
+   not peer with neighboring ASes that are numbered from this reserved
+   AS number set.
+
+4.  IANA Considerations
+
+   IANA has reserved a contiguous block of 16 Autonomous System numbers
+   from the unallocated number range within the "16-bit" number set for
+   documentation purposes, namely 64496 - 64511, and a contiguous block
+   of 16 Autonomous System numbers from the "32-bit" number set for
+   documentation, namely 65536 - 65551.  These reservations have been
+   documented in the IANA AS Number Registry [IANA.AS].
+
+5.  Security Considerations
+
+   AS number reservations do not have any direct impact on Internet
+   infrastructure security.
+
+
+
+
+Huston                       Informational                      [Page 2]
+
+RFC 5398             ASN Documentation Reservation         December 2008
+
+
+6.  Acknowledgements
+
+   The author acknowledges the work of Tomoya Yoshida, Gaurab Upadhaya,
+   and Philip Smith in authoring a policy proposal that was submitted to
+   the APNIC Policy Process in 2008 relating to the reservation of AS
+   numbers for documentation purposes.
+
+7.  Informative References
+
+   [IANA.AS]    IANA, "Autonomous System (AS) Numbers", Sep 2008,
+                <http://www.iana.org>.
+
+   [IANA.IPv4]  IANA, "IPv4 Global Unicast Address Assignments",
+                Sep 2008, <http://www.iana.org>.
+
+   [RFC2606]    Eastlake, D. and A. Panitz, "Reserved Top Level DNS
+                Names", BCP 32, RFC 2606, June 1999.
+
+   [RFC3849]    Huston, G., Lord, A., and P. Smith, "IPv6 Address Prefix
+                Reserved for Documentation", RFC 3849, July 2004.
+
+Author's Address
+
+   Geoff Huston
+
+   EMail: gih@apnic.net
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Huston                       Informational                      [Page 3]
+

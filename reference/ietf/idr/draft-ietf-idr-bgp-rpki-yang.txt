@@ -1,0 +1,2520 @@
+
+
+
+
+IDR Working Group                                                 C. Lin
+Internet-Draft                                      New H3C Technologies
+Intended status: Standards Track                                  Y. Liu
+Expires: 3 April 2027                                       China Mobile
+                                                                 H. Wang
+                                                     Huawei Technologies
+                                                                  J. Roy
+                                                  Juniper Networks, Inc.
+                                                                   D. Ma
+                                                                    ZDNS
+                                                       30 September 2026
+
+
+                   YANG Data Model for BGP about RPKI
+                    draft-ietf-idr-bgp-rpki-yang-02
+
+Abstract
+
+   This document defines YANG data models for managing BGP information
+   about Resource Public Key Infrastructure (RPKI).
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 3 April 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 1]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Model Overview  . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  BGP Origin AS Validation YANG Module  . . . . . . . . . . . .   3
+     3.1.  Tree View . . . . . . . . . . . . . . . . . . . . . . . .   3
+     3.2.  YANG Module . . . . . . . . . . . . . . . . . . . . . . .   8
+   4.  BGPsec YANG Module  . . . . . . . . . . . . . . . . . . . . .  20
+     4.1.  Tree View . . . . . . . . . . . . . . . . . . . . . . . .  20
+     4.2.  YANG Module . . . . . . . . . . . . . . . . . . . . . . .  21
+   5.  BGP ASPA YANG Module  . . . . . . . . . . . . . . . . . . . .  28
+     5.1.  Tree View . . . . . . . . . . . . . . . . . . . . . . . .  28
+     5.2.  YANG Module . . . . . . . . . . . . . . . . . . . . . . .  30
+   6.  Security Considerations . . . . . . . . . . . . . . . . . . .  38
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  40
+     7.1.  IETF XML Registry . . . . . . . . . . . . . . . . . . . .  40
+     7.2.  YANG Module Names Registry  . . . . . . . . . . . . . . .  40
+   8.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  41
+     8.1.  Normative References  . . . . . . . . . . . . . . . . . .  41
+     8.2.  Informative References  . . . . . . . . . . . . . . . . .  43
+   Contributors  . . . . . . . . . . . . . . . . . . . . . . . . . .  44
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  44
+
+1.  Introduction
+
+   [RFC6810] and [RFC8210] describe a protocol to deliver the Resource
+   Public Key Infrastructure (RPKI) prefix origin data and router keys
+   from a trusted cache server to a router, referred to as the RPKI to
+   Router protocol.  [I-D.ietf-sidrops-8210bis] updates [RFC8210] by
+   mainly adding a new ASPA (Autonomous System Provider Authorization)
+   PDU (Protocol Data Unit) type.
+
+   [RFC6811] validates the origination Autonomous System (AS) of BGP
+   (Border Gateway Protocol) routes based on the Validated ROA Payload
+   (VRP) received from the RPKI cache server.
+   [I-D.ietf-sidrops-aspa-verification] makes use of ASPA objects in the
+   RPKI to verify the BGP AS_PATH attribute of advertised routes.
+   [RFC8635] describes that the public key is published in the RPKI and
+   sent to the router via the RPKI to Router protocol for verifying the
+   signature of BGPsec announcements.
+
+   This document defines YANG [RFC7950] data models for managing BGP
+   information about RPKI.
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 2]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   The YANG data models in this document conform to the Network
+   Management Datastore Architecture (NMDA) [RFC8342].
+
+1.1.  Terminology
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  Model Overview
+
+   Three YANG data models are defined in this document to augment BGP
+   YANG model [I-D.ietf-idr-bgp-model].
+
+   The ietf-bgp-origin-as-validation.yang data model provides the
+   methods for configuring BGP origin AS validation.
+
+   *  Origin AS validation parameters for BGP routes.
+
+   *  Origin AS validity states of BGP routes.
+
+   The ietf-bgp-sec.yang data model provides the methods for configuring
+   BGPsec.
+
+   *  BGPsec parameters for BGP routes.
+
+   *  BGPsec validity states of BGP routes.
+
+   The ietf-bgp-aspa.yang data model provides the methods for
+   configuring BGP AS_PATH Verification Based on ASPA.
+
+   *  BGP ASPA parameters for BGP routes.
+
+   *  AS_PATH validity states of BGP routes.
+
+3.  BGP Origin AS Validation YANG Module
+
+3.1.  Tree View
+
+   The complete tree of the ietf-bgp-origin-as-validation.yang data
+   model is shown below.  See [RFC8340] for an explanation of the
+   symbols used.
+
+
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 3]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   module: ietf-bgp-origin-as-validation
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast:
+       +--rw origin-as-validation
+          +--rw enabled?             boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+          |                              /policy-definitions
+          |                              /policy-definition/name
+          +--rw redistribution-as?   inet:as-number
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast:
+       +--rw origin-as-validation
+          +--rw enabled?             boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+          |                              /policy-definitions
+          |                              /policy-definition/name
+          +--rw redistribution-as?   inet:as-number
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast
+               /bgp:neighbors/bgp:neighbor/bgp:adj-rib-in-pre:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast
+               /bgp:neighbors/bgp:neighbor/bgp:adj-rib-in-pre:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast
+               /bgp:neighbors/bgp:neighbor/bgp:adj-rib-in-post:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 4]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast
+               /bgp:neighbors/bgp:neighbor/bgp:adj-rib-in-post:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast
+               /bgp:loc-rib:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast
+               /bgp:loc-rib:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast
+               /bgp:neighbors/bgp:neighbor/bgp:adj-rib-out-pre:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast
+               /bgp:neighbors/bgp:neighbor/bgp:adj-rib-out-pre:
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 5]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast
+               /bgp:neighbors/bgp:neighbor/bgp:adj-rib-out-post:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast
+               /bgp:neighbors/bgp:neighbor/bgp:adj-rib-out-post:
+       +--ro statistics
+          +--ro validation-state-unverified?   yang:gauge32
+          +--ro validation-state-unknown?      yang:gauge32
+          +--ro validation-state-invalid?      yang:gauge32
+          +--ro validation-state-valid?        yang:gauge32
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast
+               /bgp:loc-rib/bgp:routes/bgp:route:
+       +--ro origin-as-validity?        origin-as-validity-state
+       +--ro validity-invalid-reason?   route-validity-invalid-reason
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast
+               /bgp:loc-rib/bgp:routes/bgp:route:
+       +--ro origin-as-validity?        origin-as-validity-state
+       +--ro validity-invalid-reason?   route-validity-invalid-reason
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:route-selection-options:
+       +--rw origin-as
+          +--rw enabled?           boolean
+          +--rw allow-invalid?     boolean
+          +--rw allow-not-found?   boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 6]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:neighbors
+               /bgp:neighbor/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv4-unicast:
+       +--rw origin-as-validity-advertisement
+       |  +--rw send-origin-as-validity? boolean
+       |  +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+       |                                 /policy-definitions
+       |                                 /policy-definition/name
+       +--rw export-origin-as-validation
+          +--rw enabled?           boolean
+          +--rw allow-not-found?   boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:neighbors
+               /bgp:neighbor/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv6-unicast:
+       +--rw origin-as-validity-advertisement
+       |  +--rw send-origin-as-validity? boolean
+       |  +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+       |                                 /policy-definitions
+       |                                 /policy-definition/name
+       +--rw export-origin-as-validation
+          +--rw enabled?           boolean
+          +--rw allow-not-found?   boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:peer-groups
+               /bgp:peer-group/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv4-unicast:
+       +--rw origin-as-validity-advertisement
+       |  +--rw send-origin-as-validity? boolean
+       |  +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+       |                                 /policy-definitions
+       |                                 /policy-definition/name
+       +--rw export-origin-as-validation
+          +--rw enabled?           boolean
+          +--rw allow-not-found?   boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 7]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:peer-groups
+               /bgp:peer-group/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv6-unicast:
+       +--rw origin-as-validity-advertisement
+       |  +--rw send-origin-as-validity? boolean
+       |  +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+       |                                 /policy-definitions
+       |                                 /policy-definition/name
+       +--rw export-origin-as-validation
+          +--rw enabled?           boolean
+          +--rw allow-not-found?   boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+3.2.  YANG Module
+
+   This YANG module has normative references to [RFC6811], [RFC8097],
+   [RFC8481], [RFC8349], [RFC8893], [RFC9067], [RFC9911], and the BGP
+   YANG model [I-D.ietf-idr-bgp-model].
+
+   <CODE BEGINS> file "ietf-bgp-origin-as-validation@2026-09-28.yang"
+   module ietf-bgp-origin-as-validation {
+     yang-version "1.1";
+     namespace "urn:ietf:params:xml:ns:yang:"
+             + "ietf-bgp-origin-as-validation";
+     prefix bgp-oav;
+
+     import ietf-yang-types {
+       prefix yang;
+       reference
+         "RFC 9911: Common YANG Data Types, Section 3";
+     }
+
+     import ietf-inet-types {
+       prefix inet;
+       reference
+         "RFC 9911: Common YANG Data Types, Section 4";
+     }
+
+     import ietf-routing {
+       prefix rt;
+       reference
+         "RFC 8349: A YANG Data Model for Routing Management
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 8]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+                    (NMDA Version)";
+     }
+
+     import ietf-bgp {
+       prefix bgp;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import iana-bgp-afi-safi-types {
+       prefix bast;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import iana-bgp-rib-types {
+       prefix brt;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import ietf-routing-policy {
+       prefix rt-pol;
+       reference
+         "RFC 9067: A YANG Data Model for Routing Policy Management";
+     }
+
+     organization
+       "IETF IDR Working Group";
+
+     contact
+       "WG Web:  <http://datatracker.ietf.org/wg/idr/>
+        WG List: IDR <mailto:idr@ietf.org>
+
+        Authors: Changwang Lin
+                 <mailto:linchangwang.04414@h3c.com>
+                 Yisong Liu
+                 <mailto:liuyisong@chinamobile.com>
+                 Haibo Wang
+                 <mailto:rainsword.wang@huawei.com>
+                 Jishnu Roy
+                 <mailto:jishnur@juniper.net>
+                 Di Ma
+                 <mailto:madi@zdns.cn>";
+
+
+
+
+Lin, et al.               Expires 3 April 2027                  [Page 9]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+     description
+       "This module describes configuration of the BGP origin AS
+        validation.
+
+        The key words 'MUST', 'MUST NOT', 'REQUIRED', 'SHALL', 'SHALL
+        NOT', 'SHOULD', 'SHOULD NOT', 'RECOMMENDED', 'NOT RECOMMENDED',
+        'MAY', and 'OPTIONAL' in this document are to be interpreted as
+        described in BCP 14 (RFC 2119) (RFC 8174) when, and only when,
+        they appear in all capitals, as shown here.
+
+        Copyright (c) 2026 IETF Trust and the persons identified as
+        authors of the code. All rights reserved.
+
+        Redistribution and use in source and binary forms, with or
+        without modification, is permitted pursuant to, and subject to
+        the license terms contained in, the Revised BSD License set
+        forth in Section 4.c of the IETF Trust's Legal Provisions
+        Relating to IETF Documents
+        (https://trustee.ietf.org/license-info).
+
+        All revisions of IETF and IANA published modules can be found
+        at the YANG Parameters registry group
+        (https://www.iana.org/assignments/yang-parameters).
+
+        This version of this YANG module is part of RFC XXXX; see the
+        RFC itself for full legal notices.";
+
+     revision 2026-09-28 {
+       description
+         "Initial Version";
+       reference
+         "RFC XXXX: YANG Data Model for BGP about RPKI";
+     }
+
+     identity ineligible-origin-as {
+       base brt:ineligible-route-reason;
+       description
+         "Route was ineligible due to origin AS validation.";
+     }
+
+     typedef route-validity-invalid-reason {
+       type enumeration {
+         enum ineligible-origin-as {
+           description
+             "Route was ineligible due to origin AS number mismatch.";
+         }
+         enum ineligible-max-len {
+           description
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 10]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+             "Route was ineligible due to prefix maximum length
+              mismatch.";
+         }
+       }
+       description
+         "Origin AS validation state invalid reason of BGP routes.";
+     }
+
+     typedef origin-as-validity-state {
+       type enumeration {
+         enum not-found {
+           description
+             "No VRP Covers the Route Prefix.";
+         }
+         enum valid {
+           description
+             "At least one VRP Matches the Route Prefix.";
+         }
+         enum invalid {
+           description
+             "At least one VRP Covers the Route Prefix, but no VRP
+              Matches it.";
+         }
+         enum disabled {
+           description
+             "BGP origin AS validation is not enabled.";
+         }
+       }
+       description
+         "Origin AS validation state of BGP routes.";
+       reference
+         "RFC 6811: BGP Prefix Origin Validation";
+     }
+
+     grouping origin-as-validation-config {
+       description
+         "Origin AS validation of BGP prefix.";
+       container origin-as-validation {
+         leaf enabled {
+           type boolean;
+           default "false";
+           description
+             "Whether origin AS validation of BGP prefix is enabled.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 11]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which origin AS validation
+              is enabled.";
+         }
+         leaf redistribution-as {
+           type inet:as-number;
+           description
+             "Specifies an AS number that MUST be used in the
+              origin AS validation for redistributed routes since
+              they have no AS_PATH.";
+           reference
+             "RFC 8481: Clarifications to BGP Origin Validation Based
+                        on Resource Public Key Infrastructure (RPKI)";
+         }
+         description
+           "Origin AS validation of BGP prefix.";
+       }
+     }
+
+     grouping origin-as-selection-option {
+       description
+         "Origin AS option for BGP route selection.";
+       container origin-as {
+         leaf enabled {
+           type boolean;
+           default "false";
+           description
+             "When set to true, the origin AS validity states are
+              taken into consideration in the best-path calculation.
+              If set to false, the origin AS validity states are not
+              taken into consideration in the best-path calculation.";
+         }
+         leaf allow-invalid {
+           type boolean;
+           default "false";
+           description
+             "When set to true, routes whose origin AS validation
+              state is 'invalid' MAY be taken into consideration in
+              the best-path calculation.  If set to false, such
+              routes MUST be excluded from the best-path
+              calculation.";
+         }
+         leaf allow-not-found {
+           type boolean;
+           default "true";
+           description
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 12]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+             "When set to true, routes whose origin AS validation
+              state is 'not-found' MAY be taken into consideration
+              in the best-path calculation.  If set to false, such
+              routes MUST be excluded from the best-path
+              calculation.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which origin AS option
+              is enabled for BGP route selection.";
+         }
+         description
+           "Origin AS option for BGP route selection.";
+       }
+     }
+
+     grouping origin-as-validity-advertisement {
+       description
+         "Structural grouping used for advertisement of Origin
+          Validation State Extended Community to neighbor(s).";
+       container origin-as-validity-advertisement {
+         leaf send-origin-as-validity {
+           type boolean;
+           default "false";
+           description
+             "If set to true, the origin AS validity MUST be sent
+              to the neighbor(s) using the Origin Validation State
+              Extended Community.";
+           reference
+             "RFC 8097: BGP Prefix Origin Validation State Extended
+                        Community";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which Origin Validation
+              State Extended Community is advertised.";
+         }
+         description
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 13]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+           "Advertisement of Origin Validation State Extended
+            Community to neighbor(s).";
+       }
+     }
+
+     grouping export-origin-as-validation-config {
+       description
+         "Export origin AS validation of BGP prefix.";
+       container export-origin-as-validation {
+         leaf enabled {
+           type boolean;
+           default "false";
+           description
+             "When set to true, the origin AS validity states are
+              taken into consideration in BGP export.  If set to
+              false, the origin AS validity states are not taken
+              into consideration in BGP export.";
+         }
+         leaf allow-not-found {
+           type boolean;
+           default "false";
+           description
+             "When set to true, routes with 'not-found' origin AS
+              MAY be sent to the neighbor.  If set to false, such
+              routes MUST NOT be sent to the neighbor.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which origin AS validity
+              states are considered in BGP export.";
+         }
+         description
+           "Export origin AS validation of BGP prefix.";
+         reference
+           "RFC 8893: Resource Public Key Infrastructure (RPKI) Origin
+                      Validation for BGP Export";
+       }
+     }
+
+     grouping origin-as-validity-statistics {
+       description
+         "Origin AS validation statistics.";
+       container statistics {
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 14]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+         config false;
+         leaf validation-state-unverified {
+           type yang:gauge32;
+           description
+             "The number of routes with validation state as
+              unverified.";
+         }
+         leaf validation-state-unknown {
+           type yang:gauge32;
+           description
+             "The number of routes with validation state as
+              unknown.";
+         }
+         leaf validation-state-invalid {
+           type yang:gauge32;
+           description
+             "The number of routes with validation state as
+              invalid.";
+         }
+         leaf validation-state-valid {
+           type yang:gauge32;
+           description
+             "The number of routes with validation state as valid.";
+         }
+         description
+           "Statistical data for origin AS validation states.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast" {
+       description
+         "Origin AS validation augmentation of BGP IPv4 Unicast
+          Address Family.";
+       uses origin-as-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast" {
+       description
+         "Origin AS validation augmentation of BGP IPv6 Unicast
+          Address Family.";
+       uses origin-as-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 15]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast"
+           + "/bgp:neighbors/bgp:neighbor/bgp:adj-rib-in-pre" {
+       description
+         "Augmentation of BGP IPv4 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast"
+           + "/bgp:neighbors/bgp:neighbor/bgp:adj-rib-in-pre" {
+       description
+         "Augmentation of BGP IPv6 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast"
+           + "/bgp:neighbors/bgp:neighbor/bgp:adj-rib-in-post" {
+       description
+         "Augmentation of BGP IPv4 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast"
+           + "/bgp:neighbors/bgp:neighbor/bgp:adj-rib-in-post" {
+       description
+         "Augmentation of BGP IPv6 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast"
+           + "/bgp:loc-rib" {
+       description
+         "Augmentation of BGP IPv4 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast"
+           + "/bgp:loc-rib" {
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 16]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+       description
+         "Augmentation of BGP IPv6 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast"
+           + "/bgp:neighbors/bgp:neighbor/bgp:adj-rib-out-pre" {
+       description
+         "Augmentation of BGP IPv4 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast"
+           + "/bgp:neighbors/bgp:neighbor/bgp:adj-rib-out-pre" {
+       description
+         "Augmentation of BGP IPv6 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast"
+           + "/bgp:neighbors/bgp:neighbor/bgp:adj-rib-out-post" {
+       description
+         "Augmentation of BGP IPv4 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast"
+           + "/bgp:neighbors/bgp:neighbor/bgp:adj-rib-out-post" {
+       description
+         "Augmentation of BGP IPv6 Unicast route statistics.";
+       uses origin-as-validity-statistics;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast"
+           + "/bgp:loc-rib/bgp:routes/bgp:route" {
+       description
+         "Origin AS validity augmentation of BGP IPv4 Unicast
+          route.";
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 17]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+       leaf origin-as-validity {
+         type origin-as-validity-state;
+         description
+           "Origin AS validity of BGP IPv4 Unicast prefix.";
+       }
+       leaf validity-invalid-reason {
+         type route-validity-invalid-reason;
+         description
+           "Reason for marking a BGP IPv4 Unicast prefix as
+            invalid.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast"
+           + "/bgp:loc-rib/bgp:routes/bgp:route" {
+       description
+         "Origin AS validity augmentation of BGP IPv6 Unicast
+          route.";
+       leaf origin-as-validity {
+         type origin-as-validity-state;
+         description
+           "Origin AS validity of BGP IPv6 Unicast prefix.";
+       }
+       leaf validity-invalid-reason {
+         type route-validity-invalid-reason;
+         description
+           "Reason for marking a BGP IPv6 Unicast prefix as
+            invalid.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:route-selection-options" {
+       when "derived-from-or-self(../bgp:name, 'bast:ipv4-unicast') or "
+          + "derived-from-or-self(../bgp:name, 'bast:ipv6-unicast')" {
+         description
+           "This augmentation is valid for IPv4 and IPv6 Unicast.";
+       }
+       description
+         "Augmentation of BGP route selection options.";
+       uses origin-as-selection-option;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 18]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:neighbors"
+           + "/bgp:neighbor/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv4-unicast" {
+       description
+         "Augmentation of origin AS validation sending management
+          for IPv4 Unicast neighbor.";
+       uses origin-as-validity-advertisement;
+       uses export-origin-as-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:neighbors"
+           + "/bgp:neighbor/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv6-unicast" {
+       description
+         "Augmentation of origin AS validation sending management
+          for IPv6 Unicast neighbor.";
+       uses origin-as-validity-advertisement;
+       uses export-origin-as-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:peer-groups"
+           + "/bgp:peer-group/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv4-unicast" {
+       description
+         "Augmentation of origin AS validation sending management
+          for IPv4 Unicast peer group.";
+       uses origin-as-validity-advertisement;
+       uses export-origin-as-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:peer-groups"
+           + "/bgp:peer-group/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv6-unicast" {
+       description
+         "Augmentation of origin AS validation sending management
+          for IPv6 Unicast peer group.";
+       uses origin-as-validity-advertisement;
+       uses export-origin-as-validation-config;
+     }
+   }
+   <CODE ENDS>
+
+
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 19]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+4.  BGPsec YANG Module
+
+4.1.  Tree View
+
+   The complete tree of the ietf-bgp-sec.yang data model is shown below.
+   See [RFC8340] for an explanation of the symbols used.
+
+   module: ietf-bgp-sec
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast:
+       +--rw bgpsec-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast:
+       +--rw bgpsec-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast
+               /bgp:loc-rib/bgp:routes/bgp:route:
+       +--ro bgpsec-validity?     bgpsec-validity-state
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast
+               /bgp:loc-rib/bgp:routes/bgp:route:
+       +--ro bgpsec-validity?     bgpsec-validity-state
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:route-selection-options:
+       +--rw bgpsec
+          +--rw enabled?                 boolean
+          +--rw allow-invalid?           boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 20]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:neighbors
+               /bgp:neighbor/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv4-unicast:
+       +--rw export-bgpsec-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:neighbors
+               /bgp:neighbor/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv6-unicast:
+       +--rw export-bgpsec-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:peer-groups
+               /bgp:peer-group/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv4-unicast:
+       +--rw export-bgpsec-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:peer-groups
+               /bgp:peer-group/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv6-unicast:
+       +--rw export-bgpsec-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                         /policy-definitions
+                                         /policy-definition/name
+
+4.2.  YANG Module
+
+   This YANG module has normative references to [RFC8205], [RFC8349],
+   [RFC9067], and the BGP YANG model [I-D.ietf-idr-bgp-model].
+
+
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 21]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   <CODE BEGINS> file "ietf-bgp-sec@2026-09-28.yang"
+   module ietf-bgp-sec {
+     yang-version "1.1";
+     namespace "urn:ietf:params:xml:ns:yang:"
+             + "ietf-bgp-sec";
+     prefix bgp-sec;
+
+     import ietf-routing {
+       prefix rt;
+       reference
+         "RFC 8349: A YANG Data Model for Routing Management
+                    (NMDA Version)";
+     }
+
+     import ietf-bgp {
+       prefix bgp;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import iana-bgp-afi-safi-types {
+       prefix bast;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import iana-bgp-rib-types {
+       prefix brt;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import ietf-routing-policy {
+       prefix rt-pol;
+       reference
+         "RFC 9067: A YANG Data Model for Routing Policy Management";
+     }
+
+     organization
+       "IETF IDR Working Group";
+
+     contact
+       "WG Web:  <http://datatracker.ietf.org/wg/idr/>
+        WG List: IDR <mailto:idr@ietf.org>
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 22]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+        Authors: Changwang Lin
+                 <mailto:linchangwang.04414@h3c.com>
+                     Yisong Liu
+                 <mailto:liuyisong@chinamobile.com>
+                 Haibo Wang
+                 <mailto:rainsword.wang@huawei.com>
+                 Jishnu Roy
+                 <mailto:jishnur@juniper.net>
+                 Di Ma
+                 <mailto:madi@zdns.cn>";
+
+     description
+       "This module describes management of BGPsec.
+
+        The key words 'MUST', 'MUST NOT', 'REQUIRED', 'SHALL', 'SHALL
+        NOT', 'SHOULD', 'SHOULD NOT', 'RECOMMENDED', 'NOT RECOMMENDED',
+        'MAY', and 'OPTIONAL' in this document are to be interpreted as
+        described in BCP 14 (RFC 2119) (RFC 8174) when, and only when,
+        they appear in all capitals, as shown here.
+
+        Copyright (c) 2026 IETF Trust and the persons identified as
+        authors of the code. All rights reserved.
+
+        Redistribution and use in source and binary forms, with or
+        without modification, is permitted pursuant to, and subject to
+        the license terms contained in, the Revised BSD License set
+        forth in Section 4.c of the IETF Trust's Legal Provisions
+        Relating to IETF Documents
+        (https://trustee.ietf.org/license-info).
+
+        All revisions of IETF and IANA published modules can be found
+        at the YANG Parameters registry group
+        (https://www.iana.org/assignments/yang-parameters).
+
+        This version of this YANG module is part of RFC XXXX;
+        see the RFC itself for full legal notices.";
+
+     revision 2026-09-28 {
+       description
+         "Initial Version";
+       reference
+         "RFC XXXX: YANG Data Model for BGP about RPKI";
+     }
+
+     identity ineligible-bgp {
+       base brt:ineligible-route-reason;
+       description
+         "Route was ineligible due to BGPsec.";
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 23]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+     }
+
+     typedef bgpsec-validity-state {
+       type enumeration {
+         enum valid {
+           description
+             "The BGPsec validation state of the route is valid.";
+         }
+         enum invalid {
+           description
+             "The BGPsec validation state of the route is invalid.";
+         }
+         enum disabled {
+           description
+             "BGPsec validation is not enabled.";
+         }
+       }
+       description
+         "BGPsec validation state of BGP routes.";
+       reference
+         "RFC 8205: BGPsec Protocol Specification";
+     }
+
+     grouping bgpsec-validation-config {
+       description
+         "BGPsec validation of BGP prefix.";
+       container bgpsec-validation {
+         leaf enabled {
+           type boolean;
+           default "false";
+           description
+             "Whether BGPsec validation of BGP prefix is enabled.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which BGPsec validation
+              is enabled.";
+         }
+         description
+           "BGPsec validation of BGP prefix.";
+       }
+     }
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 24]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+     grouping bgpsec-selection-option {
+       description
+         "BGPsec option for BGP route selection.";
+       container bgpsec {
+         leaf enabled {
+           type boolean;
+           default "false";
+           description
+             "When set to true, the BGPsec validity states are
+              taken into consideration in the best-path calculation.
+              If set to false, the BGPsec validity states are not
+              taken into consideration in the best-path calculation.";
+         }
+
+         leaf allow-invalid {
+           type boolean;
+           default "false";
+           description
+             "When set to true, routes whose BGPsec validity state
+              is 'invalid' MAY be taken into consideration in the
+              best-path calculation.  If set to false, such routes
+              MUST be excluded from the best-path calculation.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which BGPsec option
+              is enabled in BGP route selection.";
+         }
+         description
+           "BGPsec option for BGP route selection.";
+       }
+     }
+
+     grouping export-bgpsec-validation-config {
+       description
+         "Export BGPsec validation of BGP prefix.";
+       container export-bgpsec-validation {
+         leaf enabled {
+           type boolean;
+           default "false";
+           description
+             "When set to true, the BGPsec validity states are
+              taken into consideration in BGP export.  If set to
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 25]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+              false, the BGPsec validity states are not taken into
+              consideration in BGP export.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which BGPsec validity
+              states are considered in BGP export.";
+         }
+         description
+           "Export BGPsec validation of BGP prefix.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast" {
+       description
+         "BGPsec augmentation of BGP IPv4 Unicast Address Family.";
+       uses bgpsec-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast" {
+       description
+         "BGPsec augmentation of BGP IPv6 Unicast Address Family.";
+       uses bgpsec-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast"
+           + "/bgp:loc-rib/bgp:routes/bgp:route" {
+       description
+         "BGPsec augmentation of BGP IPv4 Unicast route.";
+       leaf bgpsec-validity {
+         type bgpsec-validity-state;
+         description
+           "BGPsec validity of BGP IPv4 Unicast prefix.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 26]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast"
+           + "/bgp:loc-rib/bgp:routes/bgp:route" {
+       description
+         "BGPsec augmentation of BGP IPv6 Unicast route.";
+       leaf bgpsec-validity {
+         type bgpsec-validity-state;
+         description
+           "BGPsec validity of BGP IPv6 Unicast prefix.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:route-selection-options" {
+       when "derived-from-or-self(../bgp:name, 'bast:ipv4-unicast') or "
+          + "derived-from-or-self(../bgp:name, 'bast:ipv6-unicast')" {
+         description
+           "This augmentation is valid for IPv4 and IPv6 Unicast.";
+       }
+       description
+         "BGPsec augmentation of BGP route selection options.";
+       uses bgpsec-selection-option;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:neighbors"
+           + "/bgp:neighbor/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv4-unicast" {
+       description
+         "BGPsec augmentation for IPv4 Unicast neighbor.";
+       uses export-bgpsec-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:neighbors"
+           + "/bgp:neighbor/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv6-unicast" {
+       description
+         "BGPsec augmentation for IPv6 Unicast neighbor.";
+       uses export-bgpsec-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:peer-groups"
+           + "/bgp:peer-group/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv4-unicast" {
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 27]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+       description
+         "BGPsec augmentation for IPv4 Unicast peer group.";
+       uses export-bgpsec-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:peer-groups"
+           + "/bgp:peer-group/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv6-unicast" {
+       description
+         "BGPsec augmentation for IPv6 Unicast peer group.";
+       uses export-bgpsec-validation-config;
+     }
+   }
+   <CODE ENDS>
+
+5.  BGP ASPA YANG Module
+
+5.1.  Tree View
+
+   The complete tree of the ietf-bgp-aspa.yang data model is shown
+   below.  See [RFC8340] for an explanation of the symbols used.
+
+   module: ietf-bgp-aspa
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:neighbors
+               /bgp:neighbor:
+       +--rw peer-role?           peer-role
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:peer-groups
+               /bgp:peer-group:
+       +--rw peer-role?           peer-role
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast:
+       +--rw aspa-verification
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                            /policy-definitions
+                                            /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast:
+       +--rw aspa-verification
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 28]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                            /policy-definitions
+                                            /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast
+               /bgp:loc-rib/bgp:routes/bgp:route:
+       +--ro aspa-verification-state?  aspa-verification-state
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:rib
+               /bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast
+               /bgp:loc-rib/bgp:routes/bgp:route:
+       +--ro aspa-verification-state?  aspa-verification-state
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:global
+               /bgp:afi-safis/bgp:afi-safi/bgp:route-selection-options:
+       +--rw aspa
+          +--rw enabled?                 boolean
+          +--rw allow-invalid?           boolean
+          +--rw allow-unknown?           boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                            /policy-definitions
+                                            /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:neighbors
+               /bgp:neighbor/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv4-unicast:
+       +--rw export-aspa-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                            /policy-definitions
+                                            /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:neighbors
+               /bgp:neighbor/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv6-unicast:
+       +--rw export-aspa-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                            /policy-definitions
+                                            /policy-definition/name
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 29]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:peer-groups
+               /bgp:peer-group/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv4-unicast:
+       +--rw export-aspa-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                            /policy-definitions
+                                            /policy-definition/name
+
+     augment /rt:routing/rt:control-plane-protocols
+               /rt:control-plane-protocol/bgp:bgp/bgp:peer-groups
+               /bgp:peer-group/bgp:afi-safis/bgp:afi-safi
+               /bgp:ipv6-unicast:
+       +--rw export-aspa-validation
+          +--rw enabled?                 boolean
+          +--rw eligible-prefix-policy?  -> /rt-pol:routing-policy
+                                            /policy-definitions
+                                            /policy-definition/name
+
+5.2.  YANG Module
+
+   This YANG module has normative references to [RFC8349], [RFC9067],
+   the BGP YANG model [I-D.ietf-idr-bgp-model], and the ASPA
+   verification algorithm [I-D.ietf-sidrops-aspa-verification].
+
+   <CODE BEGINS> file "ietf-bgp-aspa@2026-09-28.yang"
+   module ietf-bgp-aspa {
+     yang-version "1.1";
+     namespace "urn:ietf:params:xml:ns:yang:"
+             + "ietf-bgp-aspa";
+     prefix bgp-aspa;
+
+     import ietf-routing {
+       prefix rt;
+       reference
+         "RFC 8349: A YANG Data Model for Routing Management
+                    (NMDA Version)";
+     }
+
+     import ietf-bgp {
+       prefix bgp;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import iana-bgp-afi-safi-types {
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 30]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+       prefix bast;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import iana-bgp-rib-types {
+       prefix brt;
+       reference
+         "I-D.ietf-idr-bgp-model: YANG Model for Border Gateway
+                    Protocol (BGP-4)";
+     }
+
+     import ietf-routing-policy {
+       prefix rt-pol;
+       reference
+         "RFC 9067: A YANG Data Model for Routing Policy Management";
+     }
+
+     organization
+       "IETF IDR Working Group";
+
+     contact
+       "WG Web:  <http://datatracker.ietf.org/wg/idr/>
+        WG List: IDR <mailto:idr@ietf.org>
+
+        Authors: Changwang Lin
+                 <mailto:linchangwang.04414@h3c.com>
+                     Yisong Liu
+                 <mailto:liuyisong@chinamobile.com>
+                 Haibo Wang
+                 <mailto:rainsword.wang@huawei.com>
+                 Jishnu Roy
+                 <mailto:jishnur@juniper.net>
+                 Di Ma
+                 <mailto:madi@zdns.cn>";
+
+     description
+       "This module describes management of the BGP AS_PATH
+        Verification Based on ASPA.
+
+        The key words 'MUST', 'MUST NOT', 'REQUIRED', 'SHALL', 'SHALL
+        NOT', 'SHOULD', 'SHOULD NOT', 'RECOMMENDED', 'NOT RECOMMENDED',
+        'MAY', and 'OPTIONAL' in this document are to be interpreted as
+        described in BCP 14 (RFC 2119) (RFC 8174) when, and only when,
+        they appear in all capitals, as shown here.
+
+        Copyright (c) 2026 IETF Trust and the persons identified as
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 31]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+        authors of the code. All rights reserved.
+
+        Redistribution and use in source and binary forms, with or
+        without modification, is permitted pursuant to, and subject to
+        the license terms contained in, the Revised BSD License set
+        forth in Section 4.c of the IETF Trust's Legal Provisions
+        Relating to IETF Documents
+        (https://trustee.ietf.org/license-info).
+
+        All revisions of IETF and IANA published modules can be found
+        at the YANG Parameters registry group
+        (https://www.iana.org/assignments/yang-parameters).
+
+        This version of this YANG module is part of RFC XXXX;
+        see the RFC itself for full legal notices.";
+
+     revision 2026-09-28 {
+       description
+         "Initial Version";
+       reference
+         "RFC XXXX: YANG Data Model for BGP about RPKI";
+     }
+
+     identity ineligible-aspa {
+       base brt:ineligible-route-reason;
+       description
+         "Route was ineligible due to ASPA verification.";
+     }
+
+     typedef peer-role {
+       type enumeration {
+         enum customer {
+           description
+             "The role of the BGP peer is customer.";
+         }
+         enum provider {
+           description
+             "The role of the BGP peer is provider.";
+         }
+         enum lateral-peer {
+           description
+             "The role of the BGP peer is lateral peer.";
+         }
+         enum rs {
+           description
+             "The role of the BGP peer is Route Server (RS).";
+         }
+         enum rs-client {
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 32]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+           description
+             "The role of the BGP peer is RS-client.";
+         }
+         enum mutual-transit {
+           description
+             "The role of the BGP peer is mutual-transit.";
+         }
+       }
+       description
+         "Roles of BGP peers.";
+       reference
+         "I-D.ietf-sidrops-aspa-verification: BGP AS_PATH Verification
+                    Based on Autonomous System Provider Authorization
+                    (ASPA) Objects";
+     }
+
+     typedef aspa-verification-state {
+       type enumeration {
+         enum valid {
+           description
+             "The ASPA verification outcome is valid.";
+         }
+         enum invalid {
+           description
+             "The ASPA verification outcome is invalid.";
+         }
+         enum unknown {
+           description
+             "The ASPA verification outcome is unknown.";
+         }
+         enum disabled {
+           description
+             "BGP ASPA verification is not enabled.";
+         }
+       }
+       description
+         "ASPA verification state of BGP routes.";
+       reference
+         "I-D.ietf-sidrops-aspa-verification: BGP AS_PATH Verification
+                    Based on Autonomous System Provider Authorization
+                    (ASPA) Objects";
+     }
+
+     grouping aspa-config {
+       description
+         "ASPA verification of BGP prefix.";
+       container aspa-verification {
+         leaf enabled {
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 33]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+           type boolean;
+           default "false";
+           description
+             "Whether ASPA verification of BGP prefix is enabled.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which ASPA verification
+              is enabled.";
+         }
+         description
+           "ASPA verification of BGP prefix.";
+       }
+     }
+
+     grouping aspa-selection-option {
+       description
+         "ASPA option for BGP route selection.";
+       container aspa {
+         leaf enabled {
+           type boolean;
+           default "false";
+           description
+             "When set to true, the ASPA verification states are
+              taken into consideration in the best-path calculation.
+              If set to false, the ASPA verification states are not
+              taken into consideration in the best-path calculation.";
+         }
+         leaf allow-invalid {
+           type boolean;
+           default "false";
+           description
+             "When set to true, routes whose ASPA verification state
+              is 'invalid' MAY be taken into consideration in the
+              best-path calculation.  If set to false, such routes
+              MUST be excluded from the best-path calculation.";
+         }
+         leaf allow-unknown {
+           type boolean;
+           default "true";
+           description
+             "When set to true, routes whose ASPA verification state
+              is 'unknown' MAY be taken into consideration in the
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 34]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+              best-path calculation.  If set to false, such routes
+              MUST be excluded from the best-path calculation.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which ASPA option
+              is enabled in BGP route selection.";
+         }
+         description
+           "ASPA option for BGP route selection.";
+       }
+     }
+
+     grouping export-aspa-validation-config {
+       description
+         "Export AS_PATH validation of BGP prefix.";
+       container export-aspa-validation {
+         leaf enabled {
+           type boolean;
+           default "false";
+           description
+             "When set to true, the AS_PATH validity states are
+              taken into consideration in BGP export.  If set to
+              false, the AS_PATH validity states are not taken into
+              consideration in BGP export.";
+         }
+         leaf eligible-prefix-policy {
+           type leafref {
+             path "/rt-pol:routing-policy/rt-pol:policy-definitions/"
+                + "rt-pol:policy-definition/rt-pol:name";
+           }
+           description
+             "A reference to a routing policy which can be used to
+              restrict the prefixes for which AS_PATH validity
+              states are considered in BGP export.";
+         }
+         description
+           "Export AS_PATH validation of BGP prefix.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:neighbors"
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 35]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+           + "/bgp:neighbor" {
+       description
+         "Augmentation of BGP peer roles for neighbors.";
+       leaf peer-role {
+         type peer-role;
+         description
+           "Role of the peer.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:peer-groups"
+           + "/bgp:peer-group" {
+       description
+         "Augmentation of BGP peer roles for peer groups.";
+       leaf peer-role {
+         type peer-role;
+         description
+           "Role of the peer group.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast" {
+       description
+         "ASPA verification augmentation of BGP IPv4 Unicast
+          Address Family.";
+       uses aspa-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast" {
+       description
+         "ASPA verification augmentation of BGP IPv6 Unicast
+          Address Family.";
+       uses aspa-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast"
+           + "/bgp:loc-rib/bgp:routes/bgp:route" {
+       description
+         "ASPA verification state augmentation of BGP IPv4
+          Unicast route.";
+       leaf aspa-verification-state {
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 36]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+         type aspa-verification-state;
+         description
+           "ASPA verification state of BGP IPv4 Unicast prefix.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:rib"
+           + "/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast"
+           + "/bgp:loc-rib/bgp:routes/bgp:route" {
+       description
+         "ASPA verification state augmentation of BGP IPv6
+          Unicast route.";
+       leaf aspa-verification-state {
+         type aspa-verification-state;
+         description
+           "ASPA verification state of BGP IPv6 Unicast prefix.";
+       }
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:global"
+           + "/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:route-selection-options" {
+       when "derived-from-or-self(../bgp:name, 'bast:ipv4-unicast') or "
+          + "derived-from-or-self(../bgp:name, 'bast:ipv6-unicast')" {
+         description
+           "This augmentation is valid for IPv4 and IPv6 Unicast.";
+       }
+       description
+         "Augmentation of BGP route selection options.";
+       uses aspa-selection-option;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:neighbors"
+           + "/bgp:neighbor/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv4-unicast" {
+       description
+         "ASPA export validation augmentation for IPv4 Unicast
+          neighbor.";
+       uses export-aspa-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:neighbors"
+           + "/bgp:neighbor/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv6-unicast" {
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 37]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+       description
+         "ASPA export validation augmentation for IPv6 Unicast
+          neighbor.";
+       uses export-aspa-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:peer-groups"
+           + "/bgp:peer-group/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv4-unicast" {
+       description
+         "ASPA export validation augmentation for IPv4 Unicast
+          peer group.";
+       uses export-aspa-validation-config;
+     }
+
+     augment "/rt:routing/rt:control-plane-protocols"
+           + "/rt:control-plane-protocol/bgp:bgp/bgp:peer-groups"
+           + "/bgp:peer-group/bgp:afi-safis/bgp:afi-safi"
+           + "/bgp:ipv6-unicast" {
+       description
+         "ASPA export validation augmentation for IPv6 Unicast
+          peer group.";
+       uses export-aspa-validation-config;
+     }
+   }
+   <CODE ENDS>
+
+6.  Security Considerations
+
+   This section is modeled after the template described in Section 3.7.1
+   of [RFC9907].
+
+   All the YANG modules in this document define data models that are
+   designed to be accessed via YANG-based management protocols, such as
+   Network Configuration Protocol (NETCONF) [RFC6241] and RESTCONF
+   [RFC8040].  These YANG-based management protocols (1) have to use a
+   secure transport layer (e.g., Secure Shell (SSH) [RFC4252], TLS
+   [RFC9846], and QUIC [RFC9000]) and (2) have to use mutual
+   authentication.
+
+   The Network Configuration Access Control Model (NACM) [RFC8341]
+   provides the means to restrict access for particular NETCONF or
+   RESTCONF users to a preconfigured subset of all available NETCONF or
+   RESTCONF protocol operations and content.
+
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 38]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   There are a number of data nodes defined in these YANG modules that
+   are writable/creatable/deletable (i.e., config true, which is the
+   default).  All writable data nodes are likely to be sensitive or
+   vulnerable in some network environments.  Write operations (e.g.,
+   edit-config) and delete operations to these data nodes without proper
+   protection or authentication can have a negative effect on network
+   operations.  The following subtrees and data nodes have particular
+   sensitivities/vulnerabilities:
+
+   *  ietf-bgp-origin-as-validation:
+      -  /bgp-oav:origin-as-validation/bgp-oav:enabled
+      -  /bgp-oav:origin-as-validation/bgp-oav:redistribution-as
+      -  /bgp-oav:origin-as/bgp-oav:enabled
+      -  /bgp-oav:origin-as/bgp-oav:allow-invalid
+      -  /bgp-oav:origin-as/bgp-oav:allow-not-found
+      -  /bgp-oav:origin-as-validity-advertisement/bgp-oav:send-origin-
+         as-validity
+      -  /bgp-oav:export-origin-as-validation/bgp-oav:enabled
+      -  /bgp-oav:origin-as-validation/bgp-oav:eligible-prefix-policy
+      -  /bgp-oav:origin-as/bgp-oav:eligible-prefix-policy
+      -  /bgp-oav:origin-as-validity-advertisement/bgp-oav:eligible-
+         prefix-policy
+      -  /bgp-oav:export-origin-as-validation/bgp-oav:eligible-prefix-
+         policy
+   *  ietf-bgp-sec:
+      -  /bgp-sec:bgpsec-validation/bgp-sec:enabled
+      -  /bgp-sec:bgpsec/bgp-sec:enabled
+      -  /bgp-sec:bgpsec/bgp-sec:allow-invalid
+      -  /bgp-sec:export-bgpsec-validation/bgp-sec:enabled
+      -  /bgp-sec:bgpsec-validation/bgp-sec:eligible-prefix-policy
+      -  /bgp-sec:bgpsec/bgp-sec:eligible-prefix-policy
+      -  /bgp-sec:export-bgpsec-validation/bgp-sec:eligible-prefix-
+         policy
+   *  ietf-bgp-aspa:
+      -  /bgp-aspa:peer-role
+      -  /bgp-aspa:aspa-verification/bgp-aspa:enabled
+      -  /bgp-aspa:aspa/bgp-aspa:enabled
+      -  /bgp-aspa:aspa/bgp-aspa:allow-invalid
+      -  /bgp-aspa:aspa/bgp-aspa:allow-unknown
+      -  /bgp-aspa:export-aspa-validation/bgp-aspa:enabled
+      -  /bgp-aspa:aspa-verification/bgp-aspa:eligible-prefix-policy
+      -  /bgp-aspa:aspa/bgp-aspa:eligible-prefix-policy
+      -  /bgp-aspa:export-aspa-validation/bgp-aspa:eligible-prefix-
+         policy
+
+   There are no particularly sensitive readable data nodes.
+
+   There are no particularly sensitive RPC or action operations.
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 39]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   These YANG modules define a set of identities, types, and groupings,
+   and augment nodes defined in the modules they import (e.g., ietf-bgp
+   [I-D.ietf-idr-bgp-model]).  An attacker modifying the nodes augmented
+   in ietf-bgp can influence BGP route handling.  Refer to the Security
+   Considerations of [I-D.ietf-idr-bgp-model] for information as to
+   which data nodes in the augmented and imported modules may be
+   considered sensitive or vulnerable in network environments.
+
+7.  IANA Considerations
+
+   RFC Ed.: In this section, replace all occurrences of 'XXXX' with the
+   actual RFC number (and remove this note).
+
+7.1.  IETF XML Registry
+
+   The IANA is requested to assign the following URI in the "IETF XML
+   Registry" [RFC3688]:
+
+      URI: urn:ietf:params:xml:ns:yang:ietf-bgp-origin-as-validation
+      Registrant Contact: The IESG.
+      XML: N/A; the requested URI is an XML namespace.
+
+      URI: urn:ietf:params:xml:ns:yang:ietf-bgp-sec
+      Registrant Contact: The IESG.
+      XML: N/A; the requested URI is an XML namespace.
+
+      URI: urn:ietf:params:xml:ns:yang:ietf-bgp-aspa
+      Registrant Contact: The IESG.
+      XML: N/A; the requested URI is an XML namespace.
+
+7.2.  YANG Module Names Registry
+
+   This document registers the following YANG modules in the "YANG
+   Module Names" registry [RFC6020]:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 40]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+      Name:      ietf-bgp-origin-as-validation
+      Maintained by IANA?  N
+      Namespace: urn:ietf:params:xml:ns:yang:
+                 ietf-bgp-origin-as-validation
+      Prefix:    bgp-oav
+      Reference: RFC XXXX
+
+      Name:      ietf-bgp-sec
+      Maintained by IANA?  N
+      Namespace: urn:ietf:params:xml:ns:yang:ietf-bgp-sec
+      Prefix:    bgp-sec
+      Reference: RFC XXXX
+
+      Name:      ietf-bgp-aspa
+      Maintained by IANA?  N
+      Namespace: urn:ietf:params:xml:ns:yang:ietf-bgp-aspa
+      Prefix:    bgp-aspa
+      Reference: RFC XXXX
+
+8.  References
+
+8.1.  Normative References
+
+   [I-D.ietf-idr-bgp-model]
+              Jethanandani, M., Patel, K., Hares, S., and J. Haas, "YANG
+              Model for Border Gateway Protocol (BGP-4)", Work in
+              Progress, Internet-Draft, draft-ietf-idr-bgp-model-21, 14
+              August 2026, <https://datatracker.ietf.org/doc/html/draft-
+              ietf-idr-bgp-model-21>.
+
+   [I-D.ietf-sidrops-aspa-verification]
+              Azimov, A., Bogomazov, E., Bush, R., Patel, K., Snijders,
+              J., and K. Sriram, "BGP AS_PATH Verification Based on
+              Autonomous System Provider Authorization (ASPA) Objects",
+              Work in Progress, Internet-Draft, draft-ietf-sidrops-aspa-
+              verification-28, 24 August 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-
+              aspa-verification-28>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC3688]  Mealling, M., "The IETF XML Registry", BCP 81, RFC 3688,
+              DOI 10.17487/RFC3688, January 2004,
+              <https://www.rfc-editor.org/info/rfc3688>.
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 41]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   [RFC6020]  Bjorklund, M., Ed., "YANG - A Data Modeling Language for
+              the Network Configuration Protocol (NETCONF)", RFC 6020,
+              DOI 10.17487/RFC6020, October 2010,
+              <https://www.rfc-editor.org/info/rfc6020>.
+
+   [RFC6811]  Mohapatra, P., Scudder, J., Ward, D., Bush, R., and R.
+              Austein, "BGP Prefix Origin Validation", RFC 6811,
+              DOI 10.17487/RFC6811, January 2013,
+              <https://www.rfc-editor.org/info/rfc6811>.
+
+   [RFC7950]  Bjorklund, M., Ed., "The YANG 1.1 Data Modeling Language",
+              RFC 7950, DOI 10.17487/RFC7950, August 2016,
+              <https://www.rfc-editor.org/info/rfc7950>.
+
+   [RFC8097]  Mohapatra, P., Patel, K., Scudder, J., Ward, D., and R.
+              Bush, "BGP Prefix Origin Validation State Extended
+              Community", RFC 8097, DOI 10.17487/RFC8097, March 2017,
+              <https://www.rfc-editor.org/info/rfc8097>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8205]  Lepinski, M., Ed. and K. Sriram, Ed., "BGPsec Protocol
+              Specification", RFC 8205, DOI 10.17487/RFC8205, September
+              2017, <https://www.rfc-editor.org/info/rfc8205>.
+
+   [RFC8341]  Bierman, A. and M. Bjorklund, "Network Configuration
+              Access Control Model", STD 91, RFC 8341,
+              DOI 10.17487/RFC8341, March 2018,
+              <https://www.rfc-editor.org/info/rfc8341>.
+
+   [RFC8342]  Bjorklund, M., Schoenwaelder, J., Shafer, P., Watsen, K.,
+              and R. Wilton, "Network Management Datastore Architecture
+              (NMDA)", RFC 8342, DOI 10.17487/RFC8342, March 2018,
+              <https://www.rfc-editor.org/info/rfc8342>.
+
+   [RFC8349]  Lhotka, L., Lindem, A., and Y. Qu, "A YANG Data Model for
+              Routing Management (NMDA Version)", RFC 8349,
+              DOI 10.17487/RFC8349, March 2018,
+              <https://www.rfc-editor.org/info/rfc8349>.
+
+   [RFC8481]  Bush, R., "Clarifications to BGP Origin Validation Based
+              on Resource Public Key Infrastructure (RPKI)", RFC 8481,
+              DOI 10.17487/RFC8481, September 2018,
+              <https://www.rfc-editor.org/info/rfc8481>.
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 42]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   [RFC8893]  Bush, R., Volk, R., and J. Heitz, "Resource Public Key
+              Infrastructure (RPKI) Origin Validation for BGP Export",
+              RFC 8893, DOI 10.17487/RFC8893, September 2020,
+              <https://www.rfc-editor.org/info/rfc8893>.
+
+   [RFC9067]  Qu, Y., Tantsura, J., Lindem, A., and X. Liu, "A YANG Data
+              Model for Routing Policy Management", RFC 9067,
+              DOI 10.17487/RFC9067, October 2021,
+              <https://www.rfc-editor.org/info/rfc9067>.
+
+   [RFC9911]  Schoenwaelder, J., Ed., "Common YANG Data Types",
+              RFC 9911, DOI 10.17487/RFC9911, December 2025,
+              <https://www.rfc-editor.org/info/rfc9911>.
+
+8.2.  Informative References
+
+   [I-D.ietf-sidrops-8210bis]
+              Bush, R., Austein, R., and T. Harrison, "The Resource
+              Public Key Infrastructure (RPKI) to Router Protocol,
+              Version 2", Work in Progress, Internet-Draft, draft-ietf-
+              sidrops-8210bis-27, 13 August 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-
+              8210bis-27>.
+
+   [RFC4252]  Ylonen, T. and C. Lonvick, Ed., "The Secure Shell (SSH)
+              Authentication Protocol", RFC 4252, DOI 10.17487/RFC4252,
+              January 2006, <https://www.rfc-editor.org/info/rfc4252>.
+
+   [RFC6241]  Enns, R., Ed., Bjorklund, M., Ed., Schoenwaelder, J., Ed.,
+              and A. Bierman, Ed., "Network Configuration Protocol
+              (NETCONF)", RFC 6241, DOI 10.17487/RFC6241, June 2011,
+              <https://www.rfc-editor.org/info/rfc6241>.
+
+   [RFC6810]  Bush, R. and R. Austein, "The Resource Public Key
+              Infrastructure (RPKI) to Router Protocol", RFC 6810,
+              DOI 10.17487/RFC6810, January 2013,
+              <https://www.rfc-editor.org/info/rfc6810>.
+
+   [RFC8040]  Bierman, A., Bjorklund, M., and K. Watsen, "RESTCONF
+              Protocol", RFC 8040, DOI 10.17487/RFC8040, January 2017,
+              <https://www.rfc-editor.org/info/rfc8040>.
+
+   [RFC8210]  Bush, R. and R. Austein, "The Resource Public Key
+              Infrastructure (RPKI) to Router Protocol, Version 1",
+              RFC 8210, DOI 10.17487/RFC8210, September 2017,
+              <https://www.rfc-editor.org/info/rfc8210>.
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 43]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   [RFC8340]  Bjorklund, M. and L. Berger, Ed., "YANG Tree Diagrams",
+              BCP 215, RFC 8340, DOI 10.17487/RFC8340, March 2018,
+              <https://www.rfc-editor.org/info/rfc8340>.
+
+   [RFC8635]  Bush, R., Turner, S., and K. Patel, "Router Keying for
+              BGPsec", RFC 8635, DOI 10.17487/RFC8635, August 2019,
+              <https://www.rfc-editor.org/info/rfc8635>.
+
+   [RFC9000]  Iyengar, J., Ed. and M. Thomson, Ed., "QUIC: A UDP-Based
+              Multiplexed and Secure Transport", RFC 9000,
+              DOI 10.17487/RFC9000, May 2021,
+              <https://www.rfc-editor.org/info/rfc9000>.
+
+   [RFC9846]  Rescorla, E., "The Transport Layer Security (TLS) Protocol
+              Version 1.3", RFC 9846, DOI 10.17487/RFC9846, July 2026,
+              <https://www.rfc-editor.org/info/rfc9846>.
+
+   [RFC9907]  Bierman, A., Boucadair, M., Ed., and Q. Wu, "Guidelines
+              for Authors and Reviewers of Documents Containing YANG
+              Data Models", BCP 216, RFC 9907, DOI 10.17487/RFC9907,
+              March 2026, <https://www.rfc-editor.org/info/rfc9907>.
+
+Contributors
+
+   Jeffrey Haas
+   Juniper Networks, Inc.
+   1133 Innovation Way
+   Sunnyvale, CA 94089
+   United States of America
+   Email: jhaas@juniper.net
+
+
+   Hongwei Liu
+   ZTE Corporation
+   China
+   Email: liu.hongwei3@zte.com.cn
+
+
+   Mengxiao Chen
+   H3C
+   China
+   Email: chen.mengxiao@h3c.com
+
+
+Authors' Addresses
+
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 44]
+
+Internet-Draft     YANG Data Model for BGP about RPKI     September 2026
+
+
+   Changwang Lin
+   New H3C Technologies
+   China
+   Email: linchangwang.04414@h3c.com
+
+
+   Yisong Liu
+   China Mobile
+   China
+   Email: liuyisong@chinamobile.com
+
+
+   Haibo Wang
+   Huawei Technologies
+   China
+   Email: rainsword.wang@huawei.com
+
+
+   Jishnu Roy
+   Juniper Networks, Inc.
+   1133 Innovation Way
+   Sunnyvale, CA 94089
+   United States of America
+   Email: jishnur@juniper.net
+
+
+   Di Ma
+   ZDNS
+   Floor 21, Block B, Greenland Center
+   Chaoyang Beijing, 100102
+   China
+   Email: madi@zdns.cn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.               Expires 3 April 2027                 [Page 45]

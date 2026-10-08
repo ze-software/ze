@@ -1,0 +1,283 @@
+
+
+
+
+
+
+Internet Engineering Task Force (IETF)                           J. Haas
+Request for Comments: 7300                              Juniper Networks
+BCP: 6                                                       J. Mitchell
+Updates: 1930                                      Microsoft Corporation
+Category: Best Current Practice                                July 2014
+ISSN: 2070-1721
+
+
+           Reservation of Last Autonomous System (AS) Numbers
+
+Abstract
+
+   This document reserves two Autonomous System Numbers (ASNs) at the
+   end of the 16-bit and 32-bit ranges, described in this document as
+   "Last ASNs", and provides guidance to implementers and operators on
+   their use.  This document updates Section 10 of RFC 1930.
+
+Status of This Memo
+
+   This memo documents an Internet Best Current Practice.
+
+   This document is a product of the Internet Engineering Task Force
+   (IETF).  It has been approved for publication by the Internet
+   Engineering Steering Group (IESG).  Further information on BCPs is
+   available in Section 2 of RFC 5741.
+
+   Information about the current status of this document, any errata,
+   and how to provide feedback on it may be obtained at
+   http://www.rfc-editor.org/info/rfc7300.
+
+Copyright Notice
+
+   Copyright (c) 2014 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+
+
+
+
+
+
+Haas & Mitchell           Best Current Practice                 [Page 1]
+
+RFC 7300                   Last AS Reservation                 July 2014
+
+
+1.  Introduction
+
+   Over a decade ago, IANA reserved the last Autonomous System Number
+   (ASN) of the 16-bit ASN range, 65535, with the intention that it not
+   be used by network operators running BGP [RFC4271].  Since the
+   introduction of "BGP Support for Four-Octet Autonomous System (AS)
+   Number Space" [RFC6793], IANA has also reserved the last ASN of the
+   32-bit autonomous system number range, 4294967295.  This reservation
+   has been documented in the IANA "Autonomous System (AS) Numbers"
+   registry [IANA.AS].  Although these "Last ASNs" border on Private Use
+   ASN [RFC6996] ranges, they are not defined or reserved as Private Use
+   ASNs by [IANA.AS].  This document describes the reasoning for
+   reserving Last ASNs and provides guidance both to operators and to
+   implementers on their use.
+
+2.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+3.  Reasons for Reservation of the Last ASNs
+
+   A subset of the BGP communities of ASN 65535, the last ASN of the
+   16-bit range, are reserved for use by Well-known Communities as
+   described in [RFC1997] and [IANA.WK].  Although this is not currently
+   true of ASN 4294967295, if there is a future need for another Special
+   Use ASN that is not designed to be globally routable, or for the
+   associated BGP communities of such an ASN, ASN 4294967295 could be a
+   valid candidate for such purpose.  This document does not prescribe
+   any such Special Use to this ASN at the time of publication.
+
+4.  Operational Considerations
+
+   Operators SHOULD NOT use these Last ASNs for any other purpose or as
+   Private Use ASNs.  Operational use of these Last ASNs could have
+   undesirable results.  For example; use of AS 65535 as if it were a
+   Private Use ASN, may result in inadvertent use of BGP Well-known
+   Community values [IANA.WK], causing undesirable routing behavior.
+
+   Last ASNs MUST NOT be advertised to the global Internet within
+   AS_PATH or AS4_PATH attributes.  Operators SHOULD filter Last ASNs
+   within the AS_PATH and AS4_PATH attributes.
+
+
+
+
+
+
+
+
+Haas & Mitchell           Best Current Practice                 [Page 2]
+
+RFC 7300                   Last AS Reservation                 July 2014
+
+
+5.  Implementation Considerations
+
+   While Last ASNs are reserved, they remain valid ASNs from a BGP
+   perspective.  Therefore, implementations of BGP [RFC4271] SHOULD NOT
+   treat the use of Last ASNs as any type of protocol error.  However,
+   if a Last ASN is configured as the local AS, implementations MAY
+   generate a warning message indicating improper use of a reserved ASN.
+
+   Implementations that provide tools that filter Private Use ASNs
+   within the AS_PATH and AS4_PATH attributes MAY also include Last
+   ASNs.
+
+6.  IANA Considerations
+
+   IANA has reserved last Autonomous System number 65535 from the
+   "16-bit Autonomous System Numbers" registry for the reasons described
+   in this document.
+
+   IANA has also reserved last Autonomous System number 4294967295 from
+   the "32-bit Autonomous System Numbers" registry for the reasons
+   described in this document.
+
+   These reservations have been documented in the IANA "Autonomous
+   System (AS) Numbers" registry [IANA.AS] and the IANA "Special-Purpose
+   Autonomous System (AS) Numbers" registry [IANA.SpecialAS].
+
+7.  Security Considerations
+
+   This document does not introduce any additional security concerns in
+   regards to usage of Last ASNs.  Although the BGP is designed to allow
+   usage of Last ASNs, security issues related to BGP implementation
+   errors could be triggered by Last ASN usage.
+
+8.  References
+
+8.1.  Normative References
+
+   [IANA.AS]  IANA, "Autonomous System (AS) Numbers",
+              <http://www.iana.org/assignments/as-numbers/>.
+
+   [IANA.SpecialAS]
+              IANA, "Special-Purpose Autonomous System (AS) Numbers",
+              <http://www.iana.org/assignments/
+              iana-as-numbers-special-registry/>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+
+
+
+Haas & Mitchell           Best Current Practice                 [Page 3]
+
+RFC 7300                   Last AS Reservation                 July 2014
+
+
+   [RFC4271]  Rekhter, Y., Li, T., and S. Hares, "A Border Gateway
+              Protocol 4 (BGP-4)", RFC 4271, January 2006.
+
+   [RFC6793]  Vohra, Q. and E. Chen, "BGP Support for Four-Octet
+              Autonomous System (AS) Number Space", RFC 6793, December
+              2012.
+
+8.2.  Informative References
+
+   [IANA.WK]  IANA, "Border Gateway Protocol (BGP) Well-known
+              Communities", <http://www.iana.org/assignments/
+              bgp-well-known-communities/>.
+
+   [RFC1997]  Chandrasekeran, R., Traina, P., and T. Li, "BGP
+              Communities Attribute", RFC 1997, August 1996.
+
+   [RFC6996]  Mitchell, J., "Autonomous System (AS) Reservation for
+              Private Use", BCP 6, RFC 6996, July 2013.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Haas & Mitchell           Best Current Practice                 [Page 4]
+
+RFC 7300                   Last AS Reservation                 July 2014
+
+
+Appendix A.  Acknowledgments
+
+   The authors would like to thank Michelle Cotton and Elwyn Davies for
+   encouraging the proper documentation of the reservation of these
+   ASNs, and David Farmer for his contributions to the document.
+
+Authors' Addresses
+
+   Jeffrey Haas
+   Juniper Networks
+
+   EMail: jhaas@juniper.net
+
+
+   Jon Mitchell
+   Microsoft Corporation
+   One Microsoft Way
+   Redmond, WA  98052
+   USA
+
+   EMail: Jon.Mitchell@microsoft.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Haas & Mitchell           Best Current Practice                 [Page 5]
+

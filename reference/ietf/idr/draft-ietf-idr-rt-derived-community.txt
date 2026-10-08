@@ -1,0 +1,392 @@
+
+
+
+
+idr                                                             Z. Zhang
+Internet-Draft                                                   J. Haas
+Intended status: Informational                                       HPE
+Expires: 1 February 2027                                        K. Patel
+                                                                  Arrcus
+                                                            31 July 2026
+
+
+            Extended Communities Derived from Route Targets
+                 draft-ietf-idr-rt-derived-community-10
+
+Abstract
+
+   This document specifies a way to derive an Extended Community from a
+   Route Target and describes some example use cases.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 1 February 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+
+
+
+
+Zhang, et al.            Expires 1 February 2027                [Page 1]
+
+Internet-Draft               RT-derived ECs                    July 2026
+
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Specification . . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   3
+   4.  A Note on Route Target Type/sub-type Conventions  . . . . . .   4
+   5.  Use Cases . . . . . . . . . . . . . . . . . . . . . . . . . .   5
+     5.1.  EVPN EVI-RT Extended Community  . . . . . . . . . . . . .   5
+     5.2.  Leaf Discovery with Controller Signaled BGP-MVPN  . . . .   5
+     5.3.  Translated Route-target Extended Communities in
+           I-D.ietf-idr-legacy-rtc . . . . . . . . . . . . . . . . .   5
+   6.  Security Considerations . . . . . . . . . . . . . . . . . . .   6
+   7.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   6
+   8.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   6
+     8.1.  Normative References  . . . . . . . . . . . . . . . . . .   6
+     8.2.  Informative References  . . . . . . . . . . . . . . . . .   6
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   7
+
+1.  Introduction
+
+   Consider a VPN with 10 PEs.  A Route Target (say RT1) [RFC4360] is
+   configured for the VPN, and all PEs will import VPN routes with RT1
+   into their corresponding VRF.  The RT is an Extended Community (say
+   EC1), with its sub-type being 0x02.  While RT1 and EC1 have the same
+   encoding, typically, when we mention a Route Target, its property of
+   being able to control the route propagation and importation is
+   implied.  When we just mention an Extended Community, that property
+   is not implied.
+
+   Now consider that another BGP route needs to be imported by some but
+   not all those PEs into their VRF.  The route could be of any SAFI/
+   type (it may not need to be a VPN prefix), but it needs to be
+   associated with the VPN on those PEs.  The exact meaning of
+   "association" here does not matter, but the key is that those PEs
+   need to know that the route is related to that VPN.  Some examples of
+   the association are given in Section 5.1 and Section 5.2.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Zhang, et al.            Expires 1 February 2027                [Page 2]
+
+Internet-Draft               RT-derived ECs                    July 2026
+
+
+   To control the propagation to those PEs, a different Route Target
+   (say RT3) is attached to the route.  For those PE to associate the
+   route with the VPN, an Extended Community (say EC2) is attached.
+   While it is tempting to just use the existing (RT1/EC1) for marking
+   this restricted distribution information as being associated with the
+   VPN, this has the drawback of implying the distribution is to all the
+   PEs in the VPN.  As that is not desired, we want a different Extended
+   Community value.  There can be multiple subsets of nodes each needing
+   to bind some advertisement to the VPN.  So using e.g. RT3 for binding
+   would mean that we end up with a lot of different binding communities
+   for the same VPN, when we would like one value to represent the
+   association.  Thus we want and use a new Extended Community to
+   represent this binding.
+
+   While EC2 can be any Extended Community (that is not an RT)
+   configured on the originating and receiving PEs to map it to the VPN,
+   it is convenient if EC2 is derived from the RT1/EC1, e.g. the sub-
+   type of RT1/EC1 is changed to a new known value while everything else
+   remains the same.  We call this a Route Target Derived Extended
+   Community, or RT-derived EC, with a new sub-type assigned
+   specifically for this purpose (Section 3).
+
+2.  Specification
+
+   While in the above example, an RT-derived EC is used for the purpose
+   of importing routes to a VRF configured with the corresponding Route
+   Target, this document only specifies a way to derive an Extended
+   Community from a Route Target Extended Community by switching its
+   Extended Community sub-type (or Extended Community type in case of
+   IPv6-Address-Specific Extended Community [RFC5701]) to "RT-derived-
+   EC".  The values of "RT-derived-EC" are detailed in Section 3.
+
+   RT-derived ECs are not used inherently to control the propagation of
+   routes that carry them.
+
+   Any AFI/SAFI or BGP-based protocol/feature that can take advantage of
+   the convenience of generic derivation may use them, or not use them
+   at its own discretion.  How they are used is outside the scope of
+   this document, but should be specified in documents for the specific
+   use cases.
+
+3.  IANA Considerations
+
+   IANA has assigned a new sub-type "RT-derived-EC" with value 0x15 in
+   the following registries:
+
+   *  Transitive Two-Octet AS-Specific Extended Community Sub-Types
+
+
+
+
+Zhang, et al.            Expires 1 February 2027                [Page 3]
+
+Internet-Draft               RT-derived ECs                    July 2026
+
+
+   *  Transitive Four-Octet AS-Specific Extended Community Sub-Types
+
+   *  Transitive IPv4-Address-Specific Extended Community Sub-Types
+
+   *  Non-Transitive Opaque Extended Community Sub-Types
+
+   *  EVPN Extended Community Sub-Types
+
+   IANA has also assigned a new type "RT-derived-EC" with value 0x0015
+   in the following registry:
+
+   *  Transitive IPv6-Address-Specific Extended Community Types
+
+   This document additionally requests IANA to assign a new sub-type
+   "RT-derived-EC" with value 0x15 in the following registries:
+
+   *  Transitive Transport Class Extended Community Sub-Types
+
+   *  Non-Transitive Transport Class Extended Community Sub-Types
+
+4.  A Note on Route Target Type/sub-type Conventions
+
+   It may be expected by some people that Route Targets are Extended
+   Communities with sub-type 0x02 (or with Type 0x0002 in case of IPv6
+   Address Specific Extended Community).  However, IANA has only
+   registered Route Targets for the following types:
+
+   *  Type 0x00 (Transitive Two-Octet AS-Specific EC)
+
+   *  Type 0x01 (Transitive IPv4-Address-Specific EC)
+
+   *  Type 0x02 (Transitive Four-Octet AS-Specific EC)
+
+   *  Type 0x43 (Non-Transitive Opaque Extended EC)
+
+   *  Type 0x06 (EVPN AS-Specific EC)
+
+   *  Type 0x0002 (Transitive IPv6-Address-Specific Route Target)
+
+   *  Type 0x0011 (Transitive IPv6-Address-Specific EC, UUID-based Route
+      Target))
+
+   While it may be desired to follow the unwritten convention and assign
+   sub-type 0x02 for future Route Targets of future types of ECs, there
+   is no guarantee of that.  For example, Type 0x0011 (which can be
+   interpreted as with a sub-type 0x11) is assigned for UUID-based Route
+   Target that imposes as an IPv6 Address Specific EC (even though UUID
+   is not an IPv6 address).
+
+
+
+Zhang, et al.            Expires 1 February 2027                [Page 4]
+
+Internet-Draft               RT-derived ECs                    July 2026
+
+
+   When a new type of extended community is defined and registered, and
+   a sub-type under this new type is registered for Route Target
+   purposes, it is suggested to also register a sub-type for derivation
+   purposes, preferably with the same value 0x15.  However, there is no
+   guarantee of that either.
+
+5.  Use Cases
+
+   The following are a few examples of use cases.  To reiterate, these
+   are example scenarios where generic RT-derived ECs could be used
+   (when the routes to which they are attached provide enough context).
+   It is not the intention of this document to mandate that it must be
+   used.
+
+5.1.  EVPN EVI-RT Extended Community
+
+   Section 9.5 "EVI-RT Extended Community" of [RFC9251] describes a
+   situation similar to the above.  As a solution, four EVPN specific
+   EVI-RT ECs are defined, each mapping to a type of Route Target for
+   the corresponding EVPN instance.
+
+   As a theoretical alternative, an RT-derived EC described in this
+   document could be used instead - just derive a generic EC from the
+   EVI RT.  Note that this document does not attempt to change the
+   existing procedures in [RFC9251], but merely use it for illustration
+   purposes.
+
+5.2.  Leaf Discovery with Controller Signaled BGP-MVPN
+
+   In Section 2 "Alternative to BGP-MVPN" of
+   [I-D.ietf-bess-bgp-multicast-controller], BGP MCAST-TREE SAFI
+   signaling can be used for a controller to program multicast
+   forwarding state in VRFs of ingress/egress PEs, instead of relying on
+   distributed BGP-MVPN signaling.  For the controller to learn egress
+   PEs of a VPN customer multicast tree (so that it can build/find a
+   corresponding provider tunnel), egress PEs signal leaf information to
+   the controller via Leaf Auto-Discovery routes.  The routes carry a
+   Route Target for the controller (so that only the controller receives
+   them), and an EC derived from the VPN's Route Target (so that the
+   controller knows which VPN they are for).
+
+5.3.  Translated Route-target Extended Communities in
+      [I-D.ietf-idr-legacy-rtc]
+
+   Section 3.1 of [I-D.ietf-idr-legacy-rtc] uses the derivation as
+   quoted below:
+
+
+
+
+
+Zhang, et al.            Expires 1 February 2027                [Page 5]
+
+Internet-Draft               RT-derived ECs                    July 2026
+
+
+   "Using the TRTS translated from the IRTS is necessary in order to
+   refrain from importing "route-filter" VRF routes into VPN VRFs that
+   would import the same route-targets.  The translation from the IRTS
+   is done as follows.  For a given IRT, the equivalent translated RT
+   (TRT) is constructed by means of swapping the value of the low-order
+   octet of the Type field for the IRT (as specified in
+   [I-D.ietf-idr-rt-derived-community])."
+
+6.  Security Considerations
+
+   This document specifies a way to derive an Extended Community from a
+   Route Target Extended Community and does not specify how derived
+   Extended Communities are used.  As a result, this document does not
+   need security considerations.  Any potential security concerns need
+   be addressed by documents that specify the actual usage.
+   Additionally, in general one should pay attention to stripping
+   unintended received ECs from external peers.
+
+7.  Acknowledgements
+
+   The authors thank Robert Raszuk for his valuable comments and
+   suggestions.
+
+8.  References
+
+8.1.  Normative References
+
+   [RFC4360]  Sangli, S., Tappan, D., and Y. Rekhter, "BGP Extended
+              Communities Attribute", RFC 4360, DOI 10.17487/RFC4360,
+              February 2006, <https://www.rfc-editor.org/info/rfc4360>.
+
+   [RFC5701]  Rekhter, Y., "IPv6 Address Specific BGP Extended Community
+              Attribute", RFC 5701, DOI 10.17487/RFC5701, November 2009,
+              <https://www.rfc-editor.org/info/rfc5701>.
+
+8.2.  Informative References
+
+   [RFC9251]  Sajassi, A., Thoria, S., Mishra, M., Patel, K., Drake, J.,
+              and W. Lin, "Internet Group Management Protocol (IGMP) and
+              Multicast Listener Discovery (MLD) Proxies for Ethernet
+              VPN (EVPN)", RFC 9251, DOI 10.17487/RFC9251, June 2022,
+              <https://www.rfc-editor.org/info/rfc9251>.
+
+
+
+
+
+
+
+
+
+Zhang, et al.            Expires 1 February 2027                [Page 6]
+
+Internet-Draft               RT-derived ECs                    July 2026
+
+
+   [I-D.ietf-bess-bgp-multicast-controller]
+              Zhang, Z. J., Raszuk, R., Pacella, D., and A. Gulko,
+              "Controller-based BGP Multicast Signaling", Work in
+              Progress, Internet-Draft, draft-ietf-bess-bgp-multicast-
+              controller-18, 6 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-bess-
+              bgp-multicast-controller-18>.
+
+   [I-D.ietf-idr-legacy-rtc]
+              Mohapatra, P., Sreekantiah, A., Patel, K., Burjiz, B., and
+              A. Lo, "Automatic Route Target Filtering for legacy PEs",
+              Work in Progress, Internet-Draft, draft-ietf-idr-legacy-
+              rtc-11, 13 October 2024,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-idr-
+              legacy-rtc-11>.
+
+Authors' Addresses
+
+   Zhaohui Zhang
+   HPE
+   Email: zhaohui.zhang@hpe.com
+
+
+   Jeff Haas
+   HPE
+   Email: jeffrey.haas@hpe.com
+
+
+   Keyur Patel
+   Arrcus
+   Email: keyur@arrcus.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Zhang, et al.            Expires 1 February 2027                [Page 7]

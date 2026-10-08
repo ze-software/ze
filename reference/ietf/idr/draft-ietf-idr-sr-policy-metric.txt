@@ -1,0 +1,504 @@
+
+
+
+
+Network Working Group                                              Z. Li
+Internet-Draft                                              China Mobile
+Intended status: Standards Track                                K. Zhang
+Expires: 4 December 2026                                         J. Dong
+                                                                  Huawei
+                                                           K. Talaulikar
+                                                           Cisco Systems
+                                                                   R. Gu
+                                                                  Huawei
+                                                             2 June 2026
+
+
+                  BGP SR Policy Extensions for Metric
+                   draft-ietf-idr-sr-policy-metric-05
+
+Abstract
+
+   An SR Policy consists of one or more Candidate Paths (CPs), each
+   comprising one or more segment lists.  BGP can be used to propogate
+   SR Policy CPs to the SR Policy headend nodes in the network.  After
+   an SR Policy CP is installed on the headend node, packets can be
+   steered into the SR Policy.
+
+   For a particular BGP destination, if there are multiple BGP routes
+   with different next-hops, BGP best path selection is performed and
+   the IGP metric to the next-hop node may be used for tie-breaking to
+   select the best path.  When the path to the next-hop is resolved over
+   an SR Policy, the IGP metric of the SR policy is needed for BGP path
+   selection.
+
+   This document defines the BGP extensions to carry the IGP metric of
+   segment lists when BGP is used to propagate SR Policy CPs.
+
+Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in BCP 14 [RFC2119]
+   [RFC8174] when, and only when, they appear in all capitals, as shown
+   here.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+
+
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 1]
+
+Internet-Draft     BGP SR Policy Extensions for Metric         June 2026
+
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 4 December 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  A Typical Scenario  . . . . . . . . . . . . . . . . . . . . .   3
+   3.  SR Policy and Tunnel Encapsulation Attribute Update . . . . .   4
+     3.1.  Metric sub-TLV  . . . . . . . . . . . . . . . . . . . . .   5
+   4.  Metric Process of SR Policy Segment List  . . . . . . . . . .   5
+   5.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   6
+   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   6
+     6.1.  New sub-TLV Registration: Metric Sub-TLV  . . . . . . . .   6
+     6.2.  Registry of BGP SR Poicy Metric Type  . . . . . . . . . .   6
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .   7
+   8.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   7
+     8.1.  Normative References  . . . . . . . . . . . . . . . . . .   7
+     8.2.  Informative References  . . . . . . . . . . . . . . . . .   8
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   8
+
+
+
+
+
+
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 2]
+
+Internet-Draft     BGP SR Policy Extensions for Metric         June 2026
+
+
+1.  Introduction
+
+   An SR Policy [RFC9256] is associated with one or more Candidate Paths
+   (CPs), each of which is expressed as a segment list or a set of
+   segment lists.. BGP SR Policy [RFC9830] can be used to propogate SR
+   Policy CPs to the SR Policy headend nodes in the network.  After an
+   SR Policy CP is installed on the headend node, packets can be steered
+   into the SR Policy.
+
+   For a particular BGP destination, if there are multiple BGP routes
+   with different next-hops, BGP best path selection [RFC4271] is
+   performed and the IGP metric to the next-hop node may be used for
+   tie-breaking to select the best path.  When the path to the next-hop
+   is resolved over an SR Policy, the IGP metric of the SR policy is
+   needed for BGP path selection.
+
+   This document defines the BGP extensions to carry the IGP metric of
+   segment lists when BGP is used to propagate SR Policy CPs.
+
+2.  A Typical Scenario
+
+   In network scenarios where there are multiple BGP routes to a
+   particular destination prefix with different next-hops, and some of
+   which are resolved via SR Policy, the metric of the SR Policy may be
+   needed for BGP best path selection.
+
+   The specific scenarios are as follows:
+
+
+
+                            +--+         +--+         +---+
+                   _ _ _ _ _|P1|_ _ _ _ _|P2|_ _ _ _ _|PE2|_ _ _ _
+                  |         +--+         +--+         +---+       |
+                  |                                               |
+    +---+        +---+                                           +---+
+    |CE1|_ _ _ _ |PE1|                                           |CE2|
+    +---+        +---+                                           +---+
+                  |         +--+         +--+         +---+       |
+                  |_ _ _ _ _|P3|_ _ _ _ _|P4|_ _ _ _ _|PE3|_ _ _ _|
+                            +--+         +--+         +---+
+
+
+   On PE1, the BGP route to the prefix advertised by CE1 has two
+   candidate next-hops: PE2 and PE3.  The BGP best path selection to the
+   prefix of CE1 may be based on the IGP metric of the paths from PE1 to
+   PE2 and from PE1 to PE3 respectively.  The path toward PE2 is
+   resolved via SR Policy-1, whose endpoint is PE2; similarly, the path
+   toward PE3 is resolved via SR Policy-2.  PE1 needs to know the the
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 3]
+
+Internet-Draft     BGP SR Policy Extensions for Metric         June 2026
+
+
+   IGP metrics of the SR Policies to select the SR Policy which best
+   meet the requirement.  Thus the IGP metric of the Segment Lists which
+   constitute the SR Policy CP needs to be conveyed to the headend node
+   of SR Policy.
+
+3.  SR Policy and Tunnel Encapsulation Attribute Update
+
+   In order to carry the metric of an SR Policy CP, the tunnel
+   encapsulation attribute of the BGP SR Policy is extended.
+
+   The BGP SR Policy Encoding structure is as follows:
+
+   SR Policy SAFI NLRI: <Distinguisher, Policy-Color, Endpoint>
+
+
+         Attributes:
+
+         Tunnel Encaps Attribute (23)
+
+                 Tunnel Type: SR Policy
+
+                    Binding SID
+
+                    Preference
+
+                    Priority
+
+                    Policy Name
+
+                    Policy Candidate Path Name
+
+                    Explicit NULL Label Policy (ENLP)
+
+                    Segment List
+
+                        Weight
+
+                        Metric
+
+                        Segment
+
+                        Segment
+
+                        ....
+
+                        ....
+
+   Where the metric indicates the metric for the segment list.
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 4]
+
+Internet-Draft     BGP SR Policy Extensions for Metric         June 2026
+
+
+3.1.  Metric sub-TLV
+
+   A new sub-TLV called Metric Sub-TLV is defined.  Metric sub-TLV
+   specifies the metric of an SR policy Segment List.  Each sub-TLV is
+   encoded as shown in Figure 1.  More than one metric Sub-TLVs may be
+   present in one Segment List to refer to the metric values of
+   different metric types.
+
+
+     0               1               2               3
+     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |      Type     |    Length     |   Metric Type    |   Flags   |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                     Metric Value                             |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                          Figure 1: Metric Sub-TLV
+
+   * Type: Metric, 1 octet, TBD.
+
+   * Length: 6 octets.
+
+   * Metric Type: 1-octet field which identifies the type of the metric
+   being used.  The metric-type code points are listed in Section 7.2.
+
+   * Flags: None are defined at this stage.  Flags MUST be set to zero
+   on transmission and MUST be ignored on receipt.
+
+   * Metric Value: 4-octet value which indicates the metric of the
+   computed path.
+
+4.  Metric Process of SR Policy Segment List
+
+   When an SR Policy headend node receives the SR Policy segment list
+   with the metric field, the metric may be of any of the defined types:
+   (IGP metric, Min Unidirection Link delay, TE metric, Hop Count, or
+   SID List length).
+
+   The rules for processing SR Policy metrics are as follows:
+   1. The type of metric to use is determined by the local policy,
+   which can be user-configured. For example, the user specifies
+   the IGP metric as local policy.
+   2. The metric of the Active Candidate Path is used as the metric
+   of the SR Policy.
+   3. The metric of the Active Candidate Path uses the maximum
+   metric value of the specified metric type in all segment lists.
+
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 5]
+
+Internet-Draft     BGP SR Policy Extensions for Metric         June 2026
+
+
+   Example:
+   SR Policy: (Headend:1::1, Color: 2, EndPoint: 2::2)
+   Candidate path preference: 200
+   Segment list 1: (IGP metric: 20)
+   Segment list 2: (IGP metric: 30)
+   Candidate Path preference: 100
+   Segment list 1: (IGP metric: 40)
+   Segment list 2: (IGP metric: 30)
+   Local policy: IGP metric
+   Active candidate path: preference 200
+   Active candidate path metric: 30, which is the maximum IGP metric
+   of all segment lists in the candidate path.
+
+
+   Taking the scenario in Figure 1 as an example, according to the rules
+   above, the metric of SR Policy 1 is 30, and the metric of SR Policy 2
+   is 40, then according to the BGP path selection tie-breaking rule,
+   the BGP route with next-hop PE2 is selected as the metric of SR
+   Policy 1 is smaller than that of SR Policy 2.
+
+5.  Acknowledgements
+
+   The authors would like to thank Liyan Song for the review and
+   discussion.
+
+6.  IANA Considerations
+
+6.1.  New sub-TLV Registration: Metric Sub-TLV
+
+   IANA is requested to assign a new code point for Metric Sub-TLV in
+   the "SR Policy Segment List Sub-TLVs" registry of the "BGP Tunnel
+   Encapsulation" registry group.
+
+    Value                  Description                  Reference
+    ---------------------- ---------------------------- --------------
+    TBD                    Metric                       This document
+
+                          Figure 2: Metric sub-TLV
+
+6.2.  Registry of BGP SR Poicy Metric Type
+
+   The semantics of the Metric Type field in the Metric sub-TLV defined
+   in this document is identifical to the metric types in the "BGP-LS SR
+   Policy Metric Types" registry in the "BGP-LS Parameters" registry
+   group.  IANA is requested to rename the existing registry to "BGP/
+   BGP-LS SR Policy Metric Types" registry.  This is to allow the
+   sharing of this registry for metric types in both BGP SR Policy and
+   BGP-LS SR Policy.  There is no change to the code points in this
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 6]
+
+Internet-Draft     BGP SR Policy Extensions for Metric         June 2026
+
+
+   registry.
+
+7.  Security Considerations
+
+   The BGP extensions defined in this document do not affect the base
+   BGP security model.  The BGP SR policy extension specified in this
+   document is based on [RFC9830].  The security requirements and
+   mechanisms described in [RFC9830] also apply to this document.  SR
+   operates within a trusted SR domain [RFC8402] and its security
+   considerations also apply to BGP sessions which are used for
+   distributing SR Policy information.
+
+   The distribution of SR Policy with metric information may pose
+   additional mission-critical or commercially sensitive information
+   about the network.  The BGP sessions used for SR Policy distribution
+   not automatic established and require configuration, network operator
+   needs to ensure that only trusted nodes (that include both routers
+   and controller applications) within the SR domain are configured to
+   receive such information.
+
+8.  References
+
+8.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC9256]  Filsfils, C., Talaulikar, K., Ed., Voyer, D., Bogdanov,
+              A., and P. Mattes, "Segment Routing Policy Architecture",
+              RFC 9256, DOI 10.17487/RFC9256, July 2022,
+              <https://www.rfc-editor.org/info/rfc9256>.
+
+   [RFC9830]  Previdi, S., Filsfils, C., Talaulikar, K., Ed., Mattes,
+              P., and D. Jain, "Advertising Segment Routing Policies in
+              BGP", RFC 9830, DOI 10.17487/RFC9830, September 2025,
+              <https://www.rfc-editor.org/info/rfc9830>.
+
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 7]
+
+Internet-Draft     BGP SR Policy Extensions for Metric         June 2026
+
+
+8.2.  Informative References
+
+   [RFC8402]  Filsfils, C., Ed., Previdi, S., Ed., Ginsberg, L.,
+              Decraene, B., Litkowski, S., and R. Shakir, "Segment
+              Routing Architecture", RFC 8402, DOI 10.17487/RFC8402,
+              July 2018, <https://www.rfc-editor.org/info/rfc8402>.
+
+   [RFC9857]  Previdi, S., Talaulikar, K., Ed., Dong, J., Gredler, H.,
+              and J. Tantsura, "Advertisement of Segment Routing
+              Policies Using BGP - Link State", RFC 9857,
+              DOI 10.17487/RFC9857, October 2025,
+              <https://www.rfc-editor.org/info/rfc9857>.
+
+Authors' Addresses
+
+   Zhenqiang Li
+   China Mobile
+   China
+   Email: lizhenqiang@chinamobile.com
+
+
+   Ka Zhang
+   Huawei
+   Huawei Bld., No.156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: zhangka@huawei.com
+
+
+   Jie Dong
+   Huawei
+   Huawei Bld., No.156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: jie.dong@huawei.com
+
+
+   Ketan Talaulikar
+   Cisco Systems
+   India
+   Email: ketant.ietf@gmail.com
+
+
+   Rui Gu
+   Huawei
+   Huawei Bld., No.156 Beiqing Rd.
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 8]
+
+Internet-Draft     BGP SR Policy Extensions for Metric         June 2026
+
+
+   Beijing
+   100095
+   China
+   Email: gurui12@huawei.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Li, et al.               Expires 4 December 2026                [Page 9]

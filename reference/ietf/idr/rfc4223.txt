@@ -1,0 +1,171 @@
+
+
+
+
+
+
+Network Working Group                                          P. Savola
+Request for Comments: 4223                                     CSC/FUNET
+Obsoletes: 1863                                             October 2005
+Category: Informational
+
+
+                Reclassification of RFC 1863 to Historic
+
+Status of This Memo
+
+   This memo provides information for the Internet community.  It does
+   not specify an Internet standard of any kind.  Distribution of this
+   memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2005).
+
+Abstract
+
+   This memo reclassifies RFC 1863, A BGP/IDRP Route Server alternative
+   to a full mesh routing, to Historic status.  This memo also obsoletes
+   RFC 1863.
+
+1.  Reclassification of RFC 1863 to Historic
+
+   RFC 1863 [1] describes the use of route servers as an alternative to
+   BGP/IDRP full mesh routing.
+
+   In the context of this document, the term "RFC 1863 route server" is
+   used to refer to a route server as specified in RFC 1863.  Other uses
+   of the term "route server" are outside the scope of this document.
+
+   Implementations of RFC 1863 route servers do not exist and are not
+   used as an alternative to full mesh routing.  Therefore, RFC 1863 is
+   reclassified to Historic status.
+
+   Current techniques that serve as an alternative to full mesh routing
+   include BGP Route Reflectors [2], BGP Confederedations [3], and the
+   use of private AS numbers.  IDRP for IP has never been standardized
+   by the IETF and can be considered obsolete.
+
+   Other uses of (non-RFC1863) route servers, rather than as an
+   alternative to full mesh routing as described by RFC 1863, are
+   expected to continue to be used for multiple purposes, but are out of
+   the scope of this memo.
+
+
+
+
+
+Savola                       Informational                      [Page 1]
+
+RFC 4223        Reclassification of RFC 1863 to Historic    October 2005
+
+
+2.  Acknowledgements
+
+   Jeffrey Haas, John Scudder, Paul Jakma, and Yakov Rekhter provided
+   useful background information for the creation of this memo.  Scott
+   Bradner, Jeffrey Haas, and Yakov Rekhter provided substantial
+   feedback during the WG last call.
+
+3.  Security Considerations
+
+   Reclassifying RFC 1863 has no security considerations.
+
+4.  References
+
+4.1.  Normative References
+
+   [1]  Haskin, D., "A BGP/IDRP Route Server alternative to a full mesh
+        routing", RFC 1863, October 1995.
+
+4.2.  Informative References
+
+   [2]  Bates, T., Chandra, R., and E. Chen, "BGP Route Reflection - An
+        Alternative to Full Mesh IBGP", RFC 2796, April 2000.
+
+   [3]  Traina, P., McPherson, D., and J. Scudder, "Autonomous System
+        Confederations for BGP", RFC 3065, February 2001.
+
+Author's Address
+
+   Pekka Savola
+   CSC/FUNET
+   Espoo
+   Finland
+
+   EMail: psavola@funet.fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Savola                       Informational                      [Page 2]
+
+RFC 4223        Reclassification of RFC 1863 to Historic    October 2005
+
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (2005).
+
+   This document is subject to the rights, licenses and restrictions
+   contained in BCP 78, and except as set forth therein, the authors
+   retain all their rights.
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Intellectual Property
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at ietf-
+   ipr@ietf.org.
+
+Acknowledgement
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+
+
+
+Savola                       Informational                      [Page 3]
+

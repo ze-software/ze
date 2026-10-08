@@ -1,0 +1,952 @@
+
+
+
+
+IDR Working Group                                                 C. Lin
+Internet-Draft                                      New H3C Technologies
+Updates: 9085, 9086 (if approved)                                  Z. Li
+Intended status: Standards Track                            China Mobile
+Expires: 6 February 2027                                         R. Pang
+                                                            China Unicom
+                                                           K. Talaulikar
+                                                           Cisco Systems
+                                                                 R. Chen
+                                                         ZTE Corporation
+                                                           5 August 2026
+
+
+Segment Routing BGP Egress Peer Engineering over Layer 2 Bundle Members
+             draft-ietf-idr-bgp-ls-sr-epe-over-l2bundle-09
+
+Abstract
+
+   This document specifies how to support Segment Routing BGP Egress
+   Peer Engineering over Layer 2 bundle members.  It updates RFC 9085 to
+   allow the L2 Bundle Member Attributes TLV in the BGP-LS Attribute of
+   the BGP-LS Link NLRI for a BGP peering link.  For SR-MPLS, it updates
+   RFC 9085 and RFC 9086 to allow the PeerAdj SID TLV as a sub-TLV of
+   the L2 Bundle Member Attributes TLV.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 6 February 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 1]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   4
+   2.  Problem Statement . . . . . . . . . . . . . . . . . . . . . .   4
+   3.  Advertising Peer Adjacency Segment for L2 Bundle Member in
+           BGP-LS  . . . . . . . . . . . . . . . . . . . . . . . . .   4
+     3.1.  SR-MPLS . . . . . . . . . . . . . . . . . . . . . . . . .   6
+     3.2.  SRv6  . . . . . . . . . . . . . . . . . . . . . . . . . .   7
+   4.  Manageability Considerations  . . . . . . . . . . . . . . . .   8
+   5.  Operational Considerations  . . . . . . . . . . . . . . . . .   9
+     5.1.  Load Balancing  . . . . . . . . . . . . . . . . . . . . .   9
+     5.2.  Packet Ordering . . . . . . . . . . . . . . . . . . . . .   9
+   6.  Applicability Considerations for MC-LAG Bundles . . . . . . .  10
+   7.  Implementation Status . . . . . . . . . . . . . . . . . . . .  10
+     7.1.  New H3C Technologies  . . . . . . . . . . . . . . . . . .  11
+     7.2.  ZTE Corp  . . . . . . . . . . . . . . . . . . . . . . . .  11
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .  12
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  12
+   10. Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  12
+   11. References  . . . . . . . . . . . . . . . . . . . . . . . . .  13
+     11.1.  Normative References . . . . . . . . . . . . . . . . . .  13
+     11.2.  Informative References . . . . . . . . . . . . . . . . .  14
+   Appendix A.  Example  . . . . . . . . . . . . . . . . . . . . . .  14
+   Appendix B.  Cross WG Information . . . . . . . . . . . . . . . .  16
+     B.1.  Spring WG . . . . . . . . . . . . . . . . . . . . . . . .  16
+     B.2.  PCE . . . . . . . . . . . . . . . . . . . . . . . . . . .  16
+     B.3.  SRV6 OPS  . . . . . . . . . . . . . . . . . . . . . . . .  16
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  17
+
+1.  Introduction
+
+   Segment Routing (SR) leverages the source routing paradigm.  A node
+   steers a packet through an ordered list of instructions called
+   "segments".  Segment Routing can be instantiated on both MPLS and
+   IPv6 data planes, which are referred to as SR-MPLS and SRv6.
+
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 2]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   BGP Egress Peer Engineering (BGP-EPE) allows an ingress Provider Edge
+   (PE) router within the domain to use a specific egress PE and a
+   specific external interface/neighbor to reach a particular
+   destination.
+
+   The SR architecture [RFC8402] defines three types of BGP Peering
+   Segments that may be instantiated at a BGP node:
+
+   *  Peer Node Segment (PeerNode SID): instruction to steer to a
+      specific peer node,
+
+   *  Peer Adjacency Segment (PeerAdj SID): instruction to steer over a
+      specific local interface towards a specific peer node, and
+
+   *  Peer Set Segment (PeerSet SID): instruction to load-balance to a
+      set of specific peer nodes.
+
+   [RFC9087] illustrates a centralized controller-based BGP-EPE solution
+   involving SR path computation using the BGP Peering Segments.  A
+   centralized controller learns the BGP Peering SIDs via Border Gateway
+   Protocol - Link State (BGP-LS) and then uses this information to
+   program a BGP-EPE policy.  [RFC9086] defines the extension to BGP-LS
+   for advertisement of BGP Peering Segments along with their BGP
+   peering node information.
+
+   There are deployments where the Layer 3 interface on which a BGP peer
+   session is established is a Layer 2 interface bundle (L2 Bundle), for
+   instance, a Link Aggregation Group (LAG) [IEEE802.1AX].  BGP-EPE may
+   wish to control traffic flows on individual member links of the
+   underlying Layer 2 bundle.  In order to do so, BGP Peering SIDs need
+   to be allocated to individual bundle member links, and advertisement
+   of such BGP Peering SIDs in BGP-LS is required.
+
+   This document specifies how to support Segment Routing BGP Egress
+   Peer Engineering over Layer 2 bundle members.
+
+   This document updates [RFC9085] to allow the L2 Bundle Member
+   Attributes TLV to be added to the BGP-LS Attribute associated with
+   the BGP-LS Link NLRI of BGP peering link.  For SR-MPLS, this document
+   updates [RFC9085] and [RFC9086] to allow the PeerAdj SID TLV to be
+   included as a sub-TLV of the L2 Bundle Member Attributes TLV.
+
+
+
+
+
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 3]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  Problem Statement
+
+   In the network depicted in Figure 1, B and C establish BGP peer
+   session on a Layer 2 bundle.  Assume that, the member link 1 has the
+   largest available bandwidth.  The operator of AS1 wishes to apply a
+   BGP-EPE policy to steer certain flows from AS1 to AS2 via member link
+   1 of the Layer 2 bundle to ensure there is no over-subscription.
+
+                    L2 Bundle      +--------+
+                 /---member 1---\  |        |
+               --+---member 2---+--C   AS2  |
+   +--------+ /  \---member 3---/  |        |
+   |        |/                     +--------+
+   A   AS1  B
+   |        |\                     +--------+
+   +--------+ \                    |        |
+               --------------------D   AS3  |
+                                   |        |
+                                   +--------+
+
+                      Figure 1: BGP-EPE over L2 Bundle
+
+   The existing Peer Adjacency SID can be allocated to the Layer 3
+   interface between B and C, which is a Layer 2 interface bundle.  If
+   steered by that Peer Adjacency SID, the traffic will be forwarded by
+   load balancing among all the bundle member links.  So, the existing
+   mechanism cannot meet the requirement of steering traffic flows via
+   individual member link.
+
+   In order to support BGP Egress Peer Engineering steering over
+   specific Layer 2 bundle members, a BGP router needs to have the
+   ability to assign Peer Adjacency Segments for member links.  And, the
+   Peer Adjacency Segments of bundle members need to be advertised in
+   BGP-LS, which will be specified in this document.
+
+3.  Advertising Peer Adjacency Segment for L2 Bundle Member in BGP-LS
+
+   BGP peering segments are generally advertised in BGP-LS from a BGP
+   node along with its peering topology information, in order to enable
+   computation of BGP-EPE policies.
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 4]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   When a BGP peer session is established over a Layer 2 interface
+   bundle, an implementation MAY allocate one or more Peer Adjacency
+   Segments for each member link.  If so, it MUST advertise the Peer
+   Adjacency Segments of bundle members in BGP-LS, using the method
+   defined in this section.
+
+   In order to advertise the EPE Peer Adjacency SIDs for L2 bundle
+   members in BGP-LS, the L2 Bundle Member Attributes TLVs [RFC9085]
+   MUST also be included in the Link Attributes for the BGP-LS Link NLRI
+   corresponding to the BGP peering session.  This BGP-LS TLV is derived
+   from L2 Bundle Member Attributes TLV of IS-IS (Section 2 of
+   [RFC8668]).
+
+   Section 2.2 of [RFC9085] restricts the L2 Bundle Member Attributes
+   TLV "should only be added to the BGP-LS Attribute associated with the
+   BGP-LS Link NLRI that describes the link of the IGP node".  This
+   document updates [RFC9085] to allow the L2 Bundle Member Attributes
+   TLV to be added to the BGP-LS Attribute associated with the BGP-LS
+   Link NLRI of BGP peering link.
+
+   Each L2 Bundle Member Attributes TLV that advertises a member EPE SID
+   MUST include exactly the relevant PeerAdj SID TLV or SRv6 End.X SID
+   TLV for that member.
+
+   This document extends the set of sub-TLVs that may appear within the
+   L2 Bundle Member Attributes TLV, as defined in Table 3 of
+   Section 2.2.3 of [RFC9085].  Specifically, the PeerAdj SID TLV is
+   added to the list of permitted sub-TLVs.  Note that the SRv6 End.X
+   SID TLV has already been defined as a valid sub-TLV of the L2 Bundle
+   Member Attributes TLV in [RFC9514].
+
+   Note that the inclusion of a L2 Bundle Member Attributes TLV implies
+   that the identified link is a member of the L2 bundle and that the
+   member link is operationally up.  The advertisement of a Peer
+   Adjacency SID (within a PeerAdj SID or SRv6 End.X SID sub-TLV)
+   further implies that the SID is valid and programmed for forwarding
+   on that member link.
+
+   If the advertised Peer Adjacency SID for a member link undergoes a
+   change (e.g., label value or SRv6 SID update), becomes invalid, or is
+   administratively disabled, the implementation MUST update the BGP-LS
+   advertisement to reflect the new state.  This MUST be done by
+   updating (re-advertising) the corresponding L2 Bundle Member
+   Attributes TLV with the modified or removed SID sub-TLV.  If the
+   member link itself fails or is removed from the bundle, the
+   implementation MUST withdraw the entire corresponding L2 Bundle
+   Member Attributes TLV in BGP-LS.
+
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 5]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   The PeerSet SID, as defined in Section 5.3 of [RFC9086], MAY be
+   instantiated and additionally associated and shared between one or
+   more PeerNode SIDs or PeerAdj SIDs.  The specification of PeerSet SID
+   assignment or advertisement for individual L2 Bundle members is
+   outside the scope of this document.
+
+3.1.  SR-MPLS
+
+   For SR-MPLS, Section 5 of [RFC9086] defines the PeerAdj SID TLV and
+   its usage for the BGP-LS advertisement of the BGP-EPE PeerAdj SID for
+   L3 link.  When advertising the SR-MPLS BGP-EPE Peer Adjacency SIDs
+   for L2 bundle members, the PeerAdj SID TLV [RFC9086] MUST be carried
+   in the L2 Bundle Member Attributes TLV to advertise the SR-MPLS Peer
+   Adjacency SID for the associated L2 bundle member.  This document
+   updates [RFC9085] and [RFC9086] to allow the PeerAdj SID TLV to be
+   included as a sub-TLV of the L2 Bundle Member Attributes TLV.
+
+   When advertising SR-MPLS BGP-EPE Peer Adjacency SIDs for L2 bundle
+   members, since L2 bundle information is considered a Layer 3 link
+   attribute, it MUST be advertised in the BGP-LS Link NLRI.  The
+   details for BGP-LS Link NLRI are the same as those for the PeerAdj
+   SID, as described in Section 5.2 of [RFC9086].  This information MUST
+   NOT be included in the BGP-LS Link NLRI that corresponds to the
+   PeerNode SID, as defined in Section 5.1 of [RFC9086].
+
+   Note that for directly connected EBGP neighbors, if a BGP neighbor is
+   established over an L2 Bundle, an additional BGP-LS Link NLRI (as
+   described in Section 5.2 of [RFC9086]) MUST be generated to advertise
+   Peer Link information when generating the BGP-LS Link NLRI (as
+   described in Section 5.1 of [RFC9086]) corresponding to the PeerNode
+   SID.  The L2 Bundle Member Attributes TLV is included under the BGP-
+   LS Link Attribute TLVs.
+
+   The SR-MPLS BGP-EPE Peer Adjacency SIDs for L2 bundle members are
+   advertised with a BGP-LS Link NLRI, where:
+
+   *  BGP-LS Link NLRI: as described in Section 5.2 of [RFC9086].
+
+   *  Link Attribute TLVs:
+
+      -  (Optional) include the PeerAdj SID TLV [RFC9086] for the
+         underlying Bundle link to the BGP peer node.
+
+      -  include the L2 Bundle Member Attributes TLV.
+
+         o  include the PeerAdj SID TLV [RFC9086] for each L2 Bundle
+            Member.
+
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 6]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   It is necessary to clarify the use of link identifiers in this
+   context.  The parent BGP-LS Link NLRI (as described in Section 5.2 of
+   [RFC9086]) MUST use the Link Local Identifier (and if known, Link
+   Remote Identifier) corresponding to the Layer 2 bundle interface
+   itself for its Link Descriptors.  Within each L2 Bundle Member
+   Attributes TLV, the included Link Local Identifier MUST be that of
+   the specific physical member link.  This distinction ensures
+   unambiguous identification of both the logical peering link (the
+   bundle) and the underlying physical constituents.
+
+3.2.  SRv6
+
+   For SRv6, according to Section 4.1 of [RFC9514], the SRv6 End.X SID
+   TLV is used for the advertisement of L3 link BGP EPE Peer Adjacency
+   SID.  When advertising the SRv6 BGP-EPE Peer Adjacency SIDs for L2
+   bundle members, the SRv6 End.X SID TLV [RFC9514] MUST be carried in
+   the L2 Bundle Member Attributes TLV to advertise the SRv6 Peer
+   Adjacency SID for the associated L2 bundle member.
+
+   Note that, per Appendix A of [RFC9514], SRv6 BGP PeerNode is no
+   longer advertised as BGP-LS Link NLRI.  When advertising SRv6 BGP-EPE
+   Peer Adjacency SIDs for L2 bundle members, since L2 bundle
+   information is considered a Layer 3 link attribute, it MUST be
+   advertised in the BGP-LS Link NLRI.  The details for BGP-LS Link NLRI
+   are the same as those for the Peer Adjacency SID, as described in
+   Section 5.2 of [RFC9086].
+
+   The SRv6 BGP-EPE Peer Adjacency SIDs for L2 bundle members are
+   advertised with a BGP-LS Link NLRI, where:
+
+   *  BGP-LS Link NLRI: as described in Section 5.2 of [RFC9086].
+
+   *  Link Attribute TLV:
+
+      -  (Optional) include the SRv6 End.X SID TLV [RFC9514] for the
+         underlying link to the BGP peer node.
+
+      -  include the L2 Bundle Member Attributes TLV.
+
+         o  include the SRv6 End.X SID TLV [RFC9514] for each L2 Bundle
+            Member.
+
+
+
+
+
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 7]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   The SRv6 End.X SID TLV included within the L2 Bundle Member
+   Attributes TLV follows the same format and sub-TLV rules as defined
+   in Section 4.1 of [RFC9514].  This includes the optional inclusion of
+   the SRv6 SID Structure TLV as a sub-TLV.  The use (or omission) of
+   the SRv6 SID Structure TLV for an End.X SID advertised for an L2
+   bundle member link MUST be consistent with the rules and practices
+   defined in [RFC9514] and [RFC8986].
+
+4.  Manageability Considerations
+
+   The manageability considerations described in [RFC9552] and [RFC9086]
+   also apply to this document.
+
+   An implementation SHOULD provide operational controls for the
+   following aspects:
+
+   *  Selective Advertisement: Controls to enable, disable, or filter
+      the advertisement of L2 bundle member Peer Adjacency SIDs,
+      including the ability to limit advertisements based on specific
+      BGP peer, session type (e.g., iBGP or eBGP), or routing policy.
+
+   *  Granularity Control: The ability to suppress the advertisement of
+      per-member SIDs while still advertising the SID for the parent
+      bundle interface, allowing operators to choose the appropriate
+      level of steering granularity.
+
+   *  Churn Handling: Mechanisms to dampen advertisement churn caused by
+      frequent transient operational state oscillations (up/down
+      flapping) of L2 bundle member links, such as configurable hold-off
+      timers that MAY suppress intermediate announcements during brief
+      link-state bounces.  Once a member link stabilizes in the down
+      state or is removed from the bundle, the implementation MUST
+      perform the TLV withdrawal as specified in Section 3 without
+      further delay.
+
+   *  Consistency Verification: Capabilities to assist in operational
+      monitoring and troubleshooting, such as logging or raising
+      notifications when inconsistencies are detected between the
+      advertised state of the parent bundle link and its member links
+      (e.g., a member link is advertised as up while the parent bundle
+      is down).
+
+   The operator MUST be provided with the options of configuring,
+   enabling, and disabling the advertisement of Peer Adjacency Segment
+   for L2 Bundle member links, as well as control of which information
+   is advertised to which internal or external peer.
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 8]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+5.  Operational Considerations
+
+   This document extends BGP-EPE to advertise Peer Adjacency SIDs for
+   individual bundle members.  Using these SIDs for traffic steering
+   affects load balancing and packet ordering, as discussed below.
+
+5.1.  Load Balancing
+
+   When specific flows are steered onto individual bundle member links,
+   the natural load-balancing property of the underlying L2 bundle may
+   be affected.  If certain member links receive disproportionately more
+   traffic than others, those links may become congested while other
+   members remain underutilized.
+
+   To mitigate potential load imbalance:
+
+   *  Controllers should monitor the utilization of individual member
+      links and adjust flow-to-member assignments accordingly to avoid
+      persistent congestion.
+
+   *  Operators may configure policies that distribute flows across
+      multiple member links based on real-time bandwidth availability or
+      other metrics.
+
+   *  The granularity of steering (e.g., per-flow, per-destination, per-
+      application) should be chosen to achieve an acceptable balance
+      between traffic engineering precision and load distribution.
+
+   Note that load balancing decisions are the responsibility of the
+   controller or policy engine, not this protocol.  This document
+   provides the mechanism for advertising member-level Peer Adjacency
+   SIDs; how they are used for load distribution is an implementation
+   and deployment choice.
+
+5.2.  Packet Ordering
+
+   When different packets within the same flow are subjected to
+   different steering policies (e.g., some packets steered to one member
+   link while others to a different member), packet reordering may
+   occur.  This is because different member links may have different
+   latencies, causing packets to arrive out of order at the destination.
+
+   To preserve packet ordering within a flow:
+
+
+
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027                [Page 9]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   *  Implementations should ensure that all packets belonging to the
+      same flow are steered to the same member link.  Flow
+      identification should be based on a consistent 5-tuple (source IP,
+      destination IP, source port, destination port, protocol) or other
+      flow-invariant header fields.
+
+   *  Per-packet load balancing across member links should not be used
+      when steering flows using Peer Adjacency SIDs, as this would
+      almost certainly cause packet reordering.
+
+   *  If dynamic flow reassignment is necessary (e.g., due to member
+      link failure or rebalancing), implementations should be aware that
+      in-flight packets may arrive out of order, and appropriate
+      buffering or reordering mechanisms may be required at the
+      receiver.
+
+   These requirements are consistent with general SR traffic engineering
+   practices and do not introduce new constraints beyond what is already
+   expected for flow-based steering in Segment Routing networks.
+
+6.  Applicability Considerations for MC-LAG Bundles
+
+   This document does not define MC-LAG loop-prevention behavior and
+   assumes the underlying L2/LAG system already provides loop-free
+   member forwarding.
+
+7.  Implementation Status
+
+   [Note to the RFC Editor - remove this section before publication, as
+   well as remove the reference to [RFC7942]].
+
+   This section records the status of known implementations of the
+   protocol defined by this specification at the time of posting of this
+   Internet-Draft, and is based on a proposal described in [RFC7942].
+   The description of implementations in this section is intended to
+   assist the IETF in its decision processes in progressing drafts to
+   RFCs.  Please note that the listing of any individual implementation
+   here does not imply endorsement by the IETF.  Furthermore, no effort
+   has been spent to verify the information presented here that was
+   supplied by IETF contributors.  This is not intended as, and must not
+   be construed to be, a catalog of available implementations or their
+   features.  Readers are advised to note that other implementations may
+   exist.
+
+
+
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027               [Page 10]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   According to [RFC7942], "this will allow reviewers and working groups
+   to assign due consideration to documents that have the benefit of
+   running code, which may serve as evidence of valuable experimentation
+   and feedback that have made the implemented protocols more mature.
+   It is up to the individual working groups to use this information as
+   they see fit".
+
+7.1.  New H3C Technologies
+
+   *  Organization: New H3C Technologies.
+
+   *  Implementation: H3C CR16000, CR19000 series routers
+      implementation.
+
+   *  Description: All sections including all the "MUST" and "SHOULD"
+      clauses have been implemented in above-mentioned New H3C Products
+      (running Version 7.1.110 and above).
+
+   *  Maturity Level: Product
+
+   *  Coverage: All sections.
+
+   *  Version: Draft-00
+
+   *  Licensing: N/A
+
+   *  Implementation experience: Nothing specific.
+
+   *  Contact: li_meng_limeng@h3c.com
+
+   *  Last updated: July 19, 2025
+
+7.2.  ZTE Corp
+
+   *  Organization: ZTE Corporation
+
+   *  Implementation: ZTE's M6000 Series Routers
+
+   *  Description: This feature has been implemented in ZTE M6000 series
+      routers and follows the definition and mechanism as defined in
+      Section 3 including all the "MUST" and "SHOULD" clauses.
+
+   *  Maturity Level: Beta
+
+   *  Coverage: All
+
+   *  Version: Draft-00
+
+
+
+
+Lin, et al.              Expires 6 February 2027               [Page 11]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   *  Licensing: N/A
+
+   *  Implementation experience: Nothing specific.
+
+   *  Contact: zhu.xiaolong@zte.com.cn
+
+   *  Last updated: July 19, 2025
+
+8.  Security Considerations
+
+   Procedures and protocol extensions defined in this document do not
+   affect the BGP security model.  See the Security Considerations
+   section of [RFC4271] for a discussion of BGP security.  Also, refer
+   to [RFC4272] and [RFC6952] for analysis of security issues for BGP.
+   The security considerations described in [RFC9552] and [RFC9086]
+   apply to this document.
+
+   This document defines an extension for distributing Layer 2 bundle
+   member information, including PeerAdj SIDs, via BGP-LS.  This
+   information is used for traffic steering within Segment Routing
+   domains and MUST be distributed only within trusted SR domains.  The
+   mechanisms defined in [RFC8402] for securing SR domains apply to this
+   extension.
+
+   The distribution scope of L2 bundle member information SHOULD be
+   controlled to ensure it remains within a trusted administrative
+   domain or between trusted peering domains.  Operators SHOULD use BGP
+   route filtering and policy mechanisms to prevent propagation beyond
+   intended boundaries.
+
+9.  IANA Considerations
+
+   This document has no IANA actions.
+
+10.  Acknowledgements
+
+   The authors would like to acknowledge Sasha Vainshtein, Acee Lindem,
+   Liyan Gong, Yongqing Zhu, Lan cheng, Wisdomtan, Yisong Liu, Libin
+   Liu, Liu Yao, Hongwei Li, Allan Michael, Huo Pengfei, Gyan Mishra,
+   Dong Jie, Meng Liu, Wei Wang, Yimi Zhang, Haiyang Zhang, Jiangbo
+   Wang, Zheng Zhang, Yujia Gao, Alex Lee, David Wright, Xiaolan Wang,
+   shawnzhsh, RuanZheng for their careful reviews and very helpful
+   comments.
+
+   The authors would also like to thank Susan Hares for her shepherd
+   review and helpful comments to improve this document.
+
+   Thanks to Andrew Stone for the RTGDIR Early review.
+
+
+
+Lin, et al.              Expires 6 February 2027               [Page 12]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   Thanks to Gunter Van de Velde for the Shepherding AD review.
+
+   Thanks to Éric Vyncke, Deb Cooley, and Mahesh Jethanandani for the
+   IESG review.
+
+11.  References
+
+11.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8402]  Filsfils, C., Ed., Previdi, S., Ed., Ginsberg, L.,
+              Decraene, B., Litkowski, S., and R. Shakir, "Segment
+              Routing Architecture", RFC 8402, DOI 10.17487/RFC8402,
+              July 2018, <https://www.rfc-editor.org/info/rfc8402>.
+
+   [RFC8986]  Filsfils, C., Ed., Camarillo, P., Ed., Leddy, J., Voyer,
+              D., Matsushima, S., and Z. Li, "Segment Routing over IPv6
+              (SRv6) Network Programming", RFC 8986,
+              DOI 10.17487/RFC8986, February 2021,
+              <https://www.rfc-editor.org/info/rfc8986>.
+
+   [RFC9085]  Previdi, S., Talaulikar, K., Ed., Filsfils, C., Gredler,
+              H., and M. Chen, "Border Gateway Protocol - Link State
+              (BGP-LS) Extensions for Segment Routing", RFC 9085,
+              DOI 10.17487/RFC9085, August 2021,
+              <https://www.rfc-editor.org/info/rfc9085>.
+
+   [RFC9086]  Previdi, S., Talaulikar, K., Ed., Filsfils, C., Patel, K.,
+              Ray, S., and J. Dong, "Border Gateway Protocol - Link
+              State (BGP-LS) Extensions for Segment Routing BGP Egress
+              Peer Engineering", RFC 9086, DOI 10.17487/RFC9086, August
+              2021, <https://www.rfc-editor.org/info/rfc9086>.
+
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027               [Page 13]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   [RFC9514]  Dawra, G., Filsfils, C., Talaulikar, K., Ed., Chen, M.,
+              Bernier, D., and B. Decraene, "Border Gateway Protocol -
+              Link State (BGP-LS) Extensions for Segment Routing over
+              IPv6 (SRv6)", RFC 9514, DOI 10.17487/RFC9514, December
+              2023, <https://www.rfc-editor.org/info/rfc9514>.
+
+   [RFC9552]  Talaulikar, K., Ed., "Distribution of Link-State and
+              Traffic Engineering Information Using BGP", RFC 9552,
+              DOI 10.17487/RFC9552, December 2023,
+              <https://www.rfc-editor.org/info/rfc9552>.
+
+11.2.  Informative References
+
+   [IEEE802.1AX]
+              IEEE, "IEEE Standard for Local and metropolitan area
+              networks -- Link Aggregation", IEEE 802.1AX, n.d.,
+              <https://ieeexplore.ieee.org/document/7055197>.
+
+   [RFC4272]  Murphy, S., "BGP Security Vulnerabilities Analysis",
+              RFC 4272, DOI 10.17487/RFC4272, January 2006,
+              <https://www.rfc-editor.org/info/rfc4272>.
+
+   [RFC6952]  Jethanandani, M., Patel, K., and L. Zheng, "Analysis of
+              BGP, LDP, PCEP, and MSDP Issues According to the Keying
+              and Authentication for Routing Protocols (KARP) Design
+              Guide", RFC 6952, DOI 10.17487/RFC6952, May 2013,
+              <https://www.rfc-editor.org/info/rfc6952>.
+
+   [RFC7942]  Sheffer, Y. and A. Farrel, "Improving Awareness of Running
+              Code: The Implementation Status Section", BCP 205,
+              RFC 7942, DOI 10.17487/RFC7942, July 2016,
+              <https://www.rfc-editor.org/info/rfc7942>.
+
+   [RFC8668]  Ginsberg, L., Ed., Bashandy, A., Filsfils, C., Nanduri,
+              M., and E. Aries, "Advertising Layer 2 Bundle Member Link
+              Attributes in IS-IS", RFC 8668, DOI 10.17487/RFC8668,
+              December 2019, <https://www.rfc-editor.org/info/rfc8668>.
+
+   [RFC9087]  Filsfils, C., Ed., Previdi, S., Dawra, G., Ed., Aries, E.,
+              and D. Afanasiev, "Segment Routing Centralized BGP Egress
+              Peer Engineering", RFC 9087, DOI 10.17487/RFC9087, August
+              2021, <https://www.rfc-editor.org/info/rfc9087>.
+
+Appendix A.  Example
+
+   This section shows an example of how Node B in Figure 1 allocates and
+   advertises Peer Adjacency Segments for L2 bundle members.
+
+
+
+
+Lin, et al.              Expires 6 February 2027               [Page 14]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   B allocates a PeerAdj SID for the Layer 2 interface bundle to peer C,
+   along with a PeerAdj SID for each member link.  B programs its
+   forwarding table accordingly:
+
+   +===============================+====================+
+   |          PeerAdj SID          | Outgoing Interface |
+   +---------------+---------------+                    |
+   | IF on SR-MPLS |  IF on SRv6   |                    |
+   |   Data Plane  |  Data Plane   |                    |
+   +===============+===============+====================+
+   |     1010      |     A::A0     | L2 Bundle to C     |
+   +---------------+---------------+--------------------+
+   |     1011      |     A::A1     | Member link 1 to C |
+   +---------------+---------------+--------------------+
+   |     1012      |     A::A2     | Member link 2 to C |
+   +---------------+---------------+--------------------+
+   |     1013      |     A::A3     | Member link 3 to C |
+   +---------------+---------------+--------------------+
+
+   B signals the related BGP-LS Link NLRI and Link Attributes including
+   the PeerAdj SID for L3 parent link to the BGP-EPE controller, as
+   specified in Section 5.2 of [RFC9086].  In addition, B also
+   advertises L2 Bundle Member Attributes TLVs carrying the PeerAdj SIDs
+   for L2 bundle members.
+
+   For SR-MPLS, the Link Attributes are as follows:
+
+   *  PeerAdj SID TLV (Label-1010)
+
+   *  L2 Bundle Member Attributes TLV (Link Local Identifier describing
+      the member link 1)
+
+      -  PeerAdj SID TLV (Label-1011)
+
+   *  L2 Bundle Member Attributes TLV (Link Local Identifier describing
+      the member link 2)
+
+      -  PeerAdj SID TLV (Label-1012)
+
+   *  L2 Bundle Member Attributes TLV (Link Local Identifier describing
+      the member link 3)
+
+      -  PeerAdj SID TLV (Label-1013)
+
+   For SRv6, the Link Attributes are as follows:
+
+   *  SRv6 End.X SID TLV (SID-A::A0)
+
+
+
+
+Lin, et al.              Expires 6 February 2027               [Page 15]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+   *  L2 Bundle Member Attributes TLV (Link Local Identifier describing
+      the member link 1)
+
+      -  SRv6 End.X SID TLV (SID-A::A1)
+
+   *  L2 Bundle Member Attributes TLV (Link Local Identifier describing
+      the member link 2)
+
+      -  SRv6 End.X SID TLV (SID-A::A2)
+
+   *  L2 Bundle Member Attributes TLV (Link Local Identifier describing
+      the member link 3)
+
+      -  SRv6 End.X SID TLV (SID-A::A3)
+
+Appendix B.  Cross WG Information
+
+   This section describes cross-working group information for the IETF
+   review process.  This section will be removed by the RFC Editor
+   before publication.
+
+B.1.  Spring WG
+
+   [RFC9087] illustrates a centralized controller-based BGP Egress Peer
+   Engineering solution involving SR path computation using the BGP
+   Peering Segments.  Section 4.2 of [RFC8986] explains how to use the
+   End.X SID corresponding to an L2 member link.
+
+   Section 2.2 of [RFC9085] restricts the L2 Bundle Member Attributes
+   TLV "should only be added to the BGP-LS Attribute associated with the
+   BGP-LS Link NLRI that describes the link of the IGP node".  [RFC9086]
+   defines the extension to BGP-LS for advertisement of BGP Peering
+   Segments along with their BGP peering node information.
+
+   This document updates [RFC9085] to allow the L2 Bundle Member
+   Attributes TLV to be added to the BGP-LS Attribute associated with
+   the BGP-LS Link NLRI of BGP peering link.  For SR-MPLS, this document
+   updates [RFC9085] and [RFC9086] to allow the PeerAdj SID TLV to be
+   included as a sub-TLV of the L2 Bundle Member Attributes TLV.
+
+B.2.  PCE
+
+   This document only covers BGP-LS and does not involve PCE.
+
+B.3.  SRV6 OPS
+
+   Not related to SRv6 OPS, this document only addresses updates to BGP,
+   and RFC9087 and RFC8986 are available for reference in SPRING.
+
+
+
+Lin, et al.              Expires 6 February 2027               [Page 16]
+
+Internet-Draft      SR BGP EPE over L2 Bundle Members        August 2026
+
+
+Authors' Addresses
+
+   Changwang Lin
+   New H3C Technologies
+   China
+   Email: linchangwang.04414@h3c.com
+
+
+   Zhenqiang Li
+   China Mobile
+   China
+   Email: lizhenqiang@chinamobile.com
+
+
+   Ran Pang
+   China Unicom
+   China
+   Email: pangran@chinaunicom.cn
+
+
+   Ketan Talaulikar
+   Cisco Systems
+   India
+   Email: ketant.ietf@gmail.com
+
+
+   Ran Chen
+   ZTE Corporation
+   China
+   Email: chen.ran@zte.com.cn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lin, et al.              Expires 6 February 2027               [Page 17]

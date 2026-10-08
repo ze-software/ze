@@ -1,0 +1,1176 @@
+
+
+
+
+Inter-Domain Routing                                       K. Talaulikar
+Internet-Draft                                   A. B. MahendraBabu, Ed.
+Intended status: Standards Track                             C. Filsfils
+Expires: 20 February 2027                                       K. Swamy
+                                                           Cisco Systems
+                                                                S. Zandi
+                                                                G. Dawra
+                                                                LinkedIn
+                                                              M. Durrani
+                                                                 Equinix
+                                                          19 August 2026
+
+
+            BGP Link-State Extensions for BGP-only Networks
+                draft-ietf-idr-bgp-ls-bgp-only-fabric-07
+
+Abstract
+
+   BGP is used as the only routing protocol in some networks today.  In
+   such networks, it is useful to get a detailed topology view similar
+   to one available when using link state routing protocols.  This
+   document defines extensions to the BGP Link-state (BGP-LS) address-
+   family and the procedures for advertisement of topology information
+   in a BGP-only network.
+
+Discussion Venues
+
+   This note is to be removed before publishing as an RFC.
+
+   Discussion of this document takes place on the Inter-Domain Routing
+   Working Group mailing list (idr@ietf.org), which is archived at
+   https://mailarchive.ietf.org/arch/browse/idr/.
+
+   Source for this draft and an issue tracker can be found at
+   https://github.com/AravindBabuM/bgp-ls-bgp-only.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 1]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 20 February 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  BGP Routing in the Fabric . . . . . . . . . . . . . . . . . .   3
+   3.  Topology Collection Mechanism . . . . . . . . . . . . . . . .   4
+     3.1.  Peering Models  . . . . . . . . . . . . . . . . . . . . .   5
+   4.  Advertising BGP-only Network Topology . . . . . . . . . . . .   6
+     4.1.  Node Advertisements . . . . . . . . . . . . . . . . . . .   6
+     4.2.  Link Advertisements . . . . . . . . . . . . . . . . . . .   7
+     4.3.  Prefix Advertisements . . . . . . . . . . . . . . . . . .   9
+     4.4.  SR Policy and SRv6 SID Advertisements . . . . . . . . . .  11
+   5.  Procedures  . . . . . . . . . . . . . . . . . . . . . . . . .  11
+     5.1.  Advertisement of Router's Node Attributes . . . . . . . .  12
+     5.2.  Advertisement of Router's Local Links Attributes  . . . .  12
+     5.3.  Advertisement of Router's Prefix Attributes . . . . . . .  13
+   6.  Usage of BGP Topology . . . . . . . . . . . . . . . . . . . .  14
+     6.1.  Topology View for Monitoring  . . . . . . . . . . . . . .  14
+     6.2.  IP Fast Reroute and Protection in BGP-only Networks . . .  14
+     6.3.  SR-TE in BGP Networks . . . . . . . . . . . . . . . . . .  15
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  16
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .  16
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  17
+     9.1.  Normative References  . . . . . . . . . . . . . . . . . .  17
+     9.2.  Informative References  . . . . . . . . . . . . . . . . .  18
+   Acknowledgments . . . . . . . . . . . . . . . . . . . . . . . . .  20
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  20
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 2]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+1.  Introduction
+
+   Network operators are adopting BGP as the sole routing protocol for
+   certain networks like Massively Scaled Data Centers (MSDCs).
+   [RFC7938] describes the requirement, design and operational aspects
+   for use of BGP as the only routing protocol in MSDCs.  The underlying
+   link and topology information between BGP routers is abstracted in
+   this design for improving scalability and stability in a large scale
+   network.  As a result, a detailed topology view consisting of nodes,
+   links and prefixes that is available when operating link-state
+   routing protocols is not available in these BGP-only networks.
+
+   BGP Link-State (BGP-LS) [RFC9552] enables advertisement of a link
+   state topology from link-state IGP protocols via BGP that can be
+   consumed by a controller or in general any software component to get
+   a complete topology view of the network.  BGP-LS extensions for
+   advertisement of certain aspects of a BGP topology for the Egress
+   Peer Engineering (EPE) use-case [RFC9087] are specified in [RFC9086].
+   This document leverages the BGP-LS extensions that were defined for
+   EPE and other BGP-LS features.  The document specifies the procedures
+   for advertising the underlying topology in a BGP-only network.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  BGP Routing in the Fabric
+
+   The applicability of this specification is limited to those
+   deployments where BGP is used as hop-by-hop routing protocol between
+   directly connected nodes in the fabric.  While a data-center design
+   [RFC7938] is used as a reference, the topology advertisement and its
+   use for computation may also apply to other networks with BGP-only
+   fabric or to BGP-only portions of a larger network topology.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 3]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   BGP hop-by-hop routing can be set up using EBGP single-hop sessions
+   over individual links between directly connected routers using their
+   link addresses for peering as described in [RFC7938].  In such a
+   design, the neighbors' link addresses may be provisioned for peering
+   and the EBGP session operating directly over the link performs the
+   monitoring of the neighbor on that link.  A variation of this design
+   would be that the EBGP session is set up between directly connected
+   routers using their loopback IP addresses.  The mechanisms for
+   discovery of the neighbor's link addresses and their monitoring on a
+   per link basis are outside the scope of this document.
+
+   Though this document uses the EBGP based design as a reference, it
+   does not preclude other alternate designs using IBGP.
+
+   This document does not change base BGP routing protocol operations in
+   the BGP-only network fabric that provides routing using the BGP best
+   path selection process [RFC4271].
+
+3.  Topology Collection Mechanism
+
+   To provide a topological view in networks where BGP is the only
+   routing protocol, each BGP router advertises information about its
+   local node, links, and prefixes.  Figure 1 describes a typical
+   deployment scenario.  Every BGP router in the network is enabled for
+   BGP-LS and forms BGP-LS sessions with one or more centralized BGP-LS
+   speakers over which it sends its local topology information.
+
+   Each BGP router may also receive the topology information from all
+   other BGP routers via these centralized BGP-LS speakers.  This way,
+   any BGP router (as also the centralized BGP-LS speakers) may obtain
+   aggregated Link-State information for the BGP network.  An external
+   component (e.g. a controller) can obtain this information from the
+   centralized BGP-LS speakers or directly by doing BGP-LS peering to
+   the BGP routers.  An internal software component on any of the BGP
+   routers (e.g. TE module) can also receive the entire BGP network
+   topology information from its local BGP process.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 4]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+                  +------------+
+                  | Controller |
+                  +------------+
+                        ^
+                        |
+                        v
+               +-------------------+
+               |  BGP-LS Speaker   |       +------------+
+               |  (Centralized)    |       | Controller |
+               +-------------------+       +------------+
+                     ^   ^   ^                   ^
+                     |   |   |                   |
+         +-----------+   |   +---------------+   |
+         |               |                   |   |
+         v               v                   v   v
+    +-----------+    +-----------+         +-----------+    +----------+
+    |    BGP    |    |    BGP    |         |    BGP    |<-->| Local    |
+    |  Router   |    |  Router   |  . . .  |  Router   |    | Consumer |
+    +-----------+    +-----------+         +-----------+    +----------+
+         ^                ^                    ^
+         |                |                    |
+     Local Info       Local Info            Local Info
+    (node & links)  (node & links)         (node & links)
+
+        Figure 1: Link State Information Collection in a BGP Network
+
+3.1.  Peering Models
+
+   The peering model described above relies on the base BGP IPv4 or IPv6
+   routing underlay (e.g. as described in [RFC7938]) or any other
+   mechanism for reachability for the BGP-LS session establishment with
+   the centralized BGP speakers.  A variation of this model would be to
+   set up reachability to the centralized BGP speakers (or controller)
+   over the out of band management network and for each BGP router in
+   the fabric to use this management network for the BGP-LS session
+   establishment with the centralized BGP speakers.  This variation
+   removes the dependency between the topology learning via BGP-LS from
+   the reachability over the BGP routing in the fabric.
+
+   Another alternate design would be to enable the BGP-LS address-family
+   as well on the hop-by-hop EBGP sessions in the underlay described in
+   [RFC7938].  This approach results in the topology information being
+   flooded via BGP-LS hop-by-hop along the BGP routers in the network.
+   Other peering designs for BGP-LS sessions may also be possible and
+   they are not precluded by this document.
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 5]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+4.  Advertising BGP-only Network Topology
+
+   BGP-LS [RFC9552] defines the BGP-LS NLRI types (i.e. Node NLRI, Link
+   NLRI and Prefix NLRI) along with their corresponding BGP-LS Attribute
+   (i.e. Node Attribute, Link Attribute or Prefix Attribute) and the
+   TLVs that map to the respective NLRI and Attribute for each type.
+
+   [RFC9086] specifies the BGP Protocol-ID value 7 to be used for
+   signaling BGP EPE information.  The same Protocol-ID value (7) is
+   used for advertising topology information in a BGP-only network as
+   specified in this document.  The 64-bit Identifier field in the BGP-
+   LS NLRI SHOULD be set to 0, consistent with the procedures defined in
+   [RFC9086].
+
+   [RFC9514] defines the BGP-LS NLRI that can be used to advertise
+   Segment Routing for IPv6 (SRv6) Segment Identifier (SID) information
+   instantiated on a BGP Router.
+
+   [RFC9857] defines the BGP-LS NLRIs that can be used to advertise
+   information about Segment Routing (SR) Policies instantiated on a BGP
+   Router headend.
+
+   The following sub-sections specify the use of these encodings by a
+   router running BGP protocol.
+
+4.1.  Node Advertisements
+
+   [RFC9552] defines Node NLRI Type and the Node Descriptor TLVs as
+   follows:
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+
+    |  Protocol-ID  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           Identifier                          |
+    |                            (64 bits)                          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //                Local Node Descriptors (variable)            //
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   [RFC9086] introduces additional Node Descriptor TLVs for BGP protocol
+   that are required to be used.
+
+   The following Node Descriptors TLVs MUST appear in the Node NLRI as
+   Local Node Descriptors:
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 6]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   *  Autonomous System Number (TLV 512), which contains the advertising
+      router ASN.
+
+   *  BGP Router-ID (TLV 516), which contains the BGP Identifier of the
+      originating BGP router.
+
+   The BGP-LS Attribute associated with the Node NLRI SHOULD include the
+   Node Name TLV and MAY include the TE Router-ID TLVs (to indicate a
+   unique reachable IP address for that node) to signal the router
+   properties (Section 5.1 defines the procedures for their
+   advertisements):
+
+        +================+===================+====================+
+        | TLV Code Point | Description       | Reference Document |
+        +================+===================+====================+
+        |      1026      | Node Name         | [RFC9552]          |
+        +----------------+-------------------+--------------------+
+        |      1028      | IPv4 TE Router-ID | [RFC9552]          |
+        +----------------+-------------------+--------------------+
+        |      1029      | IPv6 TE Router-ID | [RFC9552]          |
+        +----------------+-------------------+--------------------+
+
+                        Table 1: Node Attribute TLVs
+
+   The above list of TLVs is not exhaustive and other BGP-LS TLVs
+   related to the advertisement of the node properties MAY be included
+   depending on the desired use case.
+
+4.2.  Link Advertisements
+
+   [RFC9552] defines Link NLRI Type and its Node and Link Descriptor
+   TLVs as follows:
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+
+    |  Protocol-ID  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           Identifier                          |
+    |                            (64 bits)                          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //               Local Node Descriptors (variable)             //
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //               Remote Node Descriptors (variable)            //
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //                  Link Descriptors (variable)                //
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 7]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   The following Node Descriptors TLVs MUST appear in the Link NLRI as
+   Local Node Descriptors:
+
+   *  Autonomous System Number (TLV 512), which contains the advertising
+      router ASN.
+
+   *  BGP Router-ID (TLV 516), which contains the BGP Identifier of the
+      originating BGP router.
+
+   The following Node Descriptors TLVs MUST appear in the Link NLRI as
+   Remote Node Descriptors:
+
+   *  Autonomous System Number (TLV 512), which contains the peer ASN.
+
+   *  BGP Router-ID (TLV 516), which contains the BGP Identifier of the
+      peer BGP router.
+
+   The following Link Descriptors TLVs MUST appear in the Link NLRI as
+   Link Descriptors:
+
+   *  Link Local/Remote Identifiers (TLV 258) containing the 4-octet
+      Link Local Identifier followed by the 4-octet Link Remote
+      Identifier.  The value 0 MUST be used for the Link Remote
+      Identifier when the value is unknown.
+
+   In addition, the following Link Descriptors TLVs SHOULD appear in the
+   Link NLRI as Link Descriptors based on the address family of the
+   addresses configured on the links for BGP peering:
+
+   *  IPv4 Interface Address (TLV 259) contains the address of the local
+      interface through which the BGP session is established using IPv4
+      address.
+
+   *  IPv4 Neighbor Address (TLV 260) contains the IPv4 address of the
+      peer interface used by the BGP session establishment using IPv4
+      address.
+
+   *  IPv6 Interface Address (TLV 261) contains the address of the local
+      interface through which the BGP session is established using IPv6
+      address.
+
+   *  IPv6 Neighbor Address (TLV 262) contains the IPv6 address of the
+      peer interface used by the BGP session establishment using IPv6
+      address.
+
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 8]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   The BGP-LS Attribute associated with the Link NLRI SHOULD include the
+   Link Name and Maximum Link Bandwidth TLVs to signal the link
+   properties (Section 5.2 defines the procedures for their
+   advertisements):
+
+     +================+========================+====================+
+     | TLV Code Point | Description            | Reference Document |
+     +================+========================+====================+
+     |      1089      | Maximum link bandwidth | [RFC9552]          |
+     +----------------+------------------------+--------------------+
+     |      1098      | Link Name              | [RFC9552]          |
+     +----------------+------------------------+--------------------+
+
+                       Table 2: Link Attribute TLVs
+
+   The above list of TLVs is not exhaustive and other BGP-LS TLVs
+   related to the advertisement of the link properties MAY be included
+   depending on the desired use case.
+
+4.3.  Prefix Advertisements
+
+   [RFC9552] defines Prefix NLRI Type and its Node and Prefix Descriptor
+   TLVs as follows:
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+
+    |  Protocol-ID  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           Identifier                          |
+    |                            (64 bits)                          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //              Local Node Descriptors (variable)              //
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //                Prefix Descriptors (variable)                //
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   The following Node Descriptors TLVs MUST appear in the Prefix NLRI as
+   Local Node Descriptors:
+
+   *  Autonomous System Number (TLV 512), which contains the advertising
+      router ASN.
+
+   *  BGP Router-ID (TLV 516), which contains the BGP Identifier of the
+      originating BGP router.
+
+   The Prefix Descriptor MUST contain the IP Reachability Information
+   TLV (TLV 265) to identify the prefix.
+
+
+
+Talaulikar, et al.      Expires 20 February 2027                [Page 9]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   This document defines a new BGP Route Type TLV that MUST be included
+   in the Prefix Descriptor when the BGP node advertises the Prefix
+   NLRI.  The format of this TLV is as follows:
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |              Type             |             Length            |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |  Route Type   |
+    +-+-+-+-+-+-+-+-+
+
+   Where:
+
+   Type:  2-octet field with value 535.
+
+   Length:  2-octet field with value set to 1.
+
+   Route Type:  1-octet with the following values defined:
+
+   +=======+===============+===========================================+
+   | Value | Type          | Description                               |
+   +=======+===============+===========================================+
+   |   1   | Local         | Local interface prefix e.g. Loopback      |
+   +-------+---------------+-------------------------------------------+
+   |   2   | Attached      | Directly attached node's prefix e.g.      |
+   |       |               | host                                      |
+   +-------+---------------+-------------------------------------------+
+   |   3   | External BGP  | Prefix learnt via EBGP                    |
+   +-------+---------------+-------------------------------------------+
+   |   4   | Internal BGP  | Prefix learnt via IBGP                    |
+   +-------+---------------+-------------------------------------------+
+   |   5   | Redistributed | Prefix redistributed into BGP             |
+   +-------+---------------+-------------------------------------------+
+
+                          Table 3: BGP Route Types
+
+   The BGP-LS Attribute associated with the Prefix NLRI SHOULD include
+   the Prefix Metric TLV to signal the prefix properties and
+   capabilities (Section 5.3 defines the procedures for their
+   advertisements):
+
+
+
+
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 10]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+          +================+===============+====================+
+          | TLV Code Point | Description   | Reference Document |
+          +================+===============+====================+
+          |      1155      | Prefix Metric | [RFC9552]          |
+          +----------------+---------------+--------------------+
+
+                       Table 4: Prefix Attribute TLVs
+
+   The above list of TLVs is not exhaustive and other BGP-LS TLVs
+   related to the advertisement of the prefix properties MAY be included
+   depending on the desired use case.
+
+4.4.  SR Policy and SRv6 SID Advertisements
+
+   In deployments where Segment Routing (SR) [RFC8402] is deployed in
+   the BGP network and the use case requires information about SR
+   Policies [RFC9256] or SRv6 SIDs instantiated on the routers, the
+   following BGP-LS extensions MAY also be advertised.
+
+   [RFC9514] defines the BGP-LS NLRI that can be used to advertise
+   Segment Routing for IPv6 (SRv6) Segment Identifier (SID) information
+   instantiated on a BGP Router.  The Local Node Descriptors TLVs are
+   the same as specified in Section 4.1 and the rest of the procedures
+   are the same as specified in [RFC9514].
+
+   [RFC9857] defines the BGP-LS NLRIs that can be used to advertise
+   information about SR Policies instantiated on a BGP Router headend.
+   The Headend Node Descriptors TLVs are the same as specified in
+   Section 4.1 and the rest of the procedures are the same as specified
+   in [RFC9857].
+
+5.  Procedures
+
+   In a network where BGP is the only routing protocol, the BGP-LS
+   session is used to advertise the necessary information about the
+   local node properties, its local links' properties and where
+   necessary the prefixes owned by the node.  SR Policies, that are
+   instantiated on the local node (i.e. when it is the head-end for the
+   policy), along with their properties may also be advertised via the
+   BGP-LS session.  This information, once collected across all BGP
+   routers in the network, provides a complete topology view of the
+   network.  Many of these attributes are not part of the base BGP
+   protocol operations and are either configured or provided by other
+   components on the router.  This information needs to be collected
+   from within the node and advertised out via BGP-LS.
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 11]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   The following sections describe the procedures for the propagation of
+   the BGP-LS NLRIs on a BGP router into the BGP-LS session.  These
+   procedures for propagation of BGP topology information via BGP-LS
+   SHOULD be applied only in deployments and use-cases where necessary
+   and SHOULD NOT be applied in every BGP deployment when BGP-LS is
+   enabled.  Implementations MAY provide a configuration option to
+   enable these procedures in required deployments.
+
+5.1.  Advertisement of Router's Node Attributes
+
+   Advertisement of the Node NLRI via BGP-LS by each BGP router in a
+   BGP-only network enables the discovery of all the router nodes in the
+   topology.  The Node NLRI MUST be generated by a BGP router only for
+   itself and even when there are no attributes to be advertised along
+   with it.
+
+   The Node Name Attribute SHOULD be advertised when available.
+
+   The TE Router-ID, normally provisioned with a unique address
+   associated with a loopback interface on the router, SHOULD be
+   advertised to enable TE use-cases for both IPv4 and IPv6.  The BGP
+   Router-ID along with the ASN also provides the capability for
+   uniquely identifying a BGP router in the network.
+
+   Other Node Attributes applicable to a BGP Router may also be included
+   and this document does not describe the exhaustive list.
+
+5.2.  Advertisement of Router's Local Links Attributes
+
+   Each BGP router in a BGP-only network also advertises its local links
+   using the Link NLRIs via BGP-LS.  The Link NLRI for a given link
+   between two BGP routers is advertised as uni-directional logical
+   "half-link" and its link descriptors allow the correlation between
+   the two NLRIs "half-links" originated by the peering routers to
+   describe the bi-directional logical link and its attributes on both
+   routers.
+
+   The discovery of all the links and their local and remote identifiers
+   in a BGP-only network relies on the design that uses EBGP sessions
+   over each interconnecting link using the link IP addresses (refer
+   [RFC7938]).  In this case, a Link NLRI MUST be generated by a BGP
+   router for each of its local link regardless of whether it has any
+   link attributes to be advertised for it.
+
+   When doing EBGP multi-hop sessions between directly connected BGP
+   routers, the underlying link information would need to be learned by
+   some discovery protocol or provisioning entity.  The mechanisms to
+   learn the underlying link information for BGP-LS advertisements are
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 12]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   outside the scope of this document.  However, to provide a true link
+   topology picture, the advertisement of underlying links is
+   RECOMMENDED for most use-cases instead of a single EBGP peering
+   representation of a link between the routers using their loopback
+   addresses.
+
+   The Link NLRI represents an adjacency between BGP routers and its
+   association with the underlying Layer 3 link.  When the underlying
+   Layer 3 link or the BGP session on top of it goes down, the Link NLRI
+   MUST be withdrawn by the BGP router.  The monitoring of links,
+   detecting of their failures and notification to BGP may be performed
+   using mechanisms like BFD.  This enables faster detection of failures
+   and verification of the underlying links.
+
+   Advertisement of the Link NLRIs via BGP-LS by each BGP router in a
+   BGP-only network enables the discovery of all the active links in the
+   topology.
+
+   TE attributes for links have been traditionally associated with Link
+   State Routing protocols.  However, with the ability to discover the
+   link topology via BGP-LS as specified in this document, the TE
+   attributes and their principles can also be applied to a network
+   running BGP alone.  Additional link attribute TLVs related to TE
+   (e.g., TE Default Metric, Administrative Group, SRLG) as defined in
+   [RFC9552] MAY be included in the Link NLRI when TE use-cases are
+   enabled.
+
+   Layer 3 bundle links comprising multiple Layer 2 member links are
+   often used in BGP networks.  When BGP session is configured over such
+   a layer 3 link, the link attributes of the underlying layer 2 links
+   MAY be advertised individually using the L2 Bundle Member TLV.  The
+   applicable attributes for the L2 links are described in [RFC9085].
+
+   The Link Name Attribute MAY be advertised when available.
+
+   Other Link Attributes applicable to a BGP Router may also be included
+   and this document does not describe the exhaustive list.
+
+5.3.  Advertisement of Router's Prefix Attributes
+
+   Advertisement of the Prefix NLRI via BGP-LS may be required only in
+   specific use-cases.  Since the base BGP protocol along with its
+   extensions already signals Prefix reachability via different NLRIs,
+   there is no necessity to duplicate the information via BGP-LS
+   session.
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 13]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   Advertisement of the Prefix NLRI via BGP-LS MUST be done for its
+   locally configured prefixes (e.g. its loopback interface address).
+   The advertisement of the Prefix NLRI via BGP-LS for other prefixes
+   learnt by the router MAY be done based on the specific use-case
+   requirement and the BGP Route Type as described in Table 3 indicates
+   the type of route being advertised.
+
+   Other Prefix Attributes applicable may also be included and this
+   document does not describe the exhaustive list.
+
+6.  Usage of BGP Topology
+
+   This section describes the key use cases for the BGP topology
+   information collected as specified in this document: topology
+   visibility for network monitoring, IP Fast Reroute (IPFRR) and
+   protection, and Segment Routing Traffic Engineering (SR-TE) in BGP-
+   only networks.  The specific algorithms and mechanisms for each use
+   case are outside the scope of this document.
+
+6.1.  Topology View for Monitoring
+
+   The BGP-LS advertisement of the BGP topology as specified in this
+   document provides a live topology view of the BGP network for an
+   application or controller that is monitoring the network.  The
+   topology view is from the BGP protocol perspective and includes the
+   underlying links as well that aids in network monitoring as well as
+   diagnostics use-cases.  BGP-LS is the de-facto protocol for
+   northbound propagation of network topology related information for
+   most IGP networks and extending this capability for BGP-only networks
+   allows existing controllers and applications to consume the
+   information with some incremental BGP protocol awareness.
+
+6.2.  IP Fast Reroute and Protection in BGP-only Networks
+
+   AI and Machine Learning (AI/ML) data center fabrics commonly employ
+   BGP-only multi-tier Clos topologies in which training workloads are
+   highly synchronized, bandwidth-saturating, and extremely sensitive to
+   packet loss.  These characteristics impose stringent convergence time
+   requirements.  The requirements and their implications for IP Fast
+   Reroute (IPFRR) in such fabrics are described in
+   [I-D.clad-rtgwg-ipfrr-aiml].
+
+   Traditional IPFRR [RFC5714] deployments rely upon a link-state IGP to
+   supply the complete topology database from which repair paths are
+   computed.  BGP-only networks lack an equivalent topology database.
+   The BGP-LS topology collection specified in this document addresses
+   this limitation by providing complete topology visibility, enabling
+   IPFRR computations using LFA and TI-LFA techniques.  The problem
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 14]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   statement and solution framework for IPFRR in BGP-only networks using
+   BGP-LS as the topology source are defined in
+   [I-D.abdelsalam-rtgwg-ipfrr-bgp-only-network].
+
+   For scenarios where ECMP and TI-LFA protection are insufficient --
+   particularly on downward paths in Clos topologies where hairpin
+   reroutes would consume bandwidth on already-loaded uplinks --
+   Efficient Remote Protection (ERP)
+   [I-D.clad-rtgwg-efficient-remote-protection] provides a pre-computed,
+   hairpin-free backup path mechanism.  The Node and Link NLRIs
+   collected via BGP-LS provide the topology input required to compute
+   such protection paths at any node within the BGP-only fabric.
+
+6.3.  SR-TE in BGP Networks
+
+   SR Traffic Engineering (SR-TE) for BGP provides underlay paths
+   through the network for overlay routes and services with specific
+   requirements such as multi-plane redundancy in Clos topologies where
+   independent parallel fabric planes provide path diversity and fault
+   isolation.
+
+   [RFC9256] specifies the SR Policy architecture.  [RFC9830] and
+   [RFC9831] describe the extensions to BGP for signaling of SR Policies
+   from a controller to the SR-TE headend BGP router.  [RFC9857] enables
+   the advertisement of SR Policy state from the headend to controllers
+   via BGP-LS.  This document completes the picture by providing the BGP
+   topology information from all the routers to a controller as well as
+   the local SR-TE process on each router for path computation.
+
+   The topology collected via BGP-LS in a BGP-only fabric provides the
+   node, link, and prefix properties along with SR SIDs that enable a
+   computation entity to build SR Policies for traffic engineering
+   objectives.  The topology may be advertised to a centralized
+   controller for use-cases requiring centralized computation, or
+   distributed to any node in the BGP fabric for use by its local SR-TE
+   process.
+
+   Two deployment scenarios that leverage SRv6 TE in BGP-only data
+   center fabrics are described below.
+
+
+
+
+
+
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 15]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   [I-D.filsfils-srv6ops-srv6-e2e-dc-frontend-wan] describes an SRv6
+   end-to-end architecture that unifies the data center frontend and WAN
+   under a single SRv6 domain, eliminating the need for protocol
+   translation at DCI gateways.  In this deployment, SR Policies are
+   used to steer traffic end-to-end across the DC and WAN and to enable
+   stateless service insertion (e.g., directing traffic through firewall
+   services via SRv6 SIDs).  The BGP-LS topology collection specified in
+   this document provides the node and link information within the BGP-
+   only DC fabric that is required by a controller or local SR-TE
+   process to compute such SR Policies.
+
+   [I-D.filsfils-srv6ops-srv6-ai-backend] describes the use of SRv6 to
+   enable deterministic path placement for GPU-to-GPU traffic in AI/ML
+   backend fabrics.  In this deployment, an AI scheduler computes
+   optimal paths through the Clos fabric to achieve homogeneous link
+   utilization and avoid congestion for large, predictable training
+   flows.  The paths are encoded as SRv6 network programs at the source
+   NIC without requiring per-flow state on intermediate fabric nodes.
+   The BGP-LS topology collection specified in this document provides
+   the fabric-wide node and link information that is required by the AI
+   scheduler or controller to compute these deterministic paths.
+
+   The actual SR-TE path computation and algorithms are outside the
+   scope of this document.
+
+7.  IANA Considerations
+
+   IANA has allocated a code point for the TLV defined in this document
+   from the "BGP-LS NLRI and Attribute TLVs" sub-registry of the "Border
+   Gateway Protocol - Link-State (BGP-LS) Parameters" registry group as
+   follows:
+
+            +================+================+===============+
+            | TLV Code Point | Description    | Reference     |
+            +================+================+===============+
+            |      535       | BGP Route Type | this document |
+            +----------------+----------------+---------------+
+
+                                  Table 5
+
+8.  Security Considerations
+
+   Procedures and protocol extensions defined in this document do not
+   affect the BGP security model.  See the 'Security Considerations'
+   section of [RFC4271] for a discussion of BGP security.  Also refer to
+   [RFC4272] and [RFC6952] for analysis of security issues for BGP.
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 16]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   [RFC9552] defines BGP-LS NLRI to which the extensions defined in this
+   document apply.  Section 10 of [RFC9552] also applies to these
+   extensions.  The procedures defined in this document, by themselves,
+   do not affect the BGP-LS security model discussed in [RFC9552].
+
+   The BGP-LS extensions specified in this document enable topology
+   visibility and traffic engineering use-cases within a BGP-only fabric
+   as described in this document.  BGP-LS operates within a trusted
+   domain and its security considerations apply to BGP sessions when
+   carrying topology information.  The topology information distributed
+   by BGP-LS is expected to be used entirely within this trusted domain
+   which comprises a single AS or multiple ASes/domains within a single
+   provider network.  Therefore, precaution is necessary to ensure that
+   the topology information advertised via BGP-LS sessions is limited to
+   nodes in a secure manner within this trusted domain.
+
+   Additionally, it should be considered that the export of detailed
+   topology information, as described in this document, constitutes a
+   risk to confidentiality of mission-critical or commercially sensitive
+   information about the network.  BGP-LS peerings are not automatic and
+   require configuration; thus, it is the responsibility of the network
+   operator to ensure that only trusted nodes (that include both routers
+   and controller applications) within the trusted domain are configured
+   to receive such information.
+
+9.  References
+
+9.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/rfc/rfc2119>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/rfc/rfc4271>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
+
+   [RFC9085]  Previdi, S., Talaulikar, K., Ed., Filsfils, C., Gredler,
+              H., and M. Chen, "Border Gateway Protocol - Link State
+              (BGP-LS) Extensions for Segment Routing", RFC 9085,
+              DOI 10.17487/RFC9085, August 2021,
+              <https://www.rfc-editor.org/rfc/rfc9085>.
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 17]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   [RFC9086]  Previdi, S., Talaulikar, K., Ed., Filsfils, C., Patel, K.,
+              Ray, S., and J. Dong, "Border Gateway Protocol - Link
+              State (BGP-LS) Extensions for Segment Routing BGP Egress
+              Peer Engineering", RFC 9086, DOI 10.17487/RFC9086, August
+              2021, <https://www.rfc-editor.org/rfc/rfc9086>.
+
+   [RFC9514]  Dawra, G., Filsfils, C., Talaulikar, K., Ed., Chen, M.,
+              Bernier, D., and B. Decraene, "Border Gateway Protocol -
+              Link State (BGP-LS) Extensions for Segment Routing over
+              IPv6 (SRv6)", RFC 9514, DOI 10.17487/RFC9514, December
+              2023, <https://www.rfc-editor.org/rfc/rfc9514>.
+
+   [RFC9552]  Talaulikar, K., Ed., "Distribution of Link-State and
+              Traffic Engineering Information Using BGP", RFC 9552,
+              DOI 10.17487/RFC9552, December 2023,
+              <https://www.rfc-editor.org/rfc/rfc9552>.
+
+   [RFC9857]  Previdi, S., Talaulikar, K., Ed., Dong, J., Gredler, H.,
+              and J. Tantsura, "Advertisement of Segment Routing
+              Policies Using BGP - Link State", RFC 9857,
+              DOI 10.17487/RFC9857, October 2025,
+              <https://www.rfc-editor.org/rfc/rfc9857>.
+
+9.2.  Informative References
+
+   [I-D.abdelsalam-rtgwg-ipfrr-bgp-only-network]
+              Abdelsalam, A., Filsfils, C., Ruan, E., and D. Cai, "IP
+              Fast Reroute for BGP-Only Networks", Work in Progress,
+              Internet-Draft, draft-abdelsalam-rtgwg-ipfrr-bgp-only-
+              network-00, 2 March 2026,
+              <https://datatracker.ietf.org/doc/html/draft-abdelsalam-
+              rtgwg-ipfrr-bgp-only-network-00>.
+
+   [I-D.clad-rtgwg-efficient-remote-protection]
+              Clad, F., Filsfils, C., Su, Y., and D. Cai, "Efficient
+              Remote Protection", Work in Progress, Internet-Draft,
+              draft-clad-rtgwg-efficient-remote-protection-00, 2 March
+              2026, <https://datatracker.ietf.org/doc/html/draft-clad-
+              rtgwg-efficient-remote-protection-00>.
+
+   [I-D.clad-rtgwg-ipfrr-aiml]
+              Clad, F., Filsfils, C., Jiang, R., and D. Cai, "IP Fast
+              Reroute for AI/ML Fabrics", Work in Progress, Internet-
+              Draft, draft-clad-rtgwg-ipfrr-aiml-00, 2 March 2026,
+              <https://datatracker.ietf.org/doc/html/draft-clad-rtgwg-
+              ipfrr-aiml-00>.
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 18]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   [I-D.filsfils-srv6ops-srv6-ai-backend]
+              Filsfils, C., Camarillo, P., Lu, G., Brar, J., Becker, D.,
+              Jouhari, A., Pillai, K., Abdelsalam, A., Tantsura, J., and
+              K. Patel, "SRv6 for Deterministic Path Placement in AI
+              Backends", Work in Progress, Internet-Draft, draft-
+              filsfils-srv6ops-srv6-ai-backend-04, 3 June 2026,
+              <https://datatracker.ietf.org/doc/html/draft-filsfils-
+              srv6ops-srv6-ai-backend-04>.
+
+   [I-D.filsfils-srv6ops-srv6-e2e-dc-frontend-wan]
+              Filsfils, C., Camarillo, P., Michielsen, K., Gorovoy, A.,
+              and N. Leymann, "SRv6 End-to-End DC Frontend and WAN",
+              Work in Progress, Internet-Draft, draft-filsfils-srv6ops-
+              srv6-e2e-dc-frontend-wan-02, 3 June 2026,
+              <https://datatracker.ietf.org/doc/html/draft-filsfils-
+              srv6ops-srv6-e2e-dc-frontend-wan-02>.
+
+   [RFC4272]  Murphy, S., "BGP Security Vulnerabilities Analysis",
+              RFC 4272, DOI 10.17487/RFC4272, January 2006,
+              <https://www.rfc-editor.org/rfc/rfc4272>.
+
+   [RFC5714]  Shand, M. and S. Bryant, "IP Fast Reroute Framework",
+              RFC 5714, DOI 10.17487/RFC5714, January 2010,
+              <https://www.rfc-editor.org/rfc/rfc5714>.
+
+   [RFC6952]  Jethanandani, M., Patel, K., and L. Zheng, "Analysis of
+              BGP, LDP, PCEP, and MSDP Issues According to the Keying
+              and Authentication for Routing Protocols (KARP) Design
+              Guide", RFC 6952, DOI 10.17487/RFC6952, May 2013,
+              <https://www.rfc-editor.org/rfc/rfc6952>.
+
+   [RFC7938]  Lapukhov, P., Premji, A., and J. Mitchell, Ed., "Use of
+              BGP for Routing in Large-Scale Data Centers", RFC 7938,
+              DOI 10.17487/RFC7938, August 2016,
+              <https://www.rfc-editor.org/rfc/rfc7938>.
+
+   [RFC8402]  Filsfils, C., Ed., Previdi, S., Ed., Ginsberg, L.,
+              Decraene, B., Litkowski, S., and R. Shakir, "Segment
+              Routing Architecture", RFC 8402, DOI 10.17487/RFC8402,
+              July 2018, <https://www.rfc-editor.org/rfc/rfc8402>.
+
+   [RFC9087]  Filsfils, C., Ed., Previdi, S., Dawra, G., Ed., Aries, E.,
+              and D. Afanasiev, "Segment Routing Centralized BGP Egress
+              Peer Engineering", RFC 9087, DOI 10.17487/RFC9087, August
+              2021, <https://www.rfc-editor.org/rfc/rfc9087>.
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 19]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   [RFC9256]  Filsfils, C., Talaulikar, K., Ed., Voyer, D., Bogdanov,
+              A., and P. Mattes, "Segment Routing Policy Architecture",
+              RFC 9256, DOI 10.17487/RFC9256, July 2022,
+              <https://www.rfc-editor.org/rfc/rfc9256>.
+
+   [RFC9830]  Previdi, S., Filsfils, C., Talaulikar, K., Ed., Mattes,
+              P., and D. Jain, "Advertising Segment Routing Policies in
+              BGP", RFC 9830, DOI 10.17487/RFC9830, September 2025,
+              <https://www.rfc-editor.org/rfc/rfc9830>.
+
+   [RFC9831]  Talaulikar, K., Ed., Filsfils, C., Previdi, S., Mattes,
+              P., and D. Jain, "Segment Type Extensions for BGP Segment
+              Routing (SR) Policy", RFC 9831, DOI 10.17487/RFC9831,
+              September 2025, <https://www.rfc-editor.org/rfc/rfc9831>.
+
+Acknowledgments
+
+   The authors would like to thank Bruno Decraene for his review and
+   comments on this document.
+
+Authors' Addresses
+
+   Ketan Talaulikar
+   Cisco Systems
+   India
+   Email: ketant.ietf@gmail.com
+
+
+   Aravind Babu MahendraBabu (editor)
+   Cisco Systems
+   India
+   Email: aramahen@cisco.com
+
+
+   Clarence Filsfils
+   Cisco Systems
+   Brussels
+   Belgium
+   Email: cfilsfil@cisco.com
+
+
+   Krishna Swamy
+   Cisco Systems
+   San Jose,
+   United States of America
+   Email: kriswamy@cisco.com
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 20]
+
+Internet-Draft         BGP LS for BGP-only Fabric            August 2026
+
+
+   Shawn Zandi
+   LinkedIn
+   United States of America
+   Email: szandi@linkedin.com
+
+
+   Gaurav Dawra
+   LinkedIn
+   United States of America
+   Email: gdawra.ietf@gmail.com
+
+
+   Muhammad Durrani
+   Equinix
+   United States of America
+   Email: mdurrani@equinix.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Talaulikar, et al.      Expires 20 February 2027               [Page 21]

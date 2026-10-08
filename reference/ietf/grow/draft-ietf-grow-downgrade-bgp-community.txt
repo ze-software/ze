@@ -1,0 +1,504 @@
+
+
+
+
+GROW                                                         J. Snijders
+Internet-Draft                                                       BSD
+Intended status: Informational                                   S. Ytti
+Expires: 28 March 2027                                          NTT DATA
+                                                       24 September 2026
+
+
+  The DOWNGRADE BGP Community for Denial-of-Service Attack Mitigation
+               draft-ietf-grow-downgrade-bgp-community-01
+
+Abstract
+
+   This document outlines a method to mitigate Denial of Service (DoS)
+   attacks by using a well-known BGP community named "DOWNGRADE" as
+   signal to neighboring networks to treat traffic destined towards
+   "DOWNGRADE" tagged IP prefixes with low precedence.  The "downgrade"
+   strategy offers an appealing alternative to Remote Triggered
+   Blackhole (RTBH) filtering, because RTBH filtering completes the DoS
+   attack and hampers the defender's ability to monitor whether the
+   attack is still ongoing.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 28 March 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 1]
+
+Internet-Draft           DOWNGRADE BGP Community          September 2026
+
+
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  The DOWNGRADE Community . . . . . . . . . . . . . . . . . . .   3
+   3.  Operational Considerations  . . . . . . . . . . . . . . . . .   3
+     3.1.  Traffic Marking on Egress . . . . . . . . . . . . . . . .   3
+     3.2.  Mitigation Duration . . . . . . . . . . . . . . . . . . .   3
+     3.3.  Internet Exchange Route Server Transparency . . . . . . .   4
+     3.4.  Scope of Downgrade Routes . . . . . . . . . . . . . . . .   4
+   4.  Security Considerations . . . . . . . . . . . . . . . . . . .   4
+   5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   4
+   6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   4
+     6.1.  Normative References  . . . . . . . . . . . . . . . . . .   4
+     6.2.  Informative References  . . . . . . . . . . . . . . . . .   5
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .   5
+   Appendix B.  Configuration Examples . . . . . . . . . . . . . . .   5
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   8
+
+1.  Introduction
+
+   Denial of Service (DoS) attacks are a common occurrence, and
+   effective mitigation continues to pose challenges to network
+   operators globally.  The traditional approach of signaling
+   neighboring networks to not send _any_ traffic towards the IP prefix
+   under duress poses a significant dilemma: without filtering the
+   destination network segment as a whole suffers from attack.
+   Conversely, the use of RTBH filtering itself is an extension of the
+   attack as it causes reachability issues for the beset destination.
+   Even worse, reachability issues often persist beyond the actual
+   attack, because RTBH filtering itself negatively impacts the
+   defender's ability to observe the presence of attack traffic.  From a
+   timing perspective it is hard to use RTBH filtering with tactical
+   precision.
+
+   This document proposes a different approach, the "downgrade"
+   strategy: rather than defenders requesting neighboring networks to
+   discard traffic wholesale, defenders can request for deprioritization
+   of selected traffic in the forwarding plane.  The goal is to protect
+   all other packet traffic from competition with the attack volume
+   aggregate, while not completely banning attack traffic from the
+   network.  This approach allows networks to protect themselves from
+   attack traffic by providing relative preferential treatment to other
+   traffic aggregates.
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 2]
+
+Internet-Draft           DOWNGRADE BGP Community          September 2026
+
+
+   The aforementioned "downgrade" mitigation strategy does not fully
+   resolve DoS attacks as the root cause remains unaddressed, but it
+   might be a better practise than RTBH filtering.  It should also be
+   noted that this approach relies on there being at least some unused
+   capacity during the attack.
+
+   This document specifies a standard well-known BGP community
+   ([RFC1997]) value for use in the global Internet routing system,
+   describes operational considerations for mitigating through
+   downgrading, and for illustration purposes contains some
+   configuration examples.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  The DOWNGRADE Community
+
+   This document defines the use of a new well-known BGP transitive
+   community, DOWNGRADE.
+
+   The semantics of this community allow a network to interpret its
+   presence as an advisory qualification to treat any traffic being sent
+   towards the tagged prefix with lower precedence.  That is, in the
+   case of congestion, DOWNGRADE tagged traffic SHOULD be dropped prior
+   to dropping any other traffic.
+
+3.  Operational Considerations
+
+3.1.  Traffic Marking on Egress
+
+   Operators SHOULD mark downgraded traffic with the Lower-Effort (LE)
+   Differentiated Services Code Point (DSCP) '000001' at the egress to
+   the next network domain.  Such marking can help the defender monitor
+   whether lower-effort forwarding treatment was applied.
+
+   See [RFC8622] for additional considerations regarding the Lower-
+   Effort Per-Hop Behavior (LE PHB).
+
+3.2.  Mitigation Duration
+
+   The duration of attack mitigation measures using the aforementioned
+   "downgrade" strategy should be proportional to the threat and SHOULD
+   be discontinued as soon as the attack has passed.
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 3]
+
+Internet-Draft           DOWNGRADE BGP Community          September 2026
+
+
+3.3.  Internet Exchange Route Server Transparency
+
+   Internet Exchange (IX) Route Servers (RS) ([RFC7947]) SHOULD
+   redistribute the DOWNGRADE community transparently to their peers.
+   While IX RS themselves operate in the control-plane, the peers of the
+   RS could benefit from receiving the DOWNGRADE community.
+
+3.4.  Scope of Downgrade Routes
+
+   Similar to how IX RS ought to pass through the DOWNGRADE community
+   (see Section 3.3), the global Internet routing system as a whole
+   likely benefits from downgrading close to the traffic source.
+   Operators SHOULD NOT remove the DOWNGRADE community from route
+   announcements.
+
+4.  Security Considerations
+
+   DoS attacks are a pervasive long-standing issue and happen frequently
+   in network operations.  Traditional RTBH-based attack mitigation
+   techniques rely on indiscriminate traffic discardure and while this
+   does eliminate unwanted attack traffic, it also disrupts valuable
+   non-attack traffic as an unfortunate side-effect.  In contrast, the
+   aforementioned "downgrade" strategy aims to reduce collateral damage
+   by forwarding as much traffic as possible.
+
+   BGP announcements carrying the DOWNGRADE community SHOULD be accepted
+   and honored only if the neighboring network is authorized to
+   advertise the prefix.  The method of validating announcements is to
+   be chosen according to the operator's routing policy.
+
+5.  IANA Considerations
+
+   IANA has registered in the "BGP Well-known Communities" registry as
+   follows:
+
+   DOWNGRADE (= 0xFFFF000A)
+
+6.  References
+
+6.1.  Normative References
+
+   [RFC1997]  Chandra, R., Traina, P., and T. Li, "BGP Communities
+              Attribute", RFC 1997, DOI 10.17487/RFC1997, August 1996,
+              <https://www.rfc-editor.org/info/rfc1997>.
+
+
+
+
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 4]
+
+Internet-Draft           DOWNGRADE BGP Community          September 2026
+
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+6.2.  Informative References
+
+   [RFC7947]  Jasinska, E., Hilliard, N., Raszuk, R., and N. Bakker,
+              "Internet Exchange BGP Route Server", RFC 7947,
+              DOI 10.17487/RFC7947, September 2016,
+              <https://www.rfc-editor.org/info/rfc7947>.
+
+   [RFC8622]  Bless, R., "A Lower-Effort Per-Hop Behavior (LE PHB) for
+              Differentiated Services", RFC 8622, DOI 10.17487/RFC8622,
+              June 2019, <https://www.rfc-editor.org/info/rfc8622>.
+
+Appendix A.  Acknowledgements
+
+   The authors wish to thank Massimiliano Stucchi and Bryton Herdes for
+   their review and feedback.
+
+Appendix B.  Configuration Examples
+
+   This section contains configuration examples for a number of commonly
+   used networking and telecommunications equipment manufacturers to
+   illustrate how matching on a BGP community can be used to lower
+   priority in the forwarding plane.
+
+   For the sake of brevity, these examples omit configuration stanzas
+   for setting LE DSCP '000001' on network domain egress.
+
+B.1.  HPE Juniper Junos
+
+   <CODE BEGINS>
+
+   forwarding-options {
+       family inet {
+           filter {
+               output ff-qppb-v4;
+           }
+       }
+       family inet6 {
+           filter {
+               output ff-qppb-v6;
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 5]
+
+Internet-Draft           DOWNGRADE BGP Community          September 2026
+
+
+           }
+       }
+   }
+
+   routing-options {
+       forwarding-table {
+           export [ ft-qppb ];
+       }
+   }
+
+   policy-options {
+      community downgrade members 65535:TBD;  ## FIXME TBD IANA
+      policy-statement ft-qppb {
+          term qppb-le {
+              from community downgrade;
+              then {
+                  destination-class qppb-le;
+                  accept;
+              }
+          }
+          term rest {
+              then {
+                  accept;
+              }
+          }
+      }
+   }
+
+   firewall {
+       family inet {
+           filter ff-qppb-v4 {
+               term dcu {
+                   from {
+                       destination-class qppb-le;
+                   }
+                   then {
+                       forwarding-class le;
+                       accept;
+                   }
+               }
+               term rest {
+                   then {
+                       accept;
+                   }
+               }
+           }
+       }
+       family inet6 {
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 6]
+
+Internet-Draft           DOWNGRADE BGP Community          September 2026
+
+
+           filter ff-qppb-v6 {
+               term dcu {
+                   from {
+                       destination-class qppb-le;
+                   }
+                   then {
+                       forwarding-class le;
+                       accept;
+                   }
+               }
+               term rest {
+                   then {
+                       accept;
+                   }
+               }
+           }
+       }
+   }
+
+   <CODE ENDS>
+
+B.2.  Nokia SR-OS
+
+   <CODE BEGINS>
+
+   configure {
+       policy-options {
+           community "downgrade" {
+               member "65535:TBD"  ## FIXME TBD IANA
+           }
+       }
+       policy-statement "bgp-in" {
+           entry 100 {
+               from {
+                   community {
+                       name "downgrade"
+                   }
+               }
+               action {
+                   action-type next-entry
+                   fc l2
+                   priority low
+               }
+           }
+       }
+   }
+
+   <CODE ENDS>
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 7]
+
+Internet-Draft           DOWNGRADE BGP Community          September 2026
+
+
+B.3.  Cisco IOS-XR
+
+   <CODE BEGINS>
+
+   community-set downgrade
+     65535:TBD  ## FIXME TBD IANA
+   end-set
+   !
+   route-policy qppb-v4
+     if community matches-any downgrade then
+       set qos-group 1
+     else
+       pass
+     endif
+   end-policy
+   !
+   route-policy qppb-v6
+     if community matches-any downgrade then
+       set qos-group 1
+     else
+       pass
+     endif
+   end-policy
+   !
+   router bgp ASN
+    address-family ipv4 unicast
+     table-policy qppb-v4
+    !
+    address-family ipv6 unicast
+     table-policy qppb-v6
+    !
+   !
+
+   <CODE ENDS>
+
+Authors' Addresses
+
+   Job Snijders
+   BSD Software Development
+   The Netherlands
+   Email: job@bsd.nl
+   URI:   https://www.bsd.nl
+
+
+   Saku Ytti
+   NTT DATA
+   Cyprus
+   Email: ytti@ntt.net
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 8]
+
+Internet-Draft           DOWNGRADE BGP Community          September 2026
+
+
+   URI:   https://www.gin.ntt.net/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Snijders & Ytti           Expires 28 March 2027                 [Page 9]

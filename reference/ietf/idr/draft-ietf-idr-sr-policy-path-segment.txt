@@ -1,0 +1,728 @@
+
+
+
+
+Interdomain Routing Working Group                                  C. Li
+Internet-Draft                                                     Z. Li
+Intended status: Standards Track                     Huawei Technologies
+Expires: 31 December 2026                                         Y. Yin
+                                                           China Telecom
+                                                                W. Cheng
+                                                            China Mobile
+                                                           K. Talaulikar
+                                                           Cisco Systems
+                                                            29 June 2026
+
+
+      SR Policy Extensions for Path Segment and Bidirectional Path
+                draft-ietf-idr-sr-policy-path-segment-16
+
+Abstract
+
+   BGP SR Policy address-family is used for signaling of individual
+   candidate paths of a Segment Routing Policy.  This document specifies
+   extensions for the signaling of a Path Segment Identifier associated
+   with the Segment List(s) of a candidate path.  It also specifies
+   extensions for the signaling of the Segment List(s) in the reverse
+   direction when Bidirectional SR Policies are used.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 31 December 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+
+
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 1]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   3
+     2.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   3.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   3
+   4.  BGP Extensions  . . . . . . . . . . . . . . . . . . . . . . .   5
+     4.1.  SR Path Segment Sub-TLV . . . . . . . . . . . . . . . . .   5
+     4.2.  Reverse Segment List Sub-TLV  . . . . . . . . . . . . . .   7
+   5.  Operations  . . . . . . . . . . . . . . . . . . . . . . . . .   8
+   6.  Error Handling and Fault Management . . . . . . . . . . . . .   8
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   9
+     7.1.  Existing Registry: BGP Tunnel Encapsulation Attribute
+           sub-TLVs  . . . . . . . . . . . . . . . . . . . . . . . .   9
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
+   9.  Contributors  . . . . . . . . . . . . . . . . . . . . . . . .   9
+   10. Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  10
+   11. References  . . . . . . . . . . . . . . . . . . . . . . . . .  11
+     11.1.  Normative References . . . . . . . . . . . . . . . . . .  11
+     11.2.  Informative References . . . . . . . . . . . . . . . . .  12
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  12
+
+1.  Introduction
+
+   Segment Routing (SR) [RFC8402] is a source routing paradigm that
+   explicitly indicates the forwarding path for packets at the ingress
+   node.  The ingress node steers packets into a specific path according
+   to the SR Policy as defined in [RFC9256].  BGP SR Policy SAFI
+   [RFC9830] is used for the signaling of SR Policy candidate paths to
+   headend nodes.
+
+   In many use cases such as performance measurement, the path to which
+   the packets belong is required to be identified.  In some scenarios,
+   (e.g., Mobile backhaul transport networks), there are Requirements to
+   support bidirectional path.  This document defines the extensions to
+   BGP SR Policy address-family [RFC9830] to signal Path Segment for
+   individual Segment List and the Reverse Segment List to support
+   instantiation of bidirectional SR Policies.
+
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 2]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+   The Path Segment can be a Path Segment in SR-MPLS [RFC9545] or SRv6
+   [I-D.ietf-spring-srv6-path-segment].
+
+2.  Terminology
+
+   This document makes use of the terms defined in [RFC8402], [RFC9256],
+   [RFC9545], and [RFC9830].  Some of terms are listed below for
+   reference.
+
+   *  SR: Segment Routing.
+
+   *  SR-MPLS: Segment Routing over MPLS data plane.
+
+   *  SRv6: Segment Routing over IPv6 data plane.
+
+   *  PSID: Path Segment Identifier.
+
+   *  SRPM: SR Policy Module.
+
+2.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+3.  Overview
+
+   As defined in [RFC9830], the SR Policy Candidate Path encoding
+   structure is as follows:
+
+      SR Policy SAFI NLRI: <Distinguisher, Policy-Color, Endpoint>
+      Attributes:
+         Tunnel Encaps Attribute (23)
+            Tunnel Type: SR Policy
+                Binding SID
+                Preference
+                Priority
+                Policy Name
+                Explicit NULL Label Policy (ENLP)
+                Segment List
+                    Weight
+                    Segment
+                    Segment
+                    ...
+                ...
+
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 3]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+           Figure 1: SR Policy Candidate Path encoding structure
+
+   As defined in [RFC9256], a candidate path includes multiple segment
+   list specified by SID list.  A Path Segment [RFC9545]
+   [I-D.ietf-spring-srv6-path-segment] can be used for identifying a
+   segment list, candidate path, or SR Policy (depending on its context)
+   at the endpoint (i.e., tail-end) of a SR Policy.
+
+   A Segment List Sub-TLV that contains a set of segment Sub-TLVs and
+   other Sub-TLVs as shown in Figure 2.  This document defines a new
+   Path Segment Sub-TLV within Segment List Sub-TLV as described in
+   section 3.1.
+
+   The new SR Policy encoding structure with Path Segment Sub-TLV is
+   expressed as below:
+
+      SR Policy SAFI NLRI: <Distinguisher, Policy-Color, Endpoint>
+      Attributes:
+         Tunnel Encaps Attribute (23)
+            Tunnel Type: SR Policy
+                Binding SID
+                Preference
+                Priority
+                Policy Name
+                Explicit NULL Label Policy (ENLP)
+                Segment List
+                    Weight
+                    Path Segment
+                    Segment
+                    Segment
+                    ...
+                Segment List
+                    Weight
+                    Path Segment
+                    Segment
+                    Segment
+                    ...
+                ...
+
+     Figure 2: SR Policy encoding structure with Path Segment Sub-TLVs
+
+
+
+
+
+
+
+
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 4]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+   In some scenariose, for example, mobile backhaul transport network,
+   there are requirements to support bidirectional path.  In SR, a
+   bidirectional path can be represented as a binding of two
+   unidirectional SR paths.  This document also defines a Reverse
+   Segment List Sub-TLV to describe the reverse path. *When a SR policy
+   includes a bidirectional path, both the forward and reverse segment
+   lists MUST be encoded in the BGP UPDATE message as adjacent Sub-TLVs
+   under the Tunnel Encapsulation attribute.* An SR policy carrying SR
+   bidirectional path information is expressed as below:
+
+       SR Policy SAFI NLRI: <Distinguisher, Policy-Color, Endpoint>
+           Attributes: Tunnel Encaps Attribute (23)
+           Tunnel Type: SR Policy
+               Binding SID
+               Preference
+               Priority
+               Policy Name
+               Explicit NULL Label Policy (ENLP)
+               Segment List
+                   Weight
+                   Path Segment
+                   Segment
+                   Segment
+                   ...
+               Reverse Segment List
+                   Path Segment
+                   Segment
+                   Segment
+                   ...
+
+       Figure 3: SR Policy carrying SR bidirectional path information
+
+4.  BGP Extensions
+
+4.1.  SR Path Segment Sub-TLV
+
+   An SR Path Segment Sub-TLV is included in the segment list Sub-TLV to
+   identify an SID list.  It has the following format:
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |      Type     |    Length     |    Flags      |  RESERVED     |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                     Path Segment ID (Variable)                |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     //     SRv6 Endpoint Behavior and SID Structure (optional)     //
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 5]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+                       Figure 4: Path Segment Sub-TLV
+
+   Where:
+
+   *  Type (TBA1): SR Path Segment Sub-TLV (to be assigned by IANA).
+
+   *  Length: the total length of the value field not including Type and
+      Length fields.
+
+   *  Flags: 8 bits of flags.  Following flags are defined:
+
+     0  1  2  3  4  5  6  7
+    +--+--+--+--+--+--+--+--+
+    |    Reserved     |B |L |
+    +--+--+--+--+--+--+--+--+
+
+   *  -  L-Flag: Local flag.  Set when the Path Segment has local
+         significance on an SR node.
+
+      -  B-Flag: This flag, when set, indicates the presence of the SRv6
+         Endpoint Behavior and SID Structure encoding specified in
+         Section 2.4.4.2.4. of [RFC9830].  It MUST be ignored when the
+         value of length field is smaller than 18.
+
+      -  The rest bits of Flag are reserved and MUST be set to 0 on
+         transmission and MUST be ignored on receipt.
+
+   *  Path Segment ID: if the length is 2, then no Path Segment ID is
+      present.  If the length is 6 then the Path Segment ID is encoded
+      in 4 octets [RFC9545] using the format below.  TC, S, TTL (Total
+      of 12 bits) are RESERVED and SHOULD be set to zero and MUST be
+      ignored.
+
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |         Path Segment Label            | TC  |S|       TTL     |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                   Figure 5: SR-MPLS Path Segment Sub-TLV
+
+   If the length is 18 then the Path Segment ID contains a 16-octet SRv6
+   Path Segment ID [I-D.ietf-spring-srv6-path-segment].
+
+   If the length is larger than 18 and B-flag is set, then SRv6 Endpoint
+   Behavior and SID Structure TLVs is included as per Section 2.4.4.2.4.
+   of [RFC9830].
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 6]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+   The Path Segment is used to identified an SR path, and it can be used
+   in OAM or IOAM use cases.  When all the SID Lists within a candidate
+   path share the same Path Segment ID, the Path Segment can be used to
+   collect the aggregated information of the candidate path.  Multiple
+   Path Segment MAY be included in a Segment List for different use
+   cases.  In SR-MPLS, one, or some or all of them MAY be inserted into
+   the SID List as the requirement of the use case.  However, in SRv6,
+   only one Path Segment ID can be encoded in a SRH.  Therefore, an
+   implementation MUST decide how to choose a Path Segment ID from the
+   multiple Path Segment IDs.  In order to simplify the implementation,
+   this document suggests to encode only one Path Segment Sub-TLV for a
+   segment list, while the rest Path Segment SHOULD be ignored.
+
+4.2.  Reverse Segment List Sub-TLV
+
+   A Reverse Segment List Sub-TLV is defined to specify an SR reverse
+   path associated with the path specified by the Segment List, and it
+   has the following format:
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |    Type       |             Length            |   RESERVED    |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                        Sub-TLVs (Variable)                    |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                 Figure 6: SR Reverse Segment List Sub-TLV
+
+   where:
+
+   Type (TBA2): Reverse Segment List Sub-TLV (to be assigned by IANA).
+
+   Length: the total length of the Sub-TLVs encoded within the Reverse
+   Path Segment List Sub-TLV not including the Type and Length fields.
+
+   RESERVED: 1 octet of reserved bits.  SHOULD be unset on transmission
+   and MUST be ignored on receipt.
+
+   Sub-TLVs, reuse the Sub-TLVs in Segment List defined in [RFC9830] and
+   [RFC9831].
+
+   *  One or more mandatory SR Path Segment Sub-TLVs that contains the
+      Path Segments of the reverse SR path.
+
+   *  One or more Segment Sub-TLVs to specify the reverse SR path.
+
+
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 7]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+   The Segment sub-TLVs in the Reverse Segment List sub-TLV provides the
+   information of the reverse SR path.  This Reverse Segment list can be
+   used for directing egress BFD peer to use specific path for the
+   reverse direction of the BFD session [RFC9612] or other applications.
+
+   A Reverse Segment List TLV MUST immediately follow its corresponding
+   Segment List TLV in the attribute as this forms the one-to-one
+   correlation of the forward and reverse segment lists.  A Reverse
+   Segment List TLV not encoded in the attribute in this manner MUST be
+   considered as malformed.  However, a Segment List TLV that is not
+   immediately followed by a Reverse Segment List TLV simply indicates
+   that the forward segment list does not have its corresponding reverse
+   segment list and this condition MUST NOT be considered as an error.
+
+5.  Operations
+
+   This document defines new Sub-TLVs under the extensions for SR policy
+   defined in [RFC9830], therefore, the description of operations
+   defined in [RFC9830], can apply to this document directly, including
+   advertisement of SR policies and reception of SR policy NLRI.
+
+
+   Typically but not limit to, the unidirectional or bidirectional SR
+   policies carrying path identification infomation are configured by a
+   controller.
+
+   After configuration, the unidirectional or bidirectional SR policies
+   carrying path identification infomation will be advertised by BGP
+   update messages.  The operation of advertising this SR policy is the
+   same as defined in [RFC9830], as well as the reception.
+
+   The consumer of the unidirectional or bidirectional SR policies is
+   not the BGP process, it can be any applications, such as performance
+   measurement [I-D.ietf-spring-stamp-srpm-srv6].  The operation of
+   sending information to consumers is out of scope of this document.
+
+
+6.  Error Handling and Fault Management
+
+   This document extends the error handling defined in [RFC9830] for the
+   new TLVs and sub-TLVs introduced herein.  In the event of any of the
+   TLVs and sub-TLVs introduced in this document being found to be
+   malformed, the "Treat-as-withdraw" error handling [RFC7606] MUST be
+   performed.
+
+   The following conditions MUST be considered as making an UPDATE
+   message malformed:
+
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 8]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+   *  *Path Segment Sub-TLV:* The length of the sub-TLV is not 2/6/18/
+      larger than 18 octets, or the value fields are outside their
+      defined ranges.
+
+   *  *Reverse Segment List Sub-TLV:* A Reverse Segment List Sub-TLV is
+      present in the Tunnel Encapsulation Attribute but does not
+      immediately follow a Segment List Sub-TLV.
+
+7.  IANA Considerations
+
+   This document defines new Sub-TLVs in following registries:
+
+
+7.1.  Existing Registry: BGP Tunnel Encapsulation Attribute sub-TLVs
+
+
+   *This document defines a new Sub-TLV in the registry "SR Policy
+   Segment List Sub-TLVs" [RFC9830] to be assigned by IANA:*
+
+        Codepoint   Description                           Reference
+        -------------------------------------------------------------
+        TBA(17)     Path Segment Sub-TLV                  This document
+
+   *This document also defines a new Sub-TLV in the registry "BGP Tunnel
+   Encapsulation Attribute sub-TLVs" [RFC9830] to be assigned by IANA:*
+
+        Codepoint   Description                           Reference
+        -------------------------------------------------------------
+        TBA2     Reverse Segment List Sub-TLV          This document
+
+8.  Security Considerations
+
+   The security considerations of RFC 9830 apply to this document.
+
+   Additionally, specific to the Path Segment ID and Reverse Path
+   Segment, the Path Segment information is critical to the path, and an
+   incorrect Path Segment ID may cause unexpected forwarding actions and
+   results.  Implementations must ensure the correctness of the Path
+   Segment ID value, especially in SR-MPLS networks.  Furthermore, the
+   distribution of Path Segment information from a controller to an
+   ingress router must be protected.  The security considerations
+   outlined in the Path Segment related documents, such as "draft-ietf-
+   spring-srv6-path-segment" and "RFC 9545", apply to this distribution
+   procedure.
+
+9.  Contributors
+
+
+
+
+
+Li, et al.              Expires 31 December 2026                [Page 9]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+      Guanming Zeng
+      Huawei Technologies
+      Huawei Campus, No. 156 Beiqing Rd.
+      Beijing  100095
+      China
+
+      Email: zengguanming@huawei.com
+
+      Mach(Guoyi) Chen
+      Huawei Technologies
+      Huawei Campus, No. 156 Beiqing Rd.
+      Beijing  100095
+      China
+
+      Email: Mach.chen@huawei.com
+
+
+      Jie Dong
+      Huawei Technologies
+      Huawei Campus, No. 156 Beiqing Rd.
+      Beijing  100095
+      China
+
+      Email: jie.dong@huawei.com
+
+
+      James N Guichard
+      Futurewei Technologies
+      2330 Central Express Way
+      Santa Clara
+      USA
+
+      Email: james.n.guichard@futurewei.com
+
+      Huanan Chen
+      China Telecom
+      109 West Zhongshan Ave
+      Guangzhou
+      China
+
+      Email: chenhuan6@chinatelecom.cn
+
+10.  Acknowledgements
+
+   Many thanks to Shraddha Hedge, Susan Hares for their detailed reviews
+   and comments.
+
+
+
+
+
+Li, et al.              Expires 31 December 2026               [Page 10]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+11.  References
+
+11.1.  Normative References
+
+   [I-D.ietf-spring-srv6-path-segment]
+              Li, C., Cheng, W., Zeng, G., Dhody, D., and Y. Zhu, "Path
+              Segment Identifier (PSID) in SRv6 (Segment Routing in
+              IPv6)", Work in Progress, Internet-Draft, draft-ietf-
+              spring-srv6-path-segment-15, 15 March 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-spring-
+              srv6-path-segment-15>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC7606]  Chen, E., Ed., Scudder, J., Ed., Mohapatra, P., and K.
+              Patel, "Revised Error Handling for BGP UPDATE Messages",
+              RFC 7606, DOI 10.17487/RFC7606, August 2015,
+              <https://www.rfc-editor.org/info/rfc7606>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8402]  Filsfils, C., Ed., Previdi, S., Ed., Ginsberg, L.,
+              Decraene, B., Litkowski, S., and R. Shakir, "Segment
+              Routing Architecture", RFC 8402, DOI 10.17487/RFC8402,
+              July 2018, <https://www.rfc-editor.org/info/rfc8402>.
+
+   [RFC9012]  Patel, K., Van de Velde, G., Sangli, S., and J. Scudder,
+              "The BGP Tunnel Encapsulation Attribute", RFC 9012,
+              DOI 10.17487/RFC9012, April 2021,
+              <https://www.rfc-editor.org/info/rfc9012>.
+
+   [RFC9256]  Filsfils, C., Talaulikar, K., Ed., Voyer, D., Bogdanov,
+              A., and P. Mattes, "Segment Routing Policy Architecture",
+              RFC 9256, DOI 10.17487/RFC9256, July 2022,
+              <https://www.rfc-editor.org/info/rfc9256>.
+
+
+
+
+
+
+Li, et al.              Expires 31 December 2026               [Page 11]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+   [RFC9545]  Cheng, W., Ed., Li, H., Li, C., Ed., Gandhi, R., and R.
+              Zigler, "Path Segment Identifier in MPLS-Based Segment
+              Routing Networks", RFC 9545, DOI 10.17487/RFC9545,
+              February 2024, <https://www.rfc-editor.org/info/rfc9545>.
+
+   [RFC9830]  Previdi, S., Filsfils, C., Talaulikar, K., Ed., Mattes,
+              P., and D. Jain, "Advertising Segment Routing Policies in
+              BGP", RFC 9830, DOI 10.17487/RFC9830, September 2025,
+              <https://www.rfc-editor.org/info/rfc9830>.
+
+   [RFC9831]  Talaulikar, K., Ed., Filsfils, C., Previdi, S., Mattes,
+              P., and D. Jain, "Segment Type Extensions for BGP Segment
+              Routing (SR) Policy", RFC 9831, DOI 10.17487/RFC9831,
+              September 2025, <https://www.rfc-editor.org/info/rfc9831>.
+
+11.2.  Informative References
+
+   [I-D.ietf-spring-stamp-srpm-srv6]
+              Gandhi, R., Filsfils, C., Janssens, B., Chen, M., and R.
+              F. Foote, "Performance Measurement Using Simple Two-Way
+              Active Measurement Protocol (STAMP) for Segment Routing
+              over the IPv6 (SRv6) Data Plane", Work in Progress,
+              Internet-Draft, draft-ietf-spring-stamp-srpm-srv6-01, 2
+              April 2026, <https://datatracker.ietf.org/doc/html/draft-
+              ietf-spring-stamp-srpm-srv6-01>.
+
+   [RFC9612]  Mirsky, G., Tantsura, J., Varlashkin, I., and M. Chen,
+              "Bidirectional Forwarding Detection (BFD) Reverse Path for
+              MPLS Label Switched Paths (LSPs)", RFC 9612,
+              DOI 10.17487/RFC9612, July 2024,
+              <https://www.rfc-editor.org/info/rfc9612>.
+
+Authors' Addresses
+
+   Cheng Li
+   Huawei Technologies
+   Huawei Campus, No. 156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: c.l@huawei.com
+
+
+
+
+
+
+
+
+
+
+Li, et al.              Expires 31 December 2026               [Page 12]
+
+Internet-Draft   Path ID and Bi-directional Path in BGP        June 2026
+
+
+   Zhenbin Li
+   Huawei Technologies
+   Huawei Campus, No. 156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: robinli314@163.com
+
+
+   Yuanyang Yin
+   China Telecom
+   Guangzhou
+   China
+   Email: yinyuany@chinatelecom.cn
+
+
+   Weiqiang Cheng
+   China Mobile
+   Beijing
+   China
+   Email: chengweiqiang@chinamobile.com
+
+
+   Ketan Talaulikar
+   Cisco Systems
+   Email: ketant.ietf@gmail.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Li, et al.              Expires 31 December 2026               [Page 13]

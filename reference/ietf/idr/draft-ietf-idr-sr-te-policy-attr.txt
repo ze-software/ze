@@ -1,0 +1,728 @@
+
+
+
+
+IDR                                                               Y. Liu
+Internet-Draft                                                   S. Peng
+Intended status: Experimental                                        ZTE
+Expires: 19 November 2026                                      G. Mishra
+                                                            Verizon Inc.
+                                                             18 May 2026
+
+
+              Advertising SID Algorithm Information in BGP
+                  draft-ietf-idr-sr-te-policy-attr-05
+
+Abstract
+
+   This document defines new Segment Types and proposes extensions for
+   BGP to provide algorithm information for SR-MPLS Adjacency-SIDs when
+   delivering SR Policy via BGP.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 19 November 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 1]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Requirements Language . . . . . . . . . . . . . . . . . . . .   3
+   3.  New Segment Types for SR-MPLS Adjacency with optional SR
+           Algorithm . . . . . . . . . . . . . . . . . . . . . . . .   3
+     3.1.  Type L: IPv4 Node Address and Local Interface ID with
+           optional SR Algorithm for SR-MPLS . . . . . . . . . . . .   4
+     3.2.  Type M: IPv4 Addresses for link endpoints as Local, Remote
+           pair with optional SR Algorithm for SR-MPLS . . . . . . .   5
+     3.3.  Type N: IPv6 Node Addresses and Interface ID for link
+           endpoints as Local, Remote pair, with optional SR Algorithm
+           for SR-MPLS . . . . . . . . . . . . . . . . . . . . . . .   6
+     3.4.  Type O: IPv6 Addresses for link endpoints as Local, Remote
+           pair, with optional SR Algorithm for SR-MPLS  . . . . . .   8
+   4.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   9
+     4.1.  Segment Types . . . . . . . . . . . . . . . . . . . . . .   9
+     4.2.  SR Policy Segment List Sub-TLVs . . . . . . . . . . . . .   9
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
+   6.  Manageability Considerations  . . . . . . . . . . . . . . . .  10
+   7.  Acknowledgement . . . . . . . . . . . . . . . . . . . . . . .  10
+   8.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  10
+     8.1.  Normative References  . . . . . . . . . . . . . . . . . .  10
+     8.2.  Informative References  . . . . . . . . . . . . . . . . .  11
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  12
+
+1.  Introduction
+
+   Segment Routing (SR) [RFC8402] allows a headend node to steer a
+   packet flow along any path.  [RFC9256] details the concepts of SR
+   Policy and steering into an SR Policy.  These apply equally to the
+   MPLS and IPv6 data plane instantiations of Segment Routing with their
+   respective representations of segments as SR-MPLS SID and SRv6 SID as
+   described in [RFC8402].
+
+   [RFC9830] specifies the way to use BGP to distribute information
+   about one or more of the candidate paths of an SR Policy to the
+   headend of that policy.  It defines a new BGP address family (SAFI),
+   i.e., SR Policy SAFI NLRI.  BGP UPDATE message sends the NLRI that
+   identifies an SR Policy Candidate Path, and the attributes that
+   encode the segment lists and other details of that SR Policy
+   Candidate Path.  These BGP attributes include the Tunnel
+   Encapsulation Attribute [RFC9012] with the SR Policy Tunnel-Type, and
+   it encodes SR Policy tunnel information (per [RFC9830]).
+
+
+
+
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 2]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   11 segment-descriptor types (from type A all the way to type K) for
+   SR segments are defined [RFC9256] section 4.  [RFC9830] specifies the
+   encoding for segment types A and B in BGP SR Policy SAFI.  And the
+   encoding for the remaining 9 types are specified in [RFC9831].
+
+   As specified in [RFC9256], the SR algorithm can be optionally
+   specified for Segment Types C (IPv4 Node and SID), D (IPv6 Node and
+   SID for SR-MPLS), I (IPv6 Node and SID for SRv6), J (IPv6 Node, index
+   for remote and local pair, and SID for SRv6), and K (IPv6 Local/
+   Remote addresses and SID for SRv6).  That is, currently the algorithm
+   can be carried along with SR-MPLS prefix SID, SRv6 prefix SID and
+   SRv6 adjacency SID when delivering SR Policy.
+
+   [I-D.ietf-lsr-algorithm-related-adjacency-sid] comments that, besides
+   the SR-MPLS prefix SID, the algorithm can be also included as part of
+   an SR-MPLS Adjacency-SID advertisement in scenarios where multiple
+   algorithm share the same link resource.  In this case, an SR-MPLS
+   Policy advertised to the headend may also contain algorithm-specific
+   Adjacency-SID.
+
+   This document defines new Segment Types and proposes extensions for
+   BGP to provide algorithm information for SR-MPLS Adjacency-SIDs when
+   delivering SR Policy via BGP.
+
+2.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+3.  New Segment Types for SR-MPLS Adjacency with optional SR Algorithm
+
+   This section defines four new Segment types and the corresponding
+   Segment Sub-TLVs of Segment List Sub-TLV to provide algorithm
+   information for SR-MPLS Adjacency-SIDs.  The Segment Sub-TLVs in this
+   document are only defined for the Segment list Sub-TLV used by the
+   Tunnel Encapsulation Attribute with the SR Policy Tunnel-Type as per
+   [RFC9830].  All other usages are outside the scope of this document.
+
+   The processing procedures for SID with algorithm specified in
+   [RFC9256] and [RFC9831] are still applicable for the new segment
+   types.  Just as in [RFC9830], the segment list sub-TLVs specified in
+   this document (sections 3.1, 3.2, 3.3, and 3.4) MAY repeat multiple
+   times within the segment-list Sub-TLV.  BGP only checks the syntax of
+   the fields, but the semantic meaning is check by the consumer.  When
+   the algorithm is not specified for the SID types above which
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 3]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   optionally allow for it, the headend SHOULD use the Strict Shortest
+   Path algorithm if available; otherwise, it SHOULD use the default
+   Shortest Path algorithm.
+
+3.1.  Type L: IPv4 Node Address and Local Interface ID with optional SR
+      Algorithm for SR-MPLS
+
+   This type allows for identification of an Adjacency SID or BGP Peer
+   Adjacency SID (as defined in [RFC8402]) as an MPLS label for point-
+   to-point links including IP unnumbered links.  The headend is
+   required to resolve the specified IPv4 Local Node Address to the node
+   originating it and then use the Local Interface ID to identify the
+   point-to-point link whose adjacency is being referred to.  The Local
+   Interface ID link descriptor follows semantics as specified in
+   [RFC9552].  This type can also be used to indicate indirection into a
+   layer 2 interface (i.e., without IP address) like a representation of
+   an optical transport path or a layer 2 Ethernet port or circuit at
+   the specified node.  The SR Algorithm (refer to Section 3.1.1 of
+   [RFC8402] ) MAY also be provided.
+
+   The encoding for Type L Segment Sub-TLV is as follows:
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |     Type      |   Length      |     Flags     |  SR Algorithm |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                 Local Interface ID (4 octets)                 |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                 IPv4 Node Address (4 octets)                  |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                SR-MPLS SID (optional, 4 octets)               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Where:
+
+   Type: TBD1
+
+   Length: Specifies the length of the value field (i.e., not including
+   Type and Length fields) in terms of octets.  The value MUST be 14
+   when the SR-MPLS SID is present else it MUST be 10.
+
+   Flags: 1 octet of flags as defined in section 2.10 of [RFC9831].
+
+
+
+
+
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 4]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   SR Algorithm: 1 octet specifying SR Algorithm as described in
+   Section 3.1.1 of [RFC8402]) when A-Flag as defined in [RFC9831] is
+   present.  SR Algorithm is used by SRPM as described in Section 4 of
+   [RFC9256]).  When A-Flag is not set, this field SHOULD be set to zero
+   on transmission and MUST be ignored on receipt.
+
+   Local Interface ID: 4 octets of interface index of local interface
+   (refer TLV 258 of [RFC9552]).
+
+   IPv4 Node Address: a 4-octet IPv4 address representing a node.
+
+   SR-MPLS SID: optional, 4-octet field containing label, TC, S and TTL
+   as defined in Section 2.4.4.2.1 of [RFC9830].
+
+3.2.  Type M: IPv4 Addresses for link endpoints as Local, Remote pair
+      with optional SR Algorithm for SR-MPLS
+
+   This type allows for identification of an Adjacency SID or BGP Peer
+   Adjacency SID (as defined in [RFC8402]) as an MPLS label for links.
+   The headend is required to resolve the specified Local IPv4 Address
+   to the node originating it and then use the Remote IPv4 Address to
+   identify the link adjacency being referred to.  The Local and Remote
+   Address pair link descriptors follow semantics as specified in
+   [RFC9552].  The SR Algorithm (refer to Section 3.1.1 of [RFC8402])
+   MAY also be provided.
+
+   The format of Type M Segment Sub-TLV is as follows:
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |     Type      |   Length      |     Flags     |  SR Algorithm |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                Local IPv4 Address (4 octets)                  |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                Remote IPv4 Address  (4 octets)                |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                SR-MPLS SID (optional, 4 octets)               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Where:
+
+   Type: TBD2
+
+   Length: Specifies the length of the value field (i.e., not including
+   Type and Length fields) in terms of octets.  The value MUST be 14
+   when the SR-MPLS SID is present else it MUST be 10.
+
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 5]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   Flags: 1 octet of flags as defined in section 2.10 of [RFC9831].
+
+   SR Algorithm: 1 octet specifying SR Algorithm as described in
+   Section 3.1.1 of [RFC8402]) when A-Flag as defined in [RFC9831] is
+   present.  SR Algorithm is used by SRPM as described in Section 4 of
+   [RFC9256]).  When A-Flag is not set, this field SHOULD be set to zero
+   on transmission and MUST be ignored on receipt.
+
+   Local IPv4 Address: a 4-octet IPv4 address representing the local
+   link address of the node.
+
+   Remote IPv4 Address: a 4-octet IPv4 address representing the link
+   address of the neighbor node.
+
+   SR-MPLS SID: optional, 4-octet field containing label, TC, S and TTL
+   as defined in Section 2.4.4.2.1 of [RFC9830].
+
+3.3.  Type N: IPv6 Node Addresses and Interface ID for link endpoints as
+      Local, Remote pair, with optional SR Algorithm for SR-MPLS
+
+   This type allows for identification of an Adjacency SID or BGP Peer
+   Adjacency SID (as defined in [RFC8402]) as an MPLS label for links
+   including those with only Link-Local IPv6 addresses.  The headend is
+   required to resolve the specified IPv6 Node Address to the node
+   originating it and then use the Local Interface ID to identify the
+   point-to-point link whose adjacency is being referred to.  For other
+   than point-to-point links, additionally the specific adjacency over
+   the link needs to be resolved using the IPv6 Remote Node Address and
+   Interface ID.  The Local and Remote pair of Node Address and
+   Interface ID link descriptor follows semantics as specified in
+   [RFC9552].  This type can also be used to indicate indirection into a
+   layer 2 interface (i.e., without IP address) like a representation of
+   an optical transport path or a layer 2 Ethernet port or circuit at
+   the specified node.  The SR Algorithm (refer to Section 3.1.1 of
+   [RFC8402]) MAY also be provided.
+
+   The format of Type N Segment Sub-TLV is as follows:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 6]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |     Type      |   Length      |     Flags     |  SR Algorithm |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                 Local Interface ID (4 octets)                 |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      //                IPv6 Local Node Address (16 octets)          //
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                 Remote Interface ID (4 octets)                |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      //                IPv6 Remote Node Address (16 octets)         //
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                SR-MPLS SID (optional, 4 octets)               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Where:
+
+   Type: TBD3
+
+   Length: Specifies the length of the value field (i.e., not including
+   Type and Length fields) in terms of octets.  The value MUST be 46
+   when the SR-MPLS SID is present else it MUST be 42.
+
+   Flags: 1 octet of flags as defined in section 2.10 of [RFC9831].
+
+   SR Algorithm: 1 octet specifying SR Algorithm as described in
+   Section 3.1.1 of [RFC8402]) when A-Flag as defined in [RFC9831] is
+   present.  SR Algorithm is used by SRPM as described in Section 4 of
+   [RFC9256]).  When A-Flag is not set, this field SHOULD be set to zero
+   on transmission and MUST be ignored on receipt.
+
+   Local Interface ID: 4 octets of interface index of local interface
+   (refer TLV 258 of [RFC9552]).
+
+   IPv6 Local Node Address: a 16-octet IPv6 address representing the
+   node.
+
+   Remote Interface ID: 4 octets of interface index of remote interface
+   (refer TLV 258 of [RFC9552]).  The value MAY be set to zero when the
+   local node address and interface identifiers are sufficient to
+   describe the link.
+
+   IPv6 Remote Node Address: a 16-octet IPv6 address.  The value MAY be
+   set to zero when the local node address and interface identifiers are
+   sufficient to describe the link.
+
+
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 7]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   SR-MPLS SID: optional, 4-octet field containing label, TC, S and TTL
+   as defined in Section 2.4.4.2.1 of [RFC9830].
+
+3.4.  Type O: IPv6 Addresses for link endpoints as Local, Remote pair,
+      with optional SR Algorithm for SR-MPLS
+
+   This type allows for identification of an Adjacency SID or BGP Peer
+   Adjacency SID (as defined in [RFC8402]) as an MPLS label for links
+   with Global IPv6 addresses.  The headend is required to resolve the
+   specified Local IPv6 Address to the node originating it and then use
+   the Remote IPv6 Address to identify the link adjacency being referred
+   to.  The Local and Remote IPv6 Address pair link descriptors follow
+   semantics as specified in [RFC9552].  The SR Algorithm (refer to
+   Section 3.1.1 of [RFC8402]) MAY also be provided.
+
+   The format of Type O Segment Sub-TLV is as follows:
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |     Type      |   Length      |     Flags     |  SR Algorithm |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      //               Local IPv6 Address (16 octets)                //
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      //               Remote IPv6 Address  (16 octets)              //
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                SR-MPLS SID (optional, 4 octets)               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Where:
+
+   Type: TBD4
+
+   Length: Specifies the length of the value field (i.e., not including
+   Type and Length fields) in terms of octets.  The value MUST be 38
+   when the SR-MPLS SID is present else it MUST be 34.
+
+   Flags: 1 octet of flags as defined in section 2.10 of [RFC9831].
+
+   SR Algorithm: 1 octet specifying SR Algorithm as described in
+   Section 3.1.1 of [RFC8402]) when A-Flag as defined in [RFC9831] is
+   present.  SR Algorithm is used by SRPM as described in Section 4 of
+   [RFC9256]).  When A-Flag is not set, this field SHOULD be set to zero
+   on transmission and MUST be ignored on receipt.
+
+   Local IPv6 Address: a 16-octet IPv6 address representing the local
+   link address of the node.
+
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 8]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   Remote IPv6 Address: a 16-octet IPv6 address representing the link
+   address of the neighbor node.
+
+   SR-MPLS SID: optional, 4-octet field containing label, TC, S and TTL
+   as defined in Section 2.4.4.2.1 of [RFC9830].
+
+4.  IANA Considerations
+
+4.1.  Segment Types
+
+   This document requests alphabetical identifier allocations for new
+   "Segment Types" under the "Segment Routing" registry.
+
+Value        Description                                                   Reference
+-----------------------------------------------------------------------------------------
+L    IPv4 Node Address and Local Interface ID
+      with optional SR Algorithm for SR-MPLS                               This document
+M    IPv4 Addresses for link endpoints as Local, Remote pair
+      with optional SR Algorithm for SR-MPLS                               This document
+N    IPv6 Node Addresses and Interface ID for link endpoints
+      as Local, Remote pair, with optional SR Algorithm for SR-MPLS        This document
+O    IPv6 Addresses for link endpoints as Local, Remote pair,
+      with optional SR Algorithm for SR-MPLS                               This document
+
+4.2.  SR Policy Segment List Sub-TLVs
+
+   This document requests the following code points from the "SR Policy
+   Segment List Sub-TLVs" registry [RFC9830] under the "Border Gateway
+   Protocol (BGP) Tunnel Encapsulation" registry group.
+
+Value  Description                                          Reference
+------------------------------------------------------------------------
+TBD1  Segment Type L sub-TLV                              This document
+TBD2  Segment Type M sub-TLV                              This document
+TBD3  Segment Type N sub-TLV                              This document
+TBD4  Segment Type O sub-TLV                              This document
+
+5.  Security Considerations
+
+   This document defines new sub-TLVs of the Segment List sub-TLV used
+   and only used under the Tunnel Encapsulation Attribute with the SR
+   Policy Tunnel-Type[RFC9830] to carry the information of new segment
+   types as introduced in this document, i.e, SR-MPLS Adjacency-SIDs
+   with operational algorithm information.
+
+   Procedures and protocol extensions defined in this document do not
+   affect the security considerations discussed in [RFC9256] and
+   [RFC9830].
+
+
+
+Liu, et al.             Expires 19 November 2026                [Page 9]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   The information in segment types L-O defined in this document is
+   critical pieces of information about the infrastructure of a network
+   or multiple network segments, more specifically, these information
+   includes endpoint/node addresses, SR SIDs, and the SR algorithms.
+
+   The operators need to carefully restrict access to the information
+   contained in segments L-O, it is the responsibility of the network
+   operators to ensure that only trusted nodes (that include both
+   routers and controller applications) within the SR domain are
+   configured to receive such information.
+
+6.  Manageability Considerations
+
+   The operations and manageability considerations in [RFC9830] apply to
+   the segment types defined in this document.
+
+   The YANG model for the operation and management of SR Policies
+   [I-D.ietf-spring-sr-policy-yang] reports the SR Policies provisioned
+   via BGP SR Policy SAFI along with their operational states.  And
+   [RFC9857] enables the reporting of the operational state of the SR
+   Policies from the headend to the controllers via BGP-LS.
+
+   Currently this document is experimental and there's no implementation
+   yet.  But it is RECOMMENDED to include the information of new segment
+   types in both BGP-LS UPDATE and YANG model for SR Policies, so
+   potential implementations in the future would benefit from it.
+
+7.  Acknowledgement
+
+   The authors would like to thank Ketan Talaulikar, Nat Kao and
+   Zhenqiang Li for their comments and suggestions.  The authors would
+   like to thank Susan Hares for her detailed shepherd review that
+   helped in improving the document.
+
+8.  References
+
+8.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+
+
+
+
+Liu, et al.             Expires 19 November 2026               [Page 10]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   [RFC8664]  Sivabalan, S., Filsfils, C., Tantsura, J., Henderickx, W.,
+              and J. Hardwick, "Path Computation Element Communication
+              Protocol (PCEP) Extensions for Segment Routing", RFC 8664,
+              DOI 10.17487/RFC8664, December 2019,
+              <https://www.rfc-editor.org/info/rfc8664>.
+
+   [RFC9256]  Filsfils, C., Talaulikar, K., Ed., Voyer, D., Bogdanov,
+              A., and P. Mattes, "Segment Routing Policy Architecture",
+              RFC 9256, DOI 10.17487/RFC9256, July 2022,
+              <https://www.rfc-editor.org/info/rfc9256>.
+
+   [RFC9552]  Talaulikar, K., Ed., "Distribution of Link-State and
+              Traffic Engineering Information Using BGP", RFC 9552,
+              DOI 10.17487/RFC9552, December 2023,
+              <https://www.rfc-editor.org/info/rfc9552>.
+
+   [RFC9830]  Previdi, S., Filsfils, C., Talaulikar, K., Ed., Mattes,
+              P., and D. Jain, "Advertising Segment Routing Policies in
+              BGP", RFC 9830, DOI 10.17487/RFC9830, September 2025,
+              <https://www.rfc-editor.org/info/rfc9830>.
+
+   [RFC9831]  Talaulikar, K., Ed., Filsfils, C., Previdi, S., Mattes,
+              P., and D. Jain, "Segment Type Extensions for BGP Segment
+              Routing (SR) Policy", RFC 9831, DOI 10.17487/RFC9831,
+              September 2025, <https://www.rfc-editor.org/info/rfc9831>.
+
+8.2.  Informative References
+
+   [I-D.ietf-lsr-algorithm-related-adjacency-sid]
+              Chen, R., Peng, S., Talaulikar, K., and P. Psenak,
+              "Algorithm Related IGP-Adjacency SID Advertisement", Work
+              in Progress, Internet-Draft, draft-ietf-lsr-algorithm-
+              related-adjacency-sid-08, 16 October 2025,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-lsr-
+              algorithm-related-adjacency-sid-08>.
+
+   [I-D.ietf-spring-sr-policy-yang]
+              Saleh, T., Raza, S. K., Zhuang, S., Matsushima, S., and V.
+              P. Beeram, "YANG Data Model for Segment Routing Policy",
+              Work in Progress, Internet-Draft, draft-ietf-spring-sr-
+              policy-yang-06, 20 October 2025,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-spring-
+              sr-policy-yang-06>.
+
+   [RFC8200]  Deering, S. and R. Hinden, "Internet Protocol, Version 6
+              (IPv6) Specification", STD 86, RFC 8200,
+              DOI 10.17487/RFC8200, July 2017,
+              <https://www.rfc-editor.org/info/rfc8200>.
+
+
+
+Liu, et al.             Expires 19 November 2026               [Page 11]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   [RFC8402]  Filsfils, C., Ed., Previdi, S., Ed., Ginsberg, L.,
+              Decraene, B., Litkowski, S., and R. Shakir, "Segment
+              Routing Architecture", RFC 8402, DOI 10.17487/RFC8402,
+              July 2018, <https://www.rfc-editor.org/info/rfc8402>.
+
+   [RFC8660]  Bashandy, A., Ed., Filsfils, C., Ed., Previdi, S.,
+              Decraene, B., Litkowski, S., and R. Shakir, "Segment
+              Routing with the MPLS Data Plane", RFC 8660,
+              DOI 10.17487/RFC8660, December 2019,
+              <https://www.rfc-editor.org/info/rfc8660>.
+
+   [RFC8665]  Psenak, P., Ed., Previdi, S., Ed., Filsfils, C., Gredler,
+              H., Shakir, R., Henderickx, W., and J. Tantsura, "OSPF
+              Extensions for Segment Routing", RFC 8665,
+              DOI 10.17487/RFC8665, December 2019,
+              <https://www.rfc-editor.org/info/rfc8665>.
+
+   [RFC8666]  Psenak, P., Ed. and S. Previdi, Ed., "OSPFv3 Extensions
+              for Segment Routing", RFC 8666, DOI 10.17487/RFC8666,
+              December 2019, <https://www.rfc-editor.org/info/rfc8666>.
+
+   [RFC8667]  Previdi, S., Ed., Ginsberg, L., Ed., Filsfils, C.,
+              Bashandy, A., Gredler, H., and B. Decraene, "IS-IS
+              Extensions for Segment Routing", RFC 8667,
+              DOI 10.17487/RFC8667, December 2019,
+              <https://www.rfc-editor.org/info/rfc8667>.
+
+   [RFC8754]  Filsfils, C., Ed., Dukes, D., Ed., Previdi, S., Leddy, J.,
+              Matsushima, S., and D. Voyer, "IPv6 Segment Routing Header
+              (SRH)", RFC 8754, DOI 10.17487/RFC8754, March 2020,
+              <https://www.rfc-editor.org/info/rfc8754>.
+
+   [RFC9012]  Patel, K., Van de Velde, G., Sangli, S., and J. Scudder,
+              "The BGP Tunnel Encapsulation Attribute", RFC 9012,
+              DOI 10.17487/RFC9012, April 2021,
+              <https://www.rfc-editor.org/info/rfc9012>.
+
+   [RFC9857]  Previdi, S., Talaulikar, K., Ed., Dong, J., Gredler, H.,
+              and J. Tantsura, "Advertisement of Segment Routing
+              Policies Using BGP - Link State", RFC 9857,
+              DOI 10.17487/RFC9857, October 2025,
+              <https://www.rfc-editor.org/info/rfc9857>.
+
+Authors' Addresses
+
+
+
+
+
+
+
+Liu, et al.             Expires 19 November 2026               [Page 12]
+
+Internet-Draft                BGP SID Algo                      May 2026
+
+
+   Yao Liu
+   ZTE
+   Nanjing
+   China
+   Email: liu.yao71@zte.com.cn
+
+
+   Shaofu Peng
+   ZTE
+   Nanjing
+   China
+   Email: peng.shaofu@zte.com.cn
+
+
+   Gyan Mishra
+   Verizon Inc.
+   Email: gyan.s.mishra@verizon.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Liu, et al.             Expires 19 November 2026               [Page 13]

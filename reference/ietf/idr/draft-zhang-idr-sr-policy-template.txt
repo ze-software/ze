@@ -1,0 +1,448 @@
+
+
+
+
+Network Working Group                                           K. Zhang
+Internet-Draft                                                     Z. Hu
+Intended status: Standards Track                                 J. Dong
+Expires: 15 February 2027                                         Q. Gao
+                                                                  Huawei
+                                                          14 August 2026
+
+
+                 BGP SR Policy Extensions for template
+                 draft-zhang-idr-sr-policy-template-08
+
+Abstract
+
+   Segment Routing(SR) Policies can be advertised using BGP.  An SR
+   Policy may has lots of attributes, and as the application and
+   features evolve, the SR Policy may need have more and more attribute
+   attributes.  To avoid modifying BGP when attributes are added to an
+   SR Policy, we can define a template.  The identifier and content of
+   the template are defined by the receiver of the SR Policy.  The
+   advertiser of an SR policy only needs to know the ID of the template.
+   When advertising SR policy, the advertiser carries the template ID in
+   the tunnel encapsulation information of the SR policy.  After
+   receiving the SR Policy information, the receiver obtains the
+   corresponding template and content according to the template ID,
+   thereby obtaining abundant constraint configuration information.
+
+Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in BCP 14 [RFC2119]
+   [RFC8174] when, and only when, they appear in all capitals, as shown
+   here.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+
+
+Zhang, et al.           Expires 15 February 2027                [Page 1]
+
+Internet-Draft    BGP SR Policy Extensions for template      August 2026
+
+
+   This Internet-Draft will expire on 15 February 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  Template ID defination  . . . . . . . . . . . . . . . . . . .   3
+   4.  SR Policy and Tunnel Encapsulation Attribute Update . . . . .   4
+     4.1.  Template ID sub-TLV . . . . . . . . . . . . . . . . . . .   5
+   5.  SR Policy Operations  . . . . . . . . . . . . . . . . . . . .   6
+     5.1.  Advertisement of SR Policies  . . . . . . . . . . . . . .   6
+     5.2.  Reception of an SR Policy . . . . . . . . . . . . . . . .   6
+   6.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   7
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   7
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .   7
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   7
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   8
+
+1.  Introduction
+
+   [RFC9830]defines some attributes encoding of the SR Policy path.
+   However, in actual applications, there are many other attributes of
+   SR Policy path.  These attributes are valid only on the device where
+   the SR Policy path is installed.  Such attributes may include backup
+   protection, Bidirectional Forwarding Detection information, traffic
+   statistics collection, or in-situ Flow Information Telemetry
+   detection information, etc.  If these attributes are directly
+   delivered through BGP, the BGP SR Policy protocol may change
+   frequently.  This document defines a general method to carry the path
+   attributes of SR Policies.
+
+
+
+
+
+
+
+Zhang, et al.           Expires 15 February 2027                [Page 2]
+
+Internet-Draft    BGP SR Policy Extensions for template      August 2026
+
+
+2.  Terminology
+
+   SR Policy: An ordered list of segments.
+
+   Candidate Path: the unit for signaling of an SR Policy to a headend
+   via protocol extensions like Path Computation Element (PCE)
+   Communication Protocol (PCEP) [RFC8664] [RFC9862] or BGP SR Policy
+   [RFC9830].
+
+   SRPM: SR Policy Module.
+
+   Template: A collection of attributes sets.
+
+   Template ID: The identifier of a template.
+
+3.  Template ID defination
+
+   To support the attributes extension of SR Policies, this document
+   defines a constraint template identifier.  The constraint template ID
+   is valid only for the recipient.  The SR policy publisher only needs
+   to carry the template ID when publishing the SR policy.  The receiver
+   of the SR Policy may create a template corresponding to the template
+   identifier in advance before receiving the SR Policy, or may define a
+   corresponding template after receiving the template definition of the
+   SR Policy.  The template can contain any attributes on the SR Policy
+   path, including but not limited to backup protection, Bidirectional
+   Forwarding Detection information, traffic statistics collection, or
+   in-situ Flow Information Telemetry detection information, etc.  After
+   receiving the SR Policy information, the receiver matches the
+   template information based on the template ID and adds attributes to
+   the SR Policy based on the attributes defined in the template.
+
+   Template ID is an local identifier, just to use on the headend of the
+   SR Policy.  And it is a local configured identifier, need to be
+   unique only on the headend device.  We need no further process to
+   coordinate the template ID between multiple routers.
+
+   A template represents a configuration plan intent.  In a network
+   managed by a controller, the template can be configured by controller
+   and template ID is specified during the configuration.  Therefore,
+   the template ID is planned on the entire network.  All policies can
+   use the same template as long as they require the same configuration
+   attributes, regardless of whether they are on the same device.
+
+
+
+
+
+
+
+
+Zhang, et al.           Expires 15 February 2027                [Page 3]
+
+Internet-Draft    BGP SR Policy Extensions for template      August 2026
+
+
+   For example, a policy has two candidate paths with preference 200 and
+   100.  The path with preference 200 has a higher preference and is
+   used as the primary path.  The BFD detection time is 10 ms x 3.  The
+   candidate path with preference 100 is used as the backup path, uses
+   BFD detection, and the BFD detection time is 50 ms x 3.  Then we can
+   define two templates:
+
+
+       Template 1:
+           Hotstandby backup Enable
+           BFD Seamless Enable
+           BFD min-tx-interval 10
+           BFD detect-multiplier 3
+
+       Template 2:
+           BFD Seamless Enable
+           BFD min-tx-interval 50
+           BFD detect-multiplier 3
+
+       CP1<E1, C1>:
+           <preference = 200,
+            SL(Weight=W1): <S1, S2, S3>,
+            SL(Weight=W2): <S4, S5, S6>,
+            TemplateID = 1>
+
+       CP2<E1, C1>:
+           <preference = 100,
+           SL(Weight=W1): <S7, S8, S9>,
+           SL(Weight=W2): <S10, S11, S12>,
+           TemplateID = 2>
+
+   We can see that the template defines some common attributes and can
+   be used by different SR Policies.
+
+4.  SR Policy and Tunnel Encapsulation Attribute Update
+
+   As the template ID is defined, the tunnel attribute encapsulation of
+   the BGP SR Policy needs to be updated.
+
+   The SR Policy Encoding structure is as follows:
+
+   SR Policy SAFI NLRI: <Distinguisher, Policy-Color, Endpoint>
+
+
+
+
+
+
+
+
+
+Zhang, et al.           Expires 15 February 2027                [Page 4]
+
+Internet-Draft    BGP SR Policy Extensions for template      August 2026
+
+
+   Attributes:
+      Tunnel Encaps Attribute (23)
+         Tunnel Type: SR Policy
+           Binding SID
+           Preference
+           Priority
+           Policy Name
+           Policy Candidate Path Name
+           Explicit NULL Label Policy (ENLP)
+           Template ID
+           Segment List
+              Weight
+              Segment
+              Segment
+              ....
+           ....
+
+   Where Tempate ID indicates the template ID for the SR Policy
+   candidate path.
+
+4.1.  Template ID sub-TLV
+
+   A new sub-TLV called Template ID sub-TLV is defined.  Template ID
+   sub-TLV specifies the template ID of an SR policy candidate path.
+   Each sub-TLV is encoded as shown in Figure 1.
+
+
+     0               1               2               3
+     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+     |      Type     |    Length     |     Flags   |N|   RESERVED   |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+     |                   Template ID(4 octets)                      |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+     //                  Template Name (optional)                  //
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+
+                  Figure 1: Figure 1: Template ID Sub-TLV
+
+   Type: Template ID, 1 octet, TBD.
+
+   Length: 6.
+
+   Flags: 1 octet of flags.
+
+
+
+
+
+
+
+Zhang, et al.           Expires 15 February 2027                [Page 5]
+
+Internet-Draft    BGP SR Policy Extensions for template      August 2026
+
+
+    Where:
+
+        N-Flag: This flag, when set, indicates the presence of the Template
+        Name encoding.
+
+   RESERVED: 1 octet of reserved bits.  SHOULD be set to zero on
+   transmission and MUST be ignored on receipt.
+
+   Template ID: a 4-octet value.
+
+   Template Name: Template MAY also be assigned with a template name,
+   such template name MUST NOT be considered as identifiers for a
+   template.  The size of the tempalte name for the template is limited
+   to 255 bytes.
+
+5.  SR Policy Operations
+
+5.1.  Advertisement of SR Policies
+
+   When BGP advertises an SR Policy, different candidate paths of the
+   same SR Policy may have different template IDs or the same template
+   ID, depending on the attributes required by the candidate paths of
+   the SR Policy.
+
+   Reflectors just need to advertise the route of SR, no need to process
+   it.
+
+5.2.  Reception of an SR Policy
+
+   SR Policy is only to be processed on the SR Policy headend,
+   reflectors just need to reflect the route of SR Policy, no need to
+   process it.  To make this possible, an attribute needs to be attached
+   to the advertisement that enables a BGP speaker to determine whether
+   it is intended to be a headend for the advertised policy.  This is
+   done by attaching one or more Route Target Extended Communities to
+   the advertisement [RFC4360].  This process is defined in [RFC9830].
+   This draft does not add any extra process in this process.
+
+   Once BGP on the receiving node has determined that the SR Policy NLRI
+   is usable, it passes the SR Policy candidate path to the SRPM.  The
+   SRPM then determine how to use the template ID in SR Policy.  The
+   SRPM find the local configured template by template ID, and get all
+   the attributes that is configured in the template, and then process
+   the candidate path with these attributes.  For example, if the
+   template configure seamless bfd, then the SRPM can create sbfd
+   sessions for each Segment List in the candidate path.  If there is no
+   template find, the SRPM should ignore the template ID and use the
+   candidate path as there is no template ID.
+
+
+
+Zhang, et al.           Expires 15 February 2027                [Page 6]
+
+Internet-Draft    BGP SR Policy Extensions for template      August 2026
+
+
+6.  Acknowledgements
+
+   TBD.
+
+7.  IANA Considerations
+
+   This document requests that IANA allocates a new sub-TLV type as
+   defined in Section 4.1 from the "Sub-TLVs for SR Policy" registry as
+   specified.
+
+    Value                  Description                  Reference
+    ---------------------- ---------------------------- --------------
+    TBD                    SR Policy Template ID        This document
+
+                  Figure 2: Figure 2: Template ID sub-TLV
+
+8.  Security Considerations
+
+   These extensions to BGP SR Policy do not add any new security issues
+   to the existing protocol.
+
+9.  References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC4360]  Sangli, S., Tappan, D., and Y. Rekhter, "BGP Extended
+              Communities Attribute", RFC 4360, DOI 10.17487/RFC4360,
+              February 2006, <https://www.rfc-editor.org/info/rfc4360>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8664]  Sivabalan, S., Filsfils, C., Tantsura, J., Henderickx, W.,
+              and J. Hardwick, "Path Computation Element Communication
+              Protocol (PCEP) Extensions for Segment Routing", RFC 8664,
+              DOI 10.17487/RFC8664, December 2019,
+              <https://www.rfc-editor.org/info/rfc8664>.
+
+   [RFC9830]  Previdi, S., Filsfils, C., Talaulikar, K., Ed., Mattes,
+              P., and D. Jain, "Advertising Segment Routing Policies in
+              BGP", RFC 9830, DOI 10.17487/RFC9830, September 2025,
+              <https://www.rfc-editor.org/info/rfc9830>.
+
+
+
+
+
+Zhang, et al.           Expires 15 February 2027                [Page 7]
+
+Internet-Draft    BGP SR Policy Extensions for template      August 2026
+
+
+   [RFC9862]  Koldychev, M., Sivabalan, S., Sidor, S., Barth, C., Peng,
+              S., and H. Bidgoli, "Path Computation Element
+              Communication Protocol (PCEP) Extensions for Segment
+              Routing (SR) Policy Candidate Paths", RFC 9862,
+              DOI 10.17487/RFC9862, October 2025,
+              <https://www.rfc-editor.org/info/rfc9862>.
+
+Authors' Addresses
+
+   Ka Zhang
+   Huawei
+   Huawei Bld., No.156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: zhangka@huawei.com
+
+
+   Zhibo Hu
+   Huawei
+   Huawei Bld., No.156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: huzhibo@huawei.com
+
+
+   Jie Dong
+   Huawei
+   Huawei Bld., No.156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: jie.dong@huawei.com
+
+
+   Qiangzhou Gao
+   Huawei
+   Huawei Bld., No.156 Beiqing Rd.
+   Beijing
+   100095
+   China
+   Email: gaoqiangzhou@huawei.com
+
+
+
+
+
+
+
+
+Zhang, et al.           Expires 15 February 2027                [Page 8]

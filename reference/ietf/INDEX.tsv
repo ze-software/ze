@@ -1,0 +1,119 @@
+# Snapshot of the IETF datatracker taken 2026-10-08: every published IDR and GROW RFC
+# whose IETF category is BCP or Informational, and every active IDR and GROW draft.
+# Non-normative. See reference/README.md before citing any of these as a requirement.
+# columns: wg	kind	stem	category (drafts: intended status)	revision	location	obsoleted-by	title
+grow	draft	draft-ietf-grow-as-path-prepending	unset	19	reference/ietf/grow		AS Path Prepending
+grow	draft	draft-ietf-grow-bgpopsecupd	unset	15	reference/ietf/grow		BGP Operations and Security
+grow	draft	draft-ietf-grow-bmp-over-quic	unset	00	reference/ietf/grow		Using BMP over QUIC connection
+grow	draft	draft-ietf-grow-bmp-path-marking-tlv	unset	05	reference/ietf/grow		BMP Extension for Path Status TLV
+grow	draft	draft-ietf-grow-bmp-rel	unset	06	reference/ietf/grow		Logging of routing events in BGP Monitoring Protocol (BMP)
+grow	draft	draft-ietf-grow-bmp-stats-informational-tlv	unset	01	reference/ietf/grow		BMP Statistics Information TLV
+grow	draft	draft-ietf-grow-bmp-tlv	unset	21	reference/ietf/grow		BMP v4: Extended TLV Support for BGP Monitoring Protocol (BMP)
+grow	draft	draft-ietf-grow-bmp-yang	Proposed Standard	09	reference/ietf/grow		A YANG Data Model for BMP
+grow	draft	draft-ietf-grow-downgrade-bgp-community	unset	01	reference/ietf/grow		The DOWNGRADE BGP Community for Denial-of-Service Attack Mitigation
+grow	draft	draft-ietf-grow-nrtm-v4	Proposed Standard	11	reference/ietf/grow		Near Real Time Mirroring (NRTM) version 4
+grow	draft	draft-ietf-grow-routing-ops-sec-inform	unset	03	reference/ietf/grow		Current Options for Securing Global Routing
+grow	draft	draft-ietf-grow-routing-ops-terms	unset	03	reference/ietf/grow		Currently Used Terminology in Global Routing Operations
+grow	draft	draft-ietf-grow-rpsl-registry-scoped-members	unset	00	reference/ietf/grow		Registry scoped members for RPSL set objects
+grow	draft	draft-ietf-grow-yang-bgp-communities	unset	10	reference/ietf/grow		A YANG Data Model for BGP Communities
+grow	rfc	rfc4085	BCP		reference/ietf/grow		Embedding Globally-Routable Internet Addresses Considered Harmful
+grow	rfc	rfc4264	Informational		reference/ietf/grow		BGP Wedgies
+grow	rfc	rfc4384	BCP		reference/ietf/grow		BGP Communities for Data Collection
+grow	rfc	rfc4451	Informational		reference/ietf/grow		BGP MULTI_EXIT_DISC (MED) Considerations
+grow	rfc	rfc4632	BCP		reference/ietf/grow		Classless Inter-domain Routing (CIDR): The Internet Address Assignment and Aggregation Plan
+grow	rfc	rfc4786	BCP		reference/ietf/grow		Operation of Anycast Services
+grow	rfc	rfc6198	Informational		reference/ietf/grow		Requirements for the Graceful Shutdown of BGP Sessions
+grow	rfc	rfc6382	BCP		reference/ietf/grow		Unique Origin Autonomous System Numbers (ASNs) per Node for Globally Anycasted Services
+grow	rfc	rfc6441	BCP		reference/ietf/grow		Time to Remove Filters for Previously Unallocated IPv4 /8s
+grow	rfc	rfc6752	Informational		reference/ietf/grow		Issues with Private IP Addressing in the Internet
+grow	rfc	rfc6769	Informational		reference/ietf/grow		Simple Virtual Aggregation (S-VA)
+grow	rfc	rfc6774	Informational		reference/ietf/grow		Distribution of Diverse BGP Paths
+grow	rfc	rfc7682	Informational		reference/ietf/grow		Considerations for Internet Routing Registries (IRRs) and Routing Policy Configuration
+grow	rfc	rfc7789	Informational		reference/ietf/grow		Impact of BGP Filtering on Inter-Domain Routing Policies
+grow	rfc	rfc7908	Informational		reference/ietf/grow		Problem Definition and Classification of BGP Route Leaks
+grow	rfc	rfc7948	Informational		reference/ietf/grow		Internet Exchange BGP Route Server Operations
+grow	rfc	rfc7999	Informational		rfc/full		BLACKHOLE Community
+grow	rfc	rfc8195	Informational		rfc/full		Use of BGP Large Communities
+grow	rfc	rfc8327	BCP		reference/ietf/grow		Mitigating the Negative Impact of Maintenance through BGP Session Culling
+idr	draft	draft-acee-idr-lldp-peer-discovery	unset	22	reference/ietf/idr		BGP Logical Link Discovery Protocol (LLDP) Peer Discovery
+idr	draft	draft-he-idr-bgp-flowspec-ifit	unset	04	reference/ietf/idr		BGP Extensions to Enable BGP FlowSpec based IFIT
+idr	draft	draft-ietf-idr-5g-edge-service-metadata	unset	34	reference/ietf/idr		BGP Extension for 5G Edge Service Metadata
+idr	draft	draft-ietf-idr-bgp-attribute-escape	unset	00	reference/ietf/idr		BGP Attribute Escape
+idr	draft	draft-ietf-idr-bgp-bestpath-nh-selection	unset	00	reference/ietf/idr		BGP best path next-hop selection enhancements
+idr	draft	draft-ietf-idr-bgp-bestpath-selection-criteria	Proposed Standard	13	reference/ietf/idr		BGP Bestpath Selection Criteria Enhancement
+idr	draft	draft-ietf-idr-bgp-bfd-strict-mode	unset	19	rfc/drafts		BGP BFD Strict-Mode
+idr	draft	draft-ietf-idr-bgp-fsm-iana	unset	02	reference/ietf/idr		IANA Registrations for the BGP Finite State Machine (FSM)
+idr	draft	draft-ietf-idr-bgp-ifit-capabilities	unset	09	reference/ietf/idr		Advertising In-situ Flow Information Telemetry (IFIT) Capabilities in BGP
+idr	draft	draft-ietf-idr-bgp-ls-bgp-only-fabric	unset	07	reference/ietf/idr		BGP Link-State Extensions for BGP-only Networks
+idr	draft	draft-ietf-idr-bgp-ls-flex-algo-ext	unset	03	reference/ietf/idr		Advertising Flexible Algorithm Extensions in BGP Link-State
+idr	draft	draft-ietf-idr-bgp-ls-link-mtu	unset	12	reference/ietf/idr		Signaling Maximum Transmission Unit (MTU) using BGP-LS
+idr	draft	draft-ietf-idr-bgp-ls-sr-epe-over-l2bundle	Proposed Standard	09	reference/ietf/idr		Segment Routing BGP Egress Peer Engineering over Layer 2 Bundle Members
+idr	draft	draft-ietf-idr-bgp-ls-sr-policy-admin-flags	unset	00	reference/ietf/idr		Advertisement of SR Policy Operational States using BGP Link-State
+idr	draft	draft-ietf-idr-bgp-ls-sr-policy-nrp	unset	03	reference/ietf/idr		SR Policies Extensions for Network Resource Partition in BGP-LS
+idr	draft	draft-ietf-idr-bgp-ls-sr-policy-path-segment	unset	12	reference/ietf/idr		SR Policies Extensions for Path Segment and Bidirectional Path in BGP-LS
+idr	draft	draft-ietf-idr-bgp-model	Proposed Standard	21	reference/ietf/idr		YANG Model for Border Gateway Protocol (BGP-4)
+idr	draft	draft-ietf-idr-bgp-rpki-yang	unset	02	reference/ietf/idr		YANG Data Model for BGP about RPKI
+idr	draft	draft-ietf-idr-bgp-sr-mpls-elp	unset	01	reference/ietf/idr		BGP Extension for SR-MPLS Entropy Label Position
+idr	draft	draft-ietf-idr-bgp4-rfc4271bis	unset	02	reference/ietf/idr		A Border Gateway Protocol 4 (BGP-4)
+idr	draft	draft-ietf-idr-bgpls-inter-as-topology-ext	Proposed Standard	46	reference/ietf/idr		BGP-LS Extensions for Inter-AS Topology Retrieval
+idr	draft	draft-ietf-idr-bgpls-sr-vtn-mt	Informational	14	reference/ietf/idr		Applicability of Border Gateway Protocol - Link State (BGP-LS) with Multi-Topology (MT) for Segment Routing based Network Resource Partitions (NRPs)
+idr	draft	draft-ietf-idr-elc	unset	01	reference/ietf/idr		BGP Entropy Label Characteristic
+idr	draft	draft-ietf-idr-flowspec-nvo3	Proposed Standard	24	reference/ietf/idr		BGP Dissemination of Flow Specification Rules for Tunneled Traffic
+idr	draft	draft-ietf-idr-flowspec-path-redirect	Proposed Standard	13	reference/ietf/idr		Flowspec Indirection-id Redirect
+idr	draft	draft-ietf-idr-flowspec-redirect-ip	Proposed Standard	16	reference/ietf/idr		BGP Flow-Spec Redirect-to-IP Action
+idr	draft	draft-ietf-idr-flowspec-srv6	unset	10	reference/ietf/idr		BGP Flow Specification for SRv6
+idr	draft	draft-ietf-idr-fsv2-ip-basic	unset	08	reference/ietf/idr		BGP Flow Specification Version 2 - for Basic IP
+idr	draft	draft-ietf-idr-linklocal-capability	unset	06	rfc/drafts		Link-Local Next Hop Capability for BGP
+idr	draft	draft-ietf-idr-mpbgp-extension-4map6	unset	06	reference/ietf/idr		MP-BGP Extension and the Procedures for IPv4/IPv6 Mapping Advertisement
+idr	draft	draft-ietf-idr-multinexthop-attribute	unset	05	reference/ietf/idr		BGP MultiNexthop Attribute
+idr	draft	draft-ietf-idr-next-next-hop-nodes	unset	01	reference/ietf/idr		BGP Next-next Hop Nodes
+idr	draft	draft-ietf-idr-nhc	Proposed Standard	07	reference/ietf/idr		BGP Next Hop Dependent Characteristics Attribute
+idr	draft	draft-ietf-idr-performance-routing	unset	07	reference/ietf/idr		BGP Performance-aware Routing Mechanism
+idr	draft	draft-ietf-idr-rfc4360-bis	Proposed Standard	09	reference/ietf/idr		BGP Extended Communities Attribute
+idr	draft	draft-ietf-idr-rt-derived-community	Informational	10	reference/ietf/idr		Extended Communities Derived from Route Targets
+idr	draft	draft-ietf-idr-rtc-hierarchical-rr	unset	06	reference/ietf/idr		RT-Constrain Optimization in Hierarchical Route Reflection Scenarios
+idr	draft	draft-ietf-idr-rtc-interas	unset	00	reference/ietf/idr		Inter Domain considerations for Constrained Route distribution
+idr	draft	draft-ietf-idr-sdwan-edge-discovery	Proposed Standard	31	reference/ietf/idr		SD-WAN Edge and Underlay Tunnel Discovery Using BGP
+idr	draft	draft-ietf-idr-sr-p2mp-policy	unset	01	reference/ietf/idr		Advertising p2mp policies in BGP
+idr	draft	draft-ietf-idr-sr-policy-admin-flags	unset	00	reference/ietf/idr		BGP SR Policy Extensions for Administrative Flags
+idr	draft	draft-ietf-idr-sr-policy-ifit	unset	12	reference/ietf/idr		BGP SR Policy Extensions to Enable IFIT
+idr	draft	draft-ietf-idr-sr-policy-metric	unset	05	reference/ietf/idr		BGP SR Policy Extensions for Metric
+idr	draft	draft-ietf-idr-sr-policy-nrp	Proposed Standard	13	reference/ietf/idr		BGP SR Policy Extensions for Network Resource Partition
+idr	draft	draft-ietf-idr-sr-policy-path-mtu	unset	15	reference/ietf/idr		Segment Routing Path MTU in BGP
+idr	draft	draft-ietf-idr-sr-policy-path-segment	unset	16	reference/ietf/idr		SR Policy Extensions for Path Segment and Bidirectional Path
+idr	draft	draft-ietf-idr-sr-policy-seglist-id	Proposed Standard	14	reference/ietf/idr		BGP SR Policy Extensions for Segment List Identifier
+idr	draft	draft-ietf-idr-sr-te-policy-attr	unset	05	reference/ietf/idr		Advertising SID Algorithm Information in BGP
+idr	draft	draft-ietf-idr-ts-flowspec-srv6-policy	Proposed Standard	18	reference/ietf/idr		Traffic Steering using BGP FlowSpec with SR Policy
+idr	draft	draft-ietf-idr-vpn-prefix-orf	Experimental	45	reference/ietf/idr		VPN Prefix Outbound Route Filter (VPN Prefix ORF) for BGP-4
+idr	draft	draft-jiang-idr-sr-policy-composite-path	unset	09	reference/ietf/idr		BGP Extensions of SR Policy for Composite Candidate Path
+idr	draft	draft-kao-idr-bitwise-ip-filters	unset	05	reference/ietf/idr		Bitwise IP Filters for BGP FlowSpec
+idr	draft	draft-lin-idr-bgpls-te-policy-pm	unset	10	reference/ietf/idr		BGP-LS Advertisement of SR Policy Performance Metric
+idr	draft	draft-lin-idr-sr-policy-headend-behavior	unset	06	reference/ietf/idr		BGP Extensions of SR Policy for Headend Behavior
+idr	draft	draft-sa-idr-bgp-srv6-mpls-transport-iw	unset	03	reference/ietf/idr		BGP extensions for SRv6/MPLS Transport Interworking
+idr	draft	draft-uttaro-idr-bgp-oad	unset	08	reference/ietf/idr		One Administrative Domain using BGP
+idr	draft	draft-wu-idr-flowspec-yang-cfg	unset	03	reference/ietf/idr		A YANG Data Model for Flow Specification
+idr	draft	draft-xu-idr-fare	unset	08	reference/ietf/idr		Fully Adaptive Routing Ethernet using BGP
+idr	draft	draft-xu-idr-neighbor-autodiscovery	unset	14	reference/ietf/idr		BGP Neighbor Discovery
+idr	draft	draft-zhang-idr-sr-policy-template	unset	08	reference/ietf/idr		BGP SR Policy Extensions for template
+idr	rfc	rfc1265	Informational		reference/ietf/idr		BGP Protocol Analysis
+idr	rfc	rfc1266	Informational		reference/ietf/idr		Experience with the BGP Protocol
+idr	rfc	rfc1656	Informational		reference/ietf/idr	rfc1773	BGP-4 Protocol Document Roadmap and Implementation Experience
+idr	rfc	rfc1773	Informational		reference/ietf/idr		Experience with the BGP-4 protocol
+idr	rfc	rfc1774	Informational		reference/ietf/idr		BGP-4 Protocol Analysis
+idr	rfc	rfc1930	BCP		reference/ietf/idr		Guidelines for creation, selection, and registration of an Autonomous System (AS)
+idr	rfc	rfc1998	Informational		reference/ietf/idr		An Application of the BGP Community Attribute in Multi-home Routing
+idr	rfc	rfc2270	Informational		reference/ietf/idr		Using a Dedicated AS for Sites  Homed to a Single Provider
+idr	rfc	rfc2519	Informational		reference/ietf/idr		A Framework for Inter-Domain Route Aggregation
+idr	rfc	rfc3345	Informational		reference/ietf/idr		Border Gateway Protocol (BGP) Persistent Route Oscillation Condition
+idr	rfc	rfc3562	Informational		reference/ietf/idr		Key Management Considerations for the TCP MD5 Signature Option
+idr	rfc	rfc4223	Informational		reference/ietf/idr		Reclassification of RFC 1863 to Historic
+idr	rfc	rfc4272	Informational		reference/ietf/idr		BGP Security Vulnerabilities Analysis
+idr	rfc	rfc4274	Informational		reference/ietf/idr		BGP-4 Protocol Analysis
+idr	rfc	rfc4275	Informational		reference/ietf/idr		BGP-4 MIB Implementation Survey
+idr	rfc	rfc4276	Informational		reference/ietf/idr		BGP-4 Implementation Report
+idr	rfc	rfc4277	Informational		reference/ietf/idr		Experience with the BGP-4 Protocol
+idr	rfc	rfc5398	Informational		reference/ietf/idr		Autonomous System (AS) Number Reservation for Documentation Use
+idr	rfc	rfc6472	BCP		reference/ietf/idr	rfc9774	Recommendation for Not Using AS_SET and AS_CONFED_SET in BGP
+idr	rfc	rfc6996	BCP		rfc/full		Autonomous System (AS) Reservation for Private Use
+idr	rfc	rfc7300	BCP		reference/ietf/idr		Reservation of Last Autonomous System (AS) Numbers
+idr	rfc	rfc9723	Informational		reference/ietf/idr		BGP Colored Prefix Routing (CPR) for Services Based on Segment Routing over IPv6 (SRv6)

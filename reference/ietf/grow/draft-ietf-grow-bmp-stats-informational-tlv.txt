@@ -1,0 +1,952 @@
+
+
+
+
+Network Working Group                                      M. Srivastava
+Internet-Draft                                             S. Kolenchery
+Intended status: Standards Track                                     HPE
+Expires: 15 March 2027                                            C. Lin
+                                                    New H3C Technologies
+                                                       11 September 2026
+
+
+                     BMP Statistics Information TLV
+             draft-ietf-grow-bmp-stats-informational-tlv-01
+
+Abstract
+
+   The BGP Monitoring Protocol (BMP) defines statistics reports that
+   provide periodic snapshots of various BGP-related metrics.  When
+   statistics are reported periodically, the snapshot values may not
+   reflect the variations that occurred between reporting intervals.
+   This document defines a Statistics Information TLV that can be used
+   to convey additional statistical information about BMP gauge-type
+   statistics during the reporting period.  This TLV reports the minimum
+   and maximum values observed (with timestamps indicating when they
+   occurred), along with additional statistical measures such as
+   average, percentiles, or snapshot values.  This enables BMP
+   collectors to better understand the dynamics of monitored statistics
+   even when the reported snapshot values appear constant.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 15 March 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 1]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   3
+   2.  Motivation and Use Cases  . . . . . . . . . . . . . . . . . .   3
+   3.  Statistics Information TLV  . . . . . . . . . . . . . . . . .   4
+     3.1.  Format  . . . . . . . . . . . . . . . . . . . . . . . . .   5
+     3.2.  Semantics and Usage . . . . . . . . . . . . . . . . . . .   8
+     3.3.  Example . . . . . . . . . . . . . . . . . . . . . . . . .  10
+   4.  Implementation Considerations . . . . . . . . . . . . . . . .  11
+   5.  Operational Considerations  . . . . . . . . . . . . . . . . .  13
+   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
+     6.1.  BMP Statistics Information Entry Types Registry . . . . .  13
+     6.2.  BMP Statistics Information TLV Types Registry . . . . . .  14
+     6.3.  Addition to BMP Statistics Types Registry . . . . . . . .  15
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  15
+   8.  Normative References  . . . . . . . . . . . . . . . . . . . .  16
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  17
+
+1.  Introduction
+
+   The BGP Monitoring Protocol (BMP) [RFC7854] provides a mechanism for
+   monitoring BGP sessions.  BMP defines Statistics Reports (SR)
+   messages that routers can send to monitoring stations to report
+   various statistics related to BGP operations.  These statistics are
+   categorized as either counters (monotonically increasing values) or
+   gauges (values that may increase or decrease within a defined range).
+
+   Statistics Reports are typically transmitted on a periodic basis
+   (e.g., every 15 minutes) or triggered by specific events or
+   thresholds.  When transmitted periodically, each SR message contains
+   snapshot values of the statistics at the time of collection.  This
+   snapshot approach has a limitation: it does not capture the
+   variations that may have occurred during the reporting period, which
+   can be important for capacity planning, anomaly detection, and
+   understanding system dynamics.
+
+
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 2]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   This document defines a Statistics Information TLV that can accompany
+   BMP statistics to report additional distributional information about
+   a statistic's behavior during the reporting period.  The TLV conveys
+   the minimum and maximum values observed (with timestamps indicating
+   when they occurred), along with additional statistical measures such
+   as average, percentiles, or snapshot values.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119] and
+   RFC 8174 [RFC8174].
+
+2.  Motivation and Use Cases
+
+   Currently, BMP statistics reports stream only the snapshot value of
+   each metric at each reporting interval.  This approach has a
+   significant limitation: it does not capture the variations that may
+   have occurred during the reporting period.  Any analytic task that
+   requires insight into the statistical distribution of these metrics
+   is limited by the granularity of the reporting interval.
+
+   Furthermore, there are competing operational requirements in
+   statistics collection.  Analytics services require high temporal
+   resolution data, which necessitates shorter reporting intervals
+   (higher reporting frequency).  Conversely, operational constraints
+   favor longer reporting intervals (lower reporting frequency) to
+   reduce the volume of statistics messages transmitted across the
+   network and minimize the processing overhead on collection
+   infrastructure.  By augmenting statistics reports with distributional
+   information (minimum, maximum, and other statistical measures) over
+   the reporting interval, this specification enables longer reporting
+   intervals while preserving the statistical insights required by
+   analytics applications, thereby reducing network overhead without
+   sacrificing data fidelity.
+
+   To illustrate this problem more concretely, consider the following
+   scenario: A router is configured to report BMP statistics every 15
+   minutes.  Suppose Stat Type 7 (Number of routes in Adj-RIB-In) has a
+   value of 10,000 at time T0, T15, T30, and T45 minutes.  The BMP
+   collector receives a constant value of 10,000 at each reporting
+   interval.  Based on this data, the collector might conclude that the
+   Adj-RIB-In size remained stable throughout this period.
+
+   However, the reality could be quite different.  Between T0 and T15,
+   the route count might have fluctuated significantly - perhaps
+   reaching a peak of 15,000 routes and a minimum of 8,000 routes before
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 3]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   settling back to 10,000.  This variation could be important for any
+   analysis task for understanding the dynamics of the BGP system.  With
+   only snapshot values, the collector has no visibility into these
+   fluctuations.
+
+   The Statistics Information TLV addresses this limitation by providing
+   a flexible format that can convey the minimum and maximum values
+   observed (with timestamps indicating when they occurred), along with
+   additional statistical measures such as the arithmetic mean
+   (average), median, or current snapshot value.  This approach enables
+   enhanced temporal characterization of metric behavior within the
+   reporting interval and decouples the analytical utility of the
+   reported data from the reporting interval duration and the underlying
+   temporal distribution characteristics of the metric.
+
+   Here it is important to distinguish between the sampling interval and
+   the reporting interval.  The sampling interval refers to the
+   frequency at which the implementation collects metric samples
+   internally, while the reporting interval refers to the frequency at
+   which Statistics Report messages are transmitted to the BMP
+   collector.  The sampling interval is typically significantly shorter
+   than the reporting interval, enabling the implementation to collect
+   multiple samples during each reporting period.  These samples are
+   then aggregated to compute the distributional statistics (minimum,
+   maximum, average, and percentiles) conveyed in the Statistics
+   Information TLV.  The Statistics Information TLV mechanism allows the
+   reporting interval to be made substantially longer, thereby reducing
+   the volume of Statistics Report messages transmitted across the
+   network and minimizing processing overhead on collection
+   infrastructure, while maintaining the internal sampling rate
+   necessary to capture metric variations.  In fact, it is preferred
+   that the reporting interval be selected such that distributional
+   statistics computed from numerous samples provide meaningful insights
+   into metric behavior.
+
+3.  Statistics Information TLV
+
+   The Statistics Information TLV is a new type of statistic that can be
+   included in BMP Statistics Reports messages.  It provides
+   distributional information about a referenced statistic during the
+   reporting period.
+
+   The Statistics Information TLV follows the counter encoding format
+   defined for statistics in Section 4.8 of [RFC7854].  This TLV is
+   counted in the Stats Count field and MAY appear multiple times in a
+   single Statistics Report message - once for each statistic type for
+   which supplementary information is being reported.
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 4]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+3.1.  Format
+
+   The Statistics Information TLV follows the standard BMP statistics
+   TLV structure:
+
+     0 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |         Stat Type             |          Stat Len             |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                        Stat Data                              |
+     ~                                                               ~
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Where:
+
+   *  Stat Type (2 bytes): Set to TBD1 (to be assigned by IANA from the
+      new "BMP Statistics Information TLV Types" registry).  This
+      identifies the TLV as a Statistics Information TLV.
+
+   *  Stat Len (2 bytes): The length of the Stat Data field in bytes.
+      This value is variable and depends on the number of entries
+      included (12 bytes for the header + variable length for each
+      entry).
+
+   *  Stat Data (variable): Contains the information payload, structured
+      as described below.
+
+   The Stat Data field is structured as follows:
+
+     0 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |      Reference Stat Type      |  Num Entries  |   Reserved    |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |              Measurement Window Duration (32 bits)            |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                    Sample Count (32 bits)                     |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     ~                    Entry List (variable)                      ~
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   *  Reference Stat Type (2 bytes): The BMP Stat Type for which this
+      information is being provided.  This value MUST correspond to a
+      valid Stat Type from the "BMP Statistics Types" registry defined
+      in [RFC7854].
+
+
+
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 5]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   *  Num Entries (1 byte): The number of statistical entries that
+      follow in the Entry List.  This value MUST be at least 1 and
+      SHOULD typically be 3 (minimum, maximum, and one additional
+      metric).
+
+   *  Reserved (1 byte): Reserved for future use.  MUST be set to zero
+      on transmission and MUST be ignored on receipt.
+
+   *  Measurement Window Duration (4 bytes): A 32-bit unsigned integer
+      representing, in seconds, the duration of the measurement window
+      over which the statistical entries in this Statistics Information
+      TLV were calculated.  This value MUST be greater than zero.  This
+      duration MAY differ from the Statistics Report transmission
+      interval, for example, when reports are event-triggered or when a
+      session is newly established.
+
+   *  Sample Count (4 bytes): A 32-bit unsigned integer indicating the
+      number of samples of the referenced Stat Type collected during the
+      Measurement Window Duration and used to compute the entries in
+      this TLV.  This value MUST be greater than zero.  Receivers SHOULD
+      use this value to assess the statistical significance of the
+      Average, Median, P5, and P95 entries; a low Sample Count indicates
+      that these derived values may not be representative.  For the
+      Minimum and Maximum entries, which represent actual observed
+      values rather than derived estimates, the Sample Count instead
+      indicates the likelihood that the true extrema occurring during
+      the Measurement Window Duration were captured; a low Sample Count
+      means the reported Minimum and Maximum may not reflect the actual
+      extreme values reached between sampling instants.
+
+   *  Entry List (variable): A sequence of statistical entries, each
+      providing information about the referenced statistic.  The number
+      of entries is specified by the Num Entries field.  Each entry is
+      structured as described below.
+
+   Each entry in the Entry List has the following format:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 6]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+     0 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |   Entry Type  |     Flags     |                               |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+     |                                                               |
+     +                        Value (64 bits)                        +
+     |                                                               |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                 Timestamp Seconds (32 bits)                   |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |               Timestamp Microseconds (32 bits)                |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   *  Entry Type (1 byte): Identifies the type of statistical value
+      reported in this entry.  Valid values are defined in the "BMP
+      Statistics Information Entry Types" registry (see Section 6).  The
+      following entry types are initially defined:
+
+      -  1: Minimum - The minimum value observed during the reporting
+         period.  This entry type MUST set the T bit (bit 0 of the Flags
+         field), indicating that the Timestamp field is present.
+
+      -  2: Maximum - The maximum value observed during the reporting
+         period.  This entry type MUST set the T bit, indicating that
+         the Timestamp field is present.
+
+      -  3: Snapshot - The current value at the time of report
+         generation.  This entry type MUST NOT set the T bit.  When
+         implementations send both the regular statistic TLV and the
+         Statistics Information TLV, the snapshot value is redundant and
+         may be omitted from the Information TLV.  However, when only
+         the Statistics Information TLV is sent, this entry type
+         provides the current snapshot value alongside the
+         distributional statistics.
+
+      -  4: Average - The arithmetic mean of all sampled values during
+         the reporting period.  This entry type MUST NOT set the T bit.
+
+      -  5: Median (P50) - The median value (50th percentile) of all
+         sampled values during the reporting period.  This entry type
+         MUST NOT set the T bit.
+
+      -  6: P5 - The 5th percentile of all sampled values during the
+         reporting period.  This entry type MUST NOT set the T bit.
+
+      -  7: P95 - The 95th percentile of all sampled values during the
+         reporting period.  This entry type MUST NOT set the T bit.
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 7]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   *  Flags (1 byte): A bit field containing the following flag:
+
+      -  Bit 0 (T - Timestamp Present): When set, indicates that the
+         8-byte Timestamp field is present following the Value field,
+         making the entry 18 bytes long.  When clear, indicates that the
+         Timestamp field is absent, and the entry is 10 bytes long.
+
+      -  Bits 1-7: Reserved for future use.  MUST be set to zero on
+         transmission and MUST be ignored on receipt.
+
+      Because entry length is determined solely by the T bit rather than
+      by the Entry Type, a receiver that encounters an entry with an
+      unrecognized Entry Type MUST use the T bit to determine the
+      entry's length (10 or 18 bytes), skip the entry, and continue
+      parsing subsequent entries in the Entry List.
+
+   *  Value (8 bytes): A 64-bit unsigned integer representing the
+      statistical gauge value.  The semantics correspond to the
+      semantics of the referenced Stat Type, which MUST be a gauge-type
+      statistic.
+
+   *  Timestamp (8 bytes): The time when this value was observed,
+      encoded as a 4-byte unsigned integer representing seconds since
+      00:00:00 UTC on January 1, 1970, followed by a 4-byte unsigned
+      integer representing microseconds.  This format is the same as the
+      timestamp format specified in [RFC7854].  This field is present if
+      and only if the T bit in the Flags field is set.  Entry Types 1
+      (Minimum) and 2 (Maximum) MUST set the T bit; Entry Types 3
+      (Snapshot), 4 (Average), 5 (Median), 6 (P5), and 7 (P95) MUST NOT
+      set the T bit.  The presence or absence of this field affects the
+      total length of the entry:
+
+      -  Entries with the T bit set: 18 bytes (1 + 1 + 8 + 4 + 4)
+
+      -  Entries with the T bit clear: 10 bytes (1 + 1 + 8)
+
+3.2.  Semantics and Usage
+
+   The Statistics Information TLV is OPTIONAL.  Implementations that do
+   not support this TLV or choose not to send it for a particular
+   statistic simply omit it from the Statistics Report message.
+
+   The Statistics Information TLV can be used with any existing or
+   future gauge-type BMP Stat Type.  The values reflect the gauge's
+   value at different sample points during the reporting period.  This
+   TLV is not applicable to counter-type statistics, which are
+   monotonically increasing and do not exhibit the temporal variations
+   that distributional statistics are designed to capture.  A sender
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 8]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   MUST NOT generate a Statistics Information TLV whose Reference Stat
+   Type identifies a counter-type statistic.  A receiver that receives a
+   Statistics Information TLV referencing a counter-type Stat Type
+   SHOULD ignore the TLV and MAY log the event.
+
+   A single Statistics Report message MAY contain multiple Statistics
+   Information TLVs, each referring to a different BMP Stat Type.  Each
+   Statistics Information TLV is counted independently in the Stats
+   Count field.
+
+   The Measurement Window Duration applies to all entries in the
+   Statistics Information TLV.  A sender that needs to report values
+   computed over different measurement windows for the same referenced
+   Stat Type MUST send separate Statistics Information TLVs.
+
+   Implementations MAY choose to send either the regular statistic TLV,
+   the Statistics Information TLV, or both for a given Stat Type in the
+   same Statistics Report message.  When both are present, the value in
+   the regular statistic TLV represents the snapshot value at the time
+   of report generation and SHOULD be consistent with being within the
+   range [Minimum Value, Maximum Value] reported in the Statistics
+   Information TLV.  When only the Statistics Information TLV is sent,
+   implementations SHOULD include the Snapshot entry (Entry Type 3) to
+   provide the current value alongside the distributional statistics.
+   Implementations MUST NOT reject or ignore a Statistics Information
+   TLV solely because the corresponding regular statistic TLV is absent,
+   or vice versa.
+
+   The time period over which the distributional statistics are computed
+   is implementation-dependent.  Typically, it corresponds to the
+   interval since the last Statistics Report message was sent for this
+   peer, but implementations MAY use different windowing strategies.
+   When a BMP session is first established or after a peer transitions
+   to Established state, the first Statistics Report for that peer MAY
+   omit Statistics Information TLVs or MAY report values based on
+   whatever partial data is available.
+
+   Each Entry Type MUST appear at most once within a single Statistics
+   Information TLV.  A sender MUST NOT include multiple entries with the
+   same Entry Type in the same TLV.  A receiver that encounters a
+   duplicate Entry Type SHOULD ignore the subsequent occurrence(s) and
+   MAY log the event.
+
+
+
+
+
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                 [Page 9]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+3.3.  Example
+
+   Consider a router configured to send Statistics Reports every 15
+   minutes for a particular BGP peer.  The router tracks the number of
+   routes in Adj-RIB-In (Stat Type 7) and samples this value every 60
+   seconds.
+
+   During a particular 15-minute period:
+
+   *  The minimum observed value is 95,000 routes, observed at timestamp
+      1704067200 (January 1, 2024, 00:00:00 UTC)
+
+   *  The maximum observed value is 105,000 routes, observed at
+      timestamp 1704067680 (January 1, 2024, 00:08:00 UTC)
+
+   *  The average of all 15 samples (15 minutes / 60 seconds) is 100,250
+      routes
+
+   *  The value at the end of the 15-minute period (snapshot value) is
+      100,000 routes
+
+   The Statistics Report message would include (among possibly other
+   statistics):
+
+   1.  A regular Stat Type 7 TLV with value 100,000
+
+   2.  A Statistics Information TLV (Stat Type TBD1) with:
+
+       *  Reference Stat Type = 7
+
+       *  Num Entries = 3
+
+       *  Measurement Window Duration = 900 seconds
+
+       *  Sample Count = 15
+
+       *  Entry 1: Entry Type = 1 (Minimum), Value = 95,000, Timestamp =
+          1704067200 seconds, 0 microseconds
+
+       *  Entry 2: Entry Type = 2 (Maximum), Value = 105,000, Timestamp
+          = 1704067680 seconds, 0 microseconds
+
+       *  Entry 3: Entry Type = 4 (Average), Value = 100,250 (no
+          timestamp)
+
+       Total Stat Data length: 12 (header) + 18 (min with timestamp) +
+       18 (max with timestamp) + 10 (average) = 58 bytes
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                [Page 10]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   This allows the BMP collector to understand that while the snapshot
+   value was 100,000, the actual route count varied between 95,000 and
+   105,000 during the reporting period, with an average of 100,250.  The
+   timestamps indicate when the minimum and maximum values were
+   observed, providing temporal context for these extremes.
+
+4.  Implementation Considerations
+
+   Implementations that support the Statistics Information TLV should
+   provide configuration options to:
+
+   *  Enable or disable the generation of Statistics Information TLVs
+      globally or on a per-peer basis
+
+   *  Select which Stat Types should have accompanying Statistics
+      Information TLVs
+
+   *  Configure the sampling rate for computing the distributional
+      statistics
+
+   The method by which a router calculates the minimum, maximum,
+   average, and percentile values is an implementation detail.  Routers
+   MAY employ different strategies to collect the underlying data
+   necessary for computing these distributional statistics.
+   Implementations MAY use a periodic sampling timer to collect metric
+   values at regular intervals (e.g., every 60 seconds) during the
+   reporting period, or MAY use an event-based approach where values are
+   recorded when certain events occur (e.g., when a route is added or
+   withdrawn).  Implementations MAY also use hybrid approaches or other
+   methods appropriate to the metric being monitored.  The choice of
+   collection method does not change the defined meaning of the reported
+   Entry Type, but it may influence the accuracy, representativeness,
+   and comparability of the reported values, particularly for rapidly
+   changing metrics.  Similarly, the algorithm used to compute the
+   Median, P5, and P95 values (e.g., nearest-rank vs. linear
+   interpolation) is also an implementation detail; operators comparing
+   these values across different vendors or platforms should be aware
+   that results may differ even for identical sample sets.  This
+   document intentionally does not mandate a specific percentile-
+   computation algorithm.
+
+   The timestamps reported for minimum and maximum values (Entry Types 1
+   and 2) represent when those specific values were observed by the
+   router, which MAY be significantly earlier than when the Statistics
+   Report message is generated or transmitted.  Implementations SHOULD
+   report the actual observation time of the minimum or maximum value
+   rather than the message generation time.  This allows BMP collectors
+   to understand the temporal dynamics of the metric more accurately.
+
+
+
+Srivastava, et al.        Expires 15 March 2027                [Page 11]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   For example, if the maximum value was observed at the beginning of a
+   15-minute reporting interval, the timestamp should reflect that
+   observation time even though the Statistics Report message is sent at
+   the end of the interval.  The precision and accuracy of timestamps is
+   implementation-dependent and subject to the system's clock resolution
+   and timekeeping capabilities.
+
+   The computation and reporting of Statistics Information TLVs adds
+   some processing and memory overhead to the monitored router, as it
+   must track additional state for each monitored statistic.
+   Implementations SHOULD be mindful of these resource implications and
+   MAY choose to support Statistics Information TLVs only for a subset
+   of statistics or only when explicitly configured.
+
+   The methodology described in this document allows implementations to
+   increase the reporting interval while still capturing network events
+   with granularity through the distributional statistics (minimum,
+   maximum, average, and percentiles).  This enables better scalability
+   by reducing the volume of Statistics Report messages transmitted
+   across the network.  However, analytics services consuming this data
+   should be aware that with increased reporting intervals, the data
+   will arrive at the BMP collector later, even though the actual
+   network events may have occurred much earlier in the reporting
+   period.  The timestamps associated with minimum and maximum values
+   partially mitigate this limitation by indicating precisely when those
+   extreme values were observed, allowing analytics applications to
+   reconstruct a more accurate temporal view of significant events.
+   Nevertheless, the temporal resolution for anomaly detection and trend
+   analysis will still be constrained by the reporting interval, as the
+   aggregated statistics only provide visibility into what happened
+   during that interval, and values such as average and median do not
+   carry specific timing information about when they were computed or
+   how the metric evolved throughout the period.
+
+   BMP collectors that receive Statistics Information TLVs MUST be
+   prepared to handle Statistics Report messages that may contain the
+   Statistics Information TLV with or without the corresponding regular
+   statistic TLV.  When a Statistics Information TLV (Stat Type TBD1) is
+   encountered, the collector MUST examine the Reference Stat Type field
+   within the TLV's data to determine which statistic the distributional
+   information pertains to.  A BMP collector that does not recognize or
+   does not wish to process Statistics Information TLVs MUST ignore
+   them, as specified in [RFC7854] for unrecognized statistic types.
+
+   For statistics with per-AFI/SAFI granularity (such as Stat Type 9 and
+   10), the Statistics Information TLV's Reference Stat Type field
+   identifies the base Stat Type (9 or 10).  The regular Stat Type 9 or
+   10 TLV includes the AFI/SAFI information in its Stat Data field.  For
+
+
+
+Srivastava, et al.        Expires 15 March 2027                [Page 12]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   these per-AFI/SAFI statistics, implementations MUST include the
+   corresponding regular statistic TLV with the same AFI/SAFI in the
+   same Statistics Report message when sending a Statistics Information
+   TLV.  Without the regular statistic TLV, the collector cannot
+   determine which AFI/SAFI the distributional information applies to,
+   rendering the Statistics Information TLV unusable.
+
+5.  Operational Considerations
+
+   The statistical values reported in this document are derived from
+   implementation-specific collection methods and sample populations.
+   In particular, average, median (P50), P5, and P95 values depend on
+   the samples collected during the Measurement Window Duration.
+
+   These values primarily have local significance to the reporting
+   router.  A collector that compares or aggregates values from multiple
+   routers needs compatible measurement-window and collection
+   configurations.  Such compatibility is an operational matter and may
+   be established through existing management or configuration channels.
+
+   This document defines a Statistics Information TLV for carrying
+   additional runtime information in BMP Statistics Reports.  It does
+   not define a mechanism for exporting the configuration or internal
+   collection methodology used to produce the reported values.
+
+   Collectors should therefore interpret aggregate values in the context
+   of the reporting router and its configured measurement window.
+   Values from different routers should not be treated as directly
+   comparable unless the relevant operational configurations are known
+   to be compatible.
+
+6.  IANA Considerations
+
+6.1.  BMP Statistics Information Entry Types Registry
+
+   IANA is requested to create a new registry called "BMP Statistics
+   Information Entry Types" within the "BGP Monitoring Protocol (BMP)
+   Parameters" registry group.
+
+   This registry contains values for the Entry Type field used within
+   Statistics Information TLVs to identify the type of statistical value
+   being reported (minimum, maximum, snapshot, average, median, etc.).
+
+   Registration procedures for this registry are defined in [RFC8126]:
+
+   *  Values 0-127: Standards Action
+
+   *  Values 128-254: First Come First Served
+
+
+
+Srivastava, et al.        Expires 15 March 2027                [Page 13]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   *  Value 255: Reserved
+
+   Initial values for this registry are:
+
+    +=========+===============================+=======+===============+
+    | Value   | Description                   | T Bit | Reference     |
+    +=========+===============================+=======+===============+
+    | 0       | Reserved                      | N/A   | This document |
+    +---------+-------------------------------+-------+---------------+
+    | 1       | Minimum                       | Yes   | This document |
+    +---------+-------------------------------+-------+---------------+
+    | 2       | Maximum                       | Yes   | This document |
+    +---------+-------------------------------+-------+---------------+
+    | 3       | Snapshot                      | No    | This document |
+    +---------+-------------------------------+-------+---------------+
+    | 4       | Average                       | No    | This document |
+    +---------+-------------------------------+-------+---------------+
+    | 5       | Median (P50)                  | No    | This document |
+    +---------+-------------------------------+-------+---------------+
+    | 6       | P5 (5th Percentile)           | No    | This document |
+    +---------+-------------------------------+-------+---------------+
+    | 7       | P95 (95th Percentile)         | No    | This document |
+    +---------+-------------------------------+-------+---------------+
+    | 8-127   | Unassigned (Standards Action) |       |               |
+    +---------+-------------------------------+-------+---------------+
+    | 128-254 | Unassigned (First Come First  |       |               |
+    |         | Served)                       |       |               |
+    +---------+-------------------------------+-------+---------------+
+    | 255     | Reserved                      | N/A   | This document |
+    +---------+-------------------------------+-------+---------------+
+
+                                  Table 1
+
+6.2.  BMP Statistics Information TLV Types Registry
+
+   IANA is requested to create a new registry called "BMP Statistics
+   Information TLV Types" within the "BGP Monitoring Protocol (BMP)
+   Parameters" registry group.
+
+   This registry contains values for the Stat Type field when used to
+   identify Statistics Information TLVs (as opposed to regular
+   statistics).  These TLVs provide meta-information about other BMP
+   statistics rather than representing standalone statistics themselves.
+
+   Registration procedures for this registry are defined in [RFC8126]:
+
+   *  Values 0-32767: Standards Action
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                [Page 14]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   *  Values 32768-65534: First Come First Served
+
+   *  Value 65535: Reserved
+
+   Initial values for this registry are:
+
+   +=============+=====================================+===============+
+   | Value       | Description                         | Reference     |
+   +=============+=====================================+===============+
+   | 0           | Reserved                            | This document |
+   +-------------+-------------------------------------+---------------+
+   | TBD1        | Statistics Information:             | This document |
+   |             | Min/Avg/Max                         |               |
+   +-------------+-------------------------------------+---------------+
+   | 1-32767     | Unassigned (Standards               |               |
+   |             | Action)                             |               |
+   +-------------+-------------------------------------+---------------+
+   | 32768-65534 | Unassigned (First Come              |               |
+   |             | First Served)                       |               |
+   +-------------+-------------------------------------+---------------+
+   | 65535       | Reserved                            | This document |
+   +-------------+-------------------------------------+---------------+
+
+                                  Table 2
+
+6.3.  Addition to BMP Statistics Types Registry
+
+   IANA is requested to add the following note to the "BMP Statistics
+   Types" registry defined in [RFC7854]:
+
+   "Note: Stat Types from the 'BMP Statistics Information TLV Types'
+   registry may also appear in Statistics Reports messages.  These
+   special Stat Types contain meta-information about other statistics
+   and are distinguished by their type values, which are allocated from
+   a separate registry."
+
+7.  Security Considerations
+
+   This document defines an extension to the BGP Monitoring Protocol
+   (BMP) [RFC7854].  The security considerations discussed in that
+   document apply to this document as well.
+
+   The Statistics Information TLV does not introduce any new security
+   vulnerabilities beyond those inherent in the base BMP specification.
+   It provides additional statistical information but does not change
+   the fundamental security model of BMP.
+
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                [Page 15]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   Implementations should be aware that the Statistics Information TLV
+   increases the size of Statistics Report messages.  An attacker who
+   has compromised a monitored router could potentially use this to
+   amplify a denial-of-service attack against the BMP collector by
+   generating excessive Statistics Report messages with many Statistics
+   Information TLVs.  However, this is not fundamentally different from
+   the existing ability to send large Statistics Reports with many
+   regular statistics.  BMP implementations SHOULD implement rate
+   limiting and resource management as discussed in [RFC7854].
+
+   The minimum, average, and maximum values reported in the Statistics
+   Information TLV could potentially reveal information about the
+   dynamics of BGP operations that is not visible from snapshot values
+   alone.  This information is not considered sensitive in typical
+   deployment scenarios, as it represents aggregated statistical trends
+   rather than detailed routing information.  However, operators should
+   be aware that this information will be transmitted to BMP collectors
+   and should ensure appropriate access controls are in place for those
+   collectors.
+
+   As with all BMP statistics, the accuracy and integrity of Statistics
+   Information TLVs depends on the trustworthiness of the monitored
+   router.  BMP does not include mechanisms for cryptographic
+   authentication of the statistics themselves.  Deployments that
+   require strong assurance of data integrity should use transport-layer
+   security mechanisms such as TLS or IPsec to protect the BMP session,
+   and should implement appropriate authentication and authorization for
+   BMP connections.
+
+8.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC7854]  Scudder, J., Ed., Fernando, R., and S. Stuart, "BGP
+              Monitoring Protocol (BMP)", RFC 7854,
+              DOI 10.17487/RFC7854, June 2016,
+              <https://www.rfc-editor.org/info/rfc7854>.
+
+   [RFC8126]  Cotton, M., Leiba, B., and T. Narten, "Guidelines for
+              Writing an IANA Considerations Section in RFCs", BCP 26,
+              RFC 8126, DOI 10.17487/RFC8126, June 2017,
+              <https://www.rfc-editor.org/info/rfc8126>.
+
+
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                [Page 16]
+
+Internet-Draft             BMP Stats Info TLV             September 2026
+
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+Authors' Addresses
+
+   Mukul Srivastava
+   HPE
+   10 Technology Park Dr
+   Westford, MA 01886
+   United States of America
+   Email: mukul.srivastava@hpe.com
+
+
+   Santosh Kolenchery
+   HPE
+   United States of America
+   Email: santosh.kolenchery@hpe.com
+
+
+   Changwang Lin
+   New H3C Technologies
+   Beijing
+   China
+   Email: linchangwang.04414@h3c.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Srivastava, et al.        Expires 15 March 2027                [Page 17]
