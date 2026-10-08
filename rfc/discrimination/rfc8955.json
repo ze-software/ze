@@ -26,7 +26,7 @@
     {
       "rid": "RFC8955-4-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop",
+      "unit": "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop",
       "unit-sha": "7384f80ed2599058",
       "claim-sha": "0c5a426726d16e25",
       "route": "revert",
