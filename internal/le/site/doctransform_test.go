@@ -69,6 +69,24 @@ func TestEvidenceCleanupKeepsACharacterReferenceWhole(t *testing.T) {
 	}
 }
 
+// VALIDATES: the prose cleanups of an evidence cell leave the markup of the
+// prose alone, so a relative link keeps its address.
+// PREVENTS: the cleanup that collapses a run of full stops reading the "../"
+// of an href as punctuation, which published the RSVP-TE guide link of
+// reference/feature-status as ". /. /guides/rsvp-te/", an address that
+// resolves nowhere.
+func TestEvidenceCleanupKeepsALinkAddressWhole(t *testing.T) {
+	const cell = `<td>Interop runs against freeRouter, built by <code>test/interop-rsvpte/Dockerfile.freertr</code> ` +
+		`and driven through the <a href="../../guides/rsvp-te/">RSVP-TE guide</a>, outside the suites.</td>`
+	got := relayoutEvidenceCells(cell)
+	if !strings.Contains(got, `<a href="../../guides/rsvp-te/">RSVP-TE guide</a>`) {
+		t.Errorf("the cleanup changed the link:\n%s", got)
+	}
+	if !strings.Contains(got, `<span class="ev-src">`) {
+		t.Errorf("the citation must still move onto its own line:\n%s", got)
+	}
+}
+
 // TestAVerdictCellTakesItsSymbol covers the Yes, No, Partial and N/A cells a
 // comparison table scans by color.
 //

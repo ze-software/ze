@@ -228,26 +228,30 @@ var (
 	proseLeadingPunctuation  = regexp.MustCompile(`^[\s,.;:]+`)
 	proseTrailingPunctuation = regexp.MustCompile(`[\s:;,]+$`)
 	// maskedReference matches the placeholder cleanProse puts in place of a
-	// character reference while the punctuation rules run.
+	// character reference or a tag while the punctuation rules run.
 	maskedReference = regexp.MustCompile("\x00\\d+\x00")
 )
 
-// characterReference matches one HTML character reference, whose own
-// semicolon and digits must survive the punctuation cleanups below.
-var characterReference = regexp.MustCompile(`&(?:#\d+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);`)
+// proseMarkup matches what the punctuation cleanups below must not read: one
+// HTML character reference, whose own semicolon and digits must survive, and
+// one element tag, whose attributes are an address rather than a sentence.
+var proseMarkup = regexp.MustCompile(`&(?:#\d+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);|<[^>]+>`)
 
 // cleanProse answers the sentence one evidence cell reads once its citations
 // have moved to their own lines, ending in a full stop.
 //
-// Every character reference is masked before the cleanups run and restored
-// after. The rules treat a semicolon as punctuation a lifted citation left
-// behind, and the semicolon that closes &quot; is not that: rewriting it turns
-// a quotation mark into the literal text &quot, which a reader sees. The
-// retired renderer had no such hazard because its serializer left a quotation
-// mark alone; goldmark writes the reference, so the mask is owed here.
+// Every character reference and every tag is masked before the cleanups run
+// and restored after. The rules treat a semicolon as punctuation a lifted
+// citation left behind, and the semicolon that closes &quot; is not that:
+// rewriting it turns a quotation mark into the literal text &quot, which a
+// reader sees. The retired renderer had no such hazard because its serializer
+// left a quotation mark alone; goldmark writes the reference, so the mask is
+// owed here. A tag is masked for the same reason: the rule that collapses a
+// run of full stops read the "../" of a relative href as one, and published
+// a link to ". /. /guides/rsvp-te/".
 func cleanProse(prose string) string {
 	var references []string
-	prose = characterReference.ReplaceAllStringFunc(prose, func(reference string) string {
+	prose = proseMarkup.ReplaceAllStringFunc(prose, func(reference string) string {
 		references = append(references, reference)
 		return "\x00" + strconv.Itoa(len(references)-1) + "\x00"
 	})
