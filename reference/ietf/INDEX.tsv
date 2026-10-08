@@ -1,5 +1,5 @@
-# Snapshot of the IETF datatracker taken 2026-10-08: every published IDR, GROW and OPSEC RFC
-# whose IETF category is BCP or Informational, and every active IDR, GROW and OPSEC draft.
+# Snapshot of the IETF datatracker taken 2026-10-08: every published GROW, IDR and OPSEC RFC
+# whose IETF category is BCP or Informational, and every active GROW, IDR and OPSEC draft.
 # Non-normative. See reference/README.md before citing any of these as a requirement.
 # columns: wg	kind	stem	category (drafts: intended status)	revision	location	obsoleted-by	title
 grow	draft	draft-ietf-grow-as-path-prepending	unset	19	reference/ietf/grow		AS Path Prepending
@@ -102,7 +102,7 @@ idr	rfc	rfc1773	Informational		reference/ietf/idr		Experience with the BGP-4 pro
 idr	rfc	rfc1774	Informational		reference/ietf/idr		BGP-4 Protocol Analysis
 idr	rfc	rfc1930	BCP		reference/ietf/idr		Guidelines for creation, selection, and registration of an Autonomous System (AS)
 idr	rfc	rfc1998	Informational		reference/ietf/idr		An Application of the BGP Community Attribute in Multi-home Routing
-idr	rfc	rfc2270	Informational		reference/ietf/idr		Using a Dedicated AS for Sites  Homed to a Single Provider
+idr	rfc	rfc2270	Informational		reference/ietf/idr		Using a Dedicated AS for Sites Homed to a Single Provider
 idr	rfc	rfc2519	Informational		reference/ietf/idr		A Framework for Inter-Domain Route Aggregation
 idr	rfc	rfc3345	Informational		reference/ietf/idr		Border Gateway Protocol (BGP) Persistent Route Oscillation Condition
 idr	rfc	rfc3562	Informational		reference/ietf/idr		Key Management Considerations for the TCP MD5 Signature Option

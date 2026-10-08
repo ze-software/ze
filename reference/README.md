@@ -15,11 +15,29 @@ not requirements.
 as in `rfc/full/` and `rfc/drafts/`. The IETF category is not in the name,
 because it changes when a draft is published or an RFC is obsoleted.
 
-`ietf/INDEX.tsv` is a snapshot of the IETF datatracker for each document: the
-working group, the category (for a draft, the intended status, often unset), the
-revision, the location, the RFC that obsoletes it, and the title. When a
-document is already present in `rfc/full/` or `rfc/drafts/`, its row names that
-location and this tree does not hold a second copy.
+`ietf/INDEX.tsv` records, for each document, what the IETF datatracker said on
+the date in its header: the working group, the category (for a draft, the
+intended status, often unset), the revision, the location, the RFCs that obsolete
+it, and the title. When a document is already present in `rfc/full/` or
+`rfc/drafts/`, its row names that location and this tree does not hold a second
+copy.
+
+## Refreshing
+
+`./le data ietf-reference write` rewrites `ietf/INDEX.tsv` from the datatracker.
+The subdirectories of `ietf/` are the working groups it reads, so tracking a
+new group is creating its directory. For each group it selects every RFC whose
+category is BCP or Informational and every active draft, and it downloads the
+text of a selected document into `ietf/<wg>/` when the file is missing there,
+or, for a draft, when the revision moved. It answers how many rows were added,
+updated and unchanged, and which files under `ietf/<wg>/` no row selects any
+longer.
+
+| Guarantee | Reason |
+|-----------|--------|
+| It never writes `rfc/full/` or `rfc/drafts/` | A document held there is the owner's copy, and its row only names the location |
+| It deletes nothing | A file no longer selected is reported, and the owner decides what happens to it |
+| A failed fetch fails the command and changes no file | Every read finishes before the first write, so the index is never partial |
 
 ## Scope
 

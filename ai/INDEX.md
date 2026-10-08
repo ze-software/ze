@@ -332,6 +332,7 @@ disagree, the manifest is right and the row is stale.
 | `./le config ports` | `internal/le/config/ports.Answer` | the Go listener-default table and the YANG refine port defaults still agree, service by service |
 | `./le config unread-leaves` | `internal/le/config/unreadleaves.Answer` | which YANG config leaves the owning plugin package never names, so a leaf that is delivered but never read is visible |
 | `./le data asn-delegation` | `internal/le/data/asndelegation.Answer` | the shipped RIR delegation seed: fetch the five registries' files and rewrite the ASN-to-RIR delegation table |
+| `./le data ietf-reference` | `internal/le/data/ietfreference.Answer` | the non-normative IETF reference tree: fetch each working group's BCP and Informational RFCs and active drafts from the datatracker and rewrite reference/ietf/INDEX.tsv |
 | `./le doc check` | `internal/le/doc/check.Answer` | native documentation links, aggregate verification, and templ output checks |
 | `./le doc consistency` | `internal/le/doc/consistency.Answer` | where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes |
 | `./le doc index` | `internal/le/doc/index.Answer` | the two generated doc indexes, ai/DOCS-TO-CODE.md and its reverse ai/CODE-TO-DOCS.md: check either against the tree, or rewrite it |
@@ -682,7 +683,7 @@ All architecture docs in `docs/architecture/` unless noted.
 
 RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`. Non-normative IETF reference
 (IDR, GROW and OPSEC BCPs, Informational RFCs, active drafts): `reference/ietf/`, never a
-requirement source (`reference/README.md`). Each summary's `## Meta` table
+requirement source (`reference/README.md`), refreshed by `./le data ietf-reference write`. Each summary's `## Meta` table
 declares its own enrolment and its own row on `docs/features/rfc-status.md`.
 
 ## Session State
