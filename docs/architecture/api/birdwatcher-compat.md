@@ -58,7 +58,7 @@ The server MUST expose the following. All are relative to
 | `routes/filtered/{name}` | `routes` | Routes an import policy rejected |
 | `routes/export/{name}` | `routes` | Routes exported to a session |
 | `routes/noexport/{name}` | `routes` | Routes withheld from a session |
-| `routes/count/protocol/{name}` | `routes_count` | A count only |
+| `routes/count/protocol/{name}` | `routes` | A count only: `routes` is a number, not a list |
 | `routes/prefix` | `routes` | Routes matching a prefix query |
 | `routes/search` | `routes` | Routes matching a free query |
 | `routes/bmp/{name}` | `routes` | Routes seen for a BMP-monitored peer |
@@ -91,11 +91,20 @@ an empty `router_id` and an empty `version`. A client cannot tell that answer
 from a router that has no identity, which is why the requirement above is a
 refusal rather than an empty field.
 
+`routes/table/{family}` and `routes/count/protocol/{name}` hold the same
+requirement. Before 2026-10-08 both answered 200 over an engine error. The table
+asked for `show bgp rib best <family>`, which `bgp-rib` refuses because the
+family is a filter (`show bgp rib best family <family>`), and rendered the
+refusal as an empty table. The count asked for `show bgp rib count peer <name>`,
+which `bgp-rib` refuses because nothing may follow a terminal, and rendered the
+refusal as a count of 0. A count answer that carries no `count` is refused the
+same way, and is never reported as 0.
+
 The other endpoints do not hold this requirement yet. `protocols/bgp`,
-`protocols/short`, `protocols/bmp`, `routes/table/{family}` and
-`routes/count/protocol/{name}` still answer 200 over an engine error, each one
-rendering whatever its transform builds from an answer that is not one.
+`protocols/short` and `protocols/bmp` still answer 200 over an engine error,
+each one rendering whatever its transform builds from an answer that is not one.
 <!-- source: internal/component/lg/handler_api.go -- engineAnswer -->
+<!-- source: internal/component/lg/handler_api.go -- handleAPIRoutesTable, handleAPIRoutesCount -->
 
 ## 4. Response envelope
 
@@ -165,7 +174,7 @@ Every routes endpoint MUST return an array of route objects under `routes`.
 | `from_protocol` | string | The learning session. The server MUST substitute the peer address when one is known |
 | `age` | number | Seconds. MUST be present |
 | `learnt_from` | string | Peer address. MUST be present |
-| `primary` | bool | Whether this is the best path. MUST be present |
+| `primary` | bool | Whether this is the best path. MUST be present. Every row of `routes/table/{family}` is `true`, because that endpoint answers only best paths. The per-peer endpoints report `false` for every row, because the `bgp-rib` rows they read do not say which path won |
 | `bgp` | object | MUST be present, as below |
 
 ### 6.1 The `bgp` member
@@ -282,3 +291,14 @@ The engine answers the aggregates and the rows as siblings now, so
 `summaryPeers` reads `ze["peers"]` and the envelope is gone. The lesson stands:
 the fixture follows the engine, and `test/ui/lg-peer-table-flat-payload.ci`
 drives the peer table over HTTP for the same reason.
+
+The same lesson applies to the RIB. `internal/component/lg/ribfake_test.go`
+answers every `show bgp rib` command with the shape `bgp-rib` produces, and it
+refuses the spellings the plugin's parser refuses. Before 2026-10-08 the fake
+answered `show bgp rib best` with `{"routes":[...]}` whatever followed it, while
+the plugin answers under `best-path`, each row naming its winner in `best-peer`
+and nesting its attributes under `attributes`. The best-routes table was empty on
+every router and green in every test. `test/plugin/lg-best-table.ci` drives the
+real `bgp-rib` and checks the table and the count over HTTP, so it is the check
+that the fake still matches the plugin.
+<!-- source: internal/component/lg/handler_ui.go -- normalizeBestPathRows -->

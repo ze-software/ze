@@ -215,7 +215,9 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 
 	// Get the prefix-length histogram (fast, constant memory).
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib histogram peer ").Str(address).String())
+	// `histogram` is a terminal, and bgp-rib refuses anything after a terminal
+	// (parsePipelineArgs), so the peer selector comes first.
+	result := s.query(tb.Str("show bgp rib peer ").Str(address).Str(" histogram").String())
 	zeData := parseJSON(result)
 
 	totalCount := 0
@@ -742,6 +744,9 @@ func extractRoutes(ze map[string]any) []any {
 	if routes, _ := ze["prefixes"].([]any); routes != nil {
 		return normalizeRouteRows(routes, "", true)
 	}
+	if rows, _ := ze[bestPathEnvelopeKey].([]any); rows != nil {
+		return normalizeBestPathRows(rows)
+	}
 
 	// Grouped format: adj-rib-in/adj-rib-out keyed by peer. Kept for producers
 	// that still answer it; `show bgp rib` no longer does.
@@ -784,6 +789,48 @@ func normalizeRouteRows(routes []any, peer string, keepUnknown bool) []any {
 				rm["peer-address"] = own
 			}
 		}
+		unwrapRouteAttrs(rm)
+		out = append(out, rm)
+	}
+	return out
+}
+
+// The best-path answer `show bgp rib best` gives, one bestResult row per prefix
+// (internal/component/bgp/plugins/rib/rib_pipeline_best.go). The looking glass
+// cannot import the plugin, so these copy its JSON keys, and
+// test/plugin/lg-best-table.ci is the check that the copy still matches.
+const (
+	bestPathEnvelopeKey = "best-path"
+	bestPathPeerKey     = "best-peer"
+	bestPathAttrsKey    = "attributes"
+)
+
+// normalizeBestPathRows gives every best-path row the shape the route table
+// reads: its attributes lifted to the top of the row and unwrapped, its winning
+// peer as `peer-address`, and `best` set, because every row of this answer is
+// the best path for its prefix. A row field is never overwritten by an
+// attribute of the same name.
+//
+// A non-record element is skipped, because a best-path answer holds records
+// only and a route table cannot render anything else.
+func normalizeBestPathRows(rows []any) []any {
+	out := make([]any, 0, len(rows))
+	for _, r := range rows {
+		rm, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		attrs, _ := rm[bestPathAttrsKey].(map[string]any)
+		delete(rm, bestPathAttrsKey)
+		for k, v := range attrs {
+			if _, has := rm[k]; !has {
+				rm[k] = v
+			}
+		}
+		if peer, isString := rm[bestPathPeerKey].(string); isString && peer != "" {
+			rm["peer-address"] = peer
+		}
+		rm["best"] = true
 		unwrapRouteAttrs(rm)
 		out = append(out, rm)
 	}

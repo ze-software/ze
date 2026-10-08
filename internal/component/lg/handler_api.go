@@ -233,12 +233,11 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// bgp-rib's best-path walk takes the family as a filter: a bare family
+	// after `best` is an unknown keyword (parseBestPipelineArgs).
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib best ").Str(fam).String())
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+	zeData, ok := s.engineAnswer(w, tb.Str("show bgp rib best family ").Str(fam).String())
+	if !ok {
 		return
 	}
 
@@ -401,16 +400,21 @@ func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// `count` is a terminal, and bgp-rib refuses anything after a terminal
+	// (parsePipelineArgs), so the peer selector comes first.
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib count peer ").Str(name).String())
-
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+	command := tb.Str("show bgp rib peer ").Str(name).Str(" count").String()
+	zeData, ok := s.engineAnswer(w, command)
+	if !ok {
 		return
 	}
 
-	count := getNum(zeData, "count")
+	// An answer with no count is not a count of zero.
+	count, ok := numValue(zeData, "count")
+	if !ok {
+		writeJSONError(w, http.StatusBadGateway, command+": answer carries no count")
+		return
+	}
 	writeJSON(w, apiEnvelope("routes", int(count)))
 }
 

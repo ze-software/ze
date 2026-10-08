@@ -13,22 +13,32 @@ import (
 )
 
 // manyRouteDispatch returns a dispatcher whose "show bgp rib best" reply carries
-// n routes, so pagination behavior can be exercised against a realistic list.
+// n best paths, so pagination behavior can be exercised against a realistic list.
+// The rows are bgp-rib's best-path shape (fakeBestPathAnswer), and a spelling the
+// plugin refuses gets the plugin's refusal rather than the list.
 func manyRouteDispatch(n int) CommandDispatcher {
-	routes := make([]map[string]any, n)
-	for i := range routes {
-		routes[i] = map[string]any{
-			"prefix":           fmt.Sprintf("10.%d.%d.0/24", i/256, i%256),
-			"next-hop":         "10.0.0.1",
-			"origin":           "igp",
-			"as-path":          []any{float64(65001)},
-			"local-preference": float64(100),
+	rows := make([]map[string]any, n)
+	for i := range rows {
+		rows[i] = map[string]any{
+			"family":    "ipv4/unicast",
+			"prefix":    fmt.Sprintf("10.%d.%d.0/24", i/256, i%256),
+			"best-peer": "10.0.0.1",
+			"attributes": map[string]any{
+				"next-hop":         "10.0.0.1",
+				"origin":           "igp",
+				"as-path":          []any{float64(65001)},
+				"local-preference": float64(100),
+			},
 		}
 	}
-	payload, _ := json.Marshal(map[string]any{"routes": routes})
+	payload, _ := json.Marshal(map[string]any{"best-path": rows})
 	body := string(payload)
-	return func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(body)), nil
+	return func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+		answer := fakeRIBAnswer(cmd)
+		if answer == fakeBestPathAnswer {
+			answer = body
+		}
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(answer)), nil
 	}
 }
 

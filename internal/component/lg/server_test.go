@@ -40,12 +40,12 @@ func mockDispatch() CommandDispatcher {
 			out = `{"start-time":"2026-01-01T00:00:00Z","uptime":"1h0m0s"}`
 		case cmd == cmdShowReloadStatus:
 			out = `{"generation":1,"last-outcome":"applied","last-reload-at":"2026-03-01T12:00:00Z"}`
-		case strings.Contains(cmd, "show bgp rib") && strings.Contains(cmd, "count"):
-			out = `{"count":100}`
-		case strings.HasPrefix(cmd, "show bgp rib best"):
-			out = `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001],"local-preference":100}]}`
-		case strings.HasPrefix(cmd, "show bgp rib"), strings.Contains(cmd, "show bgp rib"):
-			out = `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001,65002],"local-preference":100,"med":0,"peer-address":"10.0.0.1","community":["65000:100","65001:200"],"large-community":["65000:0:100"]}]}`
+		case cmd == "show bgp rib", strings.HasPrefix(cmd, "show bgp rib "):
+			// The answers bgp-rib produces, and the spellings it refuses
+			// (ribfake_test.go).
+			out = fakeRIBAnswer(cmd)
+		case strings.HasPrefix(cmd, "show bgp rib-protocol "):
+			out = fakeRouteRowsAnswer
 		default:
 			// The daemon refuses a command it does not serve by returning an
 			// error, which is what the looking glass met on the live router
