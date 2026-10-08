@@ -313,9 +313,13 @@ rib {
 ```
 
 At 250 a static route LOSES the prefix to an eBGP route at 20, and the kernel
-forwards on the BGP next-hop. At 5 it keeps the prefix. The number applies on the
-next config apply, and it applies to main-table routes: a named-table route has
-nothing to be ranked against.
+forwards on the BGP next-hop. At 5 it keeps the prefix. The number is read when a
+static route is installed, so a route already installed keeps the distance it was
+installed with until that route's own config changes or the daemon restarts; a
+commit that changes only the distance does not re-rank it. The number applies to
+main-table routes: a named-table route has nothing to be ranked against.
+<!-- source: internal/plugins/static/locrib.go -- staticPath -->
+<!-- source: internal/plugins/static/inject.go -- applyRoutes (routesEqual skips an unchanged route) -->
 
 `show rib` reports the winner per prefix with the protocol that holds it.
 

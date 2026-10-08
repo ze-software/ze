@@ -866,6 +866,17 @@ owed by the main thread: `./le test static -a` under net-admin on a quiet host o
 the QEMU guest (`./le test qemu`), and a stress-repro of
 `static-kernel-weighted-multipath`, which timed out twice at load average 10-16.
 
+Closure run 2026-10-08 (independent reviewer, under `unshare -rn`):
+`./le test static -a` passed 16/16 in 73.7s at load average 3-9.
+`static-kernel-weighted-multipath` passed in each of 6 completed runs, 1.8s to
+8.9s, at load average 16 to 48 (one further attempt did not build: another
+session's in-progress edit to `internal/component/plugin/server/server.go`). At
+load 48 it finished in 8.9s against the 30s budget, so the fixture's startup
+budget is not wrong; the two earlier 30s timeouts are attributed to host
+contention at that moment, not to the test.
+
+Closure is STOPPED at Review Gate round 1 on an owner decision (below).
+
 ## Review Gate
 
 <!-- Filled at implementation time by /ze-review (BLOCKING before closure).
@@ -874,6 +885,21 @@ the QEMU guest (`./le test qemu`), and a stress-repro of
 ### Round 1
 | Scope | Lenses | BLOCKER | ISSUE | NOTE |
 |-------|--------|---------|-------|------|
+| `125979ea99`, `48b08b2532`, `74fdd86513`, `5828b35d10`, `1e3328ef53`, `02d9aca2ce`, emphasis on `applyRouteSet` undo and reload concurrency | logic, transaction/rollback, docs | 1 | 1 | 1 |
+
+| # | Severity | Finding | Location | Status |
+|---|----------|---------|----------|--------|
+| 1 | BLOCKER | A commit that changes only `rib { distance { static N } }` (or `connected`) does not re-rank a route already installed. The distance is read only when a Path is built (`staticPath`, connected `insertPath`); static is not delivered the `rib` root (`ConfigRoots` static, `ConfigReads` bfd, `internal/plugins/static/register.go`), and even a delivered static section skips an unchanged route (`routesEqual` in `(*routeManager).applyRoutes`, `inject.go`). The Original defect this spec exists to remove is "write `static 250`, reload cleanly, and the kernel still prefers the static route": that remains true until the route itself changes or the daemon restarts. BGP, OSPF and IS-IS share the gap through the same seam (`internal/core/rib/distance`), so the fix is a design choice: producers re-stamp on a distance change, or `locrib` ranks on the declaration and re-runs selection when it changes | `internal/plugins/static/locrib.go` `staticPath`; `internal/plugins/connected/locrib.go`; `internal/core/rib/distance` | OPEN: owner decision. `docs/guide/static-routes.md` falsely said the number "applies on the next config apply"; corrected to what the code does |
+| 2 | ISSUE | `applyRouteSet` comment said "A failed apply is undone before returning", and called `j.Rollback()` on apply error. `sdk.Journal.Record` stores the undo only after apply succeeds, so that Rollback ran nothing; and `applyRoutes` returns nil by construction (per-route isolation into `rm.skipped`) | `internal/plugins/static/register.go` `applyRouteSet` | FIXED: dead call removed, comment states the real contract. No behavior change, so no regression test is possible; `go test -race ./internal/plugins/static/` green |
+| 3 | NOTE | Rollback journals are never discarded on commit for section-apply plugins, and `config-rollback` fans out to every participant, so a transaction that fails before static's apply replays the undo of the last committed one. Cross-plugin protocol gap, not specific to this spec | `(*configTxBridge).subscribeRollback`; static and fib-kernel `OnConfigRollback` | journal row in `plan/journal/rollback-forgets-partial-apply.md` |
+
+Answers to the closure brief: a failed apply cannot leave the Loc-RIB and kernel
+disagreeing through static, because a refused route is never inserted (and a
+refused replacement withdraws the old Path, `applyRouteLocked`), and the FIB
+plugin programs only Loc-RIB winners. A netlink refusal after insert is the
+accepted R-3 split (`fib-sync-failure`). Concurrency with reload: `mu` guards
+`currentRoutes`, `rm.mu` guards the route map, and the SDK delivers apply and
+rollback serially; the defect is finding 3, not a race.
 
 ### Round 2
 | Scope | Lenses | BLOCKER | ISSUE | NOTE |

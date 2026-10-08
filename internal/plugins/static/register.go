@@ -395,8 +395,10 @@ func runStaticPlugin(conn net.Conn) int {
 // it, return to the set the previous transaction committed. current is the set
 // the plugin believes is live; each half records its own set there under mu.
 //
-// A failed apply is undone before returning, so the caller never holds a journal
-// for a set that was only partly applied.
+// applyRoutes isolates a route it cannot program (rm.skipped) and returns nil,
+// so the apply half does not fail on a bad route. Should it ever fail, Record
+// stores no undo for it, so the error returns with no journal and nothing here
+// undoes a partly applied set.
 func applyRouteSet(rm *routeManager, mu *sync.Mutex, current *[]staticRoute, oldRoutes, newRoutes []staticRoute) (*sdk.Journal, error) {
 	j := sdk.NewJournal()
 	err := j.Record(
@@ -422,7 +424,6 @@ func applyRouteSet(rm *routeManager, mu *sync.Mutex, current *[]staticRoute, old
 		},
 	)
 	if err != nil {
-		j.Rollback()
 		return nil, err
 	}
 	return j, nil
