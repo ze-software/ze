@@ -33,7 +33,7 @@ inject nothing.
   It takes LSID 0, which redistribution can never allocate because
   `v6InjectExternal` pre-increments its counter, and its key joins the
   withdrawal keep-set so an unrelated redistribution withdrawal cannot sweep it.
-  <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault, v6NSSADefaultLSID -->
+  <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA, v6NSSADefaultLSID -->
   Default injection and withdrawal validate the prefix against the engine's
   address family. IPv4 unicast and multicast accept `0.0.0.0/0` with the OSPFv3
   codec; IPv6 families accept `::/0`.

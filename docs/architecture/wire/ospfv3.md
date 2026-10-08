@@ -118,7 +118,7 @@ as a forwarding address (App A.4.7).
 The no-summary NSSA default takes the other carriage: an Inter-Area-Prefix-LSA
 (`0x2003`) for `::/0` at the area default-cost, which is the OSPFv3 equivalent of
 the Type-3 summary-LSA RFC 3101 §2.7 names.
-<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault, v6OriginateNSSALSA, v6NSSAKey -->
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA, v6NSSADefaultLSID, v6NSSAKey -->
 <!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/v3/packet/lsa_external.go -- ExternalLSA -->
 <!-- source: internal/plugins/ospf/types/lstype.go -- LSType.NSSA -->

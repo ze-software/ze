@@ -175,7 +175,7 @@ imports are not replayed.
 
 Every NSSA border router originates a default into each directly attached NSSA, in both address families and with no operator leaf to enable it (RFC 3101 §2.4). A regular NSSA gets a P-clear Type 7 default: an OSPFv2 Type 7 LSA, or the OSPFv3 NSSA-LSA (`0x2007`) that carries the P-bit in its prefix options rather than in the LSA header. A no-summary NSSA gets the default through the summary path instead, as an OSPFv2 Type 3 summary-LSA or the OSPFv3 `::/0` Inter-Area-Prefix-LSA, and gets no Type 7 default at all (RFC 3101 §2.7). In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled; a router that is not an NSSA border router installs them.
 <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
-<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault -->
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA, v6NSSADefaultLSID -->
 <!-- source: internal/plugins/ospf/spf/area_type.go -- applyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->

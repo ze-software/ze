@@ -33,7 +33,7 @@ import (
 // The OSPFv3 equivalent of that Type-3 is the Inter-Area-Prefix-LSA (RFC 5340 Section 4.4).
 //
 // RFC 3101 Section 2.7: "When summary routes are imported into the NSSA, the default LSA
-// originated by a NSSA border router into the NSSA must not be a Type-3 summary-LSA;
+// originated by an NSSA border router must not be a Type-3 summary-LSA;
 // otherwise its default route would be chosen over the potentially more preferred default
 // routes of Type-7 default LSAs." A regular NSSA therefore leaves here with no default at
 // all, and takes the Type-7 one applyNSSADefaults originates instead.

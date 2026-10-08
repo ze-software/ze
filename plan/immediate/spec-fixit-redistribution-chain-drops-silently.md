@@ -498,7 +498,7 @@ does not establish that Ze has no Type-7 implementation:
 The missing route in the recorded run therefore needs diagnosis through that
 existing producer before a new implementation prerequisite can be named.
 
-`plan/immediate/spec-ospf-rfc3101-nssa-defaults.md` owns default destinations
+`plan/immediate/spec-ospf-nssa-single-abr-producer.md` owns default destinations
 and ABR consistency, not the ordinary redistributed prefix in AC-2. It is
 not a substitute owner for this failure. This spec retains AC-2, including
 any repair its goal requires, and AC-3's separate IS-IS readiness diagnosis.

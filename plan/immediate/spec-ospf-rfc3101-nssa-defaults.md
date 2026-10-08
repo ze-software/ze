@@ -676,3 +676,172 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Landed in `e4b6455b84` (OSPFv2 half), `01f8306378` (OSPFv3 half) and `f196afd5e4`
+  (AC-5..AC-12). Closure, 2026-10-08, re-read every producer at `09b19026f5`.
+- `applyNSSADefaults` binds a per-family originate/purge pair once and applies
+  `wantsType7Default` (`internal/plugins/ospf/nssa.go`), a family-free predicate.
+- `v6ApplyAreaTypePolicy` and `applyAreaTypePolicy` inject the no-summary default as a
+  summary LSA and never for a regular NSSA (RFC3101-2.7-2, 2.7-3).
+- `v6WithdrawExternal` keeps `v6NSSAKey(router, v6NSSADefaultLSID)`.
+- `ComputeExternalWith` (`internal/plugins/ospf/spf/external.go`) drops a P-clear Type-7
+  default and every Type-7 default under suppressed import on a border router, both
+  families through `h.Type.NSSA()`.
+
+### Bugs Found/Fixed
+- Closure review: the Section 2.7 MUST NOT was misquoted ("by a NSSA border router into
+  the NSSA must not be") above `applyAreaTypePolicy`, above `v6ApplyAreaTypePolicy`, and
+  in the `rfc/short/rfc3101.md` prose, which also dropped "OSPF's" from the 2.7 SHOULD.
+  Corrected to the RFC text. Comment-only: `behaviorBytes` strips comments, so no
+  discrimination record goes stale.
+- Closure review: four doc anchors named `v6OriginateNSSADefault`, which no production
+  path calls. Repointed to `v6OriginateNSSALSA, v6NSSADefaultLSID`; the wrapper itself
+  is a row in `plan/journal/unwired-feature.md`.
+
+### Documentation Updates
+- `docs/guide/ospf.md`, `docs/architecture/ospf/ospf-11-stub-nssa.md`,
+  `docs/architecture/ospf/ospfv3-5-nssa-redist.md`, `docs/architecture/wire/ospfv3.md`:
+  source anchors repointed (closure). Everything else landed in `f196afd5e4`.
+- `./le doc check verify`: one failure, foreign (`docs/guide/graceful-restart.md`, anchor
+  `reconcileSentSourceLocked`, BGP work in another session). The anchors on these pages
+  resolve.
+
+### Deviations from Plan
+- AC-13, AC-14, the three new interop scenarios and `ospf-nssa-no-summary-default.ci`
+  moved to `plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08).
+- `TestOSPFv3NSSADefaultForwardingAddressDeterministic` was never written under that name;
+  the `externalScopeV6` parity it named is covered by
+  `TestRFC5340NSSAForwardingAddressSelectsGlobal` and
+  `TestOSPFv3NSSADefaultPBitFollowsForwardingAddress`.
+- AC-9/AC-10's `.ci` files run Go tests that resolve the `show ospf database nssa-external`
+  subview the way the RPC handler does (`dbSubviewType`, `databaseSnapshotByType`), the
+  pattern 72 of 115 OSPF `.ci` files use. Daemon-level proof for OSPFv2 is the
+  `ospf-stub-nssa-frr` interop; OSPFv3 daemon proof is `ospf-v6-nssa-abr-frr`, owned by
+  the successor spec.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Doc anchors and a tagged unit named a wrapper as the OSPFv3 default producer | production calls `v6OriginateNSSALSA` directly | closure read of `applyNSSADefaults` | anchors repointed; journal row |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| RFC 3101 NSSA default conformance, both families | Done | `internal/plugins/ospf/nssa.go` `applyNSSADefaults`, `wantsType7Default` | single-producer ABR status moved (AC-13) |
+| Tagged tests both polarities | Done | `rfc/short/rfc3101.md` rows 2.4-4, 2.4-5, 2.5-1, 2.7-2, 2.7-3 | `./le rfc check`: no rfc3101 violation |
+| Non-unit evidence for wire behaviour | Done (v4) | `ospf-stub-nssa-frr` | v6 scenarios moved |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestOSPFv3NSSABorderRouterOriginatesDefault` | `propagate = !isABR` |
+| AC-2 | Done | `TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA` | |
+| AC-3 | Done | `TestOSPFv3NSSADefaultUsesV6Producer`, `TestOSPFv3NSSAABRDefaultFunctional` | |
+| AC-4 | Done | `TestOSPFv3NSSADefaultSurvivesUnrelatedWithdrawal` | |
+| AC-5 | Done | `TestOSPFNSSAInternalDefaultExcludedByNoSummary` | both families |
+| AC-6 | Done | `TestOSPFNSSABorderRouterDefaultPBit`, `TestOSPFv3NSSABorderRouterDefaultPBit` | |
+| AC-7 | Done | same units, suppressed-import subtests | |
+| AC-8 | Done | `TestOSPFNSSANonBorderRouterInstallsPClearDefault`, v3 twin | |
+| AC-9 | Done | `TestOSPFNSSAABRDefaultFunctional` via `test/ospf/ospf-nssa-abr-default.ci` | see Deviations |
+| AC-10 | Done | `TestOSPFNSSAInternalDefaultFunctional` via `test/ospf/ospf-nssa-internal-default.ci` | |
+| AC-11 | Done | 2.7-3 row present; tags 2.4-4 (2+/1-), 2.4-5 (4+/2-), 2.5-1 (2+/4-), 2.7-2 (3+/3-), 2.7-3 (both) | |
+| AC-12 | Done | `docs/guide/ospf.md` NSSA default section; generated RFC 3101 row | |
+| AC-13, AC-14 | Moved | `plan/immediate/spec-ospf-nssa-single-abr-producer.md` | owner, 2026-10-08 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| v6 origination units (5) | Done | `internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go` | |
+| `TestOSPFNSSAInternalDefaultExcludedByNoSummary` | Done | `internal/plugins/ospf/nssa_default_test.go` | |
+| `TestOSPFv3NSSABorderRouterDefaultPBit` | Done | `internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go` | |
+| `TestOSPFNSSANonBorderRouterInstallsPClearDefault` | Done | `internal/plugins/ospf/spf/rfc3101_external_nssa_test.go` | |
+| `TestOSPFv3NSSADefaultForwardingAddressDeterministic` | Changed | see Deviations | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `nssa.go`, `origination_v6_nssa.go`, `origination_v6_stub.go`, `origination_v6_external.go`, `spf/area_type.go`, `spf/external.go` | Done | |
+| `lsdb/origination.go`, `origination_v6.go`, `spf/computer.go` | Moved | AC-13 |
+| `test/ospf/ospf-nssa-abr-default.ci`, `ospf-nssa-internal-default.ci`, `test/ospfv3/ospfv3-nssa-abr-default.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 14 AC
+- **Done:** 12
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 moved by owner decision (AC-13, AC-14)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| OSPFv2 NSSA border router originates the default with no operator gate, and FRR installs it | interop | `INTEROP_SCENARIO=ospf-stub-nssa-frr ./le test integration interop` at `09b19026f5`, 2026-10-08: `interop: 1 passed, 0 failed`. `checkNSSADefault` (`internal/le/interoplab/bgp/check_rfc.go`) requires `0.0.0.0/0` via Ze on FRR's route line |
+| OSPFv3 default is a 0x2007 NSSA-LSA and the operator sees it | functional | `TestOSPFv3NSSAABRDefaultFunctional` via `test/ospfv3/ospfv3-nssa-abr-default.ci`; daemon interop moved to the successor spec |
+| Install gates refuse disallowed defaults in both families | unit, both polarities | `TestOSPFNSSABorderRouterDefaultPBit`, `TestOSPFv3NSSABorderRouterDefaultPBit`, permissive twins; peer-driven proof moved |
+| Public ledger true as written | ledger | `./le rfc check` reports no rfc3101 violation (164 foreign violations elsewhere) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-13 single ABR producer, AC-14 backbone-flap transition | owner decision 2026-10-08 | `plan/immediate/spec-ospf-nssa-single-abr-producer.md` |
+| `ospf-v6-nssa-abr-frr`, `ospf-nssa-two-abr-frr`, `ospf-v6-nssa-two-abr-frr`, `test/ospf/ospf-nssa-no-summary-default.ci`, A-7 | owner decision 2026-10-08 | `plan/immediate/spec-ospf-nssa-single-abr-producer.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ospf-rfc3101-nssa-defaults-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` (11 files, verdict clean) |
+| `./le spec review check` | OK: 2 code files, clean, hashes match |
+| Rounds | 2 |
+| Reviewer lenses used | RFC quote fidelity against `rfc/full/rfc3101.txt`, producer reachability, fail-closed gate inputs, doc anchors, Go style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Section 2.7 MUST NOT quoted with words the RFC does not hold | `spf/area_type.go`, `origination_v6_stub.go`, `rfc/short/rfc3101.md` | quote corrected to the Section 2.7 text |
+| 2 | ISSUE | four doc anchors named a producer no production path calls | `docs/guide/ospf.md` and three architecture pages | repointed to `v6OriginateNSSALSA` |
+
+NOTEs: `v6OriginateNSSADefault` is test-only (journal row, owner's call because the
+tagged unit drives it). `Computer.Run` (`spf/computer.go`) feeds the gates
+`NSSABorderRouter: IsABR(activeAreas)` and `NSSAPolicies: areaPolicies`, so no real
+caller passes the permissive zero. Style pass: the closure diff is comments and anchors
+only; no panic, guard or allocation changed. Run 2 over the corrected files: 0 BLOCKER,
+0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ospf/ospf-nssa-abr-default.ci`, `test/ospf/ospf-nssa-internal-default.ci`, `test/ospfv3/ospfv3-nssa-abr-default.ci` | yes | `ls test/ospf test/ospfv3`, 2026-10-08 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-10 | units pass | `go test -race -run 'NSSA|AreaTypePolicy|NoSummary' ./internal/plugins/ospf/ ./internal/plugins/ospf/spf/` under `./le job run`: `ok` both packages, every named test PASS |
+| AC-11 | tags and row | `git grep "RFC requirement: RFC3101-2.7-3"`: 2 producers, 6 test sites, both polarities |
+| AC-12 | docs | `docs/guide/ospf.md` states both families with anchors that resolve |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| NSSA ABR config, `show ospf database nssa-external` | `test/ospf/ospf-nssa-abr-default.ci` | read: runs `TestOSPFNSSAABRDefaultFunctional`, which resolves `dbSubviewType[cmdShowDatabaseNSSAExternal]` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1..A-6 | confirmed | Assumption status, 2026-09-05, above |
+| A-7 | moved | carried, unvalidated, into `plan/immediate/spec-ospf-nssa-single-abr-producer.md` Risks & Assumptions with the scenarios that alone reach it |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| OSPFv3 default producer anchors | `applyNSSADefaults` closure calls `e.v6OriginateNSSALSA(area, self, v6NSSADefaultLSID, ...)` | yes |
+| RFC 3101 Section 2.7 quotes | `rfc/full/rfc3101.txt`, Section 2.7 | yes |

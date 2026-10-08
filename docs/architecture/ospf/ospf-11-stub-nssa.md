@@ -30,7 +30,7 @@ and Type 7 to Type 5 translation.
   the OSPFv2 producer is what let an OSPFv3 ABR originate an OSPFv2-keyed Type 7
   into a shared LSDB, which a conforming peer reads at link-local scope.
   <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
-  <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault -->
+  <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA, v6NSSADefaultLSID -->
 - **The two install-side gates are address-family neutral by construction.**
   A border router refuses a received Type 7 default whose P-bit is clear
   (Section 2.4) and every Type 7 default while it suppresses summary import

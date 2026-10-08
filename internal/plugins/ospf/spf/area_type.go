@@ -31,7 +31,7 @@ func (p AreaSummaryPolicy) isStubOrNSSA() bool {
 // originated by an NSSA border router into the NSSA should be a Type-3 summary-LSA."
 //
 // RFC 3101 Section 2.7: "When summary routes are imported into the NSSA, the default LSA
-// originated by a NSSA border router into the NSSA must not be a Type-3 summary-LSA;
+// originated by an NSSA border router must not be a Type-3 summary-LSA;
 // otherwise its default route would be chosen over the potentially more preferred default
 // routes of Type-7 default LSAs." So a regular NSSA leaves here with no default of its own.
 func applyAreaTypePolicy(desired []summaryDesired, p AreaSummaryPolicy) []summaryDesired {

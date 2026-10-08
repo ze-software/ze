@@ -13,9 +13,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Split out of `plan/immediate/spec-ospf-rfc3101-nssa-defaults.md` by the owner on
-2026-10-08. The parent keeps AC-1 through AC-12, which are implemented, and closes
-on them.
+Split out of `spec-ospf-rfc3101-nssa-defaults` by the owner on 2026-10-08. The
+parent kept AC-1 through AC-12, which are implemented, and closed on them the same
+day; its record is in git history.
 
 -> Decision (owner, 2026-10-08): AC-13/AC-14 (single ABR default producer), the three missing interop scenarios and `test/ospf/ospf-nssa-no-summary-default.ci` move out of `spec-ospf-rfc3101-nssa-defaults` into this spec.
 
@@ -39,7 +39,7 @@ parent's claims; the design phase re-reads each producer.
 
 ## Acceptance Criteria
 
-Moved verbatim from `plan/immediate/spec-ospf-rfc3101-nssa-defaults.md`:
+Moved verbatim from `spec-ospf-rfc3101-nssa-defaults`:
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
@@ -82,6 +82,13 @@ Moved verbatim from `plan/immediate/spec-ospf-rfc3101-nssa-defaults.md`:
 ## Risks & Assumptions
 
 [written at design time]
+
+Carried from `spec-ospf-rfc3101-nssa-defaults` at its closure (2026-10-08), unvalidated,
+because only the interop scenarios this spec now owns can reach it:
+
+| ID | Assumption | Basis | If wrong | Validated by | Status |
+|----|-----------|-------|----------|--------------|--------|
+| A-7 | An FRR ABR's Type-7 default is P-clear, so it is exactly the LSA RFC3101-2.4-4 requires Ze to refuse | RFC 3101 Section 2.4: "The Type-7 default LSA originated by an NSSA border router must have the P-bit clear." FRR is presumed conformant | The negative direction of the install gate needs an injected P-clear default rather than a peer-originated one | `ospf-nssa-two-abr-frr` and its v6 twin assert the received LSA's P-bit before asserting Ze refuses it | unvalidated |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
