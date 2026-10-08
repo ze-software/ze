@@ -9,11 +9,11 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4090-3.2-1": {
-      "note": "TestLocalRepairSwitchesFIB asserts the exact backup stack [5000 bypass, 18000 MP label]; negative TestLocalRepairFallsBackToTeardown programs no stacked swap without a usable bypass. The quoted Section 3.2 sentence is descriptive ('will be switched') and carries no RFC 2119 keyword, although the row is [MUST]",
+      "note": "TestLocalRepairSwitchesFIB asserts the exact backup stack [5000 bypass, 18000 MP label]; negative TestLocalRepairFallsBackToTeardown programs no stacked swap without a usable bypass. The quoted Section 3.2 sentence is descriptive ('will be switched') and carries no RFC 2119 keyword, although the row is [MUST] Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 3.2 and the enforced verdict holds unchanged.",
       "requirement_sha": "0fe5fef4622f6b24",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSwitchesFIB": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSwitchesFIB": "9e1595a34e264d7e"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "8333e42c422f9185",
@@ -22,11 +22,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.1-1": {
-      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090FastRerouteClassAndCTypeLiterals compares the encoded header with the literals 24/205/1 over a 0xFF buffer and decodes a raw 205/1 object as FAST_REROUTE; TestRFC4090FastRerouteOtherCTypeNotRecognized reads 205/2 as an unknown C-Type, not FAST_REROUTE.",
+      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090FastRerouteClassAndCTypeLiterals compares the encoded header with the literals 24/205/1 over a 0xFF buffer and decodes a raw 205/1 object as FAST_REROUTE; TestRFC4090FastRerouteOtherCTypeNotRecognized reads 205/2 as an unknown C-Type, not FAST_REROUTE. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.1 and the enforced verdict holds unchanged.",
       "requirement_sha": "c6d707821c4fef27",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestEncodeDecodeFastReroute": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody": "52858b98606905a5",
+        "internal/plugins/rsvpte/frr_test.go::TestEncodeDecodeFastReroute": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody": "9e1595a34e264d7e",
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteClassAndCTypeLiterals": "8cea1a3ca4572fd1",
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteOtherCTypeNotRecognized": "8cea1a3ca4572fd1"
       },
@@ -39,11 +39,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.1-2": {
-      "note": "Rejudged 2026-09-29 (routing child). Both clauses on the built PATH: TestRFC4090OneToOneRequestInPath (FAST_REROUTE present, 0x01 set) and TestBuildPathIncludesFastReroute for facility; TestRFC4090RequestNeverNamesOtherMethod shows each request leaves the other method's flag clear and the facility request sets 0x02.",
+      "note": "Rejudged 2026-09-29 (routing child). Both clauses on the built PATH: TestRFC4090OneToOneRequestInPath (FAST_REROUTE present, 0x01 set) and TestBuildPathIncludesFastReroute for facility; TestRFC4090RequestNeverNamesOtherMethod shows each request leaves the other method's flag clear and the facility request sets 0x02. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
       "requirement_sha": "5187a2282474adb8",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag": "52858b98606905a5",
+        "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag": "9e1595a34e264d7e",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090OneToOneRequestInPath": "8d4223b7e1a9680f",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RequestNeverNamesOtherMethod": "8d4223b7e1a9680f"
       },
@@ -56,11 +56,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.1-3": {
-      "note": "a transit relays the received FAST_REROUTE unchanged field for field, and inserts none when the head-end sent only the SESSION_ATTRIBUTE flag",
+      "note": "a transit relays the received FAST_REROUTE unchanged field for field, and inserts none when the head-end sent only the SESSION_ATTRIBUTE flag Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.1 and the enforced verdict holds unchanged.",
       "requirement_sha": "13c42ea4fb62815e",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitRelaysFastRerouteUnchanged": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitRelaysFastRerouteUnchanged": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "f6efa52232f3e5fd",
@@ -69,11 +69,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.2-1": {
-      "note": "a PATH with a DETOUR object is rejected: PathErr to the PLR, no RESV, no LSP state; the same PATH without DETOUR is accepted",
+      "note": "a PATH with a DETOUR object is rejected: PathErr to the PLR, no RESV, no LSP state; the same PATH without DETOUR is accepted Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.2 and the enforced verdict holds unchanged.",
       "requirement_sha": "526e182df421fc1e",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected#2": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected#2": "9e1595a34e264d7e"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected": "ca0803c77fa60525",
@@ -82,11 +82,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.2-2": {
-      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: a PATH with DETOUR (Class-Num 63, C-Type 7) draws a PathErr to the PLR with code 13 and value 0x3f07 and no path state. Negative: C-Type 8 is still answered as unknown class (13, 0x3f08), not unknown C-Type (14).",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: a PATH with DETOUR (Class-Num 63, C-Type 7) draws a PathErr to the PLR with code 13 and value 0x3f07 and no path state. Negative: C-Type 8 is still answered as unknown class (13, 0x3f08), not unknown C-Type (14). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.2 and the enforced verdict holds unchanged.",
       "requirement_sha": "5e6f3807dc306735",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourOtherCTypeStillUnknownClass": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourPathErrAsUnknownClass": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourOtherCTypeStillUnknownClass": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourPathErrAsUnknownClass": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourOtherCTypeStillUnknownClass": "7a48c40d27e5360b",
@@ -95,11 +95,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.3-1": {
-      "note": "a protection-desired head-end PATH carries SESSION_ATTRIBUTE with 0x01 and FAST_REROUTE; negative is an unprotected PSB emitting neither (a conditioned-off input, not a violation)",
+      "note": "a protection-desired head-end PATH carries SESSION_ATTRIBUTE with 0x01 and FAST_REROUTE; negative is an unprotected PSB emitting neither (a conditioned-off input, not a violation) Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
       "requirement_sha": "bd0100b8e8cb3af3",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestBuildPathNoProtection": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestBuildPathNoProtection": "9e1595a34e264d7e"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "8afb37c101daf9db",
@@ -108,12 +108,12 @@
       "verdict": "enforced"
     },
     "RFC4090-4.3-2": {
-      "note": "Rejudged 2026-09-29 (routing child). The 'otherwise cleared' clause is now driven through buildPath: TestRFC4090NodeDesiredClearedWhenNotDesired builds a protected PATH without node protection and reads SESSION_ATTRIBUTE 0x01 set, 0x10 clear. The set clause stays proven on the built PATH.",
+      "note": "Rejudged 2026-09-29 (routing child). The 'otherwise cleared' clause is now driven through buildPath: TestRFC4090NodeDesiredClearedWhenNotDesired builds a protected PATH without node protection and reads SESSION_ATTRIBUTE 0x01 set, 0x10 clear. The set clause stays proven on the built PATH. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
       "requirement_sha": "a82ed308ec17af1d",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeEmptyName": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags": "52858b98606905a5",
+        "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeEmptyName": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags": "9e1595a34e264d7e",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired": "8d4223b7e1a9680f"
       },
       "units": {
@@ -125,11 +125,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.4-1": {
-      "note": "full engine: armed bypass brought up, relayed RESV RRO subobject carries 0x01; negative is an unprotected LSP with zero flags",
+      "note": "full engine: armed bypass brought up, relayed RESV RRO subobject carries 0x01; negative is an unprotected LSP with zero flags Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
       "requirement_sha": "3d45fbb31eee1582",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestPLRArmsBypass": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestPLRNoBypassWithoutProtection": "52858b98606905a5"
+        "internal/plugins/rsvpte/frr_test.go::TestPLRArmsBypass": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestPLRNoBypassWithoutProtection": "9e1595a34e264d7e"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestPLRArmsBypass": "99a3872771b5e185",
@@ -138,11 +138,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.4-2": {
-      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090RepairSetsInUseAndAvailable drives handleLinkDown onto the bypass, then sendResv from the stored state, and reads the PLR's own RRO subobject with both 0x01 and 0x02 set; the fixture asserts in-use was clear before repair. Existing negative keeps in-use clear while no repair happened.",
+      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090RepairSetsInUseAndAvailable drives handleLinkDown onto the bypass, then sendResv from the stored state, and reads the PLR's own RRO subobject with both 0x01 and 0x02 set; the fixture asserts in-use was clear before repair. Existing negative keeps in-use clear while no repair happened. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.5 and the enforced verdict holds unchanged.",
       "requirement_sha": "2981612b4e5351ad",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "52858b98606905a5",
+        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "9e1595a34e264d7e",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RepairSetsInUseAndAvailable": "8d4223b7e1a9680f"
       },
       "units": {
@@ -153,11 +153,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.4-3": {
-      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtectionProvided: node request with an NNHOP bypass armed relays 0x08. Negative TestRFC4090NodeBitClearWhenNodeProtectionNotProvided: node request with only an NHOP bypass up relays 0x08 clear; its record breaks selectBypass, the guard that keeps rroProtectionFlags (which reads the request bit) from claiming node protection over a link bypass.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtectionProvided: node request with an NNHOP bypass armed relays 0x08. Negative TestRFC4090NodeBitClearWhenNodeProtectionNotProvided: node request with only an NHOP bypass up relays 0x08 clear; its record breaks selectBypass, the guard that keeps rroProtectionFlags (which reads the request bit) from claiming node protection over a link bypass. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.",
       "requirement_sha": "0f887a40579fd314",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "52858b98606905a5",
+        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "9e1595a34e264d7e",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitClearWhenNodeProtectionNotProvided": "8d4223b7e1a9680f",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitSetWhenNodeProtectionProvided": "8d4223b7e1a9680f"
       },
@@ -170,11 +170,11 @@
       "verdict": "enforced"
     },
     "RFC4090-4.4-6": {
-      "note": "Judged 2026-09-29 (routing child, continuation judge). Genuine negative TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair: bandwidth desired, FAST_REROUTE bandwidth, a downstream subobject claiming 0x04 and an armed unguaranteed bypass; the PLR's own subobject keeps 0x04 clear before and during local repair. The positive TestRFC4090BandwidthBitNeverClaimed is the conforming report (0x01 only). No input can guarantee bandwidth (RFC4090-4.4-5 gap).",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Genuine negative TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair: bandwidth desired, FAST_REROUTE bandwidth, a downstream subobject claiming 0x04 and an armed unguaranteed bypass; the PLR's own subobject keeps 0x04 clear before and during local repair. The positive TestRFC4090BandwidthBitNeverClaimed is the conforming report (0x01 only). No input can guarantee bandwidth (RFC4090-4.4-5 gap). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.",
       "requirement_sha": "cd0a157566eca1db",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed#2": "7035a090dd33d433",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed#2": "3fb9184431da8daf",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair": "8d4223b7e1a9680f"
       },
       "units": {
@@ -185,10 +185,10 @@
       "verdict": "enforced"
     },
     "RFC4090-4.4-7": {
-      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtected; negative TestRFC4090LinkProtectionLeavesNodeBitClear (link request, NHOP bypass up: 0x01 set, 0x08 clear), which is the row's link-only case. The vacuous tag on TestRFC4090NodeBitClearWithoutNodeBypass is removed. A node request never falls back to a link bypass in Ze (spec-rsvpte-frr-link-protection-fallback).",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtected; negative TestRFC4090LinkProtectionLeavesNodeBitClear (link request, NHOP bypass up: 0x01 set, 0x08 clear), which is the row's link-only case. The vacuous tag on TestRFC4090NodeBitClearWithoutNodeBypass is removed. A node request never falls back to a link bypass in Ze (spec-rsvpte-frr-link-protection-fallback). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.",
       "requirement_sha": "228f32dd78733703",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "7035a090dd33d433",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "3fb9184431da8daf",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear": "8d4223b7e1a9680f"
       },
       "units": {
@@ -198,11 +198,11 @@
       "verdict": "enforced"
     },
     "RFC4090-5-1": {
-      "note": "head-end refresh PATH carries the stored FAST_REROUTE field for field; a tunnel with no protection refreshes none",
+      "note": "head-end refresh PATH carries the stored FAST_REROUTE field for field; a tunnel with no protection refreshes none Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
       "requirement_sha": "63dc1ee79357ebf7",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRefreshWithoutProtection": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndStoresFastRerouteForRefresh": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRefreshWithoutProtection": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndStoresFastRerouteForRefresh": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRefreshWithoutProtection": "cceae5dc0c055d3f",
@@ -211,11 +211,11 @@
       "verdict": "enforced"
     },
     "RFC4090-5-2": {
-      "note": "protected tunnel's PATH SESSION_ATTRIBUTE has label recording desired set (SessAttrLabelRecording = 0x02); negative is an unprotected tunnel emitting no SESSION_ATTRIBUTE, a conditioned-off input. Tag prose on TestRFC4090HeadEndSetsLabelRecordingDesired says 0x04, which is the SE Style flag",
+      "note": "protected tunnel's PATH SESSION_ATTRIBUTE has label recording desired set (SessAttrLabelRecording = 0x02); negative is an unprotected tunnel emitting no SESSION_ATTRIBUTE, a conditioned-off input. Tag prose on TestRFC4090HeadEndSetsLabelRecordingDesired says 0x04, which is the SE Style flag Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
       "requirement_sha": "4884ab1a9025906d",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndSetsLabelRecordingDesired": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090UnprotectedPathRequestsNoLabelRecording": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndSetsLabelRecordingDesired": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090UnprotectedPathRequestsNoLabelRecording": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndSetsLabelRecordingDesired": "b1bc87a366bd88c1",
@@ -224,11 +224,11 @@
       "verdict": "enforced"
     },
     "RFC4090-5-3": {
-      "note": "head-end accepts a RESV whose RRO subobject carries all four flags (0x0F) or none, LSP goes Up and flags stored as received",
+      "note": "head-end accepts a RESV whose RRO subobject carries all four flags (0x0F) or none, LSP goes Up and flags stored as received Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
       "requirement_sha": "513905d98b5057b3",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags#2": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags#2": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags": "009ec2a6e7fe38e0",
@@ -237,11 +237,11 @@
       "verdict": "enforced"
     },
     "RFC4090-5-4": {
-      "note": "head-end accepts an RRO with Label subobjects and resolves the recorded label; no label recorded resolves none",
+      "note": "head-end accepts an RRO with Label subobjects and resolves the recorded label; no label recorded resolves none Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
       "requirement_sha": "1e6216c1bb8e3b8c",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject#2": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject#2": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject": "156746218e0484f8",
@@ -250,11 +250,11 @@
       "verdict": "enforced"
     },
     "RFC4090-6-1": {
-      "note": "transit on a protected LSP arms the NHOP bypass; the egress arms none and reports no flag. Umbrella row: the specific PLR behaviours carry their own rows",
+      "note": "transit on a protected LSP arms the NHOP bypass; the egress arms none and reports no flag. Umbrella row: the specific PLR behaviours carry their own rows Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
       "requirement_sha": "fccc13d8dc217755",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090EgressDoesNotActAsPLR": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090EgressDoesNotActAsPLR": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090EgressDoesNotActAsPLR": "8faa86559820b764",
@@ -263,12 +263,12 @@
       "verdict": "enforced"
     },
     "RFC4090-6-2": {
-      "note": "flag-only and FAST_REROUTE-only PATHs are both protection requests that arm a bypass; flag clear and no FAST_REROUTE stores nothing",
+      "note": "flag-only and FAST_REROUTE-only PATHs are both protection requests that arm a bypass; flag clear and no FAST_REROUTE stores nothing Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
       "requirement_sha": "451842847d5b724d",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NoProtectionRequestArmsNothing": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NoProtectionRequestArmsNothing": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "8ee7403145c7f6e0",
@@ -278,11 +278,11 @@
       "verdict": "enforced"
     },
     "RFC4090-6-3": {
-      "note": "armed bypass not yet up: relayed RRO subobject flags are 0; once up, 0x01 set",
+      "note": "armed bypass not yet up: relayed RRO subobject flags are 0; once up, 0x01 set Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
       "requirement_sha": "43a434c9f2cd2a4a",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished": "dd116823db656093"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished": "63fe630e7c2d0f12"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished": "76fb6843dd3c5c4b",
@@ -291,12 +291,12 @@
       "verdict": "enforced"
     },
     "RFC4090-6-4": {
-      "note": "bypass not established: 0x01 clear; established: set; bypass goes Down: next RESV refresh clears it",
+      "note": "bypass not established: 0x01 clear; established: set; bypass goes Down: next RESV refresh clears it Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
       "requirement_sha": "4e00e74505bd7ffa",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090RefreshTracksBypassState": "dd116823db656093"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090RefreshTracksBypassState": "63fe630e7c2d0f12"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished": "76fb6843dd3c5c4b",
@@ -306,11 +306,11 @@
       "verdict": "enforced"
     },
     "RFC4090-6-5": {
-      "note": "in-use bit clear on the relayed RESV while armed and up, set only after link failure redirected traffic",
+      "note": "in-use bit clear on the relayed RESV while armed and up, set only after link failure redirected traffic Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
       "requirement_sha": "4fcb307aadde9a38",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting#2": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting#2": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting": "a355e00f5e171f3c",
@@ -319,11 +319,11 @@
       "verdict": "enforced"
     },
     "RFC4090-6-6": {
-      "note": "Judged 2026-09-29 (routing child, continuation judge). Unchanged judgement; TestRFC4090NodeBitClearWithoutNodeBypass lost only its RFC4090-4.4-7 tag. The set half is proven; the clear half still runs with no backup path armed, because selectBypass refuses an NHOP bypass for a node request, so no unit shows a backup path that does not protect the next node with the node bit cleared. Blocked by spec-rsvpte-frr-link-protection-fallback.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Unchanged judgement; TestRFC4090NodeBitClearWithoutNodeBypass lost only its RFC4090-4.4-7 tag. The set half is proven; the clear half still runs with no backup path armed, because selectBypass refuses an NHOP bypass for a node request, so no unit shows a backup path that does not protect the next node with the node bit cleared. Blocked by spec-rsvpte-frr-link-protection-fallback. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the weak verdict holds unchanged.",
       "requirement_sha": "af2cdee51c19ed65",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitClearWithoutNodeBypass": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitClearWithoutNodeBypass": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitClearWithoutNodeBypass": "fd19aa37c47a75dc",
@@ -332,11 +332,11 @@
       "verdict": "weak"
     },
     "RFC4090-6-7": {
-      "note": "Judged 2026-09-29 (routing child, continuation judge). Row narrowed to the clear clause and its MUST condition; the set clause is RFC4090-6-8 {gap}. With bandwidth desired and a backup that guarantees no bandwidth, the bit is clear: TestRFC4090BandwidthBitNeverClaimed, and TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair pushes every input toward setting it (request, downstream claim, repair). TestRFC4090BandwidthDesiredWithoutBackup is a second conforming case.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). Row narrowed to the clear clause and its MUST condition; the set clause is RFC4090-6-8 {gap}. With bandwidth desired and a backup that guarantees no bandwidth, the bit is clear: TestRFC4090BandwidthBitNeverClaimed, and TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair pushes every input toward setting it (request, downstream claim, repair). TestRFC4090BandwidthDesiredWithoutBackup is a second conforming case. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
       "requirement_sha": "4769a41a5bd6554f",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthDesiredWithoutBackup": "7035a090dd33d433",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthDesiredWithoutBackup": "3fb9184431da8daf",
         "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair": "8d4223b7e1a9680f"
       },
       "units": {
@@ -347,11 +347,11 @@
       "verdict": "enforced"
     },
     "RFC4090-6.1-1": {
-      "note": "head-end PLR signals the backup PATH from the distinct local address 10.0.1.2, not its SENDER_TEMPLATE address; with no alternate address no backup identity is signaled",
+      "note": "head-end PLR signals the backup PATH from the distinct local address 10.0.1.2, not its SENDER_TEMPLATE address; with no alternate address no backup identity is signaled Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.1, 6.1.1 and the enforced verdict holds unchanged.",
       "requirement_sha": "9f5071d6776bc595",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndRequiresAlternateSender": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndUsesDistinctSender": "dd116823db656093"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndRequiresAlternateSender": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndUsesDistinctSender": "63fe630e7c2d0f12"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndRequiresAlternateSender": "bfa4e9961da57461",
@@ -360,11 +360,11 @@
       "verdict": "enforced"
     },
     "RFC4090-6.2-1": {
-      "note": "bypass PATH SESSION tunnel endpoint and IP destination are the configured merge point; a bypass to another MP is not selected",
+      "note": "bypass PATH SESSION tunnel endpoint and IP destination are the configured merge point; a bypass to another MP is not selected Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.2 and the enforced verdict holds unchanged.",
       "requirement_sha": "48006cdc7c09f308",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint#2": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint#2": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint": "0fb4dfee12575095",
@@ -412,11 +412,11 @@
       "verdict": "enforced"
     },
     "RFC4090-6.4.3-1": {
-      "note": "Judged 2026-09-29 (routing child, continuation judge). TestRFC4090FailureSwitchesToBackup: a failure on the protected link reprograms the protected in-label to the bypass next hop under the bypass label; a failure on an unrelated link programs no backup. Both polarities sit in one unit on separate assertions; the revert record reds through the positive half only.",
+      "note": "Judged 2026-09-29 (routing child, continuation judge). TestRFC4090FailureSwitchesToBackup: a failure on the protected link reprograms the protected in-label to the bypass next hop under the bypass label; a failure on an unrelated link programs no backup. Both polarities sit in one unit on separate assertions; the revert record reds through the positive half only. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.4.3 and the enforced verdict holds unchanged.",
       "requirement_sha": "665ba70dcbea2085",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup#2": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup#2": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup": "14c8b267fd5daa28",
@@ -425,11 +425,11 @@
       "verdict": "enforced"
     },
     "RFC4090-6.5-1": {
-      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090LocalRepairNotifyLiterals compares the PathErr sent toward the head-end after handleLinkDown with the literals 25 and 0x0003, not the constants. Negative: an unrepairable failure sends code 24, not a Notify.",
+      "note": "Rejudged 2026-09-29 (routing child). TestRFC4090LocalRepairNotifyLiterals compares the PathErr sent toward the head-end after handleLinkDown with the literals 25 and 0x0003, not the constants. Negative: an unrepairable failure sends code 24, not a Notify. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.5.1 and the enforced verdict holds unchanged.",
       "requirement_sha": "124f09fcad10d93d",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "52858b98606905a5",
-        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify": "52858b98606905a5",
+        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "9e1595a34e264d7e",
+        "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify": "9e1595a34e264d7e",
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090LocalRepairNotifyLiterals": "8cea1a3ca4572fd1"
       },
       "units": {
@@ -492,11 +492,11 @@
       "verdict": "enforced"
     },
     "RFC4090-7.2-1": {
-      "note": "downstream LSR keeps PSB and RSB on upstream link failure and sends no PathTear/PathErr/ResvErr; as PLR with no bypass it tears down",
+      "note": "downstream LSR keeps PSB and RSB on upstream link failure and sends no PathTear/PathErr/ResvErr; as PLR with no bypass it tears down Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 7.2 and the enforced verdict holds unchanged.",
       "requirement_sha": "08b84e3ff70e3df2",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure#2": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure#2": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure": "046b8d88625d7bb6",
@@ -505,11 +505,11 @@
       "verdict": "enforced"
     },
     "RFC4090-7.2-2": {
-      "note": "cleanupTick removes the LSP whose PATH is older than period x multiplier and keeps a refreshed one",
+      "note": "cleanupTick removes the LSP whose PATH is older than period x multiplier and keeps a refreshed one Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 7.2 and the enforced verdict holds unchanged.",
       "requirement_sha": "2f3040ebf2d16f4e",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh#2": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh#2": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh": "df0ad7fc6fac38b6",
