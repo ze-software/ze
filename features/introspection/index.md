@@ -32,7 +32,7 @@ unregistered access (`env.MustRegister()`).
 | `ze help command [filter]` | Full command catalog, filterable, with descriptions |
 | `ze help command --json` | Command catalog as JSON (for wiki generation, tooling) |
 | `ze help ai` | Machine-readable command reference generated from live binary |
-| `ze help ai api` | Daemon API endpoints (`ze-show:*`, `ze-set:*`, ...) with parameters |
+| `ze help ai api` | Daemon API endpoints (`ze-bgp:*`, `ze-iface:*`, ...) with parameters |
 
 An in-tree plugin's declarations are in reach of both catalogs. `ze help command
 --json` and `./le cli list` read the compiled command tree in their own

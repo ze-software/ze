@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 7.7% | 2 of 26 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 26 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 26 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 50.0% | 17 of 34 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 32.4% | 11 of 34 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -397,11 +397,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC7752MalformedTLVNotPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L101) | unit/verify | unproven |
-| negative | [`TestRFC7752AttributeLengthSumsOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L97) | unit/verify | revert, verified |
-| negative | [`TestRFC7752LinkStateLengthSumsOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L26) | unit/verify | revert, verified |
+| negative | [`TestRFC7752AttributeLengthSumsOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L97) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7752LinkStateLengthSumsOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L26) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7752AttrSyntacticChecks`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L133) | unit/verify | unproven |
-| positive | [`TestRFC7752AttributeLengthSumsOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L96) | unit/verify | revert, verified |
-| positive | [`TestRFC7752LinkStateLengthSumsOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L25) | unit/verify | revert, verified |
+| positive | [`TestRFC7752AttributeLengthSumsOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L96) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7752LinkStateLengthSumsOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L25) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7752-6.2.6-1`](#rfc7752-6.2.6-1)
 
@@ -441,9 +441,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC7752NonLinkStateFamilyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L265) | unit/verify | unproven |
-| negative | [`TestRFC7752VPNFamilyReachesMPReach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_vpn_family_test.go#L19) | unit/verify | revert, verified |
+| negative | [`TestRFC7752VPNFamilyReachesMPReach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_vpn_family_test.go#L19) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7752VPNFamilyIsAFI16388SAFI72`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L246) | unit/verify | unproven |
-| positive | [`TestRFC7752VPNFamilyReachesMPReach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_vpn_family_test.go#L18) | unit/verify | revert, verified |
+| positive | [`TestRFC7752VPNFamilyReachesMPReach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_vpn_family_test.go#L18) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7752-3.3.2.7-1`](#rfc7752-3.3.2.7-1)
 

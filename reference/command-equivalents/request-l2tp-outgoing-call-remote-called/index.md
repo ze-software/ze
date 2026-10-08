@@ -7,7 +7,7 @@ Place an LNS\-side outgoing call \(RFC 2661 S10\.4\)\.
 - Registry path: `request l2tp outgoing-call remote called`
 - Usage: `request l2tp outgoing-call remote <remote> called <called>`
 - Mode: Daemon
-- Wire method: `ze-l2tp-api:outgoing-call`
+- Wire method: `ze-l2tp:outgoing-call`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

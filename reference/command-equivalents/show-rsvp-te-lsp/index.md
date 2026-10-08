@@ -7,7 +7,7 @@ Show RSVP\-TE label\-switched paths\.
 - Registry path: `show rsvp-te lsp`
 - Usage: `show rsvp-te lsp`
 - Mode: Read-only
-- Wire method: `ze-show:rsvp-te-lsp`
+- Wire method: `ze-rsvpte:show-rsvp-te-lsp`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

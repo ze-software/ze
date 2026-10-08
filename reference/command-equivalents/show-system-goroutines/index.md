@@ -7,7 +7,7 @@ Dump goroutine stacks for debugging hangs or deadlocks\.
 - Registry path: `show system goroutines`
 - Usage: `show system goroutines [mode <summary\|blocked\|full>]`
 - Mode: Read-only
-- Wire method: `ze-show:system-goroutines`
+- Wire method: `ze-cmd:show-system-goroutines`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show what CPUs are in this box\.
 - Registry path: `show host cpu`
 - Usage: `show host cpu`
 - Mode: Read-only
-- Wire method: `ze-show:host-cpu`
+- Wire method: `ze-host:show-cpu`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

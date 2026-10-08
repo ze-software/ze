@@ -7,7 +7,7 @@ Show only AS\-scope \(S2\/S1 \= 10\) LSAs\.
 - Registry path: `show ospf ipv6 database scope as`
 - Usage: `show ospf ipv6 database scope as`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database-scope-as`
+- Wire method: `ze-ospf:show-ospfv3-database-scope-as`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

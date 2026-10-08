@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc8538.md` |
 | Requirement shard | no requirement declared, so no shard is generated |
-| RFC text | this checkout does not carry the RFC's own text |
+| RFC text | `rfc/full/rfc8538.txt` |
 
 ## Enrolment
 

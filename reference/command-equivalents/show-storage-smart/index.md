@@ -7,7 +7,7 @@ Show disk health via SMART data\.
 - Registry path: `show storage smart`
 - Usage: `show storage smart`
 - Mode: Read-only
-- Wire method: `ze-show:storage-smart`
+- Wire method: `ze-storage:show-smart`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

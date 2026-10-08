@@ -7,7 +7,7 @@ Signal that per\-peer plugin setup is complete\.
 - Registry path: `request peer plugin session ready`
 - Usage: `request peer <selector> plugin session <session> ready`
 - Mode: Daemon
-- Wire method: `ze-plugin:session-peer-ready`
+- Wire method: `ze-bgp:plugin-session-peer-ready`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

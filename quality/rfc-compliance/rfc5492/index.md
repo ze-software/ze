@@ -1,6 +1,6 @@
 # RFC 5492 - Capabilities Advertisement with BGP-4
 
-Supported. Every requirement this repository extracted from RFC 5492, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 5492, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 54.5% | 12 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 73.1% | 19 of 26 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -52,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 16 |
 | Gated MUST-level | 9 |
@@ -61,10 +61,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 22 |
-| Tagged units | 22 |
+| Test tags | 26 |
+| Tagged units | 26 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 12 |
+| Discrimination records | 19 |
 | Summary | `rfc/short/rfc5492.md` |
 | Requirement shard | `rfc/requirements/rfc5492.md` |
 | RFC text | `rfc/full/rfc5492.txt` |
@@ -75,15 +75,17 @@ Enrolled: BGP Capabilities Advertisement: nine MUST-level requirements. 3-1 (Uns
 
 ## What the public ledger says
 
-**Status:** Supported
+**Status:** Partial
 
 **What the ledger says is covered:**
 
-Capability TLV parser, encoder, unknown-capability ignore behavior, negotiated session view.
+- Capability TLV parser, encoder, unknown-capability ignore behavior, negotiated session view
+- complete Unsupported Capability values and repeated ADD-PATH grouping exercised through both OPEN processing paths.
 
-**What the ledger says remains:**
 
-No tracked gap in current source anchors.
+**What the ledger says remains**
+
+The earlier Supported/no-tracked-gap claim did not establish complete NOTIFICATION values. The serializer defects are repaired and tested; refreshed discrimination records and independent judgment of the restored whole [`RFC5492-5-1`](#rfc5492-5-1) row remain pending.
 
 ## Coverage
 
@@ -106,8 +108,8 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5492-3-1` | The message MUST contain the capability or capabilities that cause the speaker to send the message. (§3) | MUST | 3 - Overview of Operations | **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L359). **positive:** `unit/verify` [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L61). **negative:** `unit/verify` [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L62). **negative:** `unit/verify` [`TestSessionAcceptsRequiredCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1326) |
-| `RFC5492-5-1` | The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. (§5) | MUST | 5 - Extensions to Error Handling | **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1174). **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes_MultipleCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L389). **positive:** `unit/verify` [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L63). **negative:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes_Empty`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L411). **negative:** `unit/verify` [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L64) |
+| `RFC5492-3-1` | The message MUST contain the capability or capabilities that cause the speaker to send the message. (§3) | MUST | 3 - Overview of Operations | **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L359). **positive:** `unit/verify` [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L61). **negative:** `unit/verify` [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L62). **negative:** `unit/verify` [`TestSessionAcceptsRequiredCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1327) |
+| `RFC5492-5-1` | The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. Each such capability is encoded in the same way as it would be encoded in the OPEN message. (§5) | MUST | 5 - Extensions to Error Handling | **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1173). **positive:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes_MultipleCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L389). **positive:** `unit/verify` [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L63). **positive:** `unit/verify` [`TestUnsupportedAddPathNotificationPreservesFamilyTuples`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L315). **positive:** `unit/verify` [`TestUnsupportedCapabilityNotificationPreservesOpenTuples`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L226). **negative:** `unit/verify` [`TestBuildUnsupportedCapabilityDataCodes_Empty`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L413). **negative:** `unit/verify` [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L64). **negative:** `unit/verify` [`TestUnsupportedAddPathNotificationPreservesFamilyTuples`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L316). **negative:** `unit/verify` [`TestUnsupportedCapabilityNotificationPreservesOpenTuples`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L227) |
 | `RFC5492-4-1` | Note, however, that processing of multiple instances of such capability does not require special handling, as additional instances do not change the meaning of the announced capability; thus, a BGP speaker MUST be prepared to accept such multiple instances. (§4) | MUST | 4 - Capabilities Optional Parameter (Parameter Type 2) | **positive:** `unit/verify` [`TestParseAcceptsMultipleIdenticalCapabilityInstances`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L310). **positive:** `unit/verify` [`TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L143). **negative:** no negative test. **{single-polarity}:** ze's capability parser appends every capability TLV without dedup or reject (internal/core/bgp/capability/capability.go:177), so multiple identical instances are all accepted; there is no reject path, so no negative case exists |
 | `RFC5492-4-2` | However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs. (§4) | MUST | 4 - Capabilities Optional Parameter (Parameter Type 2) | **positive:** `unit/verify` [`TestParseFromOptionalParamsMultipleCapabilitiesParameters`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L341). **positive:** `unit/verify` [`TestRFC5492CapabilitiesSpreadOverSeveralParameters`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L173). **negative:** `unit/verify` [`TestOptionalParamRejectsTruncatedCapabilityTLV`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L267). **negative:** `unit/verify` [`TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L201) |
 | `RFC5492-3-2` | If a BGP speaker receives from its peer a capability that it does not itself support or recognize, it MUST ignore that capability. (§3) | MUST | 3 - Overview of Operations | **positive:** `unit/verify` [`TestParseUnknownCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L184). **positive:** `unit/verify` [`TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L90). **negative:** `unit/verify` [`TestParseRejectsMalformedKnownCapabilityLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L233). **negative:** `unit/verify` [`TestRFC5492UnrecognizedCapabilityNeverReadAsKnown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L117) |
@@ -142,23 +144,27 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L62) | unit/verify | revert, verified |
-| negative | [`TestSessionAcceptsRequiredCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1326) | unit/verify | unproven |
+| negative | [`TestSessionAcceptsRequiredCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1327) | unit/verify | unproven |
 | positive | [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L61) | unit/verify | revert, verified |
 | positive | [`TestBuildUnsupportedCapabilityData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L359) | unit/verify | unproven |
 
 ### [`RFC5492-5-1`](#rfc5492-5-1)
 
-The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. (§5)
+The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. Each such capability is encoded in the same way as it would be encoded in the OPEN message. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: Data that does not list the set of capabilities that caused the NOTIFICATION. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet asserts the sent NOTIFICATION's Data octets exactly: both missing -> 02 00 06 00 (the whole set), one missing -> 06 00 only (the causing set, not the required set). Builder-level units remain as supporting evidence.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently rejudged both RFC5492 Section 5 sentences, requiring the complete causing set and each capability's OPEN encoding; the existing positive/negative TestRFC5492UnsupportedCapabilityDataListsTheCausingSet covers exactly both missing zero-length capabilities, only the still-missing capability, exclusion of an unknown capability, and acceptance when both requirements are met; the three existing builder carriers support ASN4 value retention, empty-valued capability tuples, and empty selection; TestUnsupportedCapabilityNotificationPreservesOpenTuples adds fourteen actual-OPEN cases across handleOpen and processOpen, asserting exact code/length/original local-required or peer-refused values, satisfied/noncausing-code exclusion, repeated Graceful Restart instances, ADD-PATH directions, and variable-length hostname; TestUnsupportedAddPathNotificationPreservesFamilyTuples adds eight actual-OPEN cases covering local-required and peer-refused family directions, exclusion of unrelated families, preserved repeated-instance grouping, and exact complete 3771-byte NOTIFICATIONs from bounded extended-parameter OPENs; buildUnsupportedCapabilityDataCodes uses the parsed actual OPEN capabilities and buildUnsupportedAddPathData retains original grouping, so filtered Data does not expand beyond the source capability bytes; Main's original before/after logs demonstrate the value/direction repairs, job-capability-repeated-grouping-before-89321fb3.log demonstrates all four added grouping cases failing with the 5601/4096 panic, and job-lifecycle-capability-bounded-after-12720db6.log records all fourteen generic and eight family cases passing after repair; these observations are executed proof only, and fresh native discrimination records for new/changed tags remain Main-owned debt before canonical closure.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestUnsupportedAddPathNotificationPreservesFamilyTuples`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L316) | unit/verify | revert, verified |
+| negative | [`TestUnsupportedCapabilityNotificationPreservesOpenTuples`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L227) | unit/verify | revert, verified |
 | negative | [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L64) | unit/verify | revert, verified |
-| negative | [`TestBuildUnsupportedCapabilityDataCodes_Empty`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L411) | unit/verify | unproven |
+| negative | [`TestBuildUnsupportedCapabilityDataCodes_Empty`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L413) | unit/verify | revert, verified |
+| positive | [`TestUnsupportedAddPathNotificationPreservesFamilyTuples`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L315) | unit/verify | revert, verified |
+| positive | [`TestUnsupportedCapabilityNotificationPreservesOpenTuples`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L226) | unit/verify | revert, verified |
 | positive | [`TestRFC5492UnsupportedCapabilityDataListsTheCausingSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L63) | unit/verify | revert, verified |
-| positive | [`TestBuildUnsupportedCapabilityDataCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1174) | unit/verify | unproven |
-| positive | [`TestBuildUnsupportedCapabilityDataCodes_MultipleCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L389) | unit/verify | unproven |
+| positive | [`TestBuildUnsupportedCapabilityDataCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1173) | unit/verify | revert, verified |
+| positive | [`TestBuildUnsupportedCapabilityDataCodes_MultipleCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L389) | unit/verify | revert, verified |
 
 ### [`RFC5492-4-1`](#rfc5492-4-1)
 

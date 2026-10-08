@@ -7,7 +7,7 @@ Summarise the OSPFv3 Segment Routing content \(RFC 8666\) carried in the RI and 
 - Registry path: `show ospf ipv6 database segment-routing`
 - Usage: `show ospf ipv6 database segment-routing`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database-segment-routing`
+- Wire method: `ze-ospf:show-ospfv3-database-segment-routing`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

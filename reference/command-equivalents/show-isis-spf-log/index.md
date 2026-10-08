@@ -7,7 +7,7 @@ Show recent IS\-IS SPF runs\.
 - Registry path: `show isis spf-log`
 - Usage: `show isis spf-log`
 - Mode: Read-only
-- Wire method: `ze-show:isis-spf-log`
+- Wire method: `ze-isis:show-spf-log`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

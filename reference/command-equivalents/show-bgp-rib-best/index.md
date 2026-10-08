@@ -7,7 +7,7 @@ Show the winning route for each prefix\.
 - Registry path: `show bgp rib best`
 - Usage: `show bgp rib best`
 - Mode: Read-only
-- Wire method: `ze-rib-api:best`
+- Wire method: `ze-bgp:rib-best`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `status`

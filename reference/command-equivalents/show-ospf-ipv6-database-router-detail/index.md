@@ -7,7 +7,7 @@ Decode each OSPFv3 Router\-LSA body\.
 - Registry path: `show ospf ipv6 database router detail`
 - Usage: `show ospf ipv6 database router detail`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database-router-detail`
+- Wire method: `ze-ospf:show-ospfv3-database-router-detail`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

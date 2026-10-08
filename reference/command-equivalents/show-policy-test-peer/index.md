@@ -7,7 +7,7 @@ Test what your policy does to a specific UPDATE\.
 - Registry path: `show policy test peer`
 - Usage: `show policy test peer <selector> <import\|export> [filter <name>] update <hex> [source-asn4 <true\|false>]`
 - Mode: Read-only
-- Wire method: `ze-show:policy-test`
+- Wire method: `ze-bgp:show-policy-test`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `filter`, `source-asn4`, `update`

@@ -1,15 +1,16 @@
 # `delete debug module`
 
-Disable debug for a subsystem\, or remove one of its flags\/scopes\.
+Disable debug for a subsystem\, or remove one of its flags or scopes\.
 
 ## Ze command
 
 - Registry path: `delete debug module`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `delete debug module <module-name> [flag <flag>] [scope <kind> <value>]`
+- Mode: Daemon
+- Wire method: `ze-debug:delete-module`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: none: this command takes no subcommand
+- Subcommands: `scope`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -24,7 +25,10 @@ The module name alone removes the whole module\. Naming a flag or a scope remove
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `module-name` | string | yes | any value of this type | Subsystem name\. | The subsystem name\, as show debug lists it\. |
+| `flag` | string | no | any value of this type | Debug flag to remove\. | The flag to remove\. The module stays enabled\. |
 
 ## Mapping intents
 

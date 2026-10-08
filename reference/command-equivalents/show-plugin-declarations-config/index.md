@@ -7,7 +7,7 @@ Read the plugin blocks of a config file as well\.
 - Registry path: `show plugin declarations config`
 - Usage: `show plugin declarations config <path>`
 - Mode: Read-only
-- Wire method: `ze-show:plugin-declarations-config`
+- Wire method: `ze-plugin:show-declarations-config`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

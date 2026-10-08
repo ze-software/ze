@@ -7,7 +7,7 @@ Restore a config from a backup file on the daemon\'s host\.
 - Registry path: `request data restore`
 - Usage: `request data restore <path> [config] [name <name>] [client <client>]`
 - Mode: Daemon
-- Wire method: `ze-data:restore`
+- Wire method: `ze-config:data-restore`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

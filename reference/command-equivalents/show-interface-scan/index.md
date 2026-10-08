@@ -7,7 +7,7 @@ Discover and classify all OS interfaces\.
 - Registry path: `show interface scan`
 - Usage: `show interface scan`
 - Mode: Read-only
-- Wire method: `ze-show:interface-scan`
+- Wire method: `ze-iface:show-interface-scan`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

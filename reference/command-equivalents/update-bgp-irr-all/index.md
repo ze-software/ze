@@ -7,7 +7,7 @@ Refresh all IRR prefix\-lists immediately\.
 - Registry path: `update bgp irr all`
 - Usage: `update bgp irr all`
 - Mode: Daemon
-- Wire method: `ze-update:irr-all`
+- Wire method: `ze-bgp:update-irr-all`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

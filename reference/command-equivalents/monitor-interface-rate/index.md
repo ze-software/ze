@@ -7,7 +7,7 @@ Stream per\-second traffic rates for your interfaces\.
 - Registry path: `monitor interface rate`
 - Usage: `monitor interface rate`
 - Mode: Read-only
-- Wire method: `ze-monitor:interface-rate`
+- Wire method: `ze-iface:monitor-interface-rate`
 - Backends: any backend
 - Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand

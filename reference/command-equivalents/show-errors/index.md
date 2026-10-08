@@ -7,7 +7,7 @@ Show recent errors across all subsystems\, newest first\.
 - Registry path: `show errors`
 - Usage: `show errors`
 - Mode: Read-only
-- Wire method: `ze-show:errors`
+- Wire method: `ze-cmd:show-errors`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

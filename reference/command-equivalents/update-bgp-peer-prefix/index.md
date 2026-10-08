@@ -7,7 +7,7 @@ Refresh max\-prefix limits from PeeringDB\.
 - Registry path: `update bgp peer prefix`
 - Usage: `update bgp peer <selector> prefix`
 - Mode: Daemon
-- Wire method: `ze-update:bgp-peer-prefix`
+- Wire method: `ze-bgp:update-peer-prefix`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

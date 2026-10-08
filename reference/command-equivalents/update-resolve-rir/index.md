@@ -7,7 +7,7 @@ Refresh the RIR delegation table from the five registry delegation files\.
 - Registry path: `update resolve rir`
 - Usage: `update resolve rir`
 - Mode: Daemon
-- Wire method: `ze-update:resolve-rir`
+- Wire method: `ze-resolve:update-rir`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

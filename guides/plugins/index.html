@@ -70,7 +70,10 @@
 <li><a href="#built-in-plugins">Built-In Plugins</a></li>
 <li><a href="#reporting-a-setup-outcome">Reporting a Setup Outcome</a>
 <ol>
-<li><a href="#storage-and-policy">Storage and Policy</a></li>
+<li><a href="#storage-and-policy">Storage and Policy</a>
+<ol>
+<li><a href="#migrating-from-bgp-persist">Migrating from bgp-persist</a></li>
+</ol></li>
 <li><a href="#protocol">Protocol</a></li>
 <li><a href="#infrastructure">Infrastructure</a></li>
 <li><a href="#l2tp">L2TP</a></li>
@@ -144,9 +147,9 @@
 <td>Monitor services, control route announcement via MED or withdraw. <a href="../bgp-healthcheck/">Guide</a></td>
 </tr>
 <tr>
-<td>Monitor only (no RIB)</td>
-<td>None</td>
-<td>Ze runs without plugins -- peers connect, events fire, no routes stored</td>
+<td>Monitor only (no route export)</td>
+<td class="cell-no">✕</td>
+<td>BGP loads <code>bgp-rib</code>; peer bindings determine which events it stores and whether it may send updates</td>
 </tr>
 <tr>
 <td>Interface-aware BGP</td>
@@ -156,7 +159,7 @@
 <tr>
 <td>Static routes</td>
 <td>(auto-loaded)</td>
-<td>Config-driven static routes with ECMP, weighted load balancing, BFD failover. <a href="../static-routes/">Guide</a></td>
+<td>Config-driven static routes with ECMP, weighted load balancing, BFD failover. A main-table route competes with other protocols on <code>rib { distance { static } }</code> and the FIB plugin programs the winner; a named-table route is programmed directly. <a href="../static-routes/">Guide</a></td>
 </tr>
 <tr>
 <td>OSPFv2 edge plugin</td>
@@ -175,7 +178,7 @@
 <!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB -->
 <h2 id="loading-plugins">Loading Plugins</h2>
-<p>Plugins are declared in the <code>plugin { }</code> block. Built-in plugins use <code>internal</code>, external processes use <code>external</code>:</p>
+<p>Optional plugins are declared in the <code>plugin { }</code> block. Built-in plugins use <code>internal</code>, external processes use <code>external</code>. BGP loads <code>bgp-rib</code> automatically; an explicit RIB declaration is useful when naming that instance:</p>
 <pre><code>plugin {
     internal rib {
         use bgp-rib
@@ -646,18 +649,13 @@ BEFORE ze runs (<code>docs/architecture/doctor-and-health-checks.md</code>).</p>
 <tbody>
 <tr>
 <td><code>bgp-rib</code></td>
-<td>Route Information Base</td>
+<td>Mandatory Route Information Base with in-memory sent-history replay on reconnect</td>
 <td><code>receive [ update state refresh ] send [ update refresh ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-adj-rib-in</code></td>
 <td>Adj-RIB-In (raw hex replay, auto-replays on peer-up)</td>
 <td><code>receive [ update-received state ]</code></td>
-</tr>
-<tr>
-<td><code>bgp-persist</code></td>
-<td>Route persistence across restarts</td>
-<td><code>receive [ update-sent state open-received ] send [ update ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-rs</code></td>
@@ -678,10 +676,49 @@ BEFORE ze runs (<code>docs/architecture/doctor-and-health-checks.md</code>).</p>
 </table>
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in registration -->
-<!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist registration -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs registration -->
 <!-- source: internal/component/bgp/plugins/rr/register.go -- bgp-rr registration -->
 <!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog registration -->
+<h4 id="migrating-from-bgp-persist">Migrating from bgp-persist</h4>
+<p><code>bgp-persist</code> has been removed. Delete each <code>plugin { internal &lt;name&gt; { use bgp-persist } }</code> block, or its external invocation. Replace its peer
+<code>attach process &lt;name&gt;</code> blocks with a binding to the mandatory RIB:</p>
+<pre><code class="language-text">attach process bgp-rib {
+    receive [ update state refresh ]
+    send [ update ]
+}
+</code></pre>
+<p>BGP loads <code>bgp-rib</code> automatically, so no replacement <code>internal</code>/<code>use</code> block
+is required. If your configuration already names a RIB instance explicitly,
+use that instance name in the binding and merge the grants into its existing
+binding rather than creating a second instance.</p>
+<p>Automatic loading does not grant replay or export authority. The binding must
+deliver both received and sent UPDATEs (<code>update</code>), peer state and refresh
+events, and permit UPDATE sends. Feed source peers' received UPDATEs and state
+to the same RIB so it can validate forwarded history. A selection-only
+received/state binding does not retain sent history or authorize replay.
+There is no compatibility alias, replacement cache command, or separate
+persistence store.</p>
+<p><code>bgp-rib</code> keeps sent history in process memory across a peer disconnect.
+On peer-UP, its initial replay restores only eligible history. Forwarded routes
+must still match their source-Peer incarnation, received path and message
+revision in the authoritative RIB. Replay preserves native NLRI identity and
+ADD-PATH identity rather than treating every route as a prefix. Locally
+originated history is explicitly identified; missing source provenance does
+not make a route local. Config-static routes are sent from the current
+configuration by the reactor, not restored from old sent history.</p>
+<p>Replay and its completion report use the <code>initial-replay</code> session token
+captured from that peer-UP event. A stale or closed Initial replay session
+cannot authorize a write on a replacement session, and restoration cannot
+overwrite a route already accepted on the new session. A readiness report
+means the replay attempts finished, not that every historical route was
+delivered. See <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/bgp/replay-cursor.md" target="_blank" rel="noopener">replay authority</a>.</p>
+<p>This is reconnect recovery, not durable storage: sent history does not survive
+a daemon or RIB plugin restart. <code>clear bgp rib out</code> performs same-session
+refresh; it does not grant Initial replay authority.</p>
+<!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigRoots, SignalsSessionReady, FencesLiveForwards -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- checkInitialWrite, allow -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- outboundResend -->
+<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- replayRoutesWithCursor, resendRoutesWithCursor -->
 <h3 id="protocol">Protocol</h3>
 <table>
 <thead>
@@ -1769,16 +1806,16 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_claims.go -- (*AdjRIBInManager).replayDrivenElsewhere -->
 <h2 id="peer-up-barrier">Peer-Up Barrier</h2>
 <p>A plugin that decides on the peer-up event whether a peer may receive traffic declares <code>PeerUpBarrier: true</code>. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".</p>
-<p><code>bgp-rs</code> declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is separate from the session-ready wait below: merging them would let a route sender's report satisfy a registrar's obligation.</p>
+<p><code>bgp-rs</code> declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is separate from the session-ready report below: merging them would let a route sender's report satisfy a registrar's obligation.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
 <h2 id="session-ready-report">Session-Ready Report</h2>
-<p>A plugin that reports completion of its peer-up route replay declares <code>SignalsSessionReady: true</code> and dispatches <code>request peer &lt;addr&gt; plugin session ready</code> once those routes are out. This report does not delay the peer's End-of-RIB marker.</p>
+<p>A plugin that reports completion of its peer-up route replay declares <code>SignalsSessionReady: true</code> and dispatches <code>request peer &lt;addr&gt; plugin session ready session &lt;captured-token&gt;</code> when its replay attempts finish, including an empty replay. Capture the nonzero uint64 <code>initial-replay</code> token from the original peer-UP event before beginning that replay; never fetch a later session's token to finish old work. This report does not assert successful delivery and does not delay the peer's End-of-RIB marker.</p>
 <p>The declaration is voluntary. A plugin that pushes routes on its own schedule need not declare it; binding that plugin with <code>send [ update ]</code> alone does not make it a session-ready reporter.</p>
 <p>An external plugin has the same declaration under a different name. It is registered nowhere in this tree, so it declares <code>signals-session-ready</code> in its Stage-1 <code>declare-registration</code> instead, and the engine reads it off the running process. Declaring nothing stays the default there too.</p>
-<p>The name you are waited for under is the one the operator wrote in <code>attach process &lt;name&gt;</code>, whatever your plugin is called. <code>plugin { internal rs { use bgp-rs } }</code> runs the process as <code>rs</code>, and the engine resolves that alias back to the <code>bgp-rs</code> registration before it asks whether you declared. Your report carries the process name, so it is credited to <code>rs</code> as well. The spelling of the implementation does not change the answer: <code>use bgp-rs</code>, <code>use ze.bgp-rs</code>, <code>run ze.bgp-rs</code> and <code>run ze plugin bgp-rs</code> all reach the same registration, because one function (<code>plugin.RegistryNames</code>) answers which registry row a process configuration names and every caller derives from it.</p>
+<p>The name your report is credited to is the one the operator wrote in <code>attach process &lt;name&gt;</code>, whatever your plugin is called. <code>plugin { internal rs { use bgp-rs } }</code> runs the process as <code>rs</code>, and the engine resolves that alias back to the <code>bgp-rs</code> registration before it asks whether you declared. Your report carries the process name, so it is credited to <code>rs</code> as well. The spelling of the implementation does not change the answer: <code>use bgp-rs</code>, <code>use ze.bgp-rs</code>, <code>run ze.bgp-rs</code> and <code>run ze plugin bgp-rs</code> all reach the same registration, because one function (<code>plugin.RegistryNames</code>) answers which registry row a process configuration names and every caller derives from it.</p>
 <p>Three facts have to hold before a peer names your process in its barrier, and each one is something you can check in your own config. The peer grants the route-push rail, with <code>send [ update ]</code> or <code>send [ raw ]</code>. The plugin declares the field. The peer grants <code>receive [ state ]</code>, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is never named.</p>
-<p>Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working".</p>
+<p>Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: completion accounting must distinguish "finished with nothing to send" from "still working".</p>
 <p><strong>Your report does not hold the peer's End-of-RIB (owner ruling, 2026-09-18).</strong> A process that creates routes counts as a peer when the marker is decided, and Ze does not wait for a peer's marker before sending its own. The marker follows the routes Ze owns, after the separate peer-up registration barrier. Routes a process pushes after the marker are ordinary updates.</p>
 <p>Replay ordering is a separate obligation. A reporter whose registration also declares <code>FencesLiveForwards</code> holds live forwarding behind its peer-up replay. Once all fence owners report, the engine releases those live forwards. A reporter without that declaration does not hold the forwarding fence, but a fence owner that never reports can leave live forwards held; neither case holds End-of-RIB.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
@@ -1884,7 +1921,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

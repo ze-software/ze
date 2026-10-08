@@ -7,7 +7,7 @@ Get a quick RIB overview without dumping routes\.
 - Registry path: `show bgp rib status`
 - Usage: `show bgp rib status`
 - Mode: Read-only
-- Wire method: `ze-rib-api:status`
+- Wire method: `ze-bgp:rib-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

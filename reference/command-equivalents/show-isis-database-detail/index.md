@@ -7,7 +7,7 @@ Show the IS\-IS link\-state database with TLV detail\.
 - Registry path: `show isis database detail`
 - Usage: `show isis database detail`
 - Mode: Read-only
-- Wire method: `ze-show:isis-database-detail`
+- Wire method: `ze-isis:show-database-detail`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

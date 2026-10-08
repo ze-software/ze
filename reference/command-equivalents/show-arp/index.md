@@ -7,7 +7,7 @@ Show the IPv4 ARP table \(shortcut for \'show neighbor ipv4\'\)\.
 - Registry path: `show arp`
 - Usage: `show arp`
 - Mode: Read-only
-- Wire method: `ze-show:arp`
+- Wire method: `ze-iface:show-arp`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

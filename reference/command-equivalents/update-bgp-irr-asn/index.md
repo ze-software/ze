@@ -7,7 +7,7 @@ Refresh IRR prefix\-list for a specific ASN\.
 - Registry path: `update bgp irr asn`
 - Usage: `update bgp irr asn <asn>`
 - Mode: Daemon
-- Wire method: `ze-update:irr-asn`
+- Wire method: `ze-bgp:update-irr-asn`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

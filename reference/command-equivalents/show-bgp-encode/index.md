@@ -7,7 +7,7 @@ Turn a route announcement into wire\-format hex\.
 - Registry path: `show bgp encode`
 - Usage: `show bgp encode`
 - Mode: Read-only
-- Wire method: `ze-show:bgp-encode`
+- Wire method: `ze-bgp:show-encode`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

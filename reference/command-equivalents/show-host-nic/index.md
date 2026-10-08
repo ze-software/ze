@@ -7,7 +7,7 @@ Show physical NICs installed in this box\.
 - Registry path: `show host nic`
 - Usage: `show host nic`
 - Mode: Read-only
-- Wire method: `ze-show:host-nic`
+- Wire method: `ze-host:show-nic`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Refresh IRR prefix\-list for a specific AS\-SET\.
 - Registry path: `update bgp irr as-set`
 - Usage: `update bgp irr as-set <as-set>`
 - Mode: Daemon
-- Wire method: `ze-update:irr-as-set`
+- Wire method: `ze-bgp:update-irr-as-set`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

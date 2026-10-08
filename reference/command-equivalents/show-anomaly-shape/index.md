@@ -7,7 +7,7 @@ Show the shadow\-first anomaly responder status\.
 - Registry path: `show anomaly shape`
 - Usage: `show anomaly shape`
 - Mode: Read-only
-- Wire method: `ze-show:anomaly-shape`
+- Wire method: `ze-anomaly:show-shape`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

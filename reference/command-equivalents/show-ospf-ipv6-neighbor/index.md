@@ -7,7 +7,7 @@ Show the OSPFv3 \(IPv6\) neighbors\.
 - Registry path: `show ospf ipv6 neighbor`
 - Usage: `show ospf ipv6 neighbor`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-neighbor`
+- Wire method: `ze-ospf:show-ospfv3-neighbor`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

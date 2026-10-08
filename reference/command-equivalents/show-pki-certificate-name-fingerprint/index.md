@@ -7,7 +7,7 @@ Show the hash of the certificate\, to verify its identity against the one anothe
 - Registry path: `show pki certificate name fingerprint`
 - Usage: `show pki certificate name <name> fingerprint [sha256\|sha384\|sha512]`
 - Mode: Read-only
-- Wire method: `ze-show:pki-certificate-fingerprint`
+- Wire method: `ze-pki:show-certificate-fingerprint`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `algorithm`

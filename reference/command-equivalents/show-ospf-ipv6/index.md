@@ -7,7 +7,7 @@ Show the OSPFv3 \(IPv6\) address\-family instances \(RFC 5838\)\.
 - Registry path: `show ospf ipv6`
 - Usage: `show ospf ipv6`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-ipv6`
+- Wire method: `ze-ospf:show-ipv6`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `database`, `graceful-restart`, `instance`, `interface`, `neighbor`, `segment-routing`, `spf`

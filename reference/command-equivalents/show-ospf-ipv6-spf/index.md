@@ -7,7 +7,7 @@ Show the OSPFv3 \(IPv6\) per\-area SPF run history\.
 - Registry path: `show ospf ipv6 spf`
 - Usage: `show ospf ipv6 spf`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-spf`
+- Wire method: `ze-ospf:show-ospfv3-spf`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

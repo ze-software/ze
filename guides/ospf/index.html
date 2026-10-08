@@ -77,7 +77,7 @@
 <!-- source: internal/plugins/ospf/codec_v6.go -- v6Codec -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy -->
 <!-- source: internal/plugins/ospf/v3/transport/transport.go -- Transport -->
-<p>SPF builds one graph per area from Router-LSAs and Network-LSAs, enforces the RFC 2328 two-way check, derives next-hops from Router-LSA link data, merges equal-cost next-hops, and inserts one <code>locrib.Path</code> per next-hop with OSPF admin distance 110. The kernel FIB path is Loc-RIB -&gt; sysrib -&gt; fibkernel, not redistribution events.</p>
+<p>SPF builds one graph per area from Router-LSAs and Network-LSAs, enforces the RFC 2328 two-way check, derives next-hops from Router-LSA link data, merges equal-cost next-hops, and inserts one <code>locrib.Path</code> per next-hop, which the Loc-RIB ranks at the OSPF distance <code>rib { distance { ospf } }</code> declares (default 110). The kernel FIB path is Loc-RIB -&gt; sysrib -&gt; fibkernel, not redistribution events.</p>
 <!-- source: internal/plugins/ospf/spf/graph.go -- BuildGraph -->
 <!-- source: internal/plugins/ospf/spf/spf.go -- Compute -->
 <!-- source: internal/plugins/ospf/spf/route.go -- BuildRoutes -->
@@ -192,7 +192,7 @@ and no <code>attach process</code> block. <code>import bgp</code> names the daem
 each peer's delivery to it is derived from the rule. See
 <a href="../redistribution/">Route Filters and Redistribution</a>, "Route Redistribution".</p>
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
-<p>Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one <code>locrib.Path</code> with admin distance 110.</p>
+<p>Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one <code>locrib.Path</code>, ranked at the declared OSPF distance (default 110).</p>
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal, ComputeExternalWith, betterExternal -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6ExternalReader -->
 <p><code>default-information originate</code> advertises a default route: <code>0.0.0.0/0</code> as an OSPFv2 Type 5 AS-External-LSA, and <code>::/0</code> as an OSPFv3 AS-External-LSA, whose LS Type is <code>0x4005</code> rather than <code>0x0005</code> (RFC 5340 Section 4.4.3.6). The two numbers are not interchangeable and the wrong one fails quietly: RFC 5340 Appendix A.4.2.1 reads <code>0x0005</code> as U=0 with S2S1=00, which is link-local scope, so a v2-numbered default floods to the directly attached routers and no further. With <code>always</code> it originates unconditionally; otherwise it originates only while a non-OSPF default route exists in the Loc-RIB (OSPF's own default does not satisfy the condition). The engine re-evaluates the condition at config-apply and live on Loc-RIB default-route changes, withdrawing the LSA when the condition lapses.</p>
@@ -217,7 +217,7 @@ imports are not replayed.</p>
 <!-- source: internal/plugins/ospf/redist_wiring.go -- externalPropagate, reconcileExternalImports -->
 <p>Every NSSA border router originates a default into each directly attached NSSA, in both address families and with no operator leaf to enable it (RFC 3101 §2.4). A regular NSSA gets a P-clear Type 7 default: an OSPFv2 Type 7 LSA, or the OSPFv3 NSSA-LSA (<code>0x2007</code>) that carries the P-bit in its prefix options rather than in the LSA header. A no-summary NSSA gets the default through the summary path instead, as an OSPFv2 Type 3 summary-LSA or the OSPFv3 <code>::/0</code> Inter-Area-Prefix-LSA, and gets no Type 7 default at all (RFC 3101 §2.7). In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled; a router that is not an NSSA border router installs them.</p>
 <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
-<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault -->
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA, v6NSSADefaultLSID -->
 <!-- source: internal/plugins/ospf/spf/area_type.go -- applyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
@@ -556,7 +556,7 @@ show ospf border-routers
 <p><code>show ospf database opaque-link|opaque-area|opaque-as</code> filter the LSDB to the RFC 5250 opaque LSAs of Type 9 (link), Type 10 (area), and Type 11 (AS) respectively. <code>show ospf database router-information</code> decodes the RFC 7770 Router Information LSAs of both address families (see Router Information above). <code>show ospf te-database</code> renders the RFC 3630 / RFC 5392 Traffic Engineering Database (see Traffic Engineering above).</p>
 <p><code>show ospf</code> is the process summary (router-id, ABR/ASBR status, areas, and the active stub-router / max-metric state). <code>show ospf database</code> lists every LSA; the per-type subviews filter to one LS Type (1/2/3/4/5/7). <code>show ospf route</code> reports area, prefix, metric, route type, origin router, and next-hop set. <code>show ospf spf</code> reports per-area last run, duration, node count, pending state, and current throttle delay. <code>show ospf border-routers</code> reports reachable ABRs and ASBRs with their area, metric, and next-hop set.</p>
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
-<!-- source: internal/plugins/ospf/cmd_show.go -- ze-show:ospf-* RPC proxies -->
+<!-- source: internal/plugins/ospf/cmd_show.go -- ze-ospf:show-* RPC proxies -->
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
 <p>The runtime can be reset without reconfiguring via <code>clear ospf process</code> (tear down adjacencies and re-run SPF), <code>clear ospf neighbor</code> (re-form adjacencies), and <code>clear ospf counters</code> (reset the SPF-run log). The neighbor and database views are also available in the web UI at <code>/ospf</code> and <code>/ospf/database</code>, with live updates over SSE.</p>
 <figure class="terminal-demo" data-terminal-demo="ospf-adjacency">
@@ -659,7 +659,7 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

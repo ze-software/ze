@@ -7,7 +7,7 @@ Show who did what and when on this box\.
 - Registry path: `show audit`
 - Usage: `show audit [action <action>] [actor <actor>] [surface <surface>] [since <since>] [until <until>] [count <count>]`
 - Mode: Read-only
-- Wire method: `ze-show:audit`
+- Wire method: `ze-cmd:show-audit`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

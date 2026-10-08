@@ -7,7 +7,7 @@ Show traffic counters for a subscriber\'s PPP interface\.
 - Registry path: `show l2tp session traffic`
 - Usage: `show l2tp session traffic`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:session-traffic`
+- Wire method: `ze-l2tp:session-traffic`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

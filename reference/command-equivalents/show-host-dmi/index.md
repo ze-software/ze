@@ -7,7 +7,7 @@ Show the box\'s identity from SMBIOS\/DMI\.
 - Registry path: `show host dmi`
 - Usage: `show host dmi`
 - Mode: Read-only
-- Wire method: `ze-show:host-dmi`
+- Wire method: `ze-host:show-dmi`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

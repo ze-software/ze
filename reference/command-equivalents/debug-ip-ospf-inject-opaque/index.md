@@ -7,7 +7,7 @@ Inject a crafted IPv4 opaque LSA into the local LSDB \(RFC 5250\)\.
 - Registry path: `debug ip ospf inject opaque`
 - Usage: `debug ip ospf inject opaque scope <link\|area\|as> id <opaque-id> [type <type>] [hex <body> ...] [tlv <type> <value-hex> ...] [withdraw]`
 - Mode: Daemon
-- Wire method: `ze-debug:ospf-inject`
+- Wire method: `ze-ospf:debug-inject`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `hex`, `id`, `scope`, `tlv`, `type`, `withdraw`

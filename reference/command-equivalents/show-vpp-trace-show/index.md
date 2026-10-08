@@ -7,7 +7,7 @@ Retrieve packets captured since the last trace start\.
 - Registry path: `show vpp trace show`
 - Usage: `show vpp trace show`
 - Mode: Read-only
-- Wire method: `ze-show:vpp-trace-show`
+- Wire method: `ze-iface:show-vpp-trace-show`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

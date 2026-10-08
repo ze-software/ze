@@ -7,7 +7,7 @@ Show the wire protocol version and format details\.
 - Registry path: `show schema protocol`
 - Usage: `show schema protocol`
 - Mode: Read-only
-- Wire method: `ze-show:schema-protocol`
+- Wire method: `ze-config-schema:show-schema-protocol`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

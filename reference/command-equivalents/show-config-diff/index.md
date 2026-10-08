@@ -7,7 +7,7 @@ Compare two configuration versions side by side\.
 - Registry path: `show config diff`
 - Usage: `show config diff`
 - Mode: Read-only
-- Wire method: `ze-show:config-diff`
+- Wire method: `ze-config-cli:show-config-diff`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

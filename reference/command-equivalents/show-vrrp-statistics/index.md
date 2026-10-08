@@ -7,7 +7,7 @@ Show per\-virtual\-router counters\.
 - Registry path: `show vrrp statistics`
 - Usage: `show vrrp statistics`
 - Mode: Read-only
-- Wire method: `ze-show:vrrp-statistics`
+- Wire method: `ze-vrrp:show-statistics`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

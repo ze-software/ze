@@ -7,7 +7,7 @@ Inject a crafted OSPFv3 LSA into the local LSDB \(RFC 5340\)\.
 - Registry path: `debug ipv6 ospf inject lsa`
 - Usage: `debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link\|area\|as>] [hex <body> ...] [withdraw]`
 - Mode: Daemon
-- Wire method: `ze-debug:ospfv3-inject`
+- Wire method: `ze-ospf:debug-ospfv3-inject`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `hex`, `id`, `scope`, `type`, `withdraw`

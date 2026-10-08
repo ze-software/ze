@@ -7,7 +7,7 @@ Show the Security Policy Database the kernel holds\.
 - Registry path: `show vpn ipsec dataplane policy`
 - Usage: `show vpn ipsec dataplane policy`
 - Mode: Read-only
-- Wire method: `ze-show:vpn-ipsec-dataplane-policy`
+- Wire method: `ze-ike:show-vpn-ipsec-dataplane-policy`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

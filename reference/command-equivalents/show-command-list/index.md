@@ -7,7 +7,7 @@ List every command the daemon knows about\.
 - Registry path: `show command list`
 - Usage: `show command list`
 - Mode: Read-only
-- Wire method: `ze-bgp:command-list`
+- Wire method: `ze-meta:bgp-command-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

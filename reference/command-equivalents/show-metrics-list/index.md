@@ -7,7 +7,7 @@ List all registered metric names \(no values\)\.
 - Registry path: `show metrics list`
 - Usage: `show metrics list`
 - Mode: Read-only
-- Wire method: `ze-bgp:metrics-list`
+- Wire method: `ze-cmd:bgp-metrics-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

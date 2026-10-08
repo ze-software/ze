@@ -7,7 +7,7 @@ Show AAA accounting counters and any dropped records\.
 - Registry path: `show aaa accounting`
 - Usage: `show aaa accounting`
 - Mode: Read-only
-- Wire method: `ze-show:aaa-accounting`
+- Wire method: `ze-aaa:show-accounting`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Stream live events as they happen\.
 - Registry path: `monitor event`
 - Usage: `monitor event`
 - Mode: Read-only
-- Wire method: `ze-event:monitor`
+- Wire method: `ze-meta:event-monitor`
 - Backends: any backend
 - Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand

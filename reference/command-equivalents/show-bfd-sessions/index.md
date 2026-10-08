@@ -7,7 +7,7 @@ List all active BFD sessions\.
 - Registry path: `show bfd sessions`
 - Usage: `show bfd sessions`
 - Mode: Read-only
-- Wire method: `ze-bfd-api:show-sessions`
+- Wire method: `ze-bfd:show-sessions`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

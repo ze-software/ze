@@ -7,7 +7,7 @@ Show the IPC protocol version\.
 - Registry path: `system version api`
 - Usage: `system version api`
 - Mode: Read-only
-- Wire method: `ze-system:version-api`
+- Wire method: `ze-plugin:system-version-api`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

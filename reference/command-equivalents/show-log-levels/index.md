@@ -7,7 +7,7 @@ Show what log level each subsystem is using\.
 - Registry path: `show log levels`
 - Usage: `show log levels`
 - Mode: Read-only
-- Wire method: `ze-bgp:log-levels`
+- Wire method: `ze-log:bgp-log-levels`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

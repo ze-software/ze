@@ -7,7 +7,7 @@ Show which UDP sockets are listening for L2TP\.
 - Registry path: `show l2tp listeners`
 - Usage: `show l2tp listeners`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:listeners`
+- Wire method: `ze-l2tp:listeners`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

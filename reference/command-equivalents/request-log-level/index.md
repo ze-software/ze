@@ -7,7 +7,7 @@ Change a subsystem\'s log level without restarting\.
 - Registry path: `request log level`
 - Usage: `request log level <logger> <disabled\|debug\|info\|warn\|err>`
 - Mode: Daemon
-- Wire method: `ze-bgp:log-set`
+- Wire method: `ze-log:bgp-log-set`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

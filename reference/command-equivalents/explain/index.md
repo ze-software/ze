@@ -5,8 +5,9 @@ Explain one diagnostic code Ze printed\.
 ## Ze command
 
 - Registry path: `explain`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `explain <code>`
+- Mode: Daemon
+- Wire method: `ze-explain:explain`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -20,11 +21,13 @@ Explain one diagnostic code Ze printed\.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer gives the meaning of the code\, its likely cause and the recommended fix\. Pass the code you read in a log line or an error message\.
+The answer gives the meaning of the code\, its likely cause and the recommended fix\. It is read from the diagnostic catalog this binary carries and asks no daemon\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `code` | string | yes | any value of this type | Diagnostic code\. | A diagnostic code as a log line or an error message printed it\. An unknown code is refused\. |
 
 ## Mapping intents
 

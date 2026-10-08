@@ -7,7 +7,7 @@ Choose how BGP message bytes appear in events\.
 - Registry path: `plugin format`
 - Usage: `plugin format`
 - Mode: Read-only
-- Wire method: `ze-bgp:plugin-format`
+- Wire method: `ze-meta:bgp-plugin-format`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Explain why each route won the SPF calculation \(spec\-ospf\-ext\-14\)\.
 - Registry path: `show ospf spf detail`
 - Usage: `show ospf spf detail`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-spf-detail`
+- Wire method: `ze-ospf:show-spf-detail`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

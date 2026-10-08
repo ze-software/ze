@@ -7,7 +7,7 @@ Show full detail for one BFD session\.
 - Registry path: `show bfd session address`
 - Usage: `show bfd session address <address>`
 - Mode: Read-only
-- Wire method: `ze-bfd-api:show-session`
+- Wire method: `ze-bfd:show-session`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

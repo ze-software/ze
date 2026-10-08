@@ -7,7 +7,7 @@ List the subcommands the system verb accepts\.
 - Registry path: `system help`
 - Usage: `system help`
 - Mode: Read-only
-- Wire method: `ze-system:help`
+- Wire method: `ze-plugin:system-help`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show only AS\-scope opaque\-LSAs \(Type 11\, RFC 5250\)\.
 - Registry path: `show ospf database opaque-as`
 - Usage: `show ospf database opaque-as`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-opaque-as`
+- Wire method: `ze-ospf:show-database-opaque-as`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

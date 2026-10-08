@@ -7,7 +7,7 @@ Show the reliable transport window for a tunnel\.
 - Registry path: `show l2tp reliable`
 - Usage: `show l2tp reliable`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:reliable`
+- Wire method: `ze-l2tp:reliable`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

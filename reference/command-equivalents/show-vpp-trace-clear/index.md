@@ -7,7 +7,7 @@ Discard the captured VPP trace buffer\.
 - Registry path: `show vpp trace clear`
 - Usage: `show vpp trace clear`
 - Mode: Read-only
-- Wire method: `ze-show:vpp-trace-clear`
+- Wire method: `ze-iface:show-vpp-trace-clear`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

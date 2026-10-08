@@ -146,6 +146,44 @@ Archive locations are read from the config at editor startup. Adding an `archive
 All configured destinations are attempted regardless of individual failures. Errors are collected per destination. A failure uploading to one location does not prevent archiving to other locations.
 <!-- source: internal/component/config/archive/archive.go -- NewNotifier -->
 
+## Pruning Old Archives
+
+`commit-revisions` caps the number of archive files a `file://` location keeps.
+It is a `system` leaf, so one value applies to every archive block.
+
+```
+system {
+    host router1;
+    commit-revisions 20;
+    archive local {
+        location file:///var/backups/ze;
+        trigger commit;
+    }
+}
+```
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- leaf commit-revisions -->
+
+| Rule | Detail |
+|------|--------|
+| Range | 0 to 1000. The default is 0, which keeps every file |
+| When | After each successful write by an archive block: an editor commit, `ze config archive <name>`, and each `daily` or `hourly` archive, the boot archive included |
+| What counts | The files in the block's `file://` directory whose whole name matches the block's filename format plus `.conf`: `{date}` as 8 digits, `{time}` as 6 digits, every other token as its value. Subdirectories and files of another name are not counted. A copy lands in a subdirectory, and is never counted, when the format or a token value holds `/` |
+| What goes | The files with the oldest modification time, until the count is down to the cap. Files with the same time go in name order |
+| Failure | A filename format, host, domain, block name or config file name that is not valid UTF-8, a directory that cannot be read, and a file that cannot be removed are each reported: as an error of the archive block for an editor commit and `ze config archive <name>`, and as a warning in the log for a scheduled archive. The copy just written stays |
+| HTTP | An `http://` or `https://` location is never pruned. The receiving server decides what to keep |
+<!-- source: internal/component/config/archive/archive.go -- NewNotifier, pruneAfterWrite, ArchiveMatcher, PruneFileArchives -->
+<!-- source: internal/component/config/archive/scheduler.go -- Scheduler boot archive and fireByTrigger -->
+
+Two blocks that write to the same directory with the same filename format share
+one count. Put `{archive}` in the format to give each block its own count.
+<!-- source: internal/component/config/archive/archive.go -- FormatFilename, DefaultFilenameFormat -->
+
+A format that starts with `{date}` or `{time}` is matched the same way, so a
+`.conf` file whose name differs from the format is never counted or removed. A
+file you name in the same shape, such as `20260101.conf` beside the format
+`{date}`, counts as one of the block's copies and can be removed.
+<!-- source: internal/component/config/archive/archive.go -- ArchiveMatcher -->
+
 ## Change Detection
 
 For time-based triggers with `on-change true`, ze tracks config changes using SHA-256 hashes in memory. Each named archive block has its own hash. The first check after daemon start always reports "changed" (no baseline yet), so the boot archive fires unconditionally. Subsequent checks compare the current config hash against the last archived hash and skip the archive if unchanged.

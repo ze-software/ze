@@ -2,7 +2,7 @@
 
 <!-- source: internal/plugins/trafficusage/monitor.go -- reconcile, lifecycle, poller -->
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage config -->
-<!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage RPC -->
+<!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage RPC -->
 <!-- source: internal/plugins/trafficusage/metrics.go -- ze_traffic_usage_* Prometheus metrics -->
 
 Ze accounts per-(port, protocol) and, optionally, per-IP byte totals on
@@ -115,7 +115,7 @@ The command answers structured data, which `ze cli -c` renders in the format
 `environment cli format default` names. The registered value is `text`. Append
 `| json`, `| table`, `| yaml` or `| ndjson` to select another one, and the full
 set of pipe operators applies.
-<!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage -->
+<!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage -->
 
 ### Demo: Attribute a live traffic burst
 

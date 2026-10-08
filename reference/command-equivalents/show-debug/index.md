@@ -10,7 +10,7 @@ Show live debug state from the running daemon\.
 - Wire method: `ze-debug:debug-state`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: none: this command takes no subcommand
+- Subcommands: `profile`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none

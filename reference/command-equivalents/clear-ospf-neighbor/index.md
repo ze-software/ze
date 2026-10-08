@@ -7,7 +7,7 @@ Tear down every OSPF adjacency so neighbors re\-form\.
 - Registry path: `clear ospf neighbor`
 - Usage: `clear ospf neighbor`
 - Mode: Daemon
-- Wire method: `ze-clear:ospf-neighbor`
+- Wire method: `ze-ospf:clear-neighbor`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

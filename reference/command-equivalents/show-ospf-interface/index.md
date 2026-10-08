@@ -7,7 +7,7 @@ Show OSPF\-enabled interfaces\.
 - Registry path: `show ospf interface`
 - Usage: `show ospf interface`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-interface`
+- Wire method: `ze-ospf:show-interface`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

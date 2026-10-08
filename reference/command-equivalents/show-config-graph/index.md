@@ -5,8 +5,9 @@ Show how components and peers depend on each other\, as JSON\.
 ## Ze command
 
 - Registry path: `show config graph`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `show config graph <file>`
+- Mode: Read-only
+- Wire method: `ze-config-cli:show-config-graph`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -20,11 +21,13 @@ Show how components and peers depend on each other\, as JSON\.
 - Command pipes: none
 - Pipe aliases: none
 
-It takes a config file path\, or \- to read the file on stdin\. Inactive blocks are pruned before the graph is built\, so a deactivated peer contributes no edge and the answer describes the config as it would run\.
+Prints the dependency graph of a config file as JSON\. Inactive blocks are left out\, so the graph is the one the daemon would build\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `file` | string | yes | any value of this type | Config file path\, or \- for stdin\. | The config file to read\, or \- to read it on stdin\. |
 
 ## Mapping intents
 

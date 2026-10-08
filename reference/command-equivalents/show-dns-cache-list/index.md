@@ -7,7 +7,7 @@ List all non\-expired DNS cache entries\, sorted by shortest TTL first\.
 - Registry path: `show dns cache list`
 - Usage: `show dns cache list`
 - Mode: Read-only
-- Wire method: `ze-show:dns-cache-list`
+- Wire method: `ze-resolve:show-dns-cache-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

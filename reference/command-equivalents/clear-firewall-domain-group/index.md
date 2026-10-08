@@ -7,7 +7,7 @@ Remove the addresses Ze cached for a domain group\.
 - Registry path: `clear firewall domain-group`
 - Usage: `clear firewall domain-group <name>`
 - Mode: Daemon
-- Wire method: `ze-clear:firewall-domain-group`
+- Wire method: `ze-firewall:clear-domain-group`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Start capturing packets in the VPP dataplane\.
 - Registry path: `show vpp trace start`
 - Usage: `show vpp trace start`
 - Mode: Read-only
-- Wire method: `ze-show:vpp-trace-start`
+- Wire method: `ze-iface:show-vpp-trace-start`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

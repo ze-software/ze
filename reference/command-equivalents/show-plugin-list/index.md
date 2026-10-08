@@ -7,7 +7,7 @@ List the plugins compiled into this binary\.
 - Registry path: `show plugin list`
 - Usage: `show plugin list`
 - Mode: Read-only
-- Wire method: `ze-show:plugin-list`
+- Wire method: `ze-plugin:show-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

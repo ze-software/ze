@@ -7,7 +7,7 @@ Show IRR\-resolved prefixes for a cached entry\.
 - Registry path: `show firewall irr prefix`
 - Usage: `show firewall irr prefix <name>`
 - Mode: Read-only
-- Wire method: `ze-show:firewall-irr-prefix`
+- Wire method: `ze-firewall:show-irr-prefix`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

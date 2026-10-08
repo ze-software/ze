@@ -122,7 +122,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>9.1%</strong><b>3 of 33 tagged units, 0 escaped and 3 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>22.9%</strong><b>8 of 35 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>13</strong><b>of 13 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -185,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -226,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>33</td>
+<td>35</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>33</td>
+<td>35</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>13</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>6</td>
+<td>8</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9687.md</code></td>
@@ -375,10 +376,12 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4.3 - Changes to the FSM</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9687-4.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_emission_test.go#L183" title="internal/component/bgp/reactor/rfc9687_emission_test.go" target="_blank" rel="noopener"><code>TestRFC9687EmissionRestartsExactSendHoldDeadline</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L92" title="internal/component/bgp/reactor/rfc9687_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC9687EveryWriterRestartsTheSendHoldTimer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_remaining_writers_test.go#L17" title="internal/component/bgp/reactor/rfc9687_remaining_writers_test.go" target="_blank" rel="noopener"><code>TestRFC9687RemainingWritersRestartSendHold</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L400" title="internal/component/bgp/reactor/rfc9687_test.go" target="_blank" rel="noopener"><code>TestRFC9687SendRestartsTheSendHoldTimer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L438" title="internal/component/bgp/reactor/rfc9687_test.go" target="_blank" rel="noopener"><code>TestRFC9687SilenceDoesNotRestartTheSendHoldTimer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_emission_test.go#L69" title="internal/component/bgp/reactor/rfc9687_emission_test.go" target="_blank" rel="noopener"><code>TestRFC9687SuppressedAttemptsDoNotRestartSendHold</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9687-4.3-9">RFC9687-4.3-9</code></td><td colspan="3"><span class="rfc-subject">unless the SendHoldTime value is zero or the | negotiated HoldTime value is zero, in which case the | SendHoldTimer is stopped. (§4.3)</span></td></tr>
@@ -550,7 +553,7 @@ No tracked gap in current source anchors.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L171" title="internal/component/bgp/reactor/rfc9687_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC9687Event29ReleasesHoldTimerAndConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L268" title="internal/component/bgp/reactor/rfc9687_test.go" target="_blank" rel="noopener"><code>TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact</code></a></td>
@@ -560,12 +563,12 @@ No tracked gap in current source anchors.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L170" title="internal/component/bgp/reactor/rfc9687_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC9687Event29ReleasesHoldTimerAndConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_rib_release_test.go#L47" title="internal/component/bgp/reactor/rfc9687_rib_release_test.go" target="_blank" rel="noopener"><code>TestRFC9687Event29ReleasesTheLivePeersRIB</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L173" title="internal/component/bgp/reactor/rfc9687_test.go" target="_blank" rel="noopener"><code>TestRFC9687SendHoldExpiryRunsTheEvent29ActionList</code></a></td>
@@ -657,15 +660,25 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc9687-4.3-8"><code>RFC9687-4.3-8</code></a></h3>
 <p>Each time the local system sends a BGP message, it restarts the | SendHoldTimer (§4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold moved. RFC 9687 Section 4.3: &#34;Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.&#34; Row 4.3-9 separately owns the zero-time exception. All four current carriers read: TestRFC9687SendRestartsTheSendHoldTimer, TestRFC9687EveryWriterRestartsTheSendHoldTimer, TestRFC9687RemainingWritersRestartSendHold and TestRFC9687SilenceDoesNotRestartTheSendHoldTimer. Together the positive cases cover SendRawMessage, writeMessage, SendUpdate, sendWithdraw, sendRawUpdateBody, SendAnnounce, SendUpdateHeld, both fwdBatchHandler encodings and flushFwdDirty. The new writer matrix pins the exact advanced deadline as well as an armed timer and Established beyond the old deadline, distinguishing restart from stop. The no-send negative requires Run exit and Idle for the same clock advance. resetSendHoldTimer stores Now+duration only when armed; fwdBatchHandler resets after successful flush. The prior named writer holes are covered without changing production timers. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently reread RFC9687 Section 4.3&#39;s full sentence: &#39;Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.&#39; The zero-time exception remains attributed to RFC9687-4.3-9. Read all six current tagged functions. The earlier independent weak finding about successful no-emission attempts is closed by current source and distinct new assertions, not by a producer halt. TestRFC9687SuppressedAttemptsDoNotRestartSendHold repeatedly calls actual policy-suppressed, duplicate, stale-batch, empty-flush/raw and PATHS-LIMIT paths at 0.3/0.6/0.9 SendHoldTime, requires no added transport bytes and an unchanged exact deadline, then requires Established one nanosecond before expiry and Idle, released connection and closed transport at expiry. TestRFC9687EmissionRestartsExactSendHoldDeadline requires exact UPDATE/KEEPALIVE/refresh/BoRR/EoRR wire bytes and the exact restarted deadline, including direct bufio writes; buffering alone earns no restart, and a later empty flush cannot reuse the old emission. TestRFC9687RemainingWritersRestartSendHold establishes batch ownership before advancing the clock, so only the selected post-advance writer can satisfy its exact-deadline and live-session assertions. The unchanged original writer and silence carriers retain their narrower contributions. All production bufWriter.Write sites in session_write.go set writePending only after successful nonempty acceptance; flushWrites consumes it after successful flush and resets the timer only then. Suppression and stale-worker branches route to that common accounting without manufacturing an emission; retireWrite clears pending credit on failure. The retained before log shows actual no-emission deadline extension failures, and 7de30816 records passing current emission/suppression/remaining-writer selectors; the latter log is not represented as an overall green run because unrelated tunnel cases failed there. Main&#39;s later complete reactor/message evidence is retained. No new runtime or mutation execution is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_emission_test.go#L69" title="internal/component/bgp/reactor/rfc9687_emission_test.go" target="_blank" rel="noopener"><code>TestRFC9687SuppressedAttemptsDoNotRestartSendHold</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L438" title="internal/component/bgp/reactor/rfc9687_test.go" target="_blank" rel="noopener"><code>TestRFC9687SilenceDoesNotRestartTheSendHoldTimer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_emission_test.go#L183" title="internal/component/bgp/reactor/rfc9687_emission_test.go" target="_blank" rel="noopener"><code>TestRFC9687EmissionRestartsExactSendHoldDeadline</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L92" title="internal/component/bgp/reactor/rfc9687_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC9687EveryWriterRestartsTheSendHoldTimer</code></a></td>
@@ -990,7 +1003,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

@@ -7,7 +7,7 @@ Show OSPFv3 \(IPv6\-family\) interfaces and their RFC 4552 IPsec status\.
 - Registry path: `show ospf ipv6 interface`
 - Usage: `show ospf ipv6 interface`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-ipv6-interface`
+- Wire method: `ze-ospf:show-ipv6-interface`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

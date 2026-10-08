@@ -22998,7 +22998,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "RFC 5709 section 3.2 names the two bounds Key Start Accept and\nKey Stop Accept. RFC 7474 section 4 requires that, for packet reception, 'the key validity\ninterval as defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current\ntime'. Ze checks that both timestamps parse as RFC 3339 and refuses the configuration when\none does not. On receive Ze tries only the keys whose window covers the current time, so a\npacket made with a key outside its window is dropped and counted under the accept-lifetime\nreason. A key with no accept-lifetime is accepted at every time. When no key of the chain is\nin its window, every packet on the interface is dropped. Use `send-lifetime` to control\nwhich key signs.",
+                "description": "RFC 5709 section 3.2 names the two bounds Key Start Accept and\nKey Stop Accept. RFC 7474 section 4 requires that, for packet reception, 'the key validity\ninterval as defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current\ntime'. Ze checks that both timestamps parse as RFC 3339 and refuses the configuration when\none does not. On receive Ze tries only the keys whose window covers the current time, so a\npacket made with a key outside its window is dropped and counted under the accept-lifetime\nreason. A key with no accept-lifetime is accepted at every time. When no key of the chain is\nin its window, every packet on the interface is dropped, except once every window has\nclosed: then RFC 5709 section 3.2 keeps the chain's last key (the latest-starting send key)\naccepted as if its lifetime were infinite, and Ze logs a last-key-expiration warning. Use\n`send-lifetime` to control which key signs.",
                 "kind": "container",
                 "name": "accept-lifetime",
                 "short-help": "When this key is accepted on receive.",
@@ -24093,7 +24093,7 @@
             "type": "uint8"
           },
           {
-            "description": "An eBGP route comes from a peer in another autonomous\nsystem. The default 20 ranks eBGP above every IGP declared\nhere and below a static route. The range is 1 to 255. The\nBGP RIB plugin stamps this value on each path it inserts.\nThe Loc-RIB ranks the paths on what it stamped, so the\nvalue decides selection before sysrib sees the route. The\nseam that carries it is process-global: a BGP RIB running\nin a forked plugin process keeps its own bootstrap 20 and\nnothing reports that.",
+            "description": "An eBGP route comes from a peer in another autonomous\nsystem. The default 20 ranks eBGP above every IGP declared\nhere and below a static route. The range is 1 to 255. The\nLoc-RIB looks this value up for each eBGP path when it\nranks it, so it decides selection before sysrib sees the\nroute, and a change re-ranks the routes already installed.",
             "kind": "leaf",
             "name": "ebgp",
             "short-help": "External BGP routes.",
@@ -24101,7 +24101,7 @@
             "type": "uint8"
           },
           {
-            "description": "An iBGP route comes from a peer in the same autonomous\nsystem. The default 200 is the highest of the six declared\nhere, so an iBGP route loses the prefix to any other\nprotocol that holds it. The range is 1 to 255. The BGP RIB\nplugin stamps this value on each path it inserts, and its\nbootstrap 200 applies until sysrib publishes the\ndeclaration. The eBGP distance is a separate leaf, so the\ntwo BGP classes rank apart.",
+            "description": "An iBGP route comes from a peer in the same autonomous\nsystem. The default 200 is the highest of the six declared\nhere, so an iBGP route loses the prefix to any other\nprotocol that holds it. The range is 1 to 255. The Loc-RIB\nranks each iBGP path at this value when it ranks it. The eBGP distance is a separate leaf, so the\ntwo BGP classes rank apart.",
             "kind": "leaf",
             "name": "ibgp",
             "short-help": "Internal BGP routes.",
@@ -24109,7 +24109,7 @@
             "type": "uint8"
           },
           {
-            "description": "The default 115 ranks IS-IS below OSPF and above iBGP. The\nrange is 1 to 255. The IS-IS SPF installer stamps this\nvalue on each path it puts in the Loc-RIB, and its\nbootstrap 115 applies until sysrib publishes the\ndeclaration. One value covers level 1 and level 2: Ze\ndeclares no separate distance for each level.",
+            "description": "The default 115 ranks IS-IS below OSPF and above iBGP. The\nrange is 1 to 255. The Loc-RIB ranks each IS-IS path at\nthis value when it ranks it, and a change re-ranks the\nroutes already installed. One value covers level 1 and level 2: Ze\ndeclares no separate distance for each level.",
             "kind": "leaf",
             "name": "isis",
             "short-help": "IS-IS routes.",
@@ -24117,7 +24117,7 @@
             "type": "uint8"
           },
           {
-            "description": "The default 110 ranks OSPF below eBGP and above IS-IS. The\nrange is 1 to 255. The OSPF SPF installer stamps this value\non each path it puts in the Loc-RIB, and its bootstrap 110\napplies until sysrib publishes the declaration. One value\ncovers every OSPF route: Ze declares no separate distance\nfor an external LSA.",
+            "description": "The default 110 ranks OSPF below eBGP and above IS-IS. The\nrange is 1 to 255. The Loc-RIB ranks each OSPF path at this\nvalue when it ranks it, and a change re-ranks the routes\nalready installed. One value\ncovers every OSPF route: Ze declares no separate distance\nfor an external LSA.",
             "kind": "leaf",
             "name": "ospf",
             "short-help": "OSPF routes.",
@@ -24125,7 +24125,7 @@
             "type": "uint8"
           },
           {
-            "description": "A static route is one the operator wrote under the static\nconfiguration. The default 10 ranks a static route above\nevery dynamic protocol declared here and below a connected\nroute. The range is 1 to 255. sysrib applies the value to\neach route that arrives under the protocol name static.\nRaise it to more than 20 to let an eBGP route win the\nsame prefix.",
+            "description": "A static route is one the operator wrote under the static\nconfiguration. The default 10 ranks a static route above\nevery dynamic protocol declared here and below a connected\nroute. The range is 1 to 255. The Loc-RIB ranks each static\nroute at this value unless the route carries its own\ndistance leaf, which wins over it. Raise it to more than 20 to let an eBGP route win the\nsame prefix.",
             "kind": "leaf",
             "name": "static",
             "short-help": "Static routes.",
@@ -25528,6 +25528,14 @@
                 "short-help": "Operator note for this route.",
                 "source": "config",
                 "type": "string"
+              },
+              {
+                "description": "Ze ranks this route at the value against every other protocol's route for\nthe same prefix, in place of the distance rib distance static declares. The value\napplies to this route alone. Lower wins, and 0 is the best rank. Without the leaf\nthe route ranks at the declared static distance, and a reload that changes the\ndeclaration re-ranks it.",
+                "kind": "leaf",
+                "name": "distance",
+                "short-help": "Administrative distance for this route alone (overrides rib distance static).",
+                "source": "config",
+                "type": "uint8"
               },
               {
                 "description": "Ze writes the value into the netlink route priority. The kernel prefers the\nlower priority when two routes cover the same prefix. 0 leaves the attribute\nout, so the kernel applies its own default. The redistribute event carries the\nsame value.",

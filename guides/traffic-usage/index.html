@@ -48,7 +48,7 @@
             <section class="md-content reveal cat-observe">
 <!-- source: internal/plugins/trafficusage/monitor.go -- reconcile, lifecycle, poller -->
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage config -->
-<!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage RPC -->
+<!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage RPC -->
 <!-- source: internal/plugins/trafficusage/metrics.go -- ze_traffic_usage_* Prometheus metrics -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
@@ -229,7 +229,7 @@ ze cli -c 'show traffic usage name eth0'
 <code>environment cli format default</code> names. The registered value is <code>text</code>. Append
 <code>| json</code>, <code>| table</code>, <code>| yaml</code> or <code>| ndjson</code> to select another one, and the full
 set of pipe operators applies.</p>
-<!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage -->
+<!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage -->
 <figure class="terminal-demo" data-terminal-demo="traffic-anomaly">
   <div class="terminal-demo__intro">
     <div>
@@ -402,7 +402,7 @@ churn only the current top talkers are retained.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

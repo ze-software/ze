@@ -7,7 +7,7 @@ Show recent events for a session \(debug aid\)\.
 - Registry path: `show l2tp observer`
 - Usage: `show l2tp observer`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:observer`
+- Wire method: `ze-l2tp:observer`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

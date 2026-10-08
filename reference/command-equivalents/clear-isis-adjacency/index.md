@@ -7,7 +7,7 @@ Tear down every IS\-IS adjacency so neighbors re\-form\.
 - Registry path: `clear isis adjacency`
 - Usage: `clear isis adjacency`
 - Mode: Daemon
-- Wire method: `ze-clear:isis-adjacency`
+- Wire method: `ze-isis:clear-adjacency`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

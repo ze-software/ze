@@ -7,7 +7,7 @@ Check if a prefix is accepted by the IRR filter\.
 - Registry path: `show bgp irr check`
 - Usage: `show bgp irr check <peer> <prefix>`
 - Mode: Read-only
-- Wire method: `ze-show:irr-check`
+- Wire method: `ze-bgp:show-irr-check`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Gracefully shutdown then reboot the system\.
 - Registry path: `request reboot`
 - Usage: `request reboot`
 - Mode: Daemon
-- Wire method: `ze-system:daemon-reboot`
+- Wire method: `ze-plugin:system-daemon-reboot`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

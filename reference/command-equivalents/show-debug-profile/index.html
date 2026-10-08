@@ -54,16 +54,21 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show debug profile</code></dd></div>
-<div><dt>Mode</dt><dd>Offline</dd></div>
-<div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
+<div><dt>Usage</dt><dd><code>show debug profile [name &lt;name&gt;] [module &lt;module&gt;]</code></dd></div>
+<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-debug:show-profile</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
 </dl>
-<h3>Description</h3><p>With no argument it lists the profile names. `name &lt;name&gt;` prints that profile as a table of module, level, flags and scopes. Adding `module &lt;prefix&gt;` keeps the rows under one subsystem subtree. Any other trailing word is refused rather than ignored.</p>
+<h3>Description</h3><p>Reads debug.zefs and asks no daemon. With no argument it lists the<br>profile names. name &lt;name&gt; prints that profile as a table of module, level, flags and<br>scopes, and module &lt;prefix&gt; then keeps the rows under one subsystem subtree. Any other<br>trailing word is refused rather than ignored.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Profile name.</td><td>The stored profile to print. Absent, the command lists the profile names.</td></tr>
+<tr><td><code>module</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Subsystem subtree to keep.</td><td>A subsystem prefix. Only the rows at or under that subtree are printed,
+and the keyword is read only after name.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -126,7 +131,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

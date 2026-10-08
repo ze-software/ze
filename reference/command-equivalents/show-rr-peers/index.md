@@ -7,7 +7,7 @@ Show route reflector client peers\.
 - Registry path: `show rr peers`
 - Usage: `show rr peers`
 - Mode: Read-only
-- Wire method: `ze-show:rr-peers`
+- Wire method: `ze-bgp:show-rr-peers`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

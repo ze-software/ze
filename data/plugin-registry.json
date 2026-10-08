@@ -502,16 +502,6 @@
     "yang_files": []
   },
   {
-    "name": "bgp-persist",
-    "description": "Route Persistence",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "start_after": [],
-    "source_dir": "internal/component/bgp/plugins/persist",
-    "yang_files": []
-  },
-  {
     "name": "bgp-rib",
     "description": "Route Information Base storage",
     "config_roots": [

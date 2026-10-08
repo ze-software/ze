@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 12.5% | 2 of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 12.5% | 2 of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 57.1% | 8 of 14 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 11.1% | 2 of 18 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 11.1% | 2 of 18 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 18 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 18 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 60.0% | 9 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,11 +22,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 16 | of 22 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 9 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 56.2% | 9 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 18 | of 24 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 9 | of 18 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 50.0% | 9 of 18 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 18 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 18 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -34,9 +34,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 18.8% | 3 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 27.8% | 5 of 18 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 8 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 8 shares marked as a part above are the whole of the 18 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -61,24 +61,24 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 22 |
-| Gated MUST-level | 16 |
+| Requirements | 24 |
+| Gated MUST-level | 18 |
 | Not applicable, so out of scope | 9 |
-| Declared gaps | 3 |
+| Declared gaps | 5 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 14 |
-| Tagged units | 14 |
+| Test tags | 15 |
+| Tagged units | 15 |
 | Recorded audit verdicts | 4 |
-| Discrimination records | 8 |
+| Discrimination records | 9 |
 | Summary | `rfc/short/rfc4659.md` |
 | Requirement shard | `rfc/requirements/rfc4659.md` |
 | RFC text | `rfc/full/rfc4659.txt` |
 
 ## Enrolment
 
-Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): 2 MET (labeled VPNv6 NLRI, AFI2/SAFI128 capability negotiation) + 2 single-polarity positive (AFI/SAFI set, 24-octet zero-RD global-IPv6 next-hop) + 3 gap (IPv4-mapped-IPv6 next-hop, 48-octet global+link-local next-hop) + 9 not-applicable (data-plane PE tunneling + multi-AS ASBR)
+Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128 capability negotiation, and single-polarity AFI/SAFI and zero-RD global-IPv6 next-hop emission. IPv4-mapped-IPv6 and global-plus-link-local next-hop gaps remain explicit; data-plane PE tunneling and multi-AS ASBR scope boundaries are retained. Newly separated requirements and the widened next-hop quotation require independent judgment, not inherited conformance.
 
 ## What the public ledger says
 
@@ -88,26 +88,26 @@ Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): 2 MET (labeled VPNv6 NLRI, AFI2/
 
 VPNv6 NLRI (RD + MPLS label + IPv6 prefix) encode/decode, AFI=2/SAFI=128 capability negotiation, and the zero-RD + global-IPv6 24-octet next-hop.
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-No IPv4-mapped-IPv6 next-hop for IPv4 transport ([`RFC4659-3.2.1.2-1`](#rfc4659-3.2.1.2-1), 8-4); no 48-octet global+link-local next-hop ([`RFC4659-8-3`](#rfc4659-8-3)). Data-plane PE tunneling (Section 4) and multi-AS ASBR options (Section 8 a/b) are not performed.
+No IPv4-mapped-IPv6 next-hop for IPv4 transport ([`RFC4659-3.2.1.2-1`](#rfc4659-3.2.1.2-1), [`RFC4659-8-4`](#rfc4659-8-4)); no 48-octet global+link-local next-hop or common-subnet iff decision ([`RFC4659-8-3`](#rfc4659-8-3), [`RFC4659-3.2.1.1-3`](#rfc4659-3.2.1.1-3)). Data-plane PE tunneling (Section 4) and multi-AS ASBR options (Section 8 a/b) are not performed. [`RFC4659-8-5`](#rfc4659-8-5) separately records option-(b) IPv6 transport next-hop placement with an absent-path gap and pending independent applicability disposition. The widened [`RFC4659-3.2.1.1-1`](#rfc4659-3.2.1.1-1) requires whole-row rejudgment; the link-local-only unspecified-global exception remains.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 2 | one part of the gated population |
-| Annotated (including scoped evidence) | 14 | one part of the gated population |
+| Annotated (including scoped evidence) | 16 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **16** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **18** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC4659-3.2-1`](#rfc4659-3.2-1), [`RFC4659-3.4-1`](#rfc4659-3.4-1)
 
-**Annotated (including scoped evidence) (14):** [`RFC4659-3.2-2`](#rfc4659-3.2-2), [`RFC4659-4-1`](#rfc4659-4-1), [`RFC4659-4-2`](#rfc4659-4-2), [`RFC4659-4-3`](#rfc4659-4-3), [`RFC4659-4-4`](#rfc4659-4-4), [`RFC4659-4-5`](#rfc4659-4-5), [`RFC4659-4-6`](#rfc4659-4-6), [`RFC4659-4-7`](#rfc4659-4-7), [`RFC4659-8-1`](#rfc4659-8-1), [`RFC4659-8-2`](#rfc4659-8-2), [`RFC4659-8-3`](#rfc4659-8-3), [`RFC4659-3.2.1.1-1`](#rfc4659-3.2.1.1-1), [`RFC4659-3.2.1.2-1`](#rfc4659-3.2.1.2-1), [`RFC4659-8-4`](#rfc4659-8-4)
+**Annotated (including scoped evidence) (16):** [`RFC4659-3.2-2`](#rfc4659-3.2-2), [`RFC4659-4-1`](#rfc4659-4-1), [`RFC4659-4-2`](#rfc4659-4-2), [`RFC4659-4-3`](#rfc4659-4-3), [`RFC4659-4-4`](#rfc4659-4-4), [`RFC4659-4-5`](#rfc4659-4-5), [`RFC4659-4-6`](#rfc4659-4-6), [`RFC4659-4-7`](#rfc4659-4-7), [`RFC4659-8-1`](#rfc4659-8-1), [`RFC4659-8-2`](#rfc4659-8-2), [`RFC4659-8-3`](#rfc4659-8-3), [`RFC4659-3.2.1.1-1`](#rfc4659-3.2.1.1-1), [`RFC4659-3.2.1.2-1`](#rfc4659-3.2.1.2-1), [`RFC4659-8-4`](#rfc4659-8-4), [`RFC4659-8-5`](#rfc4659-8-5), [`RFC4659-3.2.1.1-3`](#rfc4659-3.2.1.1-3)
 
 ## Requirements
 
@@ -126,10 +126,12 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport ([`RFC4659-3.2.1.2-1`](#rfc4659-
 | `RFC4659-8-1` | The exchange of IPv6 routes MUST be carried out as per [BGP-IPv6]. (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the inter-provider option-A back-to-back-VRF ASBR role; ze has no per-VPN VRF inter-AS exchange, and the referenced RFC 2545 IPv6 next-hop wire behavior is enrolled under its own RFC |
 | `RFC4659-8-2` | The exchange of labeled VPN-IPv6 routes MUST be carried out as per [BGP-IPv6] and [MPLS-BGP]. (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the inter-provider option-B ASBR label-swap/redistribution role; ze implements the VPNv6 NLRI and next-hop encodings but performs no inter-AS VPN ASBR redistribution |
 | `RFC4659-8-3` | An example scenario where both the global IPv6 address and the link- local IPv6 address shall be included in the BGP Next Hop address field is that where the IPv6 VPN service is supported over a multi- Autonomous System (AS) backbone with redistribution of labeled VPN- IPv6 routes between Autonomous System Border Routers (ASBR) of different ASes sharing a common IPv6 subnet: in that case, both the global IPv6 address and the link-local IPv6 address shall be advertised by the ASBRs. (§3.2.1.1) | MUST | 3.2.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's VPNv6 next-hop encoder emits only the single global-IPv6 24-octet form and never the 48-octet global+link-local next-hop, so the shared-subnet clause is unmet (internal/component/bgp/message/update_build_vpn.go:229; no 48-octet producer exists) |
-| `RFC4659-3.2.1.1-1` | When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address (Section 3.2.1.1) | SHALL | 3.2.1.1 | **positive:** `unit/verify` [`TestUpdateBuilder_BuildVPN_IPv6_NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646). **negative:** no negative test. **{single-polarity}:** the obligation is to EMIT a 24-octet zero-RD + global-IPv6 next-hop, which ze produces for a VPNv6 route with an IPv6 next-hop; the decode side is not RD-aware and is not a gated obligation (internal/component/bgp/message/update_build_vpn.go:246, internal/component/bgp/rib/commit.go:498) |
+| `RFC4659-3.2.1.1-1` | When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is set to the global IPv6 address of the advertising BGP speaker. (§3.2.1.1) | SHALL | 3.2.1.1 | **positive:** `unit/verify` [`TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40). **positive:** `unit/verify` [`TestUpdateBuilder_BuildVPN_IPv6_NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646). **negative:** no negative test. **{single-polarity}:** the obligation is to EMIT a 24-octet zero-RD + global-IPv6 next-hop, which ze produces for a VPNv6 route with an IPv6 next-hop; the decode side is not RD-aware and is not a gated obligation (internal/component/bgp/message/update_build_vpn.go:246, internal/component/bgp/rib/commit.go:498) |
 | `RFC4659-3.2.1.2-1` | When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv4 tunneling (e.g., IPv4 MPLS LSPs, IPsec-protected IPv4 tunnels), the BGP speaker SHALL advertise to its peer a Next Hop Network Address field containing a VPN-IPv6 address: - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is encoded as an IPv4-mapped IPv6 address [V6ADDR] containing the IPv4 address of the advertising BGP speaker. (§3.2.1.2) | SHALL | 3.2.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze constructs no IPv4-mapped-IPv6 next-hop for VPNv6 -- a plain IPv4 next-hop on a VPNv6 route emits a non-conformant 12-octet zero-RD+IPv4 next-hop, and no ::ffff:a.b.c.d mapping exists in the BGP path (internal/component/bgp/message/update_build_vpn.go:229; Is4In6 appears only in ISIS/OSPF) |
 | `RFC4659-8-4` | When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8) | SHALL | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer) |
+| `RFC4659-8-5` | When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8) | SHALL | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the option-(b) inter-ASBR redistribution path with an operator-selected IPv6 transport policy is absent under the existing ASBR scope boundary; buildMPReachVPN only encodes a supplied next-hop address and does not provide that path. Applicability and the producer boundary still require independent disposition; no ASBR feature is commissioned. |
 | `RFC4659-3.2.1.1-2` | As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop. (§3.2.1.1) | MAY | 3.2.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4659-3.2.1.1-3` | The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1) | SHALL | 3.2.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** buildMPReachVPN in internal/component/bgp/message/update_build_vpn.go has no 48-octet global-plus-link-local encoder or common-subnet emission decision; the iff behavior remains unmet. |
 | `RFC4659-1-1` | Where both IPv4 VPNs and IPv6 VPN services are supported over an IPv4 core, the same single set of MP-BGP peering relationships and the same single PE-PE tunnel mesh MAY be used for both. (§1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-2-1` | When a site is IPv4 capable and IPv6 capable, the same RD MAY be used for the advertisement of IPv6 addresses and IPv4 addresses. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-2-2` | Alternatively, a different RD MAY be used for the advertisement of the IPv4 addresses and of the IPv6 addresses. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -152,6 +154,8 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport ([`RFC4659-3.2.1.2-1`](#rfc4659-
 | [`RFC4659-8-3`](#rfc4659-8-3) An example scenario where both the global IPv6 address and the link- local IPv6 address shall be included in the BGP Next Hop address field is that where the IPv6 VPN service is supported over a multi- Autonomous System (AS) backbone with redistribution of labeled VPN- IPv6 routes between Autonomous System Border Routers (ASBR) of different ASes sharing a common IPv6 subnet: in that case, both the global IPv6 address and the link-local IPv6 address shall be advertised by the ASBRs. (§3.2.1.1) | {gap}, no test | ze's VPNv6 next-hop encoder emits only the single global-IPv6 24-octet form and never the 48-octet global+link-local next-hop, so the shared-subnet clause is unmet (internal/component/bgp/message/update_build_vpn.go:229; no 48-octet producer exists) |
 | [`RFC4659-3.2.1.2-1`](#rfc4659-3.2.1.2-1) When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv4 tunneling (e.g., IPv4 MPLS LSPs, IPsec-protected IPv4 tunnels), the BGP speaker SHALL advertise to its peer a Next Hop Network Address field containing a VPN-IPv6 address: - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is encoded as an IPv4-mapped IPv6 address [V6ADDR] containing the IPv4 address of the advertising BGP speaker. (§3.2.1.2) | {gap}, no test | ze constructs no IPv4-mapped-IPv6 next-hop for VPNv6 -- a plain IPv4 next-hop on a VPNv6 route emits a non-conformant 12-octet zero-RD+IPv4 next-hop, and no ::ffff:a.b.c.d mapping exists in the BGP path (internal/component/bgp/message/update_build_vpn.go:229; Is4In6 appears only in ISIS/OSPF) |
 | [`RFC4659-8-4`](#rfc4659-8-4) When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8) | {gap}, no test | the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer) |
+| [`RFC4659-8-5`](#rfc4659-8-5) When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8) | {gap}, no test | the option-(b) inter-ASBR redistribution path with an operator-selected IPv6 transport policy is absent under the existing ASBR scope boundary; buildMPReachVPN only encodes a supplied next-hop address and does not provide that path. Applicability and the producer boundary still require independent disposition; no ASBR feature is commissioned. |
+| [`RFC4659-3.2.1.1-3`](#rfc4659-3.2.1.1-3) The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1) | {gap}, no test | buildMPReachVPN in internal/component/bgp/message/update_build_vpn.go has no 48-octet global-plus-link-local encoder or common-subnet emission decision; the iff behavior remains unmet. |
 
 ## Proof state
 
@@ -279,13 +283,14 @@ No test carries RFC4659-8-3, so no unit is bound to it.
 
 ### [`RFC4659-3.2.1.1-1`](#rfc4659-3.2.1.1-1)
 
-When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address (Section 3.2.1.1)
+When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is set to the global IPv6 address of the advertising BGP speaker. (§3.2.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), stale-requirement. Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestUpdateBuilder_BuildVPN_IPv6_NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646) | unit/verify | unproven |
+| positive | [`TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40) | unit/verify | revert, verified |
 
 ### [`RFC4659-3.2.1.2-1`](#rfc4659-3.2.1.2-1)
 
@@ -302,6 +307,22 @@ When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Nex
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC4659-8-4, so no unit is bound to it.
+
+### [`RFC4659-8-5`](#rfc4659-8-5)
+
+When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4659-8-5, so no unit is bound to it.
+
+### [`RFC4659-3.2.1.1-3`](#rfc4659-3.2.1.1-3)
+
+The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4659-3.2.1.1-3, so no unit is bound to it.
 
 ## Extraction sign-off
 

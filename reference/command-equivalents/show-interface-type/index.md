@@ -7,7 +7,7 @@ Show only interfaces of a given type\.
 - Registry path: `show interface type`
 - Usage: `show interface type <type>`
 - Mode: Read-only
-- Wire method: `ze-show:interface-type`
+- Wire method: `ze-iface:show-interface-type`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

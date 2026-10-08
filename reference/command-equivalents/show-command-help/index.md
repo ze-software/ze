@@ -7,7 +7,7 @@ Show usage and arguments for a specific command\.
 - Registry path: `show command help`
 - Usage: `show command help`
 - Mode: Read-only
-- Wire method: `ze-bgp:command-help`
+- Wire method: `ze-meta:bgp-command-help`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

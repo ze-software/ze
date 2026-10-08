@@ -7,7 +7,7 @@ List all RPC methods defined in YANG API modules\.
 - Registry path: `show schema methods`
 - Usage: `show schema methods`
 - Mode: Read-only
-- Wire method: `ze-show:schema-methods`
+- Wire method: `ze-config-schema:show-schema-methods`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show the DNS cache hit\, miss\, eviction\, expiry\, and hit\-rate counters\.
 - Registry path: `show dns cache stats`
 - Usage: `show dns cache stats`
 - Mode: Read-only
-- Wire method: `ze-show:dns-cache-stats`
+- Wire method: `ze-resolve:show-dns-cache-stats`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

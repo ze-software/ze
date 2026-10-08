@@ -7,7 +7,7 @@ Show the configured OSPFv2 instances \(RFC 6549 Multi\-Instance\)\.
 - Registry path: `show ospf instance`
 - Usage: `show ospf instance`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-instance`
+- Wire method: `ze-ospf:show-instance`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

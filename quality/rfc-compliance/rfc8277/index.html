@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.7%</strong><b>2 of 35 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 35 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 35 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.4%</strong><b>48 of 59 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>70.8%</strong><b>46 of 65 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>25.7%</strong><b>9 of 35 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 35 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 35 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 35 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>59</td>
+<td>65</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>59</td>
+<td>65</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>12</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>48</td>
+<td>54</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8277.md</code></td>
@@ -534,22 +534,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_labeled_consumer_test.go#L27" title="internal/component/bgp/server/rfc8277_labeled_consumer_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalCodecConsumersIgnoreCompatibility</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L70" title="internal/component/bgp/format/rfc8277_withdraw_event_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalEventNamesThePrefix</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L150" title="internal/component/bgp/format/rfc8277_withdraw_event_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalEventNeverReachesTheLabelDecoder</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L71" title="internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheRouteServerSet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L56" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L97" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L52" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawIgnoresCompatibility</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rpc_decode_nlri_context_test.go#L26" title="internal/component/plugin/ipc/rpc_decode_nlri_context_test.go" target="_blank" rel="noopener"><code>TestRPCDecodeNLRIRealSDKConsumers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L76" title="internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheRouteServerSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L61" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L101" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L54" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawIgnoresCompatibility</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go#L26" title="internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go" target="_blank" rel="noopener"><code>TestRPCDecodeNLRIRealSDKConsumers</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L152" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L155" title="internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L117" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawIgnoresCompatibilityValue</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L24" title="internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawPromotesTheOtherPE</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L118" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawIgnoresCompatibilityValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L25" title="internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawPromotesTheOtherPE</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_vpn_consumer_test.go#L26" title="internal/component/bgp/server/rfc8277_vpn_consumer_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalCodecConsumersIgnoreCompatibility</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L32" title="internal/component/bgp/format/rfc8277_vpn_consumer_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalJSONConsumersIgnoreCompatibility</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L36" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactReflectorInventory</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L30" title="internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactRouteServerInventory</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_labeled_consumer_test.go#L28" title="internal/component/bgp/server/rfc8277_labeled_consumer_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalCodecConsumersIgnoreCompatibility</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L95" title="internal/component/bgp/format/rfc8277_withdraw_event_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rpc_decode_nlri_context_test.go#L27" title="internal/component/plugin/ipc/rpc_decode_nlri_context_test.go" target="_blank" rel="noopener"><code>TestRPCDecodeNLRIRealSDKConsumers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L77" title="internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheRouteServerSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L62" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L102" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L55" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawIgnoresCompatibility</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go#L27" title="internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go" target="_blank" rel="noopener"><code>TestRPCDecodeNLRIRealSDKConsumers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L119" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawIgnoresCompatibilityValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L26" title="internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawPromotesTheOtherPE</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_vpn_consumer_test.go#L27" title="internal/component/bgp/server/rfc8277_vpn_consumer_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalCodecConsumersIgnoreCompatibility</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L33" title="internal/component/bgp/format/rfc8277_vpn_consumer_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalJSONConsumersIgnoreCompatibility</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L37" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactReflectorInventory</code></a></span></div>
@@ -571,7 +577,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L93" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalNoAddPath</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L70" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestRFC8277VPNRelabelReplacesTheRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L71" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestRFC8277VPNRelabelReplacesTheRoute</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L94" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalNoAddPath</code></a></span></div>
 </div></td>
 </tr>
@@ -979,7 +985,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go#L28" title="internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go" target="_blank" rel="noopener"><code>TestRFC8277RsrvIgnoredOnReceiveLabelStack</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L24" title="internal/core/bgp/nlri/nlrisplit/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRsrvIgnoredOnReceive</code></a></td>
@@ -1061,7 +1067,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a></h3>
 <p>Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Independent source rejudgment of all 17 current tagged functions and 23 polarity covers. RFC 8277 Section 2.4: &#34;Upon reception, the value of the Compatibility field MUST be ignored.&#34; Read the full withdrawal/session/prefix/AFI-SAFI/ADD-PATH context. Exact codec and JSON assertions now cover labeled and VPN IPv4/IPv6, recommended, zero, S-set and other Compatibility values, adjacent identities and negotiated identifiers including zero, with no label output. The real SDK transport checks both decoder directions and preserves labels for announcements. RIB tests assert IPv4 labeled route/label deletion, ADD-PATH survivor labels, VPN removal, original announced withdrawal bytes and remaining-PE promotion. New VPN RR/RS tests assert exact survivor inventories across RD/prefix/path-id controls, plus native peer-down commands and parsed survivor bytes. Producers inspected: keyLabeled/keyVPN; ParseWithdrawnNLRIs/wrapNLRI; appendNLRIJSONValue; registered codec handlers; labeled DecodeNLRIHex/decodeLabeledNLRI; VPN parseVPN; SendDecodeNLRI/SDK DecodeNLRI/OnDecodeNLRI; removeLabeled and opaque RouteKey; checkRouteBestChange; RR walkVPNNLRIs and RS appendOpaqueRecords/recordKey, with both peer-down senders. The prior VPN decoder and opaque-inventory findings are addressed in these current branches and must not be repeated as extant defects. Keep weak, not a whole-stack upgrade: the tagged RIB and labeled RR/RS withdrawal populations do not cover all family/ADD-PATH reception paths, peer-down tests stop at command/RPC boundaries, and real session-to-RIB-to-independent-peer/VPP acceptance remains pending. The promotion carrier does not assert an exact replacement action. Nonrecommended Compatibility is conforming receiver input, not malformed data. Stored native producer-halt records establish reachability only; no execution, freshness validation or semantic mutation was performed by this audit. No partial annotation is present, and no untested-path defect is asserted.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers, internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2 moved. Read full RFC8277 Section 2.4, all 17 current tagged functions and their shared matrices and actual consumers. The current 29 polarity covers require recommended, zero, S-set and other Compatibility values to produce the same withdrawal identity without rejection or label interpretation. Real direct/filtered JSON, registered codec and bidirectional SDK consumers require exact RD/prefix/Path Identifier identities, adjacent-route boundaries and negotiated identifiers zero/17; announcement controls retain labels. Expanded labeled/VPN RIB matrices exercise IPv4/IPv6 with and without ADD-PATH, exact surviving native routes and labels, and exactly one correct withdrawal or replacement publication. Cross-PE promotion requires exactly Update with the surviving PE&#39;s own native NLRI, identifier and next hop. RR/RS matrices require exact retained inventories, and VPN peer-down carriers capture and reparse native survivor commands. Withdrawal splitters, canonical keys, storage removal/election and decoder/SDK dispatch carry withdrawal context rather than decoding Compatibility as a stack. The previous family/ADD-PATH and non-exact-promotion gaps are closed. This is real consumer/state evidence, not only encoder coverage; it does not claim independent VPP or remote-session acceptance. The mechanically renamed IPC carrier and its stored records already use internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go. No residual obligation in this reception sentence was found; transmission SHOULD and absent Multiple Labels Capability work remain outside this judgment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1077,12 +1083,42 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L102" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L55" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawIgnoresCompatibility</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L119" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawIgnoresCompatibilityValue</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L26" title="internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawPromotesTheOtherPE</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L37" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactReflectorInventory</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L62" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L31" title="internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactRouteServerInventory</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L77" title="internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheRouteServerSet</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1097,7 +1133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rpc_decode_nlri_context_test.go#L27" title="internal/component/plugin/ipc/rpc_decode_nlri_context_test.go" target="_blank" rel="noopener"><code>TestRPCDecodeNLRIRealSDKConsumers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go#L27" title="internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go" target="_blank" rel="noopener"><code>TestRPCDecodeNLRIRealSDKConsumers</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1117,24 +1153,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L97" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L101" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L52" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawIgnoresCompatibility</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L54" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawIgnoresCompatibility</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L117" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawIgnoresCompatibilityValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L118" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawIgnoresCompatibilityValue</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L24" title="internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawPromotesTheOtherPE</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L25" title="internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawPromotesTheOtherPE</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L152" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes</code></a></td>
@@ -1147,9 +1183,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L56" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L61" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L155" title="internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes</code></a></td>
@@ -1159,12 +1195,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L30" title="internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactRouteServerInventory</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L71" title="internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheRouteServerSet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L76" title="internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheRouteServerSet</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_labeled_consumer_test.go#L27" title="internal/component/bgp/server/rfc8277_labeled_consumer_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalCodecConsumersIgnoreCompatibility</code></a></td>
@@ -1177,7 +1213,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rpc_decode_nlri_context_test.go#L26" title="internal/component/plugin/ipc/rpc_decode_nlri_context_test.go" target="_blank" rel="noopener"><code>TestRPCDecodeNLRIRealSDKConsumers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go#L26" title="internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go" target="_blank" rel="noopener"><code>TestRPCDecodeNLRIRealSDKConsumers</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1206,7 +1242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L70" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestRFC8277VPNRelabelReplacesTheRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L71" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestRFC8277VPNRelabelReplacesTheRoute</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1570,7 +1606,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

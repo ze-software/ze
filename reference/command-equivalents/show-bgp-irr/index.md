@@ -7,7 +7,7 @@ Show IRR filter status per ASN\.
 - Registry path: `show bgp irr`
 - Usage: `show bgp irr`
 - Mode: Read-only
-- Wire method: `ze-show:irr-status`
+- Wire method: `ze-bgp:show-irr-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `check`, `prefix`

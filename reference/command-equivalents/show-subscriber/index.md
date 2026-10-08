@@ -7,7 +7,7 @@ Show a summary of all subscriber sessions\.
 - Registry path: `show subscriber`
 - Usage: `show subscriber`
 - Mode: Read-only
-- Wire method: `ze-subscriber-api:summary`
+- Wire method: `ze-l2tp:subscriber-summary`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `id`

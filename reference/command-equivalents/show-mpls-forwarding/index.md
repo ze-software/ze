@@ -7,7 +7,7 @@ Show MPLS forwarding entries installed in the kernel\.
 - Registry path: `show mpls forwarding`
 - Usage: `show mpls forwarding [limit <limit>]`
 - Mode: Read-only
-- Wire method: `ze-show:mpls-forwarding`
+- Wire method: `ze-mpls:show-forwarding`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

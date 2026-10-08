@@ -7,7 +7,7 @@ Show VPP graph node processing statistics\.
 - Registry path: `show vpp runtime`
 - Usage: `show vpp runtime`
 - Mode: Read-only
-- Wire method: `ze-show:vpp-runtime`
+- Wire method: `ze-iface:show-vpp-runtime`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

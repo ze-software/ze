@@ -7,7 +7,7 @@ Live mtr\-style traceroute that updates continuously\.
 - Registry path: `monitor traceroute`
 - Usage: `monitor traceroute`
 - Mode: Read-only
-- Wire method: `ze-monitor:traceroute`
+- Wire method: `ze-traceroute:monitor-traceroute`
 - Backends: any backend
 - Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand

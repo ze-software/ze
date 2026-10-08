@@ -7,7 +7,7 @@ Show subscriber line quality \(CQM latency buckets\)\.
 - Registry path: `show l2tp cqm`
 - Usage: `show l2tp cqm`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:cqm`
+- Wire method: `ze-l2tp:cqm`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

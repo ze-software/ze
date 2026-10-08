@@ -7,7 +7,7 @@ Capture a runtime profile for performance analysis\.
 - Registry path: `show system profile`
 - Usage: `show system profile [type <cpu\|heap\|goroutine\|allocs>] [duration <duration>]`
 - Mode: Read-only
-- Wire method: `ze-show:system-profile`
+- Wire method: `ze-cmd:show-system-profile`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

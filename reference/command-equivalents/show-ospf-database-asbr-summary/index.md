@@ -7,7 +7,7 @@ Show only ASBR\-Summary\-LSAs \(Type 4\)\.
 - Registry path: `show ospf database asbr-summary`
 - Usage: `show ospf database asbr-summary`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-asbr-summary`
+- Wire method: `ze-ospf:show-database-asbr-summary`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

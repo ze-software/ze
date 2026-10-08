@@ -7,7 +7,7 @@ Flush all DNS cache entries and reset all DNS cache counters\.
 - Registry path: `clear dns cache`
 - Usage: `clear dns cache`
 - Mode: Daemon
-- Wire method: `ze-clear:dns-cache`
+- Wire method: `ze-resolve:clear-dns-cache`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `record`, `stats`

@@ -7,7 +7,7 @@ Show every VRRP virtual router\.
 - Registry path: `show vrrp`
 - Usage: `show vrrp`
 - Mode: Read-only
-- Wire method: `ze-show:vrrp`
+- Wire method: `ze-vrrp:show-vrrp`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `interface`, `statistics`

@@ -5,8 +5,9 @@ Load a named debug profile and apply it to the running daemon\.
 ## Ze command
 
 - Registry path: `set debug active name`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `set debug active name <profile-name>`
+- Mode: Daemon
+- Wire method: `ze-debug:set-active-name`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -20,11 +21,13 @@ Load a named debug profile and apply it to the running daemon\.
 - Command pipes: none
 - Pipe aliases: none
 
-The named profile becomes the live state and the default slot is NOT overwritten\, so a restart returns the daemon to the default profile rather than to this one\.
+The named profile becomes the live state and the default slot is not overwritten\, so a restart returns the daemon to the default profile rather than to this one\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `profile-name` | string | yes | any value of this type | Profile name\. | A stored profile\, as show debug profile lists it\. |
 
 ## Mapping intents
 

@@ -7,7 +7,7 @@ Pretty\-print the configuration with consistent formatting\.
 - Registry path: `show config fmt`
 - Usage: `show config fmt`
 - Mode: Read-only
-- Wire method: `ze-show:config-fmt`
+- Wire method: `ze-config-cli:show-config-fmt`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

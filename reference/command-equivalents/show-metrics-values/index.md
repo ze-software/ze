@@ -7,7 +7,7 @@ Dump all metrics in Prometheus text format\.
 - Registry path: `show metrics values`
 - Usage: `show metrics values`
 - Mode: Read-only
-- Wire method: `ze-bgp:metrics-values`
+- Wire method: `ze-cmd:bgp-metrics-values`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

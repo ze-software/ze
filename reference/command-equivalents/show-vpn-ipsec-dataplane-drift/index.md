@@ -7,7 +7,7 @@ Compare what the IKE engine believes against what the kernel holds\.
 - Registry path: `show vpn ipsec dataplane drift`
 - Usage: `show vpn ipsec dataplane drift`
 - Mode: Read-only
-- Wire method: `ze-show:vpn-ipsec-dataplane-drift`
+- Wire method: `ze-ike:show-vpn-ipsec-dataplane-drift`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

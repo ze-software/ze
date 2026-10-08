@@ -7,7 +7,7 @@ Show full detail for one interface\.
 - Registry path: `show interface name detail`
 - Usage: `show interface name <name> detail`
 - Mode: Read-only
-- Wire method: `ze-show:interface-detail`
+- Wire method: `ze-iface:show-interface-detail`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

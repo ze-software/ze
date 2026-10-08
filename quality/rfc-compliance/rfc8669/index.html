@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8669 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 11 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8669 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 11 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8669 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 25 gated MUST-level requirements, 11 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -121,12 +121,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>20.0%</strong><b>5 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>59.6%</strong><b>31 of 52 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.7%</strong><b>30 of 52 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>25</strong><b>of 44 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>25</strong><b>of 46 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 25 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>40.0%</strong><b>10 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 25 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 25 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -210,7 +210,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>44</td>
+<td>46</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>25</td>
@@ -219,7 +219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>10</td>
+<td>11</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -267,8 +267,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>Ten MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8669.md" target="_blank" rel="noopener"><code>rfc/short/rfc8669.md</code></a>.</p>
-<p class="rfc-prose"><strong>Duplicate attribute, wire half:</strong> <a href="#rfc8669-6-2"><code>RFC8669-6-2</code></a> -- the RFC 7606 Section 3.g keep-first strip in enforceRFC7606 (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_validation.go</code></a>) removes a repeated Prefix-SID, but no test tagged to the row proves it on code 40. The other nine are in the SR-MPLS label-index semantics ze does not implement: <a href="#rfc8669-3.1-1"><code>RFC8669-3.1-1</code></a>/4.1-1/4.1-2 -- the Label-Index TLV is never required nor looked for, so a labeled-unicast Prefix-SID without one is accepted instead of being considered &#34;invalid&#34;; <a href="#rfc8669-4.1-3"><code>RFC8669-4.1-3</code></a> -- no label-index-to-prefix reverse index exists, so the &#34;conflicting&#34; state is never detected; <a href="#rfc8669-4.1-4"><code>RFC8669-4.1-4</code></a>/4.1-6 -- with neither state computed, the ignore action and the Section 6 routing of an &#34;invalid&#34; attribute have no trigger; <a href="#rfc8669-4.1-5"><code>RFC8669-4.1-5</code></a> -- ze allocates no local (dynamic) label for a BGP prefix, the programmed label is always the one received in the NLRI; <a href="#rfc8669-4.1-7"><code>RFC8669-4.1-7</code></a> -- an implicit-NULL (3) label in the NLRI is programmed as an MPLS push rather than a pop (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/mpls.go" target="_blank" rel="noopener"><code>internal/plugins/fib/kernel/mpls.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_linux.go" target="_blank" rel="noopener"><code>internal/plugins/fib/kernel/nexthop_linux.go</code></a>); <a href="#rfc8669-5.1-1"><code>RFC8669-5.1-1</code></a> -- the advertised NLRI label comes from route configuration and no matching incoming MPLS entry is programmed, only LDP and RSVP-TE emit MPLS ingress state.</p>
+<p>Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669-6-2"><code>RFC8669-6-2</code></a>: the keep-first strip in enforceRFC7606 removes repeated attributes, but code-40 forwarding proof is still owed. Missing SR-MPLS semantics remain explicit in <a href="#rfc8669-3.1-1"><code>RFC8669-3.1-1</code></a>, <a href="#rfc8669-4.1-1"><code>RFC8669-4.1-1</code></a>/4.1-2 (required Label-Index and invalid-state detection), <a href="#rfc8669-4.1-3"><code>RFC8669-4.1-3</code></a> (conflict detection), <a href="#rfc8669-4.1-4"><code>RFC8669-4.1-4</code></a>/4.1-6 (invalid/conflicting ignore and discard triggers), <a href="#rfc8669-4.1-5"><code>RFC8669-4.1-5</code></a> (dynamic local label allocation), <a href="#rfc8669-4.1-7"><code>RFC8669-4.1-7</code></a> (implicit-NULL pop) and <a href="#rfc8669-5.1-1"><code>RFC8669-5.1-1</code></a> (advertised local/incoming label programming). New <a href="#rfc8669-4.1-15"><code>RFC8669-4.1-15</code></a> records the absent invalid-state logging trigger separately.</p>
+<p class="rfc-prose"><strong>RFC8669-6-4 discard logging is unverified:</strong> observable diagnostics and a clean control remain owed, without prescribing a slog severity enum.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -322,8 +322,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L80" title="internal/component/bgp/message/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVIsIgnored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L135" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L136" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L136" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L137" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-1">RFC8669-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Label-Index TLV MUST be present in the BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes (§3.1)</span></td></tr>
@@ -577,6 +577,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-6-4">RFC8669-6-4</code></td><td colspan="3"><span class="rfc-subject">When discarding an attribute, a BGP speaker SHOULD log an error for further analysis. (§6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-6-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-9">RFC8669-4.1-9</code></td><td colspan="3"><span class="rfc-subject">If multiple valid paths for the same prefix are received from multiple BGP speakers or, in the case of [RFC7911], from the same BGP speaker, and the BGP Prefix-SID attributes do not contain the same label index, then the label index from the best path BGP Prefix-SID attribute SHOULD be chosen with a notable exception being when [RFC5004] is being used to dampen route changes. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -630,6 +639,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-15">RFC8669-4.1-15</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHOULD log an error for further analysis. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-4.1-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> invalid Prefix-SID state and its logging trigger are not computed by validatePrefixSIDAttr in internal/component/bgp/message/rfc7606.go; recording this requirement does not commission missing SR-MPLS semantics.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5-1">RFC8669-5-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that advertises a path received from one of its neighbors SHOULD advertise the BGP Prefix-SID received with the path without modification as long as the BGP Prefix-SID was acceptable. (§5)</span></td></tr>
 <tr><td></td>
@@ -788,6 +806,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>unproven for code 40, no longer unimplemented. The processing half holds -- an already-seen non-MP attribute code is skipped without validation (internal/component/bgp/message/rfc7606.go, ValidateUpdateRFC7606) and recorded in DuplicateRanges, on the attribute-discard result as well as the clean one. The wire half is the RFC 7606 Section 3.g keep-first strip in enforceRFC7606 (internal/component/bgp/reactor/session_validation.go), which removes every recorded later copy through StripAttrRanges before the in-place attribute discard runs, so a malformed first occurrence is tombstoned and its duplicate is gone too. What is missing is the proof: no test tagged to this row drives a repeated code 40 through enforceRFC7606 and reads the bytes forwarded on</td>
 </tr>
+<tr><td><a href="#rfc8669-4.1-15"><code>RFC8669-4.1-15</code></a> A BGP speaker SHOULD log an error for further analysis. (§4.1)</td>
+<td>{gap}</td>
+<td>invalid Prefix-SID state and its logging trigger are not computed by validatePrefixSIDAttr in internal/component/bgp/message/rfc7606.go; recording this requirement does not commission missing SR-MPLS semantics.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -796,13 +818,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8669-3-1"><code>RFC8669-3-1</code></a></h3>
 <p>For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. (§3, §6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged after the D-8 fix (applyFactsNextHop records Remove{5,6} on code 40; prefixSIDNextHopHandler rewrites the attribute per route). Clause &#39;ignored&#39;: message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored pins RFC7606ActionNone and intact bytes for an unallocated TLV (no discrimination record; supplementary). Clause &#39;propagated unmodified&#39;: reactor TestRFC8669UnknownTLVPropagatedAcrossANextHopChange reads attribute 40 on the wire over both relay rails (forwardUpdateCore, reactorForwardRS): positive, next hop unchanged, [LabelIndex, L3 Svc, type 200, L2 Svc, SRGB] byte-identical; negative (R1b: the input that used to violate), next-hop-self with NEXT_HOP really 10.0.0.254, attribute == LabelIndex+type200+SRGB byte-identical in received order. Observed red: positive with applyFactsNextHop broken, negative with prefixSIDNextHopHandler broken. Buffers isolated (well-formed TLVs, only type 200 unknown).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange, internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2 moved. Re-judged after the D-8 fix (applyFactsNextHop records Remove{5,6} on code 40; prefixSIDNextHopHandler rewrites the attribute per route). Clause &#39;ignored&#39;: message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored pins RFC7606ActionNone and intact bytes for an unallocated TLV (no discrimination record; supplementary). Clause &#39;propagated unmodified&#39;: reactor TestRFC8669UnknownTLVPropagatedAcrossANextHopChange reads attribute 40 on the wire over both relay rails (forwardUpdateCore, reactorForwardRS): positive, next hop unchanged, [LabelIndex, L3 Svc, type 200, L2 Svc, SRGB] byte-identical; negative (R1b: the input that used to violate), next-hop-self with NEXT_HOP really 10.0.0.254, attribute == LabelIndex+type200+SRGB byte-identical in received order. Observed red: positive with applyFactsNextHop broken, negative with prefixSIDNextHopHandler broken. Buffers isolated (well-formed TLVs, only type 200 unknown).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L136" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L137" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -812,9 +834,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L135" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L136" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1352,7 +1374,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>4</td>
 <td>walked</td>
-<td>not stated</td>
+<td>The separate SHOULD logging sentence applies when discarding malformed or invalid labeled-unicast Prefix-SID attributes; RFC8669-6-4 records it without asserting a particular logging enum or proving the invalid-state trigger. Site 6:4 remains the unknown-TLV propagation occurrence mapped to RFC8669-3-1.</td>
 </tr>
 <tr><td><code>7</code></td>
 <td>not stated</td>
@@ -1474,7 +1496,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

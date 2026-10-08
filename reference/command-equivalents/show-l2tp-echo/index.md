@@ -7,7 +7,7 @@ Show LCP echo health for a subscriber session\.
 - Registry path: `show l2tp echo`
 - Usage: `show l2tp echo`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:echo`
+- Wire method: `ze-l2tp:echo`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

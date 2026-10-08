@@ -7,7 +7,7 @@ Show only area\-scope opaque\-LSAs \(Type 10\, RFC 5250\)\.
 - Registry path: `show ospf database opaque-area`
 - Usage: `show ospf database opaque-area`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-opaque-area`
+- Wire method: `ze-ospf:show-database-opaque-area`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

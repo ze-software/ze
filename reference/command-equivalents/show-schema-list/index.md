@@ -7,7 +7,7 @@ List all YANG schemas loaded by the daemon\.
 - Registry path: `show schema list`
 - Usage: `show schema list`
 - Mode: Read-only
-- Wire method: `ze-show:schema-list`
+- Wire method: `ze-config-schema:show-schema-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

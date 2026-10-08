@@ -7,7 +7,7 @@ Run a parallel traceroute probe round to a target\.
 - Registry path: `show probe-round`
 - Usage: `show probe-round [dest <dest>] [probes <probes>] [max-hops <max-hops>] [timeout <timeout>]`
 - Mode: Read-only
-- Wire method: `ze-show:probe-round`
+- Wire method: `ze-traceroute:show-probe-round`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

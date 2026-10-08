@@ -7,7 +7,7 @@ Save a snapshot of the current running configuration\.
 - Registry path: `request config archive`
 - Usage: `request config archive`
 - Mode: Daemon
-- Wire method: `ze-config-archive:trigger`
+- Wire method: `ze-config:archive-trigger`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

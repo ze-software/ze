@@ -7,7 +7,7 @@ Remove the cached IRR prefix\-list for an ASN\.
 - Registry path: `clear firewall irr asn`
 - Usage: `clear firewall irr asn <asn>`
 - Mode: Daemon
-- Wire method: `ze-clear:firewall-irr-asn`
+- Wire method: `ze-firewall:clear-irr-asn`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

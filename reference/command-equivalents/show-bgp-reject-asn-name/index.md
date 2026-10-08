@@ -7,7 +7,7 @@ Show one reject\-asn list\.
 - Registry path: `show bgp reject-asn name`
 - Usage: `show bgp reject-asn name <name>`
 - Mode: Read-only
-- Wire method: `ze-show:reject-asn-name`
+- Wire method: `ze-bgp:show-reject-asn-name`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

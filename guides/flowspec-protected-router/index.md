@@ -206,6 +206,24 @@ traffic-action. The Terminal Action bit has the RFC's counterintuitive meaning:
 set continues to later matching rules; clear stops evaluation. Sample enables
 packet logging. Rules without an action use normal forwarding.
 
+A selected traffic-rate-packets community (`0x800c`) with value zero requests
+discard of every matching packet, not an absent limiter or normal forwarding.
+This is distinct from the zero byte-rate community (`0x8006`). The Linux
+integration scenario `TestSelectedFlowSpecZeroPacketRateKernel` enters at the
+selected-route callback and uses the real nft backend in an isolated network
+namespace. It asserts four target UDP drops, an installed-rule counter of four
+packets and 116 bytes, delivery to an unaffected destination, and restored
+target delivery after positive-rate replacement. It then reinstalls zero,
+observes target discard with unaffected-destination delivery again, withdraws
+that active zero-rate rule, and requires target delivery. It does not prove
+the preceding RIB authorization decision.
+
+That scenario requires namespace privileges and nftables kernel support. Its
+presence, a build, or a capability skip is not packet-enforcement evidence;
+acceptance still requires an observed non-skipped run on the runtime kernel.
+
+<!-- source: internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go -- TestSelectedFlowSpecZeroPacketRateKernel -->
+
 Rules are ordered by their NLRI components, not by receipt time or peer name.
 Each matching rule is sampled and rate-limited once even when both its source-
 and destination-port alternatives match. The limiter drops excess traffic;

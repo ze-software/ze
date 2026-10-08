@@ -7,7 +7,7 @@ Gracefully shutdown\: drain connections\, close peers\, exit\.
 - Registry path: `request shutdown`
 - Usage: `request shutdown`
 - Mode: Daemon
-- Wire method: `ze-system:daemon-shutdown`
+- Wire method: `ze-plugin:system-daemon-shutdown`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

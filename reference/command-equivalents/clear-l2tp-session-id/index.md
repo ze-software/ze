@@ -7,7 +7,7 @@ Disconnect one subscriber session\.
 - Registry path: `clear l2tp session id`
 - Usage: `clear l2tp session id`
 - Mode: Daemon
-- Wire method: `ze-l2tp-api:session-teardown`
+- Wire method: `ze-l2tp:session-teardown`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

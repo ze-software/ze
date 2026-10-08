@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Supported</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 8092 - BGP Large Communities Attribute</h1>
     <p>Every requirement this repository extracted from RFC 8092, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>42.1%</strong><b>8 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>36.8%</strong><b>7 of 19 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -204,7 +204,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Supported</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -259,11 +259,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Enrolled: BGP Large Communities: seven MUST-level requirements over the LARGE_COMMUNITY codec (internal/core/bgp/attribute/community.go) and its RFC 7606 validator (internal/component/bgp/message/rfc7606.go:620). Both polarities: RFC8092-3-1 (duplicates not transmitted) via WriteTo/unique, RFC8092-3-2 (receiver silently removes redundant) via ParseLargeCommunities/deduplicate, RFC8092-6-2 (malformed if length not a non-zero multiple of 12) and RFC8092-6-4 (malformed -&gt; treat-as-withdraw) via validateLargeCommunityAttr driven from ValidateUpdateRFC7606. Three {single-polarity: positive}: RFC8092-5-1 (canonical, no leading zeros) since strconv.AppendUint never emits them; RFC8092-6-1 (reserved ASN not malformed) since the validator inspects length only; RFC8092-6-3 (duplicates not malformed) since the parser deduplicates rather than rejecting. The 3-3/5-2/4-1 SHOULDs and 3-4 NOT RECOMMENDED are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Supported</p>
+<p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 length checks.
-<p><strong>What the ledger says remains:</strong></p>
-No tracked gap in current source anchors.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+<a href="#rfc8092-4-1"><code>RFC8092-4-1</code></a> aggregate-union behavior and its applicability remain unverified. Large Community codecs do not demonstrate that an aggregate contains the union of its contributing routes&#39; communities; missing proof does not establish an absent feature or an exemption.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -551,7 +552,7 @@ No tracked gap in current source anchors.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go#L28" title="internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8092DuplicateLargeCommunityIsNotMalformed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesDeduplication</code></a></td>
@@ -745,7 +746,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

@@ -7,7 +7,7 @@ AS112 node status\.
 - Registry path: `show as112`
 - Usage: `show as112`
 - Mode: Read-only
-- Wire method: `ze-show:as112`
+- Wire method: `ze-as112:show-as112`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

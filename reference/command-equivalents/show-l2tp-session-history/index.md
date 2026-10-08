@@ -7,7 +7,7 @@ Show state transitions for a session over time\.
 - Registry path: `show l2tp session history`
 - Usage: `show l2tp session history`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:session-history`
+- Wire method: `ze-l2tp:session-history`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -334,7 +334,8 @@ edge networks are reachable without running the protocol on them.
 redistribution drives.
 
 Redistribution feeds the redistribute orchestrator only; the kernel FIB install of
-IS-IS SPF routes is the separate Loc-RIB path (`AdminDistance` 115). IPv6
+IS-IS SPF routes is the separate Loc-RIB path, ranked at the declared IS-IS
+distance (default 115). IPv6
 redistribution (TLV 236) works the same way (see below).
 
 ## Dual-stack IPv6
@@ -369,7 +370,7 @@ With `ipv6-unicast` enabled on at least one circuit, the node:
   **link-local prefixes are never advertised** in TLV 236 (RFC 5308 sec 2);
 - runs an IPv6 route-extraction pass over the **same** Dijkstra tree (no second
   SPF), resolves the IPv6 next-hop, and installs IPv6 routes into the kernel FIB
-  through the same Loc-RIB path as IPv4 (`AdminDistance` 115, tagged
+  through the same Loc-RIB path as IPv4 (declared IS-IS distance, default 115, tagged
   `RTPROT_ze`).
 
 Inspect the installed IPv6 routes with `show isis route ipv6`.

@@ -7,7 +7,7 @@ Start streaming traffic monitor \(per\-second snapshots\)\.
 - Registry path: `monitor traffic stat`
 - Usage: `monitor traffic stat [name <name>]`
 - Mode: Read-only
-- Wire method: `ze-monitor:traffic-stat`
+- Wire method: `ze-trafficstat:monitor-traffic-stat`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

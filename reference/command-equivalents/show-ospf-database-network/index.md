@@ -7,7 +7,7 @@ Show only Network\-LSAs \(Type 2\)\.
 - Registry path: `show ospf database network`
 - Usage: `show ospf database network`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-network`
+- Wire method: `ze-ospf:show-database-network`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

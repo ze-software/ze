@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>delete debug module - Command Equivalents - Ze</title>
-        <meta name="description" content="Disable debug for a subsystem, or remove one of its flags/scopes." />
+        <meta name="description" content="Disable debug for a subsystem, or remove one of its flags or scopes." />
         <meta property="og:title" content="delete debug module - Command Equivalents - Ze" />
-        <meta property="og:description" content="Disable debug for a subsystem, or remove one of its flags/scopes." />
+        <meta property="og:description" content="Disable debug for a subsystem, or remove one of its flags or scopes." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="delete debug module - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Disable debug for a subsystem, or remove one of its flags/scopes." />
+        <meta name="twitter:description" content="Disable debug for a subsystem, or remove one of its flags or scopes." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,22 +48,26 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">delete debug module</h1>
-    <p>Disable debug for a subsystem, or remove one of its flags/scopes.</p>
+    <p>Disable debug for a subsystem, or remove one of its flags or scopes.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>delete debug module</code></dd></div>
-<div><dt>Mode</dt><dd>Offline</dd></div>
-<div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
+<div><dt>Usage</dt><dd><code>delete debug module &lt;module-name&gt; [flag &lt;flag&gt;] [scope &lt;kind&gt; &lt;value&gt;]</code></dd></div>
+<div><dt>Mode</dt><dd>Daemon</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-debug:delete-module</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
-<div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
+<div><dt>Subcommands</dt><dd><code>scope</code></dd></div>
 <div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
 </dl>
-<h3>Description</h3><p>The module name alone removes the whole module. Naming a flag or a scope removes that one and leaves the module enabled. Deleting a module the profile does not hold succeeds and changes nothing, so a repeated command is safe.</p>
+<h3>Description</h3><p>The module name alone removes the whole module. Naming a flag or a scope<br>removes that one and leaves the module enabled. Deleting a module the profile does not<br>hold succeeds and changes nothing, so a repeated command is safe.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>module-name</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Subsystem name.</td><td>The subsystem name, as show debug lists it.</td></tr>
+<tr><td><code>flag</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Debug flag to remove.</td><td>The flag to remove. The module stays enabled.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -126,7 +130,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

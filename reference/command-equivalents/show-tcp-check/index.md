@@ -7,7 +7,7 @@ Test TCP connectivity to a remote host and port\.
 - Registry path: `show tcp-check`
 - Usage: `show tcp-check <host> <port> [source <source>] [timeout <timeout>]`
 - Mode: Read-only
-- Wire method: `ze-show:tcp-check`
+- Wire method: `ze-diag:show-tcp-check`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

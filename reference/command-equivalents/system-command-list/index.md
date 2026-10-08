@@ -7,7 +7,7 @@ List every command the daemon knows\.
 - Registry path: `system command list`
 - Usage: `system command list`
 - Mode: Read-only
-- Wire method: `ze-system:command-list`
+- Wire method: `ze-plugin:system-command-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

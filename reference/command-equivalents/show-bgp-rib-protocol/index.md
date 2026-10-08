@@ -7,7 +7,7 @@ Query the routes one protocol feeds into the RIB\.
 - Registry path: `show bgp rib protocol`
 - Usage: `show bgp rib protocol <protocol>`
 - Mode: Read-only
-- Wire method: `ze-rib-api:protocol`
+- Wire method: `ze-bgp:rib-protocol`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

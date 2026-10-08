@@ -7,7 +7,7 @@ Show the import\/export filter chain applied to a peer\.
 - Registry path: `show policy chain peer`
 - Usage: `show policy chain peer <selector> [import\|export]`
 - Mode: Read-only
-- Wire method: `ze-show:policy-chain`
+- Wire method: `ze-bgp:show-policy-chain`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `direction`

@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 94 registry entries: 94 runtime plugins. Among runtime plugins, 73 declare configuration roots, 47 declare dependencies, and 75 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 93 registry entries: 93 runtime plugins. Among runtime plugins, 73 declare configuration roots, 47 declare dependencies, and 75 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -58,7 +58,7 @@
                             <label for="plugin-category">Category
                                 <select id="plugin-category" autocomplete="off">
                                     <option value="">All categories</option>
-                                    <option value="routing" data-label="Routing">Routing (39)</option>
+                                    <option value="routing" data-label="Routing">Routing (38)</option>
                                     <option value="security" data-label="Policy &amp; security">Policy &amp; security (25)</option>
                                     <option value="tunneling" data-label="Tunneling">Tunneling (7)</option>
                                     <option value="services" data-label="Network services">Network services (7)</option>
@@ -71,7 +71,7 @@
                                 <select id="plugin-family" autocomplete="off">
                                     <option value="" data-label="All areas">All areas</option>
                                     <optgroup label="Routing">
-                                    <option value="bgp" data-category="routing" data-label="BGP">BGP (21)</option>
+                                    <option value="bgp" data-category="routing" data-label="BGP">BGP (20)</option>
                                     <option value="bgp-nlri" data-category="routing" data-label="BGP NLRI">BGP NLRI (10)</option>
                                     <option value="bgp-redistribute" data-category="routing" data-label="BGP Redistribute">BGP Redistribute (1)</option>
                                     <option value="connected" data-category="routing" data-label="Connected">Connected (1)</option>
@@ -193,7 +193,7 @@
                 <section class="plugin-group" data-plugin-group data-family="bgp" data-category="routing" aria-labelledby="plugin-group-bgp">
                     <div class="plugin-group-head tone-gold">
                         <h2 id="plugin-group-bgp">BGP</h2>
-                        <span>21 plugins</span>
+                        <span>20 plugins</span>
                     </div>
                     <p>Generated group for registry entries mapped to the BGP area. Config roots: <code>bgp</code>, <code>bgp-epe</code>, <code>bgp-ls-export</code>, <code>environment</code>. Source area: <code>internal/component/bgp</code>.</p>
                     <div class="cards plugin-grid">
@@ -323,16 +323,6 @@
                             <span class="chip">YANG:1</span>
                         </div>
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp-ls-export</code></dd></div><div><dt>Needs</dt><dd><code>bgp-nlri-ls</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
-                    </article>
-
-                    <article class="card plugin-card tone-gold" id="plugin-bgp-persist" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-persist Route Persistence Route Persistence internal/component/bgp/plugins/persist BGP       ">
-                        <span class="cat">BGP</span>
-                        <h3><a href="bgp-persist/"><code>bgp-persist</code></a></h3>
-                        <p class="plugin-desc">Route Persistence</p>
-                        <div class="chips">
-                            <span class="chip">no config</span>
-                        </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-gold" id="plugin-bgp-rib" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rib Route Information Base storage Route Information Base storage internal/component/bgp/plugins/rib BGP   bgp    internal/component/bgp/plugins/rib/yang/ze-rib-api.yang internal/component/bgp/plugins/rib/yang/ze-rib.yang">
@@ -1650,7 +1640,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

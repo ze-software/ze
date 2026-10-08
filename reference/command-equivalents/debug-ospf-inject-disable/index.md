@@ -7,7 +7,7 @@ Disable OSPF debug LSA injection\.
 - Registry path: `debug ospf inject disable`
 - Usage: `debug ospf inject disable`
 - Mode: Daemon
-- Wire method: `ze-debug:ospf-inject-disable`
+- Wire method: `ze-ospf:debug-inject-disable`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

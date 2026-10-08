@@ -7,7 +7,7 @@ Refresh all cached IRR prefix\-lists\.
 - Registry path: `update firewall irr all`
 - Usage: `update firewall irr all`
 - Mode: Daemon
-- Wire method: `ze-update:firewall-irr-all`
+- Wire method: `ze-firewall:update-irr-all`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

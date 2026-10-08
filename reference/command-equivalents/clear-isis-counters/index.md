@@ -7,7 +7,7 @@ Reset IS\-IS observational counters and the SPF log\.
 - Registry path: `clear isis counters`
 - Usage: `clear isis counters`
 - Mode: Daemon
-- Wire method: `ze-clear:isis-counters`
+- Wire method: `ze-isis:clear-counters`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

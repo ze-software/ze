@@ -7,7 +7,7 @@ Export the certificate\, its intermediates and its private key as one PEM stream
 - Registry path: `show pki certificate name bundle pem`
 - Usage: `show pki certificate name <name> bundle pem`
 - Mode: Read-only
-- Wire method: `ze-show:pki-certificate-bundle-pem`
+- Wire method: `ze-pki:show-certificate-bundle-pem`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

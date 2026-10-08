@@ -122,7 +122,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>28.1%</strong><b>16 of 57 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>46.7%</strong><b>28 of 60 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>9</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -185,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -226,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>57</td>
+<td>60</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>57</td>
+<td>60</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>16</td>
+<td>34</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7911.md</code></td>
@@ -314,7 +315,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <td>MUST</td>
 <td>2 - How to Identify a Path</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L99" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L96" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L45" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsDifferForCollidingSources</code></a></span></div>
 </div></td>
 </tr>
@@ -323,19 +324,22 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <td>MUST</td>
 <td>2 - How to Identify a Path</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L162" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDBoundaryReceivedValues</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L45" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDDiffersForTwoSourcePeers</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L192" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDIdenticalForEveryDestination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L295" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeepsTheSourceOfARebuiltFrame</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L323" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L74" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMatchesAnnounceAndWithdraw</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L246" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDReleaseReturnsValues</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L133" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSeparatesNonAddPathSources</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L104" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSurvivesAttributeChange</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L235" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawCarriesTheAnnouncedValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L166" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDBoundaryReceivedValues</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L48" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDDiffersForTwoSourcePeers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L244" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDFiniteNamespace</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L294" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeepsTheSourceOfARebuiltFrame</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L329" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L25" title="internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMPGeneration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L75" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMatchesAnnounceAndWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L137" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSeparatesNonAddPathSources</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L190" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableForEachDestination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L108" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSurvivesAttributeChange</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L239" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawCarriesTheAnnouncedValue</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L33" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsDifferForCollidingSources</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L199" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsFreedOnRelayedWithdraw</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go#L64" title="internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestPathIDKeyFollowsWhatTheSourceFramed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L200" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsFreedOnRelayedWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go#L22" title="internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestPathIDKeyFollowsWhatTheSourceFramed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L246" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDFiniteNamespace</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L26" title="internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMPGeneration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L90" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L23" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L16" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkAddPathReadvertiseCollision</code></a></span></div>
@@ -476,7 +480,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7911-2-1"><code>RFC7911-2-1</code></a></h3>
 <p>However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor. (Section 2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Tags moved to the advertising side (reactor buildFwdBody, both zero-copy and re-encode branches). Negative biases toward the violation: two sources both chose Path Identifier 1 for 10.0.0.0/24 and the two paths still leave toward one neighbor with different identifiers, read from the destination frames. Positive: one path re-advertised twice leaves under the same ze identifier, so (Prefix, Path Identifier) names that one path across UPDATEs. Receive-side storage tag (TestPeerRIB_AddPath) removed; {single-polarity} marker removed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Read RFC7911 Section 2 in full and both current tagged functions. TestForwardPathIDsDifferForCollidingSources supplies two distinct ingress SourceIDs announcing the same native prefix under the same received identifier and requires different outgoing identifiers. TestForwardPathIDStableAcrossUpdates requires the first source&#39;s exact native prefix/identifier pair to remain stable after the colliding second source and a repeat advertisement. The shared output reader checks the actual prefix as well as the identifier, one complete NLRI and no trailing framing. These discriminate source collision and per-message minting without inventing a requirement that a local number differ numerically from the received number. These two carriers exercise buildFwdBody&#39;s same-context output, not a remote receiver; complementary RFC7911-2-2 carriers cover converted output and runtime writing. Inspected generatePath, canonical ingress keys, same-context rewrite, converted NLRI handling and both final writer dispatches preserve the generated association. No residual whole-clause gap identified.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -487,89 +491,104 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L99" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L96" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a></h3>
 <p>A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route. (Section 2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go::TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys moved. Re-judged after the 2-1 tags were added to the doc comments of the two forward_path_id_test.go units; bodies unchanged. Negative TestForwardPathIDStableAcrossUpdates requires the emitted identifier differ from the received 0xDEADBEEF; positive TestForwardPathIDsDifferForCollidingSources requires a ze-generated identifier per source path. Other gen/churn units unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Read RFC7911 Section 2 and all current tagged carriers. Colliding sources must remain distinct for the same native prefix, while replacements and inverse withdrawals retain the locally generated association. Current assertions cover received identifiers zero and maximum, occupied wrap candidates, unframed ingress, independent destinations, IPv4 same/cross-context conversion, and IPv6 MP_REACH/MP_UNREACH same-context, cross-context and unframed-source conversion. The changed probe checks exact prefix/identifier pairing and that retiring one prefix cannot renumber another using the same ingress identifier. Churn carriers drive reactorForwardRS through actual destination writes and cache eviction, including rebuilt reflection frames and a mixed withdraw/reannounce; they check exact recipient-visible identities rather than treating internal table counts as the RFC obligation. The foreign FRR checker separately requires two source-attributed paths with distinct identifiers and stable replay; the functional carrier separately checks live/replay wire framing. Its pinned zero is a deterministic fixture expectation, not an RFC allocation rule. The allocator, rewrite, rebuilt SourceID preservation, release boundary and raw/converted writer consumers were traced. No numerical inequality from ingress, globally unique identifiers across prefixes, identical numbers across destinations or allocator reclamation policy is claimed as a normative requirement. No residual whole-clause gap identified.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L246" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDFiniteNamespace</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L26" title="internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMPGeneration</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L90" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L295" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeepsTheSourceOfARebuiltFrame</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L294" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeepsTheSourceOfARebuiltFrame</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L323" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L329" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L235" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawCarriesTheAnnouncedValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L239" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawCarriesTheAnnouncedValue</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L199" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsFreedOnRelayedWithdraw</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L200" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsFreedOnRelayedWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L162" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDBoundaryReceivedValues</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L166" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDBoundaryReceivedValues</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L45" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDDiffersForTwoSourcePeers</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L48" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDDiffersForTwoSourcePeers</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L192" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDIdenticalForEveryDestination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L244" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDFiniteNamespace</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L74" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMatchesAnnounceAndWithdraw</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L75" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMatchesAnnounceAndWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L246" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDReleaseReturnsValues</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L137" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSeparatesNonAddPathSources</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L133" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSeparatesNonAddPathSources</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L190" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableForEachDestination</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L104" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSurvivesAttributeChange</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L108" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSurvivesAttributeChange</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L25" title="internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMPGeneration</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L33" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsDifferForCollidingSources</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go#L64" title="internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestPathIDKeyFollowsWhatTheSourceFramed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go#L22" title="internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestPathIDKeyFollowsWhatTheSourceFramed</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L16" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkAddPathReadvertiseCollision</code></a></td>
@@ -579,7 +598,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L23" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -742,7 +761,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L22" title="internal/component/bgp/reactor/rfc7911_family_generation_test.go" target="_blank" rel="noopener"><code>TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L24" title="internal/component/bgp/reactor/rfc7911_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitConvertsAddPathContext</code></a></td>
@@ -757,7 +776,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L21" title="internal/component/bgp/reactor/rfc7911_family_generation_test.go" target="_blank" rel="noopener"><code>TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L128" title="internal/component/bgp/reactor/rfc7911_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></td>
@@ -782,7 +801,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L24" title="internal/component/bgp/reactor/rfc7911_family_generation_test.go" target="_blank" rel="noopener"><code>TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_split_test.go#L254" title="internal/component/bgp/reactor/rfc7911_forward_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdateEndToEnd</code></a></td>
@@ -797,7 +816,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L23" title="internal/component/bgp/reactor/rfc7911_family_generation_test.go" target="_blank" rel="noopener"><code>TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_split_test.go#L304" title="internal/component/bgp/reactor/rfc7911_forward_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdateAddPathEndToEnd</code></a></td>
@@ -847,7 +866,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L88" title="internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section54ReadsTypedNLRIUnderAddPath</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1023,7 +1042,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

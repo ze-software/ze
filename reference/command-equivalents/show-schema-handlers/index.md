@@ -7,7 +7,7 @@ Show which handler serves each YANG module\.
 - Registry path: `show schema handlers`
 - Usage: `show schema handlers`
 - Mode: Read-only
-- Wire method: `ze-show:schema-handlers`
+- Wire method: `ze-config-schema:show-schema-handlers`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

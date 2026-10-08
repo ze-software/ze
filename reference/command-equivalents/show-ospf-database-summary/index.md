@@ -7,7 +7,7 @@ Show only Summary\-LSAs \(Type 3\, inter\-area network\)\.
 - Registry path: `show ospf database summary`
 - Usage: `show ospf database summary`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-summary`
+- Wire method: `ze-ospf:show-database-summary`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

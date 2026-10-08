@@ -7,7 +7,7 @@ NTP clock synchronization status\.
 - Registry path: `show system ntp`
 - Usage: `show system ntp`
 - Mode: Read-only
-- Wire method: `ze-show:system-ntp`
+- Wire method: `ze-ntp:show-system-ntp`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `peers`

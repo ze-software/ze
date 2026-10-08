@@ -7,7 +7,7 @@ Show IS\-IS\-enabled circuits\.
 - Registry path: `show isis interface`
 - Usage: `show isis interface`
 - Mode: Read-only
-- Wire method: `ze-show:isis-interface`
+- Wire method: `ze-isis:show-interface`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

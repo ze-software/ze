@@ -7,7 +7,7 @@ Write a backup of the whole store to a file on the daemon\'s host\.
 - Registry path: `request data backup`
 - Usage: `request data backup <path> [spare <spare>] [force]`
 - Mode: Daemon
-- Wire method: `ze-data:backup`
+- Wire method: `ze-config:data-backup`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

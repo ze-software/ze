@@ -7,7 +7,7 @@ Show the IS\-IS dynamic\-hostname mapping \(RFC 5301\)\.
 - Registry path: `show isis hostname`
 - Usage: `show isis hostname`
 - Mode: Read-only
-- Wire method: `ze-show:isis-hostname`
+- Wire method: `ze-isis:show-hostname`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

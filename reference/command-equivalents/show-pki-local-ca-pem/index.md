@@ -7,7 +7,7 @@ Export the root certificate of the local certificate authority as PEM\.
 - Registry path: `show pki local-ca pem`
 - Usage: `show pki local-ca pem`
 - Mode: Read-only
-- Wire method: `ze-show:pki-local-ca-pem`
+- Wire method: `ze-pki:show-local-ca-pem`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

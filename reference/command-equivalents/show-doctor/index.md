@@ -7,7 +7,7 @@ Check if this box is ready to run Ze\.
 - Registry path: `show doctor`
 - Usage: `show doctor`
 - Mode: Read-only
-- Wire method: `ze-show:doctor`
+- Wire method: `ze-doctor:show-doctor`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

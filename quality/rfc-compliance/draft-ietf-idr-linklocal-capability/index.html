@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>44 of 44 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>43.2%</strong><b>19 of 44 tagged units, 0 escaped and 25 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -618,7 +618,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L118" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNextHopWithAGlobalIsNotSentAlone</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L87" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyNextHopFieldIsSixteenOctets</code></a></td>
@@ -668,22 +668,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L83" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAdvertised</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L84" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L70" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAdvertised</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L80" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -703,7 +703,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L158" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L73" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForPeerMoreThanOneHopAway</code></a></td>
@@ -713,7 +713,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L155" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -773,17 +773,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L105" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L96" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L86" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -798,12 +798,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L229" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L220" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -823,7 +823,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L313" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -838,17 +838,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L126" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L117" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L193" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestNextHopSelfWithheldRouteServerWithdraws</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -863,12 +863,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L121" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L232" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L108" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForDirectlyAttachedExternalPeer</code></a></td>
@@ -878,12 +878,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L98" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L210" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteServerStripsReceivedPairForMultihopClient</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L95" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForMultihopExternalPeer</code></a></td>
@@ -903,27 +903,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L151" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L127" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L137" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L124" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L88" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1161,7 +1161,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

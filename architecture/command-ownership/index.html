@@ -219,7 +219,7 @@ each line:</p>
     container show {
         container host {
             container cpu {
-                ze:command "ze-show:host-cpu";
+                ze:command "ze-host:show-cpu";
             }
         }
     }
@@ -263,7 +263,7 @@ inside the plugin's <code>cmd/</code> package:</p>
 <pre><code class="language-go">func init() {
     pluginserver.RegisterRPCs(
         pluginserver.RPCRegistration{
-            WireMethod: "ze-show:host-cpu",
+            WireMethod: "ze-host:show-cpu",
             Handler:    handleShowHostCPU,
         },
     )
@@ -334,17 +334,17 @@ calls.</p>
 <td>The BGP RIB plugin</td>
 </tr>
 <tr>
-<td><code>ze-bgp:metrics-values</code>, <code>ze-bgp:metrics-list</code></td>
+<td><code>ze-cmd:bgp-metrics-values</code>, <code>ze-cmd:bgp-metrics-list</code></td>
 <td>The generic core Prometheus registry (<code>internal/core/metrics</code>)</td>
 <td>Generic, stays central</td>
 </tr>
 <tr>
-<td><code>ze-bgp:subscribe</code>, <code>ze-bgp:unsubscribe</code></td>
+<td><code>ze-cmd:bgp-subscribe</code>, <code>ze-cmd:bgp-unsubscribe</code></td>
 <td>The generic <code>pluginserver</code> subscription manager</td>
 <td>Generic, stays central</td>
 </tr>
 <tr>
-<td><code>ze-show:policy-list</code></td>
+<td><code>ze-cmd:show-policy-list</code></td>
 <td>The cross-plugin filter-type registry (<code>registry.FilterTypesMap</code>)</td>
 <td>Generic, stays central</td>
 </tr>
@@ -442,7 +442,7 @@ field returns.</p>
 <p>The first instance is <code>TestShowSchemaHasNoBGPPluginCommands</code> in
 <code>internal/component/cmd/show/yang/self_containment_test.go</code>. It asserts the
 central <code>show</code> verb schema declares no part of the <code>show bgp ...</code> subtree
-(<code>ze-rib-api:</code>, <code>ze-bgp:peer-</code>, <code>ze-show:bgp-decode</code>, <code>ze-show:bgp-encode</code>),
+(<code>ze-rib-api:</code>, <code>ze-bgp:peer-</code>, <code>ze-bgp:show-decode</code>, <code>ze-bgp:show-encode</code>),
 because <code>show bgp rib ...</code> and <code>show bgp peer ...</code> are owned by
 <code>internal/component/bgp/plugins/cmd/{rib,peer}/yang</code>, and the offline
 <code>show bgp decode</code> and <code>show bgp encode</code> diagnostics are owned by
@@ -524,7 +524,7 @@ package holds the matching presence test, such as
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

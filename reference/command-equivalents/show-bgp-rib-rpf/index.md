@@ -7,7 +7,7 @@ Reverse\-path forwarding lookup in the Loc\-RIB\.
 - Registry path: `show bgp rib rpf`
 - Usage: `show bgp rib rpf`
 - Mode: Read-only
-- Wire method: `ze-rib-api:rpf`
+- Wire method: `ze-bgp:rib-rpf`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

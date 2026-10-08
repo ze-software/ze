@@ -7,7 +7,7 @@ Show OSPF fast\-reroute \(LFA \/ TI\-LFA\) backups \(RFC 5286\)\.
 - Registry path: `show ospf route fast-reroute`
 - Usage: `show ospf route fast-reroute`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-route-fast-reroute`
+- Wire method: `ze-ospf:show-route-fast-reroute`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

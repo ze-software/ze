@@ -7,7 +7,7 @@ Raise the file descriptor limit for the daemon process\.
 - Registry path: `set system file-descriptors`
 - Usage: `set system file-descriptors [limit <limit\|max>]`
 - Mode: Daemon
-- Wire method: `ze-set:system-file-descriptors`
+- Wire method: `ze-host:set-system-file-descriptors`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

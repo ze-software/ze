@@ -7,7 +7,7 @@ Show process status\, uptime\, and resource usage\.
 - Registry path: `show status`
 - Usage: `show status`
 - Mode: Read-only
-- Wire method: `ze-system:daemon-status`
+- Wire method: `ze-plugin:system-daemon-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

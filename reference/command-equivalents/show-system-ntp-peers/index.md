@@ -7,7 +7,7 @@ Show NTP peers with offset\, RTT\, stratum\, and reachability\.
 - Registry path: `show system ntp peers`
 - Usage: `show system ntp peers`
 - Mode: Read-only
-- Wire method: `ze-show:system-ntp-peers`
+- Wire method: `ze-ntp:show-system-ntp-peers`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

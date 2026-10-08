@@ -7,7 +7,7 @@ Reload the configuration without restarting\.
 - Registry path: `request reload`
 - Usage: `request reload`
 - Mode: Daemon
-- Wire method: `ze-system:daemon-reload`
+- Wire method: `ze-plugin:system-daemon-reload`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

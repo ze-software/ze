@@ -7,7 +7,7 @@ Show the OSPFv3 Router Information LSAs \(RFC 7770\)\.
 - Registry path: `show ospf ipv6 database router-information`
 - Usage: `show ospf ipv6 database router-information`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database-router-information`
+- Wire method: `ze-ospf:show-ospfv3-database-router-information`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

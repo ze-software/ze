@@ -7,7 +7,7 @@ Look up a DNS name from the router\.
 - Registry path: `show dns lookup`
 - Usage: `show dns lookup <hostname> [type <A\|AAAA\|MX\|NS\|TXT\|CNAME\|PTR>]`
 - Mode: Read-only
-- Wire method: `ze-show:dns-lookup`
+- Wire method: `ze-resolve:show-dns-lookup`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

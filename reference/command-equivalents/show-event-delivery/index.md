@@ -7,7 +7,7 @@ Show which peers feed which attached processes\.
 - Registry path: `show event delivery`
 - Usage: `show event delivery`
 - Mode: Read-only
-- Wire method: `ze-show:event-delivery`
+- Wire method: `ze-cmd:show-event-delivery`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

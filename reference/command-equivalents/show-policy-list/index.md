@@ -7,7 +7,7 @@ List all available filter types and named instances\.
 - Registry path: `show policy list`
 - Usage: `show policy list`
 - Mode: Read-only
-- Wire method: `ze-show:policy-list`
+- Wire method: `ze-cmd:show-policy-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

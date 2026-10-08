@@ -7,7 +7,7 @@ Ping a target from the router itself\.
 - Registry path: `show ping`
 - Usage: `show ping [dest <dest>] [count <count>] [size <size>] [timeout <timeout>] [do-not-fragment <honor-cache\|bypass-cache>]`
 - Mode: Read-only
-- Wire method: `ze-show:ping`
+- Wire method: `ze-ping:show-ping`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

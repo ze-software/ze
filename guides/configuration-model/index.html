@@ -3780,7 +3780,7 @@ metrics use the <code>ze_flowexport_*</code> prefix.</p>
 management VLAN. Per-flow records are IPv4-only; sampling requires Linux with
 <code>CAP_NET_ADMIN</code> and the kernel <code>psample</code> module.</p>
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- flow-export container -->
-<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
+<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-flowexport:show-flow-export RPC -->
 <h2 id="traffic-usage">Traffic Usage</h2>
 <p>Account per-(port, protocol) and, optionally, per-IP byte totals on selected
 interfaces using eBPF programs attached via TCX. Configured under a single
@@ -3817,7 +3817,7 @@ traffic). TCX requires Linux &gt;= 6.6 with <code>CAP_BPF</code> and <code>CAP_N
 <code>ze doctor</code> check (<code>doctor-traffic-usage-ebpf</code>) warns when enabled but eBPF/TCX
 is unavailable.</p>
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage -->
-<!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage RPC -->
+<!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage RPC -->
 <h2 id="environment-block">Environment Block</h2>
 <p>Global settings outside BGP:</p>
 <pre><code>environment {
@@ -5200,7 +5200,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

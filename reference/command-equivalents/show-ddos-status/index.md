@@ -7,7 +7,7 @@ Show the DDoS observation status\.
 - Registry path: `show ddos status`
 - Usage: `show ddos status`
 - Mode: Read-only
-- Wire method: `ze-show:ddos-status`
+- Wire method: `ze-ddos:show-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

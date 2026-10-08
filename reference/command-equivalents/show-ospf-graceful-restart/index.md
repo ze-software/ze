@@ -7,7 +7,7 @@ Show OSPFv2 \(IPv4\) Graceful Restart state \(RFC 3623\)\.
 - Registry path: `show ospf graceful-restart`
 - Usage: `show ospf graceful-restart`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-graceful-restart`
+- Wire method: `ze-ospf:show-graceful-restart`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

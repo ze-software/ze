@@ -7,7 +7,7 @@ Capture live packets on an interface \(like tcpdump\)\.
 - Registry path: `show capture interface`
 - Usage: `show capture interface [iface <iface>] [count <count>] [duration <duration>] [snap-len <snap-len>] [format <pcap\|text>] [protocol <protocol>]`
 - Mode: Read-only
-- Wire method: `ze-show:capture-interface`
+- Wire method: `ze-diag:show-capture-interface`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show captured control\-plane messages\.
 - Registry path: `show capture`
 - Usage: `show capture [protocol <l2tp\|bgp>] [tunnel-id <tunnel-id>] [count <count>] [peer <peer>]`
 - Mode: Read-only
-- Wire method: `ze-show:capture`
+- Wire method: `ze-diag:show-capture`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `interface`, `raw`

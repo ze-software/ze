@@ -7,7 +7,7 @@ Show which interfaces are accepting PPPoE sessions\.
 - Registry path: `show pppoe interfaces`
 - Usage: `show pppoe interfaces`
 - Mode: Read-only
-- Wire method: `ze-pppoe-api:interfaces`
+- Wire method: `ze-l2tp:pppoe-interfaces`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

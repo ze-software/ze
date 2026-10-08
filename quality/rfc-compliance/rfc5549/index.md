@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 34.6% | 9 of 26 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 19.2% | 5 of 26 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -128,16 +128,16 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Superseded row restating RFC8950-4-1; same judgement. The explicit-next-hop gap is closed by TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair (AnnounceNLRIBatch over a live session: IPv4 unicast sent only with <1/1, IPv6>, refused with ErrNextHopIncompatible and no UPDATE otherwise; VPN-IPv4 resolved only with <1/128, IPv6>), next-hop self by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair, and the negotiated intersection by the capability units. The forward-rail half is proven under RFC8950-4-1 by TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, which carries only RFC8950 tags. Observed-red records on canUseNextHopFor both polarities.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair, internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2 moved. Superseded row restating RFC8950-4-1; same judgement. The explicit-next-hop gap is closed by TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair (AnnounceNLRIBatch over a live session: IPv4 unicast sent only with <1/1, IPv6>, refused with ErrNextHopIncompatible and no UPDATE otherwise; VPN-IPv4 resolved only with <1/128, IPv6>), next-hop self by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair, and the negotiated intersection by the capability units. The forward-rail half is proven under RFC8950-4-1 by TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, which carries only RFC8950 tags. Observed-red records on canUseNextHopFor both polarities.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1196) | unit/verify | unproven |
-| negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45) | unit/verify | revert, verified |
+| negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L45) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | negative | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L39) | unit/verify | revert, verified |
 | negative | [`TestNegotiateExtendedNextHopMismatch`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L331) | unit/verify | unproven |
 | positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1165) | unit/verify | unproven |
-| positive | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44) | unit/verify | revert, verified |
+| positive | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L44) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestNegotiateExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L292) | unit/verify | unproven |
 
@@ -192,16 +192,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Superseded row, the negative spelling of RFC8950-4-1; same judgement as RFC5549-4-1. The explicit next hop to a peer lacking the pair is now refused at the announce entry point with no UPDATE on the wire (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair), and next-hop self per pair by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor both polarities. The tag prose on TestCanUseNextHopFor_ExtendedNH still says 'the MUST NOT'.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair, internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2 moved. Superseded row, the negative spelling of RFC8950-4-1; same judgement as RFC5549-4-1. The explicit next hop to a peer lacking the pair is now refused at the announce entry point with no UPDATE on the wire (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair), and next-hop self per pair by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor both polarities. The tag prose on TestCanUseNextHopFor_ExtendedNH still says 'the MUST NOT'.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1199) | unit/verify | unproven |
 | negative | [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1220) | unit/verify | unproven |
-| negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47) | unit/verify | revert, verified |
+| negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L47) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | negative | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L41) | unit/verify | revert, verified |
 | positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1168) | unit/verify | unproven |
-| positive | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46) | unit/verify | revert, verified |
+| positive | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L46) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L40) | unit/verify | revert, verified |
 
 ## Extraction sign-off

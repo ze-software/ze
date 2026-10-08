@@ -7,7 +7,7 @@ Show platform capabilities and constraints\.
 - Registry path: `show host platform`
 - Usage: `show host platform`
 - Mode: Read-only
-- Wire method: `ze-show:host-platform`
+- Wire method: `ze-host:show-platform`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

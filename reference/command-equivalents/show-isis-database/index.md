@@ -7,7 +7,7 @@ Show the IS\-IS link\-state database\.
 - Registry path: `show isis database`
 - Usage: `show isis database`
 - Mode: Read-only
-- Wire method: `ze-show:isis-database`
+- Wire method: `ze-isis:show-database`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

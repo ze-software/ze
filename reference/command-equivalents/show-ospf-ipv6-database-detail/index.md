@@ -7,7 +7,7 @@ Decode every OSPFv3 LSA body with its scope\-aware header \(RFC 5340 section A\.
 - Registry path: `show ospf ipv6 database detail`
 - Usage: `show ospf ipv6 database detail`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database-detail`
+- Wire method: `ze-ospf:show-ospfv3-database-detail`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

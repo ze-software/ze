@@ -7,7 +7,7 @@ Ze includes an experimental native OSPF engine under the `ospf` config root. The
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy -->
 <!-- source: internal/plugins/ospf/v3/transport/transport.go -- Transport -->
 
-SPF builds one graph per area from Router-LSAs and Network-LSAs, enforces the RFC 2328 two-way check, derives next-hops from Router-LSA link data, merges equal-cost next-hops, and inserts one `locrib.Path` per next-hop with OSPF admin distance 110. The kernel FIB path is Loc-RIB -> sysrib -> fibkernel, not redistribution events.
+SPF builds one graph per area from Router-LSAs and Network-LSAs, enforces the RFC 2328 two-way check, derives next-hops from Router-LSA link data, merges equal-cost next-hops, and inserts one `locrib.Path` per next-hop, which the Loc-RIB ranks at the OSPF distance `rib { distance { ospf } }` declares (default 110). The kernel FIB path is Loc-RIB -> sysrib -> fibkernel, not redistribution events.
 <!-- source: internal/plugins/ospf/spf/graph.go -- BuildGraph -->
 <!-- source: internal/plugins/ospf/spf/spf.go -- Compute -->
 <!-- source: internal/plugins/ospf/spf/route.go -- BuildRoutes -->
@@ -144,7 +144,7 @@ each peer's delivery to it is derived from the rule. See
 [Route Filters and Redistribution](../redistribution/index.md), "Route Redistribution".
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 
-Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one `locrib.Path` with admin distance 110.
+Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one `locrib.Path`, ranked at the declared OSPF distance (default 110).
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal, ComputeExternalWith, betterExternal -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6ExternalReader -->
 
@@ -175,7 +175,7 @@ imports are not replayed.
 
 Every NSSA border router originates a default into each directly attached NSSA, in both address families and with no operator leaf to enable it (RFC 3101 §2.4). A regular NSSA gets a P-clear Type 7 default: an OSPFv2 Type 7 LSA, or the OSPFv3 NSSA-LSA (`0x2007`) that carries the P-bit in its prefix options rather than in the LSA header. A no-summary NSSA gets the default through the summary path instead, as an OSPFv2 Type 3 summary-LSA or the OSPFv3 `::/0` Inter-Area-Prefix-LSA, and gets no Type 7 default at all (RFC 3101 §2.7). In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled; a router that is not an NSSA border router installs them.
 <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
-<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault -->
+<!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA, v6NSSADefaultLSID -->
 <!-- source: internal/plugins/ospf/spf/area_type.go -- applyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6ApplyAreaTypePolicy -->
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
@@ -606,7 +606,7 @@ show ospf border-routers
 
 `show ospf` is the process summary (router-id, ABR/ASBR status, areas, and the active stub-router / max-metric state). `show ospf database` lists every LSA; the per-type subviews filter to one LS Type (1/2/3/4/5/7). `show ospf route` reports area, prefix, metric, route type, origin router, and next-hop set. `show ospf spf` reports per-area last run, duration, node count, pending state, and current throttle delay. `show ospf border-routers` reports reachable ABRs and ASBRs with their area, metric, and next-hop set.
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
-<!-- source: internal/plugins/ospf/cmd_show.go -- ze-show:ospf-* RPC proxies -->
+<!-- source: internal/plugins/ospf/cmd_show.go -- ze-ospf:show-* RPC proxies -->
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
 
 The runtime can be reset without reconfiguring via `clear ospf process` (tear down adjacencies and re-run SPF), `clear ospf neighbor` (re-form adjacencies), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.

@@ -7,7 +7,7 @@ List the subsystems registered in the daemon\.
 - Registry path: `system subsystem list`
 - Usage: `system subsystem list`
 - Mode: Read-only
-- Wire method: `ze-system:subsystem-list`
+- Wire method: `ze-plugin:system-subsystem-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

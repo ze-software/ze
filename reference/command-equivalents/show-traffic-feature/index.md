@@ -7,7 +7,7 @@ Show neutral per\-source traffic feature signals\.
 - Registry path: `show traffic feature`
 - Usage: `show traffic feature [name <name>]`
 - Mode: Read-only
-- Wire method: `ze-show:traffic-feature`
+- Wire method: `ze-trafficfeature:show-traffic-feature`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

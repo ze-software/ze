@@ -7,7 +7,7 @@ Show the daemon\'s current wall\-clock time and timezone\.
 - Registry path: `show system date`
 - Usage: `show system date`
 - Mode: Read-only
-- Wire method: `ze-show:system-date`
+- Wire method: `ze-cmd:show-system-date`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

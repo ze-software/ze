@@ -7,7 +7,7 @@ Show the health of every component and the overall status of this box\.
 - Registry path: `show health`
 - Usage: `show health`
 - Mode: Read-only
-- Wire method: `ze-show:health`
+- Wire method: `ze-cmd:show-health`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

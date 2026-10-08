@@ -7,7 +7,7 @@ Inspect a specific certificate in detail\.
 - Registry path: `show pki certificate name`
 - Usage: `show pki certificate name <name>`
 - Mode: Read-only
-- Wire method: `ze-show:pki-certificate`
+- Wire method: `ze-pki:show-certificate`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `bundle`, `fingerprint`, `pem`

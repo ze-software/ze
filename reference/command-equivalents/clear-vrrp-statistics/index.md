@@ -7,7 +7,7 @@ Reset every VRRP virtual router\'s counters to zero\.
 - Registry path: `clear vrrp statistics`
 - Usage: `clear vrrp statistics`
 - Mode: Daemon
-- Wire method: `ze-clear:vrrp-statistics`
+- Wire method: `ze-vrrp:clear-statistics`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

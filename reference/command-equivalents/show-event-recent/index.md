@@ -7,7 +7,7 @@ Show recent events\, newest first\.
 - Registry path: `show event recent`
 - Usage: `show event recent`
 - Mode: Read-only
-- Wire method: `ze-show:event-recent`
+- Wire method: `ze-cmd:show-event-recent`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show the kernel connection tracking table\.
 - Registry path: `show system conntrack`
 - Usage: `show system conntrack`
 - Mode: Read-only
-- Wire method: `ze-show:system-conntrack`
+- Wire method: `ze-firewall:show-system-conntrack`
 - Backends: `nft`
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

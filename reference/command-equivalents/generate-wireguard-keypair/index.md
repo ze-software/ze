@@ -5,8 +5,9 @@ Generate a WireGuard keypair with the system wg binary\.
 ## Ze command
 
 - Registry path: `generate wireguard keypair`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `generate wireguard keypair`
+- Mode: Daemon
+- Wire method: `ze-diag:generate-wireguard-keypair`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show the Go runtime allocator memory stats\.
 - Registry path: `show runtime memory`
 - Usage: `show runtime memory`
 - Mode: Read-only
-- Wire method: `ze-show:system-memory`
+- Wire method: `ze-cmd:show-system-memory`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -362,6 +362,16 @@ peers can therefore expire at different times even when their local
 configuration is identical. Retention means routes in the received RIB:
 replaying a locally configured static route after reconnect does not demonstrate
 that a received route survived either restart period.</p>
+<p>EOR and expiry withdraw only the stale received paths they remove. A refreshed
+path is not withdrawn merely because its new UPDATE has reached the received RIB
+before route-server forwarding or sent-event delivery catches up. Received
+ADD-PATH identifiers, including zero, distinguish paths even when one UPDATE
+originally advertised them together. Cleanup still carries the old destination
+advertisement's receipt, so it cannot remove a newer advertisement from the same
+source or another source. Received-state deletion alone is not proof of delivery
+to the destination; the final wire checks remain separate.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- purgeStaleCommand, autoExpireStale -->
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- withdrawRemovedSentLocked, sentReceivedOwner -->
 <p>Each family's LLST deadline is the original GR deadline plus that family's
 received Long-Lived Stale Time. Time spent dispatching the DOWN commands does
 not extend either period. After retention and stale marking finish, Ze removes
@@ -599,7 +609,7 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

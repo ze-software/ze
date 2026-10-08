@@ -7,7 +7,7 @@ Show all IKE and Child Security Associations\.
 - Registry path: `show vpn ipsec sa`
 - Usage: `show vpn ipsec sa`
 - Mode: Read-only
-- Wire method: `ze-show:vpn-ipsec-sa`
+- Wire method: `ze-ike:show-vpn-ipsec-sa`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

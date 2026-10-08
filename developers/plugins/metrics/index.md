@@ -94,7 +94,6 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `rib` (sysrib) | `systemrib` | Registration name is `rib` but `ze_rib_` is taken by bgp-rib; `systemrib` reads naturally |
 | `bgp-watchdog` | `watchdog` | `bgp` prefix redundant |
 | `bgp-rpki` | `rpki` | `bgp` prefix redundant |
-| `bgp-persist` | `persist` | `bgp` prefix redundant |
 | `bgp-role` | `role` | `bgp` prefix redundant |
 | `bgp-filter-path-asn` | `filter_path_asn` | The package name. The `bgp` prefix is redundant on a BGP filter, and the hyphen-stripped `bgpfilterpathasn` cannot be read |
 
@@ -138,9 +137,6 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
 | `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
 | `ze_filter_path_asn_rejects_total` | CounterVec | direction, position, reason | bgp-filter-path-asn |
-| `ze_persist_routes_stored` | Gauge | | bgp-persist |
-| `ze_persist_peers_tracked` | Gauge | | bgp-persist |
-| `ze_persist_route_replays_total` | Counter | | bgp-persist |
 | `ze_isis_adjacencies_up` | GaugeVec | level, interface | isis |
 | `ze_isis_adjacencies_total` | GaugeVec | level | isis |
 | `ze_isis_lsps` | GaugeVec | level | isis (lsdb) |

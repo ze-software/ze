@@ -7,7 +7,7 @@ Show the ARP and neighbor discovery table\.
 - Registry path: `show neighbor`
 - Usage: `show neighbor [family <ipv4\|ipv6\|any\|all>]`
 - Mode: Read-only
-- Wire method: `ze-show:neighbor`
+- Wire method: `ze-iface:show-neighbor`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

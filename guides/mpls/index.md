@@ -44,6 +44,15 @@ A probe ze could not read is a different answer. It reports
 `doctor-mpls-unknown` at warning severity and ze starts, because refusing on a
 question ze could not ask would stop a router whose kernel is fine.
 
+RSVP-TE transit routes can carry the LSP's path MTU only on a kernel with
+`CONFIG_MPLS_IP_MTU`, which ze's appliance kernel adds. On a stock kernel ze
+still installs every transit swap and pop, without the MTU, so the LSP comes up
+and forwards, but an oversized labeled packet is dropped rather than fragmented
+or answered with ICMP. The daemon logs this once, and `ze doctor` reports
+`doctor-mpls-transit-mtu-unenforced` at warning severity; neither refuses a
+start. Details: `docs/architecture/mpls/mpls-kernel.md`, "On a kernel without
+the patch".
+
 A VPP or P4 FIB backend is never judged on the kernel's AF_MPLS table. The
 `fib { kernel { } }` block is what activates the plugin that programs kernel
 labels, and it is that plugin that carries the requirement.

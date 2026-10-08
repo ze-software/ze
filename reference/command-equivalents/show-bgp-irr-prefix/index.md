@@ -7,7 +7,7 @@ Show IRR\-resolved prefixes for a peer\.
 - Registry path: `show bgp irr prefix`
 - Usage: `show bgp irr prefix <peer>`
 - Mode: Read-only
-- Wire method: `ze-show:irr-prefix`
+- Wire method: `ze-bgp:show-irr-prefix`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

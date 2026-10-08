@@ -1,6 +1,6 @@
 # DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE - BGP BFD Strict-Mode
 
-Supported. Every requirement this repository extracted from DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 100.0% | 13 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 15 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 4 | of 4 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -53,7 +53,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 4 |
 | Gated MUST-level | 4 |
@@ -62,26 +62,27 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 13 |
-| Tagged units | 13 |
+| Test tags | 15 |
+| Tagged units | 15 |
 | Recorded audit verdicts | 4 |
-| Discrimination records | 13 |
+| Discrimination records | 15 |
 | Summary | `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` |
 | Requirement shard | `rfc/requirements/draft-ietf-idr-bgp-bfd-strict-mode.md` |
 | RFC text | `rfc/drafts/draft-ietf-idr-bgp-bfd-strict-mode.txt` |
 
 ## Enrolment
 
-Enrolled: BFD Strict-Mode for BGP (capability code 74): four MUST-level requirements, all four implemented and each proven by a tagged test. Ze advertises the capability from the peer's own bfd block (parsePeerFromTree, internal/component/bgp/reactor/config.go), negotiates it as BfdStrictNegotiated (Negotiate, internal/core/bgp/capability/negotiated.go), and runs the Section 8 FSM procedures in internal/component/bgp/fsm/fsm.go with their wire half in internal/component/bgp/reactor/session_bfd_strict.go. The two Event 20 sections, 8.3.5 and 8.4.5, are conditional on the RFC 4271 DelayOpenTimer, which Ze does not implement (permitted by RFC 4271 Section 8.2.1.3), and they carry no MUST-level keyword site.
+Enrolled: BFD Strict-Mode for BGP (capability code 74): four MUST-level requirements with tagged tests. DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1 now has nonzero-hold-down entrypoint proof in TestDraftBFDNonzeroHoldDownInitialFSM: initial FSM and OPEN exchange proceed with Down or newly Up BFD, while establishment waits for the configured interval. The three cases passed, independent semantic review accepted the whole condition, and current native discrimination records and the renewed audit verdict are recorded. Ze advertises the capability from the peer's own bfd block (parsePeerFromTree, internal/component/bgp/reactor/config.go), negotiates it as BfdStrictNegotiated (Negotiate, internal/core/bgp/capability/negotiated.go), and runs the Section 8 FSM procedures in internal/component/bgp/fsm/fsm.go with their wire half in internal/component/bgp/reactor/session_bfd_strict.go. The two Event 20 sections, 8.3.5 and 8.4.5, are conditional on the RFC 4271 DelayOpenTimer, which Ze does not implement (permitted by RFC 4271 Section 8.2.1.3), and they carry no MUST-level keyword site.
 
 ## What the public ledger says
 
-**Status:** Supported
+**Status:** Partial
 
 **What the ledger says is covered**
 
 - Capability code 74, length 0, advertised in the OPEN for a peer whose `connection bfd { strict true }` is enabled, and negotiated to `Negotiated.BFDStrictMode` when both speakers send it. FSM events 30 to 35 and the two OpenSent sub-states of Section 8.1 are implemented in `internal/component/bgp/fsm/`. The KEEPALIVE is withheld and the session held in OpenSent by `Session.advanceAfterOpen`, released by `Session.handleBFDEvent`, and closed with Cease / BFD Down or Cease / Other Configuration Change by the same function ([`internal/component/bgp/reactor/session_bfd_strict.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict.go)). The BFD session opens before the BGP FSM starts and outlives a transition to Idle (`Peer.run`, `Peer.cleanup`, Section 7). The BfdHoldTimer of Section 3 attribute 18 lives on `fsm.Timers`, defaults to 30 seconds, and is armed only when the negotiated BGP hold time is zero
-- where it is non-zero the ordinary RFC 4271 HoldTimer bounds the wait, re-armed to the negotiated value by `advanceAfterOpen`. The Section 10 BFD hold-down interval is the `hold-down` leaf, in milliseconds, zero by default. Both halves are proven against a second implementation: `test/interop/scenarios/bgp-bfd-strict-speaker` (the lab speaker, which advertises capability 74 and answers BFD built from RFC 5880) and `test/interop/scenarios/bgp-bfd-strict-frr` (FRR 10.3.1, which implements neither). Sections 8.3.5 and 8.4.5 revise Event 20, an OPEN received while the DelayOpenTimer runs
+- where it is non-zero the ordinary RFC 4271 HoldTimer bounds the wait, re-armed to the negotiated value by `advanceAfterOpen`. The Section 10 BFD hold-down interval is the `hold-down` leaf, in milliseconds, zero by default. Existing interop carriers are `test/interop/scenarios/bgp-bfd-strict-speaker` (the lab speaker, which advertises capability 74 and answers BFD built from RFC 5880) and `test/interop/scenarios/bgp-bfd-strict-frr` (FRR 10.3.1, which implements neither)
+- they do not automatically establish the combined strict-mode/nonzero-hold-down condition of row 10-1. Sections 8.3.5 and 8.4.5 revise Event 20, an OPEN received while the DelayOpenTimer runs
 - Ze implements no DelayOpenTimer, an RFC 4271 optional session attribute its Section 8.2.1.3 permits omitting, so `ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending` are unreachable and undeclared. Neither section carries a MUST-level obligation, so that is an implementation gap in RFC 4271's optional feature and not a conformance gap in this draft.
 
 
@@ -110,7 +111,7 @@ Enrolled: BFD Strict-Mode for BGP (capability code 74): four MUST-level requirem
 |---|---|---|---|---|
 | `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1` | If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestSessionBFDStrictConfigChangedUsesConfigSubcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L413). **negative:** `unit/verify` [`TestDraftBFDDisabledConfigChangeReleasesPendingSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L58). **negative:** `unit/verify` [`TestSessionBFDStrictConfigChangedWithBFDDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L495) |
 | `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1` | A BGP speaker which supports capabilities advertisement and has BFD strict-mode enabled MUST include the BFD Strict-Mode Capability in its OPEN message. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestBFDSettingsStrictParse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L58). **positive:** `unit/verify` [`TestBFDStrictCapabilityInSentOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L115). **negative:** `unit/verify` [`TestBFDSettingsStrictDisabledAdvertisesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L109). **negative:** `unit/verify` [`TestBFDStrictCapabilityInSentOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L116) |
-| `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1` | To avoid deadlock when utilizing both BFD hold-down and BFD strict- mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled. (§10) | MUST | 10 | **positive:** `unit/verify` [`TestSessionBFDStrictWithholdsKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L185). **negative:** `unit/verify` [`TestSessionBFDStrictSendsKeepaliveOnBFDUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L221) |
+| `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1` | To avoid deadlock when utilizing both BFD hold-down and BFD strict-mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled. (§10) | MUST | 10 | **positive:** `unit/verify` [`TestDraftBFDNonzeroHoldDownInitialFSM`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go#L35). **positive:** `unit/verify` [`TestSessionBFDStrictWithholdsKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L185). **negative:** `unit/verify` [`TestDraftBFDNonzeroHoldDownInitialFSM`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go#L36). **negative:** `unit/verify` [`TestSessionBFDStrictSendsKeepaliveOnBFDUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L221) |
 | `DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2` | That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker. (§10) | MUST NOT | 10 | **positive:** `unit/verify` [`TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L16). **positive:** `unit/verify` [`TestSessionBFDStrictWithholdsKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L190). **negative:** `unit/verify` [`TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go#L17). **negative:** `unit/verify` [`TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L289) |
 
 ## Gaps and untested MUSTs
@@ -148,13 +149,15 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 ### [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1`](#draft-ietf-idr-bgp-bfd-strict-mode-10-1)
 
-To avoid deadlock when utilizing both BFD hold-down and BFD strict- mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled. (§10)
+To avoid deadlock when utilizing both BFD hold-down and BFD strict-mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled. (§10)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a peer with strict-mode enabled whose BGP FSM is not enabled (stays Idle or never exchanges OPEN while BFD is not Up). TestSessionBFDStrictWithholdsKeepalive asserts, with bfd state Down and strict negotiated, session.State() == fsm.StateOpenSent after handleOpen, red on an FSM that held in Idle or refused the connection; TestSessionBFDStrictSendsKeepaliveOnBFDUp asserts the held session reaches OpenConfirm on BfdUp, so the enabled FSM is not parked in an unleavable state.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent reviewer StrictInitialFSMReview read draft Section 10: 'To avoid deadlock when utilizing both BFD hold-down and BFD strict-mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled.' TestDraftBFDNonzeroHoldDownInitialFSM starts real Idle sessions with strict mode and 400 ms hold-down for initially Down and newly Up BFD. Session.Start reaches Active, Session.Accept reaches OpenSent and emits the exact OPEN, and ReadAndProcess receives the peer OPEN and KEEPALIVE before clock advancement. The configured hold-down and negotiated strict capability are asserted. Down BFD withholds KEEPALIVE; newly Up BFD permits OpenConfirm but not premature Established. Both remain pending at 399 ms and establish at 400 ms; the zero-hold-down control establishes without advancing the clock. The exact accumulated output and far-end stream reject extra or premature messages. The original zero-interval carriers remain supplementary, not the combined-condition proof. Main observed all three cases pass in job-remaining-bgp-fixture-after-2acfc16f.log and independently read the new test and draft Section 10. This semantic judgment does not claim a producer-break run or independent-daemon interoperability; native discrimination remains separately owed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestDraftBFDNonzeroHoldDownInitialFSM`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go#L36) | unit/verify | revert, verified |
 | negative | [`TestSessionBFDStrictSendsKeepaliveOnBFDUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L221) | unit/verify | revert, verified |
+| positive | [`TestDraftBFDNonzeroHoldDownInitialFSM`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go#L35) | unit/verify | revert, verified |
 | positive | [`TestSessionBFDStrictWithholdsKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L185) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2`](#draft-ietf-idr-bgp-bfd-strict-mode-10-2)

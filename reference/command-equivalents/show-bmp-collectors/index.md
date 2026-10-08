@@ -7,7 +7,7 @@ Show BMP collector connection status\.
 - Registry path: `show bmp collectors`
 - Usage: `show bmp collectors`
 - Mode: Read-only
-- Wire method: `ze-show:bmp-collectors`
+- Wire method: `ze-bgp:show-bmp-collectors`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

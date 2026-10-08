@@ -7,7 +7,7 @@ Show full detail for one L2TP tunnel\.
 - Registry path: `show l2tp tunnel id`
 - Usage: `show l2tp tunnel id <id>`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:tunnel`
+- Wire method: `ze-l2tp:tunnel`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

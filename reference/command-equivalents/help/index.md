@@ -7,7 +7,7 @@ Show available commands at this level\.
 - Registry path: `help`
 - Usage: `help`
 - Mode: Read-only
-- Wire method: `ze-bgp:help`
+- Wire method: `ze-meta:bgp-help`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

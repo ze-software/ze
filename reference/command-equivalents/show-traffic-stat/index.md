@@ -7,7 +7,7 @@ Show aggregated traffic snapshot \(interface rates\, top talkers\, top ports\, s
 - Registry path: `show traffic stat`
 - Usage: `show traffic stat [name <name>]`
 - Mode: Read-only
-- Wire method: `ze-show:traffic-stat`
+- Wire method: `ze-trafficstat:show-traffic-stat`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Zero the Rx\/Tx counters for every managed interface\.
 - Registry path: `clear interface counters`
 - Usage: `clear interface counters`
 - Mode: Daemon
-- Wire method: `ze-clear:interface-counters`
+- Wire method: `ze-iface:clear-interface-counters`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

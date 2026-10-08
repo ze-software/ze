@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.1%</strong><b>1 of 91 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 91 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 91 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>88.6%</strong><b>70 of 79 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>75.9%</strong><b>60 of 79 tagged units, 0 escaped and 10 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>64.8%</strong><b>59 of 91 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>38</strong><b>of 91 gated MUSTs judged</b><p>19 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>38</strong><b>of 91 gated MUSTs judged</b><p>19 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 91 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -1751,7 +1751,7 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L38" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafTypeMustNameAnExistingType</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L74" title="internal/component/config/yang/rfc7950_loader_test.go" target="_blank" rel="noopener"><code>TestRFC7950ModuleLoadRefused</code></a></td>
@@ -1761,7 +1761,7 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L39" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950LeafTypeMustNameAnExistingType</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L128" title="internal/component/config/yang/rfc7950_loader_test.go" target="_blank" rel="noopener"><code>TestRFC7950ModuleLoadAccepted</code></a></td>
@@ -2208,7 +2208,7 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L105" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950EnumValueWithinInt32</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L92" title="internal/component/config/yang/rfc7950_loader_test.go" target="_blank" rel="noopener"><code>TestRFC7950ModuleLoadRefused</code></a></td>
@@ -2218,7 +2218,7 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L106" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950EnumValueWithinInt32</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L145" title="internal/component/config/yang/rfc7950_loader_test.go" target="_blank" rel="noopener"><code>TestRFC7950ModuleLoadAccepted</code></a></td>
@@ -2282,7 +2282,7 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
 <p>No test carries RFC7950-11-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7950-7.2.2-1"><code>RFC7950-7.2.2-1</code></a></h3>
 <p>A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module. (§7.2.2)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. {gap} under OWNER RULING 4: goyang accepts a submodule included by a foreign module and Ze adds no check. Recorded, not closed.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/config/yang/loader.go::Resolve moved. {gap} under OWNER RULING 4: goyang accepts a submodule included by a foreign module and Ze adds no check. Recorded, not closed.</p>
 <p>No test carries RFC7950-7.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7950-7.3.2-1"><code>RFC7950-7.3.2-1</code></a></h3>
 <p>The &#34;type&#34; statement, which MUST be present, defines the base type from which this type is derived. (§7.3.2)</p>
@@ -2294,12 +2294,12 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L53" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950TypedefTypeMustBePresent</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L54" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950TypedefTypeMustBePresent</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2314,12 +2314,12 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L76" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950CaseIdentifierUniqueWithinAChoice</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L77" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950CaseIdentifierUniqueWithinAChoice</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2342,12 +2342,12 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L92" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950LengthRestrictionMustNotWiden</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L93" title="internal/component/config/yang/rfc7950_loader_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC7950LengthRestrictionMustNotWiden</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -4549,7 +4549,7 @@ Fifty-nine MUST rows carry {gap}, each naming its spec. Ze&#39;s loader adds no 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

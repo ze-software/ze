@@ -7,7 +7,7 @@ Show which Regional Internet Registry holds an AS number\.
 - Registry path: `show resolve rir`
 - Usage: `show resolve rir <asn>`
 - Mode: Read-only
-- Wire method: `ze-show:resolve-rir`
+- Wire method: `ze-resolve:show-rir`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show OSPF LDP\-IGP synchronization state \(RFC 5443\, RFC 6138\)\.
 - Registry path: `show ospf ldp-sync`
 - Usage: `show ospf ldp-sync`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-ldp-sync`
+- Wire method: `ze-ospf:show-ldp-sync`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

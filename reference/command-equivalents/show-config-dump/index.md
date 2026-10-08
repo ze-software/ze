@@ -7,7 +7,7 @@ Show the fully resolved configuration tree\.
 - Registry path: `show config dump`
 - Usage: `show config dump`
 - Mode: Read-only
-- Wire method: `ze-show:config-dump`
+- Wire method: `ze-config-cli:show-config-dump`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

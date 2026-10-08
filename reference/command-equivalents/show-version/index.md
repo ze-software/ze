@@ -7,7 +7,7 @@ Show the running Ze version and build date\.
 - Registry path: `show version`
 - Usage: `show version`
 - Mode: Read-only
-- Wire method: `ze-show:version`
+- Wire method: `ze-cmd:show-version`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

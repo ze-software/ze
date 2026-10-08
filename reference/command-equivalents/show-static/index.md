@@ -7,7 +7,7 @@ Show static routes defined in the configuration\.
 - Registry path: `show static`
 - Usage: `show static`
 - Mode: Read-only
-- Wire method: `ze-show:static`
+- Wire method: `ze-static:show-static`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

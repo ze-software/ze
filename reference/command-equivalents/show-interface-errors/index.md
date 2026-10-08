@@ -7,7 +7,7 @@ Show interfaces that have errors or drops\.
 - Registry path: `show interface errors`
 - Usage: `show interface errors`
 - Mode: Read-only
-- Wire method: `ze-show:interface-errors`
+- Wire method: `ze-iface:show-interface-errors`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

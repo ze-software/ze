@@ -7,7 +7,7 @@ Measure the path MTU and size the IPsec tunnels from it\.
 - Registry path: `show mtu`
 - Usage: `show mtu [host <host>] [search <exhaustive>] [view <detail>]`
 - Mode: Read-only
-- Wire method: `ze-show:mtu`
+- Wire method: `ze-mtu:show-mtu`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

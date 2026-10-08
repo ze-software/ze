@@ -54,16 +54,19 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>set debug profile name</code></dd></div>
-<div><dt>Mode</dt><dd>Offline</dd></div>
-<div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
+<div><dt>Usage</dt><dd><code>set debug profile name &lt;profile-name&gt;</code></dd></div>
+<div><dt>Mode</dt><dd>Daemon</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-debug:set-profile-name</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
 </dl>
-<h3>Description</h3><p>It copies what the daemon is writing NOW into a named slot. The default slot is left as it is, so saving a profile does not change what the running daemon logs.</p>
+<h3>Description</h3><p>It copies what the daemon is writing now into a named slot. The default<br>slot is left as it is, so saving a profile does not change what the running daemon logs.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>profile-name</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Profile name.</td><td>The slot the current state is saved under.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -126,7 +129,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

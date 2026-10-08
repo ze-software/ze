@@ -7,7 +7,7 @@ Show the full per\-neighbor state \(spec\-ospf\-ext\-14\)\.
 - Registry path: `show ospf neighbor detail`
 - Usage: `show ospf neighbor detail`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-neighbor-detail`
+- Wire method: `ze-ospf:show-neighbor-detail`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

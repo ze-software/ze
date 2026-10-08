@@ -7,7 +7,7 @@ Show BFD timer profiles with effective values\.
 - Registry path: `show bfd profile`
 - Usage: `show bfd profile`
 - Mode: Read-only
-- Wire method: `ze-bfd-api:show-profile`
+- Wire method: `ze-bfd:show-profile`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `name`

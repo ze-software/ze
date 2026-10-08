@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 15 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 100.0% | 44 of 44 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 43.2% | 19 of 44 tagged units, 0 escaped and 25 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -172,7 +172,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLinkLocalNextHopWithAGlobalIsNotSentAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L118) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalNextHopWithAGlobalIsNotSentAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L118) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestLinkLocalOnlyNextHopFieldIsSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L87) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2`](#draft-ietf-idr-linklocal-capability-3-2)
@@ -196,10 +196,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLinkLocalRouteWithANextHopIsAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L83) | unit/verify | revert, verified |
-| negative | [`TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L84) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalRouteWithNoNextHopIsNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L70) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L80) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalRouteWithANextHopIsAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L83) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L84) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalRouteWithNoNextHopIsNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L70) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L80) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2`](#draft-ietf-idr-linklocal-capability-4-2)
 
@@ -210,9 +210,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLinkLocalIncludedForPeerOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L84) | unit/verify | revert, verified |
-| negative | [`TestLinkLocalReceivedPairStrippedForMultihopInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L158) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalReceivedPairStrippedForMultihopInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L158) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestLinkLocalNotIncludedForPeerMoreThanOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L73) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalReceivedPairStrippedForMultihopInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L155) | unit/verify | revert, verified |
+| positive | [`TestLinkLocalReceivedPairStrippedForMultihopInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L155) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3`](#draft-ietf-idr-linklocal-capability-4-3)
 
@@ -238,9 +238,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L105) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L96) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L86) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L105) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L96) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L86) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5`](#draft-ietf-idr-linklocal-capability-4-5)
 
@@ -250,8 +250,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L229) | unit/verify | revert, verified |
-| positive | [`TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L220) | unit/verify | revert, verified |
+| negative | [`TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L229) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L220) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6`](#draft-ietf-idr-linklocal-capability-4-6)
 
@@ -262,7 +262,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L343) | unit/verify | revert, verified |
-| positive | [`TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L313) | unit/verify | revert, verified |
+| positive | [`TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L313) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7`](#draft-ietf-idr-linklocal-capability-4-7)
 
@@ -272,9 +272,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L126) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L117) | unit/verify | revert, verified |
-| positive | [`TestNextHopSelfWithheldRouteServerWithdraws`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L193) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L126) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L117) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestNextHopSelfWithheldRouteServerWithdraws`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L193) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8`](#draft-ietf-idr-linklocal-capability-4-8)
 
@@ -284,11 +284,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L121) | unit/verify | revert, verified |
-| negative | [`TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L232) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L121) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L232) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestLinkLocalIncludedForDirectlyAttachedExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L108) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalReceivedPairStrippedForMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L98) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalRouteServerStripsReceivedPairForMultihopClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L210) | unit/verify | revert, verified |
+| positive | [`TestLinkLocalReceivedPairStrippedForMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L98) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalRouteServerStripsReceivedPairForMultihopClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L210) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestLinkLocalNotIncludedForMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L95) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9`](#draft-ietf-idr-linklocal-capability-4-9)
@@ -299,11 +299,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L151) | unit/verify | revert, verified |
-| negative | [`TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L127) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L137) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L124) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L88) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L151) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L127) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L137) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L124) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L88) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`](#draft-ietf-idr-linklocal-capability-4-15)
 

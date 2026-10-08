@@ -7,7 +7,7 @@ List all active L2TP sessions\.
 - Registry path: `show l2tp sessions`
 - Usage: `show l2tp sessions`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:sessions`
+- Wire method: `ze-l2tp:sessions`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ List every registered environment variable with metadata\.
 - Registry path: `show env registered`
 - Usage: `show env registered`
 - Mode: Read-only
-- Wire method: `ze-show:env-registered`
+- Wire method: `ze-env:show-registered`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

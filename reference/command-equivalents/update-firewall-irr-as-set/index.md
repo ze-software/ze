@@ -7,7 +7,7 @@ Fetch or refresh IRR prefix\-list for an AS\-SET\.
 - Registry path: `update firewall irr as-set`
 - Usage: `update firewall irr as-set <as-set>`
 - Mode: Daemon
-- Wire method: `ze-update:firewall-irr-as-set`
+- Wire method: `ze-firewall:update-irr-as-set`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

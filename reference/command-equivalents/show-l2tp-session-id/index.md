@@ -7,7 +7,7 @@ Show full detail for one L2TP session\.
 - Registry path: `show l2tp session id`
 - Usage: `show l2tp session id <id>`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:session`
+- Wire method: `ze-l2tp:session`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

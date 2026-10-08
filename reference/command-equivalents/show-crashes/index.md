@@ -7,7 +7,7 @@ View saved crash reports\, and whether kernel capture is armed\.
 - Registry path: `show crashes`
 - Usage: `show crashes [name <name>]`
 - Mode: Read-only
-- Wire method: `ze-show:crashes`
+- Wire method: `ze-crashes:show-crashes`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

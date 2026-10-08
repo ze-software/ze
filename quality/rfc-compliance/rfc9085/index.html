@@ -122,13 +122,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>97.8%</strong><b>44 of 45 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>10</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>98.2%</strong><b>56 of 57 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>12</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 12 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 14 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -206,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>12</td>
+<td>14</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>9</td>
@@ -227,16 +227,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>45</td>
+<td>57</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>45</td>
+<td>57</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>10</td>
+<td>12</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>44</td>
+<td>56</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9085.md</code></td>
@@ -422,6 +422,32 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L271" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFCapabilitiesOnOriginatorNode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_export_placement_test.go#L89" title="internal/plugins/isis/rfc9085_bgpls_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISCapabilitiesOnNoOtherNLRI</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_export_test.go#L286" title="internal/plugins/ospf/rfc9085_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFCapabilitiesOnNoOtherNLRI</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.2-1">RFC9085-2.2-1</code></td><td colspan="3"><span class="rfc-subject">These TLVs should only be added to the BGP-LS Attribute associated with the Link NLRI that describes the link of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_object_placement_test.go#L22" title="internal/plugins/isis/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISLinkPlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go#L26" title="internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085NativeExportAttributePlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go#L23" title="internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFLinkPlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_object_placement_test.go#L23" title="internal/plugins/isis/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISLinkPlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go#L27" title="internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085NativeExportAttributePlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go#L24" title="internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFLinkPlacement</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.3-1">RFC9085-2.3-1</code></td><td colspan="3"><span class="rfc-subject">These TLVs should only be added to the BGP-LS Attribute associated with the Prefix NLRI that describes the prefix of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9085-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_object_placement_test.go#L101" title="internal/plugins/isis/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISPrefixPlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go#L28" title="internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085NativeExportAttributePlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go#L102" title="internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFPrefixPlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_object_placement_test.go#L102" title="internal/plugins/isis/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISPrefixPlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go#L29" title="internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085NativeExportAttributePlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go#L103" title="internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFPrefixPlacement</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9085-2.2.3-1">RFC9085-2.2.3-1</code></td><td colspan="3"><span class="rfc-subject">The TLV MAY include sub-TLVs that describe attributes associated with the bundle member. (§2.2.3)</span></td></tr>
@@ -776,6 +802,86 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc9085-2.2-1"><code>RFC9085-2.2-1</code></a></h3>
+<p>These TLVs should only be added to the BGP-LS Attribute associated with the Link NLRI that describes the link of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.2)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9085 §2.2 says, “These TLVs should only be added to the BGP-LS Attribute associated with the Link NLRI that describes the link of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below.” Native IS-IS LSP and OSPFv2/v3 LSDB tests establish association of emitted 1099/1100 with the advertising router and correct link, including parallel links and tested topology identities, while populated Node/Prefix controls exclude link attributes. Separate replace/reconcile/export tests preserve that association into Link NLRIs, assert complete expected interface-ID/address descriptors, exact SID values and multiplicity, and reject cross-object placement. This proves the conditional placement duty for the current native producers, not implementation of all §2.2 features: native IS-IS 1172 remains absent, and RFC 9085 defines no corresponding OSPF bundle feature. It is composed native-derivation and exporter-association evidence, not a single integrated IGP-daemon-to-peer run. Independent source judgment: BGPLSPlacementWholeReview. Current five-root race-enabled observation: job-bgpls-complete-object-identity-after-9a6e8f72.log.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go#L27" title="internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085NativeExportAttributePlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_object_placement_test.go#L23" title="internal/plugins/isis/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISLinkPlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go#L24" title="internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFLinkPlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go#L26" title="internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085NativeExportAttributePlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_object_placement_test.go#L22" title="internal/plugins/isis/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISLinkPlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go#L23" title="internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFLinkPlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9085-2.3-1"><code>RFC9085-2.3-1</code></a></h3>
+<p>These TLVs should only be added to the BGP-LS Attribute associated with the Prefix NLRI that describes the prefix of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below. (§2.3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9085 §2.3 says, “These TLVs should only be added to the BGP-LS Attribute associated with the Prefix NLRI that describes the prefix of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below.” Native IS-IS tests establish placement of 1158/1159/1170/1171 from IPv4/IPv6 reachability, bindings and narrow-external input; native OSPFv2/v3 tests establish placement of 1158/1159/1170, including extended prefix classes and base-v3 flags. Exact values, object counts and populated Node/Link exclusions discriminate incorrect association. Separate replace/reconcile/export tests preserve origin, prefix address/length, IPv4/IPv6 NLRI type and tested topology identities; competing same-prefix OSPF classes 1/2/3/5 now retain exact descriptor 264 and their distinct SID values. This proves the conditional placement duty for current native producers, not absent OSPF 1171/1174 support; 1174 is OSPF-only, not an IS-IS gap. No integrated daemon run or received-attribute semantic validation is claimed. Independent source judgment: BGPLSPlacementWholeReview. Current five-root race-enabled observation: job-bgpls-complete-object-identity-after-9a6e8f72.log.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go#L29" title="internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085NativeExportAttributePlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_object_placement_test.go#L102" title="internal/plugins/isis/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISPrefixPlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go#L103" title="internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFPrefixPlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go#L28" title="internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085NativeExportAttributePlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9085_bgpls_object_placement_test.go#L101" title="internal/plugins/isis/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085ISISPrefixPlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go#L102" title="internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go" target="_blank" rel="noopener"><code>TestRFC9085OSPFPrefixPlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -884,7 +990,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>not stated</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>The lowercase placement recommendation covers all Link Attribute TLVs in Table 2: 1099, 1100 and 1172, associated with the originating node&#39;s specific Link NLRI. Recording it does not establish exporter proof.</td>
 </tr>
 <tr><td><code>2.2.1</code></td>
 <td>not stated</td>
@@ -908,7 +1014,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
 <td>not stated</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>The lowercase placement recommendation covers all Prefix Attribute TLVs in Table 4: 1158, 1159, 1170, 1171 and 1174, associated with the originating node&#39;s specific Prefix NLRI. Recording it does not establish exporter proof.</td>
 </tr>
 <tr><td><code>2.3.1</code></td>
 <td>not stated</td>
@@ -1053,7 +1159,7 @@ The offline consumer decoder does not decode the LAN Adjacency SID (TLV 1100) or
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

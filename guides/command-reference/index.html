@@ -159,7 +159,6 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 </ol></li>
 <li><a href="#create-commands">Create Commands</a></li>
 <li><a href="#del-commands">Del Commands</a></li>
-<li><a href="#update-commands">Update Commands</a></li>
 <li><a href="#route-injection">Route Injection</a></li>
 <li><a href="#rib-commands">RIB Commands</a></li>
 <li><a href="#irr-filter-commands">IRR Filter Commands</a></li>
@@ -1269,7 +1268,7 @@ omitted before the first poll). The answer is rendered in the format
 <code>environment cli format default</code> names, whose registered value is <code>text</code>. The
 full pipe operator set applies.
 See the <a href="../flow-export/">Flow Export guide</a>.</p>
-<!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
+<!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-flowexport:show-flow-export -->
 <!-- source: internal/plugins/flowexport/exporter.go -- newExporter, exporter.status -->
 <h3 id="show-traffic-stat">show traffic stat</h3>
 <!-- source: internal/component/trafficstat/cmd/traffic.go -- handleShowTraffic -->
@@ -1290,7 +1289,7 @@ severity badge, and a sparkline history. Esc/q to quit.</p>
 monitor traffic stat name &lt;interface&gt; # One interface by name
 </code></pre>
 <h3 id="show-traffic-feature">show traffic feature</h3>
-<!-- source: internal/component/trafficfeature/cmd/traffic_feature.go -- handleShowTrafficFeature, ze-show:traffic-feature -->
+<!-- source: internal/component/trafficfeature/cmd/traffic_feature.go -- handleShowTrafficFeature, ze-trafficfeature:show-traffic-feature -->
 <p>Neutral per-source traffic feature signals (facts, not verdicts): fan-out
 (distinct destinations), out/in byte ratio (exfiltration), destination-port
 entropy, new-peer, rare-port/proto, and coarse beaconing. Returns
@@ -1301,7 +1300,7 @@ one source.</p>
 show traffic feature name &lt;address&gt;   # One source by address
 </code></pre>
 <h3 id="show-anomaly-detect">show anomaly detect</h3>
-<!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-show:anomaly -->
+<!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-anomaly:show-anomaly -->
 <p>Recent behavioral anomaly incidents from the report-only <code>anomaly-detect</code> plugin.
 Returns <code>{"enabled": bool, "incidents": [{entity, cohort, score, severity, at, fired-features: [{name, z}]}]}</code>; the ring is empty until an entity's
 correlated deviation confirms. The detector reports only; the <code>anomaly/shape</code>
@@ -1309,7 +1308,7 @@ responder acts on these incidents.</p>
 <pre><code>show anomaly detect                   # Recent anomaly incidents
 </code></pre>
 <h3 id="show-anomaly-observe">show anomaly observe</h3>
-<!-- source: internal/plugins/anomaly/observe/show.go -- handleShowAnomalyObserve, ze-show:anomaly-observe -->
+<!-- source: internal/plugins/anomaly/observe/show.go -- handleShowAnomalyObserve, ze-anomaly:show-observe -->
 <p>The incident lifecycle held by the <code>anomaly-observe</code> plugin, newest first. Returns
 <code>{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort, fired-features: [{name, z}], score, severity, start-time, end-time, active}]}</code>.
 A finalized incident stays in the list and carries its <code>end-time</code>. So this
@@ -1320,7 +1319,7 @@ event is finalized after <code>stale-incident-timeout</code>.</p>
 <pre><code>show anomaly observe                  # Incident lifecycle, newest first
 </code></pre>
 <h3 id="show-anomaly-shape">show anomaly shape</h3>
-<!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-show:anomaly-shape -->
+<!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-anomaly:show-shape -->
 <p>Status of the shadow-first anomaly responder. Returns <code>{"enabled": bool, "mode": "shadow"|"armed", "action": "limit"|"drop", "kill-switch": bool, "armed-count": N, "armed": [source, ...]}</code>. In shadow mode (default) nothing is installed; armed
 sources carry a live rate-limit with a timed auto-revert.</p>
 <pre><code>show anomaly shape                    # Responder mode + armed sources
@@ -1337,7 +1336,7 @@ when <code>track-ip</code> is enabled) <code>ingress-ips</code> and <code>egress
 rendered in the format <code>environment cli format default</code> names, whose registered
 value is <code>text</code>. The full pipe operator set applies. See the
 <a href="../traffic-usage/">Traffic Usage guide</a>.</p>
-<!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-show:traffic-usage -->
+<!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-trafficusage:show-traffic-usage -->
 <h3 id="show-route-show-neighbor">show route / show neighbor</h3>
 <p>Kernel routing and neighbor tables. These commands are object-rooted (no
 <code>ip</code> namespace); they dispatch through the iface backend; on the netlink
@@ -1437,7 +1436,7 @@ ze show isis spf-log                    # Recent SPF runs: timestamp, level, tri
 </code></pre>
 <p>The neighbour and database views are also available in the web UI at <code>/isis</code>
 and <code>/isis/database</code>, with live updates over SSE.</p>
-<!-- source: internal/plugins/isis/cmd_show.go -- ze-show:isis-* RPC proxies -->
+<!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:show-* RPC proxies -->
 <!-- source: internal/plugins/isis/show.go -- hostname/interface/spf-log render -->
 <!-- source: internal/plugins/isis/yang/ze-isis-cmd.yang -- show/clear command tree -->
 <h3 id="clear-isis">clear isis</h3>
@@ -1451,7 +1450,7 @@ from the next Hello, triggering LSP re-origination and an SPF re-run; the
 circuit is not closed. <code>clear isis counters</code> clears the SPF-run history surfaced
 by <code>show isis spf-log</code>; the monotonic Prometheus series are process counters and
 are not reset (resetting them mid-process breaks <code>rate()</code>).</p>
-<!-- source: internal/plugins/isis/cmd_show.go -- ze-clear:isis-* RPC proxies -->
+<!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:clear-* RPC proxies -->
 <!-- source: internal/plugins/isis/show.go -- clearAdjacencies/clearCounters -->
 <h3 id="is-is-offline-tools">IS-IS (Offline Tools)</h3>
 <p>IS-IS protocol tools that run without a daemon, mirroring <code>ze bgp decode</code>.</p>
@@ -2566,7 +2565,14 @@ ze set debug timeout &lt;duration&gt;                  # Auto-disable timer (e.g
 </code></pre>
 <p>Hierarchical prefixes work: <code>ze set debug module bgp</code> covers all bgp.* subsystems.
 Not auto-applied on reboot (safety). Use <code>ze set debug active name &lt;name&gt;</code> after restart.
-Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.</p>
+Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.
+Each of these commands is a node in the YANG command tree (<code>ze-debug-cmd</code>), so
+<code>ze help</code>, <code>ze &lt;command&gt; help</code> and completion offer it. The same holds for
+<code>explain</code>, <code>skills</code>, <code>support</code>, <code>validate config</code>, <code>show config graph</code> and
+<code>generate wireguard keypair</code>, and <code>./le doc yang-contract command-contract</code>
+fails on a local command it finds with no node.</p>
+<!-- source: internal/plugins/debug/yang/ze-debug-cmd.yang -- set/delete/clear debug, show debug profile -->
+<!-- source: internal/le/doc/yangcontract/contract.go -- Validate, OrphanLocalHandlers -->
 <p><code>show debug profile name &lt;name&gt;</code> reads a stored profile (offline). To see the daemon's
 actual live state, use <code>show debug</code> (YANG-dispatched RPC, requires a running daemon).</p>
 <!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule, applyProfile -->
@@ -3562,9 +3568,6 @@ declares that <code>delete bgp peer</code> removed is taken out of it.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="update-commands">Update Commands</h3>
-<p>| Command | Access | Purpose |
-|---------|--------|--------- <!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/yang/ze-cli-update-cmd.yang --> |</p>
 <h3 id="route-injection">Route Injection</h3>
 <pre><code>send bgp &lt;sel&gt; update text &lt;attrs&gt; nlri &lt;family&gt; &lt;op&gt; &lt;prefixes&gt;
 send bgp &lt;sel&gt; update hex &lt;hex-data&gt;
@@ -4641,7 +4644,7 @@ reaches, where the daemon expands the chain.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

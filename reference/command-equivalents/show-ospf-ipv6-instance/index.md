@@ -7,7 +7,7 @@ Enumerate the active OSPFv3 address\-family instances \(RFC 5838 section 2\)\.
 - Registry path: `show ospf ipv6 instance`
 - Usage: `show ospf ipv6 instance`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-instance`
+- Wire method: `ze-ospf:show-ospfv3-instance`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

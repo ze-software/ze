@@ -261,7 +261,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported for subscriber access</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-CoA/DM listener for RADIUS-initiated changes and disconnects: Request Authenticator and optional Message-Authenticator verification, source-address allow list, duplicate detection and cached replay, Event-Timestamp window, mandatory-attribute handling with Error-Cause 401, Service-Type refusal with 405, multiple-match refusal with 508, and Proxy-State and State echoed unread. Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5176.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5176.md</code></a>, and the checklist is bounded by <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5176.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc5176.json</code></a>. &lt;!-- source: <a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa.go" target="_blank" rel="noopener"><code>internal/component/l2tp/plugins/authradius/coa.go</code></a> -- handlePacket/handleCoA/handleDisconnect/sendResponse --&gt;
+CoA/DM listener for RADIUS-initiated changes and disconnects: Request Authenticator and optional Message-Authenticator verification, source-address allow list, duplicate detection and cached replay, Event-Timestamp window, mandatory-attribute handling with Error-Cause 401, Service-Type refusal with 405, multiple-match refusal with 508, and Proxy-State and State echoed unread. Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5176.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5176.md</code></a>, and the checklist is bounded by <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5176.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc5176.json</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, so the obligations conditional on them are excluded rather than gated: the Section 3.2 &#34;Authorize Only&#34; Service-Type exchange, which ze answers with a CoA-NAK and Error-Cause 405, and the RFC 2865 Section 5.29 Termination-Action re-authorization, for which ze sends no Access-Request.
@@ -1767,7 +1767,7 @@ Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

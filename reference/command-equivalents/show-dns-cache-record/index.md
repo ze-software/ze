@@ -7,7 +7,7 @@ Show DNS cache entries for one record name\.
 - Registry path: `show dns cache record`
 - Usage: `show dns cache record <name>`
 - Mode: Read-only
-- Wire method: `ze-show:dns-cache-record`
+- Wire method: `ze-resolve:show-dns-cache-record`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

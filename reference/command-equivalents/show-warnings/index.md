@@ -7,7 +7,7 @@ Show active warnings across all subsystems\.
 - Registry path: `show warnings`
 - Usage: `show warnings`
 - Mode: Read-only
-- Wire method: `ze-show:warnings`
+- Wire method: `ze-cmd:show-warnings`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

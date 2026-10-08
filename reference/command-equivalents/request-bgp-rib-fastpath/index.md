@@ -7,7 +7,7 @@ Switch or report the zero\-copy forward\-handle fast path\.
 - Registry path: `request bgp rib fastpath`
 - Usage: `request bgp rib fastpath <enable\|disable\|status>`
 - Mode: Daemon
-- Wire method: `ze-rib-api:fastpath`
+- Wire method: `ze-bgp:rib-fastpath`
 - Backends: any backend
 - Task support: forbidden: the MCP server never answers with a task handle
 - Subcommands: none: this command takes no subcommand

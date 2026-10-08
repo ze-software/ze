@@ -87,7 +87,7 @@ Enrolled: RADIUS Dynamic Authorization Extensions (CoA/Disconnect): five MUST-le
 
 **What the ledger says is covered**
 
-CoA/DM listener for RADIUS-initiated changes and disconnects: Request Authenticator and optional Message-Authenticator verification, source-address allow list, duplicate detection and cached replay, Event-Timestamp window, mandatory-attribute handling with Error-Cause 401, Service-Type refusal with 405, multiple-match refusal with 508, and Proxy-State and State echoed unread. Tests bound per requirement in [`rfc/requirements/rfc5176.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5176.md), and the checklist is bounded by [`rfc/extraction/rfc5176.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5176.json). <!-- source: [`internal/component/l2tp/plugins/authradius/coa.go`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa.go) -- handlePacket/handleCoA/handleDisconnect/sendResponse -->
+CoA/DM listener for RADIUS-initiated changes and disconnects: Request Authenticator and optional Message-Authenticator verification, source-address allow list, duplicate detection and cached replay, Event-Timestamp window, mandatory-attribute handling with Error-Cause 401, Service-Type refusal with 405, multiple-match refusal with 508, and Proxy-State and State echoed unread. Tests bound per requirement in [`rfc/requirements/rfc5176.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5176.md), and the checklist is bounded by [`rfc/extraction/rfc5176.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5176.json).
 
 **What the ledger says remains**
 

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 32 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 32 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 32 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 83.0% | 73 of 88 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 90.9% | 80 of 88 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -72,7 +72,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 88 |
 | Tagged units | 88 |
 | Recorded audit verdicts | 37 |
-| Discrimination records | 73 |
+| Discrimination records | 80 |
 | Summary | `rfc/short/rfc4090.md` |
 | Requirement shard | `rfc/requirements/rfc4090.md` |
 | RFC text | `rfc/full/rfc4090.txt` |
@@ -91,7 +91,7 @@ Facility backup behavior. A PATH carrying a DETOUR object is rejected with a Pat
 
 **What the ledger says remains**
 
-PLRs now signal and refresh the protected PATH through the bypass, and an MP merges it into matching protected state (Sections 6.4.3, 6.4.4, 7.1.1). A head-end PLR uses a distinct assigned local sender address and a two-label ingress push (Section 6.1.1). Runtime and discrimination evidence must be regenerated for these producers. One-to-one detours remain absent; Section 6 states "A PLR MAY support the DETOUR object". A bandwidth-guaranteed bypass is also absent ([`plan/spec-rsvpte-bypass-bandwidth-protection.md`](https://github.com/ze-software/ze/blob/main/plan/spec-rsvpte-bypass-bandwidth-protection.md)). Those optional feature records require a scope decision and do not authorize implementation.
+PLRs now signal and refresh the protected PATH through the bypass, and an MP merges it into matching protected state (Sections 6.4.3, 6.4.4, 7.1.1). A head-end PLR uses a distinct assigned local sender address and a two-label ingress push (Section 6.1.1). Each of those six requirements carries a discrimination record in both polarities ([`rfc/discrimination/rfc4090.json`](https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090.json), completed 2026-10-08). One-to-one detours remain absent; Section 6 states "A PLR MAY support the DETOUR object". A bandwidth-guaranteed bypass is also absent ([`plan/spec-rsvpte-bypass-bandwidth-protection.md`](https://github.com/ze-software/ze/blob/main/plan/spec-rsvpte-bypass-bandwidth-protection.md)). Those optional feature records require a scope decision and do not authorize implementation.
 
 ## Coverage
 
@@ -170,7 +170,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Class-Num = 205 C-Type = 1 (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090FastRerouteClassAndCTypeLiterals compares the encoded header with the literals 24/205/1 over a 0xFF buffer and decodes a raw 205/1 object as FAST_REROUTE; TestRFC4090FastRerouteOtherCTypeNotRecognized reads 205/2 as an unknown C-Type, not FAST_REROUTE.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090FastRerouteClassAndCTypeLiterals compares the encoded header with the literals 24/205/1 over a 0xFF buffer and decodes a raw 205/1 object as FAST_REROUTE; TestRFC4090FastRerouteOtherCTypeNotRecognized reads 205/2 as an unknown C-Type, not FAST_REROUTE. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.1 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -183,7 +183,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 To indicate that an LSP should be locally protected, the head-end LSR MUST either set the "local protection desired" flag in the SESSION_ATTRIBUTE object or include a FAST_REROUTE object in the PATH message, or both. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. a protection-desired head-end PATH carries SESSION_ATTRIBUTE with 0x01 and FAST_REROUTE; negative is an unprotected PSB emitting neither (a conditioned-off input, not a violation)
+Audit verdict: enforced (the tests do what the requirement demands), fresh. a protection-desired head-end PATH carries SESSION_ATTRIBUTE with 0x01 and FAST_REROUTE; negative is an unprotected PSB emitting neither (a conditioned-off input, not a violation) Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -194,7 +194,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. a pr
 
 If node protection is desired, the head-end LSR should set the "node protection desired" flag in the SESSION_ATTRIBUTE object; otherwise, this flag should be cleared. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). The 'otherwise cleared' clause is now driven through buildPath: TestRFC4090NodeDesiredClearedWhenNotDesired builds a protected PATH without node protection and reads SESSION_ATTRIBUTE 0x01 set, 0x10 clear. The set clause stays proven on the built PATH.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). The 'otherwise cleared' clause is now driven through buildPath: TestRFC4090NodeDesiredClearedWhenNotDesired builds a protected PATH without node protection and reads SESSION_ATTRIBUTE 0x01 set, 0x10 clear. The set clause stays proven on the built PATH. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,7 +207,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 If the head-end LSR desires that the one-to-one backup method be used for the protected LSP, then the head-end LSR should include a FAST_REROUTE object and set the "one-to-one backup desired" flag. If the head-end LSR desires that the protected LSP be protected via the facility backup method, then the head-end LSR should include a FAST_REROUTE object and set the "facility backup desired" flag. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Both clauses on the built PATH: TestRFC4090OneToOneRequestInPath (FAST_REROUTE present, 0x01 set) and TestBuildPathIncludesFastReroute for facility; TestRFC4090RequestNeverNamesOtherMethod shows each request leaves the other method's flag clear and the facility request sets 0x02.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Both clauses on the built PATH: TestRFC4090OneToOneRequestInPath (FAST_REROUTE present, 0x01 set) and TestBuildPathIncludesFastReroute for facility; TestRFC4090RequestNeverNamesOtherMethod shows each request leaves the other method's flag clear and the facility request sets 0x02. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -220,7 +220,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 Whenever the PLR has a backup path available, the PLR MUST set the "local protection available" flag. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. full engine: armed bypass brought up, relayed RESV RRO subobject carries 0x01; negative is an unprotected LSP with zero flags
+Audit verdict: enforced (the tests do what the requirement demands), fresh. full engine: armed bypass brought up, relayed RESV RRO subobject carries 0x01; negative is an unprotected LSP with zero flags Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -231,7 +231,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. full
 
 During fast reroute, for each protected LSP containing an RRO object, the PLR obtains the RRO from the protected LSP's stored RESV. The PLR MUST update the IPv4 or IPv6 sub-object it inserted into the RRO by setting the "Local protection in use" and "Local Protection Available" flags. (§6.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090RepairSetsInUseAndAvailable drives handleLinkDown onto the bypass, then sendResv from the stored state, and reads the PLR's own RRO subobject with both 0x01 and 0x02 set; the fixture asserts in-use was clear before repair. Existing negative keeps in-use clear while no repair happened.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090RepairSetsInUseAndAvailable drives handleLinkDown onto the bypass, then sendResv from the stored state, and reads the PLR's own RRO subobject with both 0x01 and 0x02 set; the fixture asserts in-use was clear before repair. Existing negative keeps in-use clear while no repair happened. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.5 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -243,7 +243,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 the PLR MUST set this flag when the node protection is provided and the "node protection desired" flag was set in the SESSION_ATTRIBUTE object. (§4.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtectionProvided: node request with an NNHOP bypass armed relays 0x08. Negative TestRFC4090NodeBitClearWhenNodeProtectionNotProvided: node request with only an NHOP bypass up relays 0x08 clear; its record breaks selectBypass, the guard that keeps rroProtectionFlags (which reads the request bit) from claiming node protection over a link bypass.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtectionProvided: node request with an NNHOP bypass armed relays 0x08. Negative TestRFC4090NodeBitClearWhenNodeProtectionNotProvided: node request with only an NHOP bypass up relays 0x08 clear; its record breaks selectBypass, the guard that keeps rroProtectionFlags (which reads the request bit) from claiming node protection over a link bypass. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -256,7 +256,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 To provide this notification, the PLR SHOULD send a Path Error message with error code of "Notify" (Error code = 25) and an error value field of ss00 cccc cccc cccc, where ss=00 and the sub-code = 3 ("Tunnel locally repaired") (see [RSVP-TE]). (§6.5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090LocalRepairNotifyLiterals compares the PathErr sent toward the head-end after handleLinkDown with the literals 25 and 0x0003, not the constants. Negative: an unrepairable failure sends code 24, not a Notify.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090LocalRepairNotifyLiterals compares the PathErr sent toward the head-end after handleLinkDown with the literals 25 and 0x0003, not the constants. Negative: an unrepairable failure sends code 24, not a Notify. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.5.1 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -268,7 +268,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 The label will be switched for one which will be understood by R4 to indicate the protected LSP, and the bypass tunnel's label will then be pushed onto the label- stack of the redirected packets. (§3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestLocalRepairSwitchesFIB asserts the exact backup stack [5000 bypass, 18000 MP label]; negative TestLocalRepairFallsBackToTeardown programs no stacked swap without a usable bypass. The quoted Section 3.2 sentence is descriptive ('will be switched') and carries no RFC 2119 keyword, although the row is [MUST]
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestLocalRepairSwitchesFIB asserts the exact backup stack [5000 bypass, 18000 MP label]; negative TestLocalRepairFallsBackToTeardown programs no stacked swap without a usable bypass. The quoted Section 3.2 sentence is descriptive ('will be switched') and carries no RFC 2119 keyword, although the row is [MUST] Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 3.2 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -279,7 +279,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 LSRs that do not support the DETOUR objects MUST reject any Path message containing a DETOUR object and send a PathErr to notify the PLR. (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. a PATH with a DETOUR object is rejected: PathErr to the PLR, no RESV, no LSP state; the same PATH without DETOUR is accepted
+Audit verdict: enforced (the tests do what the requirement demands), fresh. a PATH with a DETOUR object is rejected: PathErr to the PLR, no RESV, no LSP state; the same PATH without DETOUR is accepted Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.2 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -290,7 +290,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. a PA
 
 This PathErr SHOULD be generated as specified in [RSVP] for unknown objects with a Class-Num of the form "0bbbbbbb". (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive: a PATH with DETOUR (Class-Num 63, C-Type 7) draws a PathErr to the PLR with code 13 and value 0x3f07 and no path state. Negative: C-Type 8 is still answered as unknown class (13, 0x3f08), not unknown C-Type (14).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive: a PATH with DETOUR (Class-Num 63, C-Type 7) draws a PathErr to the PLR with code 13 and value 0x3f07 and no path state. Negative: C-Type 8 is still answered as unknown class (13, 0x3f08), not unknown C-Type (14). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.2 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -301,7 +301,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 The globally revertive mode SHOULD always be used. (§6.5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: both units gained only the RFC4090-6.5.2-1 tag comment; bodies byte-identical. Positive TestRFC4090HeadEndRevertsGlobally: on Notify 25/3 the head-end signals a make-before-break replacement (next LSP_ID PATH) and keeps the repaired LSP, the global revertive behavior. Negative TestRFC4090TransitDoesNotReoptimize: a transit starts no replacement and relays the Notify to the head-end.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: both units gained only the RFC4090-6.5.2-1 tag comment; bodies byte-identical. Positive TestRFC4090HeadEndRevertsGlobally: on Notify 25/3 the head-end signals a make-before-break replacement (next LSP_ID PATH) and keeps the repaired LSP, the global revertive behavior. Negative TestRFC4090TransitDoesNotReoptimize: a transit starts no replacement and relays the Notify to the head-end. Re-judged 2026-10-08 against rfc4090.txt Section 6.5.2: TestRFC4090TransitDoesNotReoptimize changed only by passing nil for buildPathErr's new adspec argument (commit 9b8bfe250c); the inbound Notify is the same bytes as before (no ADSPEC), the assertions are unchanged, and handlePathErr changed only by threading the received ADSPEC into the relayed PathErr. Still red with handlePathErr disabled.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -312,7 +312,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 - Global revertive mode: The head-end LSR of each tunnel is responsible for reoptimizing the TE LSPs that used the failed resource. (§6.5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive TestRFC4090HeadEndRevertsGlobally: the head-end receiving Notify 25/3 creates the replacement LSP (LSPID 2) itself, keeps the repaired LSP, and sends a PATH with SenderTemplate LSPID 2. Negative TestRFC4090TransitDoesNotReoptimize: a transit receiving the same Notify creates no replacement, sends no PATH (count unchanged) and relays the PathErr 25/3 to the ingress. Level SHOULD over 'is responsible for' (no keyword) follows the section's SHOULD on global mode, accepted under D-3. Recorded red on frr.go::reoptimizeOnNotify (+) and engine.go::handlePathErr (-).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive TestRFC4090HeadEndRevertsGlobally: the head-end receiving Notify 25/3 creates the replacement LSP (LSPID 2) itself, keeps the repaired LSP, and sends a PATH with SenderTemplate LSPID 2. Negative TestRFC4090TransitDoesNotReoptimize: a transit receiving the same Notify creates no replacement, sends no PATH (count unchanged) and relays the PathErr 25/3 to the ingress. Level SHOULD over 'is responsible for' (no keyword) follows the section's SHOULD on global mode, accepted under D-3. Recorded red on frr.go::reoptimizeOnNotify (+) and engine.go::handlePathErr (-). Re-judged 2026-10-08 against rfc4090.txt Section 6.5.2: the negative unit changed only by a nil adspec argument to buildPathErr (commit 9b8bfe250c); input bytes and assertions unchanged, still red with handlePathErr disabled.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -323,7 +323,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 This object MUST only be inserted into the PATH message by the head-end LER and MUST NOT be changed by downstream LSRs. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. a transit relays the received FAST_REROUTE unchanged field for field, and inserts none when the head-end sent only the SESSION_ATTRIBUTE flag
+Audit verdict: enforced (the tests do what the requirement demands), fresh. a transit relays the received FAST_REROUTE unchanged field for field, and inserts none when the head-end sent only the SESSION_ATTRIBUTE flag Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.1 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -342,7 +342,7 @@ No test carries RFC4090-4.4-5, so no unit is bound to it.
 
 If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag. (§4.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Genuine negative TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair: bandwidth desired, FAST_REROUTE bandwidth, a downstream subobject claiming 0x04 and an armed unguaranteed bypass; the PLR's own subobject keeps 0x04 clear before and during local repair. The positive TestRFC4090BandwidthBitNeverClaimed is the conforming report (0x01 only). No input can guarantee bandwidth (RFC4090-4.4-5 gap).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Genuine negative TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair: bandwidth desired, FAST_REROUTE bandwidth, a downstream subobject claiming 0x04 and an armed unguaranteed bypass; the PLR's own subobject keeps 0x04 clear before and during local repair. The positive TestRFC4090BandwidthBitNeverClaimed is the conforming report (0x01 only). No input can guarantee bandwidth (RFC4090-4.4-5 gap). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -354,7 +354,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 If node protection is not provided, the PLR MUST NOT set this flag. Thus, if a PLR could only set up a link-protection backup path, the "Local protection available" bit will be set, but the "Node protection" bit will be cleared. (§4.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtected; negative TestRFC4090LinkProtectionLeavesNodeBitClear (link request, NHOP bypass up: 0x01 set, 0x08 clear), which is the row's link-only case. The vacuous tag on TestRFC4090NodeBitClearWithoutNodeBypass is removed. A node request never falls back to a link bypass in Ze (spec-rsvpte-frr-link-protection-fallback).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtected; negative TestRFC4090LinkProtectionLeavesNodeBitClear (link request, NHOP bypass up: 0x01 set, 0x08 clear), which is the row's link-only case. The vacuous tag on TestRFC4090NodeBitClearWithoutNodeBypass is removed. A node request never falls back to a link bypass in Ze (spec-rsvpte-frr-link-protection-fallback). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -365,7 +365,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes. (S5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end refresh PATH carries the stored FAST_REROUTE field for field; a tunnel with no protection refreshes none
+Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end refresh PATH carries the stored FAST_REROUTE field for field; a tunnel with no protection refreshes none Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -376,7 +376,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. head
 
 The head-end LSR of a protected LSP MUST set the "label recording desired" flag in the SESSION_ATTRIBUTE object. (S5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. protected tunnel's PATH SESSION_ATTRIBUTE has label recording desired set (SessAttrLabelRecording = 0x02); negative is an unprotected tunnel emitting no SESSION_ATTRIBUTE, a conditioned-off input. Tag prose on TestRFC4090HeadEndSetsLabelRecordingDesired says 0x04, which is the SE Style flag
+Audit verdict: enforced (the tests do what the requirement demands), fresh. protected tunnel's PATH SESSION_ATTRIBUTE has label recording desired set (SessAttrLabelRecording = 0x02); negative is an unprotected tunnel emitting no SESSION_ATTRIBUTE, a conditioned-off input. Tag prose on TestRFC4090HeadEndSetsLabelRecordingDesired says 0x04, which is the SE Style flag Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -387,7 +387,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. prot
 
 The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects. (S5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end accepts a RESV whose RRO subobject carries all four flags (0x0F) or none, LSP goes Up and flags stored as received
+Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end accepts a RESV whose RRO subobject carries all four flags (0x0F) or none, LSP goes Up and flags stored as received Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -398,7 +398,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. head
 
 The head-end LSR of a protected LSP MUST support the RRO Label sub-object. (S5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end accepts an RRO with Label subobjects and resolves the recorded label; no label recorded resolves none
+Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end accepts an RRO with Label subobjects and resolves the recorded label; no label recorded resolves none Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -409,7 +409,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. head
 
 Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document. (S6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. transit on a protected LSP arms the NHOP bypass; the egress arms none and reports no flag. Umbrella row: the specific PLR behaviours carry their own rows
+Audit verdict: enforced (the tests do what the requirement demands), fresh. transit on a protected LSP arms the NHOP bypass; the egress arms none and reports no flag. Umbrella row: the specific PLR behaviours carry their own rows Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -420,7 +420,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. tran
 
 A PLR MUST consider an LSP to have asked for local protection if the "local protection desired" flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included. (S6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. flag-only and FAST_REROUTE-only PATHs are both protection requests that arm a bypass; flag clear and no FAST_REROUTE stores nothing
+Audit verdict: enforced (the tests do what the requirement demands), fresh. flag-only and FAST_REROUTE-only PATHs are both protection requests that arm a bypass; flag clear and no FAST_REROUTE stores nothing Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -432,7 +432,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. flag
 
 - Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub- object. (S6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. armed bypass not yet up: relayed RRO subobject flags are 0; once up, 0x01 set
+Audit verdict: enforced (the tests do what the requirement demands), fresh. armed bypass not yet up: relayed RRO subobject flags are 0; once up, 0x01 set Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -443,7 +443,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. arme
 
 If no established one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and the bypass tunnel is in "DOWN" state, the PLR MUST clear the "local protection available" flag in its IPv4 (or IPv6) address sub-object of the RRO (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. bypass not established: 0x01 clear; established: set; bypass goes Down: next RESV refresh clears it
+Audit verdict: enforced (the tests do what the requirement demands), fresh. bypass not established: 0x01 clear; established: set; bypass goes Down: next RESV refresh clears it Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -455,7 +455,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. bypa
 
 - The PLR MUST clear the "local protection in use" flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP. (S6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. in-use bit clear on the relayed RESV while armed and up, set only after link failure redirected traffic
+Audit verdict: enforced (the tests do what the requirement demands), fresh. in-use bit clear on the relayed RESV while armed and up, set only after link failure redirected traffic Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -466,7 +466,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. in-u
 
 The PLR SHOULD also set the "node protection" flag if the backup path protects against the failure of the immediate downstream node, and, if the path does not, the PLR SHOULD clear the "node protection" flag. This MUST be done if the "node protection desired" flag was set in the SESSION_ATTRIBUTE object. (§6)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Judged 2026-09-29 (routing child, continuation judge). Unchanged judgement; TestRFC4090NodeBitClearWithoutNodeBypass lost only its RFC4090-4.4-7 tag. The set half is proven; the clear half still runs with no backup path armed, because selectBypass refuses an NHOP bypass for a node request, so no unit shows a backup path that does not protect the next node with the node bit cleared. Blocked by spec-rsvpte-frr-link-protection-fallback.
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Judged 2026-09-29 (routing child, continuation judge). Unchanged judgement; TestRFC4090NodeBitClearWithoutNodeBypass lost only its RFC4090-4.4-7 tag. The set half is proven; the clear half still runs with no backup path armed, because selectBypass refuses an NHOP bypass for a node request, so no unit shows a backup path that does not protect the next node with the node bit cleared. Blocked by spec-rsvpte-frr-link-protection-fallback. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the weak verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -477,7 +477,7 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 if the path does not, the PLR SHOULD clear the "bandwidth protection" flag. This MUST be done if the "bandwidth protection desired" flag was set in the SESSION_ATTRIBUTE object. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Row narrowed to the clear clause and its MUST condition; the set clause is RFC4090-6-8 {gap}. With bandwidth desired and a backup that guarantees no bandwidth, the bit is clear: TestRFC4090BandwidthBitNeverClaimed, and TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair pushes every input toward setting it (request, downstream claim, repair). TestRFC4090BandwidthDesiredWithoutBackup is a second conforming case.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Row narrowed to the clear clause and its MUST condition; the set clause is RFC4090-6-8 {gap}. With bandwidth desired and a backup that guarantees no bandwidth, the bit is clear: TestRFC4090BandwidthBitNeverClaimed, and TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair pushes every input toward setting it (request, downstream claim, repair). TestRFC4090BandwidthDesiredWithoutBackup is a second conforming case. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -489,18 +489,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel. (S6.1, S6.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end PLR signals the backup PATH from the distinct local address 10.0.1.2, not its SENDER_TEMPLATE address; with no alternate address no backup identity is signaled
+Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end PLR signals the backup PATH from the distinct local address 10.0.1.2, not its SENDER_TEMPLATE address; with no alternate address no backup identity is signaled Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.1, 6.1.1 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090HeadEndRequiresAlternateSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L387) | unit/verify | unproven |
-| positive | [`TestRFC4090HeadEndUsesDistinctSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L348) | unit/verify | unproven |
+| negative | [`TestRFC4090HeadEndRequiresAlternateSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L387) | unit/verify | revert, verified |
+| positive | [`TestRFC4090HeadEndUsesDistinctSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L348) | unit/verify | revert, verified |
 
 ### [`RFC4090-6.2-1`](#rfc4090-6.2-1)
 
 For bypass tunnels (Section 7), the destination MUST be the address of the MP. (§6.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. bypass PATH SESSION tunnel endpoint and IP destination are the configured merge point; a bypass to another MP is not selected
+Audit verdict: enforced (the tests do what the requirement demands), fresh. bypass PATH SESSION tunnel endpoint and IP destination are the configured merge point; a bypass to another MP is not selected Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.2 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -511,29 +511,29 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. bypa
 
 The RSVP_HOP object MUST contain an IP source address belonging to the PLR. (§6.4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. backup PATH RSVP_HOP equals the PLR router id in link, node and egress cases; no backup PATH without an established bypass
+Audit verdict: enforced (the tests do what the requirement demands), fresh. backup PATH RSVP_HOP equals the PLR router id in link, node and egress cases; no backup PATH without an established bypass Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L281) | unit/verify | unproven |
+| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L281) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L144) | unit/verify | revert, verified |
 
 ### [`RFC4090-6.4-2`](#rfc4090-6.4-2)
 
 The PLR MUST generate an EXPLICIT_ROUTE object toward the egress. (§6.4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. backup PATH carries the ERO from the MP to the egress (equals psb.ERO[index:]); no backup ERO before repair
+Audit verdict: enforced (the tests do what the requirement demands), fresh. backup PATH carries the ERO from the MP to the egress (equals psb.ERO[index:]); no backup ERO before repair Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L282) | unit/verify | unproven |
+| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L282) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L145) | unit/verify | revert, verified |
 
 ### [`RFC4090-6.4.3-1`](#rfc4090-6.4.3-1)
 
 When the PLR detects a link or/and node failure condition, it has to reroute the data traffic onto the bypass tunnel (§6.4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). TestRFC4090FailureSwitchesToBackup: a failure on the protected link reprograms the protected in-label to the bypass next hop under the bypass label; a failure on an unrelated link programs no backup. Both polarities sit in one unit on separate assertions; the revert record reds through the positive half only.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). TestRFC4090FailureSwitchesToBackup: a failure on the protected link reprograms the protected in-label to the bypass next hop under the bypass label; a failure on an unrelated link programs no backup. Both polarities sit in one unit on separate assertions; the revert record reds through the positive half only. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.4.3 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -544,40 +544,40 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 More specifically, the PLR MUST: - remove all the sub-objects proceeding the first address belonging to the MP, and - replace this first MP address with an IP address of the MP. (§6.4.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. backup ERO starts at the MP address with the preceding hops removed, including the failed node in the node case; before repair the normal ERO is kept
+Audit verdict: enforced (the tests do what the requirement demands), fresh. backup ERO starts at the MP address with the preceding hops removed, including the failed node in the node case; before repair the normal ERO is kept Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L283) | unit/verify | unproven |
+| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L283) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L146) | unit/verify | revert, verified |
 
 ### [`RFC4090-7.1-1`](#rfc4090-7.1-1)
 
 If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP. (§7.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4090ProtectedPathSurvivesRepair (link and node cases): after the PLR's backup PATH reaches the MP, the MP forwards the protected LSP's SENDER_TEMPLATE downstream; negative TestRFC4090DifferentPathsDoNotMerge: a PATH whose remaining ERO differs is not merged and keeps its own sender
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4090ProtectedPathSurvivesRepair (link and node cases): after the PLR's backup PATH reaches the MP, the MP forwards the protected LSP's SENDER_TEMPLATE downstream; negative TestRFC4090DifferentPathsDoNotMerge: a PATH whose remaining ERO differs is not merged and keeps its own sender Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L298) | unit/verify | unproven |
+| negative | [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L298) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L147) | unit/verify | revert, verified |
 
 ### [`RFC4090-7.1-2`](#rfc4090-7.1-2)
 
 Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically. (§7.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4090ProtectedPathSurvivesRepair: refreshPaths on the MP emits exactly one more PATH with no new incoming PATH once the merged final PATH is identified; negative: an unmerged transit emits no local refresh
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4090ProtectedPathSurvivesRepair: refreshPaths on the MP emits exactly one more PATH with no new incoming PATH once the merged final PATH is identified; negative: an unmerged transit emits no local refresh Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L299) | unit/verify | unproven |
+| negative | [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L299) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L148) | unit/verify | revert, verified |
 
 ### [`RFC4090-7.2-1`](#rfc4090-7.2-1)
 
 When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately. (S7.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. downstream LSR keeps PSB and RSB on upstream link failure and sends no PathTear/PathErr/ResvErr; as PLR with no bypass it tears down
+Audit verdict: enforced (the tests do what the requirement demands), fresh. downstream LSR keeps PSB and RSB on upstream link failure and sends no PathTear/PathErr/ResvErr; as PLR with no bypass it tears down Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 7.2 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -588,7 +588,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. down
 
 State MUST be removed if it has not been refreshed before the refresh timer expires. (S7.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. cleanupTick removes the LSP whose PATH is older than period x multiplier and keeps a refreshed one
+Audit verdict: enforced (the tests do what the requirement demands), fresh. cleanupTick removes the LSP whose PATH is older than period x multiplier and keeps a refreshed one Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 7.2 and the enforced verdict holds unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

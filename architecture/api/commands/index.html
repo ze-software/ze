@@ -64,7 +64,7 @@
 <li><a href="#offline-fallback-read-only-commands-without-a-daemon">Offline fallback (read-only commands without a daemon)</a></li>
 <li><a href="#local-data-commands-answered-in-the-callers-own-process">Local-data commands (answered in the caller&#39;s own process)</a></li>
 </ol></li>
-<li><a href="#operational-report-bus-ze-showwarnings-ze-showerrors">Operational Report Bus (ze-show:warnings, ze-show:errors)</a>
+<li><a href="#operational-report-bus-ze-cmdshow-warnings-ze-cmdshow-errors">Operational Report Bus (ze-cmd:show-warnings, ze-cmd:show-errors)</a>
 <ol>
 <li><a href="#severity-contract">Severity contract</a></li>
 <li><a href="#push-api-for-subsystems">Push API (for subsystems)</a></li>
@@ -343,7 +343,16 @@ path. Operator commands are safe to migrate; commands a plugin sends by their ba
 path (over <code>dispatch-command</code> or an interactive plugin CLI session) are a wire break.
 Before a verb-first migration of a noun-first built-in, grep for senders. See
 <code>ai/rules/cli.md</code> "Migrating a Built-in Command's Path".</p>
-<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath -->
+<p>A dispatch key has one holder. <code>Dispatcher.RegisterWithOptions</code> refuses a name
+already registered, compared case-insensitively, with <code>ErrCommandHeld</code> naming the
+holder (a builtin's holder is its wire method), and the holder keeps the name.
+The builtin loader also refuses a wire method that two linked builtins carry
+(<code>ErrWireMethodHeld</code>). <code>NewServer</code> returns either refusal, and a refused
+registration in the socket wire-method dispatcher, so a collision stops the
+daemon at startup. The order in which <code>init()</code> runs across packages is not
+controlled, so a later registration never replaces an earlier one.</p>
+<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath, ErrCommandHeld, ErrWireMethodHeld, loadBuiltinsWithAliases, RegisterWithOptions -->
+<!-- source: internal/component/plugin/server/server.go -- NewServer -->
 <h3 id="a-parent-command-never-swallows-a-registered-child">A parent command never swallows a registered child</h3>
 <p>The daemon serves the LONGEST registered key that prefixes the input and hands the
 rest to that handler as arguments. A parent registered at a short path would
@@ -409,7 +418,7 @@ command with it.</p>
 <!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows -->
 <!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
 <hr>
-<h2 id="operational-report-bus-ze-showwarnings-ze-showerrors">Operational Report Bus (ze-show:warnings, ze-show:errors)</h2>
+<h2 id="operational-report-bus-ze-cmdshow-warnings-ze-cmdshow-errors">Operational Report Bus (ze-cmd:show-warnings, ze-cmd:show-errors)</h2>
 <p>The report bus is a single in-process place for Ze subsystems to push
 operator-visible issues. Any subsystem (BGP, config, interface, plugins)
 can call <code>report.RaiseWarning</code> / <code>report.RaiseError</code> / <code>report.ClearWarning</code>,
@@ -472,11 +481,11 @@ No, but it might soon -&gt; warning.</p>
 </tr>
 <tr>
 <td><code>Warnings() []Issue</code></td>
-<td>Snapshot of all active warnings, most-recently-updated first. Consumed by ze-show:warnings handler.</td>
+<td>Snapshot of all active warnings, most-recently-updated first. Consumed by ze-cmd:show-warnings handler.</td>
 </tr>
 <tr>
 <td><code>Errors(limit int) []Issue</code></td>
-<td>Recent N error events, newest first. limit 0 or negative returns all retained. Consumed by ze-show:errors handler.</td>
+<td>Recent N error events, newest first. limit 0 or negative returns all retained. Consumed by ze-cmd:show-errors handler.</td>
 </tr>
 </tbody>
 </table>
@@ -495,187 +504,187 @@ the bus from buggy or malicious producers.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>ze-show:warnings</code></td>
+<td><code>ze-cmd:show-warnings</code></td>
 <td><code>handleShowWarnings</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/cmd/show/show.go</code></span></span></td>
 <td><code>{"warnings": [Issue, ...], "count": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:errors</code></td>
+<td><code>ze-cmd:show-errors</code></td>
 <td><code>handleShowErrors</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/cmd/show/show.go</code></span></span></td>
 <td><code>{"errors": [Issue, ...], "count": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:traffic</code></td>
+<td><code>ze-traffic:show-traffic</code></td>
 <td><code>handleShowTraffic</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/traffic/cmd/traffic.go</code></span></span></td>
 <td><code>{"interfaces": [...], "count": N}</code> or single interface detail</td>
 </tr>
 <tr>
-<td><code>ze-show:mtu</code></td>
+<td><code>ze-mtu:show-mtu</code></td>
 <td><code>handleShowMTU</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/mtu/cmd/mtu.go</code></span></span></td>
 <td>one document: <code>status</code>, <code>measurements</code> (rows of <code>target</code>, <code>label</code>, <code>outcome</code>, <code>path-mtu</code>, <code>method</code>, <code>probes</code>, <code>lossy</code>, <code>prober</code>, <code>exchanges</code>, <code>ike-confirmed</code>, <code>ike-declined</code>, <code>caveats</code>, <code>cached-path-mtu</code>), <code>tunnels</code> (rows of <code>peer</code>, <code>remote</code>, <code>interface</code>, <code>mode</code>, <code>encapsulation</code>, <code>transform</code>, <code>path-mtu</code>, <code>assumed</code>, <code>current-mtu</code>, <code>ceiling</code>, <code>recommended</code>, <code>mss</code>, <code>verdict</code>, <code>octets</code>, <code>sized</code>, <code>reason</code>), <code>commands</code>, <code>notes</code>, <code>caveats</code>; <code>inventory</code>, <code>verdict</code>, <code>reference</code> on a run over the peers; <code>underlay</code> once read; <code>tcp-mtu-probing</code> once read. Keys and presence rules. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/diagnostics/path-mtu.md</code></span></span></td>
 </tr>
 <tr>
-<td><code>ze-show:static</code></td>
+<td><code>ze-static:show-static</code></td>
 <td><code>forwardShowStatic</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/static/cmd_show.go</code></span></span></td>
 <td>JSON array of configured static routes (proxy to static plugin)</td>
 </tr>
 <tr>
-<td><code>ze-show:policy-routes</code></td>
+<td><code>ze-policyroute:show-policy-routes</code></td>
 <td><code>forwardShowPolicyRoutes</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/policyroute/cmd_show.go</code></span></span></td>
 <td>JSON array of PBR policy routes (proxy to policyroute plugin)</td>
 </tr>
 <tr>
-<td><code>ze-show:policy-chain</code></td>
+<td><code>ze-bgp:show-policy-chain</code></td>
 <td><code>handleShowPolicyChain</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/cmd/policy/handler.go</code></span></span></td>
 <td><code>{"chains": [{"peer": "...", "name": "...", "import": [{"name": "...", "canonical": "..."}], "export": [...]}]}</code> — per-peer effective filter chains, plain name plus canonical ref</td>
 </tr>
 <tr>
-<td><code>ze-show:policy-test</code></td>
+<td><code>ze-bgp:show-policy-test</code></td>
 <td><code>handleShowPolicyTest</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/cmd/policy/handler.go</code></span></span></td>
 <td><code>{"direction": "...", "peer": "...", "action": "accept|reject|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}</code> — read-only policy dry-run, no forwarding or mutation</td>
 </tr>
 <tr>
-<td><code>ze-show:bmp-sessions</code></td>
+<td><code>ze-bgp:show-bmp-sessions</code></td>
 <td><code>forwardShowBMPSessions</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/bmp/cmd_show.go</code></span></span></td>
 <td>JSON array of BMP receiver sessions (proxy to BMP plugin)</td>
 </tr>
 <tr>
-<td><code>ze-show:bmp-peers</code></td>
+<td><code>ze-bgp:show-bmp-peers</code></td>
 <td><code>forwardShowBMPPeers</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/bmp/cmd_show.go</code></span></span></td>
 <td>JSON array of BMP monitored peers (proxy to BMP plugin)</td>
 </tr>
 <tr>
-<td><code>ze-show:bmp-collectors</code></td>
+<td><code>ze-bgp:show-bmp-collectors</code></td>
 <td><code>forwardShowBMPCollectors</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/bmp/cmd_show.go</code></span></span></td>
 <td>JSON array of BMP sender collectors (proxy to BMP plugin)</td>
 </tr>
 <tr>
-<td><code>ze-show:bmp-rib</code></td>
+<td><code>ze-bgp:show-bmp-rib</code></td>
 <td><code>forwardShowBMPRib</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/bmp/cmd_show.go</code></span></span></td>
 <td>BMP-monitored routes (proxy to BMP plugin, dispatches to RIB)</td>
 </tr>
 <tr>
-<td><code>ze-show:rr-status</code></td>
+<td><code>ze-bgp:show-rr-status</code></td>
 <td><code>forwardShowRRStatus</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/rr/cmd_show.go</code></span></span></td>
 <td><code>{"running": true}</code> (proxy to RR plugin)</td>
 </tr>
 <tr>
-<td><code>ze-show:rr-peers</code></td>
+<td><code>ze-bgp:show-rr-peers</code></td>
 <td><code>forwardShowRRPeers</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/rr/cmd_show.go</code></span></span></td>
 <td>JSON array of RR peer states (proxy to RR plugin)</td>
 </tr>
 <tr>
-<td><code>ze-show:reject-asn</code></td>
+<td><code>ze-bgp:show-reject-asn</code></td>
 <td><code>forwardShowRejectASN</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/filter_path_asn/register_command.go</code></span></span></td>
 <td><code>{"lists": [{"name": "...", "import-peers": N, "export-peers": N, "entries": [{"asn": N, "positions": ["transit", "origin"], "network": "..."}], "patterns": ["..."]}]}</code> (proxy to the reject-asn filter plugin). <code>network</code> is written for every ASN and is EMPTY for one the curated table does not hold</td>
 </tr>
 <tr>
-<td><code>ze-show:reject-asn-name</code> (selector: <code>name</code>)</td>
+<td><code>ze-bgp:show-reject-asn-name</code> (selector: <code>name</code>)</td>
 <td><code>forwardShowRejectASNName</code> in the same file</td>
 <td>One list record, the same shape as a row of <code>lists</code>. The value after the <code>name</code> keyword arrives as a SELECTOR rather than a positional, because <code>name</code> is both the last token of the path and the leaf under it, so the forwarder reads <code>ctx.Selector("name")</code></td>
 </tr>
 <tr>
-<td><code>ze-show:reject-asn-known-transit-free</code></td>
+<td><code>ze-bgp:show-reject-asn-known-transit-free</code></td>
 <td><code>forwardShowRejectASNTransitFree</code> in the same file</td>
 <td><code>{"curated": "YYYY-MM-DD", "sources": [...], "networks": [{"asn": N, "name": "...", "contested": bool}], "block": ["# ...", "indirect [ ... ];"]}</code>. <code>block</code> is an array of config LINES an operator pastes</td>
 </tr>
 <tr>
-<td><code>ze-show:system-sockets</code></td>
+<td><code>ze-cmd:show-system-sockets</code></td>
 <td><code>handleShowSystemSockets</code> in <code>sockets_linux.go</code></td>
 <td><code>{"sockets": [...], "count": N}</code> (Linux only)</td>
 </tr>
 <tr>
-<td><code>ze-show:system-kernel-log</code></td>
+<td><code>ze-host:show-system-kernel-log</code></td>
 <td><code>handleShowSystemKernelLog</code> in <code>kernel_log_linux.go</code></td>
 <td><code>{"entries": [...], "count": N}</code> (Linux only)</td>
 </tr>
 <tr>
-<td><code>ze-show:system-goroutines</code></td>
+<td><code>ze-cmd:show-system-goroutines</code></td>
 <td><code>handleShowSystemGoroutines</code> in <code>goroutines.go</code></td>
 <td><code>{"total": N, "by-state": {...}, "mode": "..."}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:tcp-check</code></td>
+<td><code>ze-diag:show-tcp-check</code></td>
 <td><code>HandleTCPCheck</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/diag/cmd/tcp_check.go</code></span></span></td>
 <td><code>{"host": "...", "port": N, "result": "...", "latency-ms": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:traceroute</code></td>
+<td><code>ze-traceroute:show-traceroute</code></td>
 <td><code>handleTraceroute</code> in <code>traceroute.go</code></td>
 <td><code>{"target": ". ", "hops": [{"hop": N, "addr": ". ", "rtt-ms": N, "ttl": N}. ]}</code>. Under <code>do-not-fragment</code> a hop that refused the probe's size also carries <code>"next-hop-mtu-reported": bool</code> and, when true, <code>"next-hop-mtu": N</code>, and ends the trace. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/diagnostics/active-probes.md</code></span></span></td>
 </tr>
 <tr>
-<td><code>ze-show:capture-interface</code></td>
+<td><code>ze-diag:show-capture-interface</code></td>
 <td><code>handleCaptureInterface</code> in <code>capture_interface_linux.go</code></td>
 <td>pcap: <code>{"format": "pcap", "packets": N, "pcap": "base64...", "snap-len": N}</code>; text: <code>{"format": "text", "packets": N, "lines": [...]}</code> (Linux only)</td>
 </tr>
 <tr>
-<td><code>ze-show:system-file-descriptors</code></td>
+<td><code>ze-cmd:show-system-file-descriptors</code></td>
 <td><code>handleShowSystemFD</code> in <code>fd_linux.go</code></td>
 <td><code>{"total": N, "by-type": {...}, "soft-limit": N, "hard-limit": N}</code> (Linux only)</td>
 </tr>
 <tr>
-<td><code>ze-show:dns-lookup</code></td>
+<td><code>ze-resolve:show-dns-lookup</code></td>
 <td><code>handleDNSLookup</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/show_dns.go</code></span></span></td>
 <td><code>{"name": "...", "type": "...", "records": [...], "query-time-ms": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:dns-cache-stats</code></td>
+<td><code>ze-resolve:show-dns-cache-stats</code></td>
 <td><code>handleDNSCacheStats</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/show_dns.go</code></span></span></td>
 <td><code>{"entries": N, "capacity": N, "hits": N, "misses": N, "hit-rate": N, "miss-rate": N, "evictions": N, "expired": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:dns-cache-list</code></td>
+<td><code>ze-resolve:show-dns-cache-list</code></td>
 <td><code>handleDNSCacheList</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/show_dns.go</code></span></span></td>
 <td><code>{"entries": [...], "count": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:dns-cache-record</code></td>
+<td><code>ze-resolve:show-dns-cache-record</code></td>
 <td><code>handleDNSCacheRecord</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/show_dns.go</code></span></span></td>
 <td><code>{"entries": [...], "count": N, "filter": "name"}</code></td>
 </tr>
 <tr>
-<td><code>ze-clear:dns-cache</code></td>
+<td><code>ze-resolve:clear-dns-cache</code></td>
 <td><code>handleClearDNSCache</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/dns.go</code></span></span></td>
 <td><code>{"action": "clear-all"}</code></td>
 </tr>
 <tr>
-<td><code>ze-clear:dns-cache-stats</code></td>
+<td><code>ze-resolve:clear-dns-cache-stats</code></td>
 <td><code>handleClearDNSCacheStats</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/dns.go</code></span></span></td>
 <td><code>{"action": "reset-stats"}</code></td>
 </tr>
 <tr>
-<td><code>ze-clear:dns-cache-record</code></td>
+<td><code>ze-resolve:clear-dns-cache-record</code></td>
 <td><code>handleClearDNSCacheRecord</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/dns.go</code></span></span></td>
 <td><code>{"action": "delete-entry", "name": "...", "removed": N}</code> or <code>{"action": "delete-entry", "name": "...", "type": "...", "found": bool}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:resolve-rir</code> (args: <code>&lt;asn&gt;</code>)</td>
+<td><code>ze-resolve:show-rir</code> (args: <code>&lt;asn&gt;</code>)</td>
 <td><code>handleRIRASN</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/rir.go</code></span></span></td>
 <td><code>{"asn": N, "registry": "ARIN", "whois": "whois.arin.net", "range-start": N, "range-end": N}</code>. Two distinct errors: <code>AS&lt;n&gt; is in no delegated range</code> for a table that was read, <code>RIR delegation table unreadable: ...</code> for one that was not</td>
 </tr>
 <tr>
-<td><code>ze-update:resolve-rir</code> (no args)</td>
+<td><code>ze-resolve:update-rir</code> (no args)</td>
 <td><code>handleRIRRefresh</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/rir.go</code></span></span></td>
 <td><code>{"key": "meta/rir/delegation", "ranges": N, "generated": "YYYY-MM-DD"}</code>. <code>ranges</code> is how many ranges the stored table holds and <code>generated</code> is the date it stored. All or nothing: a fetch that failed, a parse that refused, a run that read no ASN record, and a write that stored nothing each answer an error and change no stored table</td>
 </tr>
 <tr>
-<td><code>ze-show:system-profile</code></td>
+<td><code>ze-cmd:show-system-profile</code></td>
 <td><code>handleShowSystemProfile</code> in <code>profile.go</code></td>
 <td><code>{"type": "...", "format": "pprof-base64", "data": "..."}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:system-memory-map</code></td>
+<td><code>ze-cmd:show-system-memory-map</code></td>
 <td><code>handleShowSystemMemoryMap</code> in <code>memory_map_linux.go</code></td>
 <td><code>{"vm-rss-kb": N, "vm-size-kb": N, ...}</code> (Linux only)</td>
 </tr>
 <tr>
-<td><code>ze-show:system-update</code></td>
+<td><code>ze-update:show-system-update</code></td>
 <td><code>handleShowSystemUpdate</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/update-cmd/cmd/show.go</code></span></span></td>
 <td><code>{"backend": "ze-self-update"|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:system-update-history</code></td>
+<td><code>ze-update:show-system-update-history</code></td>
 <td><code>handleShowSystemUpdateHistory</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/update-cmd/cmd/show.go</code></span></span></td>
 <td><code>{"history": [{"timestamp": "...", "from": "...", "to": "...", "result": "..."}], "count": N}</code></td>
 </tr>
@@ -705,87 +714,87 @@ the bus from buggy or malicious producers.</p>
 <td><code>{"status": "rolling back"}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:interface</code> (no args)</td>
+<td><code>ze-iface:show-interface</code> (no args)</td>
 <td><code>handleShowInterface</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/iface/cmd/show_interface.go</code></span></span></td>
 <td>JSON array of <code>InterfaceInfo</code>. A stray token is refused with the usage text: every subcommand below has its own wire method</td>
 </tr>
 <tr>
-<td><code>ze-show:interface-brief</code></td>
+<td><code>ze-iface:show-interface-brief</code></td>
 <td><code>handleShowInterfaceBrief</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/iface/cmd/show_interface.go</code></span></span></td>
 <td><code>{"interfaces": [{name, state, mtu, address?}], "count": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:interface-type</code> (args: <code>&lt;type&gt;</code>)</td>
+<td><code>ze-iface:show-interface-type</code> (args: <code>&lt;type&gt;</code>)</td>
 <td><code>handleShowInterfaceType</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/iface/cmd/show_interface.go</code></span></span></td>
 <td><code>{"interfaces": [InterfaceInfo]}</code> for that type. An unmatched type is refused, and the refusal lists the types the running set has</td>
 </tr>
 <tr>
-<td><code>ze-show:interface-errors</code></td>
+<td><code>ze-iface:show-interface-errors</code></td>
 <td><code>handleShowInterfaceErrors</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/iface/cmd/show_interface.go</code></span></span></td>
 <td><code>{"interfaces": [{name, rx-errors, rx-dropped, tx-errors, tx-dropped}]}</code>, only the links with a non-zero counter</td>
 </tr>
 <tr>
-<td><code>ze-show:interface-rate</code> (args: <code>[&lt;name&gt;]</code>)</td>
+<td><code>ze-iface:show-interface-rate</code> (args: <code>[&lt;name&gt;]</code>)</td>
 <td><code>handleShowInterfaceRateCmd</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/iface/cmd/show_interface.go</code></span></span></td>
 <td>JSON array of <code>InterfaceRate</code> (all) or single object (named); fields: <code>name</code>, <code>rx-bps</code>, <code>tx-bps</code>, <code>rx-pps</code>, <code>tx-pps</code>, <code>stats</code></td>
 </tr>
 <tr>
-<td><code>ze-monitor:interface-rate</code></td>
+<td><code>ze-iface:monitor-interface-rate</code></td>
 <td><code>streamInterfaceRate</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/iface/cmd/interface_rate.go</code></span></span></td>
 <td>Streaming JSON lines (1/s); optional <code>&lt;name&gt;</code> filter</td>
 </tr>
 <tr>
-<td><code>ze-show:storage-smart</code></td>
+<td><code>ze-storage:show-smart</code></td>
 <td><code>handleShowStorageSmart</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/storage/show.go</code></span></span></td>
 <td>JSON array of per-device objects: <code>name</code>, <code>transport</code>, <code>healthy</code>, <code>temp-celsius</code>, <code>power-on-hours</code>, <code>error-count</code>, <code>percent-used</code> (NVMe), <code>available-spare</code> (NVMe), <code>smart-enabled</code>, <code>last-checked</code>, <code>last-short-test</code>, <code>last-long-test</code>. Returns error if SMART management not configured.</td>
 </tr>
 <tr>
-<td><code>ze-show:flow-export</code> (args: <code>[&lt;collector&gt;]</code>)</td>
+<td><code>ze-flowexport:show-flow-export</code> (args: <code>[&lt;collector&gt;]</code>)</td>
 <td><code>handleShowFlowExport</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/flowexport/cmd_show.go</code></span></span></td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
-<td><code>ze-show:traffic-stat</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
+<td><code>ze-trafficstat:show-traffic-stat</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
 <td><code>handleShowTraffic</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/trafficstat/cmd/traffic.go</code></span></span></td>
 <td>One-shot aggregated snapshot: <code>{"at": "RFC3339", "severity": "normal|caution|danger", "degraded": bool, "interfaces": [{name, rx-bps, tx-bps, rx-pps, tx-pps}], "top-source-ips": [{address, bps}], "top-dest-ips": [{address, bps}], "top-ports": [{port, service, proto, bps, amplification?}], "protocol-mix": [{proto, name, bps, percent}], "history": [float64]}</code>. Optional <code>name &lt;interface&gt;</code> filters the interfaces array. When no collector data: <code>"degraded": true</code> with interface rates only.</td>
 </tr>
 <tr>
-<td><code>ze-monitor:traffic-stat</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
+<td><code>ze-trafficstat:monitor-traffic-stat</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
 <td><code>streamTraffic</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/trafficstat/cmd/traffic.go</code></span></span></td>
-<td>Streaming JSON lines (1/s) with the same shape as <code>ze-show:traffic-stat</code>. Attaches as a consumer on connect, detaches on disconnect (lazy lifecycle). Also registered as a <code>MonitorProvider</code> for full-screen TUI rendering via <code>createTrafficMonitorSession</code> in. <span class="ev-src"><span class="ev-ref"><code>cmd/render.go</code></span></span></td>
+<td>Streaming JSON lines (1/s) with the same shape as <code>ze-trafficstat:show-traffic-stat</code>. Attaches as a consumer on connect, detaches on disconnect (lazy lifecycle). Also registered as a <code>MonitorProvider</code> for full-screen TUI rendering via <code>createTrafficMonitorSession</code> in. <span class="ev-src"><span class="ev-ref"><code>cmd/render.go</code></span></span></td>
 </tr>
 <tr>
-<td><code>ze-show:traffic-feature</code> (args: <code>[name &lt;address&gt;]</code>)</td>
+<td><code>ze-trafficfeature:show-traffic-feature</code> (args: <code>[name &lt;address&gt;]</code>)</td>
 <td><code>handleShowTrafficFeature</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/trafficfeature/cmd/traffic_feature.go</code></span></span></td>
 <td>Neutral per-source feature snapshot: <code>{"degraded": bool, "top-source-ips": [{address, fan-out, out-in-ratio, port-entropy, new-peer, rare-port, beaconing}]}</code>. <code>out-in-ratio</code> is the string <code>"inf"</code> when a source has no inbound bytes (else a float). Optional <code>name &lt;address&gt;</code> filters to one source. Facts only (no verdict); the anomaly detection family applies judgment.</td>
 </tr>
 <tr>
-<td><code>ze-show:anomaly</code> (no args)</td>
+<td><code>ze-anomaly:show-anomaly</code> (no args)</td>
 <td><code>handleShowAnomaly</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/anomaly/detect/show.go</code></span></span></td>
 <td>Recent behavioral anomaly incidents (report-only): <code>{"enabled": bool, "incidents": [{entity, entity-kind, cohort, score, severity, at, fired-features: [{name, z}]}]}</code>. <code>entity-kind</code> is <code>source</code>, <code>dest</code> or <code>port</code>. A source or dest row names its subject in <code>entity</code> as a prefix; a port row carries <code>port</code> and <code>proto</code> as two more fields and renders <code>entity</code> as <code>proto/port</code>, because a port is not an address. Bounded recent-incident ring; empty until an entity's correlated deviation confirms. <code>enabled</code> is false when the detector is not running. The <code>anomaly/shape</code> responder consumes the underlying <code>anomaly-detect</code> events; this command is the read-only view.</td>
 </tr>
 <tr>
-<td><code>ze-show:anomaly-observe</code> (no args)</td>
+<td><code>ze-anomaly:show-observe</code> (no args)</td>
 <td><code>handleShowAnomalyObserve</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/anomaly/observe/show.go</code></span></span></td>
 <td>Behavioral anomaly incident LIFECYCLE, newest first: <code>{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort, fired-features: [{name, z}], score, severity, start-time, end-time, active}]}</code>. <code>end-time</code> is omitted while <code>active</code> is true. It is set when the incident clears, or when the stale timeout finalizes it. A finished incident's duration is readable here and nowhere else. <code>enabled</code> is false when the plugin is not running.</td>
 </tr>
 <tr>
-<td><code>ze-show:anomaly-shape</code> (no args)</td>
+<td><code>ze-anomaly:show-shape</code> (no args)</td>
 <td><code>handleShowAnomalyShape</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/anomaly/shape/show.go</code></span></span></td>
 <td>Shadow-first responder status: <code>{"enabled": bool, "mode": "shadow"|"armed", "action": "limit"|"drop", "kill-switch": bool, "armed-count": N, "armed": [source, ...]}</code>. <code>enabled</code> is false before configuration. In shadow mode (default) nothing is installed; armed sources carry a live per-source firewall action with a timed auto-revert.</td>
 </tr>
 <tr>
-<td><code>ze-show:traffic-usage</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
+<td><code>ze-trafficusage:show-traffic-usage</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
 <td><code>handleShowTrafficUsage</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/trafficusage/show.go</code></span></span></td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
-<td><code>ze-show:pki-certificates</code></td>
+<td><code>ze-pki:show-certificates</code></td>
 <td><code>handleShowPKICertificates</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/pki/show.go</code></span></span></td>
 <td><code>{"certificates": [CertSummary, ...], "count": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:pki-certificate</code> (args: <code>&lt;name&gt; [pem | bundle pem | fingerprint [algo]]</code>)</td>
+<td><code>ze-pki:show-certificate</code> (args: <code>&lt;name&gt; [pem | bundle pem | fingerprint [algo]]</code>)</td>
 <td><code>handleShowPKICertificate</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/pki/show.go</code></span></span></td>
 <td class="cell-no">✕</td>
 </tr>
@@ -972,7 +981,7 @@ readiness is a no-op, not authority to release a named process's replay fence.
 Ze's own End-of-RIB does not wait for these reports.</p>
 <p>SDK producers send this complete YANG command with <code>DispatchCommand</code>, not
 <code>DispatchCommandArgs</code>: the latter accepts an exact plugin command registration,
-whereas this builtin is registered by its <code>ze-plugin:session-peer-ready</code> wire
+whereas this builtin is registered by its <code>ze-bgp:plugin-session-peer-ready</code> wire
 method. Completion means that the producer finished its replay attempts, not
 that every history entry was delivered. A rejected entry cannot strand the
 live-forward fence; independent entries are still attempted, and completion
@@ -1149,7 +1158,7 @@ monitor bgp                                                  # Live peer dashboa
 <p>Keywords may appear in any order. <code>include</code> and <code>exclude</code> are mutually exclusive.</p>
 <p>Event types span all namespaces: BGP (update, open, notification, keepalive, refresh, state, negotiated, eor, congested, resumed, rpki) and RIB (cache, route). Types are validated at parse time.</p>
 <!-- source: internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
-<p>Wire method: <code>ze-event:monitor</code>. Supports pipe operators: <code>| json</code>, <code>| table</code>, <code>| match</code>.</p>
+<p>Wire method: <code>ze-meta:event-monitor</code>. Supports pipe operators: <code>| json</code>, <code>| table</code>, <code>| match</code>.</p>
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 <p><strong>Note:</strong> <code>monitor bgp</code> is the live peer dashboard (TUI only). <code>monitor event</code> streams live events (SSH exec or TUI). <code>monitor system netlink</code> streams kernel netlink events (SSH exec or TUI, Linux only).</p>
 <h4 id="netlink-monitor">Netlink Monitor</h4>
@@ -1160,7 +1169,7 @@ monitor system netlink link              # Link state changes only
 monitor system netlink address           # Address changes only
 monitor system netlink all               # Explicit all (same as no argument)
 </code></pre>
-<p>Wire method: <code>ze-monitor:system-netlink</code>. Linux only; returns "not available on this platform" on other OSes.</p>
+<p>Wire method: <code>ze-iface:monitor-system-netlink</code>. Linux only; returns "not available on this platform" on other OSes.</p>
 <!-- source: internal/component/iface/cmd/monitor_netlink_linux.go -- streamNetlinkMonitor -->
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 <h3 id="system-commands">System Commands</h3>
@@ -1224,7 +1233,7 @@ queued, not processed, and the replay advances it.</p>
 cannot change what a reload accepts or rejects.</p>
 <!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
 <!-- source: cmd/ze/hub/main_reload.go -- doReload, the increment site, after engine.Reload -->
-<!-- source: internal/component/cmd/show/reload_status.go -- ze-show:reload-status handler + JSON shape -->
+<!-- source: internal/component/cmd/show/reload_status.go -- ze-cmd:show-reload-status handler + JSON shape -->
 <h3 id="peer-commands">Peer Commands</h3>
 <pre><code>show bgp peer list                    # List all peers
 show bgp peer &lt;selector&gt; detail       # Show specific peer detail
@@ -2395,7 +2404,7 @@ every hidden plugin command.</p>
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
 <h3 id="quiesce-barrier-test-synchronization">Quiesce Barrier (test synchronization)</h3>
-<p><code>request quiesce</code> (<code>ze-system:quiesce</code>) <strong>blocks until every registered
+<p><code>request quiesce</code> (<code>ze-plugin:system-quiesce</code>) <strong>blocks until every registered
 subsystem has drained its pending asynchronous work, then replies</strong> — a barrier
 tests use in place of a fixed <code>time.sleep</code>. It is the general form of
 <code>ze-bgp:peer-flush</code>: the control plane is already synchronous (a command reply
@@ -2414,7 +2423,7 @@ it instead of hanging the daemon.</p>
 <p>Invocation note: <code>request quiesce</code> and <code>request peer &lt;sel&gt; flush</code> are api-yang
 RPCs reached through <strong>dispatch-command</strong>, not as direct wire methods. A plugin
 calls <code>api.dispatch("request quiesce")</code> (the test SDK's <code>ze_api.quiesce()</code> and
-<code>ze_api.wait_for_ack()</code> both do this); a raw <code>_call_engine("ze-system:quiesce")</code>
+<code>ze_api.wait_for_ack()</code> both do this); a raw <code>_call_engine("ze-plugin:system-quiesce")</code>
 returns "unknown method" because <code>dispatchPluginRPC</code> routes only
 <code>ze-plugin-engine:*</code> engine ops plus codec RPCs.</p>
 <p>Extension point: Layer 2/3 subsystems (a kernel-FIB quiescer, a tc/qdisc
@@ -2433,7 +2442,7 @@ was absent until 2026-09-19, and until then a caller could quiesce, be told
 "done", and shut the daemon down between the OPEN exchange and the End-of-RIB.</p>
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go pendingSync, handshakeInFlight -->
-<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-system:quiesce -->
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-plugin:system-quiesce -->
 <h3 id="peer-selector-parsing">Peer Selector Parsing</h3>
 <pre><code class="language-go">type Selector struct {
     All       bool
@@ -3760,7 +3769,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

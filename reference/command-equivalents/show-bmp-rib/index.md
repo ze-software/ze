@@ -7,7 +7,7 @@ Show routes received via BMP monitoring sessions\.
 - Registry path: `show bmp rib`
 - Usage: `show bmp rib`
 - Mode: Read-only
-- Wire method: `ze-show:bmp-rib`
+- Wire method: `ze-bgp:show-bmp-rib`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

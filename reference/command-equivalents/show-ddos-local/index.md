@@ -7,7 +7,7 @@ Show the on\-host DDoS mitigation status\.
 - Registry path: `show ddos local`
 - Usage: `show ddos local`
 - Mode: Read-only
-- Wire method: `ze-show:ddos-local`
+- Wire method: `ze-ddos:show-local`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

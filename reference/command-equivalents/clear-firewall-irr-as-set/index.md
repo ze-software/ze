@@ -7,7 +7,7 @@ Remove the cached IRR prefix\-list for an AS\-SET\.
 - Registry path: `clear firewall irr as-set`
 - Usage: `clear firewall irr as-set <as-set>`
 - Mode: Daemon
-- Wire method: `ze-clear:firewall-irr-as-set`
+- Wire method: `ze-firewall:clear-irr-as-set`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

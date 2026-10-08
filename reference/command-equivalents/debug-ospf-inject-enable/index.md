@@ -7,7 +7,7 @@ Enable OSPF debug LSA injection \(shared across both address families\)\.
 - Registry path: `debug ospf inject enable`
 - Usage: `debug ospf inject enable`
 - Mode: Daemon
-- Wire method: `ze-debug:ospf-inject-enable`
+- Wire method: `ze-ospf:debug-inject-enable`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

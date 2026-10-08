@@ -7,7 +7,7 @@ Show the running kernel version and boot parameters\.
 - Registry path: `show host kernel`
 - Usage: `show host kernel`
 - Mode: Read-only
-- Wire method: `ze-show:host-kernel`
+- Wire method: `ze-host:show-kernel`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

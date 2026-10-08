@@ -7,7 +7,7 @@ List every registered subsystem and whether it is running\.
 - Registry path: `show system subsystem list`
 - Usage: `show system subsystem list`
 - Mode: Read-only
-- Wire method: `ze-show:system-subsystem-list`
+- Wire method: `ze-cmd:show-system-subsystem-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

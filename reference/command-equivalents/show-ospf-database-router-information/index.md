@@ -7,7 +7,7 @@ Show the Router Information LSAs \(RFC 7770\) for both address families\.
 - Registry path: `show ospf database router-information`
 - Usage: `show ospf database router-information`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-router-information`
+- Wire method: `ze-ospf:show-database-router-information`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ List all Ze environment variables with their current values\.
 - Registry path: `show env list`
 - Usage: `show env list`
 - Mode: Read-only
-- Wire method: `ze-show:env-list`
+- Wire method: `ze-env:show-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

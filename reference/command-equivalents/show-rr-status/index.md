@@ -7,7 +7,7 @@ Show whether the route reflector is active\.
 - Registry path: `show rr status`
 - Usage: `show rr status`
 - Mode: Read-only
-- Wire method: `ze-show:rr-status`
+- Wire method: `ze-bgp:show-rr-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

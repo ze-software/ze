@@ -7,7 +7,7 @@ Choose json or text encoding for plugin events\.
 - Registry path: `plugin encoding`
 - Usage: `plugin encoding`
 - Mode: Read-only
-- Wire method: `ze-bgp:plugin-encoding`
+- Wire method: `ze-meta:bgp-plugin-encoding`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

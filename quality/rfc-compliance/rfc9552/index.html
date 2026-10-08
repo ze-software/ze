@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.9%</strong><b>7 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>58.9%</strong><b>93 of 158 tagged units, 0 escaped and 3 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>59.5%</strong><b>94 of 158 tagged units, 0 escaped and 3 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -240,7 +240,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>43</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>96</td>
+<td>97</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9552.md</code></td>
@@ -267,7 +267,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></a> still requires oversized propagation to discard the BGP-LS Attribute first. The owner selected **Standard origination only**: <code>encodeTopology</code> emits standard NLRI types and <code>originateAttributes</code> refuses private-use TLV types; no native vendor-private producer is enabled. Section 5.4&#39;s Enterprise Code duties are conditional on private origination; received unknown/private NLRIs remain opaque on the propagation path. New native origination proofs require centralized execution and discrimination; no conformance claim follows from the source additions alone. The native exporter does not bound a BGP-LS Attribute by the collector session&#39;s maximum UPDATE size (<a href="#rfc9552-5.3-1"><code>RFC9552-5.3-1</code></a>). Optional FQDN-based native Link Name selection is not implemented (<a href="#rfc9552-5.3.2.7-1"><code>RFC9552-5.3.2.7-1</code></a>); received Link Name TLVs remain decoded and propagated without imposing a naming restriction.
+MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></a> still requires oversized propagation to discard the BGP-LS Attribute first. The owner selected <strong>Standard origination only</strong>: <code>encodeTopology</code> emits standard NLRI types and <code>originateAttributes</code> refuses private-use TLV types; no native vendor-private producer is enabled. Section 5.4&#39;s Enterprise Code duties are conditional on private origination; received unknown/private NLRIs remain opaque on the propagation path. New native origination proofs require centralized execution and discrimination; no conformance claim follows from the source additions alone. The native exporter does not bound a BGP-LS Attribute by the collector session&#39;s maximum UPDATE size (<a href="#rfc9552-5.3-1"><code>RFC9552-5.3-1</code></a>). Optional FQDN-based native Link Name selection is not implemented (<a href="#rfc9552-5.3.2.7-1"><code>RFC9552-5.3.2.7-1</code></a>); received Link Name TLVs remain decoded and propagated without imposing a naming restriction.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -1535,7 +1535,7 @@ MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc95
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci#L3" title="test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci" target="_blank" rel="noopener"><code>rfc9552-52-rs-opaque-withdraw-peer-down.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3244,7 +3244,7 @@ MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc95
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

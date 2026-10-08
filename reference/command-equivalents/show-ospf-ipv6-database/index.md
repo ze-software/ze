@@ -7,7 +7,7 @@ Show the OSPFv3 \(IPv6\) link\-state database with each native scope\-aware LSA 
 - Registry path: `show ospf ipv6 database`
 - Usage: `show ospf ipv6 database`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database`
+- Wire method: `ze-ospf:show-ospfv3-database`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`, `extended`, `router`, `router-information`, `scope`, `segment-routing`

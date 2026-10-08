@@ -7,7 +7,7 @@ Show RSVP\-TE bandwidth allocation per interface\.
 - Registry path: `show rsvp-te interface`
 - Usage: `show rsvp-te interface`
 - Mode: Read-only
-- Wire method: `ze-show:rsvp-te-interface`
+- Wire method: `ze-rsvpte:show-rsvp-te-interface`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

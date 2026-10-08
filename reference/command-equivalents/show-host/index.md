@@ -7,7 +7,7 @@ Hardware inventory for this box\.
 - Registry path: `show host`
 - Usage: `show host`
 - Mode: Read-only
-- Wire method: `ze-show:host-all`
+- Wire method: `ze-host:show-all`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `all`, `cpu`, `dmi`, `kernel`, `memory`, `nic`, `platform`, `storage`, `thermal`

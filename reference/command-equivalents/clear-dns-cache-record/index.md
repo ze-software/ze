@@ -7,7 +7,7 @@ Evict DNS cache entries for one record name\, or one name and type when a type i
 - Registry path: `clear dns cache record`
 - Usage: `clear dns cache record <name> [type <A\|AAAA\|MX\|NS\|TXT\|CNAME\|PTR>]`
 - Mode: Daemon
-- Wire method: `ze-clear:dns-cache-record`
+- Wire method: `ze-resolve:clear-dns-cache-record`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

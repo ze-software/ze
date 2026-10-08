@@ -7,7 +7,7 @@ Show the kernel routing table\.
 - Registry path: `show route`
 - Usage: `show route [prefix <prefix>] [limit <limit>]`
 - Mode: Read-only
-- Wire method: `ze-show:route`
+- Wire method: `ze-iface:show-route`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `lookup`

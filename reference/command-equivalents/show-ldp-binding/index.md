@@ -7,7 +7,7 @@ Show LDP FEC\-to\-label bindings\.
 - Registry path: `show ldp binding`
 - Usage: `show ldp binding`
 - Mode: Read-only
-- Wire method: `ze-show:ldp-binding`
+- Wire method: `ze-ldp:show-binding`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -5,8 +5,9 @@ Set how long debug output stays enabled\.
 ## Ze command
 
 - Registry path: `set debug timeout`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `set debug timeout <duration>`
+- Mode: Daemon
+- Wire method: `ze-debug:set-timeout`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -20,11 +21,13 @@ Set how long debug output stays enabled\.
 - Command pipes: none
 - Pipe aliases: none
 
-The duration is written as 30m\, 1h or 90s\, seconds are rounded up to minutes\, and the longest accepted value is 24h\. Zero disables the timer\.
+The duration is written as 30m\, 1h or 90s\. Seconds are rounded up to minutes\, the longest accepted value is 24h\, and zero disables the timer\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `duration` | string | yes | any value of this type | How long debug stays enabled\. | A duration such as 30m\, 1h\, 90s or 0\. |
 
 ## Mapping intents
 

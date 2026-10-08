@@ -7,7 +7,7 @@ Show the Security Association Database the kernel holds\.
 - Registry path: `show vpn ipsec dataplane sa`
 - Usage: `show vpn ipsec dataplane sa [spi <spi>]`
 - Mode: Read-only
-- Wire method: `ze-show:vpn-ipsec-dataplane-sa`
+- Wire method: `ze-ike:show-vpn-ipsec-dataplane-sa`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

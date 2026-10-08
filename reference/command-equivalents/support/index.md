@@ -5,8 +5,9 @@ Collect logs\, config\, state and diagnostics into one archive\.
 ## Ze command
 
 - Registry path: `support`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `support`
+- Mode: Daemon
+- Wire method: `ze-support:support`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -20,7 +21,7 @@ Collect logs\, config\, state and diagnostics into one archive\.
 - Command pipes: none
 - Pipe aliases: none
 
-Send the archive to support when you report an issue\. Modules can be selected or excluded\, and a time window narrows what the archive holds\.
+The archive holds logs\, config\, state and diagnostics\, and is what to send when you report an issue\. Secrets are redacted unless asked for\. Modules can be selected or excluded\, and a time window narrows the logs the archive holds\.
 
 ## Arguments
 

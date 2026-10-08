@@ -314,9 +314,28 @@ is 10, which beats eBGP at 20 and every IGP.</p>
 }
 </code></pre>
 <p>At 250 a static route LOSES the prefix to an eBGP route at 20, and the kernel
-forwards on the BGP next-hop. At 5 it keeps the prefix. The number applies on the
-next config apply, and it applies to main-table routes: a named-table route has
-nothing to be ranked against.</p>
+forwards on the BGP next-hop. At 5 it keeps the prefix. The RIB looks the number
+up each time it ranks, so a commit or reload that changes only the distance
+re-ranks the routes already installed, and the kernel moves to the new winner.
+The number applies to main-table routes: a named-table route has nothing to be
+ranked against.</p>
+<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, Reselect -->
+<!-- source: internal/component/sysrib/register.go -- reselectLocRIB -->
+<p>One route can carry its own distance, which wins over <code>static N</code> for that route
+alone:</p>
+<pre><code>static {
+    table default {
+        route 10.0.0.0/8 {
+            distance 3
+            next { hop 192.0.2.1 { } }
+        }
+    }
+}
+</code></pre>
+<p>A reload that changes <code>rib { distance { static } }</code> leaves such a route at its
+own number.</p>
+<!-- source: internal/plugins/static/config.go -- parseRouteDistance -->
+<!-- source: internal/plugins/static/locrib.go -- staticPath -->
 <p><code>show rib</code> reports the winner per prefix with the protocol that holds it.</p>
 <h2 id="redistribute">Redistribute</h2>
 <p>Static routes register as protocol "static" in the redistribute
@@ -369,7 +388,7 @@ framework. BGP redistribute can import static routes:</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 28 September 2026 00:26 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

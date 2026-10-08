@@ -944,7 +944,14 @@ each wire method to its registered handler.</p>
 <td><code>OnConfigRollback</code></td>
 <td><code>{"transaction-id":"..."}</code></td>
 <td>None</td>
-<td>Roll back a config transaction</td>
+<td>Roll back a config transaction. Reaches the handler only while an apply this plugin accepted is neither committed nor rolled back</td>
+</tr>
+<tr>
+<td><code>ze-plugin-callback:config-committed</code></td>
+<td>None, handled by the SDK</td>
+<td><code>{"transaction-id":"..."}</code></td>
+<td>None</td>
+<td>The transaction committed; the SDK stops owing a rollback for its apply</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:config-operation-decompose</code></td>
@@ -1260,7 +1267,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

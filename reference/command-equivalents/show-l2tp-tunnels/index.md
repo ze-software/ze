@@ -7,7 +7,7 @@ List all active L2TP tunnels\.
 - Registry path: `show l2tp tunnels`
 - Usage: `show l2tp tunnels`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:tunnels`
+- Wire method: `ze-l2tp:tunnels`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

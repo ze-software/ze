@@ -1,6 +1,6 @@
 # BGP Resilience
 
-BGP resilience is a set of separate mechanisms. Route Refresh reapplies policy without dropping the session. Graceful Restart retains forwarding during a restart. RIB persistence retains outbound state. Route reflection distributes iBGP routes without a full mesh. Use only the mechanisms the topology requires.
+BGP resilience is a set of separate mechanisms. Route Refresh reapplies policy without dropping the session. Graceful Restart retains forwarding during a restart. The RIB keeps eligible sent history in process memory for peer reconnects. Route reflection distributes iBGP routes without a full mesh. Use only the mechanisms the topology requires.
 
 ## Route Refresh
 
@@ -71,11 +71,29 @@ ze signal stop
 
 After restart, confirm that peers negotiated GR, stale routes were retained only for the intended families, fresh routes replaced them, and no stale entries remain after End-of-RIB.
 
-## RIB persistence
+## RIB reconnect replay
 
-The `bgp-persist` plugin tracks outbound routes and can replay them after reconnect. It complements Graceful Restart but does not replace policy or best-path calculation. Persisted state must still be reconciled with the live configuration and destination peer.
+The mandatory `bgp-rib` plugin keeps sent history in process memory across peer
+disconnects. BGP loads it automatically, but replay still requires peer
+bindings that deliver received and sent UPDATEs, state and refresh events,
+and permit UPDATE sends. Source peers must feed received UPDATEs and state to
+the same RIB. The RIB restores only eligible history: source incarnation,
+received path and revision, native NLRI identity, and the captured Initial
+replay session must remain valid. It does not overwrite a route already
+accepted on the new session.
 
-Use `show bgp rib status`, the peer RIB commands, and warning reports to confirm that replay completed. A reconnect should not trigger repeated full-table floods to unrelated peers.
+This is not durable storage across daemon or RIB plugin restarts. Config-static
+routes come from the current configuration instead of old sent history.
+Operators migrating from the removed `bgp-persist` plugin must remove its
+instance and replace its peer bindings with RIB bindings; there is no config
+alias. See [migration instructions](../plugins/index.md#migrating-from-bgp-persist).
+
+Use `show bgp rib status`, the peer RIB commands, warnings, and the receiving
+peer's routes to inspect replay results. A session-ready report means replay
+attempts finished, not that every historical route was delivered.
+<!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigRoots -->
+<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- collectPeerUpReplay, replayRoutesWithCursor -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- checkInitialWrite, allow -->
 
 ## Route reflection
 

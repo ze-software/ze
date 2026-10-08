@@ -7,7 +7,7 @@ List the completion candidates for a partial command\.
 - Registry path: `system command complete`
 - Usage: `system command complete <partial>`
 - Mode: Read-only
-- Wire method: `ze-system:command-complete`
+- Wire method: `ze-plugin:system-command-complete`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Export the certificate\, and any intermediate it carries\, as PEM\.
 - Registry path: `show pki certificate name pem`
 - Usage: `show pki certificate name <name> pem`
 - Mode: Read-only
-- Wire method: `ze-show:pki-certificate-pem`
+- Wire method: `ze-pki:show-certificate-pem`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

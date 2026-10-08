@@ -296,6 +296,21 @@ the rulesets of other firewall owners continue to reach the kernel.</p>
 traffic-action. The Terminal Action bit has the RFC's counterintuitive meaning:
 set continues to later matching rules; clear stops evaluation. Sample enables
 packet logging. Rules without an action use normal forwarding.</p>
+<p>A selected traffic-rate-packets community (<code>0x800c</code>) with value zero requests
+discard of every matching packet, not an absent limiter or normal forwarding.
+This is distinct from the zero byte-rate community (<code>0x8006</code>). The Linux
+integration scenario <code>TestSelectedFlowSpecZeroPacketRateKernel</code> enters at the
+selected-route callback and uses the real nft backend in an isolated network
+namespace. It asserts four target UDP drops, an installed-rule counter of four
+packets and 116 bytes, delivery to an unaffected destination, and restored
+target delivery after positive-rate replacement. It then reinstalls zero,
+observes target discard with unaffected-destination delivery again, withdraws
+that active zero-rate rule, and requires target delivery. It does not prove
+the preceding RIB authorization decision.</p>
+<p>That scenario requires namespace privileges and nftables kernel support. Its
+presence, a build, or a capability skip is not packet-enforcement evidence;
+acceptance still requires an observed non-skipped run on the runtime kernel.</p>
+<!-- source: internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go -- TestSelectedFlowSpecZeroPacketRateKernel -->
 <p>Rules are ordered by their NLRI components, not by receipt time or peer name.
 Each matching rule is sampled and rate-limited once even when both its source-
 and destination-port alternatives match. The limiter drops excess traffic;
@@ -479,7 +494,7 @@ the configuration, import it, and reload.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

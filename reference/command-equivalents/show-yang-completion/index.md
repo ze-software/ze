@@ -7,7 +7,7 @@ Show YANG paths available for tab completion\.
 - Registry path: `show yang completion`
 - Usage: `show yang completion`
 - Mode: Read-only
-- Wire method: `ze-show:yang-completion`
+- Wire method: `ze-config-yang:show-yang-completion`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

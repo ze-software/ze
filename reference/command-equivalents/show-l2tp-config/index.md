@@ -7,7 +7,7 @@ Show the resolved L2TP configuration\.
 - Registry path: `show l2tp config`
 - Usage: `show l2tp config`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:config`
+- Wire method: `ze-l2tp:config`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

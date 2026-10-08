@@ -7,7 +7,7 @@ Show the full hardware inventory in one shot\.
 - Registry path: `show host all`
 - Usage: `show host all`
 - Mode: Read-only
-- Wire method: `ze-show:host-all`
+- Wire method: `ze-host:show-all`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

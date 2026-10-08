@@ -47,13 +47,13 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="bgp-resilience">BGP Resilience</h1>
-    <p>BGP resilience is a set of separate mechanisms. Route Refresh reapplies policy without dropping the session. Graceful Restart retains forwarding during a restart. RIB persistence retains outbound state. Route reflection distributes iBGP routes without a full mesh. Use only the mechanisms the topology requires.</p>
+    <p>BGP resilience is a set of separate mechanisms. Route Refresh reapplies policy without dropping the session. Graceful Restart retains forwarding during a restart. The RIB keeps eligible sent history in process memory for peer reconnects. Route reflection distributes iBGP routes without a full mesh. Use only the mechanisms the topology requires.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#route-refresh">Route Refresh</a></li>
 <li><a href="#graceful-restart">Graceful Restart</a></li>
 <li><a href="#restarting-ze">Restarting Ze</a></li>
-<li><a href="#rib-persistence">RIB persistence</a></li>
+<li><a href="#rib-reconnect-replay">RIB reconnect replay</a></li>
 <li><a href="#route-reflection">Route reflection</a></li>
 <li><a href="#add-path-and-multipath">ADD-PATH and multipath</a></li>
 <li><a href="#failure-checklist">Failure checklist</a></li>
@@ -108,9 +108,26 @@ bgp {
 <pre><code class="language-console">ze signal stop
 </code></pre>
 <p>After restart, confirm that peers negotiated GR, stale routes were retained only for the intended families, fresh routes replaced them, and no stale entries remain after End-of-RIB.</p>
-<h2 id="rib-persistence">RIB persistence</h2>
-<p>The <code>bgp-persist</code> plugin tracks outbound routes and can replay them after reconnect. It complements Graceful Restart but does not replace policy or best-path calculation. Persisted state must still be reconciled with the live configuration and destination peer.</p>
-<p>Use <code>show bgp rib status</code>, the peer RIB commands, and warning reports to confirm that replay completed. A reconnect should not trigger repeated full-table floods to unrelated peers.</p>
+<h2 id="rib-reconnect-replay">RIB reconnect replay</h2>
+<p>The mandatory <code>bgp-rib</code> plugin keeps sent history in process memory across peer
+disconnects. BGP loads it automatically, but replay still requires peer
+bindings that deliver received and sent UPDATEs, state and refresh events,
+and permit UPDATE sends. Source peers must feed received UPDATEs and state to
+the same RIB. The RIB restores only eligible history: source incarnation,
+received path and revision, native NLRI identity, and the captured Initial
+replay session must remain valid. It does not overwrite a route already
+accepted on the new session.</p>
+<p>This is not durable storage across daemon or RIB plugin restarts. Config-static
+routes come from the current configuration instead of old sent history.
+Operators migrating from the removed <code>bgp-persist</code> plugin must remove its
+instance and replace its peer bindings with RIB bindings; there is no config
+alias. See <a href="../plugins/#migrating-from-bgp-persist">migration instructions</a>.</p>
+<p>Use <code>show bgp rib status</code>, the peer RIB commands, warnings, and the receiving
+peer's routes to inspect replay results. A session-ready report means replay
+attempts finished, not that every historical route was delivered.</p>
+<!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigRoots -->
+<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- collectPeerUpReplay, replayRoutesWithCursor -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- checkInitialWrite, allow -->
 <h2 id="route-reflection">Route reflection</h2>
 <p>Route reflection replaces an iBGP full mesh with client and non-client relationships. Ze applies ORIGINATOR_ID and CLUSTER_LIST loop protection and retains ordinary import and export policy per destination.</p>
 <p>Design points:</p>
@@ -190,7 +207,7 @@ bgp {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

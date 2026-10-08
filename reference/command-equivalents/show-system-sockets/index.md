@@ -7,7 +7,7 @@ Show open TCP and UDP sockets on this box\.
 - Registry path: `show system sockets`
 - Usage: `show system sockets [protocol <tcp\|udp>] [state <state>] [port <port>]`
 - Mode: Read-only
-- Wire method: `ze-show:system-sockets`
+- Wire method: `ze-cmd:show-system-sockets`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

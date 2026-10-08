@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 3.3% | 1 of 30 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 30 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 30 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 57.6% | 49 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 54.1% | 46 of 85 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -227,8 +227,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 | negative | [`rfc6793-narrow-to-old-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-narrow-to-old-speaker.ci#L25) | functional/verify | revert, verified |
 | positive | [`TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc6793_originate_as4_test.go#L290) | unit/verify | revert, verified |
 | positive | [`TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc6793_originate_as4agg_new_test.go#L12) | unit/verify | revert, verified |
-| positive | [`rfc6793-no-as4aggregator-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci#L12) | functional/verify | revert, verified |
-| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29) | functional/verify | revert, verified |
+| positive | [`rfc6793-no-as4aggregator-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci#L12) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC6793-4.1-7`](#rfc6793-4.1-7)
 
@@ -240,7 +240,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 |---|---|---|---|
 | negative | [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L206) | unit/verify | revert, verified |
 | positive | [`TestRFC6793NewSpeakerAS4AttributesAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L532) | unit/verify | revert, verified |
-| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34) | functional/verify | revert, verified |
+| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC6793-4.2.1-1`](#rfc6793-4.2.1-1)
 

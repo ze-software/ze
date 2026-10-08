@@ -7,7 +7,7 @@ Quick health check for all your BGP peers\.
 - Registry path: `show bgp health`
 - Usage: `show bgp health`
 - Mode: Read-only
-- Wire method: `ze-show:bgp-health`
+- Wire method: `ze-bgp:show-health`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

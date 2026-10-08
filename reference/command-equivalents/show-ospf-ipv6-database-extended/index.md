@@ -7,7 +7,7 @@ Show the extended OSPFv3 LSAs \(RFC 8362\)\.
 - Registry path: `show ospf ipv6 database extended`
 - Usage: `show ospf ipv6 database extended`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database-extended`
+- Wire method: `ze-ospf:show-ospfv3-database-extended`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

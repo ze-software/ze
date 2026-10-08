@@ -97,7 +97,7 @@ checks needed for the current diff and is included in <code>./le verify current 
 </tr>
 <tr>
 <td><code>./le doc yang-contract command-contract</code></td>
-<td>Every YANG <code>ze:command</code> has a registered handler</td>
+<td>Every YANG <code>ze:command</code> and every published <code>-api</code> rpc has a registered handler, every handler has a node, and every handler's method carries the prefix its registering package owns, as does every node no builtin handler serves, judged by the package that registered its module</td>
 </tr>
 <tr>
 <td><code>./le doc yang-contract usage-contract</code></td>
@@ -248,16 +248,25 @@ Registered handlers: 69
 
 ## YANG commands with no handler (30)
 
-  ze-show:bgp-decode  (show &gt; bgp &gt; decode in ze-bgp-tools-cmd)
+  ze-bgp:show-decode  (show &gt; bgp &gt; decode in ze-bgp-tools-cmd)
   ...
 
 ## Handlers with no YANG command (0)
+...
+FAILED: 30 problem(s)
 </code></pre>
-<p>Two-direction check. Both directions are contract bugs:</p>
+<p>Each section it prints is a contract bug, and each one fails the run:</p>
 <ul>
 <li>YANG declares a command but no Go code registered an RPC or local handler -&gt; dead command</li>
 <li>RPC handler registered but YANG doesn't declare it -&gt; command unreachable from CLI</li>
+<li>A local handler (<code>registry.MustRegisterLocal*</code>) whose path no YANG command node declares -&gt; command missing from the tree</li>
+<li>An rpc whose published wire method no handler serves -&gt; <code>ze schema methods</code> and <code>ze help ai --json</code> publish a method the daemon answers with "unknown method". The method is the one <code>yang.PublishedRPCs</code> gives it: the <code>ze:command</code> method of the node whose <code>ze:rpc</code> points at it. An rpc no node points at, and that declares no <code>ze:method</code>, is published under no name and is named as "(no ze:command node points at it)". The row names the wire method, the rpc and the module</li>
+<li>A wire method under a prefix its package does not own -&gt; two subsystems can then spell one method, and the clash is found only when the daemon refuses to start (<code>ErrWireMethodHeld</code>). The prefix a package owns is <code>pluginserver.OwnerPrefix</code> of the package that called <code>RegisterRPCs</code>: <code>ze-</code> and the directory directly under <code>internal/component/</code> or <code>internal/plugins/</code>, <code>-cmd</code> dropped (<code>docs/architecture/api/wire-format.md</code>, "Method Naming"). The row names the method, the registering package and the prefix it owns; rename the method in the <code>ze:command</code> node and the <code>WireMethod</code> literal together. A node no builtin handler serves is judged by the package that called <code>RegisterModule</code> for its module, and its row names that module</li>
 </ul>
+<!-- source: internal/le/doc/yangcontract/contract.go -- foreignPrefixes, foreignCommandPrefixes -->
+<p>A run that loads no <code>-api</code> module is an error rather than a pass, because it
+judged no declaration.</p>
+<!-- source: internal/le/doc/yangcontract/contract.go -- contractSatisfied, publishedRPCs, unservedRPCs -->
 <h3 id="le-doc-yang-contract-help-shape"><code>./le doc yang-contract help-shape</code></h3>
 <pre><code># Command Help Shape
 
@@ -298,7 +307,8 @@ Config nodes with a broken summary: 11
 </code></pre>
 <p>The gate walks FOUR corpora. A <code>-cmd.yang</code> node declares the CLI path an
 operator types. An <code>-api.yang</code> rpc declares the wire method that path reaches,
-and the plugin IPC modules in <code>internal/core/ipc/yang/</code> declare 22 more. Every
+and the plugin IPC modules in <code>internal/core/ipc/yang/</code> declare 28 more, each
+with its own <code>ze:method</code>. Every
 loaded module is walked, so a module whose name carries no <code>-api</code> suffix is
 judged with the rest. An offline local command declares its help in a
 <code>registry.Meta</code> beside its handler and reaches no YANG module at all, and
@@ -706,7 +716,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

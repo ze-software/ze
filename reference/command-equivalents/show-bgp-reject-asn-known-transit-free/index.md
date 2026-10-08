@@ -7,7 +7,7 @@ Print the curated transit\-free ASNs as a config block\.
 - Registry path: `show bgp reject-asn known transit-free`
 - Usage: `show bgp reject-asn known transit-free`
 - Mode: Read-only
-- Wire method: `ze-show:reject-asn-known-transit-free`
+- Wire method: `ze-bgp:show-reject-asn-known-transit-free`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

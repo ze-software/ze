@@ -7,7 +7,7 @@ Show how much memory the daemon is using\, from the OS\'s view\.
 - Registry path: `show system memory`
 - Usage: `show system memory`
 - Mode: Read-only
-- Wire method: `ze-show:system-memory-map`
+- Wire method: `ze-cmd:show-system-memory-map`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show IS\-IS\-computed routes\.
 - Registry path: `show isis route`
 - Usage: `show isis route`
 - Mode: Read-only
-- Wire method: `ze-show:isis-route`
+- Wire method: `ze-isis:show-route`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `ipv6`

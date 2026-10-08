@@ -7,7 +7,7 @@ Show only link\-local \(S2\/S1 \= 00\) LSAs\, including the per\-interface Link\
 - Registry path: `show ospf ipv6 database scope link`
 - Usage: `show ospf ipv6 database scope link`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database-scope-link`
+- Wire method: `ze-ospf:show-ospfv3-database-scope-link`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

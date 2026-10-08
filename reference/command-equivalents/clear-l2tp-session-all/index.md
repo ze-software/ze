@@ -7,7 +7,7 @@ Disconnect every L2TP session on this box\.
 - Registry path: `clear l2tp session all`
 - Usage: `clear l2tp session all`
 - Mode: Daemon
-- Wire method: `ze-l2tp-api:session-teardown-all`
+- Wire method: `ze-l2tp:session-teardown-all`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

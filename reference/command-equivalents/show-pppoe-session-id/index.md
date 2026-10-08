@@ -7,7 +7,7 @@ Show full detail for one PPPoE session\.
 - Registry path: `show pppoe session id`
 - Usage: `show pppoe session id <id>`
 - Mode: Read-only
-- Wire method: `ze-pppoe-api:session`
+- Wire method: `ze-l2tp:pppoe-session`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

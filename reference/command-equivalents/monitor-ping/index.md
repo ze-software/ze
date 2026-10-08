@@ -7,7 +7,7 @@ Continuous ping with live loss and RTT statistics\.
 - Registry path: `monitor ping`
 - Usage: `monitor ping`
 - Mode: Read-only
-- Wire method: `ze-monitor:ping`
+- Wire method: `ze-ping:monitor-ping`
 - Backends: any backend
 - Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand

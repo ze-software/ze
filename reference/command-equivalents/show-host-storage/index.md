@@ -7,7 +7,7 @@ Show storage devices attached to this box\.
 - Registry path: `show host storage`
 - Usage: `show host storage`
 - Mode: Read-only
-- Wire method: `ze-show:host-storage`
+- Wire method: `ze-host:show-storage`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

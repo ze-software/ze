@@ -7,7 +7,7 @@ Show how many file descriptors the daemon has open\.
 - Registry path: `show system file-descriptors`
 - Usage: `show system file-descriptors [mode <summary\|detail>]`
 - Mode: Read-only
-- Wire method: `ze-show:system-file-descriptors`
+- Wire method: `ze-cmd:show-system-file-descriptors`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

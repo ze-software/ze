@@ -5,8 +5,9 @@ Clear the default debug profile\.
 ## Ze command
 
 - Registry path: `clear debug`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `clear debug`
+- Mode: Daemon
+- Wire method: `ze-debug:clear-debug`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -20,7 +21,7 @@ Clear the default debug profile\.
 - Command pipes: none
 - Pipe aliases: none
 
-It writes an empty profile into the default slot AND applies it\, so the stored default and the running daemon both stop\. A named profile is not touched\.
+It writes an empty profile into the default slot and applies it\, so the stored default and the running daemon both stop\. A named profile is not touched\.
 
 ## Arguments
 

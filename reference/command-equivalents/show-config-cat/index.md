@@ -7,7 +7,7 @@ Print the full text of a stored configuration snapshot\.
 - Registry path: `show config cat`
 - Usage: `show config cat <id>`
 - Mode: Read-only
-- Wire method: `ze-show:config-cat`
+- Wire method: `ze-config-cli:show-config-cat`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

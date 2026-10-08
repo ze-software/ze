@@ -1,6 +1,6 @@
 # Plugin catalog
 
-94 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 75 ship YANG modules.
+93 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 75 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -40,7 +40,6 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 | [`bgp-hostname`](bgp-hostname/index.md) | FQDN capability decoding | `bgp` | `bgp` | `internal/component/bgp/plugins/hostname` |
 | [`bgp-llnh`](bgp-llnh/index.md) | Link-Local Next-Hop capability plugin | `bgp` | `bgp` | `internal/component/bgp/plugins/llnh` |
 | [`bgp-ls-export`](bgp-ls-export/index.md) | Export native routing databases through BGP-LS | `bgp-ls-export` | `bgp-nlri-ls` | `internal/component/bgp/plugins/ls_export` |
-| [`bgp-persist`](bgp-persist/index.md) | Route Persistence | None | None | `internal/component/bgp/plugins/persist` |
 | [`bgp-rib`](bgp-rib/index.md) | Route Information Base storage | `bgp` | None | `internal/component/bgp/plugins/rib` |
 | [`bgp-role`](bgp-role/index.md) | RFC 9234 BGP Role capability | `bgp` | `bgp` | `internal/component/bgp/plugins/role` |
 | [`bgp-route-refresh`](bgp-route-refresh/index.md) | Route Refresh capability decoding | `bgp` | `bgp` | `internal/component/bgp/plugins/route_refresh` |

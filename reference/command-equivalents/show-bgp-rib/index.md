@@ -7,7 +7,7 @@ Query routes in the BGP RIB\.
 - Registry path: `show bgp rib`
 - Usage: `show bgp rib`
 - Mode: Read-only
-- Wire method: `ze-rib-api:routes`
+- Wire method: `ze-bgp:rib-routes`
 - Backends: any backend
 - Task support: required: the MCP server always answers with a task handle
 - Subcommands: `best`, `protocol`, `rpf`, `status`

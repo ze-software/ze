@@ -7,7 +7,7 @@ Decode each link\-local opaque LSA body \(RFC 5250\)\.
 - Registry path: `show ospf database opaque-link detail`
 - Usage: `show ospf database opaque-link detail`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-opaque-link-detail`
+- Wire method: `ze-ospf:show-database-opaque-link-detail`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

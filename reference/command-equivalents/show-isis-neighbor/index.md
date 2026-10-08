@@ -7,7 +7,7 @@ Show IS\-IS adjacencies\.
 - Registry path: `show isis neighbor`
 - Usage: `show isis neighbor`
 - Mode: Read-only
-- Wire method: `ze-show:isis-neighbor`
+- Wire method: `ze-isis:show-neighbor`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Find your worst L2TP sessions at a glance\.
 - Registry path: `show l2tp health`
 - Usage: `show l2tp health`
 - Mode: Read-only
-- Wire method: `ze-show:l2tp-health`
+- Wire method: `ze-l2tp:show-health`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

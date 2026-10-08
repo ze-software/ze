@@ -7,7 +7,7 @@ Check if a firmware update is available\.
 - Registry path: `show system update`
 - Usage: `show system update`
 - Mode: Read-only
-- Wire method: `ze-show:system-update`
+- Wire method: `ze-update:show-system-update`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `history`

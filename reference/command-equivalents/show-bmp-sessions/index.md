@@ -7,7 +7,7 @@ Show active BMP receiver sessions\.
 - Registry path: `show bmp sessions`
 - Usage: `show bmp sessions`
 - Mode: Read-only
-- Wire method: `ze-show:bmp-sessions`
+- Wire method: `ze-bgp:show-bmp-sessions`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

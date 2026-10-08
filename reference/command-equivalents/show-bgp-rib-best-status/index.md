@@ -7,7 +7,7 @@ Check whether best\-path computation is still running\.
 - Registry path: `show bgp rib best status`
 - Usage: `show bgp rib best status`
 - Mode: Read-only
-- Wire method: `ze-rib-api:best-status`
+- Wire method: `ze-bgp:rib-best-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

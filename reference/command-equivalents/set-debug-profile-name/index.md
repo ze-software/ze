@@ -5,8 +5,9 @@ Save the current debug state as a named profile\.
 ## Ze command
 
 - Registry path: `set debug profile name`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `set debug profile name <profile-name>`
+- Mode: Daemon
+- Wire method: `ze-debug:set-profile-name`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -20,11 +21,13 @@ Save the current debug state as a named profile\.
 - Command pipes: none
 - Pipe aliases: none
 
-It copies what the daemon is writing NOW into a named slot\. The default slot is left as it is\, so saving a profile does not change what the running daemon logs\.
+It copies what the daemon is writing now into a named slot\. The default slot is left as it is\, so saving a profile does not change what the running daemon logs\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `profile-name` | string | yes | any value of this type | Profile name\. | The slot the current state is saved under\. |
 
 ## Mapping intents
 

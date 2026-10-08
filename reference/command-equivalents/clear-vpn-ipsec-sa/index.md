@@ -7,7 +7,7 @@ Tear down IKE Security Associations\.
 - Registry path: `clear vpn ipsec sa`
 - Usage: `clear vpn ipsec sa`
 - Mode: Daemon
-- Wire method: `ze-clear:vpn-ipsec-sa`
+- Wire method: `ze-ike:clear-vpn-ipsec-sa`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

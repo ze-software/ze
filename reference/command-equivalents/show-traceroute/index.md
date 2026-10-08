@@ -7,7 +7,7 @@ Trace the network path from this router to a target\.
 - Registry path: `show traceroute`
 - Usage: `show traceroute [dest <dest>] [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache\|bypass-cache>]`
 - Mode: Read-only
-- Wire method: `ze-show:traceroute`
+- Wire method: `ze-traceroute:show-traceroute`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

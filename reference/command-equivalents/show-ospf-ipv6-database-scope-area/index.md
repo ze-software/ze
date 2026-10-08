@@ -7,7 +7,7 @@ Show only area\-scope \(S2\/S1 \= 01\) LSAs\.
 - Registry path: `show ospf ipv6 database scope area`
 - Usage: `show ospf ipv6 database scope area`
 - Mode: Read-only
-- Wire method: `ze-show:ospfv3-database-scope-area`
+- Wire method: `ze-ospf:show-ospfv3-database-scope-area`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

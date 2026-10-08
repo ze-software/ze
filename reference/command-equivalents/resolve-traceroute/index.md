@@ -7,7 +7,7 @@ Traceroute from the router with optional source binding\.
 - Registry path: `resolve traceroute`
 - Usage: `resolve traceroute <target> [source <source>] [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache\|bypass-cache>]`
 - Mode: Read-only
-- Wire method: `ze-resolve:traceroute`
+- Wire method: `ze-traceroute:resolve-traceroute`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

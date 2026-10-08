@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4659 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 18 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4659 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 18 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4659 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 18 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,27 +117,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>12.5%</strong><b>2 of 16 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.5%</strong><b>2 of 16 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.1%</strong><b>8 of 14 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>11.1%</strong><b>2 of 18 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>2 of 18 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>60.0%</strong><b>9 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>16</strong><b>of 22 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>9</strong><b>of 16 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>56.2%</strong><b>9 of 16 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>18</strong><b>of 24 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>9</strong><b>of 18 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>50.0%</strong><b>9 of 18 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.8%</strong><b>3 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.8%</strong><b>5 of 18 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 18 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -209,16 +209,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>22</td>
+<td>24</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>9</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>3</td>
+<td>5</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -230,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>14</td>
+<td>15</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>14</td>
+<td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>4</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4659.md</code></td>
@@ -255,14 +255,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): 2 MET (labeled VPNv6 NLRI, AFI2/SAFI128 capability negotiation) + 2 single-polarity positive (AFI/SAFI set, 24-octet zero-RD global-IPv6 next-hop) + 3 gap (IPv4-mapped-IPv6 next-hop, 48-octet global+link-local next-hop) + 9 not-applicable (data-plane PE tunneling + multi-AS ASBR)</p>
+<p>Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128 capability negotiation, and single-polarity AFI/SAFI and zero-RD global-IPv6 next-hop emission. IPv4-mapped-IPv6 and global-plus-link-local next-hop gaps remain explicit; data-plane PE tunneling and multi-AS ASBR scope boundaries are retained. Newly separated requirements and the widened next-hop quotation require independent judgment, not inherited conformance.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 VPNv6 NLRI (RD + MPLS label + IPv6 prefix) encode/decode, AFI=2/SAFI=128 capability negotiation, and the zero-RD + global-IPv6 24-octet next-hop.
-<p><strong>What the ledger says remains:</strong></p>
-No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a>, 8-4); no 48-octet global+link-local next-hop (<a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a>). Data-plane PE tunneling (Section 4) and multi-AS ASBR options (Section 8 a/b) are not performed.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a>, <a href="#rfc4659-8-4"><code>RFC4659-8-4</code></a>); no 48-octet global+link-local next-hop or common-subnet iff decision (<a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a>, <a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a>). Data-plane PE tunneling (Section 4) and multi-AS ASBR options (Section 8 a/b) are not performed. <a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a> separately records option-(b) IPv6 transport next-hop placement with an absent-path gap and pending independent applicability disposition. The widened <a href="#rfc4659-3.2.1.1-1"><code>RFC4659-3.2.1.1-1</code></a> requires whole-row rejudgment; the link-local-only unspecified-global exception remains.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -274,7 +275,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>14</strong></td>
+<td><strong>16</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -297,12 +298,12 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>16</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>18</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc4659-3.2-1"><code>RFC4659-3.2-1</code></a>, <a href="#rfc4659-3.4-1"><code>RFC4659-3.4-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (14):</strong> <a href="#rfc4659-3.2-2"><code>RFC4659-3.2-2</code></a>, <a href="#rfc4659-4-1"><code>RFC4659-4-1</code></a>, <a href="#rfc4659-4-2"><code>RFC4659-4-2</code></a>, <a href="#rfc4659-4-3"><code>RFC4659-4-3</code></a>, <a href="#rfc4659-4-4"><code>RFC4659-4-4</code></a>, <a href="#rfc4659-4-5"><code>RFC4659-4-5</code></a>, <a href="#rfc4659-4-6"><code>RFC4659-4-6</code></a>, <a href="#rfc4659-4-7"><code>RFC4659-4-7</code></a>, <a href="#rfc4659-8-1"><code>RFC4659-8-1</code></a>, <a href="#rfc4659-8-2"><code>RFC4659-8-2</code></a>, <a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a>, <a href="#rfc4659-3.2.1.1-1"><code>RFC4659-3.2.1.1-1</code></a>, <a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a>, <a href="#rfc4659-8-4"><code>RFC4659-8-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (16):</strong> <a href="#rfc4659-3.2-2"><code>RFC4659-3.2-2</code></a>, <a href="#rfc4659-4-1"><code>RFC4659-4-1</code></a>, <a href="#rfc4659-4-2"><code>RFC4659-4-2</code></a>, <a href="#rfc4659-4-3"><code>RFC4659-4-3</code></a>, <a href="#rfc4659-4-4"><code>RFC4659-4-4</code></a>, <a href="#rfc4659-4-5"><code>RFC4659-4-5</code></a>, <a href="#rfc4659-4-6"><code>RFC4659-4-6</code></a>, <a href="#rfc4659-4-7"><code>RFC4659-4-7</code></a>, <a href="#rfc4659-8-1"><code>RFC4659-8-1</code></a>, <a href="#rfc4659-8-2"><code>RFC4659-8-2</code></a>, <a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a>, <a href="#rfc4659-3.2.1.1-1"><code>RFC4659-3.2.1.1-1</code></a>, <a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a>, <a href="#rfc4659-8-4"><code>RFC4659-8-4</code></a>, <a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a>, <a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -434,11 +435,12 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s VPNv6 next-hop encoder emits only the single global-IPv6 24-octet form and never the 48-octet global+link-local next-hop, so the shared-subnet clause is unmet (internal/component/bgp/message/update_build_vpn.go:229; no 48-octet producer exists)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-1">RFC4659-3.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address (Section 3.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-1">RFC4659-3.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is set to the global IPv6 address of the advertising BGP speaker. (§3.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3.2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-3.2.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40" title="internal/component/bgp/reactor/rfc4659_link_local_peering_test.go" target="_blank" rel="noopener"><code>TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestUpdateBuilder_BuildVPN_IPv6_NextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to EMIT a 24-octet zero-RD + global-IPv6 next-hop, which ze produces for a VPNv6 route with an IPv6 next-hop; the decode side is not RD-aware and is not a gated obligation (internal/component/bgp/message/update_build_vpn.go:246, internal/component/bgp/rib/commit.go:498)</p></td>
@@ -461,6 +463,15 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-8-5">RFC4659-8-5</code></td><td colspan="3"><span class="rfc-subject">When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-8-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the option-(b) inter-ASBR redistribution path with an operator-selected IPv6 transport policy is absent under the existing ASBR scope boundary; buildMPReachVPN only encodes a supplied next-hop address and does not provide that path. Applicability and the producer boundary still require independent disposition; no ASBR feature is commissioned.</p></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-2">RFC4659-3.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop. (§3.2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
@@ -469,6 +480,15 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-3">RFC4659-3.2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>3.2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-3.2.1.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> buildMPReachVPN in internal/component/bgp/message/update_build_vpn.go has no 48-octet global-plus-link-local encoder or common-subnet emission decision; the iff behavior remains unmet.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-1-1">RFC4659-1-1</code></td><td colspan="3"><span class="rfc-subject">Where both IPv4 VPNs and IPv6 VPN services are supported over an IPv4 core, the same single set of MP-BGP peering relationships and the same single PE-PE tunnel mesh MAY be used for both. (§1)</span></td></tr>
 <tr><td></td>
@@ -571,6 +591,14 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <tr><td><a href="#rfc4659-8-4"><code>RFC4659-8-4</code></a> When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8)</td>
 <td>{gap}, no test</td>
 <td>the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer)</td>
+</tr>
+<tr><td><a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a> When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)</td>
+<td>{gap}, no test</td>
+<td>the option-(b) inter-ASBR redistribution path with an operator-selected IPv6 transport policy is absent under the existing ASBR scope boundary; buildMPReachVPN only encodes a supplied next-hop address and does not provide that path. Applicability and the producer boundary still require independent disposition; no ASBR feature is commissioned.</td>
+</tr>
+<tr><td><a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a> The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1)</td>
+<td>{gap}, no test</td>
+<td>buildMPReachVPN in internal/component/bgp/message/update_build_vpn.go has no 48-octet global-plus-link-local encoder or common-subnet emission decision; the iff behavior remains unmet.</td>
 </tr>
 </tbody>
 </table>
@@ -714,8 +742,8 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-8-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-3.2.1.1-1"><code>RFC4659-3.2.1.1-1</code></a></h3>
-<p>When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address (Section 3.2.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.</p>
+<p>When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is set to the global IPv6 address of the advertising BGP speaker. (§3.2.1.1)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-requirement. Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -724,6 +752,11 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestUpdateBuilder_BuildVPN_IPv6_NextHop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40" title="internal/component/bgp/reactor/rfc4659_link_local_peering_test.go" target="_blank" rel="noopener"><code>TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -736,6 +769,14 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <p>When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4659-8-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a></h3>
+<p>When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4659-8-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a></h3>
+<p>The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4659-3.2.1.1-3, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -974,7 +1015,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

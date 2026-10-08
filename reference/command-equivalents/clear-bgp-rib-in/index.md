@@ -7,7 +7,7 @@ Remove all routes received from a peer\.
 - Registry path: `clear bgp rib in`
 - Usage: `clear bgp rib in`
 - Mode: Daemon
-- Wire method: `ze-rib-api:clear-in`
+- Wire method: `ze-bgp:rib-clear-in`
 - Backends: any backend
 - Task support: forbidden: the MCP server never answers with a task handle
 - Subcommands: none: this command takes no subcommand

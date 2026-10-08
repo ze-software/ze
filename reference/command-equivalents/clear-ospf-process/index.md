@@ -7,7 +7,7 @@ Full OSPF reset\: tear down every adjacency and re\-run SPF\.
 - Registry path: `clear ospf process`
 - Usage: `clear ospf process`
 - Mode: Daemon
-- Wire method: `ze-clear:ospf-process`
+- Wire method: `ze-ospf:clear-process`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show kernel log messages \(dmesg\-style\)\.
 - Registry path: `show system kernel-log`
 - Usage: `show system kernel-log [level <emerg\|alert\|crit\|err\|warning\|notice\|info\|debug>] [count <count>]`
 - Mode: Read-only
-- Wire method: `ze-show:system-kernel-log`
+- Wire method: `ze-host:show-system-kernel-log`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

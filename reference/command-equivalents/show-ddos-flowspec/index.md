@@ -7,7 +7,7 @@ Show the upstream FlowSpec and RTBH DDoS mitigation status\.
 - Registry path: `show ddos flowspec`
 - Usage: `show ddos flowspec`
 - Mode: Read-only
-- Wire method: `ze-show:ddos-flowspec`
+- Wire method: `ze-ddos:show-flowspec`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

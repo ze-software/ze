@@ -7,7 +7,7 @@ Show the recent behavioral anomaly incidents\.
 - Registry path: `show anomaly detect`
 - Usage: `show anomaly detect`
 - Mode: Read-only
-- Wire method: `ze-show:anomaly`
+- Wire method: `ze-anomaly:show-anomaly`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

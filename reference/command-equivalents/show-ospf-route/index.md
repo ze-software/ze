@@ -7,7 +7,7 @@ Show OSPF\-computed routes\.
 - Registry path: `show ospf route`
 - Usage: `show ospf route`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-route`
+- Wire method: `ze-ospf:show-route`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `fast-reroute`

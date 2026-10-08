@@ -7,7 +7,7 @@ Reset DNS cache hit\, miss\, eviction\, and expiry counters without removing cac
 - Registry path: `clear dns cache stats`
 - Usage: `clear dns cache stats`
 - Mode: Daemon
-- Wire method: `ze-clear:dns-cache-stats`
+- Wire method: `ze-resolve:clear-dns-cache-stats`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Choose sync or async event delivery\.
 - Registry path: `plugin ack`
 - Usage: `plugin ack`
 - Mode: Read-only
-- Wire method: `ze-bgp:plugin-ack`
+- Wire method: `ze-meta:bgp-plugin-ack`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

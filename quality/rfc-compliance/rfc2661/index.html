@@ -261,10 +261,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-<ul class="rfc-prose">
-<li>LNS/LAC tunnel lifecycle (answerer and **initiator**: ze dials SCCRQ, verifies SCCRP, sends SCCCN), AVP codec, hidden-AVP MD5 codec (present but not wired into message encode/decode), challenge/response, reliable control channel, HELLO, StopCCN, data sessions, **LNS-side outgoing call (OCRQ/OCRP/OCCN) via <code>request l2tp outgoing-call</code>**, dial-target config, LAC PPPoE→L2TP relay (control plane). &lt;!-- source: <a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator.go" target="_blank" rel="noopener"><code>internal/component/l2tp/tunnel_initiator.go</code></a> -- initiate/handleSCCRP</li>
-<li><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_initiator.go" target="_blank" rel="noopener"><code>internal/component/l2tp/session_initiator.go</code></a> -- placeOutgoingCall/handleOCRP --&gt;</li>
-</ul>
+LNS/LAC tunnel lifecycle (answerer and <strong>initiator</strong>: ze dials SCCRQ, verifies SCCRP, sends SCCCN), AVP codec, hidden-AVP MD5 codec (present but not wired into message encode/decode), challenge/response, reliable control channel, HELLO, StopCCN, data sessions, <strong>LNS-side outgoing call (OCRQ/OCRP/OCCN) via <code>request l2tp outgoing-call</code></strong>, dial-target config, LAC PPPoE→L2TP relay (control plane).
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and one SHOULD row because the retransmit count is not configurable. The hidden-AVP MD5 codec is not wired into message encoding or decoding, so Random Vector precedence is not enforced. The existing proxy-authentication and new-AVP specs describe conditional features that have not been selected or declined. Control-plane tests exercise tunnel/session establishment, mandatory AVPs, header fields and unknown mandatory Message Types. Linux-boundary tests check session-setup timing, sequencing/LNS-mode flags and UDP checksum settings; they do not by themselves demonstrate kernel sequence adaptation or PPP data-plane forwarding. LNS/LAC interoperability, the LAC bridge and kernel behavior still need the corresponding privileged interop/QEMU runs before this batch is reported verified.
@@ -4073,7 +4070,7 @@ Partial. Ten MUST and SHOULD rows carry {gap}: nine of them at MUST level, and o
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

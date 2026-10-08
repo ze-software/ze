@@ -7,7 +7,7 @@ Show flow export \(NetFlow\/IPFIX\) collector status\.
 - Registry path: `show flow export`
 - Usage: `show flow export [name <name>]`
 - Mode: Read-only
-- Wire method: `ze-show:flow-export`
+- Wire method: `ze-flowexport:show-flow-export`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

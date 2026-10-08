@@ -7,7 +7,7 @@ One\-line summary per interface\: name\, state\, IP\, and MTU\.
 - Registry path: `show interface brief`
 - Usage: `show interface brief`
 - Mode: Read-only
-- Wire method: `ze-show:interface-brief`
+- Wire method: `ze-iface:show-interface-brief`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Start receiving events of one or more types\.
 - Registry path: `request subscribe`
 - Usage: `request subscribe`
 - Mode: Daemon
-- Wire method: `ze-bgp:subscribe`
+- Wire method: `ze-cmd:bgp-subscribe`
 - Backends: any backend
 - Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand

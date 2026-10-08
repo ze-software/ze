@@ -7,7 +7,7 @@ Show what each configured domain group\'s DNS names resolve to\.
 - Registry path: `show firewall domain-group`
 - Usage: `show firewall domain-group [name <name>]`
 - Mode: Read-only
-- Wire method: `ze-show:firewall-domain-group-status`
+- Wire method: `ze-firewall:show-domain-group-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

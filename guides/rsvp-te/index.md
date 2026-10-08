@@ -7,11 +7,24 @@ requires `CAP_NET_RAW`.
 > **Status: experimental.** The engine emits push/swap/pop entries on the
 > `mpls-fib` event bus. `fib-kernel` installs IP routes with labels for push and
 > AF_MPLS routes for swap/pop. The native Linux carrier exercises these paths
-> with three Ze daemons. Independent-peer coverage is limited to freeRouter
-> ingress with Ze egress, as described below. These checks do not establish
-> complete RFC conformance. Use for evaluation, not production forwarding.
+> with three Ze daemons. Independent-peer coverage is freeRouter only, in the
+> Docker suite `./le test integration interop-rsvpte`, where a Ze transit
+> expands a loose hop, forwards a strict hop and refuses an outside strict hop
+> with PathErr 24/2, and freeRouter parses and relays the PATH, PathErr,
+> ResvErr and ResvTear Ze originates to another Ze node. The Linux carrier
+> below (freeRouter ingress, Ze egress) is a manual check with no recorded
+> pass. freeRouter names its configured hops loose and prepends one strict hop
+> for its own next hop, but it routes each hop without reading the strict bit,
+> so it does not enforce strict hops itself. The strict-hop scenarios prove it
+> accepts and relays what Ze sends, not that it agrees on strict-hop
+> validation. Two scenarios turn on a knob of a test-only freeRouter patch
+> (`test/interop-rsvpte/freertr/ze-interop-resv.patch`). These checks do not
+> establish complete RFC conformance. Use for evaluation, not production
+> forwarding.
 
 <!-- source: internal/plugins/rsvpte/producer_integration_linux_test.go -- TestRSVPNativeProducer -->
+<!-- source: internal/le/interoplab/rsvpte/checkers.go -- the interop-rsvpte scenarios and what each peer observes -->
+<!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the test-only freeRouter RESV knobs -->
 
 ## Configuration
 
@@ -246,7 +259,11 @@ make-before-break, admission/preemption or complete RFC conformance.
 The source pin is freeRouter commit
 [`6c295d8ae79c834ef631d3d21d373c335fb05328`](https://github.com/mc36/freeRtr/tree/6c295d8ae79c834ef631d3d21d373c335fb05328).
 `test/interop-rsvpte/Dockerfile.freertr` compiles the upstream Java sources for
-Java 21 and builds `misc/iface/tapInt.c` with static musl linkage. The exported
+Java 21 and builds `misc/iface/tapInt.c` and `misc/iface/rawInt.c` with static
+musl linkage. Its `export` stage is the directory this carrier copies into a
+guest. Its default stage is the peer image of the Docker transit suite,
+`./le test integration interop-rsvpte`, which needs no root and is described in
+`docs/architecture/testing/interop.md`, "The freeRouter RSVP-TE suite". The exported
 directory includes the source archive and upstream CC BY-SA 4.0 notice; these
 must remain with redistributed artifacts.
 
@@ -255,7 +272,7 @@ From the repository root:
 ```sh
 scratch=$(./le session scratch ensure)
 CGO_ENABLED=0 ./le --name rsvp-peer job run label rsvp-peer-build command \
-  docker build -f test/interop-rsvpte/Dockerfile.freertr \
+  docker build -f test/interop-rsvpte/Dockerfile.freertr --target export \
   --output "type=local,dest=$scratch/rsvp-freertr" test/interop-rsvpte
 
 CGO_ENABLED=0 ./le --name rsvp-peer job run label rsvp-carrier-build command \

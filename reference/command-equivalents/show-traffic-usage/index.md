@@ -7,7 +7,7 @@ Show per\-interface traffic byte counters captured by eBPF TCX\.
 - Registry path: `show traffic usage`
 - Usage: `show traffic usage [name <name>]`
 - Mode: Read-only
-- Wire method: `ze-show:traffic-usage`
+- Wire method: `ze-trafficusage:show-traffic-usage`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Tear down every L2TP tunnel on this box\.
 - Registry path: `clear l2tp tunnel all`
 - Usage: `clear l2tp tunnel all`
 - Mode: Daemon
-- Wire method: `ze-l2tp-api:tunnel-teardown-all`
+- Wire method: `ze-l2tp:tunnel-teardown-all`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

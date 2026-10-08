@@ -7,7 +7,7 @@ Show recent log entries from the in\-memory ring\.
 - Registry path: `show log recent`
 - Usage: `show log recent [level <disabled\|debug\|info\|warn\|err>] [component <component>] [count <count>]`
 - Mode: Read-only
-- Wire method: `ze-bgp:log-recent`
+- Wire method: `ze-log:bgp-log-recent`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Withdraw a route from the Adj\-RIB\-In\.
 - Registry path: `request bgp rib withdraw`
 - Usage: `request bgp rib withdraw`
 - Mode: Daemon
-- Wire method: `ze-rib-api:withdraw`
+- Wire method: `ze-bgp:rib-withdraw`
 - Backends: any backend
 - Task support: forbidden: the MCP server never answers with a task handle
 - Subcommands: none: this command takes no subcommand

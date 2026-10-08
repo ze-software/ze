@@ -7,7 +7,7 @@ Show OSPF virtual links \(RFC 2328 section 15\)\.
 - Registry path: `show ospf virtual-links`
 - Usage: `show ospf virtual-links`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-virtual-links`
+- Wire method: `ze-ospf:show-virtual-links`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

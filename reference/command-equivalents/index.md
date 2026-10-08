@@ -67,7 +67,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear bgp healthcheck` | Daemon | - | - | - | - | [details](clear-bgp-healthcheck/) |
 | `clear bgp rib in` | Daemon | - | - | - | - | [details](clear-bgp-rib-in/) |
 | `clear bgp rib out` | Daemon | - | - | - | - | [details](clear-bgp-rib-out/) |
-| `clear debug` | Offline | - | - | - | - | [details](clear-debug/) |
+| `clear debug` | Daemon | - | - | - | - | [details](clear-debug/) |
 | `clear dns cache` | Daemon | - | - | - | - | [details](clear-dns-cache/) |
 | `clear dns cache record` | Daemon | - | - | - | - | [details](clear-dns-cache-record/) |
 | `clear dns cache stats` | Daemon | - | - | - | - | [details](clear-dns-cache-stats/) |
@@ -117,8 +117,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
 | `delete bgp peer` | Daemon | - | - | - | - | [details](delete-bgp-peer/) |
-| `delete debug module` | Offline | - | - | - | - | [details](delete-debug-module/) |
-| `delete debug profile name` | Offline | - | - | - | - | [details](delete-debug-profile-name/) |
+| `delete debug module` | Daemon | - | - | - | - | [details](delete-debug-module/) |
+| `delete debug profile name` | Daemon | - | - | - | - | [details](delete-debug-profile-name/) |
 | `delete interface name` | Daemon | - | - | - | - | [details](delete-interface-name/) |
 | `delete interface name address` | Daemon | - | - | - | - | [details](delete-interface-name-address/) |
 | `delete interface name unit` | Daemon | - | - | - | - | [details](delete-interface-name-unit/) |
@@ -133,13 +133,13 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
-| `explain` | Offline | - | - | - | - | [details](explain/) |
+| `explain` | Daemon | - | - | - | - | [details](explain/) |
 
 ### generate
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
-| `generate wireguard keypair` | Offline | - | - | - | - | [details](generate-wireguard-keypair/) |
+| `generate wireguard keypair` | Daemon | - | - | - | - | [details](generate-wireguard-keypair/) |
 
 ### help
 
@@ -270,10 +270,10 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
-| `set debug active name` | Offline | - | - | - | - | [details](set-debug-active-name/) |
-| `set debug module` | Offline | - | - | - | - | [details](set-debug-module/) |
-| `set debug profile name` | Offline | - | - | - | - | [details](set-debug-profile-name/) |
-| `set debug timeout` | Offline | - | - | - | - | [details](set-debug-timeout/) |
+| `set debug active name` | Daemon | - | - | - | - | [details](set-debug-active-name/) |
+| `set debug module` | Daemon | - | - | - | - | [details](set-debug-module/) |
+| `set debug profile name` | Daemon | - | - | - | - | [details](set-debug-profile-name/) |
+| `set debug timeout` | Daemon | - | - | - | - | [details](set-debug-timeout/) |
 | `set sysctl` | Daemon | - | - | - | - | [details](set-sysctl/) |
 | `set system file-descriptors` | Daemon | - | - | - | - | [details](set-system-file-descriptors/) |
 
@@ -346,7 +346,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show config diff` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-diff/) |
 | `show config dump` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-dump/) |
 | `show config fmt` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-fmt/) |
-| `show config graph` | Offline | - | - | - | - | [details](show-config-graph/) |
+| `show config graph` | Read-only | - | - | - | - | [details](show-config-graph/) |
 | `show config history` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
 | `show config list` | Read-only | - | - | - | - | [details](show-config-list/) |
 | `show crashes` | Read-only | - | - | - | - | [details](show-crashes/) |
@@ -358,7 +358,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show ddos local` | Read-only | - | - | - | - | [details](show-ddos-local/) |
 | `show ddos status` | Read-only | - | - | - | - | [details](show-ddos-status/) |
 | `show debug` | Read-only | - | - | - | - | [details](show-debug/) |
-| `show debug profile` | Offline | - | - | - | - | [details](show-debug-profile/) |
+| `show debug profile` | Read-only | - | - | - | - | [details](show-debug-profile/) |
 | `show dns cache list` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-list/) |
 | `show dns cache record` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-record/) |
 | `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
@@ -585,13 +585,13 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
-| `skills` | Offline | - | - | - | - | [details](skills/) |
+| `skills` | Daemon | - | - | - | - | [details](skills/) |
 
 ### support
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
-| `support` | Offline | - | - | - | - | [details](support/) |
+| `support` | Daemon | - | - | - | - | [details](support/) |
 
 ### system
 
@@ -631,7 +631,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
-| `validate config` | Offline | - | - | - | - | [details](validate-config/) |
+| `validate config` | Read-only | - | - | - | - | [details](validate-config/) |
 
 ## Vendor-only gaps
 

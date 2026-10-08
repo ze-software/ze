@@ -7,7 +7,7 @@ Show OSPF neighbors\.
 - Registry path: `show ospf neighbor`
 - Usage: `show ospf neighbor`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-neighbor`
+- Wire method: `ze-ospf:show-neighbor`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

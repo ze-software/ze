@@ -123,7 +123,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>9.1%</strong><b>2 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -186,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -421,7 +420,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc4456-8-1"><code>RFC4456-8-1</code></a></h3>
 <p>This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent supplemental source rejudgment, 2026-10-06. RFC4456 Section 8: &#34;ORIGINATOR_ID is a new optional, non-transitive BGP attribute of Type code 9. This attribute is 4 bytes long and it will be created by an RR in reflecting a route. This attribute will carry the BGP Identifier of the originator of the route in the local AS. A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists.&#34; All five covers read: forward_rr_test.go TestReactorForwardRRInjects and TestReactorForwardRRPreservesOriginator, rfc4456_forward_build_withdraw_shape_test.go TestForwardReflectionLeavesAWithdrawalUntouched, and both checkReflectorWithdrawal tags. The real RS forward helper captures dispatched bodies and decodes bounded attribute fields: absent originator becomes exactly four bytes 10.0.0.1; present 9.9.9.9 remains byte-exact. General-forward withdrawal and EOR cases remain byte-exact, with an advertisement control requiring both RR attributes. Producers forwardUpdateSection/reactorForwardRSSection record Set(9); attrModHandlersWithDefaults explicitly registers originatorIDHandler, whose absent-source branch emits only a four-byte Set and existing-source branch keeps it; planAttr prevents creation without reachable NLRI. Interop carrier requires exact attribute tokens, refuses an early withdrawal, requests FRR withdrawal, then requires its exact wire shape and established session. It is registered in specialCheckers. No current diff changes checkReflectorWithdrawal itself (only unrelated waitZePeerState in its file); therefore this stale-unit is preexisting judgment debt relative to HEAD, not this mechanical edit. Supplemental interop log matching is not promoted to independent executed proof: live named-peer run remains pending. Existing enforced verdict retained on complementary precise unit assertions; no new defect found.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched moved. Independent supplemental source rejudgment, 2026-10-06. RFC4456 Section 8: &#34;ORIGINATOR_ID is a new optional, non-transitive BGP attribute of Type code 9. This attribute is 4 bytes long and it will be created by an RR in reflecting a route. This attribute will carry the BGP Identifier of the originator of the route in the local AS. A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists.&#34; All five covers read: forward_rr_test.go TestReactorForwardRRInjects and TestReactorForwardRRPreservesOriginator, rfc4456_forward_build_withdraw_shape_test.go TestForwardReflectionLeavesAWithdrawalUntouched, and both checkReflectorWithdrawal tags. The real RS forward helper captures dispatched bodies and decodes bounded attribute fields: absent originator becomes exactly four bytes 10.0.0.1; present 9.9.9.9 remains byte-exact. General-forward withdrawal and EOR cases remain byte-exact, with an advertisement control requiring both RR attributes. Producers forwardUpdateSection/reactorForwardRSSection record Set(9); attrModHandlersWithDefaults explicitly registers originatorIDHandler, whose absent-source branch emits only a four-byte Set and existing-source branch keeps it; planAttr prevents creation without reachable NLRI. Interop carrier requires exact attribute tokens, refuses an early withdrawal, requests FRR withdrawal, then requires its exact wire shape and established session. It is registered in specialCheckers. No current diff changes checkReflectorWithdrawal itself (only unrelated waitZePeerState in its file); therefore this stale-unit is preexisting judgment debt relative to HEAD, not this mechanical edit. Supplemental interop log matching is not promoted to independent executed proof: live named-peer run remains pending. Existing enforced verdict retained on complementary precise unit assertions; no new defect found.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -836,7 +835,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

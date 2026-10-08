@@ -7,7 +7,7 @@ Show installed memory and ECC health\.
 - Registry path: `show host memory`
 - Usage: `show host memory`
 - Mode: Read-only
-- Wire method: `ze-show:host-memory`
+- Wire method: `ze-host:show-memory`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -87,9 +87,7 @@ Enrolled: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze implements the LAC/
 
 **What the ledger says is covered**
 
-- LNS/LAC tunnel lifecycle (answerer and **initiator**: ze dials SCCRQ, verifies SCCRP, sends SCCCN), AVP codec, hidden-AVP MD5 codec (present but not wired into message encode/decode), challenge/response, reliable control channel, HELLO, StopCCN, data sessions, **LNS-side outgoing call (OCRQ/OCRP/OCCN) via `request l2tp outgoing-call`**, dial-target config, LAC PPPoE→L2TP relay (control plane). <!-- source: [`internal/component/l2tp/tunnel_initiator.go`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/tunnel_initiator.go) -- initiate/handleSCCRP
-- [`internal/component/l2tp/session_initiator.go`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_initiator.go) -- placeOutgoingCall/handleOCRP -->
-
+LNS/LAC tunnel lifecycle (answerer and **initiator**: ze dials SCCRQ, verifies SCCRP, sends SCCCN), AVP codec, hidden-AVP MD5 codec (present but not wired into message encode/decode), challenge/response, reliable control channel, HELLO, StopCCN, data sessions, **LNS-side outgoing call (OCRQ/OCRP/OCCN) via `request l2tp outgoing-call`**, dial-target config, LAC PPPoE→L2TP relay (control plane).
 
 **What the ledger says remains**
 

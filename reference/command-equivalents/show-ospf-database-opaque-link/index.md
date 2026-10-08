@@ -7,7 +7,7 @@ Show only link\-local opaque\-LSAs \(Type 9\, RFC 5250\)\.
 - Registry path: `show ospf database opaque-link`
 - Usage: `show ospf database opaque-link`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-opaque-link`
+- Wire method: `ze-ospf:show-database-opaque-link`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

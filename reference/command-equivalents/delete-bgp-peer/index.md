@@ -7,7 +7,7 @@ Remove a peer from the running config\.
 - Registry path: `delete bgp peer`
 - Usage: `delete bgp peer <selector>`
 - Mode: Daemon
-- Wire method: `ze-delete:bgp-peer`
+- Wire method: `ze-bgp:delete-peer`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

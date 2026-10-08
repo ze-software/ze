@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1.1% | 1 of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 91 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 88.6% | 70 of 79 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 75.9% | 60 of 79 tagged units, 0 escaped and 10 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 64.8% | 59 of 91 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 38 | of 91 gated MUSTs judged | 19 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 38 | of 91 gated MUSTs judged | 19 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 91 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -554,9 +554,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. both
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7950LeafTypeMustNameAnExistingType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L38) | unit/verify | revert, verified |
+| negative | [`TestRFC7950LeafTypeMustNameAnExistingType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L38) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L74) | unit/verify | revert, verified |
-| positive | [`TestRFC7950LeafTypeMustNameAnExistingType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L39) | unit/verify | revert, verified |
+| positive | [`TestRFC7950LeafTypeMustNameAnExistingType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L39) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L128) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.6.4-2`](#rfc7950-7.6.4-2)
@@ -945,9 +945,9 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7950EnumValueWithinInt32`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L105) | unit/verify | revert, verified |
+| negative | [`TestRFC7950EnumValueWithinInt32`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L105) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L92) | unit/verify | revert, verified |
-| positive | [`TestRFC7950EnumValueWithinInt32`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L106) | unit/verify | revert, verified |
+| positive | [`TestRFC7950EnumValueWithinInt32`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L106) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L145) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.7-1`](#rfc7950-9.7-1)
@@ -1058,7 +1058,7 @@ No test carries RFC7950-11-3, so no unit is bound to it.
 
 A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module. (§7.2.2)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. {gap} under OWNER RULING 4: goyang accepts a submodule included by a foreign module and Ze adds no check. Recorded, not closed.
+Audit verdict: unimplemented (no code path enforces the requirement), stale-unit: internal/component/config/yang/loader.go::Resolve moved. {gap} under OWNER RULING 4: goyang accepts a submodule included by a foreign module and Ze adds no check. Recorded, not closed.
 
 No test carries RFC7950-7.2.2-1, so no unit is bound to it.
 
@@ -1070,8 +1070,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. nega
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7950TypedefTypeMustBePresent`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L53) | unit/verify | revert, verified |
-| positive | [`TestRFC7950TypedefTypeMustBePresent`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L54) | unit/verify | revert, verified |
+| negative | [`TestRFC7950TypedefTypeMustBePresent`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L53) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7950TypedefTypeMustBePresent`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L54) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7950-7.9.2-2`](#rfc7950-7.9.2-2)
 
@@ -1081,8 +1081,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. nega
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7950CaseIdentifierUniqueWithinAChoice`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L76) | unit/verify | revert, verified |
-| positive | [`TestRFC7950CaseIdentifierUniqueWithinAChoice`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L77) | unit/verify | revert, verified |
+| negative | [`TestRFC7950CaseIdentifierUniqueWithinAChoice`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L76) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7950CaseIdentifierUniqueWithinAChoice`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L77) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7950-7.21.5-2`](#rfc7950-7.21.5-2)
 
@@ -1108,8 +1108,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. nega
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7950LengthRestrictionMustNotWiden`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L92) | unit/verify | revert, verified |
-| positive | [`TestRFC7950LengthRestrictionMustNotWiden`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L93) | unit/verify | revert, verified |
+| negative | [`TestRFC7950LengthRestrictionMustNotWiden`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L92) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7950LengthRestrictionMustNotWiden`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L93) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7950-12-1`](#rfc7950-12-1)
 

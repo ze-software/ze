@@ -7,7 +7,7 @@ Show how many config reloads the daemon has processed\.
 - Registry path: `show reload-status`
 - Usage: `show reload-status`
 - Mode: Read-only
-- Wire method: `ze-show:reload-status`
+- Wire method: `ze-cmd:show-reload-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

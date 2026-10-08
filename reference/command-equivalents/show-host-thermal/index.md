@@ -7,7 +7,7 @@ Show temperature sensors and thermal throttle events\.
 - Registry path: `show host thermal`
 - Usage: `show host thermal`
 - Mode: Read-only
-- Wire method: `ze-show:host-thermal`
+- Wire method: `ze-host:show-thermal`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

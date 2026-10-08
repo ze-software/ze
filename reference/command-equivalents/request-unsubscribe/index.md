@@ -7,7 +7,7 @@ Stop receiving events you previously subscribed to\.
 - Registry path: `request unsubscribe`
 - Usage: `request unsubscribe`
 - Mode: Daemon
-- Wire method: `ze-bgp:unsubscribe`
+- Wire method: `ze-cmd:bgp-unsubscribe`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

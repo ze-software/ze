@@ -7,7 +7,7 @@ Show the behavioral anomaly incident lifecycle\, newest first\.
 - Registry path: `show anomaly observe`
 - Usage: `show anomaly observe`
 - Mode: Read-only
-- Wire method: `ze-show:anomaly-observe`
+- Wire method: `ze-anomaly:show-observe`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

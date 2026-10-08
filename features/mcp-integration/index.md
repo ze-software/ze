@@ -69,7 +69,7 @@ Environment variable overrides: `ze.mcp.listen=ip:port`, `ze.mcp.enabled=true`, 
 
 ```
 ze help ai
-ze help ai api          # daemon API endpoints (ze-show:*, ze-set:*, ...)
+ze help ai api          # daemon API endpoints (ze-bgp:*, ze-iface:*, ...)
 ```
 
 Generates a machine-readable command reference from code, suitable for feeding to an AI as context. Lists all available commands with their parameters, descriptions, and examples. The legacy `ze help --ai` flag form is still accepted.

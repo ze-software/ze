@@ -7,7 +7,7 @@ Generate command reference docs from YANG schemas\.
 - Registry path: `show yang doc`
 - Usage: `show yang doc`
 - Mode: Read-only
-- Wire method: `ze-show:yang-doc`
+- Wire method: `ze-config-yang:show-yang-doc`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

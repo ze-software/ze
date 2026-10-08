@@ -64,6 +64,7 @@
 </ol></li>
 <li><a href="#editor-integration">Editor Integration</a></li>
 <li><a href="#fan-out-behavior">Fan-Out Behavior</a></li>
+<li><a href="#pruning-old-archives">Pruning Old Archives</a></li>
 <li><a href="#change-detection">Change Detection</a></li>
 <li><a href="#examples">Examples</a>
 <ol>
@@ -304,6 +305,63 @@ ze config archive offsite router.conf
 <h2 id="fan-out-behavior">Fan-Out Behavior</h2>
 <p>All configured destinations are attempted regardless of individual failures. Errors are collected per destination. A failure uploading to one location does not prevent archiving to other locations.</p>
 <!-- source: internal/component/config/archive/archive.go -- NewNotifier -->
+<h2 id="pruning-old-archives">Pruning Old Archives</h2>
+<p><code>commit-revisions</code> caps the number of archive files a <code>file://</code> location keeps.
+It is a <code>system</code> leaf, so one value applies to every archive block.</p>
+<pre><code>system {
+    host router1;
+    commit-revisions 20;
+    archive local {
+        location file:///var/backups/ze;
+        trigger commit;
+    }
+}
+</code></pre>
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- leaf commit-revisions -->
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Range</td>
+<td>0 to 1000. The default is 0, which keeps every file</td>
+</tr>
+<tr>
+<td>When</td>
+<td>After each successful write by an archive block: an editor commit, <code>ze config archive &lt;name&gt;</code>, and each <code>daily</code> or <code>hourly</code> archive, the boot archive included</td>
+</tr>
+<tr>
+<td>What counts</td>
+<td>The files in the block's directory whose whole name matches the block's filename format plus <code>.conf</code>: <code>{date}</code> as 8 digits, <code>{time}</code> as 6 digits, every other token as its value. Subdirectories and files of another name are not counted. A copy lands in a subdirectory, and is never counted, when the format or a token value holds <code>/</code>. <span class="ev-src"><span class="ev-ref"><code>file://</code></span></span></td>
+</tr>
+<tr>
+<td>What goes</td>
+<td>The files with the oldest modification time, until the count is down to the cap. Files with the same time go in name order</td>
+</tr>
+<tr>
+<td>Failure</td>
+<td>A filename format, host, domain, block name or config file name that is not valid UTF-8, a directory that cannot be read, and a file that cannot be removed are each reported: as an error of the archive block for an editor commit and <code>ze config archive &lt;name&gt;</code>, and as a warning in the log for a scheduled archive. The copy just written stays</td>
+</tr>
+<tr>
+<td>HTTP</td>
+<td>An location is never pruned. The receiving server decides what to keep. <span class="ev-src"><span class="ev-ref"><code>http://</code></span><span class="ev-ref"><code>https://</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/archive/archive.go -- NewNotifier, pruneAfterWrite, ArchiveMatcher, PruneFileArchives -->
+<!-- source: internal/component/config/archive/scheduler.go -- Scheduler boot archive and fireByTrigger -->
+<p>Two blocks that write to the same directory with the same filename format share
+one count. Put <code>{archive}</code> in the format to give each block its own count.</p>
+<!-- source: internal/component/config/archive/archive.go -- FormatFilename, DefaultFilenameFormat -->
+<p>A format that starts with <code>{date}</code> or <code>{time}</code> is matched the same way, so a
+<code>.conf</code> file whose name differs from the format is never counted or removed. A
+file you name in the same shape, such as <code>20260101.conf</code> beside the format
+<code>{date}</code>, counts as one of the block's copies and can be removed.</p>
+<!-- source: internal/component/config/archive/archive.go -- ArchiveMatcher -->
 <h2 id="change-detection">Change Detection</h2>
 <p>For time-based triggers with <code>on-change true</code>, ze tracks config changes using SHA-256 hashes in memory. Each named archive block has its own hash. The first check after daemon start always reports "changed" (no baseline yet), so the boot archive fires unconditionally. Subsequent checks compare the current config hash against the last archived hash and skip the archive if unchanged.</p>
 <p>The tracker resets on daemon restart since hashes are in-memory only.</p>
@@ -411,7 +469,7 @@ ze config archive offsite router.conf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

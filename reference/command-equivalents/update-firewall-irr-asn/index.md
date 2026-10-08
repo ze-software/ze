@@ -7,7 +7,7 @@ Fetch or refresh IRR prefix\-list for an ASN\.
 - Registry path: `update firewall irr asn`
 - Usage: `update firewall irr asn <asn>`
 - Mode: Daemon
-- Wire method: `ze-update:firewall-irr-asn`
+- Wire method: `ze-firewall:update-irr-asn`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

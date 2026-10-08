@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 25.3% | 19 of 75 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 33.3% | 25 of 75 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 8.0% | 6 of 75 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 75 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 75 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 90.4% | 66 of 73 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 91.8% | 78 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,7 +34,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 65.3% | 49 of 75 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 57.3% | 43 of 75 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 8 shares marked as a part above are the whole of the 75 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -64,14 +64,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 80 |
 | Gated MUST-level | 75 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 49 |
+| Declared gaps | 43 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 77 |
-| Tagged units | 73 |
+| Test tags | 89 |
+| Tagged units | 85 |
 | Recorded audit verdicts | 19 |
-| Discrimination records | 66 |
+| Discrimination records | 78 |
 | Summary | `rfc/short/rfc2205.md` |
 | Requirement shard | `rfc/requirements/rfc2205.md` |
 | RFC text | `rfc/full/rfc2205.txt` |
@@ -87,19 +87,19 @@ Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin). Th
 **What the ledger says is covered**
 
 - RSVP base common-header and object codec used by RSVP-TE: Version-1 header enforced on decode, reserved octet zeroed on send, every emitted object length a multiple of 4, and a received Path, Resv, PathTear, PathErr or ResvConf dropped when it omits an object its Section 3.1 BNF writes unbracketed
-- tests bound per requirement in [`rfc/requirements/rfc2205.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc2205.md).
+- tests bound per requirement in [`rfc/requirements/rfc2205.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc2205.md). Reservation control: a ResvErr originated per failing FF descriptor and with InPlace on a refused increase, a ResvErr relayed toward the receiver, and a ResvTear matched on SESSION, STYLE, FILTER_SPEC and RSVP_HOP and relayed toward the previous hop ([`internal/plugins/rsvpte/reservation.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/reservation.go) -- acceptReservation, handleResvErr, handleResvTear). Against freeRouter, `./le test integration interop-rsvpte` shows a freeRouter egress receiving a Ze transit's InPlace ResvErr and its per-descriptor ResvErr for an unknown sender, and freeRouter relaying a Ze-originated ResvErr and ResvTear to another Ze node ([`internal/le/interoplab/rsvpte/checkers.go`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/rsvpte/checkers.go)).
 
 
 **What the ledger says remains**
 
-Forty-nine MUST rows carry {gap}. Checksum validation, supported FF/SE message checks, ResvErr/ResvTear, local address-based policy and native transport are implemented. Complete requirement-level proof remains open. Missing enforcement includes refresh synchronization avoidance, the lifetime floor, bounded period increases and non-RSVP-hop detection. Received-interface loop checks and reverse-interface retention also remain absent. IntServ host reservations, multicast/WF signaling, authenticated POLICY_DATA interpretation and UDP encapsulation are absent capabilities, not implementation authorization. The baseline records bounded native Ze-to-Ze evidence separately from full conformance and independent-peer interoperability.
+Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message checks, ResvErr/ResvTear, local address-based policy and native transport are implemented; the ResvErr, ResvTear, FF per-descriptor error, InPlace and PathTear-object rows are proven by tagged tests, and complete requirement-level proof of the other implemented rows remains open. Missing enforcement includes refresh synchronization avoidance, the lifetime floor, bounded period increases and non-RSVP-hop detection. Received-interface loop checks and reverse-interface retention also remain absent. IntServ host reservations, multicast/WF signaling, authenticated POLICY_DATA interpretation and UDP encapsulation are absent capabilities, not implementation authorization. The baseline records bounded native Ze-to-Ze evidence separately from full conformance; independent-peer evidence is freeRouter only and limited to the reservation-control scenarios named under Support coverage.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 19 | one part of the gated population |
-| Annotated (including scoped evidence) | 56 | one part of the gated population |
+| Positive and negative tests | 25 | one part of the gated population |
+| Annotated (including scoped evidence) | 50 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -107,9 +107,9 @@ Forty-nine MUST rows carry {gap}. Checksum validation, supported FF/SE message c
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **75** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (19):** [`RFC2205-3.1-1`](#rfc2205-3.1-1), [`RFC2205-3.1.2-1`](#rfc2205-3.1.2-1), [`RFC2205-3.1.3-1`](#rfc2205-3.1.3-1), [`RFC2205-3.1.1-1`](#rfc2205-3.1.1-1), [`RFC2205-x-1`](#rfc2205-x-1), [`RFC2205-3.10-1`](#rfc2205-3.10-1), [`RFC2205-2-1`](#rfc2205-2-1), [`RFC2205-2-2`](#rfc2205-2-2), [`RFC2205-2-3`](#rfc2205-2-3), [`RFC2205-2-4`](#rfc2205-2-4), [`RFC2205-2.3-1`](#rfc2205-2.3-1), [`RFC2205-2-7`](#rfc2205-2-7), [`RFC2205-3-1`](#rfc2205-3-1), [`RFC2205-3-2`](#rfc2205-3-2), [`RFC2205-3-12`](#rfc2205-3-12), [`RFC2205-3.1.5-1`](#rfc2205-3.1.5-1), [`RFC2205-3.1.6-1`](#rfc2205-3.1.6-1), [`RFC2205-3-14`](#rfc2205-3-14), [`RFC2205-4-4`](#rfc2205-4-4)
+**Positive and negative tests (25):** [`RFC2205-3.1-1`](#rfc2205-3.1-1), [`RFC2205-3.1.2-1`](#rfc2205-3.1.2-1), [`RFC2205-3.1.3-1`](#rfc2205-3.1.3-1), [`RFC2205-3.1.1-1`](#rfc2205-3.1.1-1), [`RFC2205-x-1`](#rfc2205-x-1), [`RFC2205-3.10-1`](#rfc2205-3.10-1), [`RFC2205-2-1`](#rfc2205-2-1), [`RFC2205-2-2`](#rfc2205-2-2), [`RFC2205-2-3`](#rfc2205-2-3), [`RFC2205-2-4`](#rfc2205-2-4), [`RFC2205-2.3-1`](#rfc2205-2.3-1), [`RFC2205-2-7`](#rfc2205-2-7), [`RFC2205-2-8`](#rfc2205-2-8), [`RFC2205-3-1`](#rfc2205-3-1), [`RFC2205-3-2`](#rfc2205-3-2), [`RFC2205-3-12`](#rfc2205-3-12), [`RFC2205-3.1.5-1`](#rfc2205-3.1.5-1), [`RFC2205-3-13`](#rfc2205-3-13), [`RFC2205-3.1.6-1`](#rfc2205-3.1.6-1), [`RFC2205-3-14`](#rfc2205-3-14), [`RFC2205-3-17`](#rfc2205-3-17), [`RFC2205-3-18`](#rfc2205-3-18), [`RFC2205-3-19`](#rfc2205-3-19), [`RFC2205-3-20`](#rfc2205-3-20), [`RFC2205-4-4`](#rfc2205-4-4)
 
-**Annotated (including scoped evidence) (56):** [`RFC2205-3.1-2`](#rfc2205-3.1-2), [`RFC2205-1-1`](#rfc2205-1-1), [`RFC2205-1-2`](#rfc2205-1-2), [`RFC2205-1-3`](#rfc2205-1-3), [`RFC2205-1-4`](#rfc2205-1-4), [`RFC2205-2-5`](#rfc2205-2-5), [`RFC2205-2-6`](#rfc2205-2-6), [`RFC2205-2-8`](#rfc2205-2-8), [`RFC2205-2-9`](#rfc2205-2-9), [`RFC2205-2.5-1`](#rfc2205-2.5-1), [`RFC2205-2-10`](#rfc2205-2-10), [`RFC2205-2-11`](#rfc2205-2-11), [`RFC2205-2-12`](#rfc2205-2-12), [`RFC2205-3-3`](#rfc2205-3-3), [`RFC2205-3-4`](#rfc2205-3-4), [`RFC2205-3-5`](#rfc2205-3-5), [`RFC2205-3-6`](#rfc2205-3-6), [`RFC2205-3-7`](#rfc2205-3-7), [`RFC2205-3-8`](#rfc2205-3-8), [`RFC2205-3-9`](#rfc2205-3-9), [`RFC2205-3-10`](#rfc2205-3-10), [`RFC2205-3-11`](#rfc2205-3-11), [`RFC2205-3-13`](#rfc2205-3-13), [`RFC2205-3-16`](#rfc2205-3-16), [`RFC2205-3-17`](#rfc2205-3-17), [`RFC2205-3-18`](#rfc2205-3-18), [`RFC2205-3-19`](#rfc2205-3-19), [`RFC2205-3-20`](#rfc2205-3-20), [`RFC2205-3-21`](#rfc2205-3-21), [`RFC2205-3-22`](#rfc2205-3-22), [`RFC2205-3-23`](#rfc2205-3-23), [`RFC2205-3-24`](#rfc2205-3-24), [`RFC2205-3-25`](#rfc2205-3-25), [`RFC2205-3-26`](#rfc2205-3-26), [`RFC2205-3-27`](#rfc2205-3-27), [`RFC2205-3-28`](#rfc2205-3-28), [`RFC2205-3-29`](#rfc2205-3-29), [`RFC2205-3-30`](#rfc2205-3-30), [`RFC2205-3-31`](#rfc2205-3-31), [`RFC2205-3-32`](#rfc2205-3-32), [`RFC2205-3-33`](#rfc2205-3-33), [`RFC2205-3-34`](#rfc2205-3-34), [`RFC2205-3.9-1`](#rfc2205-3.9-1), [`RFC2205-3-35`](#rfc2205-3-35), [`RFC2205-3-36`](#rfc2205-3-36), [`RFC2205-3-37`](#rfc2205-3-37), [`RFC2205-3-38`](#rfc2205-3-38), [`RFC2205-3-39`](#rfc2205-3-39), [`RFC2205-3-40`](#rfc2205-3-40), [`RFC2205-3-41`](#rfc2205-3-41), [`RFC2205-3-42`](#rfc2205-3-42), [`RFC2205-3-43`](#rfc2205-3-43), [`RFC2205-4-1`](#rfc2205-4-1), [`RFC2205-4-2`](#rfc2205-4-2), [`RFC2205-4-3`](#rfc2205-4-3), [`RFC2205-4-5`](#rfc2205-4-5)
+**Annotated (including scoped evidence) (50):** [`RFC2205-3.1-2`](#rfc2205-3.1-2), [`RFC2205-1-1`](#rfc2205-1-1), [`RFC2205-1-2`](#rfc2205-1-2), [`RFC2205-1-3`](#rfc2205-1-3), [`RFC2205-1-4`](#rfc2205-1-4), [`RFC2205-2-5`](#rfc2205-2-5), [`RFC2205-2-6`](#rfc2205-2-6), [`RFC2205-2-9`](#rfc2205-2-9), [`RFC2205-2.5-1`](#rfc2205-2.5-1), [`RFC2205-2-10`](#rfc2205-2-10), [`RFC2205-2-11`](#rfc2205-2-11), [`RFC2205-2-12`](#rfc2205-2-12), [`RFC2205-3-3`](#rfc2205-3-3), [`RFC2205-3-4`](#rfc2205-3-4), [`RFC2205-3-5`](#rfc2205-3-5), [`RFC2205-3-6`](#rfc2205-3-6), [`RFC2205-3-7`](#rfc2205-3-7), [`RFC2205-3-8`](#rfc2205-3-8), [`RFC2205-3-9`](#rfc2205-3-9), [`RFC2205-3-10`](#rfc2205-3-10), [`RFC2205-3-11`](#rfc2205-3-11), [`RFC2205-3-16`](#rfc2205-3-16), [`RFC2205-3-21`](#rfc2205-3-21), [`RFC2205-3-22`](#rfc2205-3-22), [`RFC2205-3-23`](#rfc2205-3-23), [`RFC2205-3-24`](#rfc2205-3-24), [`RFC2205-3-25`](#rfc2205-3-25), [`RFC2205-3-26`](#rfc2205-3-26), [`RFC2205-3-27`](#rfc2205-3-27), [`RFC2205-3-28`](#rfc2205-3-28), [`RFC2205-3-29`](#rfc2205-3-29), [`RFC2205-3-30`](#rfc2205-3-30), [`RFC2205-3-31`](#rfc2205-3-31), [`RFC2205-3-32`](#rfc2205-3-32), [`RFC2205-3-33`](#rfc2205-3-33), [`RFC2205-3-34`](#rfc2205-3-34), [`RFC2205-3.9-1`](#rfc2205-3.9-1), [`RFC2205-3-35`](#rfc2205-3-35), [`RFC2205-3-36`](#rfc2205-3-36), [`RFC2205-3-37`](#rfc2205-3-37), [`RFC2205-3-38`](#rfc2205-3-38), [`RFC2205-3-39`](#rfc2205-3-39), [`RFC2205-3-40`](#rfc2205-3-40), [`RFC2205-3-41`](#rfc2205-3-41), [`RFC2205-3-42`](#rfc2205-3-42), [`RFC2205-3-43`](#rfc2205-3-43), [`RFC2205-4-1`](#rfc2205-4-1), [`RFC2205-4-2`](#rfc2205-4-2), [`RFC2205-4-3`](#rfc2205-4-3), [`RFC2205-4-5`](#rfc2205-4-5)
 
 ## Requirements
 
@@ -138,7 +138,7 @@ Forty-nine MUST rows carry {gap}. Checksum validation, supported FF/SE message c
 | `RFC2205-2.3-1` | RSVP soft state is created and periodically refreshed by Path and Resv messages. The state is deleted if no matching refresh messages arrive before the expiration of a "cleanup timeout" interval. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC2205PathStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L68). **positive:** `unit/verify` [`TestRFC2205RefreshRecursEachTick`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L54). **positive:** `unit/verify` [`TestRFC2205ResvStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L128). **positive:** `unit/verify` [`TestRefreshResendsPathAndResv`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_test.go#L56). **negative:** `unit/verify` [`TestRFC2205RefreshedPathStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L81). **negative:** `unit/verify` [`TestRFC2205RefreshedResvStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L167). **negative:** `unit/verify` [`TestRefreshDoesNotStampEgressPSB`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_test.go#L21) |
 | `RFC2205-2-6` | Conversely, state that is forwarded out interface I* must be computed using only state that arrived on interfaces different from I*. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | `RFC2205-2-7` | Once initiated, a teardown request must be forwarded hop-by-hop without delay (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205TransitPathTearRelayedWithoutDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L166). **negative:** `unit/verify` [`TestRFC2205PathTearWithoutStateNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L181) |
-| `RFC2205-2-8` | Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** reservation.go and reservation_build.go now produce and relay ResvErr for supported tunnel reservations. Complete receiver coverage and requirement-level proof remain open. |
+| `RFC2205-2-8` | Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC2205ResvErrRelayedToReceiver`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L105). **negative:** `unit/verify` [`TestRFC2205ResvErrForOtherSenderNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L128) |
 | `RFC2205-2-9` | The blockade state in each downstream router must not remove the state or prevent its immediate refresh. (§2) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | `RFC2205-2.5-1` | This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1. (§2.5) | MUST NOT | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | `RFC2205-2-10` | When a new reservation is requested, each node must answer two questions: "Are enough resources available to meet this request?" and "Is this user allowed to make this reservation?" These two decisions are termed the "admission control" decision and the "policy control" decision, respectively, and both must be favorable in order for RSVP to make a reservation. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** acceptReservation in internal/plugins/rsvpte/reservation.go requires local address-based policy and bandwidth admission before native installation. Authenticated POLICY_DATA interpretation is a separate absent capability; complete requirement-level proof remains open. |
@@ -157,15 +157,15 @@ Forty-nine MUST rows carry {gap}. Checksum validation, supported FF/SE message c
 | `RFC2205-3-11` | A unicast PathTear must not be forwarded if there is path state for the same (session, sender) pair but a different PHOP (§3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handlePathTear now rejects a different stored hop for ordinary and merged tunnel state. Complete requirement-level proof remains open. |
 | `RFC2205-3-12` | A PathTear message must be routed exactly like the corresponding Path message. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205PathTearRouteEqualsPathRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L277). **positive:** `unit/verify` [`TestRFC2205PathTearRoutedLikePath`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L118). **negative:** `unit/verify` [`TestRFC2205PathTearNotAddressedHopByHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L132) |
 | `RFC2205-3.1.5-1` | Therefore, its IP destination address must be the session DestAddress, and its IP source address must be the sender address from the path state being torn down. (§3.1.5) | MUST | 3.1.5 | **positive:** `unit/verify` [`TestRFC2205PathTearAddressedFromSenderToSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L300). **negative:** `unit/verify` [`TestRFC2205PathTearSourceNotTakenFromCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L324) |
-| `RFC2205-3-13` | A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored. (§3.1.5) | MUST | 3.1.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** DecodeMessage now skips PathTear TSPEC/ADSPEC bodies and ResvTear handling exists. Complete proof of the stated ignored-object cases remains open. |
+| `RFC2205-3-13` | A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored. (§3.1.5) | MUST | 3.1.5 | **positive:** `unit/verify` [`TestRFC2205PathTearObjectsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L152). **negative:** `unit/verify` [`TestRFC2205PathTearTSpecNotUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L181) |
 | `RFC2205-3.1.6-1` | A ResvTear message may include a SCOPE object, but it must be ignored. (§3.1.6) | MUST | 3.1.6 | **positive:** `unit/verify` [`TestRFC2205ResvTearWithScopeTearsDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L455). **negative:** `unit/verify` [`TestRFC2205ResvTearScopeNotObeyed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L481) |
 | `RFC2205-3-14` | Deletion of path state as the result of a PathTear message or a timeout must also adjust related reservation state as required to maintain consistency in the local node. (§3.1.5) | MUST | 3.1.5 | **positive:** `unit/verify` [`TestRFC2205PathStateDeletedAtCleanupTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L69). **positive:** `unit/verify` [`TestRFC2205PathTearReleasesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L206). **negative:** `unit/verify` [`TestRFC2205PathTearForOtherLSPLeavesReservation`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L217). **negative:** `unit/verify` [`TestRFC2205RefreshedPathStateKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L82) |
 | `RFC2205-3-15` | These reservation changes should not trigger an immediate Resv refresh message, since the PathTear message has already made the required changes upstream. (§3.1.5) | SHOULD NOT | 3.1.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2205-3-16` | Matching reservation state must match the SESSION, STYLE, and FILTER_SPEC objects as well as the LIH in the RSVP_HOP object. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleResvTear in internal/plugins/rsvpte/reservation.go now checks supported tunnel identity, style and the stored RSVP_HOP. Complete requirement-level proof remains open. |
-| `RFC2205-3-17` | A ResvTear message must be routed like the corresponding Resv message (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** removeReservation relays ResvTear toward stored previous hops. The received-interface retention gap and complete requirement-level proof remain open. |
-| `RFC2205-3-18` | Each flow descriptor in a FF-style Resv message must be processed independently, and a separate ResvErr message must be generated for each one that is in error. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** supported descriptors reach acceptReservation independently and rejection produces ResvErr. Complete requirement-level proof remains open. |
-| `RFC2205-3-19` | This ResvErr message must contain the information required to define the error and to route the error message in later hops. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** reservation_build.go now encodes ResvErr and handleResvErr relays it. Complete requirement-level proof remains open. |
-| `RFC2205-3-20` | If the error is an admission control failure while attempting to increase an existing reservation, then the existing reservation must be left in place and the InPlace flag bit must be on in the ERROR_SPEC of the ResvErr message. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** acceptReservation retains the accepted RSB on failed admission and passes existing-state presence to rejectReservation. Complete requirement-level proof remains open. |
+| `RFC2205-3-17` | A ResvTear message must be routed like the corresponding Resv message (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205ResvTearRoutedLikeResv`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L236). **negative:** `unit/verify` [`TestRFC2205ResvTearForOtherHopNotRouted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L262) |
+| `RFC2205-3-18` | Each flow descriptor in a FF-style Resv message must be processed independently, and a separate ResvErr message must be generated for each one that is in error. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205FixedFilterErrorPerDescriptor`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L282). **negative:** `unit/verify` [`TestRFC2205FixedFilterGoodDescriptorKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L308) |
+| `RFC2205-3-19` | This ResvErr message must contain the information required to define the error and to route the error message in later hops. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205ResvErrCarriesErrorAndRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L339). **negative:** `unit/verify` [`TestRFC2205ResvErrWrongStyleNotRouted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L368) |
+| `RFC2205-3-20` | If the error is an admission control failure while attempting to increase an existing reservation, then the existing reservation must be left in place and the InPlace flag bit must be on in the ERROR_SPEC of the ResvErr message. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC2205FailedIncreaseLeavesReservationInPlace`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L384). **negative:** `unit/verify` [`TestRFC2205FailedFirstReservationNotInPlace`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L420) |
 | `RFC2205-3-21` | However, this must not trigger sending a message out the interface through which M arrived (which could happen if the implementation simply triggered an immediate refresh of all state for the session). (§3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** immediate forwarding does not exclude the triggering packet's incoming interface; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
 | `RFC2205-3-22` | In this version of the spec, each RSVP message must occupy exactly one IP datagram. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux raw IPv4 socket; internal/plugins/rsvpte/transport_linux.go::Send and SendPath issue one SendmsgBuffers call per encoded message, and Linux combines its buffers into one datagram |
 | `RFC2205-3-23` | Forwarding of RSVP messages must avoid looping (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** RRO and hop-limit handling do not supply the missing routing-derived incoming-interface checks; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
@@ -206,7 +206,6 @@ Forty-nine MUST rows carry {gap}. Checksum validation, supported FF/SE message c
 | [`RFC2205-1-4`](#rfc2205-1-4) In an explicit sender-selection reservation, each filter spec must match exactly one sender (§1) | {gap}, no test | acceptReservation in internal/plugins/rsvpte/reservation.go resolves each supported tunnel filter to sender state before admission. Complete requirement-level proof remains open. |
 | [`RFC2205-2-5`](#rfc2205-2-5) If this update results in modification of state to be forwarded in refresh messages, these refresh messages must be generated and forwarded immediately, so that state changes can be propagated end-to-end without delay. (§2) | {gap}, no test | handlePathTransit and acceptReservation relay supported state immediately; forwarding is not confined to refresh ticks. Proof covering every required state-update case remains open. |
 | [`RFC2205-2-6`](#rfc2205-2-6) Conversely, state that is forwarded out interface I* must be computed using only state that arrived on interfaces different from I*. (§2) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
-| [`RFC2205-2-8`](#rfc2205-2-8) Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers. (§2) | {gap}, no test | reservation.go and reservation_build.go now produce and relay ResvErr for supported tunnel reservations. Complete receiver coverage and requirement-level proof remain open. |
 | [`RFC2205-2-9`](#rfc2205-2-9) The blockade state in each downstream router must not remove the state or prevent its immediate refresh. (§2) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | [`RFC2205-2.5-1`](#rfc2205-2.5-1) This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1. (§2.5) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | [`RFC2205-2-10`](#rfc2205-2-10) When a new reservation is requested, each node must answer two questions: "Are enough resources available to meet this request?" and "Is this user allowed to make this reservation?" These two decisions are termed the "admission control" decision and the "policy control" decision, respectively, and both must be favorable in order for RSVP to make a reservation. (§2) | {gap}, no test | acceptReservation in internal/plugins/rsvpte/reservation.go requires local address-based policy and bandwidth admission before native installation. Authenticated POLICY_DATA interpretation is a separate absent capability; complete requirement-level proof remains open. |
@@ -221,12 +220,7 @@ Forty-nine MUST rows carry {gap}. Checksum validation, supported FF/SE message c
 | [`RFC2205-3-9`](#rfc2205-3-9) Whenever a Resv message with wildcard sender selection is forwarded to more than one previous hop, a SCOPE object must be included in the message (see Section 3.4 below); in this case, the scope for forwarding the reservation is constrained to just the sender IP addresses explicitly listed in the SCOPE object. (§3) | {gap}, no test | Ze signals unicast LSPs with FF and SE only; plan/spec-rsvp-multicast-wildcard.md |
 | [`RFC2205-3-10`](#rfc2205-3-10) Matching state must have match the SESSION, SENDER_TEMPLATE, and PHOP objects. (§3) | {gap}, no test | handlePathTear in internal/plugins/rsvpte/engine.go now matches tunnel/sender identity and the stored RSVP_HOP before removal. Complete requirement-level proof remains open. |
 | [`RFC2205-3-11`](#rfc2205-3-11) A unicast PathTear must not be forwarded if there is path state for the same (session, sender) pair but a different PHOP (§3) | {gap}, no test | handlePathTear now rejects a different stored hop for ordinary and merged tunnel state. Complete requirement-level proof remains open. |
-| [`RFC2205-3-13`](#rfc2205-3-13) A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored. (§3.1.5) | {gap}, no test | DecodeMessage now skips PathTear TSPEC/ADSPEC bodies and ResvTear handling exists. Complete proof of the stated ignored-object cases remains open. |
 | [`RFC2205-3-16`](#rfc2205-3-16) Matching reservation state must match the SESSION, STYLE, and FILTER_SPEC objects as well as the LIH in the RSVP_HOP object. (§3) | {gap}, no test | handleResvTear in internal/plugins/rsvpte/reservation.go now checks supported tunnel identity, style and the stored RSVP_HOP. Complete requirement-level proof remains open. |
-| [`RFC2205-3-17`](#rfc2205-3-17) A ResvTear message must be routed like the corresponding Resv message (§3) | {gap}, no test | removeReservation relays ResvTear toward stored previous hops. The received-interface retention gap and complete requirement-level proof remain open. |
-| [`RFC2205-3-18`](#rfc2205-3-18) Each flow descriptor in a FF-style Resv message must be processed independently, and a separate ResvErr message must be generated for each one that is in error. (§3) | {gap}, no test | supported descriptors reach acceptReservation independently and rejection produces ResvErr. Complete requirement-level proof remains open. |
-| [`RFC2205-3-19`](#rfc2205-3-19) This ResvErr message must contain the information required to define the error and to route the error message in later hops. (§3) | {gap}, no test | reservation_build.go now encodes ResvErr and handleResvErr relays it. Complete requirement-level proof remains open. |
-| [`RFC2205-3-20`](#rfc2205-3-20) If the error is an admission control failure while attempting to increase an existing reservation, then the existing reservation must be left in place and the InPlace flag bit must be on in the ERROR_SPEC of the ResvErr message. (§3) | {gap}, no test | acceptReservation retains the accepted RSB on failed admission and passes existing-state presence to rejectReservation. Complete requirement-level proof remains open. |
 | [`RFC2205-3-21`](#rfc2205-3-21) However, this must not trigger sending a message out the interface through which M arrived (which could happen if the implementation simply triggered an immediate refresh of all state for the session). (§3) | {gap}, no test | immediate forwarding does not exclude the triggering packet's incoming interface; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
 | [`RFC2205-3-22`](#rfc2205-3-22) In this version of the spec, each RSVP message must occupy exactly one IP datagram. (§3) | no test | no test carries this requirement id; annotated {lower-layer}: Linux raw IPv4 socket; internal/plugins/rsvpte/transport_linux.go::Send and SendPath issue one SendmsgBuffers call per encoded message, and Linux combines its buffers into one datagram |
 | [`RFC2205-3-23`](#rfc2205-3-23) Forwarding of RSVP messages must avoid looping (§3) | {gap}, no test | RRO and hop-limit handling do not supply the missing routing-derived incoming-interface checks; plan/pre-release/spec-rsvp-routing-and-interface-integration.md |
@@ -259,7 +253,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Protocol version number.  This is version 1. (§3.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Send: TestRFC2205EmittedVersionIsOne reads the literal 1 in the Vers nibble of a PATH and a RESV the builders encode, and DecodeHeader accepts 0x10; a wrong rsvpVersion now goes red. Receive negative TestRSVPDecodeHeaderBadVersion rejects Vers 2. Both polarities hold.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 against RFC 2205 Section 3.1.1 ('Protocol version number.  This is version 1.'). DecodeHeader still refuses Version != rsvpVersion (1) with errBadVersion; TestRSVPDecodeHeaderBadVersion feeds Vers 2 and requires the error, TestRSVPHeaderRoundTrip and TestRFC2205EmittedVersionIsOne pin the emitted Vers nibble at 1. Units byte-identical since the 2026-09-29 judgement; only the files around them moved. Both polarities hold.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -271,7 +265,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 All unused fields should be sent as zero and ignored on receipt. (§A)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Single-polarity row, both clauses covered: send, TestRSVPReservedByteZeroOnSend (raw[5]==0) plus the Flags nibble sent zero in TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt; receive, the same unit feeds Reserved 0xA5 and all four Flags bits set, re-checksummed, and the egress still installs state and answers with a RESV. Covers the common-header unused fields only.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 against RFC 2205 Appendix A ('All unused fields should be sent as zero and ignored on receipt.'). Single-polarity row, both clauses covered: send, TestRSVPReservedByteZeroOnSend requires raw[5]==0 in a built PATH, plus the Flags nibble sent zero in TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt; receive, the same unit feeds Reserved 0xA5 and all four Flags bits set, re-checksummed, and the egress still installs state and answers with a RESV. Units byte-identical; covers the common-header unused fields only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -282,7 +276,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 A 16-bit field containing the total object length in bytes.  Must always be a multiple of 4 (§3.1.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an object Length not a multiple of 4, sent or accepted. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires errBadObjLen for a Length-6 object. The positive tag's prose ('Decode does not enforce %4') is stale.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 against RFC 2205 Section 3.1.2 ('Must always be a multiple of 4, and at least 4.'). The unit change since the last judgement (9b8bfe250c) only passes nil for buildPathErr's new adspec argument; the assertions are untouched and the PathErr walked carries the same object set as before. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: decodeObjectHeader refuses Length%4 != 0 with errBadObjLen and TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires it for a Length-6 object. An ADSPEC in a PathErr is copied raw from a PATH that already passed that decode check. The positive tag's prose ('Decode does not enforce %4') is still stale.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -331,7 +325,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Class-Num = 0bbbbbbb The entire message should be rejected and an "Unknown Object Class" error returned. (§3.10)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Reject and error clauses at the engine: TestRFC2205UnknownClassPathRejectedWithError (no PSB, no RESV, PathErr code 13, value Class<<8|C-Type to the PHOP) and TestRFC2205UnknownClassResvRejectedWithError (no relay, no RSB, ResvErr 13; unknown object placed before STYLE so no placement error confounds it).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 against RFC 2205 Section 3.10 ('Class-Num = 0bbbbbbb The entire message should be rejected and an "Unknown Object Class" error returned.'). classifyUnknownClass still rejects a 0bbbbbbb class ze does not know; the 1d457b0d52 change to DecodeMessage skips only SENDER_TSPEC and ADSPEC in a PathTear (pathTearIgnored), both known classes, so it does not reach this path. Reject and error clauses at the engine: TestRFC2205UnknownClassPathRejectedWithError (no PSB, no RESV, PathErr code 13, value Class<<8|C-Type to the PHOP) and TestRFC2205UnknownClassResvRejectedWithError (no relay, no RSB, ResvErr 13). Decode-level cases in TestDecodeUnknownObjectClass and the ignorable-class positive in TestEnginePathWithIgnorableObjectAccepted are byte-identical.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -469,7 +463,10 @@ Since a request that fails may be the result of merging a number of requests, a 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2205-2-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205ResvErrForOtherSenderNotRelayed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L128) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ResvErrRelayedToReceiver`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L105) | unit/verify | revert, verified |
 
 ### [`RFC2205-2-9`](#rfc2205-2-9)
 
@@ -637,7 +634,10 @@ A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender des
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2205-3-13, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205PathTearTSpecNotUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L181) | unit/verify | revert, verified |
+| positive | [`TestRFC2205PathTearObjectsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L152) | unit/verify | revert, verified |
 
 ### [`RFC2205-3.1.6-1`](#rfc2205-3.1.6-1)
 
@@ -677,7 +677,10 @@ A ResvTear message must be routed like the corresponding Resv message (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2205-3-17, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205ResvTearForOtherHopNotRouted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L262) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ResvTearRoutedLikeResv`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L236) | unit/verify | revert, verified |
 
 ### [`RFC2205-3-18`](#rfc2205-3-18)
 
@@ -685,7 +688,10 @@ Each flow descriptor in a FF-style Resv message must be processed independently,
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2205-3-18, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205FixedFilterGoodDescriptorKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L308) | unit/verify | revert, verified |
+| positive | [`TestRFC2205FixedFilterErrorPerDescriptor`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L282) | unit/verify | revert, verified |
 
 ### [`RFC2205-3-19`](#rfc2205-3-19)
 
@@ -693,7 +699,10 @@ This ResvErr message must contain the information required to define the error a
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2205-3-19, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205ResvErrWrongStyleNotRouted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L368) | unit/verify | revert, verified |
+| positive | [`TestRFC2205ResvErrCarriesErrorAndRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L339) | unit/verify | revert, verified |
 
 ### [`RFC2205-3-20`](#rfc2205-3-20)
 
@@ -701,7 +710,10 @@ If the error is an admission control failure while attempting to increase an exi
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2205-3-20, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2205FailedFirstReservationNotInPlace`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L420) | unit/verify | revert, verified |
+| positive | [`TestRFC2205FailedIncreaseLeavesReservationInPlace`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L384) | unit/verify | revert, verified |
 
 ### [`RFC2205-3-21`](#rfc2205-3-21)
 

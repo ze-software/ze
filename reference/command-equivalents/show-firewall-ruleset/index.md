@@ -7,7 +7,7 @@ Show the live firewall ruleset with per\-term counters\.
 - Registry path: `show firewall ruleset`
 - Usage: `show firewall ruleset <name>`
 - Mode: Read-only
-- Wire method: `ze-show:firewall-ruleset`
+- Wire method: `ze-firewall:show-ruleset`
 - Backends: `nft`
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

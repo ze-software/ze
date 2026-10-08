@@ -7,7 +7,7 @@ List all event namespaces and how many events each has logged\.
 - Registry path: `show event namespaces`
 - Usage: `show event namespaces`
 - Mode: Read-only
-- Wire method: `ze-show:event-namespaces`
+- Wire method: `ze-cmd:show-event-namespaces`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

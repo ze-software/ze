@@ -7,7 +7,7 @@ List all loaded certificates with expiry dates\.
 - Registry path: `show pki certificates`
 - Usage: `show pki certificates`
 - Mode: Read-only
-- Wire method: `ze-show:pki-certificates`
+- Wire method: `ze-pki:show-certificates`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ List all active PPPoE sessions\.
 - Registry path: `show pppoe sessions`
 - Usage: `show pppoe sessions`
 - Mode: Read-only
-- Wire method: `ze-pppoe-api:sessions`
+- Wire method: `ze-l2tp:pppoe-sessions`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

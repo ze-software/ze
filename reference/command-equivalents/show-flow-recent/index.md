@@ -7,7 +7,7 @@ Show recent conntrack flow records from the bounded recent\-flow ring\.
 - Registry path: `show flow recent`
 - Usage: `show flow recent [dst <dst>]`
 - Mode: Read-only
-- Wire method: `ze-show:flow-recent`
+- Wire method: `ze-flowexport:show-flow-recent`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

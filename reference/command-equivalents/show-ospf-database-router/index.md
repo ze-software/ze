@@ -7,7 +7,7 @@ Show only Router\-LSAs \(Type 1\)\.
 - Registry path: `show ospf database router`
 - Usage: `show ospf database router`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-router`
+- Wire method: `ze-ospf:show-database-router`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

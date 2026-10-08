@@ -5,8 +5,9 @@ Delete a named debug profile\.
 ## Ze command
 
 - Registry path: `delete debug profile name`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `delete debug profile name <profile-name>`
+- Mode: Daemon
+- Wire method: `ze-debug:delete-profile-name`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -24,7 +25,9 @@ It removes the stored slot and nothing else\. The running daemon keeps whatever 
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `profile-name` | string | yes | any value of this type | Profile name\. | A stored profile\, as show debug profile lists it\. |
 
 ## Mapping intents
 

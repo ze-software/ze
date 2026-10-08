@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 29 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 29 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 29 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 36.6% | 30 of 82 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 39.1% | 36 of 92 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,7 +23,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 29 | of 44 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Gated MUSTs | 29 | of 49 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
 | Out of scope | 2 | of 29 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 6.9% | 2 of 29 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 29 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -54,17 +54,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 44 |
+| Requirements | 49 |
 | Gated MUST-level | 29 |
 | Not applicable, so out of scope | 2 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 82 |
-| Tagged units | 82 |
-| Recorded audit verdicts | 22 |
-| Discrimination records | 30 |
+| Test tags | 92 |
+| Tagged units | 92 |
+| Recorded audit verdicts | 27 |
+| Discrimination records | 40 |
 | Summary | `rfc/short/rfc8955.md` |
 | Requirement shard | `rfc/requirements/rfc8955.md` |
 | RFC text | `rfc/full/rfc8955.txt` |
@@ -85,7 +85,7 @@ Enrolled: Dissemination of Flow Specification Rules
 
 **What the ledger says remains**
 
-The native codec, prefix-policy projection, unicast-authorized selection and revalidation, and selected-rule firewall path have source changes and regression carriers awaiting integration validation. No conformance result follows from these edits alone. Kernel precedence, continuation, sampling, policing, marking, and withdrawal require the Linux integration carrier with network-namespace and nftables privileges. VPN FlowSpec is validated and propagated by the BGP RIB but is not installed by the global firewall bridge. The rule-a destination bypass remains absent.
+Preferred destination/source-port, ICMP-code and packet-length emission now have producer and recipient-wire proof; zero packet-rate discard, controls and withdrawal have runtime-kernel proof for local IPv4 input. These do not establish event-subscription delivery or broader firewall precedence, continuation, sampling, policing and marking. Other native codec, prefix-policy projection, unicast-authorized selection and revalidation changes still require their own integration validation. VPN FlowSpec is validated and propagated by the BGP RIB but is not installed by the global firewall bridge. The rule-a destination bypass remains absent.
 
 ## Coverage
 
@@ -110,7 +110,7 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 |---|---|---|---|---|
 | `RFC8955-4-1` | Implementations wishing to exchange Flow Specification MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) (§4) | MUST | 4 | **positive:** `unit/verify` [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L894). **negative:** no negative test. **{single-polarity}:** the flowspec plugin unconditionally maps each declared FlowSpec family to a Multiprotocol (Code 1) capability during OPEN, so there is no wrong input the negotiation path rejects (internal/component/bgp/plugins/nlri/flowspec/register.go, types.go:47) |
 | `RFC8955-4-2` | The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (AFI=1, SAFI=133) for IPv4 Flow Specification and (AFI=1, SAFI=134) for VPNv4 Flow Specification (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L647). **positive:** `unit/verify` [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L895). **negative:** no negative test. **{single-polarity}:** the (AFI 1, SAFI 133) and (AFI 1, SAFI 134) pairs are family-registration constants, not an input guard, so only the positive assignment is assertable (internal/component/bgp/plugins/nlri/flowspec/types.go:47-50) |
-| `RFC8955-4-3` | Length of the Next-Hop Network Address MUST be set to 0 (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L31). **positive:** `unit/verify` [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L32). **positive:** `unit/verify` [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L26). **positive:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L14). **negative:** `unit/verify` [`TestFlowSpecForwardingKeepsLegacyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_mixed_test.go#L16). **negative:** `unit/verify` [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L32). **negative:** `unit/verify` [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L33). **negative:** `unit/verify` [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27). **negative:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L15). **positive:** `functional/verify` [`flow-encode.ci`](https://github.com/ze-software/ze/blob/main/test/encode/flow-encode.ci#L11) |
+| `RFC8955-4-3` | Length of the Next-Hop Network Address MUST be set to 0 (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L31). **positive:** `unit/verify` [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L32). **positive:** `unit/verify` [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L26). **positive:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L14). **negative:** `unit/verify` [`TestFlowSpecForwardingKeepsLegacyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go#L16). **negative:** `unit/verify` [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L32). **negative:** `unit/verify` [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L33). **negative:** `unit/verify` [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27). **negative:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L15). **positive:** `functional/verify` [`flow-encode.ci`](https://github.com/ze-software/ze/blob/main/test/encode/flow-encode.ci#L11) |
 | `RFC8955-4-4` | Network Address of the Next-Hop field MUST be ignored (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L498). **negative:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L499) |
 | `RFC8955-4.2-1` | Components MUST follow strict type ordering by increasing numerical order (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228). **positive:** `unit/verify` [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270). **negative:** `unit/verify` [`TestAddComponentRefusesASecondPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1387). **negative:** `unit/verify` [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307). **negative:** `unit/verify` [`TestParseFlowSpecVPNRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1367) |
 | `RFC8955-4.2-2` | If present, it MUST precede any component of higher numeric type value. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1229). **negative:** `unit/verify` [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335) |
@@ -139,7 +139,11 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 | `RFC8955-12-2` | For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** conditional on an absent feature. flowSpecDestination and flowSpecAuthorized in internal/component/bgp/plugins/rib/rib_flowspec_validation.go require a valid destination, including offset zero for IPv6, and no configuration bypasses that guard. The owner explicitly retained strict destination validation |
 | `RFC8955-4.2.2.3-1` | Type 3 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.3) | SHOULD | 4.2.2.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-4.2.2.4-1` | Type 4 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.4) | SHOULD | 4.2.2.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-4.2.2.5-1` | Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.5) | SHOULD | 4.2.2.5 | **positive:** `unit/verify` [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L30). **positive:** `unit/verify` [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L25). **negative:** no negative test. **{single-polarity}:** numericComponent.writeToAFI unconditionally chooses a width from the destination-port value, emitting one or two octets for values through 65535; this emission recommendation has no rejecting input branch, and legal wider reception is a separate compatibility control, not negative emission evidence (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go). Choosing the shortest of the permitted widths is Ze policy. |
+| `RFC8955-4.2.2.6-1` | Type 6 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.6) | SHOULD | 4.2.2.6 | **positive:** `unit/verify` [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L31). **positive:** `unit/verify` [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L26). **negative:** no negative test. **{single-polarity}:** numericComponent.writeToAFI unconditionally chooses a width from the source-port value, emitting one or two octets for values through 65535; this emission recommendation has no rejecting input branch, and legal wider reception is a separate compatibility control, not negative emission evidence (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go). Choosing the shortest of the permitted widths is Ze policy. |
 | `RFC8955-4.2.2.7-1` | Type 7 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.7) | SHOULD | 4.2.2.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-4.2.2.8-1` | Type 8 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.8) | SHOULD | 4.2.2.8 | **positive:** `unit/verify` [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L32). **positive:** `unit/verify` [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L27). **negative:** no negative test. **{single-polarity}:** numericComponent.writeToAFI unconditionally emits one octet for ICMP-code values through 255; this emission recommendation has no rejecting input branch, and legal wider reception is a separate compatibility control, not negative emission evidence (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go). |
+| `RFC8955-4.2.2.10-1` | Type 10 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.10) | SHOULD | 4.2.2.10 | **positive:** `unit/verify` [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L33). **positive:** `unit/verify` [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L28). **negative:** no negative test. **{single-polarity}:** numericComponent.writeToAFI unconditionally chooses a width from the packet-length value, emitting one or two octets for values through 65535; this emission recommendation has no rejecting input branch, and legal wider reception is a separate compatibility control, not negative emission evidence (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go). Choosing the shortest of the permitted widths is Ze policy. |
 | `RFC8955-4.2.2.11-2` | The six least significant bits contain the DSCP value. All other bits SHOULD be treated as 0. (§4.2.2.11) | SHOULD | 4.2.2.11 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-7-1` | Multiple Traffic Filtering Actions defined in this document may be present for a single Flow Specification and SHOULD be applied to the traffic flow (for example, traffic-rate-bytes and rt-redirect can be applied to packets at the same time). (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-7.1-3` | The first two octets carry the 2-octet id, which can be assigned from a 2-octet AS number. When a 4-octet AS number is locally present, the 2 least significant octets of such an AS number can be used. This value is purely informational and SHOULD NOT be interpreted by the implementation. (§7.1) | SHOULD NOT | 7.1 | **positive:** no positive test. **negative:** no negative test |
@@ -148,7 +152,8 @@ The native codec, prefix-policy projection, unicast-authorized selection and rev
 | `RFC8955-9-2` | While this is an implementation specific choice, implementations SHOULD provide: * A mechanism to log the packet header of filtered traffic. * A mechanism to count the number of matches for a given Flow Specification rule. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-7.7-1` | If a Flow Specification associated with interfering Traffic Filtering Actions is selected for packet forwarding, it is an implementation decision which of the interfering Traffic Filtering Actions are selected. Implementors of this specification SHOULD document the behavior of their implementation in such cases. (§7.7) | SHOULD | 7.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-7-2` | Any additional definition of Traffic Filtering Actions SHOULD specify the action to take if those Traffic Filtering Actions interfere (also with existing Traffic Filtering Actions). (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8955-7.1-4` | A traffic-rate of 0 should result on all traffic for the particular flow to be discarded. (§7.1, §7.2) | SHOULD | 7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.1-4` | A traffic-rate of 0 should result on all traffic for the particular flow to be discarded. (§7.1) | SHOULD | 7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.2-3` | A traffic-rate-packets of 0 should result in all traffic for the particular flow to be discarded. (§7.2) | SHOULD | 7.2 | **positive:** `unit/verify` [`TestSelectedFlowSpecZeroPacketRateKernel`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L28). **negative:** `unit/verify` [`TestSelectedFlowSpecZeroPacketRateKernel`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L29) |
 | `RFC8955-7.6-1` | Implementations should provide mechanisms that map an arbitrary BGP community value (normal or extended) to Traffic Filtering Actions that require different mappings on different systems in the network. (§7.6) | SHOULD | 7.6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-6-4` | However, rule a MAY be relaxed by explicit configuration, permitting Flow Specifications that include no destination prefix component. If such is the case, rules b and c are moot and MUST be disregarded. (§6) | MAY | 6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-4.2-4` | A given component type MAY (exactly once) be present in the Flow Specification. (§4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
@@ -194,10 +199,10 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L15) | unit/verify | unproven |
-| negative | [`TestFlowSpecForwardingKeepsLegacyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_mixed_test.go#L16) | unit/verify | revert, verified |
 | negative | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L32) | unit/verify | revert, verified |
-| negative | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L33) | unit/verify | revert, verified |
-| negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27) | unit/verify | revert, verified |
+| negative | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L33) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestFlowSpecForwardingKeepsLegacyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go#L16) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L14) | unit/verify | unproven |
 | positive | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L31) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L32) | unit/verify | revert, verified |
@@ -484,7 +489,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. posi
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8955FlowSpecLosingPathIsNeverPublished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L159) | unit/verify | revert, verified |
-| positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, verified |
+| positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC8955-7.3-2`](#rfc8955-7.3-2)
 
@@ -504,6 +509,61 @@ For a network to utilize this relaxation, the BGP policies must support addition
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC8955-12-2, so no unit is bound to it.
+
+### [`RFC8955-4.2.2.5-1`](#rfc8955-4.2.2.5-1)
+
+Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.5)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Destination-port emission asserts independent literal widths and values at 0/255/256/65535 across typed, generic, registered config/text and supported route-command producers, including recipient TCP observation; one or two octets satisfy the RFC SHOULD, whereas shortest encoding is Ze policy; legal-wide reception remains separate compatibility coverage. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L30) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L25) | unit/verify | revert, verified |
+
+### [`RFC8955-4.2.2.6-1`](#rfc8955-4.2.2.6-1)
+
+Type 6 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.6)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Source-port emission has the same boundary, producer and forwarding coverage; the single-polarity annotation is justified and does not turn the recommendation into a receiving-width MUST. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L31) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L26) | unit/verify | revert, verified |
+
+### [`RFC8955-4.2.2.8-1`](#rfc8955-4.2.2.8-1)
+
+Type 8 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.8)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. ICMP-code emission asserts the recommended single octet at 0/255 across typed, generic, registered config/text and recipient forwarding paths; the separate route-command grammar lacks this criterion, and wider representations of 255 remain valid compatibility controls. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L32) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L27) | unit/verify | revert, verified |
+
+### [`RFC8955-4.2.2.10-1`](#rfc8955-4.2.2.10-1)
+
+Type 10 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.10)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Packet-length emission asserts one/two-octet encoding at 0/255/256/65535 through typed, generic, registered config/text and forwarding paths; shortest selection is local policy, and the separate route-command grammar lacks this criterion. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L33) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L28) | unit/verify | revert, verified |
+
+### [`RFC8955-7.2-3`](#rfc8955-7.2-3)
+
+A traffic-rate-packets of 0 should result in all traffic for the particular flow to be discarded. (§7.2)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Literal packet-rate community 0x800c zero reaches the selected callback and real nft backend, with four target drops, exact four-packet/116-byte counters, unaffected-destination and positive-rate controls; the repaired sequence reinstalls zero, sends target token 7 and control token 8, requires only 8 plus a timeout, then withdraws that active discard and requires token 6 delivery, so stale zero-rate enforcement is now distinguishable from removal. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSelectedFlowSpecZeroPacketRateKernel`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L29) | unit/verify | revert, verified |
+| positive | [`TestSelectedFlowSpecZeroPacketRateKernel`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go#L28) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

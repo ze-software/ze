@@ -343,14 +343,14 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> RD (8 octets) and Ethernet Tag (uint32) are decoded, carried, and re-encoded per the RFC 7432/8365 wire layout, and any uint32 tag is valid so there is no malformed-input negative for the field ze handles (internal/component/bgp/plugins/nlri/evpn/types.go:763-774)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-4">RFC9136-3.1-4</code></td><td colspan="3"><span class="rfc-subject">* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). (S3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-4">RFC9136-3.1-4</code></td><td colspan="3"><span class="rfc-subject">* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). It MUST be all bytes zero otherwise. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go:770)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType5 and EVPNType5.WriteTo).</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-5">RFC9136-3.1-5</code></td><td colspan="3"><span class="rfc-subject">The value MUST NOT be greater than 128. (S3.1)</span></td></tr>
 <tr><td></td>
@@ -506,9 +506,9 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a> * The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). (S3.1)</td>
+<tr><td><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a> * The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). It MUST be all bytes zero otherwise. (§3.1)</td>
 <td>{gap}, no test</td>
-<td>ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go:770)</td>
+<td>ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType5 and EVPNType5.WriteTo).</td>
 </tr>
 <tr><td><a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a> The GW IP field MUST be all bytes zero if it is not used as an Overlay Index. (S3.1)</td>
 <td>{gap}, no test</td>
@@ -628,7 +628,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </table>
 </div>
 <h3><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a></h3>
-<p>* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). (S3.1)</p>
+<p>* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). It MUST be all bytes zero otherwise. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3.1-5"><code>RFC9136-3.1-5</code></a></h3>
@@ -878,7 +878,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <tbody>
 <tr><td><code>3.1:5</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>the all-zero-otherwise half of the ESI constraint the row already states: &#34;ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise&#34;</td>
+<td>The restored RFC9136-3.1-4 quotation includes the ESI antecedent and this complete second sentence: &#34;It MUST be all bytes zero otherwise.&#34; Both sites therefore target the same two-part ESI constraint; its Overlay Index implementation gap remains.</td>
 <td>It MUST be all bytes zero otherwise.</td>
 </tr>
 </tbody>
@@ -917,7 +917,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

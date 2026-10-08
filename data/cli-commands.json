@@ -103,7 +103,7 @@
     "short-help": "Remove all routes received from a peer.",
     "description": "Wipes the Adj-RIB-In for matched peers. They will need to\nre-advertise everything (or you can send a route-refresh).\nSelector: IP, name, AS pattern, glob, or *.",
     "mode": "daemon",
-    "wire-method": "ze-rib-api:clear-in",
+    "wire-method": "ze-bgp:rib-clear-in",
     "task-support": "forbidden",
     "usage": "clear bgp rib in",
     "grammar": [
@@ -223,7 +223,7 @@
     "short-help": "Re-advertise all routes to a peer.",
     "description": "Triggers a full Adj-RIB-Out replay to the selected peers. Useful\nafter a policy change to push updated attributes without tearing\ndown the session. Selector: IP, name, AS pattern, glob, or *.",
     "mode": "daemon",
-    "wire-method": "ze-rib-api:clear-out",
+    "wire-method": "ze-bgp:rib-clear-out",
     "task-support": "forbidden",
     "usage": "clear bgp rib out",
     "grammar": [
@@ -341,15 +341,27 @@
   {
     "path": "clear debug",
     "short-help": "Clear the default debug profile.",
-    "description": "It writes an empty profile into the default slot AND applies it, so the stored default and the running daemon both stop. A named profile is not touched.",
-    "mode": "offline"
+    "description": "It writes an empty profile into the default slot and applies it, so the\nstored default and the running daemon both stop. A named profile is not touched.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:clear-debug",
+    "usage": "clear debug",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "debug",
+        "kind": "keyword"
+      }
+    ]
   },
   {
     "path": "clear dns cache",
     "short-help": "Flush all DNS cache entries and reset all DNS cache counters.",
     "description": "The entries and the four counters go together. Use clear dns cache\nstats to zero the counters and keep the entries, or clear dns cache record to evict one\nname.",
     "mode": "daemon",
-    "wire-method": "ze-clear:dns-cache",
+    "wire-method": "ze-resolve:clear-dns-cache",
     "usage": "clear dns cache",
     "grammar": [
       {
@@ -468,7 +480,7 @@
     "short-help": "Evict DNS cache entries for one record name, or one name and type when a type is provided.",
     "description": "Add type <record-type> after the name to evict one type, and\ngive no other tail. An unknown type is reported inside the answer rather than as an error.",
     "mode": "daemon",
-    "wire-method": "ze-clear:dns-cache-record",
+    "wire-method": "ze-resolve:clear-dns-cache-record",
     "args": [
       {
         "name": "name",
@@ -628,7 +640,7 @@
     "short-help": "Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.",
     "description": "The cached entries stay, so the next lookup is still served\nfrom the cache. Only the hit, miss, eviction and expiry counters go to zero.",
     "mode": "daemon",
-    "wire-method": "ze-clear:dns-cache-stats",
+    "wire-method": "ze-resolve:clear-dns-cache-stats",
     "usage": "clear dns cache stats",
     "grammar": [
       {
@@ -747,7 +759,7 @@
     "short-help": "Remove the addresses Ze cached for a domain group.",
     "description": "Drops the group's addresses from memory and from the persisted\ncache, then re-applies the firewall tables. Config that still\nnames the group fails to verify until it is resolved again with\n'update firewall domain-group <name>'.",
     "mode": "daemon",
-    "wire-method": "ze-clear:firewall-domain-group",
+    "wire-method": "ze-firewall:clear-domain-group",
     "args": [
       {
         "name": "name",
@@ -875,7 +887,7 @@
     "short-help": "Remove the cached IRR prefix-list for an AS-SET.",
     "description": "Drops the entry from memory and from the persisted\ncache, then re-applies the firewall tables.",
     "mode": "daemon",
-    "wire-method": "ze-clear:firewall-irr-as-set",
+    "wire-method": "ze-firewall:clear-irr-as-set",
     "args": [
       {
         "name": "as-set",
@@ -1007,7 +1019,7 @@
     "short-help": "Remove the cached IRR prefix-list for an ASN.",
     "description": "Drops the entry from memory and from the persisted\ncache, then re-applies the firewall tables. Config that still references the\nASN fails to verify until it is fetched again with\n'update firewall irr asn <asn>'.",
     "mode": "daemon",
-    "wire-method": "ze-clear:firewall-irr-asn",
+    "wire-method": "ze-firewall:clear-irr-asn",
     "args": [
       {
         "name": "asn",
@@ -1139,7 +1151,7 @@
     "short-help": "Zero the Rx/Tx counters for every managed interface.",
     "description": "One call resets every interface the backend manages, and the answer\nreports the scope as all. Nothing else about the interfaces changes.",
     "mode": "daemon",
-    "wire-method": "ze-clear:interface-counters",
+    "wire-method": "ze-iface:clear-interface-counters",
     "usage": "clear interface counters",
     "grammar": [
       {
@@ -1254,7 +1266,7 @@
     "short-help": "Zero the Rx/Tx counters for one interface.",
     "description": "Only the named interface is reset. Ze translates the name to\nits kernel device first, so a name bound to hardware by a selector clears the right port.",
     "mode": "daemon",
-    "wire-method": "ze-clear:interface-counters",
+    "wire-method": "ze-iface:clear-interface-counters",
     "args": [
       {
         "name": "name",
@@ -1386,7 +1398,7 @@
     "short-help": "Tear down every IS-IS adjacency so neighbors re-form.",
     "description": "Adjacencies re-learn from the next Hello; the circuit is not closed and the\nconfiguration is unchanged.",
     "mode": "daemon",
-    "wire-method": "ze-clear:isis-adjacency",
+    "wire-method": "ze-isis:clear-adjacency",
     "usage": "clear isis adjacency",
     "grammar": [
       {
@@ -1501,7 +1513,7 @@
     "short-help": "Reset IS-IS observational counters and the SPF log.",
     "description": "Monotonic Prometheus series are not reset; the SPF-run history is cleared.",
     "mode": "daemon",
-    "wire-method": "ze-clear:isis-counters",
+    "wire-method": "ze-isis:clear-counters",
     "usage": "clear isis counters",
     "grammar": [
       {
@@ -1616,7 +1628,7 @@
     "short-help": "Disconnect every L2TP session on this box.",
     "description": "Sends CDN for all sessions across all tunnels. The\ntunnels stay up. Use with care.",
     "mode": "daemon",
-    "wire-method": "ze-l2tp-api:session-teardown-all",
+    "wire-method": "ze-l2tp:session-teardown-all",
     "usage": "clear l2tp session all",
     "grammar": [
       {
@@ -1735,7 +1747,7 @@
     "short-help": "Disconnect one subscriber session.",
     "description": "Sends a CDN to gracefully close the session. Pass\nthe local session ID: clear l2tp session id <id> [reason <text>] [cause\n<code>].",
     "mode": "daemon",
-    "wire-method": "ze-l2tp-api:session-teardown",
+    "wire-method": "ze-l2tp:session-teardown",
     "usage": "clear l2tp session id",
     "grammar": [
       {
@@ -1854,7 +1866,7 @@
     "short-help": "Tear down every L2TP tunnel on this box.",
     "description": "Sends StopCCN for all tunnels. Every subscriber\nsession is disconnected. Use with care during maintenance.",
     "mode": "daemon",
-    "wire-method": "ze-l2tp-api:tunnel-teardown-all",
+    "wire-method": "ze-l2tp:tunnel-teardown-all",
     "usage": "clear l2tp tunnel all",
     "grammar": [
       {
@@ -1973,7 +1985,7 @@
     "short-help": "Gracefully tear down one L2TP tunnel.",
     "description": "Sends a StopCCN to the peer. Every session on this\ntunnel is disconnected. Pass the local tunnel ID: clear l2tp tunnel id\n<id>.",
     "mode": "daemon",
-    "wire-method": "ze-l2tp-api:tunnel-teardown",
+    "wire-method": "ze-l2tp:tunnel-teardown",
     "usage": "clear l2tp tunnel id",
     "grammar": [
       {
@@ -2092,7 +2104,7 @@
     "short-help": "Reset the OSPF SPF-run history.",
     "description": "Monotonic Prometheus series are not reset; the SPF-run log is cleared.",
     "mode": "daemon",
-    "wire-method": "ze-clear:ospf-counters",
+    "wire-method": "ze-ospf:clear-counters",
     "usage": "clear ospf counters",
     "grammar": [
       {
@@ -2207,7 +2219,7 @@
     "short-help": "Tear down every OSPF adjacency so neighbors re-form.",
     "description": "Adjacencies re-learn from the next Hello.",
     "mode": "daemon",
-    "wire-method": "ze-clear:ospf-neighbor",
+    "wire-method": "ze-ospf:clear-neighbor",
     "usage": "clear ospf neighbor",
     "grammar": [
       {
@@ -2322,7 +2334,7 @@
     "short-help": "Full OSPF reset: tear down every adjacency and re-run SPF.",
     "description": "Adjacencies re-form from the next Hello; the configuration is unchanged.",
     "mode": "daemon",
-    "wire-method": "ze-clear:ospf-process",
+    "wire-method": "ze-ospf:clear-process",
     "usage": "clear ospf process",
     "grammar": [
       {
@@ -2437,7 +2449,7 @@
     "short-help": "Tear down IKE Security Associations.",
     "description": "Without arguments, terminates all SAs. Use\n'peer <name>' to clear just one peer. The tunnel WILL renegotiate\nautomatically if the config is still active.",
     "mode": "daemon",
-    "wire-method": "ze-clear:vpn-ipsec-sa",
+    "wire-method": "ze-ike:clear-vpn-ipsec-sa",
     "usage": "clear vpn ipsec sa",
     "grammar": [
       {
@@ -2556,7 +2568,7 @@
     "short-help": "Reset every VRRP virtual router's counters to zero.",
     "description": "Protocol state is untouched: clearing counters never triggers a failover.",
     "mode": "daemon",
-    "wire-method": "ze-clear:vrrp-statistics",
+    "wire-method": "ze-vrrp:clear-statistics",
     "usage": "clear vrrp statistics",
     "grammar": [
       {
@@ -4263,7 +4275,7 @@
     "short-help": "Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).",
     "description": "The default Opaque Type is Private-Use so a test LSA never collides with a\nstandards-track consumer. Requires `debug ospf inject enable`.",
     "mode": "daemon",
-    "wire-method": "ze-debug:ospf-inject",
+    "wire-method": "ze-ospf:debug-inject",
     "usage": "debug ip ospf inject opaque scope <link|area|as> id <opaque-id> [type <type>] [hex <body> ...] [tlv <type> <value-hex> ...] [withdraw]",
     "grammar": [
       {
@@ -4453,7 +4465,7 @@
     "short-help": "Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).",
     "description": "The flooding scope is derived from the LS Type S2/S1 bits (a reserved scope is\nrejected). Requires `debug ospf inject enable`.",
     "mode": "daemon",
-    "wire-method": "ze-debug:ospfv3-inject",
+    "wire-method": "ze-ospf:debug-ospfv3-inject",
     "usage": "debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link|area|as>] [hex <body> ...] [withdraw]",
     "grammar": [
       {
@@ -4628,7 +4640,7 @@
     "short-help": "Disable OSPF debug LSA injection.",
     "description": "One flag covers both address families, so this stops IPv4 and IPv6\ninjection together. An inject after it fails with 'debug injection not enabled\n(run `debug ospf inject enable`)'. The flag is never written to the config, so\na reboot returns the router to injection off.",
     "mode": "daemon",
-    "wire-method": "ze-debug:ospf-inject-disable",
+    "wire-method": "ze-ospf:debug-inject-disable",
     "usage": "debug ospf inject disable",
     "grammar": [
       {
@@ -4747,7 +4759,7 @@
     "short-help": "Enable OSPF debug LSA injection (shared across both address families).",
     "description": "Off by default.",
     "mode": "daemon",
-    "wire-method": "ze-debug:ospf-inject-enable",
+    "wire-method": "ze-ospf:debug-inject-enable",
     "usage": "debug ospf inject enable",
     "grammar": [
       {
@@ -4866,7 +4878,7 @@
     "short-help": "Remove a peer from the running config.",
     "description": "Tears down the TCP session and deletes the peer from the running\nconfiguration. Does not modify the config file on disk.",
     "mode": "daemon",
-    "wire-method": "ze-delete:bgp-peer",
+    "wire-method": "ze-bgp:delete-peer",
     "args": [
       {
         "name": "selector",
@@ -4991,15 +5003,104 @@
   },
   {
     "path": "delete debug module",
-    "short-help": "Disable debug for a subsystem, or remove one of its flags/scopes.",
-    "description": "The module name alone removes the whole module. Naming a flag or a scope removes that one and leaves the module enabled. Deleting a module the profile does not hold succeeds and changes nothing, so a repeated command is safe.",
-    "mode": "offline"
+    "short-help": "Disable debug for a subsystem, or remove one of its flags or scopes.",
+    "description": "The module name alone removes the whole module. Naming a flag or a scope\nremoves that one and leaves the module enabled. Deleting a module the profile does not\nhold succeeds and changes nothing, so a repeated command is safe.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:delete-module",
+    "args": [
+      {
+        "name": "module-name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Subsystem name.",
+        "description": "The subsystem name, as show debug lists it."
+      },
+      {
+        "name": "flag",
+        "type": "string",
+        "short-help": "Debug flag to remove.",
+        "description": "The flag to remove. The module stays enabled."
+      }
+    ],
+    "usage": "delete debug module <module-name> [flag <flag>] [scope <kind> <value>]",
+    "grammar": [
+      {
+        "text": "delete",
+        "kind": "keyword"
+      },
+      {
+        "text": "debug",
+        "kind": "keyword"
+      },
+      {
+        "text": "module",
+        "kind": "keyword"
+      },
+      {
+        "text": "module-name",
+        "kind": "value"
+      },
+      {
+        "text": "flag",
+        "kind": "option"
+      },
+      {
+        "text": "scope",
+        "group": [
+          {
+            "text": "kind",
+            "kind": "value"
+          },
+          {
+            "text": "value",
+            "kind": "value"
+          }
+        ],
+        "kind": "group"
+      }
+    ],
+    "subcommands": [
+      "scope"
+    ]
   },
   {
     "path": "delete debug profile name",
     "short-help": "Delete a named debug profile.",
-    "description": "It removes the stored slot and nothing else. The running daemon keeps whatever it is writing, so deleting the profile that is live does not turn its output off.",
-    "mode": "offline"
+    "description": "It removes the stored slot and nothing else. The running daemon keeps\nwhatever it is writing, so deleting the profile that is live does not turn its output off.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:delete-profile-name",
+    "args": [
+      {
+        "name": "profile-name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Profile name.",
+        "description": "A stored profile, as show debug profile lists it."
+      }
+    ],
+    "usage": "delete debug profile name <profile-name>",
+    "grammar": [
+      {
+        "text": "delete",
+        "kind": "keyword"
+      },
+      {
+        "text": "debug",
+        "kind": "keyword"
+      },
+      {
+        "text": "profile",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "keyword"
+      },
+      {
+        "text": "profile-name",
+        "kind": "value"
+      }
+    ]
   },
   {
     "path": "delete interface name",
@@ -5428,21 +5529,58 @@
   {
     "path": "explain",
     "short-help": "Explain one diagnostic code Ze printed.",
-    "description": "The answer gives the meaning of the code, its likely cause and the recommended fix. Pass the code you read in a log line or an error message.",
-    "mode": "offline"
+    "description": "The answer gives the meaning of the code, its likely cause and the recommended\nfix. It is read from the diagnostic catalog this binary carries and asks no daemon.",
+    "mode": "daemon",
+    "wire-method": "ze-explain:explain",
+    "args": [
+      {
+        "name": "code",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Diagnostic code.",
+        "description": "A diagnostic code as a log line or an error message printed it. An unknown\ncode is refused."
+      }
+    ],
+    "usage": "explain <code>",
+    "grammar": [
+      {
+        "text": "explain",
+        "kind": "keyword"
+      },
+      {
+        "text": "code",
+        "kind": "value"
+      }
+    ]
   },
   {
     "path": "generate wireguard keypair",
     "short-help": "Generate a WireGuard keypair with the system wg binary.",
-    "description": "The private key is written on the first line and the public key on the second. The wg binary must be installed on this host.",
-    "mode": "offline"
+    "description": "The private key is written on the first line and the public key on the\nsecond. The wg binary must be installed on this host.",
+    "mode": "daemon",
+    "wire-method": "ze-diag:generate-wireguard-keypair",
+    "usage": "generate wireguard keypair",
+    "grammar": [
+      {
+        "text": "generate",
+        "kind": "keyword"
+      },
+      {
+        "text": "wireguard",
+        "kind": "keyword"
+      },
+      {
+        "text": "keypair",
+        "kind": "keyword"
+      }
+    ]
   },
   {
     "path": "help",
     "short-help": "Show available commands at this level.",
     "description": "Lists every registered command verb with a brief description.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:help",
+    "wire-method": "ze-meta:bgp-help",
     "usage": "help",
     "grammar": [
       {
@@ -5673,7 +5811,7 @@
     "short-help": "Stream live events as they happen.",
     "description": "Shows a real-time feed of internal events. Filter with include <pattern> or\nexclude <pattern> to focus on what matters. Patterns match event type names.",
     "mode": "read-only",
-    "wire-method": "ze-event:monitor",
+    "wire-method": "ze-meta:event-monitor",
     "task-support": "required",
     "usage": "monitor event",
     "grammar": [
@@ -5785,7 +5923,7 @@
     "short-help": "Stream per-second traffic rates for your interfaces.",
     "description": "Shows rx/tx bytes and packets per second, updating\nevery second. Optionally pass an interface name to watch just one link.",
     "mode": "read-only",
-    "wire-method": "ze-monitor:interface-rate",
+    "wire-method": "ze-iface:monitor-interface-rate",
     "task-support": "required",
     "usage": "monitor interface rate",
     "grammar": [
@@ -5901,7 +6039,7 @@
     "short-help": "Continuous ping with live loss and RTT statistics.",
     "description": "Pings <target> until you stop it. Adjust interval and timeout as needed. Shows\nrunning min/avg/max RTT and packet loss.",
     "mode": "read-only",
-    "wire-method": "ze-monitor:ping",
+    "wire-method": "ze-ping:monitor-ping",
     "task-support": "required",
     "usage": "monitor ping",
     "grammar": [
@@ -6029,7 +6167,7 @@
     "short-help": "Watch kernel networking changes in real time.",
     "description": "Streams netlink events: route adds and deletes, link\nstate changes, address assignments. Filter with route, link, address, or\nall.",
     "mode": "read-only",
-    "wire-method": "ze-monitor:system-netlink",
+    "wire-method": "ze-iface:monitor-system-netlink",
     "task-support": "required",
     "usage": "monitor system netlink",
     "grammar": [
@@ -6145,7 +6283,7 @@
     "short-help": "Live mtr-style traceroute that updates continuously.",
     "description": "Shows each hop with running RTT statistics. Keeps probing so you can watch\npath changes and latency shifts over time.",
     "mode": "read-only",
-    "wire-method": "ze-monitor:traceroute",
+    "wire-method": "ze-traceroute:monitor-traceroute",
     "task-support": "required",
     "usage": "monitor traceroute",
     "grammar": [
@@ -6273,7 +6411,7 @@
     "short-help": "Start streaming traffic monitor (per-second snapshots).",
     "description": "Without arguments, shows all interfaces. With\n'name <interface>', filters to one interface.",
     "mode": "read-only",
-    "wire-method": "ze-monitor:traffic-stat",
+    "wire-method": "ze-trafficstat:monitor-traffic-stat",
     "args": [
       {
         "name": "name",
@@ -6400,7 +6538,7 @@
     "short-help": "Watch IPsec SA events as they happen.",
     "description": "Streams sa-up, sa-down, child-up, child-down, and\nchild-rekey events. Use it to debug a tunnel flap or a rekey problem.",
     "mode": "read-only",
-    "wire-method": "ze-monitor:vpn-ipsec",
+    "wire-method": "ze-ike:monitor-vpn-ipsec",
     "task-support": "required",
     "usage": "monitor vpn ipsec",
     "grammar": [
@@ -6516,7 +6654,7 @@
     "short-help": "Choose sync or async event delivery.",
     "description": "sync: Ze waits for your plugin to acknowledge each event before sending the\nnext one. Safer but slower. async: events fire without waiting, giving higher\nthroughput at the cost of backpressure control.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:plugin-ack",
+    "wire-method": "ze-meta:bgp-plugin-ack",
     "usage": "plugin ack",
     "grammar": [
       {
@@ -6998,7 +7136,7 @@
     "short-help": "Choose json or text encoding for plugin events.",
     "description": "Controls how events are serialized in this session. JSON is structured and\nparseable; text is more compact.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:plugin-encoding",
+    "wire-method": "ze-meta:bgp-plugin-encoding",
     "usage": "plugin encoding",
     "grammar": [
       {
@@ -7109,7 +7247,7 @@
     "short-help": "Choose how BGP message bytes appear in events.",
     "description": "hex and base64 are compact wire representations. parsed decodes attributes\ninto structured fields. full includes both wire bytes and parsed content.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:plugin-format",
+    "wire-method": "ze-meta:bgp-plugin-format",
     "usage": "plugin format",
     "grammar": [
       {
@@ -8694,7 +8832,7 @@
     "short-help": "Switch or report the zero-copy forward-handle fast path.",
     "description": "The fast path hands a forward handle to the Loc-RIB consumer\nwithout copying the route. enable and disable switch it, and status reports the\ncounters. Each of the three answers the same counter snapshot.",
     "mode": "daemon",
-    "wire-method": "ze-rib-api:fastpath",
+    "wire-method": "ze-bgp:rib-fastpath",
     "task-support": "forbidden",
     "args": [
       {
@@ -8837,7 +8975,7 @@
     "short-help": "Inject a synthetic route into the Adj-RIB-In.",
     "description": "Behaves as if the route was received from a peer. Use this for\ntesting policy filters or simulating route announcements.",
     "mode": "daemon",
-    "wire-method": "ze-rib-api:inject",
+    "wire-method": "ze-bgp:rib-inject",
     "task-support": "forbidden",
     "usage": "request bgp rib inject",
     "grammar": [
@@ -9353,7 +9491,7 @@
     "short-help": "Withdraw a route from the Adj-RIB-In.",
     "description": "Removes a previously injected or received route from a peer's\nAdj-RIB-In, triggering best-path recomputation.",
     "mode": "daemon",
-    "wire-method": "ze-rib-api:withdraw",
+    "wire-method": "ze-bgp:rib-withdraw",
     "task-support": "forbidden",
     "usage": "request bgp rib withdraw",
     "grammar": [
@@ -10463,7 +10601,7 @@
     "short-help": "Save a snapshot of the current running configuration.",
     "description": "Captures the config into the store for later rollback or comparison. Optional\nname labels the snapshot; defaults to a timestamp.",
     "mode": "daemon",
-    "wire-method": "ze-config-archive:trigger",
+    "wire-method": "ze-config:archive-trigger",
     "usage": "request config archive",
     "grammar": [
       {
@@ -10578,7 +10716,7 @@
     "short-help": "Write a backup of the whole store to a file on the daemon's host.",
     "description": "Copies every key of the store into one blob artifact while the daemon runs. A\ncommit that lands meanwhile is in the backup whole or not at all. The file holds\ncredentials and private keys and is written 0600.",
     "mode": "daemon",
-    "wire-method": "ze-data:backup",
+    "wire-method": "ze-config:data-backup",
     "args": [
       {
         "name": "path",
@@ -10726,7 +10864,7 @@
     "short-help": "Restore a config from a backup file on the daemon's host.",
     "description": "Stages the artifact's config as the candidate and runs the same reload a SIGHUP\nruns. The config becomes active only when the reload accepts it; a refused\nconfig leaves the active config and its pointers untouched. Nothing else in the\nstore changes. With client, a hub writes the config it serves to that managed\nclient instead, as a new version, and pushes config-changed to the client; the\nhub does not reload its own config.",
     "mode": "daemon",
-    "wire-method": "ze-data:restore",
+    "wire-method": "ze-config:data-restore",
     "args": [
       {
         "name": "path",
@@ -10884,7 +11022,7 @@
     "short-help": "Dump goroutine stacks to stderr and terminate immediately.",
     "description": "Ze writes every goroutine stack through the daemon logger at warning\nlevel, with a 1 MB buffer, and then stops. Use it where a daemon is stuck\nand the stacks are the evidence.",
     "mode": "daemon",
-    "wire-method": "ze-system:daemon-quit",
+    "wire-method": "ze-plugin:system-daemon-quit",
     "usage": "request halt",
     "grammar": [
       {
@@ -11700,7 +11838,7 @@
     "short-help": "Place an LNS-side outgoing call (RFC 2661 S10.4).",
     "description": "Dials the named remote (which must have\noutgoing-calls enabled), sends OCRQ, and blocks until the call establishes or\nfails. On failure the cause and RFC 2661 Result Code are reported (auth reject,\ntie-breaker loss, peer CDN, or timeout).",
     "mode": "daemon",
-    "wire-method": "ze-l2tp-api:outgoing-call",
+    "wire-method": "ze-l2tp:outgoing-call",
     "args": [
       {
         "name": "remote",
@@ -11847,7 +11985,7 @@
     "short-help": "Change a subsystem's log level without restarting.",
     "description": "Takes effect immediately. Set to debug when troubleshooting, then back to info\nwhen you are done.",
     "mode": "daemon",
-    "wire-method": "ze-bgp:log-set",
+    "wire-method": "ze-log:bgp-log-set",
     "args": [
       {
         "name": "logger",
@@ -12858,7 +12996,7 @@
     "short-help": "Signal that per-peer plugin setup is complete.",
     "description": "The daemon closes this sending process's share of the peer's\nlive-forward replay fence only for the captured peer-UP session token.\nMissing, stale or retired process receipts fail without releasing queued work.\nAn explicit operator request is a no-op; it cannot credit a named process.\nA peer of '*', and an empty peer, signal nothing.",
     "mode": "daemon",
-    "wire-method": "ze-plugin:session-peer-ready",
+    "wire-method": "ze-bgp:plugin-session-peer-ready",
     "args": [
       {
         "name": "selector",
@@ -13399,7 +13537,7 @@
     "short-help": "Block until every subsystem has drained pending async work, then reply.",
     "description": "It is a test and operator barrier that replaces a fixed sleep.",
     "mode": "daemon",
-    "wire-method": "ze-system:quiesce",
+    "wire-method": "ze-plugin:system-quiesce",
     "usage": "request quiesce",
     "grammar": [
       {
@@ -13510,7 +13648,7 @@
     "short-help": "Gracefully shutdown then reboot the system.",
     "description": "Ze writes the accepted answer first, then runs the reboot. The answer message\nis 'reboot initiated'. A daemon with no reboot function configured fails with\n'reboot not available'.",
     "mode": "daemon",
-    "wire-method": "ze-system:daemon-reboot",
+    "wire-method": "ze-plugin:system-daemon-reboot",
     "usage": "request reboot",
     "grammar": [
       {
@@ -13621,7 +13759,7 @@
     "short-help": "Reload the configuration without restarting.",
     "description": "Ze reads the config from disk, verifies it with every plugin that asked for\nthe config roots, and then applies it to each. Every plugin verifies before\nany plugin applies. A failure at any step answers 'reload failed:\n<error>'.",
     "mode": "daemon",
-    "wire-method": "ze-system:daemon-reload",
+    "wire-method": "ze-plugin:system-daemon-reload",
     "usage": "request reload",
     "grammar": [
       {
@@ -13732,7 +13870,7 @@
     "short-help": "Gracefully shutdown: drain connections, close peers, exit.",
     "description": "Ze writes the accepted answer first and stops after, so teardown cannot close\nthe requesting connection under its own reply. The answer message is 'shutdown\ninitiated'. A daemon with no reactor uses the same signal-based teardown that\nSIGTERM triggers.",
     "mode": "daemon",
-    "wire-method": "ze-system:daemon-shutdown",
+    "wire-method": "ze-plugin:system-daemon-shutdown",
     "usage": "request shutdown",
     "grammar": [
       {
@@ -13843,7 +13981,7 @@
     "short-help": "Start receiving events of one or more types.",
     "description": "Events are delivered asynchronously to your plugin session until\nyou unsubscribe. Use 'show event list' to see available event types.",
     "mode": "daemon",
-    "wire-method": "ze-bgp:subscribe",
+    "wire-method": "ze-cmd:bgp-subscribe",
     "task-support": "required",
     "usage": "request subscribe",
     "grammar": [
@@ -13955,7 +14093,7 @@
     "short-help": "Stop receiving events you previously subscribed to.",
     "description": "Removes the subscription for the specified event type from your\ncurrent plugin session.",
     "mode": "daemon",
-    "wire-method": "ze-bgp:unsubscribe",
+    "wire-method": "ze-cmd:bgp-unsubscribe",
     "usage": "request unsubscribe",
     "grammar": [
       {
@@ -15192,7 +15330,7 @@
     "short-help": "Ping from the router with optional source binding.",
     "description": "The target takes a hostname or an address, and it accepts a zone suffix such as\nfe80::1%eth0. The source binds a local address and takes the same zone suffix.\nThe count runs from 1 to 100 and the payload size from 1 to 65507 bytes. 'show\nping' declares no source leaf and puts no upper bound on its count. The\ndo-not-fragment keyword is the same word, with the same two values, on both.",
     "mode": "read-only",
-    "wire-method": "ze-resolve:ping",
+    "wire-method": "ze-ping:resolve-ping",
     "args": [
       {
         "name": "target",
@@ -15364,7 +15502,7 @@
     "short-help": "Traceroute from the router with optional source binding.",
     "description": "The options are source, max-hops, timeout and probes, each one a\nkeyword and a value, and do-not-fragment, a keyword with one of two values. max-hops is 1 to 64 and defaults to 30, probes is 1 to 10 and defaults\nto 3, and timeout is 1s to 30s and defaults to 3s. The source also selects the address\nfamily: a target name is resolved in the family of the source, and a target with no\naddress in that family is refused.",
     "mode": "read-only",
-    "wire-method": "ze-resolve:traceroute",
+    "wire-method": "ze-traceroute:resolve-traceroute",
     "args": [
       {
         "name": "target",
@@ -17185,26 +17323,187 @@
   {
     "path": "set debug active name",
     "short-help": "Load a named debug profile and apply it to the running daemon.",
-    "description": "The named profile becomes the live state and the default slot is NOT overwritten, so a restart returns the daemon to the default profile rather than to this one.",
-    "mode": "offline"
+    "description": "The named profile becomes the live state and the default slot is not\noverwritten, so a restart returns the daemon to the default profile rather than to this one.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:set-active-name",
+    "args": [
+      {
+        "name": "profile-name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Profile name.",
+        "description": "A stored profile, as show debug profile lists it."
+      }
+    ],
+    "usage": "set debug active name <profile-name>",
+    "grammar": [
+      {
+        "text": "set",
+        "kind": "keyword"
+      },
+      {
+        "text": "debug",
+        "kind": "keyword"
+      },
+      {
+        "text": "active",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "keyword"
+      },
+      {
+        "text": "profile-name",
+        "kind": "value"
+      }
+    ]
   },
   {
     "path": "set debug module",
     "short-help": "Enable debug output for one subsystem.",
-    "description": "A level, a flag or a scope can be set in the same command, and each one narrows what the subsystem writes.",
-    "mode": "offline"
+    "description": "The bare command enables the subsystem at its default level. A level, a\nflag or a scope narrows what the subsystem writes. The profile is saved and applied.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:set-module",
+    "args": [
+      {
+        "name": "module-name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Subsystem name.",
+        "description": "The subsystem name, as show debug lists it. A name holding a slash is\nrefused."
+      },
+      {
+        "name": "level",
+        "type": "string",
+        "short-help": "Log level for the subsystem.",
+        "description": "One of disabled, debug, info, warn or error. Any other word is refused."
+      },
+      {
+        "name": "flag",
+        "type": "string",
+        "short-help": "Debug flag to enable.",
+        "description": "A flag the subsystem declares. A flag it does not declare is refused and\nthe valid flags are listed."
+      }
+    ],
+    "usage": "set debug module <module-name> [level <level>] [flag <flag>] [scope <kind> <value>]",
+    "grammar": [
+      {
+        "text": "set",
+        "kind": "keyword"
+      },
+      {
+        "text": "debug",
+        "kind": "keyword"
+      },
+      {
+        "text": "module",
+        "kind": "keyword"
+      },
+      {
+        "text": "module-name",
+        "kind": "value"
+      },
+      {
+        "text": "level",
+        "kind": "option"
+      },
+      {
+        "text": "flag",
+        "kind": "option"
+      },
+      {
+        "text": "scope",
+        "group": [
+          {
+            "text": "kind",
+            "kind": "value"
+          },
+          {
+            "text": "value",
+            "kind": "value"
+          }
+        ],
+        "kind": "group"
+      }
+    ],
+    "subcommands": [
+      "scope"
+    ]
   },
   {
     "path": "set debug profile name",
     "short-help": "Save the current debug state as a named profile.",
-    "description": "It copies what the daemon is writing NOW into a named slot. The default slot is left as it is, so saving a profile does not change what the running daemon logs.",
-    "mode": "offline"
+    "description": "It copies what the daemon is writing now into a named slot. The default\nslot is left as it is, so saving a profile does not change what the running daemon logs.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:set-profile-name",
+    "args": [
+      {
+        "name": "profile-name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Profile name.",
+        "description": "The slot the current state is saved under."
+      }
+    ],
+    "usage": "set debug profile name <profile-name>",
+    "grammar": [
+      {
+        "text": "set",
+        "kind": "keyword"
+      },
+      {
+        "text": "debug",
+        "kind": "keyword"
+      },
+      {
+        "text": "profile",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "keyword"
+      },
+      {
+        "text": "profile-name",
+        "kind": "value"
+      }
+    ]
   },
   {
     "path": "set debug timeout",
     "short-help": "Set how long debug output stays enabled.",
-    "description": "The duration is written as 30m, 1h or 90s, seconds are rounded up to minutes, and the longest accepted value is 24h. Zero disables the timer.",
-    "mode": "offline"
+    "description": "The duration is written as 30m, 1h or 90s. Seconds are rounded up to\nminutes, the longest accepted value is 24h, and zero disables the timer.",
+    "mode": "daemon",
+    "wire-method": "ze-debug:set-timeout",
+    "args": [
+      {
+        "name": "duration",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "How long debug stays enabled.",
+        "description": "A duration such as 30m, 1h, 90s or 0."
+      }
+    ],
+    "usage": "set debug timeout <duration>",
+    "grammar": [
+      {
+        "text": "set",
+        "kind": "keyword"
+      },
+      {
+        "text": "debug",
+        "kind": "keyword"
+      },
+      {
+        "text": "timeout",
+        "kind": "keyword"
+      },
+      {
+        "text": "duration",
+        "kind": "value"
+      }
+    ]
   },
   {
     "path": "set sysctl",
@@ -17310,7 +17609,7 @@
     "short-help": "Raise the file descriptor limit for the daemon process.",
     "description": "Pass a number or 'max' to go to the hard limit. Takes effect immediately.\nCheck current limits with 'show system file-descriptors'.",
     "mode": "daemon",
-    "wire-method": "ze-set:system-file-descriptors",
+    "wire-method": "ze-host:set-system-file-descriptors",
     "args": [
       {
         "name": "limit",
@@ -17444,7 +17743,7 @@
     "short-help": "Show AAA accounting counters and any dropped records.",
     "description": "Tells you whether TACACS+ accounting is working or if records are being lost\ndue to server unreachability.",
     "mode": "read-only",
-    "wire-method": "ze-show:aaa-accounting",
+    "wire-method": "ze-aaa:show-accounting",
     "usage": "show aaa accounting",
     "grammar": [
       {
@@ -17702,7 +18001,7 @@
     "short-help": "Show the recent behavioral anomaly incidents.",
     "description": "Each incident carries the source entity, the cohort, the fired\nfeatures with their deviation z-scores, the combined score, and the severity.\nThe detector only reports. The anomaly shape responder (Spec 2b) acts on the\nreport.",
     "mode": "read-only",
-    "wire-method": "ze-show:anomaly",
+    "wire-method": "ze-anomaly:show-anomaly",
     "usage": "show anomaly detect",
     "grammar": [
       {
@@ -17817,7 +18116,7 @@
     "short-help": "Show the behavioral anomaly incident lifecycle, newest first.",
     "description": "Per incident: the source entity, cohort, fired features with their\ndeviation z-scores, combined score, severity, start time, end time, and whether\nit is still active. Finalized incidents stay in the list, so this shows a\nfinished incident's duration, which `show anomaly detect` cannot.",
     "mode": "read-only",
-    "wire-method": "ze-show:anomaly-observe",
+    "wire-method": "ze-anomaly:show-observe",
     "usage": "show anomaly observe",
     "grammar": [
       {
@@ -17932,7 +18231,7 @@
     "short-help": "Show the shadow-first anomaly responder status.",
     "description": "Returns the mode (shadow or armed), the action, and the kill-switch\nstate. It also returns the armed source entities with their live firewall\nactions.",
     "mode": "read-only",
-    "wire-method": "ze-show:anomaly-shape",
+    "wire-method": "ze-anomaly:show-shape",
     "usage": "show anomaly shape",
     "grammar": [
       {
@@ -18047,7 +18346,7 @@
     "short-help": "Show the IPv4 ARP table (shortcut for 'show neighbor ipv4').",
     "description": "Lists IPv4 ARP entries with MAC address and state. ARP is\nIPv4-only. Use 'show neighbor' for both families or 'show neighbor ipv6' for\nthe IPv6 ND table.",
     "mode": "read-only",
-    "wire-method": "ze-show:arp",
+    "wire-method": "ze-iface:show-arp",
     "usage": "show arp",
     "grammar": [
       {
@@ -18158,7 +18457,7 @@
     "short-help": "AS112 node status.",
     "description": "Enabled, address-family, hostname/facility/location, allow-from count,\nserved zone count, and the current SOA serial.",
     "mode": "read-only",
-    "wire-method": "ze-show:as112",
+    "wire-method": "ze-as112:show-as112",
     "usage": "show as112",
     "grammar": [
       {
@@ -18269,7 +18568,7 @@
     "short-help": "Show who did what and when on this box.",
     "description": "Returns audit log entries with timestamps, actors, and actions.\nFilters (all optional, combinable): action <type>, actor <name>,\nsurface <name> (cli, web, api), since/until <RFC3339>, count <N>.\nActions include config-commit, login, peer-teardown, and more.",
     "mode": "read-only",
-    "wire-method": "ze-show:audit",
+    "wire-method": "ze-cmd:show-audit",
     "args": [
       {
         "name": "action",
@@ -18442,7 +18741,7 @@
     "short-help": "Show BFD timer profiles with effective values.",
     "description": "Returns min-tx, min-rx, and detect-multiplier after\ninheritance. Use 'show bfd profile' for every profile or 'show bfd profile\nname <name>' for one profile.",
     "mode": "read-only",
-    "wire-method": "ze-bfd-api:show-profile",
+    "wire-method": "ze-bfd:show-profile",
     "usage": "show bfd profile",
     "grammar": [
       {
@@ -18560,7 +18859,7 @@
     "short-help": "Show one BFD profile by name.",
     "description": "Give the profile name after the name keyword. The answer is one profile object, not a list. An unknown name fails with 'bfd: no profile named <name>'.",
     "mode": "read-only",
-    "wire-method": "ze-bfd-api:show-profile",
+    "wire-method": "ze-bfd:show-profile",
     "args": [
       {
         "name": "name",
@@ -18692,7 +18991,7 @@
     "short-help": "Show full detail for one BFD session.",
     "description": "Pass the peer address. Returns local/remote\ndiscriminators, negotiated timers, detection time, and packet counters.",
     "mode": "read-only",
-    "wire-method": "ze-bfd-api:show-session",
+    "wire-method": "ze-bfd:show-session",
     "args": [
       {
         "name": "address",
@@ -18824,7 +19123,7 @@
     "short-help": "List all active BFD sessions.",
     "description": "One line per session: peer address, state, negotiated\ntx/rx intervals, and detect multiplier.",
     "mode": "read-only",
-    "wire-method": "ze-bfd-api:show-sessions",
+    "wire-method": "ze-bfd:show-sessions",
     "usage": "show bfd sessions",
     "grammar": [
       {
@@ -19279,7 +19578,7 @@
     "short-help": "Decode a hex-encoded BGP message into readable JSON.",
     "description": "Paste a hex BGP UPDATE and get back parsed attributes,\nNLRI, and withdrawn prefixes. Use it to read pcap captures or to debug wire\nissues. The web UI carries the same tool under tools.",
     "mode": "read-only",
-    "wire-method": "ze-show:bgp-decode",
+    "wire-method": "ze-bgp:show-decode",
     "usage": "show bgp decode",
     "grammar": [
       {
@@ -19301,7 +19600,7 @@
     "short-help": "Turn a route announcement into wire-format hex.",
     "description": "Takes a route in API syntax and returns the BGP UPDATE\nas a hex string. Use it to build a test payload, to feed ze-test, or to verify\nthat an announcement encodes correctly.",
     "mode": "read-only",
-    "wire-method": "ze-show:bgp-encode",
+    "wire-method": "ze-bgp:show-encode",
     "usage": "show bgp encode",
     "grammar": [
       {
@@ -19323,7 +19622,7 @@
     "short-help": "Quick health check for all your BGP peers.",
     "description": "Lists every peer with address, state, ASN, and uptime. Reports how\nmany are not Established. Much faster than 'show bgp peer *' when\nyou just need a status overview.",
     "mode": "read-only",
-    "wire-method": "ze-show:bgp-health",
+    "wire-method": "ze-bgp:show-health",
     "usage": "show bgp health",
     "grammar": [
       {
@@ -19556,7 +19855,7 @@
     "short-help": "Show IRR filter status per ASN.",
     "description": "Lists each enrolled ASN with its resolved AS-SET, prefix counts,\nlast refresh time, and error status. Use this to confirm that IRR\nprefix-lists are loaded and current.",
     "mode": "read-only",
-    "wire-method": "ze-show:irr-status",
+    "wire-method": "ze-bgp:show-irr-status",
     "usage": "show bgp irr",
     "grammar": [
       {
@@ -19694,7 +19993,7 @@
     "short-help": "Check if a prefix is accepted by the IRR filter.",
     "description": "Reports whether the\nprefix would be accepted or rejected, and which entry matches.",
     "mode": "read-only",
-    "wire-method": "ze-show:irr-check",
+    "wire-method": "ze-bgp:show-irr-check",
     "args": [
       {
         "name": "peer",
@@ -19810,7 +20109,7 @@
     "short-help": "Show IRR-resolved prefixes for a peer.",
     "description": "Lists all IPv4 and IPv6 prefixes\nin the IRR-resolved prefix-list for the given peer address.",
     "mode": "read-only",
-    "wire-method": "ze-show:irr-prefix",
+    "wire-method": "ze-bgp:show-irr-prefix",
     "args": [
       {
         "name": "peer",
@@ -20880,7 +21179,7 @@
     "short-help": "Show every reject-asn list.",
     "description": "Lists each configured reject-asn list with every ASN it holds, the\neffective position set for that ASN, the network the curated table\nnames for it, and how many peers name the list on import and on\nexport. An ASN the curated table does not know prints with no\nannotation.",
     "mode": "read-only",
-    "wire-method": "ze-show:reject-asn",
+    "wire-method": "ze-bgp:show-reject-asn",
     "usage": "show bgp reject-asn",
     "grammar": [
       {
@@ -21026,7 +21325,7 @@
     "short-help": "Print the curated transit-free ASNs as a config block.",
     "description": "Prints the well-known transit-free ASNs as one `indirect [ ... ];`\nline to paste directly under `reject-asn NAME { }`, with the sources and\nthe curated date as comments. Ze acts on no ASN it was not configured\nwith, so this command is how the set reaches a config. After the paste\nthe config holds the numbers, and a later change to the curated table\ncannot alter it.",
     "mode": "read-only",
-    "wire-method": "ze-show:reject-asn-known-transit-free",
+    "wire-method": "ze-bgp:show-reject-asn-known-transit-free",
     "usage": "show bgp reject-asn known transit-free",
     "grammar": [
       {
@@ -21139,7 +21438,7 @@
     "short-help": "Show one reject-asn list.",
     "description": "The same answer for a single list, for a config that holds many.",
     "mode": "read-only",
-    "wire-method": "ze-show:reject-asn-name",
+    "wire-method": "ze-bgp:show-reject-asn-name",
     "args": [
       {
         "name": "name",
@@ -21262,7 +21561,7 @@
     "short-help": "Query routes in the BGP RIB.",
     "description": "Look at received or advertised routes with flexible filters: peer,\nfamily, prefix, AS path regex, community, match expression. Pipe\noperators: | count, | histogram, | graph. This is the main\nroute inspection command.",
     "mode": "read-only",
-    "wire-method": "ze-rib-api:routes",
+    "wire-method": "ze-bgp:rib-routes",
     "task-support": "required",
     "usage": "show bgp rib",
     "grammar": [
@@ -21478,7 +21777,7 @@
     "short-help": "Show the winning route for each prefix.",
     "description": "Same filters as 'show bgp rib'. Use '| reason' to see why each\npath was selected (local-pref, AS path length, MED, etc.).",
     "mode": "read-only",
-    "wire-method": "ze-rib-api:best",
+    "wire-method": "ze-bgp:rib-best",
     "usage": "show bgp rib best",
     "grammar": [
       {
@@ -21684,7 +21983,7 @@
     "short-help": "Check whether best-path computation is still running.",
     "description": "Reports idle, pending, or running, plus the last run duration.",
     "mode": "read-only",
-    "wire-method": "ze-rib-api:best-status",
+    "wire-method": "ze-bgp:rib-best-status",
     "usage": "show bgp rib best status",
     "grammar": [
       {
@@ -22073,7 +22372,7 @@
     "short-help": "Query the routes one protocol feeds into the RIB.",
     "description": "Answers the same rows as show bgp rib, limited to the Adj-RIB-In\ntables one protocol feeds. bgp reads the BGP peers. Every other protocol, bmp for\nexample, reads the tables its monitored peers fill. The pipeline words after the\nprotocol are the ones show bgp rib takes: peer <selector> limits the answer to\nthe matching peers, then filters, then one terminal.",
     "mode": "read-only",
-    "wire-method": "ze-rib-api:protocol",
+    "wire-method": "ze-bgp:rib-protocol",
     "args": [
       {
         "name": "protocol",
@@ -22299,7 +22598,7 @@
     "short-help": "Reverse-path forwarding lookup in the Loc-RIB.",
     "description": "Performs a longest-prefix-match and returns the best-path entry.\nUse this to verify RPF checks would pass for a given source.",
     "mode": "read-only",
-    "wire-method": "ze-rib-api:rpf",
+    "wire-method": "ze-bgp:rib-rpf",
     "usage": "show bgp rib rpf",
     "grammar": [
       {
@@ -22398,7 +22697,7 @@
     "short-help": "Get a quick RIB overview without dumping routes.",
     "description": "Shows total peers, received/accepted/advertised route counts, and\nper-family breakdowns. Use this to confirm convergence after a\npeer comes up.",
     "mode": "read-only",
-    "wire-method": "ze-rib-api:status",
+    "wire-method": "ze-bgp:rib-status",
     "usage": "show bgp rib status",
     "grammar": [
       {
@@ -23389,7 +23688,7 @@
     "short-help": "Show BMP collector connection status.",
     "description": "Lists configured collectors with connection state, sent message\ncounts, and error statistics. Check here if your collector is\nnot receiving data.",
     "mode": "read-only",
-    "wire-method": "ze-show:bmp-collectors",
+    "wire-method": "ze-bgp:show-bmp-collectors",
     "usage": "show bmp collectors",
     "grammar": [
       {
@@ -23504,7 +23803,7 @@
     "short-help": "Show BGP peers as seen through BMP monitoring.",
     "description": "Lists peers reported via BMP with their state and route statistics.",
     "mode": "read-only",
-    "wire-method": "ze-show:bmp-peers",
+    "wire-method": "ze-bgp:show-bmp-peers",
     "usage": "show bmp peers",
     "grammar": [
       {
@@ -23619,7 +23918,7 @@
     "short-help": "Show routes received via BMP monitoring sessions.",
     "description": "Returns the BMP RIB content. Use this to verify what your\ncollector is seeing from remote peers.",
     "mode": "read-only",
-    "wire-method": "ze-show:bmp-rib",
+    "wire-method": "ze-bgp:show-bmp-rib",
     "usage": "show bmp rib",
     "grammar": [
       {
@@ -23734,7 +24033,7 @@
     "short-help": "Show active BMP receiver sessions.",
     "description": "Lists each session with connection state and message counters.\nCheck here to confirm your BMP collector is receiving data.",
     "mode": "read-only",
-    "wire-method": "ze-show:bmp-sessions",
+    "wire-method": "ze-bgp:show-bmp-sessions",
     "usage": "show bmp sessions",
     "grammar": [
       {
@@ -23960,7 +24259,7 @@
     "short-help": "Show captured control-plane messages.",
     "description": "Returns protocol messages you previously enabled capture for. Without a\nprotocol keyword, shows all protocols. Use this to debug session establishment\nissues.",
     "mode": "read-only",
-    "wire-method": "ze-show:capture",
+    "wire-method": "ze-diag:show-capture",
     "args": [
       {
         "name": "protocol",
@@ -24125,7 +24424,7 @@
     "short-help": "Capture live packets on an interface (like tcpdump).",
     "description": "Uses AF_PACKET for zero-copy capture. Filter by protocol and port. Limit with\ncount or duration. Output as pcap (for Wireshark) or text. Snap-len controls\nhow many bytes per packet are captured.",
     "mode": "read-only",
-    "wire-method": "ze-show:capture-interface",
+    "wire-method": "ze-diag:show-capture-interface",
     "args": [
       {
         "name": "iface",
@@ -24310,7 +24609,7 @@
     "short-help": "Control raw byte capture for protocol debugging.",
     "description": "Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols:\nl2tp, bgp. Output formats: pcap (for Wireshark), json. Limit with count <N>.",
     "mode": "read-only",
-    "wire-method": "ze-show:capture-raw",
+    "wire-method": "ze-diag:show-capture-raw",
     "args": [
       {
         "name": "action",
@@ -24592,7 +24891,7 @@
     "short-help": "Get tab-completion candidates for a partial command.",
     "description": "Returns possible completions for the given input. Used internally by the CLI\neditor, but also callable for scripting.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:command-complete",
+    "wire-method": "ze-meta:bgp-command-complete",
     "usage": "show command complete",
     "grammar": [
       {
@@ -24707,7 +25006,7 @@
     "short-help": "Show usage and arguments for a specific command.",
     "description": "Gives you the full description, expected arguments, and usage pattern for one\ncommand.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:command-help",
+    "wire-method": "ze-meta:bgp-command-help",
     "usage": "show command help",
     "grammar": [
       {
@@ -24822,7 +25121,7 @@
     "short-help": "List every command the daemon knows about.",
     "description": "Returns dispatch key and description for each. Useful for scripting or\ndiscovering commands not shown in the top-level help.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:command-list",
+    "wire-method": "ze-meta:bgp-command-list",
     "usage": "show command list",
     "grammar": [
       {
@@ -24937,7 +25236,7 @@
     "short-help": "Print the full text of a stored configuration snapshot.",
     "description": "Outputs the config as-is.",
     "mode": "read-only",
-    "wire-method": "ze-show:config-cat",
+    "wire-method": "ze-config-cli:show-config-cat",
     "args": [
       {
         "name": "id",
@@ -24972,7 +25271,7 @@
     "short-help": "Compare two configuration versions side by side.",
     "description": "Shows what was added, removed, or changed. Commonly used with rollback\nrevisions to review what changed before you roll back.",
     "mode": "read-only",
-    "wire-method": "ze-show:config-diff",
+    "wire-method": "ze-config-cli:show-config-diff",
     "usage": "show config diff",
     "grammar": [
       {
@@ -25052,7 +25351,7 @@
     "short-help": "Show the fully resolved configuration tree.",
     "description": "Parses the config and outputs it after includes, defaults, and group\ninheritance have been applied. What you see here is exactly what the daemon is\nusing.",
     "mode": "read-only",
-    "wire-method": "ze-show:config-dump",
+    "wire-method": "ze-config-cli:show-config-dump",
     "usage": "show config dump",
     "grammar": [
       {
@@ -25132,7 +25431,7 @@
     "short-help": "Pretty-print the configuration with consistent formatting.",
     "description": "Normalizes indentation and ordering. Output goes to stdout (read-only). To\nrewrite the file in place, use 'ze config fmt -w' from the CLI.",
     "mode": "read-only",
-    "wire-method": "ze-show:config-fmt",
+    "wire-method": "ze-config-cli:show-config-fmt",
     "usage": "show config fmt",
     "grammar": [
       {
@@ -25152,15 +25451,44 @@
   {
     "path": "show config graph",
     "short-help": "Show how components and peers depend on each other, as JSON.",
-    "description": "It takes a config file path, or - to read the file on stdin. Inactive blocks are pruned before the graph is built, so a deactivated peer contributes no edge and the answer describes the config as it would run.",
-    "mode": "offline"
+    "description": "Prints the dependency graph of a config file as JSON. Inactive blocks\nare left out, so the graph is the one the daemon would build.",
+    "mode": "read-only",
+    "wire-method": "ze-config-cli:show-config-graph",
+    "args": [
+      {
+        "name": "file",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Config file path, or - for stdin.",
+        "description": "The config file to read, or - to read it on stdin."
+      }
+    ],
+    "usage": "show config graph <file>",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "graph",
+        "kind": "keyword"
+      },
+      {
+        "text": "file",
+        "kind": "value"
+      }
+    ]
   },
   {
     "path": "show config history",
     "short-help": "List available configuration rollback points.",
     "description": "Shows revisions with timestamps and commit metadata. Pair with 'show config\ndiff' to review changes before rolling back.",
     "mode": "read-only",
-    "wire-method": "ze-show:config-history",
+    "wire-method": "ze-config-cli:show-config-history",
     "usage": "show config history",
     "grammar": [
       {
@@ -25284,7 +25612,7 @@
     "short-help": "List all configuration files stored in the database.",
     "description": "Shows archived snapshots and the active config.",
     "mode": "read-only",
-    "wire-method": "ze-show:config-list",
+    "wire-method": "ze-config-cli:show-config-list",
     "usage": "show config list",
     "grammar": [
       {
@@ -25406,7 +25734,7 @@
     "short-help": "View saved crash reports, and whether kernel capture is armed.",
     "description": "Without arguments, lists every stored report with its kind: 'panic' for a Go\npanic this daemon caught, 'kernel' for a kernel fault recovered from the\nreserved region on the following boot. The listing also carries a readiness\nblock, which reports configured and armed separately because the reservation\nis a kernel boot argument and a commit alone does not arm it. Use 'latest' to\nsee the newest report or 'name <filename>' to print one. Send the output to\nsupport when reporting a crash.",
     "mode": "read-only",
-    "wire-method": "ze-show:crashes",
+    "wire-method": "ze-crashes:show-crashes",
     "args": [
       {
         "name": "name",
@@ -25529,7 +25857,7 @@
     "short-help": "Print the value of a storage key.",
     "description": "Outputs the decoded value for the given storage key.",
     "mode": "read-only",
-    "wire-method": "ze-show:data-cat",
+    "wire-method": "ze-config-storage:show-data-cat",
     "args": [
       {
         "name": "key",
@@ -25564,7 +25892,7 @@
     "short-help": "List the keys in the selected store.",
     "description": "Lists the keys in the selected store. Use 'show data cat <key>' to read one value.",
     "mode": "read-only",
-    "wire-method": "ze-show:data-list",
+    "wire-method": "ze-config-storage:show-data-list",
     "usage": "show data list",
     "grammar": [
       {
@@ -25685,7 +26013,7 @@
     "short-help": "List the key patterns registered by all subsystems.",
     "description": "Lists the storage key patterns registered by subsystems.",
     "mode": "read-only",
-    "wire-method": "ze-show:data-registered",
+    "wire-method": "ze-config-storage:show-data-registered",
     "usage": "show data registered",
     "grammar": [
       {
@@ -25807,7 +26135,7 @@
     "short-help": "Show the upstream FlowSpec and RTBH DDoS mitigation status.",
     "description": "The status names whether a rule is announced now, the\ntarget vector that rule covers, and whether the leak-probe is running.",
     "mode": "read-only",
-    "wire-method": "ze-show:ddos-flowspec",
+    "wire-method": "ze-ddos:show-flowspec",
     "usage": "show ddos flowspec",
     "grammar": [
       {
@@ -25922,7 +26250,7 @@
     "short-help": "Show the recent DDoS incident ring (newest first).",
     "description": "Per incident: the target vector (prefix/proto/port), attack family, top\nsource addresses, peak pps/bps, start/end time, and whether it is still active.",
     "mode": "read-only",
-    "wire-method": "ze-show:ddos-incidents",
+    "wire-method": "ze-ddos:show-incidents",
     "usage": "show ddos incidents",
     "grammar": [
       {
@@ -26037,7 +26365,7 @@
     "short-help": "Show the on-host DDoS mitigation status.",
     "description": "The answer states whether an nft drop rule is installed\nnow, and the target vector it covers: prefix, protocol, or port.",
     "mode": "read-only",
-    "wire-method": "ze-show:ddos-local",
+    "wire-method": "ze-ddos:show-local",
     "usage": "show ddos local",
     "grammar": [
       {
@@ -26152,7 +26480,7 @@
     "short-help": "Show the DDoS observation status.",
     "description": "Returns whether the incident store is running, the number of active\nattacks, and the number of incidents the ring retains.",
     "mode": "read-only",
-    "wire-method": "ze-show:ddos-status",
+    "wire-method": "ze-ddos:show-status",
     "usage": "show ddos status",
     "grammar": [
       {
@@ -26371,20 +26699,61 @@
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "subcommands": [
+      "profile"
     ]
   },
   {
     "path": "show debug profile",
     "short-help": "Show stored debug profiles, one by name, or one filtered to a module subtree.",
-    "description": "With no argument it lists the profile names. `name <name>` prints that profile as a table of module, level, flags and scopes. Adding `module <prefix>` keeps the rows under one subsystem subtree. Any other trailing word is refused rather than ignored.",
-    "mode": "offline"
+    "description": "Reads debug.zefs and asks no daemon. With no argument it lists the\nprofile names. name <name> prints that profile as a table of module, level, flags and\nscopes, and module <prefix> then keeps the rows under one subsystem subtree. Any other\ntrailing word is refused rather than ignored.",
+    "mode": "read-only",
+    "wire-method": "ze-debug:show-profile",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "short-help": "Profile name.",
+        "description": "The stored profile to print. Absent, the command lists the profile names."
+      },
+      {
+        "name": "module",
+        "type": "string",
+        "short-help": "Subsystem subtree to keep.",
+        "description": "A subsystem prefix. Only the rows at or under that subtree are printed,\nand the keyword is read only after name."
+      }
+    ],
+    "usage": "show debug profile [name <name>] [module <module>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "debug",
+        "kind": "keyword"
+      },
+      {
+        "text": "profile",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "option"
+      },
+      {
+        "text": "module",
+        "kind": "option"
+      }
+    ]
   },
   {
     "path": "show dns cache list",
     "short-help": "List all non-expired DNS cache entries, sorted by shortest TTL first.",
     "description": "An entry whose TTL has run out is left out rather than reported\nas expired. The count beside the list is the number of entries reported.",
     "mode": "read-only",
-    "wire-method": "ze-show:dns-cache-list",
+    "wire-method": "ze-resolve:show-dns-cache-list",
     "usage": "show dns cache list",
     "grammar": [
       {
@@ -26503,7 +26872,7 @@
     "short-help": "Show DNS cache entries for one record name.",
     "description": "The name must match the cache key exactly, and a reverse lookup\nis held under its in-addr.arpa or ip6.arpa name. A name that is not cached answers an empty\nlist and a count of zero.",
     "mode": "read-only",
-    "wire-method": "ze-show:dns-cache-record",
+    "wire-method": "ze-resolve:show-dns-cache-record",
     "args": [
       {
         "name": "name",
@@ -26635,7 +27004,7 @@
     "short-help": "Show the DNS cache hit, miss, eviction, expiry, and hit-rate counters.",
     "description": "It reads the counters and does not change the\ncache contents.",
     "mode": "read-only",
-    "wire-method": "ze-show:dns-cache-stats",
+    "wire-method": "ze-resolve:show-dns-cache-stats",
     "usage": "show dns cache stats",
     "grammar": [
       {
@@ -26754,7 +27123,7 @@
     "short-help": "Look up a DNS name from the router.",
     "description": "Resolves <hostname> using the daemon's DNS resolver (falls back to the system\nresolver if no DNS component is configured). Default type is A. Returns\nrecords, TTL, and query time. Supports A, AAAA, MX, NS, TXT, CNAME, and PTR.",
     "mode": "read-only",
-    "wire-method": "ze-show:dns-lookup",
+    "wire-method": "ze-resolve:show-dns-lookup",
     "args": [
       {
         "name": "hostname",
@@ -26910,7 +27279,7 @@
     "short-help": "Check if this box is ready to run Ze.",
     "description": "Verifies runtime dependencies: required files, sockets,\nports, and kernel modules. Each check reports pass or fail with a reason. Run\nthis before first start or after changing the platform setup.",
     "mode": "read-only",
-    "wire-method": "ze-show:doctor",
+    "wire-method": "ze-doctor:show-doctor",
     "usage": "show doctor",
     "grammar": [
       {
@@ -27120,7 +27489,7 @@
     "short-help": "Show one environment variable in detail.",
     "description": "Returns the variable name, current value, default, and what it controls.",
     "mode": "read-only",
-    "wire-method": "ze-show:env-get",
+    "wire-method": "ze-env:show-get",
     "args": [
       {
         "name": "name",
@@ -27258,7 +27627,7 @@
     "short-help": "List all Ze environment variables with their current values.",
     "description": "Shows which env vars are set and their defaults.",
     "mode": "read-only",
-    "wire-method": "ze-show:env-list",
+    "wire-method": "ze-env:show-list",
     "usage": "show env list",
     "grammar": [
       {
@@ -27383,7 +27752,7 @@
     "short-help": "List every registered environment variable with metadata.",
     "description": "Includes type, default, description, and whether it is currently set.",
     "mode": "read-only",
-    "wire-method": "ze-show:env-registered",
+    "wire-method": "ze-env:show-registered",
     "usage": "show env registered",
     "grammar": [
       {
@@ -27508,7 +27877,7 @@
     "short-help": "Show recent errors across all subsystems, newest first.",
     "description": "This is the first place to look when something goes wrong. Filter\nwith source <name> to narrow to one subsystem, count <N> to limit\noutput.",
     "mode": "read-only",
-    "wire-method": "ze-show:errors",
+    "wire-method": "ze-cmd:show-errors",
     "usage": "show errors",
     "grammar": [
       {
@@ -27619,7 +27988,7 @@
     "short-help": "Show which peers feed which attached processes.",
     "description": "One block per peer, one row per `attach process` block on it: the\nevent types that process is fed, and the message types it may send\ntoward that peer. A token the event registry does not know is listed\nas unresolved and carries no edge. Answer to 'why does my program\nsee nothing from this peer'.",
     "mode": "read-only",
-    "wire-method": "ze-show:event-delivery",
+    "wire-method": "ze-cmd:show-event-delivery",
     "usage": "show event delivery",
     "grammar": [
       {
@@ -27734,7 +28103,7 @@
     "short-help": "List every event type you can subscribe to.",
     "description": "Shows event name, category, and payload structure. Use this to discover what\nevents are available before subscribing.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:event-list",
+    "wire-method": "ze-meta:bgp-event-list",
     "usage": "show event list",
     "grammar": [
       {
@@ -27849,7 +28218,7 @@
     "short-help": "List all event namespaces and how many events each has logged.",
     "description": "Tells you which subsystems are generating events and how active\nthey are.",
     "mode": "read-only",
-    "wire-method": "ze-show:event-namespaces",
+    "wire-method": "ze-cmd:show-event-namespaces",
     "usage": "show event namespaces",
     "grammar": [
       {
@@ -27964,7 +28333,7 @@
     "short-help": "Show recent events, newest first.",
     "description": "Each event includes timestamp, namespace, and type. Filter with\nnamespace <name> to focus on one area, count <N> to limit output.\nUseful for reconstructing what happened before an incident.",
     "mode": "read-only",
-    "wire-method": "ze-show:event-recent",
+    "wire-method": "ze-cmd:show-event-recent",
     "usage": "show event recent",
     "grammar": [
       {
@@ -28376,7 +28745,7 @@
     "short-help": "Show what each configured domain group's DNS names resolve to.",
     "description": "Lists each group with its names, the addresses Ze is enforcing for\nthem, when each name last resolved, and what the last answer said.\nRead this before a commit to confirm a group has data.",
     "mode": "read-only",
-    "wire-method": "ze-show:firewall-domain-group-status",
+    "wire-method": "ze-firewall:show-domain-group-status",
     "args": [
       {
         "name": "name",
@@ -28503,7 +28872,7 @@
     "short-help": "Show members of a firewall address/port group.",
     "description": "Without arguments, lists all known groups. With a name,\nshows the set elements. Reads from the last applied config, not the\nkernel.",
     "mode": "read-only",
-    "wire-method": "ze-show:firewall-group",
+    "wire-method": "ze-firewall:show-group",
     "backend": [
       "nft"
     ],
@@ -28621,7 +28990,7 @@
     "short-help": "Show IRR filter status for all cached ASN/AS-SET entries.",
     "description": "Lists each cached entry with prefix counts, last\nrefresh time, and error status. Use this to confirm that IRR prefix-lists are\nloaded and current before committing firewall config.",
     "mode": "read-only",
-    "wire-method": "ze-show:firewall-irr-status",
+    "wire-method": "ze-firewall:show-irr-status",
     "usage": "show firewall irr",
     "grammar": [
       {
@@ -28739,7 +29108,7 @@
     "short-help": "Show IRR-resolved prefixes for a cached entry.",
     "description": "Lists all IPv4 and IPv6 prefixes in the cached\nprefix-list for the given ASN or AS-SET.",
     "mode": "read-only",
-    "wire-method": "ze-show:firewall-irr-prefix",
+    "wire-method": "ze-firewall:show-irr-prefix",
     "args": [
       {
         "name": "name",
@@ -28871,7 +29240,7 @@
     "short-help": "Show the live firewall ruleset with per-term counters.",
     "description": "Joins applied desired state with kernel counters from\nthe nft backend.",
     "mode": "read-only",
-    "wire-method": "ze-show:firewall-ruleset",
+    "wire-method": "ze-firewall:show-ruleset",
     "backend": [
       "nft"
     ],
@@ -29002,7 +29371,7 @@
     "short-help": "Show flow export (NetFlow/IPFIX) collector status.",
     "description": "Without arguments, lists all configured collectors. With 'name <name>', shows\ndetails for that collector including protocol stats and errors. Returns\nnot-configured when no exporter is active.",
     "mode": "read-only",
-    "wire-method": "ze-show:flow-export",
+    "wire-method": "ze-flowexport:show-flow-export",
     "args": [
       {
         "name": "name",
@@ -29129,7 +29498,7 @@
     "short-help": "Show recent conntrack flow records from the bounded recent-flow ring.",
     "description": "Without arguments, returns every ring record (oldest to newest, up to the\nconfigured recent-flow-ring capacity). With 'dst <prefix>', filters to flows\nwhose destination is inside that prefix. The ring is fed only while conntrack\nexport is enabled; the filter is by destination prefix (conntrack is\nhost-global and carries no ingress interface).",
     "mode": "read-only",
-    "wire-method": "ze-show:flow-recent",
+    "wire-method": "ze-flowexport:show-flow-recent",
     "args": [
       {
         "name": "dst",
@@ -29256,7 +29625,7 @@
     "short-help": "Show the GeoDNS server status.",
     "description": "Returns whether the server is enabled, the bind addresses and\nport, and the client-IP source mode. It also returns the zones, the nameserver,\nhost-set and source counts, and the current SOA serial.",
     "mode": "read-only",
-    "wire-method": "ze-show:geodns",
+    "wire-method": "ze-geodns:show-geodns",
     "usage": "show geodns",
     "grammar": [
       {
@@ -29367,7 +29736,7 @@
     "short-help": "Show whether the gNMI server is running and how it is configured.",
     "description": "Returns listen address, TLS details, authentication mode, and the number of\nactive streaming subscribers.",
     "mode": "read-only",
-    "wire-method": "ze-show:gnmi",
+    "wire-method": "ze-gnmi:show-gnmi",
     "usage": "show gnmi",
     "grammar": [
       {
@@ -29478,7 +29847,7 @@
     "short-help": "Show the health of every component and the overall status of this box.",
     "description": "Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.)\nplus an overall status. Each component reports healthy, degraded, or\nunhealthy with a reason. Start here when troubleshooting.\nThis runs a probe NOW and reports what the daemon is doing at this\nmoment. 'show plugin list' answers the other question, by replaying the setup\noutcome each plugin recorded once, before main(), when it set itself up.",
     "mode": "read-only",
-    "wire-method": "ze-show:health",
+    "wire-method": "ze-cmd:show-health",
     "usage": "show health",
     "grammar": [
       {
@@ -29589,7 +29958,7 @@
     "short-help": "Hardware inventory for this box.",
     "description": "Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a\nsubcommand for one section, or 'show host all' for everything. The bare 'show\nhost' is an alias of 'show host all'.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-all",
+    "wire-method": "ze-host:show-all",
     "usage": "show host",
     "grammar": [
       {
@@ -29711,7 +30080,7 @@
     "short-help": "Show the full hardware inventory in one shot.",
     "description": "Returns every section (cpu, nic, dmi, memory, thermal, storage, kernel,\nplatform) as a single JSON response. Ideal for support bundles or automated\ninventory collection.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-all",
+    "wire-method": "ze-host:show-all",
     "usage": "show host all",
     "grammar": [
       {
@@ -29826,7 +30195,7 @@
     "short-help": "Show what CPUs are in this box.",
     "description": "Returns vendor, model, core/thread topology, hybrid layout, scaling driver,\ncurrent/min/max frequencies, and throttle counts.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-cpu",
+    "wire-method": "ze-host:show-cpu",
     "usage": "show host cpu",
     "grammar": [
       {
@@ -29941,7 +30310,7 @@
     "short-help": "Show the box's identity from SMBIOS/DMI.",
     "description": "Returns system vendor, board name, BIOS version, and chassis type. Useful for\ninventory or confirming which hardware model you are on.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-dmi",
+    "wire-method": "ze-host:show-dmi",
     "usage": "show host dmi",
     "grammar": [
       {
@@ -30056,7 +30425,7 @@
     "short-help": "Show the running kernel version and boot parameters.",
     "description": "Returns kernel release, command line, CPU microcode revision, boot time, and\nsecurity-relevant CPU flags (spectre mitigations, etc.).",
     "mode": "read-only",
-    "wire-method": "ze-show:host-kernel",
+    "wire-method": "ze-host:show-kernel",
     "usage": "show host kernel",
     "grammar": [
       {
@@ -30171,7 +30540,7 @@
     "short-help": "Show installed memory and ECC health.",
     "description": "Returns DIMM sizes and, when the edac driver is present, correctable and\nuncorrectable error counters. Non-zero ECC counts mean you should plan a DIMM\nreplacement.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-memory",
+    "wire-method": "ze-host:show-memory",
     "usage": "show host memory",
     "grammar": [
       {
@@ -30286,7 +30655,7 @@
     "short-help": "Show physical NICs installed in this box.",
     "description": "Returns driver, PCI vendor/device IDs, link speed, queue counts, and firmware\nversion. Virtual interfaces are excluded. Use this to confirm NIC firmware\nbefore an upgrade.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-nic",
+    "wire-method": "ze-host:show-nic",
     "usage": "show host nic",
     "grammar": [
       {
@@ -30401,7 +30770,7 @@
     "short-help": "Show platform capabilities and constraints.",
     "description": "Reports read-only root, privilege level, systemd presence, gokrazy update\nsocket, reboot-allowed flag, persistent-storage writability, and fd limits.\nHelps you understand what operations are possible on this particular\ndeployment.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-platform",
+    "wire-method": "ze-host:show-platform",
     "usage": "show host platform",
     "grammar": [
       {
@@ -30516,7 +30885,7 @@
     "short-help": "Show storage devices attached to this box.",
     "description": "Returns size, model, transport type (nvme, sata, mmc, virtio), rotational\nflag, and NVMe firmware version where applicable.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-storage",
+    "wire-method": "ze-host:show-storage",
     "usage": "show host storage",
     "grammar": [
       {
@@ -30631,7 +31000,7 @@
     "short-help": "Show temperature sensors and thermal throttle events.",
     "description": "Returns hwmon sensor readings and per-CPU throttle counters. Non-zero throttle\ncounts mean the box has been running hot enough to slow down.",
     "mode": "read-only",
-    "wire-method": "ze-show:host-thermal",
+    "wire-method": "ze-host:show-thermal",
     "usage": "show host thermal",
     "grammar": [
       {
@@ -30746,7 +31115,7 @@
     "short-help": "Show network interfaces on this box.",
     "description": "Without arguments, returns all interfaces with full detail.\nSubcommands: brief, type <t>, errors, rate [<name>], name <name> detail,\nname <name> counters.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface",
+    "wire-method": "ze-iface:show-interface",
     "usage": "show interface",
     "grammar": [
       {
@@ -30865,7 +31234,7 @@
     "short-help": "One-line summary per interface: name, state, IP, and MTU.",
     "description": "It is the quick way to see what is up and what\naddresses are assigned.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface-brief",
+    "wire-method": "ze-iface:show-interface-brief",
     "usage": "show interface brief",
     "grammar": [
       {
@@ -30980,7 +31349,7 @@
     "short-help": "Show interfaces that have errors or drops.",
     "description": "Filters to only interfaces with non-zero Rx/Tx error or\ndrop counters. It is the quick way to find troubled links.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface-errors",
+    "wire-method": "ze-iface:show-interface-errors",
     "usage": "show interface errors",
     "grammar": [
       {
@@ -31095,7 +31464,7 @@
     "short-help": "Show counters for one interface.",
     "description": "The answer is the interface name and its Rx and Tx statistics.\nA backend that keeps no statistics for the interface answers no counters available rather\nthan an error.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface-counters",
+    "wire-method": "ze-iface:show-interface-counters",
     "args": [
       {
         "name": "name",
@@ -31227,7 +31596,7 @@
     "short-help": "Show full detail for one interface.",
     "description": "The answer is the whole record the backend holds for that\ninterface, and the counters are part of it. An unknown name is reported as the backend's own\nerror.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface-detail",
+    "wire-method": "ze-iface:show-interface-detail",
     "args": [
       {
         "name": "name",
@@ -31359,7 +31728,7 @@
     "short-help": "Show per-second traffic rates on your interfaces.",
     "description": "Returns rx/tx bytes and packets per second. Pass an\ninterface name to narrow the output. Requires the rate tracker. For continuous\nmonitoring, use 'monitor interface rate' instead.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface-rate",
+    "wire-method": "ze-iface:show-interface-rate",
     "usage": "show interface rate",
     "grammar": [
       {
@@ -31474,7 +31843,7 @@
     "short-help": "Discover and classify all OS interfaces.",
     "description": "Returns name, Ze type (ethernet, bridge, vxlan, etc.),\nand MAC for each interface found. Pipe to table, yaml, or json for different\nviews. Use it during initial setup to see what the box has.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface-scan",
+    "wire-method": "ze-iface:show-interface-scan",
     "usage": "show interface scan",
     "grammar": [
       {
@@ -31589,7 +31958,7 @@
     "short-help": "Show only interfaces of a given type.",
     "description": "Types include ethernet, bridge, vxlan, wireguard,\ntunnel, bond, and more. If you pick an invalid type, the error lists all valid\nones.",
     "mode": "read-only",
-    "wire-method": "ze-show:interface-type",
+    "wire-method": "ze-iface:show-interface-type",
     "args": [
       {
         "name": "type",
@@ -31717,7 +32086,7 @@
     "short-help": "Show the IS-IS link-state database.",
     "description": "Lists each LSP with its LSP ID, sequence number, remaining lifetime, checksum,\nand overload bit, across Level-1 and Level-2. The own field is true on the\nLSPs this node originated and false on the LSPs it learned from a neighbor.",
     "mode": "read-only",
-    "wire-method": "ze-show:isis-database",
+    "wire-method": "ze-isis:show-database",
     "usage": "show isis database",
     "grammar": [
       {
@@ -31835,7 +32204,7 @@
     "short-help": "Show the IS-IS link-state database with TLV detail.",
     "description": "Expands each LSP into its decoded TLVs (type, length, value) so you can read\nexactly what each node advertises. It carries the same fields as the summary\nview, the own field included.",
     "mode": "read-only",
-    "wire-method": "ze-show:isis-database-detail",
+    "wire-method": "ze-isis:show-database-detail",
     "usage": "show isis database detail",
     "grammar": [
       {
@@ -31954,7 +32323,7 @@
     "short-help": "Show the IS-IS dynamic-hostname mapping (RFC 5301).",
     "description": "Maps each System ID to the hostname it advertises in TLV 137.",
     "mode": "read-only",
-    "wire-method": "ze-show:isis-hostname",
+    "wire-method": "ze-isis:show-hostname",
     "usage": "show isis hostname",
     "grammar": [
       {
@@ -32069,7 +32438,7 @@
     "short-help": "Show IS-IS-enabled circuits.",
     "description": "Returns level, circuit type, metric, hello interval, hold multiplier, passive\nflag, DIS state, and the count of Up adjacencies per circuit.",
     "mode": "read-only",
-    "wire-method": "ze-show:isis-interface",
+    "wire-method": "ze-isis:show-interface",
     "usage": "show isis interface",
     "grammar": [
       {
@@ -32184,7 +32553,7 @@
     "short-help": "Show IS-IS adjacencies.",
     "description": "Returns the neighbor System ID, interface, level, adjacency state, and hold\ntime for each IS-IS neighbor.",
     "mode": "read-only",
-    "wire-method": "ze-show:isis-neighbor",
+    "wire-method": "ze-isis:show-neighbor",
     "usage": "show isis neighbor",
     "grammar": [
       {
@@ -32299,7 +32668,7 @@
     "short-help": "Show IS-IS-computed routes.",
     "description": "Lists each prefix the SPF installed with its metric, level, up/down bit, and\nnext-hops (address and outgoing interface).",
     "mode": "read-only",
-    "wire-method": "ze-show:isis-route",
+    "wire-method": "ze-isis:show-route",
     "usage": "show isis route",
     "grammar": [
       {
@@ -32417,7 +32786,7 @@
     "short-help": "Show IS-IS-computed IPv6 routes (RFC 5308).",
     "description": "Lists each IPv6 prefix the SPF installed with its metric, level, and next-hops\n(link-local address and outgoing interface).",
     "mode": "read-only",
-    "wire-method": "ze-show:isis-route-ipv6",
+    "wire-method": "ze-isis:show-route-ipv6",
     "usage": "show isis route ipv6",
     "grammar": [
       {
@@ -32536,7 +32905,7 @@
     "short-help": "Show recent IS-IS SPF runs.",
     "description": "Returns the most recent SPF runs with their timestamp, level, trigger,\nduration, and node count.",
     "mode": "read-only",
-    "wire-method": "ze-show:isis-spf-log",
+    "wire-method": "ze-isis:show-spf-log",
     "usage": "show isis spf-log",
     "grammar": [
       {
@@ -32651,7 +33020,7 @@
     "short-help": "L2TP tunnel, session, and subscriber state.",
     "description": "Without a subcommand, shows a summary of tunnels and\nsessions.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:summary",
+    "wire-method": "ze-l2tp:summary",
     "usage": "show l2tp",
     "grammar": [
       {
@@ -32776,7 +33145,7 @@
     "short-help": "Show the resolved L2TP configuration.",
     "description": "Returns the effective config after defaults and\noverrides. Confirms what the daemon uses.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:config",
+    "wire-method": "ze-l2tp:config",
     "usage": "show l2tp config",
     "grammar": [
       {
@@ -32891,7 +33260,7 @@
     "short-help": "Show subscriber line quality (CQM latency buckets).",
     "description": "Pass a login name for one subscriber or 'summary' for\nan overview. Use it to diagnose a poor subscriber experience.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:cqm",
+    "wire-method": "ze-l2tp:cqm",
     "usage": "show l2tp cqm",
     "grammar": [
       {
@@ -33006,7 +33375,7 @@
     "short-help": "Show LCP echo health for a subscriber session.",
     "description": "Returns echo request and reply counters and round-trip\ntimes. Rising loss or high RTT indicates a degraded line.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:echo",
+    "wire-method": "ze-l2tp:echo",
     "usage": "show l2tp echo",
     "grammar": [
       {
@@ -33121,7 +33490,7 @@
     "short-help": "Find your worst L2TP sessions at a glance.",
     "description": "Sorts sessions by echo loss ratio (worst first). Shows\nsubscriber login, session state, echo count, average RTT, and CQM bucket count.\nReports how many sessions are degraded.",
     "mode": "read-only",
-    "wire-method": "ze-show:l2tp-health",
+    "wire-method": "ze-l2tp:show-health",
     "usage": "show l2tp health",
     "grammar": [
       {
@@ -33236,7 +33605,7 @@
     "short-help": "Show which UDP sockets are listening for L2TP.",
     "description": "Lists each bound address, port, and the number of\ntunnels on it.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:listeners",
+    "wire-method": "ze-l2tp:listeners",
     "usage": "show l2tp listeners",
     "grammar": [
       {
@@ -33351,7 +33720,7 @@
     "short-help": "Show recent events for a session (debug aid).",
     "description": "Returns the event ring buffer for one session ID or\n'all'. Use it to find why a session failed to establish.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:observer",
+    "wire-method": "ze-l2tp:observer",
     "usage": "show l2tp observer",
     "grammar": [
       {
@@ -33565,7 +33934,7 @@
     "short-help": "Show the reliable transport window for a tunnel.",
     "description": "Returns send and receive sequence numbers, window size,\nand retransmit queue depth. Check here when tunnel control messages stop\nmoving.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:reliable",
+    "wire-method": "ze-l2tp:reliable",
     "usage": "show l2tp reliable",
     "grammar": [
       {
@@ -33680,7 +34049,7 @@
     "short-help": "Show state transitions for a session over time.",
     "description": "Timestamped FSM entries for session establishment.\nUse this when a subscriber's session fails to come up.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:session-history",
+    "wire-method": "ze-l2tp:session-history",
     "usage": "show l2tp session history",
     "grammar": [
       {
@@ -33799,7 +34168,7 @@
     "short-help": "Show full detail for one L2TP session.",
     "description": "Pass the local session ID. Returns PPP state,\nassigned addresses, negotiated LCP/NCP options, and traffic counters.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:session",
+    "wire-method": "ze-l2tp:session",
     "args": [
       {
         "name": "id",
@@ -33931,7 +34300,7 @@
     "short-help": "Show traffic counters for a subscriber's PPP interface.",
     "description": "Returns byte and packet counts, error counters, and\ncurrent rates. Compare with CQM data to get the full picture of subscriber\nhealth.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:session-traffic",
+    "wire-method": "ze-l2tp:session-traffic",
     "usage": "show l2tp session traffic",
     "grammar": [
       {
@@ -34050,7 +34419,7 @@
     "short-help": "List all active L2TP sessions.",
     "description": "One line per session: local/remote ID, parent tunnel,\nsubscriber login, and uptime.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:sessions",
+    "wire-method": "ze-l2tp:sessions",
     "usage": "show l2tp sessions",
     "grammar": [
       {
@@ -34264,7 +34633,7 @@
     "short-help": "Show aggregate L2TP protocol counters.",
     "description": "Tunnels and sessions established, control messages\nsent and received, retransmits, and errors. It is the first command to run for\nL2TP health.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:statistics",
+    "wire-method": "ze-l2tp:statistics",
     "usage": "show l2tp statistics",
     "grammar": [
       {
@@ -34379,7 +34748,7 @@
     "short-help": "Show state transitions for a tunnel over time.",
     "description": "Timestamped FSM entries showing how the tunnel\nreached its current state. Use this to diagnose a tunnel establishment\nfailure.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:tunnel-history",
+    "wire-method": "ze-l2tp:tunnel-history",
     "usage": "show l2tp tunnel history",
     "grammar": [
       {
@@ -34498,7 +34867,7 @@
     "short-help": "Show full detail for one L2TP tunnel.",
     "description": "Pass the local tunnel ID. Returns control channel\nstate, peer endpoint, hello interval, and all assigned sessions.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:tunnel",
+    "wire-method": "ze-l2tp:tunnel",
     "args": [
       {
         "name": "id",
@@ -34630,7 +34999,7 @@
     "short-help": "List all active L2TP tunnels.",
     "description": "One line per tunnel: local/remote ID, peer address,\nsession count, and uptime.",
     "mode": "read-only",
-    "wire-method": "ze-l2tp-api:tunnels",
+    "wire-method": "ze-l2tp:tunnels",
     "usage": "show l2tp tunnels",
     "grammar": [
       {
@@ -34745,7 +35114,7 @@
     "short-help": "Show LDP FEC-to-label bindings.",
     "description": "Lists local and remote label bindings for each FEC (prefix). Use this to\nverify label distribution is working.",
     "mode": "read-only",
-    "wire-method": "ze-show:ldp-binding",
+    "wire-method": "ze-ldp:show-binding",
     "usage": "show ldp binding",
     "grammar": [
       {
@@ -34860,7 +35229,7 @@
     "short-help": "Show LDP neighbors and their session state.",
     "description": "Returns peer address, transport address, session state, and hold time for each\nLDP neighbor.",
     "mode": "read-only",
-    "wire-method": "ze-show:ldp-neighbor",
+    "wire-method": "ze-ldp:show-neighbor",
     "usage": "show ldp neighbor",
     "grammar": [
       {
@@ -34975,7 +35344,7 @@
     "short-help": "Show what log level each subsystem is using.",
     "description": "Lists every registered logger with its current level. Use 'request log level'\nto change a level at runtime without restarting.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:log-levels",
+    "wire-method": "ze-log:bgp-log-levels",
     "usage": "show log levels",
     "grammar": [
       {
@@ -35090,7 +35459,7 @@
     "short-help": "Show recent log entries from the in-memory ring.",
     "description": "Filters (all optional): level <lvl>, component <name>, count <N>. Newest\nentries first. Useful when you cannot access the log file directly.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:log-recent",
+    "wire-method": "ze-log:bgp-log-recent",
     "args": [
       {
         "name": "level",
@@ -35251,7 +35620,7 @@
     "short-help": "List all registered metric names (no values).",
     "description": "Useful for discovering what metrics exist before querying them.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:metrics-list",
+    "wire-method": "ze-cmd:bgp-metrics-list",
     "usage": "show metrics list",
     "grammar": [
       {
@@ -35366,7 +35735,7 @@
     "short-help": "Show one Prometheus metric by name.",
     "description": "Returns matching time series from the internal registry. Multiple label\nfilters are ANDed. More targeted than the full metrics dump.",
     "mode": "read-only",
-    "wire-method": "ze-show:metrics-query",
+    "wire-method": "ze-cmd:show-metrics-query",
     "args": [
       {
         "name": "name",
@@ -35626,7 +35995,7 @@
     "short-help": "Dump all metrics in Prometheus text format.",
     "description": "Outputs every registered metric with labels and values. Suitable\nfor feeding into Prometheus, Grafana, or curl-based monitoring.",
     "mode": "read-only",
-    "wire-method": "ze-bgp:metrics-values",
+    "wire-method": "ze-cmd:bgp-metrics-values",
     "usage": "show metrics values",
     "grammar": [
       {
@@ -35741,7 +36110,7 @@
     "short-help": "Show MPLS forwarding entries installed in the kernel.",
     "description": "Each entry shows the incoming label, swap/push/pop operation, and outgoing\nnext-hop. Pass 'limit N' to cap large tables. Linux only.",
     "mode": "read-only",
-    "wire-method": "ze-show:mpls-forwarding",
+    "wire-method": "ze-mpls:show-forwarding",
     "args": [
       {
         "name": "limit",
@@ -35868,7 +36237,7 @@
     "short-help": "Measure the path MTU and size the IPsec tunnels from it.",
     "description": "Measures the path MTU to every configured IPsec peer and to the reference\naddress, derives the ESP ceiling of each tunnel from its negotiated transform,\nand reports whether each tunnel interface is oversized, tight, under-utilized\nor correct, with the configuration commands that fix it. The run changes\nnothing on the router. With host <address>, one address is measured instead\nof the peers.",
     "mode": "read-only",
-    "wire-method": "ze-show:mtu",
+    "wire-method": "ze-mtu:show-mtu",
     "args": [
       {
         "name": "host",
@@ -35988,7 +36357,7 @@
     "short-help": "Show the ARP and neighbor discovery table.",
     "description": "Lists IPv4 ARP and IPv6 ND entries with MAC addresses and\nstates. Pass ipv4 or ipv6 to filter by address family. No argument shows both.\nFor the IPv4-only view, 'show arp' is a shortcut.",
     "mode": "read-only",
-    "wire-method": "ze-show:neighbor",
+    "wire-method": "ze-iface:show-neighbor",
     "args": [
       {
         "name": "family",
@@ -36222,7 +36591,7 @@
     "short-help": "Show the OSPFv2 process summary (RFC 2328).",
     "description": "Returns the router-id, the areas, the ABR and ASBR status, and the\nstub-router (max-metric) state.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf",
+    "wire-method": "ze-ospf:show-ospf",
     "usage": "show ospf",
     "grammar": [
       {
@@ -36348,7 +36717,7 @@
     "short-help": "Show routes to OSPF area-border and AS-boundary routers.",
     "description": "Lists each reachable ABR/ASBR with its router-id, cost, next-hops, and area.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-border-routers",
+    "wire-method": "ze-ospf:show-border-routers",
     "usage": "show ospf border-routers",
     "grammar": [
       {
@@ -36463,7 +36832,7 @@
     "short-help": "Show the OSPF link-state database.",
     "description": "Lists each LSA with its LS Type, Link State ID, Advertising Router, sequence\nnumber, age, and checksum.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database",
+    "wire-method": "ze-ospf:show-database",
     "usage": "show ospf database",
     "grammar": [
       {
@@ -36590,7 +36959,7 @@
     "short-help": "Show only ASBR-Summary-LSAs (Type 4).",
     "description": "RFC 2328 Section 12.4.3 states that a Type 4 Summary-LSA describes a route\nto an AS boundary router. A Type 3 describes a route to a network instead.\nBoth come from an area border router, and both are flooded through one area.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-asbr-summary",
+    "wire-method": "ze-ospf:show-database-asbr-summary",
     "usage": "show ospf database asbr-summary",
     "grammar": [
       {
@@ -36709,7 +37078,7 @@
     "short-help": "Show only AS-external-LSAs (Type 5).",
     "description": "RFC 2328 Section 12.4.4 states that an AS boundary router originates an\nAS-external-LSA. The LSA describes a route to a destination in another\nAutonomous System, and it is flooded throughout the AS. Ze reads the AS-wide\nstore for it, so no area appears in the answer.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-external",
+    "wire-method": "ze-ospf:show-database-external",
     "usage": "show ospf database external",
     "grammar": [
       {
@@ -36828,7 +37197,7 @@
     "short-help": "Show only Network-LSAs (Type 2).",
     "description": "RFC 2328 Section 12.4.2 states that the Designated Router originates a\nNetwork-LSA for a broadcast or NBMA network. The LSA lists the routers\nconnected to that network. It is flooded throughout a single area only. A\npoint-to-point link has no Designated Router, so it produces none.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-network",
+    "wire-method": "ze-ospf:show-database-network",
     "usage": "show ospf database network",
     "grammar": [
       {
@@ -36947,7 +37316,7 @@
     "short-help": "Show only NSSA-external-LSAs (Type 7, RFC 3101).",
     "description": "RFC 3101 Section 2.3 states that a Type 7 LSA is advertised only within a\nsingle NSSA. A border router does not flood it into the backbone. It\ntranslates selected Type 7 LSAs into Type 5 instead, so a translated route\nappears under the AS-external view and not here.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-nssa-external",
+    "wire-method": "ze-ospf:show-database-nssa-external",
     "usage": "show ospf database nssa-external",
     "grammar": [
       {
@@ -37066,7 +37435,7 @@
     "short-help": "Show only area-scope opaque-LSAs (Type 10, RFC 5250).",
     "description": "RFC 5250 Section 3 gives link-state type-10 an area-local scope: a\ntype-10 opaque LSA is not flooded beyond the borders of its area.\nSo this view is per area, and an area border router does not carry\nwhat it lists into the backbone.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-opaque-area",
+    "wire-method": "ze-ospf:show-database-opaque-area",
     "usage": "show ospf database opaque-area",
     "grammar": [
       {
@@ -37188,7 +37557,7 @@
     "short-help": "Decode each area-scope opaque LSA body (RFC 5250).",
     "description": "A body with a typed decoder returns its TLVs, which are TE,\nRouter-Information, Extended and Segment-Routing. Every other body returns a\ngeneric type, length and hex view (spec-ospf-ext-14).",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-opaque-area-detail",
+    "wire-method": "ze-ospf:show-database-opaque-area-detail",
     "usage": "show ospf database opaque-area detail",
     "grammar": [
       {
@@ -37311,7 +37680,7 @@
     "short-help": "Show only AS-scope opaque-LSAs (Type 11, RFC 5250).",
     "description": "RFC 5250 Section 3 floods link-state type-11 throughout the\nautonomous system. It takes the scope of an AS-external (type-5)\nLSA. A type-11 opaque LSA reaches every transit area. It is not\nflooded into a stub area or an NSSA. A router does not originate\none into a connected stub area or NSSA. One received from a\nneighbor inside such an area is rejected.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-opaque-as",
+    "wire-method": "ze-ospf:show-database-opaque-as",
     "usage": "show ospf database opaque-as",
     "grammar": [
       {
@@ -37433,7 +37802,7 @@
     "short-help": "Decode each AS-scope opaque LSA body (RFC 5250).",
     "description": "A body with a typed decoder returns its TLVs, which are TE,\nRouter-Information, Extended and Segment-Routing. Every other body returns a\ngeneric type, length and hex view (spec-ospf-ext-14).",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-opaque-as-detail",
+    "wire-method": "ze-ospf:show-database-opaque-as-detail",
     "usage": "show ospf database opaque-as detail",
     "grammar": [
       {
@@ -37556,7 +37925,7 @@
     "short-help": "Show only link-local opaque-LSAs (Type 9, RFC 5250).",
     "description": "RFC 5250 Section 3 gives link-state type-9 a link-local scope. A\ntype-9 opaque LSA is not flooded beyond the local subnetwork. This\nview is therefore per link. No other link holds an LSA listed here,\nand no router past the local segment holds one.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-opaque-link",
+    "wire-method": "ze-ospf:show-database-opaque-link",
     "usage": "show ospf database opaque-link",
     "grammar": [
       {
@@ -37678,7 +38047,7 @@
     "short-help": "Decode each link-local opaque LSA body (RFC 5250).",
     "description": "A body with a typed decoder returns its TLVs, which are TE,\nRouter-Information, Extended and Segment-Routing. Every other body returns a\ngeneric type, length and hex view (spec-ospf-ext-14).",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-opaque-link-detail",
+    "wire-method": "ze-ospf:show-database-opaque-link-detail",
     "usage": "show ospf database opaque-link detail",
     "grammar": [
       {
@@ -37801,7 +38170,7 @@
     "short-help": "Show only Router-LSAs (Type 1).",
     "description": "RFC 2328 Section 12.4.1 states that every router originates a Router-LSA.\nThe LSA describes the collected states of the router's interfaces to one area.\nIt is flooded throughout a single area only, and Ze reads the per-area store\nfor it.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-router",
+    "wire-method": "ze-ospf:show-database-router",
     "usage": "show ospf database router",
     "grammar": [
       {
@@ -37920,7 +38289,7 @@
     "short-help": "Show the Router Information LSAs (RFC 7770) for both address families.",
     "description": "OSPFv2 opaque type 4 and OSPFv3 function code 12, decoded into the\nadvertised informational capability bits and the TLV list.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-router-information",
+    "wire-method": "ze-ospf:show-database-router-information",
     "usage": "show ospf database router-information",
     "grammar": [
       {
@@ -38039,7 +38408,7 @@
     "short-help": "Show only Summary-LSAs (Type 3, inter-area network).",
     "description": "RFC 2328 Section 12.4.3 states that an area border router originates a\nSummary-LSA. A Type 3 Summary-LSA describes a route to a network outside the\narea and inside the AS. Ze reads the per-area store for it.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-database-summary",
+    "wire-method": "ze-ospf:show-database-summary",
     "usage": "show ospf database summary",
     "grammar": [
       {
@@ -38158,7 +38527,7 @@
     "short-help": "Show OSPFv2 (IPv4) Graceful Restart state (RFC 3623).",
     "description": "The restarter state (in-restart or not, grace end, reason) and the\nper-neighbor helper sessions (which neighbors are being helped and their\nremaining grace).",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-graceful-restart",
+    "wire-method": "ze-ospf:show-graceful-restart",
     "usage": "show ospf graceful-restart",
     "grammar": [
       {
@@ -38273,7 +38642,7 @@
     "short-help": "Show the configured OSPFv2 instances (RFC 6549 Multi-Instance).",
     "description": "Lists each Instance ID with its router-id and the size of its isolated area,\ninterface, neighbor, and link-state database state.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-instance",
+    "wire-method": "ze-ospf:show-instance",
     "usage": "show ospf instance",
     "grammar": [
       {
@@ -38388,7 +38757,7 @@
     "short-help": "Show OSPF-enabled interfaces.",
     "description": "Returns area, network-type, cost, ISM state, DR/BDR, hello/dead intervals,\npriority, and passive flag per interface.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-interface",
+    "wire-method": "ze-ospf:show-interface",
     "usage": "show ospf interface",
     "grammar": [
       {
@@ -38506,7 +38875,7 @@
     "short-help": "Show the full per-interface state (spec-ospf-ext-14).",
     "description": "Returns the ISM state, the DR and BDR election detail, all three\ntimers, and the opaque-capable neighbor count.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-interface-detail",
+    "wire-method": "ze-ospf:show-interface-detail",
     "usage": "show ospf interface detail",
     "grammar": [
       {
@@ -38625,7 +38994,7 @@
     "short-help": "Show the OSPFv3 (IPv6) address-family instances (RFC 5838).",
     "description": "Lists each configured address family (ipv6-unicast, ipv6-multicast,\nipv4-unicast, ipv4-multicast) with its Instance ID, router-id, and\nneighbor/interface counts, so multiple AF instances on a link are\ndistinguishable.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-ipv6",
+    "wire-method": "ze-ospf:show-ipv6",
     "usage": "show ospf ipv6",
     "grammar": [
       {
@@ -38749,7 +39118,7 @@
     "short-help": "Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340).",
     "description": "Base types decode into named fields; unknown function codes fall back to a\nscope-aware header + body-hex view (spec-ospf-ext-14).",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database",
+    "wire-method": "ze-ospf:show-ospfv3-database",
     "usage": "show ospf ipv6 database",
     "grammar": [
       {
@@ -38876,7 +39245,7 @@
     "short-help": "Decode every OSPFv3 LSA body with its scope-aware header (RFC 5340 section A.4.2.1).",
     "description": "The parent command decodes the base types only. This form decodes\nevery LSA body. An unknown function code then arrives as a scope-aware header\nbeside its body hex, rather than as a named record.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database-detail",
+    "wire-method": "ze-ospf:show-ospfv3-database-detail",
     "usage": "show ospf ipv6 database detail",
     "grammar": [
       {
@@ -38999,7 +39368,7 @@
     "short-help": "Show the extended OSPFv3 LSAs (RFC 8362).",
     "description": "Covers E-Router, E-Network, E-Inter-Area, E-AS-External, E-Link and\nE-Intra-Area-Prefix. Each LSA decodes into named TLVs.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database-extended",
+    "wire-method": "ze-ospf:show-ospfv3-database-extended",
     "usage": "show ospf ipv6 database extended",
     "grammar": [
       {
@@ -39122,7 +39491,7 @@
     "short-help": "Decode each OSPFv3 Router-LSA body.",
     "description": "Each body decodes into its interface records: the type, the metric, the\nInterface ID, the neighbor Interface ID and the neighbor Router ID. RFC 5340\nSection 2.2 states that a Router-LSA no longer contains a network address and\nexpresses topology only.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database-router-detail",
+    "wire-method": "ze-ospf:show-ospfv3-database-router-detail",
     "usage": "show ospf ipv6 database router detail",
     "grammar": [
       {
@@ -39249,7 +39618,7 @@
     "short-help": "Show the OSPFv3 Router Information LSAs (RFC 7770).",
     "description": "The LSA carries function code 12. Each one decodes into its\ncapability bits and its TLVs.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database-router-information",
+    "wire-method": "ze-ospf:show-ospfv3-database-router-information",
     "usage": "show ospf ipv6 database router-information",
     "grammar": [
       {
@@ -39372,7 +39741,7 @@
     "short-help": "Show only area-scope (S2/S1 = 01) LSAs.",
     "description": "RFC 5340 Section 2.3 gives area scope to the router-LSA, the network-LSA,\nthe inter-area-prefix-LSA, the inter-area-router-LSA and the\nintra-area-prefix-LSA. Ze reads the per-area store for them.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database-scope-area",
+    "wire-method": "ze-ospf:show-ospfv3-database-scope-area",
     "usage": "show ospf ipv6 database scope area",
     "grammar": [
       {
@@ -39499,7 +39868,7 @@
     "short-help": "Show only AS-scope (S2/S1 = 10) LSAs.",
     "description": "RFC 5340 Section 2.3 states that an AS-scope LSA is flooded throughout the\nrouting domain, and that a router which originates one is an AS Boundary\nRouter. Ze reads the AS-wide store for it, and no area appears in the answer.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database-scope-as",
+    "wire-method": "ze-ospf:show-ospfv3-database-scope-as",
     "usage": "show ospf ipv6 database scope as",
     "grammar": [
       {
@@ -39626,7 +39995,7 @@
     "short-help": "Show only link-local (S2/S1 = 00) LSAs, including the per-interface Link-LSA store.",
     "description": "Ze reads the per-interface Link-LSA store as well as the area store, so a\nLink-LSA appears here beside its interface. RFC 5340 Section 2.3 states that a\nlink-local LSA is flooded on the local link and no further.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database-scope-link",
+    "wire-method": "ze-ospf:show-ospfv3-database-scope-link",
     "usage": "show ospf ipv6 database scope link",
     "grammar": [
       {
@@ -39753,7 +40122,7 @@
     "short-help": "Summarise the OSPFv3 Segment Routing content (RFC 8666) carried in the RI and extended LSAs.",
     "description": "This is a summary rather than a decode. The Segment Routing content lives in\nthe Router Information LSA and in the extended LSAs, and the two commands\nabove decode those LSAs in full.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-database-segment-routing",
+    "wire-method": "ze-ospf:show-ospfv3-database-segment-routing",
     "usage": "show ospf ipv6 database segment-routing",
     "grammar": [
       {
@@ -39876,7 +40245,7 @@
     "short-help": "Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187).",
     "description": "The restarter state (in-restart or not, grace end, reason) and the\nper-neighbor helper sessions (which neighbors are being helped and their\nremaining grace).",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-ipv6-graceful-restart",
+    "wire-method": "ze-ospf:show-ipv6-graceful-restart",
     "usage": "show ospf ipv6 graceful-restart",
     "grammar": [
       {
@@ -39995,7 +40364,7 @@
     "short-help": "Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2).",
     "description": "Each instance carries its address family, its Instance ID, its area\ncount, and its neighbor count.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-instance",
+    "wire-method": "ze-ospf:show-ospfv3-instance",
     "usage": "show ospf ipv6 instance",
     "grammar": [
       {
@@ -40114,7 +40483,7 @@
     "short-help": "Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.",
     "description": "Returns per interface whether IPsec is configured, the protocol (ah/esp) and\nSPI, and whether the kernel SA is installed. The key is never shown.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-ipv6-interface",
+    "wire-method": "ze-ospf:show-ipv6-interface",
     "usage": "show ospf ipv6 interface",
     "grammar": [
       {
@@ -40236,7 +40605,7 @@
     "short-help": "Show the full per-interface OSPFv3 state (spec-ospf-ext-14).",
     "description": "Returns the ISM state, the DR and BDR by Router ID, the timers, the\nlocal Interface ID, and the Instance ID.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-interface-detail",
+    "wire-method": "ze-ospf:show-ospfv3-interface-detail",
     "usage": "show ospf ipv6 interface detail",
     "grammar": [
       {
@@ -40359,7 +40728,7 @@
     "short-help": "Show the OSPFv3 (IPv6) neighbors.",
     "description": "Each neighbor carries the link-local address as its identity, the\nadjacency state, the DR and BDR by Router ID, and the dead time.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-neighbor",
+    "wire-method": "ze-ospf:show-ospfv3-neighbor",
     "usage": "show ospf ipv6 neighbor",
     "grammar": [
       {
@@ -40481,7 +40850,7 @@
     "short-help": "Show the full per-neighbor OSPFv3 state (spec-ospf-ext-14).",
     "description": "Returns the advertised Interface ID, the DD sequence, the decoded\nOptions (R/V6/E/N/AF), the list sizes, the last NSM event, and the timers.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-neighbor-detail",
+    "wire-method": "ze-ospf:show-ospfv3-neighbor-detail",
     "usage": "show ospf ipv6 neighbor detail",
     "grammar": [
       {
@@ -40604,7 +40973,7 @@
     "short-help": "Show OSPFv3 (IPv6) Segment Routing state (RFC 8666).",
     "description": "The configured SRGB/SRLB label ranges, the advertised SR-Algorithm,\nthis node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-ipv6-segment-routing",
+    "wire-method": "ze-ospf:show-ipv6-segment-routing",
     "usage": "show ospf ipv6 segment-routing",
     "grammar": [
       {
@@ -40723,7 +41092,7 @@
     "short-help": "Show the OSPFv3 (IPv6) per-area SPF run history.",
     "description": "The history is read from the IPv6 unicast engine alone. Another\naddress family is not covered here. A router that runs no OSPFv3\nengine answers an empty list rather than an error. That reads the\nsame as a router whose engine has run no SPF yet.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-spf",
+    "wire-method": "ze-ospf:show-ospfv3-spf",
     "usage": "show ospf ipv6 spf",
     "grammar": [
       {
@@ -40845,7 +41214,7 @@
     "short-help": "Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged.",
     "description": "The command is read-only.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospfv3-spf-detail",
+    "wire-method": "ze-ospf:show-ospfv3-spf-detail",
     "usage": "show ospf ipv6 spf detail",
     "grammar": [
       {
@@ -40968,7 +41337,7 @@
     "short-help": "Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138).",
     "description": "Lists each ldp-sync interface with its state (not-synchronized / hold-down /\nsynchronized), remaining hold-down, effective metric, and whether it is stuck\nnot-synchronized after having been synchronized.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-ldp-sync",
+    "wire-method": "ze-ospf:show-ldp-sync",
     "usage": "show ospf ldp-sync",
     "grammar": [
       {
@@ -41083,7 +41452,7 @@
     "short-help": "Show OSPF neighbors.",
     "description": "Returns each neighbor's router-id, interface, adjacency state, DR/BDR,\npriority, dead time, and address.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-neighbor",
+    "wire-method": "ze-ospf:show-neighbor",
     "usage": "show ospf neighbor",
     "grammar": [
       {
@@ -41201,7 +41570,7 @@
     "short-help": "Show the full per-neighbor state (spec-ospf-ext-14).",
     "description": "Returns the DD sequence, the decoded Options including the RFC 5250\nO-bit, the request and summary list sizes, the last NSM event, and the\ntimers.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-neighbor-detail",
+    "wire-method": "ze-ospf:show-neighbor-detail",
     "usage": "show ospf neighbor detail",
     "grammar": [
       {
@@ -41320,7 +41689,7 @@
     "short-help": "Show OSPF-computed routes.",
     "description": "Lists each prefix with its path type (intra/inter/external-1/2), cost,\nnext-hops, and area.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-route",
+    "wire-method": "ze-ospf:show-route",
     "usage": "show ospf route",
     "grammar": [
       {
@@ -41438,7 +41807,7 @@
     "short-help": "Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286).",
     "description": "Lists each prefix's primary next-hops with their pre-computed loop-free\nbackup, protection class (node/link/downstream), and TI-LFA repair label\nstack. Unprotected primaries are shown as unprotected.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-route-fast-reroute",
+    "wire-method": "ze-ospf:show-route-fast-reroute",
     "usage": "show ospf route fast-reroute",
     "grammar": [
       {
@@ -41557,7 +41926,7 @@
     "short-help": "Show OSPFv2 (IPv4) Segment Routing state (RFC 8665).",
     "description": "The configured SRGB/SRLB label ranges, the advertised SR-Algorithm,\nthis node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-segment-routing",
+    "wire-method": "ze-ospf:show-segment-routing",
     "usage": "show ospf segment-routing",
     "grammar": [
       {
@@ -41672,7 +42041,7 @@
     "short-help": "Show recent OSPF SPF runs.",
     "description": "Returns the most recent per-area SPF runs with their timestamp, duration, node\ncount, and pending state.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-spf",
+    "wire-method": "ze-ospf:show-spf",
     "usage": "show ospf spf",
     "grammar": [
       {
@@ -41790,7 +42159,7 @@
     "short-help": "Explain why each route won the SPF calculation (spec-ospf-ext-14).",
     "description": "Returns the candidate paths considered for each prefix, the winning\ncost, and the RFC 2328 section 16.4 path-preference tie-break. The command is\nread-only, so the route table and the SPF run count do not change.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-spf-detail",
+    "wire-method": "ze-ospf:show-spf-detail",
     "usage": "show ospf spf detail",
     "grammar": [
       {
@@ -41909,7 +42278,7 @@
     "short-help": "Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392).",
     "description": "Router addresses plus TE links with their Link ID, local/remote address,\nlink type, TE metric, bandwidths, admin group, and (for inter-AS links) remote\nAS and remote ASBR.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-te-database",
+    "wire-method": "ze-ospf:show-te-database",
     "usage": "show ospf te-database",
     "grammar": [
       {
@@ -42024,7 +42393,7 @@
     "short-help": "Show OSPF virtual links (RFC 2328 section 15).",
     "description": "Lists each configured virtual link with its transit area, remote router-id,\nadjacency state, computed cost, and transit next hop.",
     "mode": "read-only",
-    "wire-method": "ze-show:ospf-virtual-links",
+    "wire-method": "ze-ospf:show-virtual-links",
     "usage": "show ospf virtual-links",
     "grammar": [
       {
@@ -42139,7 +42508,7 @@
     "short-help": "Ping a target from the router itself.",
     "description": "Sends ICMP echo requests to <dest> (IP or hostname). Default count is 5.\nTimeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from\nthis box, not from your workstation.",
     "mode": "read-only",
-    "wire-method": "ze-show:ping",
+    "wire-method": "ze-ping:show-ping",
     "args": [
       {
         "name": "dest",
@@ -42310,7 +42679,7 @@
     "short-help": "Inspect a specific certificate in detail.",
     "description": "Each export form is a command of its own.",
     "mode": "read-only",
-    "wire-method": "ze-show:pki-certificate",
+    "wire-method": "ze-pki:show-certificate",
     "args": [
       {
         "name": "name",
@@ -42447,7 +42816,7 @@
     "short-help": "Export the certificate, its intermediates and its private key as one PEM stream.",
     "description": "Device certificates only: a CA certificate in the store holds no private key.",
     "mode": "read-only",
-    "wire-method": "ze-show:pki-certificate-bundle-pem",
+    "wire-method": "ze-pki:show-certificate-bundle-pem",
     "args": [
       {
         "name": "name",
@@ -42587,7 +42956,7 @@
     "short-help": "Show the hash of the certificate, to verify its identity against the one another system reports.",
     "description": "Without an algorithm, SHA-256.",
     "mode": "read-only",
-    "wire-method": "ze-show:pki-certificate-fingerprint",
+    "wire-method": "ze-pki:show-certificate-fingerprint",
     "args": [
       {
         "name": "name",
@@ -42735,7 +43104,7 @@
     "short-help": "Export the certificate, and any intermediate it carries, as PEM.",
     "description": "Use this form to give the certificate to another system.",
     "mode": "read-only",
-    "wire-method": "ze-show:pki-certificate-pem",
+    "wire-method": "ze-pki:show-certificate-pem",
     "args": [
       {
         "name": "name",
@@ -42871,7 +43240,7 @@
     "short-help": "List all loaded certificates with expiry dates.",
     "description": "Shows name, type (CA or device), subject, issuer, expiry, and validity status.\nCheck here to find certificates approaching expiration.",
     "mode": "read-only",
-    "wire-method": "ze-show:pki-certificates",
+    "wire-method": "ze-pki:show-certificates",
     "usage": "show pki certificates",
     "grammar": [
       {
@@ -42986,7 +43355,7 @@
     "short-help": "Export the root certificate of the local certificate authority as PEM.",
     "description": "Give this text to each client that must trust this node, in its\n`pki ca <name> certificate` block. The output holds the certificate only:\nthe root private key never leaves the daemon.",
     "mode": "read-only",
-    "wire-method": "ze-show:pki-local-ca-pem",
+    "wire-method": "ze-pki:show-local-ca-pem",
     "usage": "show pki local-ca pem",
     "grammar": [
       {
@@ -43105,7 +43474,7 @@
     "short-help": "Show what each plugin declares about its command surface.",
     "description": "Each row names one plugin, says whether its code is in this\nbinary or in another one, and carries the commands it serves and the pipe\naliases it puts on them. Add 'config <path>' and the plugins that file\ndeclares gain a row too, external ones included.\nA plugin whose declaration could not be read keeps its row and says why in\nthe state field, so a plugin is never missing from the answer.\n'show plugin list' answers the other question, which plugins this binary\ncarries and what each plugin's own init() recorded.",
     "mode": "read-only",
-    "wire-method": "ze-show:plugin-declarations",
+    "wire-method": "ze-plugin:show-declarations",
     "usage": "show plugin declarations",
     "grammar": [
       {
@@ -43234,7 +43603,7 @@
     "short-help": "Read the plugin blocks of a config file as well.",
     "description": "The keyword types the value after it, so the reader of the\ncommand line knows the token is a config file and not a plugin name. The file is\nread with the daemon's own loader, so the answer covers the plugins the daemon\nwould start from it.",
     "mode": "read-only",
-    "wire-method": "ze-show:plugin-declarations-config",
+    "wire-method": "ze-plugin:show-declarations-config",
     "args": [
       {
         "name": "path",
@@ -43377,7 +43746,7 @@
     "short-help": "List the plugins compiled into this binary.",
     "description": "Each row carries the plugin name, what it does, the address\nfamilies it handles, the RFCs it implements, the BGP capability codes it owns,\nthe setup outcome its own init() recorded (succeeded, soft-failure,\nhard-failure or unknown) and the reason the plugin gave. A plugin that\nrecorded nothing is listed as unknown, never omitted, and a plugin that\nrecorded and then did not register keeps its row.\nThe outcome replays a past event: it was recorded once, before main(),\nand this command reads it back. 'show health' answers the other question,\nby running a probe now and reporting what the daemon is doing at this\nmoment.",
     "mode": "read-only",
-    "wire-method": "ze-show:plugin-list",
+    "wire-method": "ze-plugin:show-list",
     "usage": "show plugin list",
     "grammar": [
       {
@@ -43504,7 +43873,7 @@
     "short-help": "Show the import/export filter chain applied to a peer.",
     "description": "The selector\n(IP, name, as<N>) and the optional direction are parsed by the handler.\nShows the effective chain after group inheritance is resolved. Without\na direction keyword, shows both import and export.",
     "mode": "read-only",
-    "wire-method": "ze-show:policy-chain",
+    "wire-method": "ze-bgp:show-policy-chain",
     "args": [
       {
         "name": "selector",
@@ -43647,7 +44016,7 @@
     "short-help": "List all available filter types and named instances.",
     "description": "Shows each filter type and its implementing plugin. Check here\nwhen building a new policy chain to see what filters you can use.",
     "mode": "read-only",
-    "wire-method": "ze-show:policy-list",
+    "wire-method": "ze-cmd:show-policy-list",
     "usage": "show policy list",
     "grammar": [
       {
@@ -43762,7 +44131,7 @@
     "short-help": "Show policy-based routing rules.",
     "description": "Lists PBR rules with match criteria and routing actions.",
     "mode": "read-only",
-    "wire-method": "ze-show:policy-routes",
+    "wire-method": "ze-policyroute:show-policy-routes",
     "usage": "show policy routes",
     "grammar": [
       {
@@ -43877,7 +44246,7 @@
     "short-help": "Test what your policy does to a specific UPDATE.",
     "description": "Feed a hex-encoded BGP UPDATE through a peer's filter chain and see\nthe accept/reject result plus attribute modifications at each stage.\nRead-only: no routes are actually forwarded. Great for validating\npolicy changes before you commit.\nThe selector and the direction, filter, update and source-asn4 tokens are\nparsed by the handler, so the peer selector can be a free-form name or\naddress and the tokens can arrive in any order.",
     "mode": "read-only",
-    "wire-method": "ze-show:policy-test",
+    "wire-method": "ze-bgp:show-policy-test",
     "args": [
       {
         "name": "selector",
@@ -44065,7 +44434,7 @@
     "short-help": "PPPoE session and protocol state.",
     "description": "Without a subcommand, shows a summary of active\nsessions.",
     "mode": "read-only",
-    "wire-method": "ze-pppoe-api:summary",
+    "wire-method": "ze-l2tp:pppoe-summary",
     "usage": "show pppoe",
     "grammar": [
       {
@@ -44182,7 +44551,7 @@
     "short-help": "Show which interfaces are accepting PPPoE sessions.",
     "description": "Lists each PPPoE-enabled interface with its service\nname, session limit, and how many sessions are active now.",
     "mode": "read-only",
-    "wire-method": "ze-pppoe-api:interfaces",
+    "wire-method": "ze-l2tp:pppoe-interfaces",
     "usage": "show pppoe interfaces",
     "grammar": [
       {
@@ -44297,7 +44666,7 @@
     "short-help": "Show full detail for one PPPoE session.",
     "description": "Pass the session ID. Returns discovery tags,\nLCP/NCP state, assigned addresses, and traffic counters.",
     "mode": "read-only",
-    "wire-method": "ze-pppoe-api:session",
+    "wire-method": "ze-l2tp:pppoe-session",
     "args": [
       {
         "name": "id",
@@ -44429,7 +44798,7 @@
     "short-help": "List all active PPPoE sessions.",
     "description": "One line per session: session ID, MAC, subscriber\nlogin, uptime, and assigned addresses.",
     "mode": "read-only",
-    "wire-method": "ze-pppoe-api:sessions",
+    "wire-method": "ze-l2tp:pppoe-sessions",
     "usage": "show pppoe sessions",
     "grammar": [
       {
@@ -44544,7 +44913,7 @@
     "short-help": "Show PPPoE protocol message counters.",
     "description": "Returns PADI, PADO, PADR, PADS, PADT counts, active\nsessions, and errors. A rising PADI count with flat PADS means sessions are not\ncompleting.",
     "mode": "read-only",
-    "wire-method": "ze-pppoe-api:statistics",
+    "wire-method": "ze-l2tp:pppoe-statistics",
     "usage": "show pppoe statistics",
     "grammar": [
       {
@@ -44659,7 +45028,7 @@
     "short-help": "Run a parallel traceroute probe round to a target.",
     "description": "Sends all probes concurrently for faster results than sequential traceroute.\nReturns per-hop RTT and IP. Use probes and max-hops to tune accuracy vs speed.",
     "mode": "read-only",
-    "wire-method": "ze-show:probe-round",
+    "wire-method": "ze-traceroute:show-probe-round",
     "args": [
       {
         "name": "dest",
@@ -44812,7 +45181,7 @@
     "short-help": "Show how many config reloads the daemon has processed.",
     "description": "Returns a generation counter, the outcome of the most recent reload\n(applied or failed), and when it finished. The counter advances on every\nprocessed reload, including one that rejected or changed nothing, so you\ncan confirm a SIGHUP was acted on even when it deliberately left the\nrunning config alone.",
     "mode": "read-only",
-    "wire-method": "ze-show:reload-status",
+    "wire-method": "ze-cmd:show-reload-status",
     "usage": "show reload-status",
     "grammar": [
       {
@@ -44923,7 +45292,7 @@
     "short-help": "Show which Regional Internet Registry holds an AS number.",
     "description": "Reads the RIR delegation table that ships with the binary, or the newer\ncopy an earlier 'update resolve rir' stored. Reaches no network. Reports the\nregistry, its whois server, and the delegated range that holds the AS number.\nAn AS number in no delegated range and a table that cannot be read are two\ndifferent answers.",
     "mode": "read-only",
-    "wire-method": "ze-show:resolve-rir",
+    "wire-method": "ze-resolve:show-rir",
     "args": [
       {
         "name": "asn",
@@ -45150,7 +45519,7 @@
     "short-help": "Show the kernel routing table.",
     "description": "Lists installed routes with next-hop, interface, protocol,\nand metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap\nthe output.",
     "mode": "read-only",
-    "wire-method": "ze-show:route",
+    "wire-method": "ze-iface:show-route",
     "args": [
       {
         "name": "prefix",
@@ -45286,7 +45655,7 @@
     "short-help": "Look up which route the kernel would use for a given IP.",
     "description": "Performs a longest-prefix-match and returns the\nmatching route with gateway, interface, protocol, and metric.",
     "mode": "read-only",
-    "wire-method": "ze-show:route-lookup",
+    "wire-method": "ze-iface:show-route-lookup",
     "args": [
       {
         "name": "ip",
@@ -45414,7 +45783,7 @@
     "short-help": "Show route reflector client peers.",
     "description": "Lists each RR client with session state and reflected route counts.",
     "mode": "read-only",
-    "wire-method": "ze-show:rr-peers",
+    "wire-method": "ze-bgp:show-rr-peers",
     "usage": "show rr peers",
     "grammar": [
       {
@@ -45529,7 +45898,7 @@
     "short-help": "Show whether the route reflector is active.",
     "description": "Returns cluster ID, running state, and summary statistics\n(reflected routes, client count).",
     "mode": "read-only",
-    "wire-method": "ze-show:rr-status",
+    "wire-method": "ze-bgp:show-rr-status",
     "usage": "show rr status",
     "grammar": [
       {
@@ -45644,7 +46013,7 @@
     "short-help": "Show RSVP-TE Fast Reroute (RFC 4090) protection state.",
     "description": "Returns each configured facility-backup bypass LSP and each protected LSP with\nits armed bypass, mode, and whether local protection is available and in use.",
     "mode": "read-only",
-    "wire-method": "ze-show:rsvp-te-fast-reroute",
+    "wire-method": "ze-rsvpte:show-rsvp-te-fast-reroute",
     "usage": "show rsvp-te fast-reroute",
     "grammar": [
       {
@@ -45759,7 +46128,7 @@
     "short-help": "Show RSVP-TE bandwidth allocation per interface.",
     "description": "Returns reserved, available, and maximum bandwidth for each TE-enabled\ninterface.",
     "mode": "read-only",
-    "wire-method": "ze-show:rsvp-te-interface",
+    "wire-method": "ze-rsvpte:show-rsvp-te-interface",
     "usage": "show rsvp-te interface",
     "grammar": [
       {
@@ -45874,7 +46243,7 @@
     "short-help": "Show RSVP-TE label-switched paths.",
     "description": "Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out\nlabels for each LSP.",
     "mode": "read-only",
-    "wire-method": "ze-show:rsvp-te-lsp",
+    "wire-method": "ze-rsvpte:show-rsvp-te-lsp",
     "usage": "show rsvp-te lsp",
     "grammar": [
       {
@@ -46088,7 +46457,7 @@
     "short-help": "Show configured RSVP-TE tunnels and their current state.",
     "description": "Returns tunnel name, endpoints, signaling state, and active LSP.",
     "mode": "read-only",
-    "wire-method": "ze-show:rsvp-te-tunnel",
+    "wire-method": "ze-rsvpte:show-rsvp-te-tunnel",
     "usage": "show rsvp-te tunnel",
     "grammar": [
       {
@@ -46203,7 +46572,7 @@
     "short-help": "Show the Go runtime allocator memory stats.",
     "description": "Returns allocated bytes, heap in-use, total allocations, GC cycles, and\nlast GC pause duration. Compare over time to spot leaks. For the OS-level\nprocess memory (RSS/VSZ) use 'show system memory'.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-memory",
+    "wire-method": "ze-cmd:show-system-memory",
     "usage": "show runtime memory",
     "grammar": [
       {
@@ -46318,7 +46687,7 @@
     "short-help": "List all notification types defined in YANG API modules.",
     "description": "Shows which events a plugin can subscribe to.",
     "mode": "read-only",
-    "wire-method": "ze-show:schema-events",
+    "wire-method": "ze-config-schema:show-schema-events",
     "usage": "show schema events",
     "grammar": [
       {
@@ -46441,7 +46810,7 @@
     "short-help": "Show which handler serves each YANG module.",
     "description": "Maps module names to their implementing Go handler.",
     "mode": "read-only",
-    "wire-method": "ze-show:schema-handlers",
+    "wire-method": "ze-config-schema:show-schema-handlers",
     "usage": "show schema handlers",
     "grammar": [
       {
@@ -46563,7 +46932,7 @@
     "short-help": "List all YANG schemas loaded by the daemon.",
     "description": "Shows module name, namespace, and revision for each schema.",
     "mode": "read-only",
-    "wire-method": "ze-show:schema-list",
+    "wire-method": "ze-config-schema:show-schema-list",
     "usage": "show schema list",
     "grammar": [
       {
@@ -46687,7 +47056,7 @@
     "short-help": "List all RPC methods defined in YANG API modules.",
     "description": "Useful for plugin developers to discover available operations.",
     "mode": "read-only",
-    "wire-method": "ze-show:schema-methods",
+    "wire-method": "ze-config-schema:show-schema-methods",
     "usage": "show schema methods",
     "grammar": [
       {
@@ -46810,7 +47179,7 @@
     "short-help": "Show the wire protocol version and format details.",
     "description": "Useful for checking compatibility between Ze versions.",
     "mode": "read-only",
-    "wire-method": "ze-show:schema-protocol",
+    "wire-method": "ze-config-schema:show-schema-protocol",
     "usage": "show schema protocol",
     "grammar": [
       {
@@ -46890,7 +47259,7 @@
     "short-help": "Show static routes defined in the configuration.",
     "description": "Lists each static route with its prefix, next-hop, and interface.",
     "mode": "read-only",
-    "wire-method": "ze-show:static",
+    "wire-method": "ze-static:show-static",
     "usage": "show static",
     "grammar": [
       {
@@ -47001,7 +47370,7 @@
     "short-help": "Show process status, uptime, and resource usage.",
     "description": "The answer carries the uptime, the peer count and the daemon start time. This\ncommand needs a running reactor, so a daemon that has none refuses it.",
     "mode": "read-only",
-    "wire-method": "ze-system:daemon-status",
+    "wire-method": "ze-plugin:system-daemon-status",
     "usage": "show status",
     "grammar": [
       {
@@ -47112,7 +47481,7 @@
     "short-help": "Show disk health via SMART data.",
     "description": "Returns health status, temperature, power-on hours, and self-test schedule for\neach block device. Replace drives that report failing health before they cause\ndata loss.",
     "mode": "read-only",
-    "wire-method": "ze-show:storage-smart",
+    "wire-method": "ze-storage:show-smart",
     "usage": "show storage smart",
     "grammar": [
       {
@@ -47227,7 +47596,7 @@
     "short-help": "Show a summary of all subscriber sessions.",
     "description": "Counts by access type (PPPoE, L2TP, IPoE) with totals. It\nis the quick way to see how many subscribers are online.",
     "mode": "read-only",
-    "wire-method": "ze-subscriber-api:summary",
+    "wire-method": "ze-l2tp:subscriber-summary",
     "usage": "show subscriber",
     "grammar": [
       {
@@ -47341,7 +47710,7 @@
     "short-help": "Show everything about one subscriber session.",
     "description": "Pass the session ID. Returns access type, assigned\naddresses, authentication state, uptime, and traffic counters.",
     "mode": "read-only",
-    "wire-method": "ze-subscriber-api:detail",
+    "wire-method": "ze-l2tp:subscriber-detail",
     "args": [
       {
         "name": "id",
@@ -47968,7 +48337,7 @@
     "short-help": "Show the kernel connection tracking table.",
     "description": "Returns conntrack entry count, table size, timeouts,\nand loaded modules. Requires the nft backend. Check this when you suspect\nconntrack table exhaustion is dropping traffic.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-conntrack",
+    "wire-method": "ze-firewall:show-system-conntrack",
     "backend": [
       "nft"
     ],
@@ -48086,7 +48455,7 @@
     "short-help": "Show CPU utilization context for the daemon.",
     "description": "Returns goroutine count, logical CPU count, and GOMAXPROCS setting.\nUseful when the box feels sluggish and you want to see if Ze is\nhogging threads.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-cpu",
+    "wire-method": "ze-cmd:show-system-cpu",
     "usage": "show system cpu",
     "grammar": [
       {
@@ -48201,7 +48570,7 @@
     "short-help": "Show the daemon's current wall-clock time and timezone.",
     "description": "Useful for correlating log timestamps when the box is in a\ndifferent timezone than you are.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-date",
+    "wire-method": "ze-cmd:show-system-date",
     "usage": "show system date",
     "grammar": [
       {
@@ -48316,7 +48685,7 @@
     "short-help": "Show how many file descriptors the daemon has open.",
     "description": "Summary mode: totals by type (socket, pipe, file). Detail mode: every\nfd with its path and type. Linux only (reads /proc/self/fd). Check\nthis when you suspect fd exhaustion.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-file-descriptors",
+    "wire-method": "ze-cmd:show-system-file-descriptors",
     "args": [
       {
         "name": "mode",
@@ -48451,7 +48820,7 @@
     "short-help": "Dump goroutine stacks for debugging hangs or deadlocks.",
     "description": "Modes: summary (groups by state), blocked (only lock/channel waiters),\nfull (all stacks). Default: summary. Share the output with support\nwhen the daemon stops responding.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-goroutines",
+    "wire-method": "ze-cmd:show-system-goroutines",
     "args": [
       {
         "name": "mode",
@@ -48588,7 +48957,7 @@
     "short-help": "Show kernel log messages (dmesg-style).",
     "description": "Reads from /dev/kmsg. Filter by syslog level (emerg through debug) and limit\nwith count. Without count, you get the newest 50 messages. Linux only. Useful\nfor spotting NIC errors or OOM events.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-kernel-log",
+    "wire-method": "ze-host:show-system-kernel-log",
     "args": [
       {
         "name": "level",
@@ -48745,7 +49114,7 @@
     "short-help": "Show how much memory the daemon is using, from the OS's view.",
     "description": "Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status\n(Linux only). This is what the operating system reports the process is\nusing. For the Go runtime allocator view (heap, GC), use\n'show runtime memory'.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-memory-map",
+    "wire-method": "ze-cmd:show-system-memory-map",
     "usage": "show system memory",
     "grammar": [
       {
@@ -48860,7 +49229,7 @@
     "short-help": "NTP clock synchronization status.",
     "description": "The answer carries enabled false alone when NTP is off. It carries the\nsame when the daemon has recorded no state yet, so the two cases read\nalike. An enabled client answers whether it is synced, its source, the\noffset, the stratum and the poll interval. The last-sync time is\npresent only after a synchronization has happened.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-ntp",
+    "wire-method": "ze-ntp:show-system-ntp",
     "usage": "show system ntp",
     "grammar": [
       {
@@ -48978,7 +49347,7 @@
     "short-help": "Show NTP peers with offset, RTT, stratum, and reachability.",
     "description": "Tells you whether your clock is synced and how far off each NTP server thinks\nyou are.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-ntp-peers",
+    "wire-method": "ze-ntp:show-system-ntp-peers",
     "usage": "show system ntp peers",
     "grammar": [
       {
@@ -49097,7 +49466,7 @@
     "short-help": "Show what kind of platform the daemon is running on.",
     "description": "Reports whether this is gokrazy, systemd, container, plain-linux, or\ndarwin, along with platform-specific capabilities.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-platform",
+    "wire-method": "ze-cmd:show-system-platform",
     "usage": "show system platform",
     "grammar": [
       {
@@ -49212,7 +49581,7 @@
     "short-help": "Capture a runtime profile for performance analysis.",
     "description": "Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs\n(instant snapshots). Output is pprof format you can open with\n'go tool pprof'. Send the file to support for deep analysis.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-profile",
+    "wire-method": "ze-cmd:show-system-profile",
     "args": [
       {
         "name": "type",
@@ -49361,7 +49730,7 @@
     "short-help": "Show open TCP and UDP sockets on this box.",
     "description": "Every filter is optional and they combine. States use\nkernel names (ESTABLISHED, LISTEN, TIME_WAIT).\nLinux only. Good for confirming listeners or spotting stuck connections.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-sockets",
+    "wire-method": "ze-cmd:show-system-sockets",
     "args": [
       {
         "name": "protocol",
@@ -49516,7 +49885,7 @@
     "short-help": "List every registered subsystem and whether it is running.",
     "description": "Shows you which components (bgp, dns, web, l2tp, etc.) are active,\nstopped, or failed.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-subsystem-list",
+    "wire-method": "ze-cmd:show-system-subsystem-list",
     "usage": "show system subsystem list",
     "grammar": [
       {
@@ -49635,7 +50004,7 @@
     "short-help": "Check if a firmware update is available.",
     "description": "Shows the running version, latest available version, and when the last check\nran. Use 'update system firmware check' to trigger an immediate re-check.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-update",
+    "wire-method": "ze-update:show-system-update",
     "usage": "show system update",
     "grammar": [
       {
@@ -49753,7 +50122,7 @@
     "short-help": "Show recent firmware update activity.",
     "description": "Lists the last 20 update events: checks, downloads, installs, and rollbacks\nwith timestamps and outcomes.",
     "mode": "read-only",
-    "wire-method": "ze-show:system-update-history",
+    "wire-method": "ze-update:show-system-update-history",
     "usage": "show system update history",
     "grammar": [
       {
@@ -49872,7 +50241,7 @@
     "short-help": "Test TCP connectivity to a remote host and port.",
     "description": "Tries to open a TCP connection and reports success or failure with the\nconnection time. Use 'source <IP>' to bind a specific local address. Quick way\nto verify a peer's BGP port is reachable.",
     "mode": "read-only",
-    "wire-method": "ze-show:tcp-check",
+    "wire-method": "ze-diag:show-tcp-check",
     "args": [
       {
         "name": "host",
@@ -50027,7 +50396,7 @@
     "short-help": "Trace the network path from this router to a target.",
     "description": "Shows each hop with its IP and round-trip time. Dest can be an IP or hostname.\nDefaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT\nmeasurements.",
     "mode": "read-only",
-    "wire-method": "ze-show:traceroute",
+    "wire-method": "ze-traceroute:show-traceroute",
     "args": [
       {
         "name": "dest",
@@ -50198,7 +50567,7 @@
     "short-help": "Show traffic control (QoS) configuration per interface.",
     "description": "Without arguments, lists every interface with its qdisc type and class/filter\ncounts. With an interface name, shows the full qdisc and class breakdown. Use\nthis to verify your shaping is applied.",
     "mode": "read-only",
-    "wire-method": "ze-show:traffic",
+    "wire-method": "ze-traffic:show-traffic",
     "usage": "show traffic control",
     "grammar": [
       {
@@ -50313,7 +50682,7 @@
     "short-help": "Show neutral per-source traffic feature signals.",
     "description": "The signals are fan-out (distinct destinations), out/in\nbyte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto,\nand coarse beaconing.\nWithout arguments, shows the top source entities. With 'name <address>',\nfilters to one source.",
     "mode": "read-only",
-    "wire-method": "ze-show:traffic-feature",
+    "wire-method": "ze-trafficfeature:show-traffic-feature",
     "args": [
       {
         "name": "name",
@@ -50440,7 +50809,7 @@
     "short-help": "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).",
     "description": "Without arguments, shows all interfaces. With\n'name <interface>', filters to one interface.",
     "mode": "read-only",
-    "wire-method": "ze-show:traffic-stat",
+    "wire-method": "ze-trafficstat:show-traffic-stat",
     "args": [
       {
         "name": "name",
@@ -50567,7 +50936,7 @@
     "short-help": "Show per-interface traffic byte counters captured by eBPF TCX.",
     "description": "Per destination/source port and protocol counters are always present; per-IP\ntop-talker counters appear when track-ip is enabled. Without arguments, lists\nall monitored interfaces. With 'name <interface>', shows that one interface.",
     "mode": "read-only",
-    "wire-method": "ze-show:traffic-usage",
+    "wire-method": "ze-trafficusage:show-traffic-usage",
     "args": [
       {
         "name": "name",
@@ -50694,7 +51063,7 @@
     "short-help": "Show how long the daemon has been running.",
     "description": "Returns the start time and elapsed uptime. Handy after a maintenance\nwindow to confirm the process restarted.",
     "mode": "read-only",
-    "wire-method": "ze-show:uptime",
+    "wire-method": "ze-cmd:show-uptime",
     "usage": "show uptime",
     "grammar": [
       {
@@ -50805,7 +51174,7 @@
     "short-help": "Show the running Ze version and build date.",
     "description": "You can verify which release is deployed on this box.",
     "mode": "read-only",
-    "wire-method": "ze-show:version",
+    "wire-method": "ze-cmd:show-version",
     "usage": "show version",
     "grammar": [
       {
@@ -50916,7 +51285,7 @@
     "short-help": "Compare what the IKE engine believes against what the kernel holds.",
     "description": "Reports each Child SA the engine counts as\ninstalled whose expected identity the kernel SAD does not hold. The command exits non-zero\nwhen it finds drift, so a script CAN test it. A rekey window holds two SPIs and\nis not drift.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpn-ipsec-dataplane-drift",
+    "wire-method": "ze-ike:show-vpn-ipsec-dataplane-drift",
     "usage": "show vpn ipsec dataplane drift",
     "grammar": [
       {
@@ -51039,7 +51408,7 @@
     "short-help": "Show the Security Policy Database the kernel holds.",
     "description": "Lists each policy with its selector prefixes\nand ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints,\nand the peer that installed it. A policy with no matching SA is the failure\nthis command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD\nseparate, and so does this tree.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpn-ipsec-dataplane-policy",
+    "wire-method": "ze-ike:show-vpn-ipsec-dataplane-policy",
     "usage": "show vpn ipsec dataplane policy",
     "grammar": [
       {
@@ -51162,7 +51531,7 @@
     "short-help": "Show the Security Association Database the kernel holds.",
     "description": "Lists each installed ESP SA with its SPI,\naddresses, mode, algorithms, replay window, byte and packet counters, and\ntimestamps. Give 'spi <spi>' to show all matching SAs. Without a selector the command\ndumps every SA, which on a device with many tunnels is one row per SA.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpn-ipsec-dataplane-sa",
+    "wire-method": "ze-ike:show-vpn-ipsec-dataplane-sa",
     "args": [
       {
         "name": "spi",
@@ -51297,7 +51666,7 @@
     "short-help": "Show full detail for one IPsec peer.",
     "description": "Returns IKE SA state, all child SAs with\ntraffic selectors, and byte counts.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpn-ipsec-peer",
+    "wire-method": "ze-ike:show-vpn-ipsec-peer",
     "args": [
       {
         "name": "name",
@@ -51433,7 +51802,7 @@
     "short-help": "Show all IKE and Child Security Associations.",
     "description": "Lists every SA with peer, negotiated algorithms,\nbyte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child\nSA traffic selectors. It is the main IPsec status command.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpn-ipsec-sa",
+    "wire-method": "ze-ike:show-vpn-ipsec-sa",
     "usage": "show vpn ipsec sa",
     "grammar": [
       {
@@ -51552,7 +51921,7 @@
     "short-help": "Quick IPsec health check.",
     "description": "Reports whether the IKE engine is running, how many\npeers are configured, and how many IKE SAs are Established.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpn-ipsec-status",
+    "wire-method": "ze-ike:show-vpn-ipsec-status",
     "usage": "show vpn ipsec status",
     "grammar": [
       {
@@ -51671,7 +52040,7 @@
     "short-help": "Show VPP graph node processing statistics.",
     "description": "Returns per-node packet counts, vectors, clocks, and suspends. Helps you find\nwhich node is the bottleneck. Requires the VPP backend.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpp-runtime",
+    "wire-method": "ze-iface:show-vpp-runtime",
     "usage": "show vpp runtime",
     "grammar": [
       {
@@ -51786,7 +52155,7 @@
     "short-help": "Discard the captured VPP trace buffer.",
     "description": "Clears all packets so you can start a fresh trace. Requires the VPP backend.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpp-trace-clear",
+    "wire-method": "ze-iface:show-vpp-trace-clear",
     "usage": "show vpp trace clear",
     "grammar": [
       {
@@ -51905,7 +52274,7 @@
     "short-help": "Retrieve packets captured since the last trace start.",
     "description": "Shows per-packet VPP graph node traversal. Requires the VPP backend.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpp-trace-show",
+    "wire-method": "ze-iface:show-vpp-trace-show",
     "usage": "show vpp trace show",
     "grammar": [
       {
@@ -52024,7 +52393,7 @@
     "short-help": "Start capturing packets in the VPP dataplane.",
     "description": "Default input node is dpdk-input, default count is 100 (max 10000). After\nstarting, use 'show vpp trace show' to retrieve the captured packets. Requires\nthe VPP backend.",
     "mode": "read-only",
-    "wire-method": "ze-show:vpp-trace-start",
+    "wire-method": "ze-iface:show-vpp-trace-start",
     "usage": "show vpp trace start",
     "grammar": [
       {
@@ -52143,7 +52512,7 @@
     "short-help": "Show every VRRP virtual router.",
     "description": "Per router: its group name, VRID, address family, state (initialize,\nbackup, master), configured and effective priority, virtual addresses, and the\nmacvlan device that carries the virtual MAC.",
     "mode": "read-only",
-    "wire-method": "ze-show:vrrp",
+    "wire-method": "ze-vrrp:show-vrrp",
     "usage": "show vrrp",
     "grammar": [
       {
@@ -52361,7 +52730,7 @@
     "short-help": "Show the VRRP virtual routers on one parent interface.",
     "description": "Pass the interface name: show vrrp interface name <interface>.",
     "mode": "read-only",
-    "wire-method": "ze-show:vrrp-interface",
+    "wire-method": "ze-vrrp:show-interface",
     "args": [
       {
         "name": "value",
@@ -52492,7 +52861,7 @@
     "short-help": "Show per-virtual-router counters.",
     "description": "Advertisements sent and received, priority-zero advertisements,\ngratuitous ARP and unsolicited neighbor advertisement bursts,\nreceive-validation errors by reason, and the derived skew and master-down\ntimers in microseconds (a VRRPv3 skew is sub-millisecond).",
     "mode": "read-only",
-    "wire-method": "ze-show:vrrp-statistics",
+    "wire-method": "ze-vrrp:show-statistics",
     "usage": "show vrrp statistics",
     "grammar": [
       {
@@ -52607,7 +52976,7 @@
     "short-help": "Show active warnings across all subsystems.",
     "description": "Displays any conditions that need your attention (degraded peers,\nresource limits approaching, etc.). Use 'source <name>' to filter\nto a single subsystem.",
     "mode": "read-only",
-    "wire-method": "ze-show:warnings",
+    "wire-method": "ze-cmd:show-warnings",
     "usage": "show warnings",
     "grammar": [
       {
@@ -52718,7 +53087,7 @@
     "short-help": "Show YANG paths available for tab completion.",
     "description": "Lists every valid completion point in the command tree.",
     "mode": "read-only",
-    "wire-method": "ze-show:yang-completion",
+    "wire-method": "ze-config-yang:show-yang-completion",
     "usage": "show yang completion",
     "grammar": [
       {
@@ -52834,7 +53203,7 @@
     "short-help": "Generate command reference docs from YANG schemas.",
     "description": "Produces structured documentation with descriptions, arguments, and usage\npatterns for every registered command.",
     "mode": "read-only",
-    "wire-method": "ze-show:yang-doc",
+    "wire-method": "ze-config-yang:show-yang-doc",
     "usage": "show yang doc",
     "grammar": [
       {
@@ -52856,7 +53225,7 @@
     "short-help": "Print the YANG tree for a module in a readable hierarchy.",
     "description": "Shows node types, data types, and config-vs-state annotations. Similar to\n'pyang -f tree'. Useful for understanding the config or command structure.",
     "mode": "read-only",
-    "wire-method": "ze-show:yang-tree",
+    "wire-method": "ze-config-yang:show-yang-tree",
     "usage": "show yang tree",
     "grammar": [
       {
@@ -52978,21 +53347,60 @@
   {
     "path": "skills",
     "short-help": "List the agent skills this binary carries, or fetch one by name.",
-    "description": "Each skill is a Markdown document bundled with the binary, so it always matches the running version. One skill is fetched by name, in its short form or in full.",
-    "mode": "offline"
+    "description": "Each skill is a Markdown document bundled with the binary, so it always\nmatches the running version. list names them, and get prints one by name.",
+    "mode": "daemon",
+    "wire-method": "ze-skills:skills",
+    "usage": "skills (list|get <name>)",
+    "grammar": [
+      {
+        "text": "skills",
+        "kind": "keyword"
+      },
+      {
+        "text": "action",
+        "group": [
+          {
+            "text": "list",
+            "kind": "group"
+          },
+          {
+            "text": "get",
+            "group": [
+              {
+                "text": "name",
+                "kind": "value"
+              }
+            ],
+            "kind": "group"
+          }
+        ],
+        "kind": "group-one-of"
+      }
+    ],
+    "subcommands": [
+      "action"
+    ]
   },
   {
     "path": "support",
     "short-help": "Collect logs, config, state and diagnostics into one archive.",
-    "description": "Send the archive to support when you report an issue. Modules can be selected or excluded, and a time window narrows what the archive holds.",
-    "mode": "offline"
+    "description": "The archive holds logs, config, state and diagnostics, and is what to send\nwhen you report an issue. Secrets are redacted unless asked for. Modules can be selected\nor excluded, and a time window narrows the logs the archive holds.",
+    "mode": "daemon",
+    "wire-method": "ze-support:support",
+    "usage": "support",
+    "grammar": [
+      {
+        "text": "support",
+        "kind": "keyword"
+      }
+    ]
   },
   {
     "path": "system command complete",
     "short-help": "List the completion candidates for a partial command.",
     "description": "Ze completes a command NAME from the partial text. Write 'args' before the\ncommand name to complete an ARGUMENT of that command instead, in the form\n'system command complete args <cmd> [<completed>...] <partial>'.",
     "mode": "read-only",
-    "wire-method": "ze-system:command-complete",
+    "wire-method": "ze-plugin:system-command-complete",
     "args": [
       {
         "name": "partial",
@@ -53120,7 +53528,7 @@
     "short-help": "Show the detailed help for one command.",
     "description": "The answer carries command, short-help, description and source. A command a\nplugin registered also carries args and its timeout. An unknown name fails\nwith 'unknown command: <name>'.",
     "mode": "read-only",
-    "wire-method": "ze-system:command-help",
+    "wire-method": "ze-plugin:system-command-help",
     "args": [
       {
         "name": "name",
@@ -53248,7 +53656,7 @@
     "short-help": "List every command the daemon knows.",
     "description": "The rows carry the built-in commands first, then the commands the plugins\nregistered. Each row carries the command name, its summary and its long\nexplanation. Add the word verbose to put the source of each row beside it.",
     "mode": "read-only",
-    "wire-method": "ze-system:command-list",
+    "wire-method": "ze-plugin:system-command-list",
     "usage": "system command list",
     "grammar": [
       {
@@ -53363,7 +53771,7 @@
     "short-help": "Dispatch a text command through the command dispatcher.",
     "description": "Ze joins the words after the keyword into one command string and runs it\nthrough the text dispatcher the CLI uses. A plugin command is reachable this\nway. With no dispatcher, the command fails with 'dispatcher not available'.",
     "mode": "read-only",
-    "wire-method": "ze-system:dispatch",
+    "wire-method": "ze-plugin:system-dispatch",
     "usage": "system dispatch",
     "grammar": [
       {
@@ -53474,7 +53882,7 @@
     "short-help": "List the subcommands the system verb accepts.",
     "description": "The list carries the built-in commands first, then the commands the plugins\nregistered, each written as 'name - description'. A plugin command marked\nhidden is left out. With no dispatcher, Ze answers a short fixed list\ninstead.",
     "mode": "read-only",
-    "wire-method": "ze-system:help",
+    "wire-method": "ze-plugin:system-help",
     "usage": "system help",
     "grammar": [
       {
@@ -53585,7 +53993,7 @@
     "short-help": "List the subsystems registered in the daemon.",
     "description": "Each row carries the process name, its stage, a running flag and a command\ncount. The command count comes from the dispatcher registry, which is what\ncounts the commands the process actually registered.",
     "mode": "read-only",
-    "wire-method": "ze-system:subsystem-list",
+    "wire-method": "ze-plugin:system-subsystem-list",
     "usage": "system subsystem list",
     "grammar": [
       {
@@ -53700,7 +54108,7 @@
     "short-help": "Show the IPC protocol version.",
     "description": "The answer carries one version key. It holds the IPC protocol number that the\ndaemon and its clients agree on, and it is not the ze software version.",
     "mode": "read-only",
-    "wire-method": "ze-system:version-api",
+    "wire-method": "ze-plugin:system-version-api",
     "usage": "system version api",
     "grammar": [
       {
@@ -53815,7 +54223,7 @@
     "short-help": "Show the ze software version.",
     "description": "The answer carries a version key and a build-date key. Both come from the\nvalues the build stamped into the binary, so a daemon that was never rebuilt\nreports the same pair after a restart.",
     "mode": "read-only",
-    "wire-method": "ze-system:version-software",
+    "wire-method": "ze-plugin:system-version-software",
     "usage": "system version software",
     "grammar": [
       {
@@ -54018,7 +54426,7 @@
     "short-help": "Refresh all IRR prefix-lists immediately.",
     "description": "Re-queries the IRR server for every enrolled ASN and atomically\nswaps prefix-lists on success. Failed refreshes preserve the\nexisting prefix-list and report an error.",
     "mode": "daemon",
-    "wire-method": "ze-update:irr-all",
+    "wire-method": "ze-bgp:update-irr-all",
     "usage": "update bgp irr all",
     "grammar": [
       {
@@ -54137,7 +54545,7 @@
     "short-help": "Refresh IRR prefix-list for a specific AS-SET.",
     "description": "Re-queries the IRR server\nfor all peers using the given AS-SET name.",
     "mode": "daemon",
-    "wire-method": "ze-update:irr-as-set",
+    "wire-method": "ze-bgp:update-irr-as-set",
     "args": [
       {
         "name": "as-set",
@@ -54269,7 +54677,7 @@
     "short-help": "Refresh IRR prefix-list for a specific ASN.",
     "description": "Re-queries the IRR server for\nthe given ASN only.",
     "mode": "daemon",
-    "wire-method": "ze-update:irr-asn",
+    "wire-method": "ze-bgp:update-irr-asn",
     "args": [
       {
         "name": "asn",
@@ -54401,7 +54809,7 @@
     "short-help": "Refresh max-prefix limits from PeeringDB.",
     "description": "Queries PeeringDB for each matched peer's ASN, applies the configured\nmargin, and writes the result to the config draft. Run 'config commit'\nto apply.",
     "mode": "daemon",
-    "wire-method": "ze-update:bgp-peer-prefix",
+    "wire-method": "ze-bgp:update-peer-prefix",
     "args": [
       {
         "name": "selector",
@@ -54533,7 +54941,7 @@
     "short-help": "Resolve a domain group's DNS names now and program its set.",
     "description": "Asks for each name in the group at once rather than waiting for\nits TTL. A name that fails to resolve keeps the addresses Ze\nalready had for it, and only a name that answers NXDOMAIN empties\nits own contribution.",
     "mode": "daemon",
-    "wire-method": "ze-update:firewall-domain-group",
+    "wire-method": "ze-firewall:update-domain-group",
     "args": [
       {
         "name": "name",
@@ -54661,7 +55069,7 @@
     "short-help": "Refresh all cached IRR prefix-lists.",
     "description": "Re-queries the IRR server for every cached\nASN/AS-SET entry and updates the zefs cache on success. A failed refresh\npreserves the existing cache and reports an error.",
     "mode": "daemon",
-    "wire-method": "ze-update:firewall-irr-all",
+    "wire-method": "ze-firewall:update-irr-all",
     "usage": "update firewall irr all",
     "grammar": [
       {
@@ -54780,7 +55188,7 @@
     "short-help": "Fetch or refresh IRR prefix-list for an AS-SET.",
     "description": "Queries the IRR server and saves resolved prefixes\nto the zefs cache.",
     "mode": "daemon",
-    "wire-method": "ze-update:firewall-irr-as-set",
+    "wire-method": "ze-firewall:update-irr-as-set",
     "args": [
       {
         "name": "as-set",
@@ -54912,7 +55320,7 @@
     "short-help": "Fetch or refresh IRR prefix-list for an ASN.",
     "description": "Queries the IRR server and saves resolved prefixes\nto the zefs cache. Creates the cache entry if it does not exist.",
     "mode": "daemon",
-    "wire-method": "ze-update:firewall-irr-asn",
+    "wire-method": "ze-firewall:update-irr-asn",
     "args": [
       {
         "name": "asn",
@@ -55044,7 +55452,7 @@
     "short-help": "Refresh the RIR delegation table from the five registry delegation files.",
     "description": "Fetches the delegation file of each of the five Regional Internet\nRegistries, parses them, and stores one table under the meta/rir/delegation key.\nAll-or-nothing: a run in which any fetch or parse fails stores nothing and\nleaves the previous copy in place.",
     "mode": "daemon",
-    "wire-method": "ze-update:resolve-rir",
+    "wire-method": "ze-resolve:update-rir",
     "usage": "update resolve rir",
     "grammar": [
       {
@@ -55758,7 +56166,90 @@
   {
     "path": "validate config",
     "short-help": "Check a config for errors without applying it.",
-    "description": "Both the grammar of the file and the meaning of its values are checked, and each problem is reported with the diagnostic code that explains it.",
-    "mode": "offline"
+    "description": "Both the grammar of the file and the meaning of its values are checked,\nand each problem is reported with the diagnostic code that explains it. Nothing is\napplied.",
+    "mode": "read-only",
+    "wire-method": "ze-config-cli:validate-config",
+    "args": [
+      {
+        "name": "file",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Config file path, or - for stdin.",
+        "description": "The config file to check, or - to read it on stdin."
+      }
+    ],
+    "usage": "validate config <file>",
+    "grammar": [
+      {
+        "text": "validate",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "file",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
   }
 ]

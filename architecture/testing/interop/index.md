@@ -18,8 +18,9 @@ This page is the infrastructure it is owed against.
 | L2TP | Docker | `test/interop-l2tp/` | `./le test deployment l2tp-test`, and `./le test deployment l2tp-ppp-test` for the full PPP and NCP path |
 | PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le test deployment docker-pppoe-accel-test` |
 | RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le test integration interop-radius` |
+| RSVP-TE (Ze as transit) | Docker: freeRouter, ingress and egress | `test/interop-rsvpte/scenarios/` | `./le test integration interop-rsvpte` |
 
-<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec and interop-radius verbs -->
+<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
 
 Every suite discovers its scenarios the same way. `Discover`
@@ -882,6 +883,92 @@ as evidence.
 <!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
 <!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
 
+### The freeRouter RSVP-TE suite
+
+`internal/le/interoplab/rsvpte/` puts up to four nodes on one Docker segment,
+`172.29.81.0/24`, in four roles: `ingress` (host 2), `transit` (3), `egress`
+(4) and `relay` (5). A scenario directory decides which implementation fills
+each role by the files it carries: `<role>.conf` with `<role>-setup.sh` makes
+the role a Ze node answering on the container address `.<host>`, and
+`<role>-hw.txt` with `<role>-sw.txt` makes it a freeRouter node answering on
+its own address `.<10+host>`. A role with neither file is absent. Nodes start
+downstream first, so the first PATH meets nodes that already listen. The
+addresses are fixed because the configurations in each scenario directory name
+them. Two shapes are used: freeRouter, Ze, freeRouter, where freeRouter
+originates and Ze relays; and Ze, freeRouter, Ze (and Ze, freeRouter, Ze, Ze),
+where Ze originates PATH, ResvErr, ResvTear, PathErr and strict hops and
+freeRouter is the independent implementation that parses, relays and
+re-encodes them. A Ze head-end tunnel in this suite requests `fast-reroute`,
+because freeRouter's `packRsvp.parseDatPatReq` refuses a PATH without
+SESSION_ATTRIBUTE and Ze emits that object only for a protected tunnel. Each freeRouter owns its own IPv4 stack
+and MAC: `test/interop-rsvpte/run-freertr.sh` makes the container's `eth0`
+promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
+suite needs Docker and privileged containers, never host root, a TAP device or
+a network namespace. Ze's container is privileged because it programs MPLS
+labels; the preflight loads `mpls_router` and refuses a host kernel without it.
+
+Every assertion reads what a peer received. Every container, Ze or freeRouter,
+runs `tcpdump -vvv` on its `eth0` into `/run/fr/rsvp.txt`, and the checker
+parses that text: a message Ze
+logs as sent counts for nothing until the peer's capture holds it.
+
+| Scenario | What the peers observe |
+|----------|------------------------|
+| `transit-loose-ero-expansion` | freeRouter ingress, Ze transit, freeRouter egress. The ingress names Ze and the egress loopback as loose hops and prepends its own next hop, Ze, as a strict subobject (`ipFwdTab.fillRsvpFrst`), so it signals `[Ze strict, Ze loose, egress loopback loose]`. Ze's native route to the loopback runs through `.14`, which no subobject names, so the PATH the egress captures carries `.14` ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label, and Ze's MPLS table holds a swap via `.14` |
+| `transit-strict-hop-forwarded` | Ze ingress, freeRouter relay `.15`, Ze transit, freeRouter egress `.14`. The Ze ingress names every hop strict. The PATH the egress captures from Ze carries the ERO shortened to strict `.14` alone, the Ze ingress captures a labelled RESV relayed by freeRouter, and the Ze transit holds a swap via `.14` |
+| `transit-strict-hop-outside-refused` | Ze ingress, freeRouter relay, Ze transit. The last strict hop's native route at the transit runs through a node outside both abstract nodes, so the transit sends PathErr Routing Problem / Bad strict node (24/2) and never forwards the PATH (RFC 3209 Section 4.3.3.1). The Ze ingress captures that PathErr as freeRouter relays it, naming the transit as the error node |
+| `ingress-resv-error-relayed` | Ze ingress, freeRouter relay, Ze egress. The ingress interface reserves less than the tunnel asks, so the ingress refuses the RESV freeRouter relays and sends a ResvErr naming itself, Error Code 1 Admission Control failure, value 2. The Ze egress captures that ResvErr from freeRouter with the error node, code and value intact (RFC 2205 Sections 2.5 and 3.1.8) |
+| `transit-resv-tear-relayed` | Ze ingress, freeRouter relay, Ze transit, Ze egress. Once the LSP is up the egress is frozen with `SIGSTOP`, so the transit's reservation times out while its path state is refreshed; the transit sends a ResvTear upstream, and the Ze ingress captures it as freeRouter relays it (RFC 2205 Section 3.1.6) |
+| `transit-resv-increase-refused-in-place` | freeRouter ingress, Ze transit, patched freeRouter egress. The ingress tunnel signals 10 Mbit/s (`bandwidth 10000`) and the transit's `eth0` reserves 100 Mbit/s. The egress's second RESV, answering the ingress's first PATH refresh (freeRouter refreshes every 120 s), raises its reservation in place to 1 Gbit/s, same session, sender and LSP-ID. The transit captures that RESV, and the egress captures Ze's ResvErr naming the transit, Error Code 1 value 2, ERROR_SPEC flags `0x01` (InPlace). The transit's swap stays installed and the ingress never receives the raised rate (RFC 2205 Section 3.1.8) |
+| `transit-ff-resv-unknown-sender` | freeRouter ingress, Ze transit, patched freeRouter egress. Every RESV the egress sends is fixed-filter, with a second flow descriptor naming LSP-ID+1 of the same sender, which never signalled a PATH. The egress captures one ResvErr from the transit naming only that LSP-ID, Error Code 4 No sender information, and no ResvErr naming the real sender. The ingress receives a labelled RESV naming only the real sender, and the transit holds its swap (RFC 2205 Section 3.1.8) |
+
+The checker compares the ERROR_SPEC code and value as the numbers tcpdump
+prints in parentheses, because tcpdump names no code for every value: it prints
+Admission Control failure as `unknown (1)`.
+
+The pinned freeRouter originates only PATH, PathTear and RESV. It relays
+PathErr, ResvErr and ResvTear but never originates them. It encodes its
+configured ERO hops as loose (`clntMplsTeP2p.workDoer`,
+`ipFwdTab.fillRsvpPack`) and prepends one strict subobject for its own next
+hop unless the first hop is already strict (`ipFwdTab.fillRsvpFrst`), and it
+routes each hop without reading the strict bit (`rtrRsvpIface.getHop`), so it
+does not enforce strict hops. It signals one fixed bandwidth for the life of
+an LSP, and sends only shared-explicit RESVs naming its own sender. In every scenario
+where Ze originates a message, freeRouter is the independent implementation
+that parses it, keeps the state it needs to relay it, and re-encodes it toward
+the next Ze node: the evidence is that freeRouter accepts and relays what Ze
+originates, not that freeRouter enforces strict hops or originates ResvErr,
+ResvTear or PathErr itself.
+
+The image is built with one patch, `test/interop-rsvpte/freertr/ze-interop-resv.patch`,
+because the pinned jar can neither raise a reservation in place nor name a
+sender it has no path for. The patch adds two knobs to the RESV a freeRouter
+egress originates, each off unless its environment variable is set, so every
+scenario that sets neither runs the upstream behavior. A scenario sets them in
+`<role>-env.txt`, one `NAME=value` per line, which the lab passes to that
+freeRouter container and refuses when a line is not `NAME=value`.
+`FREERTR_ZE_RESV_RATE_AT=n:rate` sends only the n-th RESV with its FLOWSPEC
+rate (bytes per second) raised; `FREERTR_ZE_RESV_FF_EXTRA_SENDER=1` makes every
+RESV fixed-filter and appends a second flow descriptor (FLOWSPEC, FILTER_SPEC
+with LSP-ID+1, LABEL).
+
+Two scenarios depend on objects RFC 2205 makes optional and freeRouter's parser
+requires. `packRsvp.parseDatPatErr` refuses a PathErr without an ADSPEC, which
+`transit-strict-hop-outside-refused` relies on, and `packRsvp.parseDatResTer`
+refuses a ResvTear without a FLOWSPEC, which `transit-resv-tear-relayed` relies
+on. The PathErr sender descriptor is "<SENDER_TEMPLATE> <SENDER_TSPEC>
+[ <ADSPEC> ]" (Section 3.1.3), and "FLOWSPEC objects in the flow descriptor list
+of a ResvTear message will be ignored and may be omitted" (Section 3.1.6). Ze
+sends both objects (`buildPathErr`, `buildReservationControl`), so both
+scenarios pass against the unpatched image. Before Ze carried them, freeRouter's
+capture held Ze's message and freeRouter never relayed it.
+
+<!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
+<!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
+<!-- source: test/interop-rsvpte/run-freertr.sh -- freeRouter on eth0 through rawInt.bin -->
+<!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the two test-only RESV knobs -->
+<!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- freeRtrEnvironment reads <role>-env.txt -->
+
 ### Typed checker operations
 
 `checkers.go` is the complete scenario catalogue. Each operation identifies the
@@ -1174,8 +1261,15 @@ checks and adds two strict input speakers with FRR as the independent receiver.
 One source omits IPv4 from GR while advertising a 40-second IPv4 LLST; its
 IPv6 family has a 20-second GR period followed by the same LLST. The other
 source advertises zero LLST. After fencing initial receipt and bilateral FRR
-LLGR negotiation, the checker requires immediate removal for zero LLST,
-immediate IPv4 LLGR_STALE, and IPv6's conventional-to-LLGR transition.
+LLGR negotiation, the checker sends each native source `USR1` through
+`Lab.Signal`. Only this oracle handles that signal: it closes its BGP socket
+without NOTIFICATION, stops KEEPALIVEs, and keeps PID 1, the container and its
+next-hop interfaces alive until its existing bounded lifetime ends or lab cleanup.
+Unexpected peer closure, NOTIFICATION, or lifetime expiry before control remains
+a failure. The main loss timestamp precedes the signal; the DOWN poll and
+three-second observation margin are unchanged. The checker requires immediate
+removal for zero LLST, immediate IPv4 LLGR_STALE, and IPv6's conventional-to-LLGR
+transition.
 IPv4 must expire at its original DOWN+40 deadline while IPv6 survives until
 DOWN+60. FRR's established/dropped connection counters must remain unchanged;
 its recomputed wall-clock epoch is not a session identity. Complete observation
@@ -1183,6 +1277,20 @@ cycles, including final expiry probes, must stay within the sampling bound.
 An explicit FRR-origin received-route check preserves the original reverse
 direction proof despite the added native sources. This does not cover
 NOTIFICATION, reconnect F-bit or received-stale-policy behavior.
+
+The receipt query is `show bgp rib received | json`; its CLI output is a
+top-level array of route rows, not an object containing a `routes` field.
+An empty array is a measured RIB with no matching route; null or an object
+is not a valid CLI observation.
+
+The received-route fence retains the last completed CLI result (stdout, stderr,
+exit status and parse error), the last successfully measured RIB, and probe
+counts when it fails. A final cancelled Docker exec cannot overwrite this
+earlier evidence. Capturing it adds no queries or time to the original
+30-second receipt fence and changes none of the 40/60-second expiry windows.
+FRR route-observation errors retain the queried prefix and raw JSON response,
+so an invalid route can be distinguished from an unexpected response shape.
+<!-- source: internal/le/interoplab/bgp/check_llgr.go -- llgrReceivedFence -->
 
 `bgp-nexthop-self-local-auto-frr` retains both original self-next-hop checks
 and adds AIGP on the general forwarding path. The received metric is 100;

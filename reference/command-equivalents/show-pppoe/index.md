@@ -7,7 +7,7 @@ PPPoE session and protocol state\.
 - Registry path: `show pppoe`
 - Usage: `show pppoe`
 - Mode: Read-only
-- Wire method: `ze-pppoe-api:summary`
+- Wire method: `ze-l2tp:pppoe-summary`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `interfaces`, `session`, `sessions`, `statistics`

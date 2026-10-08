@@ -7,7 +7,7 @@ Inject a synthetic route into the Adj\-RIB\-In\.
 - Registry path: `request bgp rib inject`
 - Usage: `request bgp rib inject`
 - Mode: Daemon
-- Wire method: `ze-rib-api:inject`
+- Wire method: `ze-bgp:rib-inject`
 - Backends: any backend
 - Task support: forbidden: the MCP server never answers with a task handle
 - Subcommands: none: this command takes no subcommand

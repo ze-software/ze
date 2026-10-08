@@ -7,7 +7,7 @@ Get tab\-completion candidates for a partial command\.
 - Registry path: `show command complete`
 - Usage: `show command complete`
 - Mode: Read-only
-- Wire method: `ze-bgp:command-complete`
+- Wire method: `ze-meta:bgp-command-complete`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

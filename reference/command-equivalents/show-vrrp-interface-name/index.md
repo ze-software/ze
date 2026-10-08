@@ -7,7 +7,7 @@ Show the VRRP virtual routers on one parent interface\.
 - Registry path: `show vrrp interface name`
 - Usage: `show vrrp interface name [value <value>]`
 - Mode: Read-only
-- Wire method: `ze-show:vrrp-interface`
+- Wire method: `ze-vrrp:show-interface`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show members of a firewall address\/port group\.
 - Registry path: `show firewall group`
 - Usage: `show firewall group`
 - Mode: Read-only
-- Wire method: `ze-show:firewall-group`
+- Wire method: `ze-firewall:show-group`
 - Backends: `nft`
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

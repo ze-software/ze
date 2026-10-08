@@ -7,7 +7,7 @@ Show the ze software version\.
 - Registry path: `system version software`
 - Usage: `system version software`
 - Mode: Read-only
-- Wire method: `ze-system:version-software`
+- Wire method: `ze-plugin:system-version-software`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

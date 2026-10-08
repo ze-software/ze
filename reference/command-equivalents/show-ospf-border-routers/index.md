@@ -7,7 +7,7 @@ Show routes to OSPF area\-border and AS\-boundary routers\.
 - Registry path: `show ospf border-routers`
 - Usage: `show ospf border-routers`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-border-routers`
+- Wire method: `ze-ospf:show-border-routers`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

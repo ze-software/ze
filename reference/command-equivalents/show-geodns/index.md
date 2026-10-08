@@ -7,7 +7,7 @@ Show the GeoDNS server status\.
 - Registry path: `show geodns`
 - Usage: `show geodns`
 - Mode: Read-only
-- Wire method: `ze-show:geodns`
+- Wire method: `ze-geodns:show-geodns`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

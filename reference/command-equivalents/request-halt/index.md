@@ -7,7 +7,7 @@ Dump goroutine stacks to stderr and terminate immediately\.
 - Registry path: `request halt`
 - Usage: `request halt`
 - Mode: Daemon
-- Wire method: `ze-system:daemon-quit`
+- Wire method: `ze-plugin:system-daemon-quit`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

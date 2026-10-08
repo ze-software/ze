@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>45.5%</strong><b>10 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>52.0%</strong><b>13 of 25 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -226,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>22</td>
+<td>25</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>22</td>
+<td>25</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>4</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>10</td>
+<td>13</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8950.md</code></td>
@@ -311,12 +311,15 @@ No tracked gap in current source anchors.
 <td>4 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1161" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L130" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L36" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L137" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L42" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go#L211" title="internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L36" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_static_group_next_hop_test.go#L30" title="internal/component/bgp/reactor/peer_static_group_next_hop_test.go" target="_blank" rel="noopener"><code>TestStaticGroupedResolvedNextHopWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1192" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1216" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L38" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L43" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go#L212" title="internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L37" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></span></div>
@@ -401,11 +404,16 @@ No tracked gap in current source anchors.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8950-4-1"><code>RFC8950-4-1</code></a></h3>
 <p>A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after the peer advertised Extended Next Hop for the relevant AFI/SAFI pair. Both gaps of the earlier verdict are closed. (a) explicit next hop: Peer.resolveNextHop now refuses it without the pair; TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair drives AnnounceNLRIBatch over a live pipe session with &lt;1/1&gt; only, &lt;1/128&gt; only and neither: IPv4 unicast is sent only with &lt;1/1&gt;, otherwise ErrNextHopIncompatible and no UPDATE on the wire; VPN-IPv4 resolves only with &lt;1/128&gt;. TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach shows the licensed route leaves as MP_REACH_NLRI 1/1 with the 16-octet next hop and the prefix, no NEXT_HOP and an empty NLRI field. (b) forward rails: TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, general and route-server rails, received IPv6 next hop unchanged and explicit IPv6 next hop: the paired destination gets MP_REACH with that next hop, the unpaired one only the withdrawal half. Next-hop self stays proven by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor, inlineIPv4Unicast and egressNextHopLacksExtendedNextHop. Not asserted: the queued-drain path (same resolveNextHop producer) and VPN-IPv4 on the forward rails (same gate keyed by the MP_REACH family). Defect noted separately: both new gates apply to every AFI 1 family, beyond this rule&#39;s SAFIs.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission, internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission#2, internal/component/bgp/reactor/peer_static_group_next_hop_test.go::TestStaticGroupedResolvedNextHopWire, internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach, internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair, internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2 moved. MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after the peer advertised Extended Next Hop for the relevant AFI/SAFI pair. Both gaps of the earlier verdict are closed. (a) explicit next hop: Peer.resolveNextHop now refuses it without the pair; TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair drives AnnounceNLRIBatch over a live pipe session with &lt;1/1&gt; only, &lt;1/128&gt; only and neither: IPv4 unicast is sent only with &lt;1/1&gt;, otherwise ErrNextHopIncompatible and no UPDATE on the wire; VPN-IPv4 resolves only with &lt;1/128&gt;. TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach shows the licensed route leaves as MP_REACH_NLRI 1/1 with the 16-octet next hop and the prefix, no NEXT_HOP and an empty NLRI field. (b) forward rails: TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, general and route-server rails, received IPv6 next hop unchanged and explicit IPv6 next hop: the paired destination gets MP_REACH with that next hop, the unpaired one only the withdrawal half. Next-hop self stays proven by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor, inlineIPv4Unicast and egressNextHopLacksExtendedNextHop. Not asserted: the queued-drain path (same resolveNextHop producer) and VPN-IPv4 on the forward rails (same gate keyed by the MP_REACH family). Defect noted separately: both new gates apply to every AFI 1 family, beyond this rule&#39;s SAFIs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L38" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1192" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
 <td>unit/verify</td>
@@ -432,12 +440,22 @@ No tracked gap in current source anchors.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L36" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_static_group_next_hop_test.go#L30" title="internal/component/bgp/reactor/peer_static_group_next_hop_test.go" target="_blank" rel="noopener"><code>TestStaticGroupedResolvedNextHopWire</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1161" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L130" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L137" title="internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -758,7 +776,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

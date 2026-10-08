@@ -7,7 +7,7 @@ Show the recent DDoS incident ring \(newest first\)\.
 - Registry path: `show ddos incidents`
 - Usage: `show ddos incidents`
 - Mode: Read-only
-- Wire method: `ze-show:ddos-incidents`
+- Wire method: `ze-ddos:show-incidents`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

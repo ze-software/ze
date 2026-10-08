@@ -7,7 +7,7 @@ Control raw byte capture for protocol debugging\.
 - Registry path: `show capture raw`
 - Usage: `show capture raw [action <start\|stop\|dump>] [protocol <l2tp\|bgp>] [format <pcap\|json>] [count <count>]`
 - Mode: Read-only
-- Wire method: `ze-show:capture-raw`
+- Wire method: `ze-diag:show-capture-raw`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ List every event type you can subscribe to\.
 - Registry path: `show event list`
 - Usage: `show event list`
 - Mode: Read-only
-- Wire method: `ze-bgp:event-list`
+- Wire method: `ze-meta:bgp-event-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -399,7 +399,8 @@ edge networks are reachable without running the protocol on them.</p>
 <code>ze_isis_lsp_reoriginations_total{level}</code> counts the LSP re-originations
 redistribution drives.</p>
 <p>Redistribution feeds the redistribute orchestrator only; the kernel FIB install of
-IS-IS SPF routes is the separate Loc-RIB path (<code>AdminDistance</code> 115). IPv6
+IS-IS SPF routes is the separate Loc-RIB path, ranked at the declared IS-IS
+distance (default 115). IPv6
 redistribution (TLV 236) works the same way (see below).</p>
 <h2 id="dual-stack-ipv6">Dual-stack IPv6</h2>
 <p>Ze runs IPv6 over the same IS-IS instance as IPv4 (RFC 5308). Enable the IPv6
@@ -429,7 +430,7 @@ next-hop (a link-local <code>fe80::</code> address with the egress interface);</
 <strong>link-local prefixes are never advertised</strong> in TLV 236 (RFC 5308 sec 2);</li>
 <li>runs an IPv6 route-extraction pass over the <strong>same</strong> Dijkstra tree (no second
 SPF), resolves the IPv6 next-hop, and installs IPv6 routes into the kernel FIB
-through the same Loc-RIB path as IPv4 (<code>AdminDistance</code> 115, tagged
+through the same Loc-RIB path as IPv4 (declared IS-IS distance, default 115, tagged
 <code>RTPROT_ze</code>).</li>
 </ul>
 <p>Inspect the installed IPv6 routes with <code>show isis route ipv6</code>.</p>
@@ -623,7 +624,7 @@ System ID embedded in the first NET.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

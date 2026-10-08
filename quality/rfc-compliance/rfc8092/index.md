@@ -1,6 +1,6 @@
 # RFC 8092 - BGP Large Communities Attribute
 
-Supported. Every requirement this repository extracted from RFC 8092, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 8092, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 7 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 42.1% | 8 of 19 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 36.8% | 7 of 19 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -60,7 +60,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 11 |
 | Gated MUST-level | 7 |
@@ -83,15 +83,15 @@ Enrolled: BGP Large Communities: seven MUST-level requirements over the LARGE_CO
 
 ## What the public ledger says
 
-**Status:** Supported
+**Status:** Partial
 
 **What the ledger says is covered:**
 
 LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 length checks.
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-No tracked gap in current source anchors.
+[`RFC8092-4-1`](#rfc8092-4-1) aggregate-union behavior and its applicability remain unverified. Large Community codecs do not demonstrate that an aggregate contains the union of its contributing routes' communities; missing proof does not establish an absent feature or an exemption.
 
 ## Coverage
 
@@ -200,7 +200,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC8092DuplicateLargeCommunityIsNotMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go#L28) | unit/verify | revert, verified |
+| positive | [`TestRFC8092DuplicateLargeCommunityIsNotMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go#L28) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestLargeCommunitiesDeduplication`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406) | unit/verify | unproven |
 
 ### [`RFC8092-6-4`](#rfc8092-6-4)

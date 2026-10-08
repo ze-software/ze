@@ -7,7 +7,7 @@ Show state transitions for a tunnel over time\.
 - Registry path: `show l2tp tunnel history`
 - Usage: `show l2tp tunnel history`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:tunnel-history`
+- Wire method: `ze-l2tp:tunnel-history`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

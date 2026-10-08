@@ -7,7 +7,7 @@ Quick IPsec health check\.
 - Registry path: `show vpn ipsec status`
 - Usage: `show vpn ipsec status`
 - Mode: Read-only
-- Wire method: `ze-show:vpn-ipsec-status`
+- Wire method: `ze-ike:show-vpn-ipsec-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show only AS\-external\-LSAs \(Type 5\)\.
 - Registry path: `show ospf database external`
 - Usage: `show ospf database external`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-database-external`
+- Wire method: `ze-ospf:show-database-external`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show PPPoE protocol message counters\.
 - Registry path: `show pppoe statistics`
 - Usage: `show pppoe statistics`
 - Mode: Read-only
-- Wire method: `ze-pppoe-api:statistics`
+- Wire method: `ze-l2tp:pppoe-statistics`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show one Prometheus metric by name\.
 - Registry path: `show metrics name`
 - Usage: `show metrics name <name> [label <key> <value> ...]`
 - Mode: Read-only
-- Wire method: `ze-show:metrics-query`
+- Wire method: `ze-cmd:show-metrics-query`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `label`

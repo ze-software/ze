@@ -7,7 +7,7 @@ Show the full per\-interface state \(spec\-ospf\-ext\-14\)\.
 - Registry path: `show ospf interface detail`
 - Usage: `show ospf interface detail`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-interface-detail`
+- Wire method: `ze-ospf:show-interface-detail`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

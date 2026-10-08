@@ -7,7 +7,7 @@ Show the detailed help for one command\.
 - Registry path: `system command help`
 - Usage: `system command help <name>`
 - Mode: Read-only
-- Wire method: `ze-system:command-help`
+- Wire method: `ze-plugin:system-command-help`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Resolve a domain group\'s DNS names now and program its set\.
 - Registry path: `update firewall domain-group`
 - Usage: `update firewall domain-group <name>`
 - Mode: Daemon
-- Wire method: `ze-update:firewall-domain-group`
+- Wire method: `ze-firewall:update-domain-group`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

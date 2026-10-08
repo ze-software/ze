@@ -92,6 +92,14 @@ attracted.</p>
 <p>A probe ze could not read is a different answer. It reports
 <code>doctor-mpls-unknown</code> at warning severity and ze starts, because refusing on a
 question ze could not ask would stop a router whose kernel is fine.</p>
+<p>RSVP-TE transit routes can carry the LSP's path MTU only on a kernel with
+<code>CONFIG_MPLS_IP_MTU</code>, which ze's appliance kernel adds. On a stock kernel ze
+still installs every transit swap and pop, without the MTU, so the LSP comes up
+and forwards, but an oversized labeled packet is dropped rather than fragmented
+or answered with ICMP. The daemon logs this once, and <code>ze doctor</code> reports
+<code>doctor-mpls-transit-mtu-unenforced</code> at warning severity; neither refuses a
+start. Details: <code>docs/architecture/mpls/mpls-kernel.md</code>, "On a kernel without
+the patch".</p>
 <p>A VPP or P4 FIB backend is never judged on the kernel's AF_MPLS table. The
 <code>fib { kernel { } }</code> block is what activates the plugin that programs kernel
 labels, and it is that plugin that carries the requirement.</p>
@@ -204,7 +212,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
                 </div>
             </div>
         </footer>

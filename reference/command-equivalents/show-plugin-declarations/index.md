@@ -7,7 +7,7 @@ Show what each plugin declares about its command surface\.
 - Registry path: `show plugin declarations`
 - Usage: `show plugin declarations`
 - Mode: Read-only
-- Wire method: `ze-show:plugin-declarations`
+- Wire method: `ze-plugin:show-declarations`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `config`

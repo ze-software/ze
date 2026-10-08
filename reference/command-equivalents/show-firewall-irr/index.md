@@ -7,7 +7,7 @@ Show IRR filter status for all cached ASN\/AS\-SET entries\.
 - Registry path: `show firewall irr`
 - Usage: `show firewall irr`
 - Mode: Read-only
-- Wire method: `ze-show:firewall-irr-status`
+- Wire method: `ze-firewall:show-irr-status`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `prefix`

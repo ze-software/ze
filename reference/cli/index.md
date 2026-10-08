@@ -42,7 +42,7 @@ Each command row names the operators it accepts after `|`.
 | `clear bgp healthcheck` | Daemon | Reset healthcheck probe to INIT<br>`clear bgp healthcheck` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `clear bgp rib in` | Daemon | Remove all routes received from a peer\.<br>`clear bgp rib in`<br>Task support: forbidden: the MCP server never answers with a task handle | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `clear bgp rib out` | Daemon | Re\-advertise all routes to a peer\.<br>`clear bgp rib out`<br>Task support: forbidden: the MCP server never answers with a task handle | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
-| `clear debug` | Offline | Clear the default debug profile\. | None |
+| `clear debug` | Daemon | Clear the default debug profile\.<br>`clear debug` | None |
 | `clear dns cache` | Daemon | Flush all DNS cache entries and reset all DNS cache counters\.<br>`clear dns cache`<br>Subcommands: `record`, `stats` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `clear dns cache record` | Daemon | Evict DNS cache entries for one record name\, or one name and type when a type is provided\.<br>`clear dns cache record <name> [type <A\|AAAA\|MX\|NS\|TXT\|CNAME\|PTR>]`<br>Arguments: `name` string, required: yes, any value of this type: Record name to evict\. The cache key\, compared as an exact string\. Alone\, it evicts every type cached under the name and the answer counts the entries removed\.<br>`type` enum, required: no, one of `A`, `AAAA`, `MX`, `NS`, `TXT`, `CNAME`, `PTR`: Optional DNS record type to evict for the named record\. Written after the type keyword\, it evicts that one type and leaves the other types of the name in place\. The answer reports found true or false\. | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `clear dns cache stats` | Daemon | Reset DNS cache hit\, miss\, eviction\, and expiry counters without removing cached entries\.<br>`clear dns cache stats` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
@@ -88,8 +88,8 @@ Each command row names the operators it accepts after `|`.
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
 | `delete bgp peer` | Daemon | Remove a peer from the running config\.<br>`delete bgp peer <selector>`<br>Arguments: `selector` string, required: yes, any value of this type: Peer selector The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Ze tears down and deletes each peer it matches\. | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
-| `delete debug module` | Offline | Disable debug for a subsystem\, or remove one of its flags\/scopes\. | None |
-| `delete debug profile name` | Offline | Delete a named debug profile\. | None |
+| `delete debug module` | Daemon | Disable debug for a subsystem\, or remove one of its flags or scopes\.<br>`delete debug module <module-name> [flag <flag>] [scope <kind> <value>]`<br>Arguments: `module-name` string, required: yes, any value of this type: Subsystem name\. The subsystem name\, as show debug lists it\.<br>`flag` string, required: no, any value of this type: Debug flag to remove\. The flag to remove\. The module stays enabled\.<br>Subcommands: `scope` | None |
+| `delete debug profile name` | Daemon | Delete a named debug profile\.<br>`delete debug profile name <profile-name>`<br>Arguments: `profile-name` string, required: yes, any value of this type: Profile name\. A stored profile\, as show debug profile lists it\. | None |
 | `delete interface name` | Daemon | Delete an interface from the kernel\.<br>`delete interface name <name>`<br>Arguments: `name` string, required: yes, any value of this type: Interface name The interface to delete\. The unit and address forms below keep this interface and remove one unit or one address of it\.<br>Subcommands: `address`, `unit` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `delete interface name address` | Daemon | Remove an IP address from an interface\.<br>`delete interface name <name> address <prefix>`<br>Arguments: `name` string, required: yes, any value of this type: Interface name The interface that holds the address\. Its other addresses stay\.<br>`prefix` union, required: yes, any value of this type: Address in CIDR form An IPv4 or IPv6 address with its prefix length\. Ze passes the string to the netlink backend\, so it must match the string the add used\. | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `delete interface name unit` | Daemon | Remove a VLAN sub\-interface\.<br>`delete interface name <name> unit <vid>`<br>Arguments: `name` string, required: yes, any value of this type: Parent interface name The parent interface\. Ze joins it with the VLAN id into \<name\>\.\<vid\> and deletes that device\.<br>`vid` uint, required: yes, any value of this type: VLAN ID The 802\.1Q tag of the unit to remove\. A tag outside 1 to 4094 is refused before the backend is called\. | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
@@ -104,13 +104,13 @@ Each command row names the operators it accepts after `|`.
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
-| `explain` | Offline | Explain one diagnostic code Ze printed\. | None |
+| `explain` | Daemon | Explain one diagnostic code Ze printed\.<br>`explain <code>`<br>Arguments: `code` string, required: yes, any value of this type: Diagnostic code\. A diagnostic code as a log line or an error message printed it\. An unknown code is refused\. | None |
 
 ## generate (1)
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
-| `generate wireguard keypair` | Offline | Generate a WireGuard keypair with the system wg binary\. | None |
+| `generate wireguard keypair` | Daemon | Generate a WireGuard keypair with the system wg binary\.<br>`generate wireguard keypair` | None |
 
 ## help (3)
 
@@ -256,10 +256,10 @@ Each command row names the operators it accepts after `|`.
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
-| `set debug active name` | Offline | Load a named debug profile and apply it to the running daemon\. | None |
-| `set debug module` | Offline | Enable debug output for one subsystem\. | None |
-| `set debug profile name` | Offline | Save the current debug state as a named profile\. | None |
-| `set debug timeout` | Offline | Set how long debug output stays enabled\. | None |
+| `set debug active name` | Daemon | Load a named debug profile and apply it to the running daemon\.<br>`set debug active name <profile-name>`<br>Arguments: `profile-name` string, required: yes, any value of this type: Profile name\. A stored profile\, as show debug profile lists it\. | None |
+| `set debug module` | Daemon | Enable debug output for one subsystem\.<br>`set debug module <module-name> [level <level>] [flag <flag>] [scope <kind> <value>]`<br>Arguments: `module-name` string, required: yes, any value of this type: Subsystem name\. The subsystem name\, as show debug lists it\. A name holding a slash is refused\.<br>`level` string, required: no, any value of this type: Log level for the subsystem\. One of disabled\, debug\, info\, warn or error\. Any other word is refused\.<br>`flag` string, required: no, any value of this type: Debug flag to enable\. A flag the subsystem declares\. A flag it does not declare is refused and the valid flags are listed\.<br>Subcommands: `scope` | None |
+| `set debug profile name` | Daemon | Save the current debug state as a named profile\.<br>`set debug profile name <profile-name>`<br>Arguments: `profile-name` string, required: yes, any value of this type: Profile name\. The slot the current state is saved under\. | None |
+| `set debug timeout` | Daemon | Set how long debug output stays enabled\.<br>`set debug timeout <duration>`<br>Arguments: `duration` string, required: yes, any value of this type: How long debug stays enabled\. A duration such as 30m\, 1h\, 90s or 0\. | None |
 | `set sysctl` | Daemon | Set a transient sysctl value<br>`set sysctl <key> <value>` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `set system file-descriptors` | Daemon | Raise the file descriptor limit for the daemon process\.<br>`set system file-descriptors [limit <limit\|max>]`<br>Arguments: `limit` union, required: no, one of `max`: New limit or max for hard limit\. The value is the new soft limit on open descriptors\, a count from 1 up to the hard limit\, or the word max\. Ze sets it with setrlimit and reports the previous\, the current and the hard limit\. Zero\, or a count above the hard limit\, is refused\. | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 
@@ -331,7 +331,7 @@ Each command row names the operators it accepts after `|`.
 | `show config diff` | Read-only | Compare two configuration versions side by side\.<br>`show config diff` | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |
 | `show config dump` | Read-only | Show the fully resolved configuration tree\.<br>`show config dump` | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |
 | `show config fmt` | Read-only | Pretty\-print the configuration with consistent formatting\.<br>`show config fmt` | None |
-| `show config graph` | Offline | Show how components and peers depend on each other\, as JSON\. | None |
+| `show config graph` | Read-only | Show how components and peers depend on each other\, as JSON\.<br>`show config graph <file>`<br>Arguments: `file` string, required: yes, any value of this type: Config file path\, or \- for stdin\. The config file to read\, or \- to read it on stdin\. | None |
 | `show config history` | Read-only | List available configuration rollback points\.<br>`show config history` | Answer shape: `tab`<br>Column order: `revision, timestamp, path, state`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show config list` | Read-only | List all configuration files stored in the database\.<br>`show config list` | Answer shape: `tab`<br>Column order: `source, path`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 
@@ -641,8 +641,8 @@ Each command row names the operators it accepts after `|`.
 | `show data cat` | Read-only | Print the value of a storage key\.<br>`show data cat <key>`<br>Arguments: `key` string, required: yes, any value of this type: Storage key to print The key of one entry\, as show data list prints it\. The bytes stored under it are written out unchanged\, and a key the store does not hold is an error\. | None |
 | `show data list` | Read-only | List the keys in the selected store\.<br>`show data list` | Answer shape: `tab`<br>Column order: `key`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show data registered` | Read-only | List the key patterns registered by all subsystems\.<br>`show data registered` | Answer shape: `tab`<br>Column order: `pattern, description`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
-| `show debug` | Read-only | Show live debug state from the running daemon\.<br>`show debug` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
-| `show debug profile` | Offline | Show stored debug profiles\, one by name\, or one filtered to a module subtree\. | None |
+| `show debug` | Read-only | Show live debug state from the running daemon\.<br>`show debug`<br>Subcommands: `profile` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
+| `show debug profile` | Read-only | Show stored debug profiles\, one by name\, or one filtered to a module subtree\.<br>`show debug profile [name <name>] [module <module>]`<br>Arguments: `name` string, required: no, any value of this type: Profile name\. The stored profile to print\. Absent\, the command lists the profile names\.<br>`module` string, required: no, any value of this type: Subsystem subtree to keep\. A subsystem prefix\. Only the rows at or under that subtree are printed\, and the keyword is read only after name\. | None |
 | `show doctor` | Read-only | Check if this box is ready to run Ze\.<br>`show doctor` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show ecmp-groups` | Read-only | Show each prefix the system RIB holds equal\-cost paths for\, whether or not Ze programs them\.<br>`show ecmp-groups` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show env get` | Read-only | Show one environment variable in detail\.<br>`show env get <name>`<br>Arguments: `name` string, required: yes, any value of this type: Environment variable name The variable\'s full name as Ze registered it\, matched exactly\. A name Ze never declared is refused\, even when the process inherited it\. | Answer shape: `tab`<br>Column order: `key, type, default, current, description`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
@@ -696,13 +696,13 @@ Each command row names the operators it accepts after `|`.
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
-| `skills` | Offline | List the agent skills this binary carries\, or fetch one by name\. | None |
+| `skills` | Daemon | List the agent skills this binary carries\, or fetch one by name\.<br>`skills (list\|get <name>)`<br>Subcommands: `action` | None |
 
 ## support (1)
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
-| `support` | Offline | Collect logs\, config\, state and diagnostics into one archive\. | None |
+| `support` | Daemon | Collect logs\, config\, state and diagnostics into one archive\.<br>`support` | None |
 
 ## system (8)
 
@@ -742,4 +742,4 @@ Each command row names the operators it accepts after `|`.
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
-| `validate config` | Offline | Check a config for errors without applying it\. | None |
+| `validate config` | Read-only | Check a config for errors without applying it\.<br>`validate config <file>`<br>Arguments: `file` string, required: yes, any value of this type: Config file path\, or \- for stdin\. The config file to check\, or \- to read it on stdin\. | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |

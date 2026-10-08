@@ -7,7 +7,7 @@ Print the YANG tree for a module in a readable hierarchy\.
 - Registry path: `show yang tree`
 - Usage: `show yang tree`
 - Mode: Read-only
-- Wire method: `ze-show:yang-tree`
+- Wire method: `ze-config-yang:show-yang-tree`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Block until every subsystem has drained pending async work\, then reply\.
 - Registry path: `request quiesce`
 - Usage: `request quiesce`
 - Mode: Daemon
-- Wire method: `ze-system:quiesce`
+- Wire method: `ze-plugin:system-quiesce`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

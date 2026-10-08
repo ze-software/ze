@@ -7,7 +7,7 @@ Show network interfaces on this box\.
 - Registry path: `show interface`
 - Usage: `show interface`
 - Mode: Read-only
-- Wire method: `ze-show:interface`
+- Wire method: `ze-iface:show-interface`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `brief`, `errors`, `name`, `rate`, `scan`, `type`

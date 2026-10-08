@@ -7,7 +7,7 @@ Show LDP neighbors and their session state\.
 - Registry path: `show ldp neighbor`
 - Usage: `show ldp neighbor`
 - Mode: Read-only
-- Wire method: `ze-show:ldp-neighbor`
+- Wire method: `ze-ldp:show-neighbor`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

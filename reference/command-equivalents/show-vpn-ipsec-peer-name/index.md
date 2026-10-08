@@ -7,7 +7,7 @@ Show full detail for one IPsec peer\.
 - Registry path: `show vpn ipsec peer name`
 - Usage: `show vpn ipsec peer name <name>`
 - Mode: Read-only
-- Wire method: `ze-show:vpn-ipsec-peer`
+- Wire method: `ze-ike:show-vpn-ipsec-peer`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

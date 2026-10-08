@@ -7,7 +7,7 @@ Show recent firmware update activity\.
 - Registry path: `show system update history`
 - Usage: `show system update history`
 - Mode: Read-only
-- Wire method: `ze-show:system-update-history`
+- Wire method: `ze-update:show-system-update-history`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

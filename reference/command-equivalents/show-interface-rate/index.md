@@ -7,7 +7,7 @@ Show per\-second traffic rates on your interfaces\.
 - Registry path: `show interface rate`
 - Usage: `show interface rate`
 - Mode: Read-only
-- Wire method: `ze-show:interface-rate`
+- Wire method: `ze-iface:show-interface-rate`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

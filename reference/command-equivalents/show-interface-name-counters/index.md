@@ -7,7 +7,7 @@ Show counters for one interface\.
 - Registry path: `show interface name counters`
 - Usage: `show interface name <name> counters`
 - Mode: Read-only
-- Wire method: `ze-show:interface-counters`
+- Wire method: `ze-iface:show-interface-counters`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

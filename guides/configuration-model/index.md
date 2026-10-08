@@ -3146,7 +3146,7 @@ metrics use the `ze_flowexport_*` prefix.
 management VLAN. Per-flow records are IPv4-only; sampling requires Linux with
 `CAP_NET_ADMIN` and the kernel `psample` module.
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- flow-export container -->
-<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
+<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-flowexport:show-flow-export RPC -->
 
 ## Traffic Usage
 
@@ -3190,7 +3190,7 @@ traffic). TCX requires Linux >= 6.6 with `CAP_BPF` and `CAP_NET_ADMIN`; a
 `ze doctor` check (`doctor-traffic-usage-ebpf`) warns when enabled but eBPF/TCX
 is unavailable.
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage -->
-<!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage RPC -->
+<!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage RPC -->
 
 ## Environment Block
 

@@ -7,7 +7,7 @@ Show what kind of platform the daemon is running on\.
 - Registry path: `show system platform`
 - Usage: `show system platform`
 - Mode: Read-only
-- Wire method: `ze-show:system-platform`
+- Wire method: `ze-cmd:show-system-platform`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

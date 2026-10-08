@@ -7,7 +7,7 @@ Show traffic control \(QoS\) configuration per interface\.
 - Registry path: `show traffic control`
 - Usage: `show traffic control`
 - Mode: Read-only
-- Wire method: `ze-show:traffic`
+- Wire method: `ze-traffic:show-traffic`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

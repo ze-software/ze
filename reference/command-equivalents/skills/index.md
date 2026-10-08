@@ -5,11 +5,12 @@ List the agent skills this binary carries\, or fetch one by name\.
 ## Ze command
 
 - Registry path: `skills`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `skills (list\|get <name>)`
+- Mode: Daemon
+- Wire method: `ze-skills:skills`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: none: this command takes no subcommand
+- Subcommands: `action`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -20,7 +21,7 @@ List the agent skills this binary carries\, or fetch one by name\.
 - Command pipes: none
 - Pipe aliases: none
 
-Each skill is a Markdown document bundled with the binary\, so it always matches the running version\. One skill is fetched by name\, in its short form or in full\.
+Each skill is a Markdown document bundled with the binary\, so it always matches the running version\. list names them\, and get prints one by name\.
 
 ## Arguments
 

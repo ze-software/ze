@@ -7,7 +7,7 @@ Ping from the router with optional source binding\.
 - Registry path: `resolve ping`
 - Usage: `resolve ping <target> [source <source>] [count <count>] [size <size>] [do-not-fragment <honor-cache\|bypass-cache>]`
 - Mode: Read-only
-- Wire method: `ze-resolve:ping`
+- Wire method: `ze-ping:resolve-ping`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

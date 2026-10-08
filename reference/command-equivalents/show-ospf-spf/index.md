@@ -7,7 +7,7 @@ Show recent OSPF SPF runs\.
 - Registry path: `show ospf spf`
 - Usage: `show ospf spf`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-spf`
+- Wire method: `ze-ospf:show-spf`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`

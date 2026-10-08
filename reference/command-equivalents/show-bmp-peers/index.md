@@ -7,7 +7,7 @@ Show BGP peers as seen through BMP monitoring\.
 - Registry path: `show bmp peers`
 - Usage: `show bmp peers`
 - Mode: Read-only
-- Wire method: `ze-show:bmp-peers`
+- Wire method: `ze-bgp:show-bmp-peers`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

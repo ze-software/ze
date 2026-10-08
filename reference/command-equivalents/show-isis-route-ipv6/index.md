@@ -7,7 +7,7 @@ Show IS\-IS\-computed IPv6 routes \(RFC 5308\)\.
 - Registry path: `show isis route ipv6`
 - Usage: `show isis route ipv6`
 - Mode: Read-only
-- Wire method: `ze-show:isis-route-ipv6`
+- Wire method: `ze-isis:show-route-ipv6`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

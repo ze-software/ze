@@ -7,7 +7,7 @@ Show the OSPF Traffic Engineering Database \(RFC 3630 \/ RFC 5392\)\.
 - Registry path: `show ospf te-database`
 - Usage: `show ospf te-database`
 - Mode: Read-only
-- Wire method: `ze-show:ospf-te-database`
+- Wire method: `ze-ospf:show-te-database`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Dispatch a text command through the command dispatcher\.
 - Registry path: `system dispatch`
 - Usage: `system dispatch`
 - Mode: Read-only
-- Wire method: `ze-system:dispatch`
+- Wire method: `ze-plugin:system-dispatch`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Show aggregate L2TP protocol counters\.
 - Registry path: `show l2tp statistics`
 - Usage: `show l2tp statistics`
 - Mode: Read-only
-- Wire method: `ze-l2tp-api:statistics`
+- Wire method: `ze-l2tp:statistics`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand

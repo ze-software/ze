@@ -7,7 +7,7 @@ Reset the OSPF SPF\-run history\.
 - Registry path: `clear ospf counters`
 - Usage: `clear ospf counters`
 - Mode: Daemon
-- Wire method: `ze-clear:ospf-counters`
+- Wire method: `ze-ospf:clear-counters`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
