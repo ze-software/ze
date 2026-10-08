@@ -6,7 +6,9 @@
 // A subsystem declares the kernel capability it needs, a predicate that reports
 // whether the running configuration uses it, and a native probe. When the
 // configuration uses the subsystem and the host lacks the capability, ze doctor
-// reports it, the daemon refuses to start, and ze config validate fails. When
+// reports it, the daemon refuses to start, and ze config validate fails. A
+// capability that declares Degrades is reported as a warning instead, and the
+// daemon starts without what it names. When
 // the configuration does not use the subsystem nothing is probed and nothing is
 // reported: an absent feature nobody asked for is not a fault.
 //
@@ -99,6 +101,12 @@ type Capability struct {
 	// ConfigLeaf names the configuration that required the capability, so the
 	// operator is told which part of their config asked for it.
 	ConfigLeaf string
+	// Degrades is empty for a capability the subsystem cannot work without: its
+	// absence is an error, and the daemon refuses to start. A capability whose
+	// absence only weakens the subsystem names, here, what the operator loses
+	// without it; its absence is then a warning carrying that text, and the
+	// daemon starts.
+	Degrades string
 	// CodeAbsent and CodeUnknown are the diagnostic codes for the two faulty
 	// states. Both must be registered in internal/core/diagnostic/codes.go.
 	CodeAbsent  string
@@ -191,7 +199,9 @@ func Enrolled() []string {
 // Evaluate returns the diagnostics every enrolled subsystem produces for tree.
 //
 // An absent capability is a SeverityError, which ze doctor already exits 1 on
-// and which the startup and validate gates refuse on. A capability that could
+// and which the startup and validate gates refuse on, unless the capability
+// declares that its absence only Degrades the subsystem: that absence is a
+// SeverityWarning. A capability that could
 // not be DETERMINED is a SeverityWarning and never a refusal: refusing on an
 // unreadable probe turns a working deployment into a dead one.
 func Evaluate(tree *config.Tree) []diagnostic.Diagnostic {
@@ -263,9 +273,16 @@ func evaluateOne(capability *Capability, tree *config.Tree) (diagnostic.Diagnost
 		if result.Reason != nil {
 			text.Str(": ").Err(result.Reason)
 		}
+		// A capability that only degrades its subsystem never refuses: the
+		// daemon starts, and the warning says what is lost.
+		severity := diagnostic.SeverityError
+		if capability.Degrades != "" {
+			severity = diagnostic.SeverityWarning
+			text.Str("; ze starts, and ").Str(capability.Degrades)
+		}
 		return diagnostic.Diagnostic{
 			Code:     capability.CodeAbsent,
-			Severity: diagnostic.SeverityError,
+			Severity: severity,
 			Message:  text.String(),
 		}, true
 	}
@@ -276,7 +293,14 @@ func evaluateOne(capability *Capability, tree *config.Tree) (diagnostic.Diagnost
 	}
 	text.Str(": cannot determine whether the kernel holds ").Str(capability.Kernel).
 		Str(", which ").Str(capability.ConfigLeaf).Str(" requires: ").Err(reason).
-		Str("; ze starts, and the subsystem may not work")
+		Str("; ze starts")
+	// A degrading capability's subsystem works either way, so the warning
+	// names the loss instead of claiming the subsystem may fail.
+	if capability.Degrades == "" {
+		text.Str(", and the subsystem may not work")
+	} else {
+		text.Str(", and without it ").Str(capability.Degrades)
+	}
 	return diagnostic.Diagnostic{
 		Code:     capability.CodeUnknown,
 		Severity: diagnostic.SeverityWarning,

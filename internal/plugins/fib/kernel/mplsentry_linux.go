@@ -16,6 +16,8 @@ import (
 	"net/netip"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/kernelcap"
+
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -39,7 +41,7 @@ func (n *netlinkBackend) addMPLSSwap(inLabel uint32, outLabels []uint32, nextHop
 		Family:   unix.AF_MPLS,
 		Protocol: rtprotZE,
 		MPLSDst:  &il,
-		MTU:      int(pathMTU),
+		MTU:      n.transitRouteMTU(pathMTU),
 	}
 	if len(outLabels) > 0 {
 		labels := make([]int, len(outLabels))
@@ -180,4 +182,59 @@ func (n *netlinkBackend) resolveMPLSNextHop(nextHop netip.Addr) (int, error) {
 		return 0, errors.New("mpls: next-hop lookup selected another interface zone")
 	}
 	return route.LinkIndex, nil
+}
+
+// probeMPLSTransitMTU asks the kernel whether an AF_MPLS route may carry a path
+// MTU. It is the one probe kernelcap holds for the question, and a var so a
+// unit test fakes the netlink answer.
+var probeMPLSTransitMTU = kernelcap.MPLSIPMTU
+
+// transitRouteMTU returns the RTAX_MTU an AF_MPLS swap or pop carries for
+// pathMTU: the path MTU on a kernel that accepts one, and none otherwise.
+//
+// Upstream Linux rejects RTA_METRICS on an AF_MPLS route with EINVAL; only a
+// kernel carrying gokrazy/kernel/patches/0002-mpls-ip-mtu.patch accepts and
+// enforces it. Sending the MTU to a stock kernel fails every transit install,
+// so no transit LSP comes up (owner decision, 2026-10-08: install without it
+// and warn). The kernel is asked once, at the first route that has a path MTU
+// to carry, and an answer that is not "present" installs without one.
+//
+// MUST be called with n.contexts.mu held, after ensureLabelSpace: the probe
+// addresses a label inside the label space.
+func (n *netlinkBackend) transitRouteMTU(pathMTU uint32) int {
+	if pathMTU == 0 {
+		return 0
+	}
+	if n.transitMTU == kernelcap.StateUnspecified {
+		n.transitMTU = askTransitMTU()
+	}
+	if n.transitMTU != kernelcap.StatePresent {
+		return 0
+	}
+	return int(pathMTU)
+}
+
+// askTransitMTU runs the probe once and logs what the answer means for every
+// transit route this process installs. It never returns StateUnspecified, so
+// the kernel is not asked again.
+func askTransitMTU() kernelcap.State {
+	result := probeMPLSTransitMTU()
+	switch result.State {
+	case kernelcap.StatePresent:
+		logger().Info("fib-kernel: the kernel enforces MPLS transit path MTU", "kernel", "CONFIG_MPLS_IP_MTU")
+		return kernelcap.StatePresent
+	case kernelcap.StateAbsent:
+		logger().Warn("fib-kernel: this kernel cannot enforce an MPLS transit path MTU; "+
+			"transit routes install without it, and an oversized labeled packet is dropped "+
+			"by the outgoing device instead of fragmented or answered with ICMP",
+			"kernel", "CONFIG_MPLS_IP_MTU", "reason", result.Reason)
+		return kernelcap.StateAbsent
+	case kernelcap.StateUnknown, kernelcap.StateUnspecified:
+		logger().Warn("fib-kernel: cannot determine whether the kernel enforces an MPLS transit path MTU; "+
+			"transit routes install without it",
+			"kernel", "CONFIG_MPLS_IP_MTU", "reason", result.Reason)
+		return kernelcap.StateUnknown
+	default:
+		panic("BUG: invalid kernel capability state")
+	}
 }

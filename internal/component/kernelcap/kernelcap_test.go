@@ -131,6 +131,63 @@ func TestUndeterminedCapabilityWarnsAndStarts(t *testing.T) {
 	}
 }
 
+// VALIDATES: a degrading capability that cannot be determined warns with its
+// unknown code and names what is lost without it, not a subsystem failure.
+// PREVENTS: an unprivileged `ze doctor` telling an RSVP-TE operator the subsystem
+// may not work, when only the transit MTU bound is in question.
+func TestDegradingCapabilityUndeterminedNamesTheLoss(t *testing.T) {
+	capability := capabilityFor("alpha", StateUnknown, errors.New("operation not permitted"))
+	capability.Degrades = "alpha frames are not bounded"
+	withEnrolment(t, capability)
+
+	diags := Evaluate(config.NewTree())
+	if len(diags) != 1 {
+		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
+	}
+	if diags[0].Code != "doctor-alpha-unknown" {
+		t.Errorf("code is %q, want doctor-alpha-unknown", diags[0].Code)
+	}
+	if !strings.Contains(diags[0].Message, "without it alpha frames are not bounded") {
+		t.Errorf("the warning does not name the loss: %s", diags[0].Message)
+	}
+	if strings.Contains(diags[0].Message, "may not work") {
+		t.Errorf("the warning claims a degrading subsystem may not work: %s", diags[0].Message)
+	}
+	if err := Refuse(config.NewTree()); err != nil {
+		t.Errorf("cannot-determine refused a start: %v", err)
+	}
+}
+
+// VALIDATES: a capability whose absence only DEGRADES its subsystem warns with
+// its absent code, names what is lost, and never refuses a start.
+// PREVENTS: a stock kernel without Ze's CONFIG_MPLS_IP_MTU patch stopping an
+// RSVP-TE router that forwards correctly and only cannot enforce a transit MTU
+// (owner decision, 2026-10-08), and the loss going unreported.
+func TestDegradingCapabilityAbsentWarnsAndStarts(t *testing.T) {
+	capability := capabilityFor("alpha", StateAbsent, errors.New("unknown attribute"))
+	capability.Degrades = "alpha frames are not bounded"
+	withEnrolment(t, capability)
+
+	diags := Evaluate(config.NewTree())
+	if len(diags) != 1 {
+		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
+	}
+	if diags[0].Severity != diagnostic.SeverityWarning {
+		t.Errorf("severity is %q, want warning", diags[0].Severity)
+	}
+	if diags[0].Code != "doctor-alpha-unavailable" {
+		t.Errorf("code is %q, want doctor-alpha-unavailable", diags[0].Code)
+	}
+	for _, want := range []string{"CONFIG_ALPHA", "alpha block", "unknown attribute", "alpha frames are not bounded"} {
+		if !strings.Contains(diags[0].Message, want) {
+			t.Errorf("the warning does not name %q: %s", want, diags[0].Message)
+		}
+	}
+	if err := Refuse(config.NewTree()); err != nil {
+		t.Errorf("a degrading capability refused a start: %v", err)
+	}
+}
+
 // VALIDATES: a probe that returns no verdict is reported as cannot-determine and
 // carries a reason saying so. The zero State is never read as a pass.
 // PREVENTS: the sharpest failure this repository records: a zero value that

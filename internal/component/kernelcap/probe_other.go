@@ -32,3 +32,8 @@ func XFRM() Result {
 func MPLS() Result {
 	return Result{State: StateUnknown, Reason: errNotLinux}
 }
+
+// MPLSIPMTU reports cannot-determine off Linux.
+func MPLSIPMTU() Result {
+	return Result{State: StateUnknown, Reason: errNotLinux}
+}

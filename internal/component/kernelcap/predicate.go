@@ -2,9 +2,9 @@
 // Overview: kernelcap.go -- the enrolment these predicates are registered with
 //
 // One predicate for each enrolled subsystem, and one declaration of each.
-// MPLSInUse and IPsecInUse answer the same question for every reader, so a
-// refusal, a doctor row and a listener bind cannot disagree about whether a
-// subsystem is configured (owner decision 6, 2026-08-14).
+// MPLSInUse, MPLSTransitMTUInUse and IPsecInUse answer the same question for
+// every reader, so a refusal, a doctor row and a listener bind cannot disagree
+// about whether a subsystem is configured (owner decision 6, 2026-08-14).
 
 package kernelcap
 
@@ -39,6 +39,17 @@ func MPLSInUse(tree *config.Tree) bool {
 		return false
 	}
 	return mplsConfigured(tree)
+}
+
+// MPLSTransitMTUInUse reports whether the configuration asks the kernel to
+// carry a transit path MTU on an AF_MPLS route: RSVP-TE on the kernel FIB.
+// RSVP-TE is the only producer of mplsfib.Entry.PathMTU, from the ADSPEC its
+// PATH messages carry; LDP and labeled BGP install no MTU.
+func MPLSTransitMTUInUse(tree *config.Tree) bool {
+	if !MPLSInUse(tree) {
+		return false
+	}
+	return tree.GetContainer("rsvp-te") != nil
 }
 
 // mplsConfigured reports whether any MPLS-forwarding config is present,

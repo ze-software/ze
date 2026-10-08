@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/rtproto"
 
 	"github.com/vishvananda/netlink"
@@ -31,6 +32,10 @@ const rtprotZE = rtproto.FIBKernel
 type netlinkBackend struct {
 	handle   *netlink.Handle
 	contexts mplsContextState
+	// transitMTU is the kernel's answer to whether an AF_MPLS route may carry
+	// a path MTU. Guarded by contexts.mu; Unspecified until the first transit
+	// route with a path MTU asks (mplsentry_linux.go, transitRouteMTU).
+	transitMTU kernelcap.State
 }
 
 func newBackend() routeBackend {

@@ -7,6 +7,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-08 | b1a5c0de | stress-repro: build ze from the tree, refuse an all-failed verdict (+67 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-01T12:40:37Z) | open |
-| 2026-10-08 | b1a5c0de | stress-repro: build ze from the tree, refuse an all-failed verdict (+36 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-10-08 | b1a5c0de | stress-repro: build ze from the tree, refuse an all-failed verdict (+68 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-01T12:40:37Z) | open |
+| 2026-10-08 | b1a5c0de | stress-repro: build ze from the tree, refuse an all-failed verdict (+37 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-10-08 | b1a5c0de | plugin/server: refuse a second holder of a command name or wire method (+1 more) | owner approval for an RFC-tagged test change | RFC 8907 tagged tests changed only mechanically: each Dispatcher.Register call now checks the error the new refusal returns; no assertion or claim changed. Owner approval owed. | open |

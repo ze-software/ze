@@ -56,7 +56,7 @@ and two functions. `InUse` reads the parsed config tree. `Probe` reads the host.
 
 <!-- source: internal/component/kernelcap/kernelcap.go -- Capability, MustRegister, Evaluate, Refuse -->
 <!-- source: internal/component/ike/engine/kernelcap_linux.go -- the ipsec enrolment -->
-<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- the mpls enrolment -->
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- the mpls and mpls-transit-mtu enrolments -->
 
 This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
 produced at read time, in the reader's own process, and it keeps no memory of a
@@ -73,7 +73,15 @@ declaration of the same fact.
 |--------------|-----------|----------------------|
 | Present | none | starts |
 | Absent | `SeverityError`, the subsystem's absent code | refuses, exit 1 |
+| Absent, capability declares `Degrades` | `SeverityWarning`, the subsystem's absent code, naming what is lost | starts |
 | Cannot determine | `SeverityWarning`, the subsystem's unknown code | starts |
+
+A capability whose absence only weakens its subsystem says so in `Degrades`,
+the text the warning carries. `mpls-transit-mtu` is one: a stock kernel refuses
+a path MTU on an `AF_MPLS` route, so RSVP-TE transit routes install without it
+and still forward (`docs/architecture/mpls/mpls-kernel.md`, "On a kernel
+without the patch"). Refusing the start there would stop a working router for
+the loss of a bound.
 
 A capability that could not be DETERMINED never refuses. The gate runs on every
 `ze` start on Linux, so refusing on a probe ze could not read would turn a

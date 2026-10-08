@@ -32,4 +32,23 @@ func init() {
 		InUse:       kernelcap.MPLSInUse,
 		Probe:       kernelcap.MPLS,
 	})
+	kernelcap.MustRegister(transitMTUCapability)
+}
+
+// transitMTUCapability is the path MTU an RSVP-TE transit route carries. Only
+// a kernel with gokrazy/kernel/patches/0002-mpls-ip-mtu.patch accepts it, so on
+// a stock kernel addMPLSSwap installs the route without it and this capability
+// reports the loss as a warning (owner decision, 2026-10-08). The backend asks
+// the same probe before its first such install (transitRouteMTU).
+var transitMTUCapability = kernelcap.Capability{
+	Subsystem:   "mpls-transit-mtu",
+	Component:   pluginName,
+	Kernel:      "CONFIG_MPLS_IP_MTU",
+	ConfigLeaf:  "rsvp-te on the kernel FIB",
+	Degrades:    "RSVP-TE transit routes install without the path MTU, so an oversized labeled packet is dropped instead of fragmented or answered with ICMP",
+	CodeAbsent:  diagnostic.CodeDoctorMPLSTransitMTUUnenforced,
+	CodeUnknown: diagnostic.CodeDoctorMPLSTransitMTUUnknown,
+	Order:       739,
+	InUse:       kernelcap.MPLSTransitMTUInUse,
+	Probe:       kernelcap.MPLSIPMTU,
 }

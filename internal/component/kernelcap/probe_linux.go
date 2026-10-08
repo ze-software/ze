@@ -3,13 +3,13 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
 // Overview: probe.go -- the shared /proc root and the test override
 //
-// Two native probes, one for each enrolled capability. Both ask whether the
+// Three native probes, one for each enrolled capability. Each asks whether the
 // CAPABILITY exists, never how the kernel was PACKAGED: /proc/modules lists
 // loaded modules only, so a kernel with CONFIG_XFRM_USER=y or
 // CONFIG_MPLS_ROUTING=y reads as absent there. Under a refusal that misreading
-// stops a working router, which is why neither probe touches the module list.
+// stops a working router, which is why no probe touches the module list.
 //
-// Neither probe executes a binary. An external program is a second dependency
+// No probe executes a binary. An external program is a second dependency
 // that can be absent for its own reasons, which is the fault this package
 // removes rather than a way to detect it.
 
@@ -17,10 +17,14 @@ package kernelcap
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
 
@@ -95,4 +99,101 @@ func MPLS() Result {
 	// guard that cannot reach its evidence says so rather than reporting the
 	// answer it did not get (ai/rules/evidence.md).
 	return Result{State: StateUnknown, Reason: err}
+}
+
+const (
+	// mplsProbeLabel is the label the transit MTU probe addresses: the first
+	// label Linux lets a route use (MPLS_LABEL_FIRST_UNRESERVED). The probe
+	// never creates it, and a route a peer already holds there is left alone.
+	mplsProbeLabel = 16
+	// mplsProbeMTU is any frame budget the patched kernel accepts (at least 68).
+	mplsProbeMTU = 1500
+)
+
+// mplsRouteProbe sends one probe request, a var so a unit test drives every
+// errno without a kernel that changes.
+var mplsRouteProbe = sendMPLSRouteProbe
+
+var (
+	errMPLSLabelSpaceSmall = errors.New("the MPLS label space holds no unreserved label to address, " +
+		"so the probe cannot be asked; ze enables one when it programs its first label")
+	errMPLSProbeCreated  = errors.New("the kernel accepted a probe that may not create a route")
+	errMPLSMetricRefused = errors.New("the kernel refuses RTA_METRICS on an AF_MPLS route " +
+		"(no CONFIG_MPLS_IP_MTU: gokrazy/kernel/patches/0002-mpls-ip-mtu.patch is not applied)")
+)
+
+// MPLSIPMTU reports whether the kernel carries Ze's MPLS IP MTU patch, which
+// lets an AF_MPLS route hold a path MTU (RTA_METRICS/RTAX_MTU) and enforces it
+// on transit. Upstream Linux rejects the attribute with EINVAL.
+//
+// The probe asks without changing anything: an RTM_NEWROUTE with NLM_F_EXCL
+// and no NLM_F_CREATE can only fail, with ENOENT when the label is free and
+// EEXIST when it is taken, once the kernel has parsed every attribute. A
+// control request without the metric must reach that answer first, so the
+// probe never reads an EINVAL from its own malformed request, a label outside
+// the label space or a missing AF_MPLS table as the unpatched kernel. Asking
+// needs CAP_NET_ADMIN; an unprivileged reader is told the answer is unknown.
+// Both requests run in the calling thread's network namespace.
+func MPLSIPMTU() Result {
+	data, err := readFile(MPLSPlatformLabelsPath())
+	if err != nil {
+		return Result{State: StateUnknown, Reason: fmt.Errorf("read the MPLS label space: %w", err)}
+	}
+	labels, err := strconv.ParseUint(strings.TrimSpace(string(data)), 10, 32)
+	if err != nil {
+		return Result{State: StateUnknown, Reason: fmt.Errorf("read the MPLS label space: %w", err)}
+	}
+	if labels <= mplsProbeLabel {
+		return Result{State: StateUnknown, Reason: errMPLSLabelSpaceSmall}
+	}
+	return classifyMPLSIPMTU(mplsRouteProbe(false), mplsRouteProbe(true))
+}
+
+// classifyMPLSIPMTU turns the control answer and the metric answer into a
+// verdict. Only the metric being refused where the control was not is absence.
+func classifyMPLSIPMTU(control, metric error) Result {
+	if control == nil {
+		return Result{State: StateUnknown, Reason: errMPLSProbeCreated}
+	}
+	if !mplsProbeReachedLookup(control) {
+		return Result{State: StateUnknown, Reason: fmt.Errorf("the probe without a metric was refused: %w", control)}
+	}
+	if metric == nil {
+		return Result{State: StateUnknown, Reason: errMPLSProbeCreated}
+	}
+	if mplsProbeReachedLookup(metric) {
+		return Result{State: StatePresent}
+	}
+	if errors.Is(metric, unix.EINVAL) {
+		return Result{State: StateAbsent, Reason: errMPLSMetricRefused}
+	}
+	return Result{State: StateUnknown, Reason: fmt.Errorf("the probe with a metric was refused: %w", metric)}
+}
+
+// mplsProbeReachedLookup reports whether the kernel parsed the request and
+// answered from the label table, which only happens after every attribute was
+// accepted.
+func mplsProbeReachedLookup(err error) bool {
+	if errors.Is(err, unix.ENOENT) {
+		return true
+	}
+	return errors.Is(err, unix.EEXIST)
+}
+
+// sendMPLSRouteProbe sends one non-creating AF_MPLS RTM_NEWROUTE for the probe
+// label, carrying RTA_METRICS/RTAX_MTU when withMetric is set.
+func sendMPLSRouteProbe(withMetric bool) error {
+	request := nl.NewNetlinkRequest(unix.RTM_NEWROUTE, unix.NLM_F_ACK|unix.NLM_F_EXCL)
+	message := nl.NewRtMsg()
+	message.Family = unix.AF_MPLS
+	message.Dst_len = 20 // An MPLS route is keyed by one 20-bit label.
+	request.AddData(message)
+	request.AddData(nl.NewRtAttr(unix.RTA_DST, nl.EncodeMPLSStack(mplsProbeLabel)))
+	if withMetric {
+		metrics := nl.NewRtAttr(unix.RTA_METRICS, nil)
+		metrics.AddRtAttr(unix.RTAX_MTU, nl.Uint32Attr(mplsProbeMTU))
+		request.AddData(metrics)
+	}
+	_, err := request.Execute(unix.NETLINK_ROUTE, 0)
+	return err
 }

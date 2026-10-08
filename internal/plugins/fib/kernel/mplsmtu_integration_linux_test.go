@@ -18,8 +18,24 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/component/kernelcap"
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
+
+// skipWithoutMPLSIPMTU skips a case whose bound only Ze's MPLS IP MTU patch
+// enforces, and only when the probe answers that this kernel lacks it. Any other
+// answer runs the case, so a probe that cannot ask never hides a regression,
+// and the QEMU guest's runtime kernel, which carries the patch, always runs it.
+// MUST be called inside the test namespace after enableNetnsMPLS: the probe
+// addresses a label in that namespace's label space.
+func skipWithoutMPLSIPMTU(t *testing.T) {
+	t.Helper()
+	probe := kernelcap.MPLSIPMTU()
+	if probe.State == kernelcap.StateAbsent {
+		t.Skipf("kernel transit MTU probe answered %v (%v): this bound needs CONFIG_MPLS_IP_MTU, "+
+			"which the QEMU guest's runtime kernel carries", probe.State, probe.Reason)
+	}
+}
 
 // TestMPLSIntegration_PathMTU exercises RFC 3209 Section 2.6 through the native
 // forwarding owner's acknowledged installation. PathMTU is deliberately different
@@ -46,6 +62,12 @@ func TestMPLSIntegration_PathMTU(t *testing.T) {
 					require.NoError(t, err)
 					defer h.Close()
 					enableNetnsMPLS(t)
+					// Upstream Linux bounds a push only by the IP route's
+					// RTAX_MTU. The local link on a push, and every transit
+					// bound, are enforced by CONFIG_MPLS_IP_MTU alone.
+					if transit || bound.path > uint32(bound.link) {
+						skipWithoutMPLSIPMTU(t)
+					}
 					bed := newMPLSTestbed(t, h)
 					link, err := h.LinkByName(mplsZeLink)
 					require.NoError(t, err)
@@ -135,6 +157,10 @@ func TestMPLSIntegration_FragmentProgress(t *testing.T) {
 				require.NoError(t, err)
 				defer h.Close()
 				enableNetnsMPLS(t)
+				// The fragment progress these cases prove is the patch's. On the
+				// stock 6.8 kernel rounded-zero-payload left the injecting thread
+				// spinning in the kernel, unkillable, until the host reboots.
+				skipWithoutMPLSIPMTU(t)
 				bed := newMPLSTestbed(t, h)
 				link, err := h.LinkByName(mplsZeLink)
 				require.NoError(t, err)
@@ -206,6 +232,8 @@ func TestMPLSIntegration_TransitIPv4Options(t *testing.T) {
 				require.NoError(t, err)
 				defer h.Close()
 				enableNetnsMPLS(t)
+				// A transit bound is enforced by CONFIG_MPLS_IP_MTU alone.
+				skipWithoutMPLSIPMTU(t)
 				bed := newMPLSTestbed(t, h)
 				link, err := h.LinkByName(mplsZeLink)
 				require.NoError(t, err)

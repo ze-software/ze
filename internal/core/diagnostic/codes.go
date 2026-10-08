@@ -58,6 +58,8 @@ const (
 	CodeDoctorIPsecXFRMUnknown                     = "doctor-ipsec-xfrm-unknown"
 	CodeDoctorMPLSUnavailable                      = "doctor-mpls-unavailable"
 	CodeDoctorMPLSUnknown                          = "doctor-mpls-unknown"
+	CodeDoctorMPLSTransitMTUUnenforced             = "doctor-mpls-transit-mtu-unenforced"
+	CodeDoctorMPLSTransitMTUUnknown                = "doctor-mpls-transit-mtu-unknown"
 	CodeDoctorModuleMissing                        = "doctor-module-missing"
 	CodeDoctorPPPoEModule                          = "doctor-pppoe-module"
 	CodeDoctorPKICARootExpiry                      = "doctor-pki-ca-root-expiry"
@@ -524,6 +526,20 @@ var builtinCodes = []CodeMeta{
 		Description:  "The MPLS capability probe (/proc/sys/net/mpls/platform_labels, under the root named by ze.test.doctor.procfs-root) could not be read, so ze cannot tell whether the kernel holds an AF_MPLS forwarding table. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. It is a WARNING and it does not refuse a start, because refusing on a probe ze could not read would stop a router whose kernel is fine. Remedy: check the permissions on /proc/sys/net/mpls and the path above it. An ABSENT probe is not this code -- it means the kernel holds no AF_MPLS table, it reports doctor-mpls-unavailable, and that one does refuse the start.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-unknown"},
 		RelatedCodes: []string{CodeDoctorMPLSUnavailable},
+	},
+	{
+		Code:         CodeDoctorMPLSTransitMTUUnenforced,
+		Title:        "MPLS transit path MTU not enforced",
+		Description:  "RSVP-TE runs on the kernel FIB, and the kernel refuses a path MTU (RTA_METRICS/RTAX_MTU) on an AF_MPLS route: it is an upstream kernel without CONFIG_MPLS_IP_MTU, which ze's own runtime kernel adds with gokrazy/kernel/patches/0002-mpls-ip-mtu.patch. ze still installs every transit swap and pop, WITHOUT the downstream path MTU the ADSPEC carried, so a transit LSP comes up and forwards, but an oversized labeled packet is dropped by the outgoing device instead of being fragmented or answered with ICMP Fragmentation Needed or Packet Too Big. Push routes keep their MTU. This is a WARNING and it does not refuse a start: a stock kernel forwards correctly within the device MTU. Remedy: run ze's appliance kernel, or a kernel built with that patch, when the LSP path MTU must be enforced at this transit router.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-transit-mtu-unenforced"},
+		RelatedCodes: []string{CodeDoctorMPLSTransitMTUUnknown, CodeDoctorMPLSUnavailable},
+	},
+	{
+		Code:         CodeDoctorMPLSTransitMTUUnknown,
+		Title:        "MPLS transit path MTU support unknown",
+		Description:  "ze could not tell whether the kernel accepts a path MTU on an AF_MPLS route. The probe sends two non-creating route requests for label 16 and needs CAP_NET_ADMIN and a non-empty MPLS label space (/proc/sys/net/mpls/platform_labels); an unprivileged `ze doctor`, or one run before the daemon enabled the label space, cannot ask. This is a WARNING and never refuses a start. The daemon asks again when it installs its first transit route that carries a path MTU, and installs that route without the MTU unless the kernel answered that it accepts one. Remedy: run `ze doctor` as root after the daemon has started.",
+		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-transit-mtu-unknown"},
+		RelatedCodes: []string{CodeDoctorMPLSTransitMTUUnenforced},
 	},
 	{
 		Code:         "doctor-bgp-capture-directory",

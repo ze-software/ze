@@ -87,9 +87,10 @@ silently suppressed and the kernel keeps the old stack.
 
 `mplsfib.Entry.PathMTU` carries the downstream frame payload budget, including
 labels. A zero value leaves the output device MTU as the bound. The forwarding
-owner writes a nonzero value as `RTA_METRICS/RTAX_MTU` on both IP push routes
-and `AF_MPLS` transit routes; a replacement updates the metric with the labels
-and next hop. Private push contexts use the same field and retain their
+owner writes a nonzero value as `RTA_METRICS/RTAX_MTU` on IP push routes, and on
+`AF_MPLS` transit routes (swap, pop and facility backup) when the kernel accepts
+the attribute there; a replacement updates the metric with the labels and next
+hop. Private push contexts use the same field and retain their
 acknowledgement and mark-guard lifecycle.
 
 For an outgoing stack of N bytes, the inner datagram limit is the smaller of
@@ -132,6 +133,38 @@ before the normal ICMP sender builds its reply.
 requirements. An upstream host kernel that can install MPLS routes is
 insufficient evidence for this behaviour.
 
+### On a kernel without the patch
+
+Upstream Linux refuses `RTA_METRICS` on an `AF_MPLS` route: `ip -f mpls route
+add 1000 as 2000 via inet 192.0.2.1 dev eth0 mtu 1400` answers "Unknown
+attribute" (`EINVAL`). Sending the path MTU there would fail every RSVP-TE
+transit install whose PATH carried an ADSPEC, so no transit LSP would come up.
+
+Before its first transit route that has a path MTU, the forwarding owner asks
+the kernel once (`kernelcap.MPLSIPMTU`). The probe sends two `RTM_NEWROUTE`
+requests for label 16 with `NLM_F_EXCL` and no `NLM_F_CREATE`, which can only
+fail and so change nothing: a control without the metric, then the same request
+carrying `RTAX_MTU`. The control must reach the label lookup (`ENOENT` or
+`EEXIST`). The metric request reaching it as well means the patched kernel;
+`EINVAL` on the metric alone means a stock kernel. Any other answer, including
+`EPERM` without `CAP_NET_ADMIN` or an empty label space, is "cannot determine".
+
+Only a "present" answer puts the MTU on transit routes. On any other answer the
+swap and pop routes install without it, the LSP comes up and forwards, and the
+kernel bounds labeled frames by the outgoing device MTU alone: an oversized
+frame is dropped instead of fragmented or answered with ICMP Fragmentation
+Needed or Packet Too Big. Push routes keep their metric, because IP routes
+accept it on every kernel. The forwarding owner logs the answer once, as a
+warning when enforcement is lost. `ze doctor` reports the same probe as the
+`mpls-transit-mtu` kernel capability when RSVP-TE runs on the kernel FIB:
+`doctor-mpls-transit-mtu-unenforced` for a stock kernel and
+`doctor-mpls-transit-mtu-unknown` when it could not ask, both warnings that never
+refuse a start. Ze's appliance kernel carries the patch and keeps full
+enforcement.
+
+<!-- source: internal/component/kernelcap/probe_linux.go -- MPLSIPMTU, classifyMPLSIPMTU -->
+<!-- source: internal/plugins/fib/kernel/mplsentry_linux.go -- transitRouteMTU, askTransitMTU -->
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- transitMTUCapability -->
 <!-- source: internal/core/mplsfib/events.go -- Entry.PathMTU -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute -->
 <!-- source: gokrazy/kernel/patches/0002-mpls-ip-mtu.patch -- native IP MTU enforcement -->
@@ -148,11 +181,16 @@ budgets with a forwarded marker on the same veth queue, covering rounding to
 zero, physical-link underflow and the maximum IPv4 option header.
 The carrier must run inside a guest booted with the rebuilt runtime kernel.
 A capability skip leaves the behaviour unverified.
+`TestMPLSIntegration_TransitPathMTUFollowsTheProbe` runs on any kernel: it
+installs a transit swap and pop carrying a path MTU, requires the probe to
+answer, checks each route carries the MTU exactly when the answer is "present",
+and forwards a frame through the swap.
 `TestMPLSIntegration_TransitIPv4Options` checks Record Route and Timestamp
 slots across exact-fit forwarding, first-fragment preservation, later-fragment
 omission and DF-set ICMP quotation.
 
 <!-- source: internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go -- TestMPLSIntegration_PathMTU -->
+<!-- source: internal/plugins/fib/kernel/mplstransitmtu_integration_linux_test.go -- TestMPLSIntegration_TransitPathMTUFollowsTheProbe -->
 
 ## Operator surface
 

@@ -7,4 +7,4 @@ The behavior these tests proved no longer exists.
 
 | Test | Reason |
 |------|--------|
-| TestCheckRefusesAPublishedRouteWithNoProducer | The assertion that the coverage names spec-site-renderers-in-go is removed with `Coverage.Spec`: that field named the open work owning a coverage red, the spec closed with every route written by a producer, and a red now names a real defect. Every behavior assertion stays: the unclaimed route by name, `Red()`, the non-zero exit, and the record kept out of the artifact. |
+| mplsmtu_integration_linux_test | `skipWithoutMPLSIPMTU` skips the cases whose bound only Ze's MPLS IP MTU kernel patch enforces (PathMTU transit and push-over-link, every FragmentProgress case, TransitIPv4Options), and only when `kernelcap.MPLSIPMTU` answers "absent", naming that answer. Any other answer runs them, so the QEMU guest's patched runtime kernel still runs every case. On a stock kernel they cannot pass, and FragmentProgress/rounded-zero-payload livelocked the 6.8 host (`plan/journal/kernel-refuses-what-the-installer-sends.md`). The stock-kernel behavior is now proved by `TestMPLSIntegration_TransitPathMTUFollowsTheProbe`. |

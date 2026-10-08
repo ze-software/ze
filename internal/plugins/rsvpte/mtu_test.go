@@ -215,3 +215,53 @@ func TestReturnedFlowSpecPreservesRaw(t *testing.T) {
 		t.Fatalf("retained FLOWSPEC changed: %x, want %x", msg.FlowDescriptors[0].FlowSpecRaw, raw)
 	}
 }
+
+// TestTransitForwardsComposedAdspecMTU drives a received PATH through a transit
+// engine and decodes the PATH it forwards: the ADSPEC path MTU leaving the
+// transit is the smaller of the MTU it arrived with and the outgoing route's
+// MTU, and the sender's own maximum is left alone.
+//
+// VALIDATES: handlePath composes the outgoing hop into the forwarded PATH
+// (updateAdspec on lsp.PSB.Adspec, then buildPath), not only that updateAdspec
+// computes the minimum in isolation.
+// PREVENTS: a transit relaying the upstream ADSPEC unchanged, so the egress and
+// every hop after it see a path MTU larger than this hop's link and size the
+// LSP for frames this transit drops.
+func TestTransitForwardsComposedAdspecMTU(t *testing.T) {
+	ingress := netip.MustParseAddr("10.0.0.1")
+	target := netip.MustParsePrefix("10.0.0.9/32")
+	for _, tc := range []struct {
+		name                 string
+		arrived, route, want uint32
+	}{
+		{name: "the outgoing link is smaller", arrived: 1500, route: 1400, want: 1400},
+		{name: "the upstream path is smaller", arrived: 1300, route: 1500, want: 1300},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e, ft, _ := testEngine(t, "10.0.0.5", nil)
+			ft.routes = map[netip.Prefix]RouteInfo{target: {NextHop: target.Addr(), Lookup: target.Addr(), MTU: tc.route}}
+			psb := samplePSB()
+			var adspec [adspecSize]byte
+			encodeAdspec(adspec[:], tc.arrived, serviceControlledLoad)
+			psb.Adspec = adspec[:]
+
+			e.handlePacket(Packet{Src: ingress, Payload: buildPath(psb, ingress, defaultIPTTL)})
+
+			path, dst, sent := ft.lastByType(MsgTypePath)
+			if !sent {
+				t.Fatal("the transit forwarded no PATH")
+			}
+			if dst != target.Addr() {
+				t.Fatalf("the PATH went to %s, want %s", dst, target.Addr())
+			}
+			if path.PathMTU != tc.want {
+				t.Fatalf("the forwarded ADSPEC carries path MTU %d, want %d (arrived %d, outgoing route %d)",
+					path.PathMTU, tc.want, tc.arrived, tc.route)
+			}
+			if path.SenderTSpec.MaxPacketSize != psb.SenderTSpec.MaxPacketSize {
+				t.Fatalf("the forwarded sender maximum is %d, want the sender's %d",
+					path.SenderTSpec.MaxPacketSize, psb.SenderTSpec.MaxPacketSize)
+			}
+		})
+	}
+}
