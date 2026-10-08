@@ -43,7 +43,7 @@ func TestScenarioConfigReplacesTheInitializedConfig(t *testing.T) {
 		t.Fatalf("write merged config: %v", err)
 	}
 
-	args := scenarioConfigArgs(path)
+	args := importScenarioConfigArgs(path)
 	handler := registry.LookupRoot(args[0])
 	if handler == nil {
 		t.Fatalf("ze has no %q root command", args[0])
@@ -71,14 +71,17 @@ func TestScenarioConfigReplacesTheInitializedConfig(t *testing.T) {
 // installed. The argv names no file, so ze opens the store under ZE_CONFIG_DIR
 // and reads the stored config its instance name selects, and the instance name
 // the harness answers `ze init` with selects ze.conf, the config `ze init`
-// writes and scenarioConfigArgs replaces.
+// writes and importScenarioConfigArgs replaces.
 // PREVENTS: `ze start ze.conf`, which is explicit-file mode: ze opened a store
 // beside ze.conf in the working directory, ignored ZE_CONFIG_DIR, and never
 // came up. Also an init answer whose instance name selects a config no step
 // wrote (`ze-demo` selects ze-demo.conf).
 func TestScenarioDaemonReadsTheInstalledConfig(t *testing.T) {
 	args := daemonArgs()
-	if len(args) == 0 || args[0] != commandStart {
+	if len(args) == 0 {
+		t.Fatal("daemon argv is empty")
+	}
+	if args[0] != commandStart {
 		t.Fatalf("daemon argv %v does not start ze", args)
 	}
 	for _, arg := range args[1:] {
@@ -88,15 +91,18 @@ func TestScenarioDaemonReadsTheInstalledConfig(t *testing.T) {
 	}
 
 	answers := strings.Split(initText(demoPassword), "\n")
-	const nameAnswer = 4 // ze init asks: username, password, host, port, name
+	// Ze init asks for the username, password, host, port and name, in that order.
+	const nameAnswer = 4
 	if len(answers) <= nameAnswer {
 		t.Fatalf("init answers %q carry no instance name", answers)
 	}
+
 	store, err := storage.Create(t.TempDir())
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test handle
+
 	if err := store.WriteKey(zefs.KeyInstanceName.Pattern, []byte(answers[nameAnswer])); err != nil {
 		t.Fatalf("write instance name the way ze init does: %v", err)
 	}

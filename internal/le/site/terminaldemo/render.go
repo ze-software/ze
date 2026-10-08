@@ -274,6 +274,7 @@ func (e *Engine) containerCommand(renderer Renderer, privileged bool, entries ..
 	args := []string{
 		dockerProgram, "run", "--rm",
 		"--network", "none",
+		"--hostname", demoInstance,
 		dockerCapAddToken, "NET_ADMIN",
 		dockerCapAddToken, "NET_RAW",
 		dockerCapAddToken, "SYS_ADMIN",

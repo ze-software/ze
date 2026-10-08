@@ -2,7 +2,7 @@ Output artifacts/zefs-config.webm
 Source common.tape
 
 Hide
-Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/zefs-config/config ZE_INIT_INPUT=/src/tmp/terminal-demos/state/zefs-config/init.input ZE_SSH_PASSWORD=secret123 SSHPASS=secret123"
+Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/zefs-config/config ZE_SSH_PASSWORD=secret123 SSHPASS=secret123"
 Enter
 Type "ze-demo run zefs-config prepare"
 Enter
@@ -18,10 +18,27 @@ Hide
 Type "clear"
 Enter
 Show
-Type "cat $ZE_INIT_INPUT"
+Type "ze init"
 Enter
-Sleep 5s
-Type "ze init < $ZE_INIT_INPUT"
+Wait+Screen /username:/
+Sleep 1s
+Type "admin"
+Enter
+Wait+Screen /password:/
+Sleep 1s
+# The password is read without echo, so the recording shows only the prompt.
+Type "secret123"
+Enter
+Wait+Screen /host \[/
+Sleep 1s
+# Enter accepts the default shown in brackets. The name defaults to the
+# hostname, which is ze in the demo container.
+Enter
+Wait+Screen /port \[/
+Sleep 1s
+Enter
+Wait+Screen /name \[ze\]/
+Sleep 1s
 Enter
 Sleep 4s
 Type "ze config list"

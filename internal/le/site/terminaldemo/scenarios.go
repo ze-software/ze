@@ -58,9 +58,15 @@ func runScenario(id, action string, args []string, stdout, stderr io.Writer) err
 	return err
 }
 
+// scenarioConfigDir is the ZE_CONFIG_DIR of scenario id: the folder that holds
+// its store and the config bare `ze start` reads.
+func scenarioConfigDir(id string) string {
+	return filepath.Join(demoState(id), "config")
+}
+
 func scenarioEnv(id, password string) []string {
 	environ := demoEnvironment()
-	environ = setEnv(environ, "ZE_CONFIG_DIR", filepath.Join(demoState(id), "config"))
+	environ = setEnv(environ, "ZE_CONFIG_DIR", scenarioConfigDir(id))
 	if password != "" {
 		environ = setEnv(environ, "ZE_SSH_PASSWORD", password)
 		environ = setEnv(environ, "SSHPASS", password)
@@ -69,13 +75,11 @@ func scenarioEnv(id, password string) []string {
 }
 
 // initText answers the `ze init` stdin script. Every demo initializes the same
-// operator account. The instance name is the stem of the config bare `ze start`
-// reads (`<name>.conf`), so it is the stem of zeConfigFile: `ze init` writes its
-// discovered config to ze.conf and importScenarioConfig replaces ze.conf.
+// operator account under the instance name demoInstance, whose config bare
+// `ze start` reads as zeConfigFile.
 func initText(password string) string {
 	const user = "admin"
-	name := strings.TrimSuffix(zeConfigFile, ".conf")
-	return strings.Join([]string{user, password, "127.0.0.1", "2222", name, ""}, "\n")
+	return strings.Join([]string{user, password, "127.0.0.1", "2222", demoInstance, ""}, "\n")
 }
 
 // daemonArgs is the ze argv every scenario starts its daemon with. It names no
@@ -97,7 +101,7 @@ func prepareScenario(id, pidName string, initialize bool) error {
 	if err := os.RemoveAll(state); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(state, "config"), 0o750); err != nil {
+	if err := os.MkdirAll(scenarioConfigDir(id), 0o750); err != nil {
 		return err
 	}
 	inputPath := filepath.Join(state, "init.input")
@@ -152,15 +156,15 @@ func importScenarioConfig(id string, sources ...string) error {
 			return closeErr
 		}
 	}
-	return runForegroundLog(scenarioConfigArgs(activePath), environ, filepath.Join(state, "import.log"), nil)
+	return runForegroundLog(importScenarioConfigArgs(activePath), environ, filepath.Join(state, "import.log"), nil)
 }
 
-// scenarioConfigArgs is the ze argv that installs the merged scenario config
+// importScenarioConfigArgs is the ze argv that installs the merged scenario config
 // at path as the stored ze.conf. `ze init` already wrote ze.conf from interface
 // discovery, so the import replaces an existing config, which `config import`
 // does only when confirmed. The harness has no terminal to answer on, so it
 // confirms with --yes.
-func scenarioConfigArgs(path string) []string {
+func importScenarioConfigArgs(path string) []string {
 	return []string{commandConfig, "import", "--yes", "--name", zeConfigFile, path}
 }
 
@@ -434,9 +438,6 @@ func runConfigViews(action string) error {
 	return nil
 }
 
-// demoCommitConfirmed names the commit-confirmed demo.
-const demoCommitConfirmed = "commit-confirmed"
-
 // runCommitConfirmed prepares the commit-confirmed demo. `ze config edit -f`
 // opens the config history store in its file's folder, and `commit confirmed`
 // refuses without that history because its auto-revert restores the backup
@@ -464,7 +465,7 @@ func runCommitConfirmed(action string) error {
 // commitConfirmedConfig is the file the commit-confirmed demo edits. It sits
 // in the scenario's ZE_CONFIG_DIR, the folder `ze init` gave a store.
 func commitConfirmedConfig() string {
-	return filepath.Join(demoState(demoCommitConfirmed), "config", zeConfigFile)
+	return filepath.Join(scenarioConfigDir(demoCommitConfirmed), zeConfigFile)
 }
 
 func runTraceroute(action string) error {
@@ -476,7 +477,7 @@ func runTraceroute(action string) error {
 		if err := os.RemoveAll(state); err != nil {
 			return err
 		}
-		if err := os.MkdirAll(filepath.Join(state, "config"), 0o750); err != nil {
+		if err := os.MkdirAll(scenarioConfigDir(id), 0o750); err != nil {
 			return err
 		}
 		if err := createTracerouteNetwork(); err != nil {
@@ -610,46 +611,51 @@ func commandContext(ctx context.Context, name string, args, environ []string) *e
 // identities and files, and the tape directives. Each constant names the exact
 // token the tool receives.
 const (
-	actionPrepare      = "prepare"
-	commandStart       = "start"
-	commandStop        = "stop"
-	commandExec        = "exec"
-	commandValidate    = "validate"
-	commandCLI         = "cli"
-	commandInit        = "init"
-	commandConfig      = "config"
-	commandCat         = "cat"
-	commandShow        = "show"
-	commandBGP         = "bgp"
-	commandVersion     = "version"
-	commandHost        = "host"
-	ipAddr             = "addr"
-	ipAdd              = "add"
-	ipSet              = "set"
-	ipDel              = "del"
-	ipName             = "name"
-	ipAddress          = "address"
-	ipExact            = "exact"
-	zeConfigFile       = "ze.conf"
-	interfaceEth0      = "eth0"
-	interfaceTraffic0  = "traffic0"
-	trafficPeerNS      = "traffic-peer"
-	linkCoreEdge       = "core-edge"
-	linkEdgeZe         = "edge-ze"
-	frrUser            = "frr"
-	frrConfigFile      = "/etc/frr/frr.conf"
-	dnsHostPrefix      = "192.0.2.53/32"
-	demoIRR            = "irr"
-	demoRPKI           = "rpki"
-	demoWalkthrough    = "walkthrough"
-	demoConfigViews    = "config-views"
-	demoZefsConfig     = "zefs-config"
-	flagBind           = "--bind"
-	flagASN            = "--asn"
-	keywordFormat      = "format"
-	tapeSleepDirective = "@sleep"
-	tapeSleepCommand   = "Sleep"
-	showPeerListRaw    = "show bgp peer list | raw"
+	actionPrepare   = "prepare"
+	commandStart    = "start"
+	commandStop     = "stop"
+	commandExec     = "exec"
+	commandValidate = "validate"
+	commandCLI      = "cli"
+	commandInit     = "init"
+	commandConfig   = "config"
+	commandCat      = "cat"
+	commandShow     = "show"
+	commandBGP      = "bgp"
+	commandVersion  = "version"
+	commandHost     = "host"
+	ipAddr          = "addr"
+	ipAdd           = "add"
+	ipSet           = "set"
+	ipDel           = "del"
+	ipName          = "name"
+	ipAddress       = "address"
+	ipExact         = "exact"
+	// demoInstance is the instance name every demo gives `ze init`, and the
+	// render container's hostname, so the name prompt offers it as the default.
+	demoInstance = "ze"
+	// zeConfigFile is the config bare `ze start` reads for demoInstance.
+	zeConfigFile        = demoInstance + ".conf"
+	interfaceEth0       = "eth0"
+	interfaceTraffic0   = "traffic0"
+	trafficPeerNS       = "traffic-peer"
+	linkCoreEdge        = "core-edge"
+	linkEdgeZe          = "edge-ze"
+	frrUser             = "frr"
+	frrConfigFile       = "/etc/frr/frr.conf"
+	dnsHostPrefix       = "192.0.2.53/32"
+	demoIRR             = "irr"
+	demoRPKI            = "rpki"
+	demoWalkthrough     = "walkthrough"
+	demoConfigViews     = "config-views"
+	demoZefsConfig      = "zefs-config"
+	demoCommitConfirmed = "commit-confirmed"
+	flagBind            = "--bind"
+	flagASN             = "--asn"
+	keywordFormat       = "format"
+	tapeSleepDirective  = "@sleep"
+	tapeSleepCommand    = "Sleep"
+	showPeerListRaw     = "show bgp peer list | raw"
 )
 
 // linkZeEdge is the veth end the traceroute lab keeps in the root namespace.
