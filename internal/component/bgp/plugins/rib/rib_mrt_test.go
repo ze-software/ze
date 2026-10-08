@@ -149,3 +149,46 @@ func TestAppendOtherAttrsWire(t *testing.T) {
 	assert.True(t, flags.IsTransitive())
 	assert.Equal(t, []byte{0x0A, 0x0B, 0x0C}, value)
 }
+
+// TestAppendOtherAttrsWirePreservesShortExtendedHeader walks a reconstructed
+// MP_REACH followed by a tunnel attribute, with both legal length-header forms.
+// A short value does not permit a one-octet length when the retained flag says two.
+// RFC 4271 Section 4.3: "If the Extended Length bit of the Attribute Flags octet
+// is set to 1, the third and fourth octets of the path attribute contain the
+// length of the attribute data in octets."
+func TestAppendOtherAttrsWirePreservesShortExtendedHeader(t *testing.T) {
+	mp := []byte{0, 2, 1, 16, 0x20, 1, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 48, 0x20, 1, 0x0d, 0xb8, 0, 1}
+	tunnel := []byte{0, 2, 0, 8, 6, 6, 0, 0, 0, 0, 0, 0}
+	for _, tc := range []struct {
+		name   string
+		flags  byte
+		header []byte
+	}{
+		{"short", 0x80, []byte{0x80, 14, 28}},
+		{"extended", 0x90, []byte{0x90, 14, 0, 28}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// The pool always uses two length octets, independently of flags.
+			pooled := append([]byte{14, tc.flags, 0, byte(len(mp))}, mp...)
+			pooled = append(pooled, 23, 0xc0, 0, byte(len(tunnel)))
+			pooled = append(pooled, tunnel...)
+			want := append(append([]byte{}, tc.header...), mp...)
+			want = append(want, 0xc0, 23, byte(len(tunnel)))
+			want = append(want, tunnel...)
+			wire := appendOtherAttrsWire(nil, pooled)
+			require.Equal(t, want, wire, "header form agrees with the retained Extended Length flag")
+			iter := attribute.NewAttrIterator(wire)
+			code, flags, value, ok := iter.Next()
+			require.True(t, ok)
+			require.Equal(t, attribute.AttrMPReachNLRI, code)
+			require.Equal(t, attribute.AttributeFlags(tc.flags), flags)
+			require.Equal(t, mp, value)
+			code, _, value, ok = iter.Next()
+			require.True(t, ok, "the next attribute remains reachable")
+			require.Equal(t, attribute.AttrTunnelEncap, code)
+			require.Equal(t, tunnel, value)
+			_, _, _, ok = iter.Next()
+			require.False(t, ok)
+		})
+	}
+}

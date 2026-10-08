@@ -157,7 +157,10 @@ func reconstructWireAttrs(entry storage.RouteEntry, buf []byte) []byte {
 }
 
 func appendWireAttr(buf []byte, code, flags uint8, value []byte) []byte {
-	if len(value) > 255 {
+	// RFC 4271 Section 4.3: "If the Extended Length bit of the Attribute Flags
+	// octet is set to 1, the third and fourth octets of the path attribute
+	// contain the length of the attribute data in octets."
+	if len(value) > 255 || flags&0x10 != 0 {
 		flags |= 0x10 // Extended Length
 		buf = append(buf, flags, code, byte(len(value)>>8), byte(len(value)))
 	} else {

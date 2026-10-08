@@ -167,6 +167,12 @@ Three independent streams (following FRR model):
 Each stream has its own file path (with strftime patterns), interval, and
 enable/disable state.
 
+The RIB snapshot bridge reconstructs path attributes from pooled values. It
+retains the Extended Length flag and emits the corresponding two-octet length
+even for a value shorter than 256 octets; otherwise a reader would consume the
+first value octet as part of the length and lose following attributes.
+<!-- source: internal/component/bgp/plugins/rib/rib_mrt.go -- appendWireAttr, appendOtherAttrsWire -->
+
 ### Features
 
 - strftime filename rotation with `%N` table name substitution (BIRD)
