@@ -67,9 +67,13 @@ func TestDashboardAltViewFitsTerminal(t *testing.T) {
 	}
 }
 
-// VALIDATES: the ping and traceroute live views, and their piped (replace
-// mode) variants, fit the terminal as View() renders them. Each pads its footer
-// to the content width, so each overflowed the same way the dashboard did.
+// TestLiveViewsAltViewFitTerminal proves the ping and traceroute live views,
+// and their piped (replace mode) variants, fit the terminal as View() renders
+// them. Each pads its footer to the content width, so each overflowed the same
+// way the dashboard did.
+//
+// The method renders each view through View() on a terminal of
+// altViewTerminalWidth columns and measures every line against that width.
 func TestLiveViewsAltViewFitTerminal(t *testing.T) {
 	t.Parallel()
 	views := []struct {
@@ -94,9 +98,13 @@ func TestLiveViewsAltViewFitTerminal(t *testing.T) {
 	}
 }
 
-// VALIDATES: a monitor session's RenderFunc that fills the width it is given
-// still fits the terminal once View() wraps it in paddedAltView. The width the
-// Model passes is the content width, not the terminal width.
+// TestMonitorRenderFuncAltViewFitsTerminal proves a monitor session's
+// RenderFunc that fills the width it is given still fits the terminal once
+// View() wraps it in paddedAltView: the width the Model passes is the content
+// width, not the terminal width.
+//
+// The method installs a RenderFunc that writes exactly the width it receives,
+// renders through View(), and measures every line against the terminal width.
 func TestMonitorRenderFuncAltViewFitsTerminal(t *testing.T) {
 	t.Parallel()
 	m := NewCommandModel(FilesystemAuthorityOperatorLocal)

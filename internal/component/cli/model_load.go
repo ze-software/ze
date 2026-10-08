@@ -21,6 +21,7 @@ var (
 	errTimeoutMustBeAtLeast1           = errors.New("timeout must be at least 1 second")
 	errTimeoutMustBeAtMost3600         = errors.New("timeout must be at most 3600 seconds (1 hour)")
 	errCommitSucceededButNoBackupFound = errors.New("commit succeeded but no backup found for rollback")
+	errCommitConfirmedNeedsHistory     = fmt.Errorf("commit confirmed needs config history to roll back: %w; run ze init", storage.ErrNoStore)
 	errNoPendingCommitToConfirm        = errors.New("no pending commit to confirm")
 	errNoPendingCommitToAbort          = errors.New("no pending commit to abort")
 	errUsageLoadFile                   = errors.New("usage: load <file>")
@@ -83,7 +84,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	// .conf is written: a permanent commit that then reports an error is the
 	// opposite of what the operator asked for.
 	if !m.editor.HasHistory() {
-		return commandResult{}, fmt.Errorf("commit confirmed needs config history to roll back: %w; run ze init", storage.ErrNoStore)
+		return commandResult{}, errCommitConfirmedNeedsHistory
 	}
 
 	// Write trial config to .live.conf (audit trail + pending indicator)
@@ -130,7 +131,10 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	// history (checked above), so this fails only when the store cannot list
 	// the version the commit just recorded.
 	backups, err := m.editor.ListBackups()
-	if err != nil || len(backups) == 0 {
+	if err != nil {
+		return commandResult{}, fmt.Errorf("%w: %w", errCommitSucceededButNoBackupFound, err)
+	}
+	if len(backups) == 0 {
 		return commandResult{}, errCommitSucceededButNoBackupFound
 	}
 

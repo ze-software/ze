@@ -940,7 +940,7 @@ func (m Model) renderTraceroutePlain() string {
 
 	width := m.width
 	if width <= 0 {
-		width = 80
+		width = terminalWidthFallback
 	}
 
 	var sb textbuf.Buffer

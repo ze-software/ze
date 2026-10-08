@@ -329,36 +329,39 @@ func altView(s string, cursor *tea.Cursor) tea.View {
 	return v
 }
 
-// altViewMargin is the column count paddedAltView prepends to every line.
-const altViewMargin = 1
+const (
+	// altViewMarginColumns is the column count paddedAltView prepends to every
+	// line.
+	altViewMarginColumns = 1
 
-// altViewFallbackWidth is the terminal width assumed before the first
-// WindowSizeMsg reports the real one.
-const altViewFallbackWidth = 80
+	// terminalWidthFallback is the terminal width, in columns, assumed before
+	// the first WindowSizeMsg reports the real one.
+	terminalWidthFallback = 80
+)
 
 // altContentWidth answers the column count a full-screen view wrapped by
 // paddedAltView may fill: the terminal width less the left margin. Every view
 // paddedAltView wraps MUST size its lines with this width, never with m.width,
 // or a line that fills the width ends one column past the terminal edge and
 // the terminal clips its last character.
-func (m *Model) altContentWidth() int {
+func (m Model) altContentWidth() int {
 	width := m.width
 	if width <= 0 {
-		width = altViewFallbackWidth
+		width = terminalWidthFallback
 	}
-	return width - altViewMargin
+	return width - altViewMarginColumns
 }
 
-// paddedAltView creates an alt-screen view with 1 row top padding and
-// altViewMargin columns of left padding so full-screen content aligns with the
+// paddedAltView creates an alt-screen view with 1 row top padding and a left
+// margin of altViewMarginColumns, so full-screen content aligns with the
 // viewport border position. The content MUST be sized with altContentWidth.
 func paddedAltView(s string) tea.View {
 	lines := strings.Split(s, "\n")
 	var b textbuf.Buffer
-	b.Reset(len(s) + len(lines)*altViewMargin + 1)
+	b.Reset(len(s) + len(lines)*altViewMarginColumns + 1)
 	b.Byte('\n')
 	for i, line := range lines {
-		b.Repeat(" ", altViewMargin)
+		b.Repeat(" ", altViewMarginColumns)
 		b.Str(line)
 		if i < len(lines)-1 {
 			b.Byte('\n')
