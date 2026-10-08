@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-08",
   "requirements": {
     "RFC2205-2-1": {
       "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ResvFollowsEachSendersReversePath: two senders of one session through two PHOPs each get their RESV at their own PHOP, and a transit relays the RESV on to the ingress. Negative TestRFC2205ResvNeverTakesAnotherSendersPath asserts neither sender's reservation leaves on the other's hop. Both records observed red (sendResv, handlePathEgress).",
@@ -22,22 +22,22 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Refresh: TestRFC2205RefreshRecursEachTick (three refreshPaths ticks, three PATHs) and TestRefreshResendsPathAndResv (RESV re-sent). Deletion: TestRFC2205PathStateDeletedAtCleanupTimeout (PSB) and TestRFC2205ResvStateDeletedAtCleanupTimeout (transit RSB dropped with ResvTear, ingress RSB dropped Up->PathSent, PSB kept). Negatives keep refreshed PSB and RSB. D-1 producer read: cleanupTick withdraws expiredRSBs through removeReservation.",
       "requirement_sha": "e4233a90dbb58ca4",
       "tests": {
+        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB": "6fbdb13c26377d72",
+        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv": "6fbdb13c26377d72",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshRecursEachTick": "7bc063943de30e7b",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedResvStateKept": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB": "6fbdb13c26377d72",
-        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv": "6fbdb13c26377d72"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "7bc063943de30e7b"
       },
       "units": {
+        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB": "c105fbf4ca8be9d1",
+        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv": "a4f0255a5bad6a50",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshRecursEachTick": "aea4787bb44f10ca",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedResvStateKept": "897a037ed4f46fe3",
-        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "6d507556c9aa57c8",
-        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB": "c105fbf4ca8be9d1",
-        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv": "a4f0255a5bad6a50"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "6d507556c9aa57c8"
       },
       "verdict": "enforced"
     },
@@ -141,12 +141,12 @@
       "verdict": "enforced"
     },
     "RFC2205-3.1-1": {
-      "note": "Rejudged 2026-09-29 (routing child). Send: TestRFC2205EmittedVersionIsOne reads the literal 1 in the Vers nibble of a PATH and a RESV the builders encode, and DecodeHeader accepts 0x10; a wrong rsvpVersion now goes red. Receive negative TestRSVPDecodeHeaderBadVersion rejects Vers 2. Both polarities hold.",
+      "note": "Rejudged 2026-10-08 against RFC 2205 Section 3.1.1 ('Protocol version number.  This is version 1.'). DecodeHeader still refuses Version != rsvpVersion (1) with errBadVersion; TestRSVPDecodeHeaderBadVersion feeds Vers 2 and requires the error, TestRSVPHeaderRoundTrip and TestRFC2205EmittedVersionIsOne pin the emitted Vers nibble at 1. Units byte-identical since the 2026-09-29 judgement; only the files around them moved. Both polarities hold.",
       "requirement_sha": "ba592ac3d76f6cc7",
       "tests": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EmittedVersionIsOne": "8cea1a3ca4572fd1",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "edeb000ca6bd1f57",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "edeb000ca6bd1f57"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "c1c346406058c0f1",
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "c1c346406058c0f1"
       },
       "units": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EmittedVersionIsOne": "4ea4647b508c6227",
@@ -156,11 +156,11 @@
       "verdict": "enforced"
     },
     "RFC2205-3.1-2": {
-      "note": "Rejudged 2026-09-29 (routing child). Single-polarity row, both clauses covered: send, TestRSVPReservedByteZeroOnSend (raw[5]==0) plus the Flags nibble sent zero in TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt; receive, the same unit feeds Reserved 0xA5 and all four Flags bits set, re-checksummed, and the egress still installs state and answers with a RESV. Covers the common-header unused fields only.",
+      "note": "Rejudged 2026-10-08 against RFC 2205 Appendix A ('All unused fields should be sent as zero and ignored on receipt.'). Single-polarity row, both clauses covered: send, TestRSVPReservedByteZeroOnSend requires raw[5]==0 in a built PATH, plus the Flags nibble sent zero in TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt; receive, the same unit feeds Reserved 0xA5 and all four Flags bits set, re-checksummed, and the egress still installs state and answers with a RESV. Units byte-identical; covers the common-header unused fields only.",
       "requirement_sha": "f002ecbce4098c46",
       "tests": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt": "8cea1a3ca4572fd1",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "edeb000ca6bd1f57"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "c1c346406058c0f1"
       },
       "units": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt": "29173b4975b4c11f",
@@ -182,15 +182,15 @@
       "verdict": "enforced"
     },
     "RFC2205-3.1.2-1": {
-      "note": "Forbidden: an object Length not a multiple of 4, sent or accepted. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires errBadObjLen for a Length-6 object. The positive tag's prose ('Decode does not enforce %4') is stale.",
+      "note": "Rejudged 2026-10-08 against RFC 2205 Section 3.1.2 ('Must always be a multiple of 4, and at least 4.'). The unit change since the last judgement (9b8bfe250c) only passes nil for buildPathErr's new adspec argument; the assertions are untouched and the PathErr walked carries the same object set as before. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: decodeObjectHeader refuses Length%4 != 0 with errBadObjLen and TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires it for a Length-6 object. An ADSPEC in a PathErr is copied raw from a PATH that already passed that decode check. The positive tag's prose ('Decode does not enforce %4') is still stale.",
       "requirement_sha": "0a63901cb0272261",
       "tests": {
         "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "2bbb0ce4611ada21",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "edeb000ca6bd1f57"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "c1c346406058c0f1"
       },
       "units": {
         "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "036bf95de3773f12",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "9239315417834dc1"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "11f5576f7514c198"
       },
       "verdict": "enforced"
     },
@@ -244,17 +244,17 @@
       "verdict": "enforced"
     },
     "RFC2205-3.10-1": {
-      "note": "Judged 2026-09-29 (routing child, continuation judge). Reject and error clauses at the engine: TestRFC2205UnknownClassPathRejectedWithError (no PSB, no RESV, PathErr code 13, value Class<<8|C-Type to the PHOP) and TestRFC2205UnknownClassResvRejectedWithError (no relay, no RSB, ResvErr 13; unknown object placed before STYLE so no placement error confounds it).",
+      "note": "Rejudged 2026-10-08 against RFC 2205 Section 3.10 ('Class-Num = 0bbbbbbb The entire message should be rejected and an \"Unknown Object Class\" error returned.'). classifyUnknownClass still rejects a 0bbbbbbb class ze does not know; the 1d457b0d52 change to DecodeMessage skips only SENDER_TSPEC and ADSPEC in a PathTear (pathTearIgnored), both known classes, so it does not reach this path. Reject and error clauses at the engine: TestRFC2205UnknownClassPathRejectedWithError (no PSB, no RESV, PathErr code 13, value Class<<8|C-Type to the PHOP) and TestRFC2205UnknownClassResvRejectedWithError (no relay, no RSB, ResvErr 13). Decode-level cases in TestDecodeUnknownObjectClass and the ignorable-class positive in TestEnginePathWithIgnorableObjectAccepted are byte-identical.",
       "requirement_sha": "58eecccad889ff58",
       "tests": {
-        "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "52858b98606905a5",
+        "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "9e1595a34e264d7e",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassPathRejectedWithError": "7bc063943de30e7b",
         "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassResvRejectedWithError": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "edeb000ca6bd1f57",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "edeb000ca6bd1f57",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "edeb000ca6bd1f57",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "edeb000ca6bd1f57",
-        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "edeb000ca6bd1f57"
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "c1c346406058c0f1",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "c1c346406058c0f1",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "c1c346406058c0f1",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "c1c346406058c0f1",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "c1c346406058c0f1"
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "0f8c51d8d33e47cf",

@@ -64,8 +64,8 @@
       "claim-sha": "222d151675961476",
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "52911746ab4a84d3",
-      "break": "line 435: \"!msg.HasLabelRequest\" -\u003e \"false\""
+      "producer-sha": "8d5ab1c05bf5aa96",
+      "break": "line 452: \"!msg.HasLabelRequest\" -\u003e \"false\""
     },
     {
       "rid": "RFC3209-4.2-1",
@@ -141,8 +141,8 @@
       "claim-sha": "8f7367d8794937fd",
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "52911746ab4a84d3",
-      "break": "line 435: \"!msg.HasLabelRequest\" -\u003e \"false\""
+      "producer-sha": "8d5ab1c05bf5aa96",
+      "break": "line 452: \"!msg.HasLabelRequest\" -\u003e \"false\""
     },
     {
       "rid": "RFC3209-4.2.4-3",
@@ -152,8 +152,8 @@
       "claim-sha": "f193e16440833dec",
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/reservation.go::acceptReservation",
-      "producer-sha": "18e85f53008ae044",
-      "break": "line 201: \"repaired\" -\u003e \"true\""
+      "producer-sha": "be57c2a7bd537cdc",
+      "break": "line 213: \"repaired\" -\u003e \"true\""
     },
     {
       "rid": "RFC3209-4.2.4-3",
