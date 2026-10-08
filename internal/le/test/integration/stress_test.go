@@ -18,7 +18,7 @@ func TestStressScenarioRegistryIsExact(t *testing.T) {
 		"04-bulk-ipv4-bird",
 		"05-profile-1m",
 	}
-	if got := stressScenarios(); !slices.Equal(got, want) {
+	if got := StressScenarios(); !slices.Equal(got, want) {
 		t.Fatalf("stress scenarios = %q, want %q", got, want)
 	}
 	if len(stressScenarioRegistry) != 5 {

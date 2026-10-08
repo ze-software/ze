@@ -612,6 +612,22 @@ not change the BIRD baseline, and a measurement leaves it unset.
 <!-- source: internal/le/test/integration/stress.go -- stressBuildFailureMessage -->
 <!-- source: internal/le/test/integration/stressbird.go -- cleanup, stressNamespacePath -->
 
+A host that has no network namespaces or no root, macOS in particular, runs the
+same harness inside the QEMU guest. One command boots the guest, runs the
+scenario there as root, and copies the JSON report, every profile the report
+lists and the DUT binary into an empty host directory:
+
+```bash
+./le test qemu stress scenario 05-profile-1m pprof output tmp/perf-ac1
+./le test qemu stress scenario 05-profile-1m prefixes 20000 pprof output tmp/stress-smoke
+```
+
+It refuses a host whose hypervisor it cannot open rather than measure under
+software emulation. The guest, its packages and the macOS status are in
+`docs/architecture/testing/qemu-integration.md`, "Running the BGP stress
+harness in the guest".
+<!-- source: internal/le/test/qemu/stress.go -- stressAction, runStressGuest, copyStressEvidence -->
+
 ### netlab template render check (`./le test netlab render-check`, out of `./le verify current mode full`)
 
 `contrib/netlab/` mirrors the netlab daemon integration: the daemon definition, the

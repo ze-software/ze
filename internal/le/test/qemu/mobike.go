@@ -56,8 +56,8 @@ func runIPsecMOBIKEHere(args leaction.Arguments) (answer any, code int) {
 		keywordKernel:  {args.One(keywordKernel)},
 		"packages":     {"iproute2 iputils util-linux strongswan"},
 	}
-	if timeout := args.One("timeout"); timeout != "" {
-		runArgs["timeout"] = []string{timeout}
+	if timeout := args.One(keywordTimeout); timeout != "" {
+		runArgs[keywordTimeout] = []string{timeout}
 	}
 	options, err := parseRunArguments(runArgs)
 	if err != nil {

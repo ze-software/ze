@@ -21,13 +21,13 @@ import (
 // PREVENTS: a missing guest proof or renamed action.
 func TestQEMUActionsIncludeTheHostRun(t *testing.T) {
 	rows := Actions().Actions
-	if len(rows) != 12 {
-		t.Fatalf("qemu actions = %d, want 12", len(rows))
+	if len(rows) != 13 {
+		t.Fatalf("qemu actions = %d, want 13", len(rows))
 	}
 	want := []string{
 		"vpp-hugepages-test", "run", "install-test", "install-iso-test",
 		"install-scenarios-test", "install-ventoy-test", "vrrp-keepalived-test",
-		"ipsec-mobike-test", "pppoe-accel-test", "netns-test", "pppoe-test", "all-tests",
+		"ipsec-mobike-test", "pppoe-accel-test", "netns-test", "pppoe-test", "all-tests", "stress",
 	}
 	for index, verb := range want {
 		if rows[index].Verb != verb {
@@ -632,5 +632,52 @@ func TestBootTimeoutCleansUpTheQEMUProcess(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("QEMU diagnostics survived cleanup: %v", entries)
+	}
+}
+
+// VALIDATES: a HardwareOnly run names the one hypervisor the host opens, on
+// both architectures, and refuses a host that offers only TCG.
+// PREVENTS: a stress measurement that QEMU silently ran under software
+// emulation, which measures the emulator rather than Ze.
+func TestRunPlanHardwareOnlyRefusesSoftwareEmulation(t *testing.T) {
+	cases := []struct {
+		arch, offered, machine string
+	}{
+		{ArchAMD64, acceleratorKVM, "accel=kvm"},
+		{ArchARM64, acceleratorHVF, "virt,highmem=on,accel=hvf"},
+	}
+	for _, tc := range cases {
+		run := fixtureRun(t, tc.arch)
+		if tc.arch == ArchARM64 {
+			bios := filepath.Join(run.Tree, "brew", "share", "qemu", "edk2-aarch64-code.fd")
+			if err := os.MkdirAll(filepath.Dir(bios), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(bios, []byte("firmware"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			priorGetenv := run.ops.Getenv
+			run.ops.Getenv = func(name string) string {
+				if name == "HOMEBREW_PREFIX" {
+					return filepath.Join(run.Tree, "brew")
+				}
+				return priorGetenv(name)
+			}
+		}
+		run.Options.HardwareOnly = true
+		offered := tc.offered
+		run.ops.Accelerator = func() string { return offered }
+		plan, err := run.Plan(context.Background())
+		if err != nil {
+			t.Fatalf("%s with %s: %v", tc.arch, tc.offered, err)
+		}
+		if !containsPair(plan.QEMUArgv, "-machine", tc.machine) {
+			t.Errorf("%s argv lacks -machine %q: %#v", tc.arch, tc.machine, plan.QEMUArgv)
+		}
+
+		run.ops.Accelerator = func() string { return acceleratorTCG }
+		if _, err := run.Plan(context.Background()); err == nil || !strings.Contains(err.Error(), "emulat") {
+			t.Errorf("%s with only TCG: got %v, want a refusal naming emulation", tc.arch, err)
+		}
 	}
 }

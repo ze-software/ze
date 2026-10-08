@@ -49,7 +49,7 @@ Both entry points run one VM for the whole population, never one VM per test.
 
 | Command | Population |
 |---------|------------|
-| `./le test qemu netns-test suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects only the seven ASPA cases |
+| `./le test qemu netns-test suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases and the RFC 2545 next-hop replay case |
 | `./le test qemu run ... command "./le test qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Four of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
 | `./le test qemu run ... command "./le test qemu all-tests only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
 | `./le test qemu run ... command "./le test qemu all-tests test test/<dir>/<name>.ci"` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature record-run` reaches a capability-gated test this way |
@@ -134,6 +134,67 @@ neither machine can judge whether a process on the other is alive.
 <!-- source: internal/le/test/qemu/guestle.go -- buildGuestLe, guestJobParent -->
 <!-- source: internal/le/test/qemu/run_iso.go -- durableCacheDir, ensureISO -->
 
+### Running the BGP stress harness in the guest
+
+`./le test integration stress` needs root and network namespaces, which macOS
+has neither of. BGP performance is measured on the owner's Mac because its
+hardware is known, so the harness runs there in the guest:
+
+```bash
+./le test qemu stress scenario 05-profile-1m pprof output tmp/perf-ac1
+```
+
+| Keyword | Meaning |
+|---------|---------|
+| `scenario <name>` | Required. One scenario of the harness registry, refused on the host when unknown. The help placeholder is the registry itself |
+| `output <directory>` | Required. A host directory that is absent or empty, so one directory never mixes two runs |
+| `prefixes <count>` | A smoke run: every Ze round sends this many prefixes. Never a measurement |
+| `pprof` | Capture the CPU, heap and goroutine profiles (`ZE_PPROF=1` in the guest) |
+| `timeout <duration>` | The guest command's bound, `1h` by default: a cold DUT build in the guest, then every round |
+
+The host cross-builds the guest `le`, boots the guest with `packages "iproute2
+ethtool"`, and runs `STRESS_SCENARIO=<name> <guest le> test integration stress
+'|' json` from `/workspace` as root. The harness builds its DUT inside the
+guest from the shared checkout, so the profile measures that tree. The guest
+writes the report to `tmp/qemu/stress-report.json`, a file the host removes
+before the boot. The host then writes `report.json` into the output directory
+and copies every file the report names: each profile under `profiles`, and the
+DUT under `binary`. The paths come from the report, and a path outside
+`/workspace` is refused, because it died with the guest.
+
+A stress run demands a hypervisor (`RunOptions.HardwareOnly`): HVF on macOS,
+a read-write `/dev/kvm` on Linux. `le test qemu run` lets QEMU fall back to TCG,
+which is right for a functional test and wrong for a measurement, so this route
+names the accelerator in `-machine` and refuses a host that has none. The run
+report's `plan.qemu-argv` records it, with the guest's memory and CPU count:
+8 CPUs and 16384 MiB unless `ZE_QEMU_CPUS` or `ZE_QEMU_MEMORY` says otherwise.
+Keep both fixed between the runs a comparison reads.
+
+A smoke run on a Linux host proves the route reaches the harness and the
+harness reaches the paths it profiles. Its numbers are never a measurement: the
+Linux development machine is itself a VM whose performance varies.
+
+**macOS status: written, not yet run on a Mac.** The runner's darwin branch
+selects `qemu-system-aarch64`, `-machine virt,highmem=on,accel=hvf`, `-cpu max`
+and Homebrew's `share/qemu/edk2-aarch64-code.fd`, and the guest is arm64 on
+Apple silicon (`GuestArch`). Unit tests cover those choices; nothing has booted
+them on a Mac. On the first run, check in this order:
+
+| Check | How | What failure looks like |
+|-------|-----|-------------------------|
+| QEMU and firmware are installed | `brew install qemu`; `ls "$(brew --prefix)/share/qemu/edk2-aarch64-code.fd"` | `missing required command qemu-system-aarch64`, or `cannot find aarch64 UEFI firmware` |
+| QEMU carries 9p, which shares the checkout | `qemu-system-aarch64 -device help` lists `virtio-9p-pci` | the guest never mounts `/workspace` and the setup command fails at `mount -t 9p` |
+| HVF accepts the machine | the run reaches `Booting Alpine VM`, then SSH | QEMU exits at once on a `highmem` or IPA-size error; report it with the serial output |
+| The guest fits in memory | `ZE_QEMU_MEMORY=8192` on a 16 GB Mac | QEMU cannot allocate guest RAM |
+| The guest `le` cross-builds for linux/arm64 | the `qemu-build-le` job line succeeds | a build error before the boot |
+| The report and profiles come back | `ls <output>`: `report.json`, `stress-profile-*.pb.gz`, `ze` | `evidence:` in the answer names the missing file |
+
+`go tool pprof` reads a Linux profile on macOS; pass the copied `ze` as the
+binary for source listings.
+<!-- source: internal/le/test/qemu/stress.go -- stressAction, runStressGuest, copyStressEvidence -->
+<!-- source: internal/le/test/qemu/run.go -- RunOptions.HardwareOnly, acceleration, qemuArgs -->
+<!-- source: internal/le/test/qemu/hugepages.go -- accelerator, Hardware -->
+
 ### Four suites do not run in the guest root namespace
 
 `all-tests` runs inside an SSH session, and that session's transport lives in
@@ -169,14 +230,16 @@ The `plugin` suite stays in the guest root namespace under `all-tests`; its
 `netns-test suites plugin` selection runs the seven ASPA validation and policy
 cases with their declared `eth1` address, `10.0.0.254/24`. Their received
 NEXT_HOP, `10.0.0.1`, is then nonlocal, on-link and syntactically valid.
-The selector does not include other plugin namespace cases or move the whole
-plugin suite into namespaces.
+It also runs `adj-rib-in-replay-rfc2545-next-hop` with a dummy interface at
+`2001:db8::254/64`, making its received global next hop `2001:db8::1` genuinely
+on-link. Both live forwarding and replay must retain the complete global and
+link-local pair. The selector does not move the whole plugin suite into namespaces.
 
 `./le test qemu netns-test suites <names>` is the same launcher over a named subset,
 and it also asserts the guest root nft ruleset is unchanged by the run. It is
 the tight loop; `all-tests` retains the whole-suite namespace table above.
 
-The seven-case ASPA subset is scheduled in `qemu-nightly.yml`'s
+The plugin subset is scheduled in `qemu-nightly.yml`'s
 `runtime-kernel-labs` job, alongside the PPPoE proof. Run the same action inside
 the runtime-kernel guest:
 

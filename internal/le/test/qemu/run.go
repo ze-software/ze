@@ -123,6 +123,11 @@ type RunOptions struct {
 	CPUs      string
 	Boot      time.Duration
 	SSHPort   int
+	// HardwareOnly demands the host's hypervisor, HVF on macOS or KVM on
+	// Linux, with no software fallback. A run that measures sets it: QEMU
+	// otherwise drops to TCG in silence, and a stress run under TCG measures
+	// the emulator rather than Ze.
+	HardwareOnly bool
 }
 
 // parseRunArguments validates the qemu run keyword values.
@@ -137,8 +142,8 @@ func parseRunArguments(args leaction.Arguments) (RunOptions, error) {
 	if !hasRunMode {
 		return options, errors.New("qemu run requires command <value> or keep-alive")
 	}
-	if named := args.One("timeout"); named != "" {
-		timeout, err := positiveWholeSeconds("timeout", named)
+	if named := args.One(keywordTimeout); named != "" {
+		timeout, err := positiveWholeSeconds(keywordTimeout, named)
 		if err != nil {
 			return options, err
 		}
@@ -277,6 +282,8 @@ type runOps struct {
 	Getenv  func(string) string
 	Home    func() (string, error)
 	Environ func() []string
+	// Accelerator probes the hypervisor this host can open (accelerator).
+	Accelerator func() string
 }
 
 func productionRunOps() runOps {
@@ -285,7 +292,7 @@ func productionRunOps() runOps {
 		Start: func(command *exec.Cmd) error { return command.Start() },
 		Port:  freeRunSSHPort, Now: time.Now, Sleep: sleepContext,
 		GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, Home: os.UserHomeDir,
-		Environ: os.Environ, Getenv: os.Getenv,
+		Environ: os.Environ, Getenv: os.Getenv, Accelerator: accelerator,
 	}
 }
 
@@ -449,19 +456,24 @@ func (r *Run) kernelPath() (string, error) {
 
 func (r *Run) qemuArgs(ctx context.Context, iso, kernel string, port int) ([]string, error) {
 	argv := []string{runQEMUBinary(r.ops.GOARCH)}
+	acceleration, err := r.acceleration()
+	if err != nil {
+		return nil, err
+	}
+	var b textbuf.Buffer
 	if r.ops.GOARCH == ArchARM64 {
 		bios, err := r.arm64BIOS()
 		if err != nil {
 			return nil, err
 		}
-		argv = append(argv, "-machine", "virt,highmem=on,accel=hvf:tcg", "-cpu", "max")
+		argv = append(argv, "-machine", b.Str("virt,highmem=on,accel=").Str(acceleration).String(), "-cpu", "max")
 		if kernel == "" {
 			argv = append(argv, "-bios", bios)
 		}
 	} else {
-		argv = append(argv, "-machine", "accel=hvf:kvm:tcg")
+		argv = append(argv, "-machine", b.Str("accel=").Str(acceleration).String())
 	}
-	var b textbuf.Buffer
+	b.Reset()
 	forward := b.Str("user,id=net0,hostfwd=tcp::").Int(int64(port)).Str("-:22").String()
 	argv = append(argv,
 		"-smp", r.Options.CPUs, "-m", r.Options.Memory,
@@ -482,6 +494,26 @@ func (r *Run) qemuArgs(ctx context.Context, iso, kernel string, port int) ([]str
 			"console=ttyAMA0 alpine_dev=cdrom modules=loop,squashfs quiet")
 	}
 	return argv, nil
+}
+
+// acceleration answers the QEMU accel list. By default it is every hypervisor
+// the architecture's machine accepts, then TCG, and QEMU takes the first that
+// opens. HardwareOnly names the one hypervisor this host opens and refuses a
+// host that has none, so the run never falls back to emulation unseen.
+func (r *Run) acceleration() (string, error) {
+	if !r.Options.HardwareOnly {
+		if r.ops.GOARCH == ArchARM64 {
+			return "hvf:tcg", nil
+		}
+		return "hvf:kvm:tcg", nil
+	}
+	named := r.ops.Accelerator()
+	if !Hardware(named) {
+		return "", errors.New("this run needs a hypervisor and the host offers none (HVF on macOS," +
+			" read-write /dev/kvm on Linux: `./le setup check` reports kvm-access); under " + named +
+			" software emulation it would measure the emulator")
+	}
+	return named, nil
 }
 
 func (r *Run) arm64BIOS() (string, error) {

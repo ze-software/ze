@@ -98,8 +98,8 @@ type StressScenarioReport struct {
 	ExitCode      int                   `json:"exit-code"`
 }
 
-// stressReport is the result of the native stress runner.
-type stressReport struct {
+// StressReport is the result of the native stress runner.
+type StressReport struct {
 	Action    string                 `json:"action"`
 	Root      string                 `json:"root"`
 	Selection string                 `json:"selection,omitempty"`
@@ -111,7 +111,7 @@ type stressReport struct {
 }
 
 // Text preserves the runner's pass/fail summary while structured output keeps all metrics.
-func (r stressReport) Text() string {
+func (r StressReport) Text() string {
 	if r.Failure != "" {
 		return r.Failure
 	}
@@ -225,8 +225,8 @@ func stressFlapRounds() []stressRound {
 	})
 }
 
-// stressScenarios returns the exact, stable scenario registry in runner order.
-func stressScenarios() []string {
+// StressScenarios returns the exact, stable scenario registry in runner order.
+func StressScenarios() []string {
 	names := make([]string, 0, len(stressScenarioRegistry))
 	for _, scenario := range stressScenarioRegistry {
 		names = append(names, scenario.name)
@@ -235,7 +235,7 @@ func stressScenarios() []string {
 }
 
 // runStressAction runs every former stress checker, or one exact selected checker.
-func runStressAction(ctx context.Context, root string, options stressOptions) (stressReport, int) {
+func runStressAction(ctx context.Context, root string, options stressOptions) (StressReport, int) {
 	return runStressAt(ctx, root, options, realStressSystem{})
 }
 
@@ -244,8 +244,8 @@ func runStressAt(
 	root string,
 	options stressOptions,
 	system stressSystem,
-) (stressReport, int) {
-	report := stressReport{Action: StressAction, Root: root, Selection: options.Scenario}
+) (StressReport, int) {
+	report := StressReport{Action: StressAction, Root: root, Selection: options.Scenario}
 	selected := make([]stressScenario, 0, len(stressScenarioRegistry))
 	for _, scenario := range stressScenarioRegistry {
 		if options.Scenario == "" || options.Scenario == scenario.name {

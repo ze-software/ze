@@ -36,6 +36,7 @@ import (
 const (
 	keywordCommand = "command"
 	keywordKernel  = "kernel"
+	keywordTimeout = "timeout"
 )
 
 // zeMainPackage is the package path of the ze binary each build here compiles.
@@ -70,7 +71,7 @@ var actions = leaction.New(area,
 			// because the switch beside it can answer for it.
 			{Keyword: keywordCommand, Value: "command", Requirement: leaction.Optional},
 			{Keyword: "packages", Value: "space-separated-packages", Requirement: leaction.Optional},
-			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
+			{Keyword: keywordTimeout, Value: "duration", Requirement: leaction.Optional},
 			{Keyword: keywordKernel, Value: "path", Requirement: leaction.Optional},
 			{Keyword: "keep-alive"},
 		},
@@ -115,7 +116,7 @@ var actions = leaction.New(area,
 			" and prove both MOBIKE movement scenarios against Alpine strongSwan without Docker",
 		Parameters: []leaction.Parameter{
 			{Keyword: keywordKernel, Value: "vmlinuz-path", Requirement: leaction.Required},
-			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
+			{Keyword: keywordTimeout, Value: "duration", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runIPsecMOBIKEHere,
 	},
@@ -155,6 +156,7 @@ var actions = leaction.New(area,
 		},
 		AnswerArgs: runAllTestsHere,
 	},
+	stressAction(),
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line
