@@ -137,7 +137,12 @@ a directory under the caller's `TMPDIR`, checkout, or session. A flat per-user
 directory avoids requiring access through another user's private lock directory.
 Participating same-user runners share lock inodes across those boundaries.
 Directory and file creation modes are 0700 and 0600, respectively; cross-user
-coordination is unsupported. Lock files MUST NOT be unlinked, even after
+coordination is unsupported. An existing directory is checked before use: one
+that is a link, is owned by another user, or that the group or others can
+write is refused with an error naming its owner and mode, because a writer
+could unlink a held lock file and a replacement inode would admit a second
+holder.
+<!-- source: internal/test/runner/ports.go -- checkPortLockDir --> Lock files MUST NOT be unlinked, even after
 release, because a replacement inode would admit a second holder.
 
 All participating runners MUST be rebuilt after this namespace cutover.

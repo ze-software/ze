@@ -241,9 +241,17 @@ func tryReservePortRange(start, count int) (*PortReservation, bool, error) {
 func reservePortLocks(start, count int) (*PortReservation, bool, error) {
 	// A flat per-user directory cannot be blocked by another user's private
 	// legacy directory, and stays shared across TMPDIR overrides.
-	lockDir := textbuf.StrInt("/tmp/le-port-locks-", int64(os.Geteuid()))
+	return reservePortLocksIn(textbuf.StrInt("/tmp/le-port-locks-", int64(os.Geteuid())), start, count)
+}
+
+// reservePortLocksIn takes the per-port locks for [start, start+count) in
+// lockDir, creating the directory when it is absent.
+func reservePortLocksIn(lockDir string, start, count int) (*PortReservation, bool, error) {
 	if err := os.MkdirAll(lockDir, 0o700); err != nil {
 		return nil, false, fmt.Errorf("create port lock directory: %w", err)
+	}
+	if err := checkPortLockDir(lockDir); err != nil {
+		return nil, false, err
 	}
 
 	reservation := &PortReservation{
@@ -268,6 +276,34 @@ func reservePortLocks(start, count int) (*PortReservation, bool, error) {
 		}
 	}
 	return reservation, true, nil
+}
+
+// checkPortLockDir refuses a lock directory this runner cannot trust, naming
+// its owner and mode so the operator can see what to remove.
+//
+// MkdirAll accepts whatever already sits at the path, so the directory is
+// judged as itself (Lstat, never through a link) and must be a directory the
+// effective user owns, can use, and nobody else can write. A directory others
+// can write lets them unlink a held lock file, and a replacement inode then
+// admits a second holder.
+func checkPortLockDir(lockDir string) error {
+	info, err := os.Lstat(lockDir)
+	if err != nil {
+		return fmt.Errorf("port lock directory %s: %w", lockDir, err)
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return fmt.Errorf("port lock directory %s: no owner information on this platform", lockDir)
+	}
+	euid := os.Geteuid()
+	usable := info.IsDir() && int(stat.Uid) == euid &&
+		info.Mode().Perm()&0o700 == 0o700 && info.Mode().Perm()&0o022 == 0
+	if usable {
+		return nil
+	}
+	return fmt.Errorf("port lock directory %s is owned by uid %d with mode %s; "+
+		"it must be a directory owned by uid %d with mode drwx------ (0700): remove it and rerun",
+		lockDir, stat.Uid, info.Mode(), euid)
 }
 
 func isWouldBlock(err error) bool {
