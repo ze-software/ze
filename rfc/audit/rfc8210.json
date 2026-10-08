@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-08",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -302,6 +302,20 @@
         "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "36d27e409e1c2fef",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "cb81b414628b3cf1",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "cb81b414628b3cf1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-8.3-2": {
+      "code": {},
+      "note": "Independently read RFC8210 Section 8.3, including its complete conditional context: 'Regardless of how this state arose, the cache replies with a Cache Reset to tell the router that it cannot honor the request. When a router receives this, the router SHOULD attempt to connect to any more-preferred caches in its cache list. If there are no more-preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' This row owns the more-preferred-cache attempt, not the separate no-more-preferred-cache MUST. Read TestRTRCacheResetReturnsToPreferredCache and the actual producers through cacheGroup.poll, syncOnce, connectAndSync/readLoop and handlePDU, plus the ROACache.Validate consumer. The test uses two real loopback TCP caches and private populated ROA/ASPA caches. The preferred server initially returns No Data Available without closing its connection, so router-side handling\u2014not a server disconnect\u2014must finish those attempts. The standby supplies a complete set; its next Serial Query receives a real Cache Reset. The test requires the next normal polling round to send a Reset Query to the recovered preferred cache. It then holds back End of Data after two distinct preferred VRPs have actually reached pendingVRPs and requires validation to retain the complete standby set. After preferred End of Data, distinct assertions require the old-only prefix to become NotFound, the shared prefix to reject the old origin and accept the new origin, and the new-only prefix to become Valid; no further standby query is permitted. Thus the positive connection/load observation and negative refusal to retain the standby authorization are separate assertions, not one assertion tagged twice. The test never assigns holder, serial, or published cache content to manufacture recovery. Production poll iterates the ordered list from its head each round; startSessions supplies that list via a stable preference sort. Cache Reset explicitly clears the serial/full-sync state and returns an error through readLoop/syncOnce to poll, rather than being silently dropped. A switch calls startFullSync, and handlePDU publishes the full replacement only at End of Data. Run consumes poll's returned delay and starts another round. The carrier directly invokes those normal rounds and checks Refresh=3600s and Retry=600s; it does not run out those wall-clock intervals, force an immediate retry, or prove a new immediate-retry obligation. Section 8.3 does not prescribe one. The distinct storage/validation assertions additionally protect the existing Section 10 handoff contract; they do not expand this row into whole RFC8210 compliance, route revalidation, ASPA, authentication, or timing coverage. Main's retained race run job-aigp-rpki-new-producer-proof-1c8759f1.log records this root PASS and the rpki package PASS; its overall failure belongs to the separate AIGP bind-address fixture. No new execution or semantic mutation is claimed by this judgment.",
+      "requirement_sha": "385869d0210d8150",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheResetReturnsToPreferredCache": "ecc88870039ee22d",
+        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheResetReturnsToPreferredCache#2": "ecc88870039ee22d"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheResetReturnsToPreferredCache": "815b669d71dc1f85",
+        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheResetReturnsToPreferredCache#2": "815b669d71dc1f85"
       },
       "verdict": "enforced"
     },

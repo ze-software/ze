@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"slices"
 	"testing"
 	"time"
 
@@ -194,5 +195,146 @@ func TestRTRCacheSwitchKeepsSerialBasesSeparate(t *testing.T) {
 	case err := <-failures:
 		t.Fatal(err)
 	default:
+	}
+}
+
+// TestRTRCacheResetReturnsToPreferredCache drives populated caches through the
+// existing polling rounds, with the preferred cache recovering after Cache Reset.
+//
+// RFC 8210 Section 8.3: "When a router receives this, the router SHOULD attempt
+// to connect to any more-preferred caches in its cache list."
+// VALIDATES: The next round requests the preferred cache's complete set, while
+// validation keeps using the standby's set until the preferred End of Data.
+// PREVENTS: Sticking to the standby after Cache Reset, publishing a partial load,
+// or merging two caches' authorizations instead of replacing the old set.
+// MUTATION: Start subsequent cacheGroup.poll rounds at the holder rather than
+// the head of the configured preference order; the preferred query and final
+// validation states must fail.
+func TestRTRCacheResetReturnsToPreferredCache(t *testing.T) {
+	// RFC requirement: RFC8210-8.3-2 positive -- after the standby answers its Serial Query with Cache Reset, the next polling round sends the more-preferred cache a Reset Query and uses its completed, distinct VRP set.
+	// RFC requirement: RFC8210-8.3-2 negative -- the router does not remain on the less-preferred cache when the preferred cache recovers; the old-only authorization disappears and the shared prefix rejects the old origin after the preferred End of Data.
+	stop := make(chan struct{})
+	finish := make(chan struct{})
+	queries := make(chan byte, 4)
+	replies := make(chan error, 3)
+	attempt := 0
+	preferredPort, _ := serveRTR(t, func(conn net.Conn) {
+		if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			replies <- err
+			return
+		}
+		query, err := readRTRQuery(conn)
+		if err != nil {
+			replies <- err
+			return
+		}
+		queries <- query[1]
+		attempt++
+		if attempt < 3 {
+			// No Data Available leaves the socket open: Ze, not the fake
+			// peer's disconnect, must end this attempt and try the standby.
+			noData := []byte{rtrVersionMax, pduErrorRpt, 0, 2, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0}
+			if _, err := conn.Write(noData); err != nil {
+				replies <- err
+				return
+			}
+		} else {
+			partial := slices.Concat(cacheResponsePDU(),
+				ipv4AnnouncePDU([4]byte{192, 0, 2, 0}, 64501),
+				ipv4AnnouncePDU([4]byte{198, 51, 100, 0}, 64501))
+			if _, err := conn.Write(partial); err != nil {
+				replies <- err
+				return
+			}
+			select {
+			case <-finish:
+			case <-stop:
+				return
+			}
+			if _, err := conn.Write(endOfDataTimed(9, 3600, 600)); err != nil {
+				replies <- err
+				return
+			}
+		}
+		var answer [1]byte
+		_, err = conn.Read(answer[:])
+		replies <- err
+	})
+	standbyLoad := slices.Concat(cacheResponsePDU(),
+		ipv4AnnouncePDU([4]byte{192, 0, 2, 0}, 64500),
+		ipv4AnnouncePDU([4]byte{203, 0, 113, 0}, 64500),
+		endOfDataTimed(5, 3600, 600))
+	standbyPort, standbyQueries := scriptRTRCache(t, standbyLoad, cacheResetPDU(0))
+	roas, aspas := newROACache(), newASPACache()
+	preferred := newTestRTRSession(t, "127.0.0.1", preferredPort, 10, "", roas, aspas, stop)
+	standby := newTestRTRSession(t, "127.0.0.1", standbyPort, 200, "", roas, aspas, stop)
+	group := newCacheGroup([]*RTRSession{preferred, standby}, stop)
+	t.Cleanup(func() { close(stop) })
+	states := func() [4]uint8 {
+		// RFC 8210 Section 10: observe the real validation consumer, not
+		// session flags or the number of records the fake peers wrote.
+		return [4]uint8{
+			roas.Validate("203.0.113.0/24", 64500),
+			roas.Validate("192.0.2.0/24", 64500),
+			roas.Validate("192.0.2.0/24", 64501),
+			roas.Validate("198.51.100.0/24", 64501),
+		}
+	}
+	held := [4]uint8{ValidationValid, ValidationValid, ValidationInvalid, ValidationNotFound}
+
+	// RFC 8210 Sections 8.3 and 10: use normal rounds without modifying
+	// timers, forcing holder/serial state, or changing reconnect policy.
+	require.Equal(t, 3600*time.Second, group.poll())
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, queries, 1))
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, standbyQueries, 1))
+	require.Equal(t, held, states(), "the standby's wire load must supply the initial validation state")
+
+	require.Equal(t, 600*time.Second, group.poll())
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, queries, 1))
+	require.Equal(t, []byte{pduSerialQuery}, takeQueries(t, standbyQueries, 1))
+	require.Equal(t, held, states(), "Cache Reset must retain the last complete set")
+
+	done := make(chan struct{})
+	var delay time.Duration
+	go func() {
+		defer close(done)
+		delay = group.poll()
+	}()
+	t.Cleanup(func() {
+		preferred.close()
+		standby.close()
+		<-done
+	})
+	require.Equal(t, []byte{pduResetQuery}, takeQueries(t, queries, 1))
+	require.Eventually(t, func() bool {
+		preferred.mu.Lock()
+		defer preferred.mu.Unlock()
+		if len(preferred.pendingVRPs) != 2 {
+			return false
+		}
+		return preferred.pendingVRPs[1].Prefix.String() == "198.51.100.0/24"
+	}, 3*time.Second, time.Millisecond, "the preferred partial load never reached the real session")
+	require.Equal(t, held, states(), "a parsed partial preferred load must not replace the working set")
+	close(finish)
+	select {
+	case <-done:
+	case <-time.After(6 * time.Second):
+		t.Fatal("the preferred End of Data did not complete the polling round")
+	}
+	require.Equal(t, 3600*time.Second, delay)
+	require.Equal(t, [4]uint8{ValidationNotFound, ValidationInvalid, ValidationValid, ValidationValid},
+		states(), "the preferred full set must replace, not merge with, the standby's set")
+	select {
+	case query := <-standbyQueries:
+		t.Fatalf("the standby was queried again after preferred recovery: PDU %d", query)
+	default:
+	}
+	for range 3 {
+		select {
+		case err := <-replies:
+			require.ErrorIs(t, err, io.EOF, "the router must finish each preferred-cache exchange")
+		case <-time.After(6 * time.Second):
+			t.Fatal("the preferred cache did not observe the router close its connection")
+		}
 	}
 }

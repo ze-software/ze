@@ -266,6 +266,28 @@
       "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8210-8.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheResetReturnsToPreferredCache",
+      "unit-sha": "beb088c15bff596a",
+      "claim-sha": "b0ecb16b94553f04",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::poll",
+      "producer-sha": "38d50894f2f9a950",
+      "break": "body of poll replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8210-8.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheResetReturnsToPreferredCache",
+      "unit-sha": "beb088c15bff596a",
+      "claim-sha": "764e55ef7d3988b8",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::poll",
+      "producer-sha": "38d50894f2f9a950",
+      "break": "body of poll replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8210-9-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig",
