@@ -2,6 +2,7 @@ package commit
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -290,5 +291,40 @@ func TestTheAutomaticTagWalkStepsOverATakenLetter(t *testing.T) {
 	_, err = Create(root, &Options{Subject: "past the last letter", Files: []string{"two.txt"}})
 	if err == nil || !strings.Contains(err.Error(), "no free message tag") {
 		t.Fatalf("with every letter taken create answered %v, want the exhaustion refusal", err)
+	}
+}
+
+// TestALandedCommitFreesItsAutomaticTag proves that once a block's commit
+// lands, its message no longer holds the automatic tag it was allocated under.
+//
+// VALIDATES: the generated block deletes its message file after `git commit`
+// succeeds, so the next automatic allocation takes the same letter again.
+// PREVENTS: a session running out of letters after 26 landed commits, with
+// "no free message tag" and a human clearing tmp/ by hand
+// (plan/journal/ephemeral-record-stored-permanently.md).
+func TestALandedCommitFreesItsAutomaticTag(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "landed-tag-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "first.txt", "first\n")
+
+	first, err := Create(root, &Options{Subject: "the first commit", Files: []string{"first.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCommitScript(t, root, first.Script)
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(first.Message))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the landed commit's message %s still holds its tag: %v", first.Message, err)
+	}
+
+	writeCommitFixture(t, root, "second.txt", "second\n")
+	second, err := Create(root, &Options{Subject: "the second commit", Files: []string{"second.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstTag := strings.Split(filepath.Base(first.Message), "-")[3]
+	secondTag := strings.Split(filepath.Base(second.Message), "-")[3]
+	if firstTag != secondTag {
+		t.Fatalf("the freed tag %q was not reused: the second commit took %q", firstTag, secondTag)
 	}
 }

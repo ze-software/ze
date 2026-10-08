@@ -172,7 +172,11 @@ them. One commit block holds, in order:
    working tree. `git update-index --refresh` looks like the tool for this and
    is not, twice over: it rewrites the entry it reports, and it refreshes the
    whole index rather than the pathspec.
-7. `git commit -F <message-file>` against the private index.
+7. `git commit -F <message-file>` against the private index, then the message
+   file is deleted. Git holds the message now, and the file is what holds the
+   block's tag: an automatic tag is taken while any message carries it, so a
+   kept file would never free its letter and a session would run out after 26
+   commits. `set -e` keeps a failed commit's message, whose script still runs.
 8. For a block with `remove` paths, the working-tree deletion
    (`renderWorkingTreeRemoval`). Each removed path's copy is staged into a
    throwaway index, and the copy is deleted only when its entry line is one of

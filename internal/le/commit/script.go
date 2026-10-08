@@ -66,9 +66,14 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	if block.ReviewCheck != "" {
 		lines = append(lines, "# critical-review gate re-check", block.ReviewCheck)
 	}
+	// The message is deleted once git holds it. A message file is what holds
+	// its tag (nextTag), so a landed commit that kept it would never free the
+	// letter, and a session would run out after 26 commits. `set -e` keeps a
+	// failed commit's message, whose script is still runnable.
 	lines = append(lines,
 		renderPrivateIndex(block, scriptPath),
-		`GIT_INDEX_FILE="$_ze_index" git commit -F `+shellQuote(block.MessagePath))
+		`GIT_INDEX_FILE="$_ze_index" git commit -F `+shellQuote(block.MessagePath),
+		`rm -f `+shellQuote(block.MessagePath))
 	if len(block.Removed) != 0 {
 		lines = append(lines, renderWorkingTreeRemoval(block.Removed))
 	}
