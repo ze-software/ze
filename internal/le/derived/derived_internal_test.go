@@ -13,10 +13,12 @@
 package derived
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // isolateRegistry empties the registry for one test and puts back whatever the
@@ -152,5 +154,44 @@ func TestWriteAtomicPublishesAReadablePage(t *testing.T) {
 	}
 	if mode := info.Mode().Perm(); mode != 0o644 {
 		t.Errorf("the published page is %04o, and a tracked page it replaces is 0644", mode)
+	}
+}
+
+// TestWriteAtomicSweepsAStaleTemporaryOfItsOwnTarget proves the next write of a
+// target removes a temporary a killed writer left beside it, and leaves a fresh
+// one, which may be a concurrent writer's in-flight file.
+//
+// VALIDATES: writeTemporary removes `.<base>.tmp-*` older than
+// staleTemporaryAge and keeps a younger one and another target's.
+// PREVENTS: plan/.roadmap.md.tmp-* left in the tree by a SIGKILL, which the
+// deferred error branch never runs for
+// (plan/journal/removal-leaves-the-file-on-disk.md).
+func TestWriteAtomicSweepsAStaleTemporaryOfItsOwnTarget(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "roadmap.md")
+	stale := filepath.Join(dir, ".roadmap.md.tmp-1095422799")
+	fresh := filepath.Join(dir, ".roadmap.md.tmp-4243815515")
+	other := filepath.Join(dir, ".other.md.tmp-624488661")
+	old := time.Now().Add(-2 * staleTemporaryAge)
+	for _, name := range []string{stale, fresh, other} {
+		if err := os.WriteFile(name, []byte("partial"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{stale, other} {
+		if err := os.Chtimes(name, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := WriteAtomic(path, []byte("# roadmap\n")); err != nil {
+		t.Fatalf("WriteAtomic: %v", err)
+	}
+	if _, err := os.Stat(stale); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the stale temporary of the target survived the next write: %v", err)
+	}
+	for _, kept := range []string{fresh, other} {
+		if _, err := os.Stat(kept); err != nil {
+			t.Errorf("%s was removed: %v", kept, err)
+		}
 	}
 }

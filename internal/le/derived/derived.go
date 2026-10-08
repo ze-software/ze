@@ -22,7 +22,14 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 )
+
+// staleTemporaryAge is how old a `.<base>.tmp-*` beside a target must be
+// before the next write of that target removes it. A writer renames its
+// temporary within seconds, so one this old was left by a writer that was
+// killed; a younger one may be a concurrent writer's file still in flight.
+const staleTemporaryAge = 10 * time.Minute
 
 // SessionStartPolicy says whether the session-start hook renders an artifact
 // the tree does not hold.
@@ -323,6 +330,40 @@ func WriteAtomicAll(files []File) (err error) {
 	return nil
 }
 
+// sweepStaleTemporaries removes the `.<base>.tmp-*` files writeTemporary left
+// beside path when a writer was killed before its rename or deferred removal
+// ran. Only a regular file older than staleTemporaryAge goes: a younger one may
+// be a concurrent writer's file still in flight, and another target's
+// temporaries are never matched. The names are compared as strings rather than
+// globbed, so a `[` or `*` in the base cannot widen the match.
+func sweepStaleTemporaries(path string) {
+	dir := filepath.Dir(path)
+	prefix := "." + filepath.Base(path) + ".tmp-"
+	// Errors are ignored throughout: the sweep is best-effort cleanup, and a
+	// failure to remove a leftover must never fail the write that triggered it.
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Add(-staleTemporaryAge)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), prefix) {
+			continue
+		}
+		candidate := filepath.Join(dir, entry.Name())
+		info, statErr := os.Lstat(candidate)
+		if statErr != nil {
+			continue
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
+			_ = os.Remove(candidate)
+		}
+	}
+}
+
 // writeTemporary writes content to a new file beside path and answers its
 // name. The file is closed and NOT synced: WriteAtomic syncs it, and
 // WriteAtomicAll deliberately does not.
@@ -330,6 +371,7 @@ func WriteAtomicAll(files []File) (err error) {
 // The temporary is created in the artifact's own directory, because a rename
 // is atomic only within one filesystem.
 func writeTemporary(path string, content []byte) (temporaryPath string, err error) {
+	sweepStaleTemporaries(path)
 	temporary, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return "", fmt.Errorf("create the temporary file for %s: %w", path, err)
