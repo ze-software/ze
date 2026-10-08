@@ -329,15 +329,36 @@ func altView(s string, cursor *tea.Cursor) tea.View {
 	return v
 }
 
-// paddedAltView creates an alt-screen view with 1 row top padding and 1 col
-// left padding so full-screen content aligns with the viewport border position.
+// altViewMargin is the column count paddedAltView prepends to every line.
+const altViewMargin = 1
+
+// altViewFallbackWidth is the terminal width assumed before the first
+// WindowSizeMsg reports the real one.
+const altViewFallbackWidth = 80
+
+// altContentWidth answers the column count a full-screen view wrapped by
+// paddedAltView may fill: the terminal width less the left margin. Every view
+// paddedAltView wraps MUST size its lines with this width, never with m.width,
+// or a line that fills the width ends one column past the terminal edge and
+// the terminal clips its last character.
+func (m *Model) altContentWidth() int {
+	width := m.width
+	if width <= 0 {
+		width = altViewFallbackWidth
+	}
+	return width - altViewMargin
+}
+
+// paddedAltView creates an alt-screen view with 1 row top padding and
+// altViewMargin columns of left padding so full-screen content aligns with the
+// viewport border position. The content MUST be sized with altContentWidth.
 func paddedAltView(s string) tea.View {
 	lines := strings.Split(s, "\n")
 	var b textbuf.Buffer
-	b.Reset(len(s) + len(lines) + 2)
+	b.Reset(len(s) + len(lines)*altViewMargin + 1)
 	b.Byte('\n')
 	for i, line := range lines {
-		b.Byte(' ')
+		b.Repeat(" ", altViewMargin)
 		b.Str(line)
 		if i < len(lines)-1 {
 			b.Byte('\n')
@@ -356,7 +377,7 @@ func (m Model) View() tea.View {
 
 	// Full-screen monitor session (any streaming command with RenderFunc).
 	if m.monitorSession != nil && m.monitorSession.RenderFunc != nil {
-		return paddedAltView(m.monitorSession.RenderFunc(m.width, m.height))
+		return paddedAltView(m.monitorSession.RenderFunc(m.altContentWidth(), m.height))
 	}
 
 	// Active live view (dashboard / ping / traceroute) renders its own full

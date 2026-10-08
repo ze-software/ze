@@ -846,10 +846,7 @@ func (m Model) renderTraceroute() string {
 		return ""
 	}
 
-	width := m.width
-	if width <= 0 {
-		width = 80
-	}
+	width := m.altContentWidth()
 
 	var sb textbuf.Buffer
 	sb.Reset(1024)
@@ -1003,10 +1000,7 @@ func (m Model) renderTraceroutePiped() string {
 		return ""
 	}
 
-	width := m.width
-	if width <= 0 {
-		width = 80
-	}
+	width := m.altContentWidth()
 
 	var sb textbuf.Buffer
 	sb.Reset(1024)

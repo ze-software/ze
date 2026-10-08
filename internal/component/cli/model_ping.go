@@ -722,10 +722,7 @@ func (m Model) renderPingMonitor() string {
 		return ""
 	}
 
-	width := m.width
-	if width <= 0 {
-		width = 80
-	}
+	width := m.altContentWidth()
 
 	var sb textbuf.Buffer
 	sb.Reset(512)
@@ -838,10 +835,7 @@ func (m Model) renderPingMonitorPiped() string {
 		return ""
 	}
 
-	width := m.width
-	if width <= 0 {
-		width = 80
-	}
+	width := m.altContentWidth()
 
 	var sb textbuf.Buffer
 	sb.Reset(512)

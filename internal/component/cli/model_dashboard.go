@@ -519,10 +519,7 @@ func (m Model) renderDashboard() string {
 	}
 
 	var sb textbuf.Buffer
-	width := m.width
-	if width <= 0 {
-		width = 80
-	}
+	width := m.altContentWidth()
 
 	// Help overlay replaces everything.
 	if ds.showHelp {

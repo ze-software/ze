@@ -75,7 +75,10 @@ type CommitResult struct {
 
 // MonitorSession represents an active streaming monitor.
 // When RenderFunc is set, the TUI renders full-screen (alt-screen)
-// instead of appending events to the scrollback viewport.
+// instead of appending events to the scrollback viewport. The width
+// RenderFunc receives is the column count its lines may fill, already less
+// the margin the TUI draws to their left, so a line of exactly that width
+// fits the terminal.
 type MonitorSession struct {
 	EventChan  <-chan string
 	Cancel     context.CancelFunc
