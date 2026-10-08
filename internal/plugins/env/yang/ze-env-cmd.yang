@@ -18,14 +18,14 @@ module ze-env-cmd {
 
             container list {
                 config false;
-                ze:command "ze-show:env-list";
+                ze:command "ze-env:show-list";
                 description "Shows which env vars are set and their defaults.";
                 ze:help "List all Ze environment variables with their current values.";
             }
 
             container get {
                 config false;
-                ze:command "ze-show:env-get";
+                ze:command "ze-env:show-get";
                 description "Returns the variable name, current value, default, and what it controls.";
                 ze:help "Show one environment variable in detail.";
                 leaf name {
@@ -39,7 +39,7 @@ A name Ze never declared is refused, even when the process inherited it.";
 
             container registered {
                 config false;
-                ze:command "ze-show:env-registered";
+                ze:command "ze-env:show-registered";
                 description "Includes type, default, description, and whether it is currently set.";
                 ze:help "List every registered environment variable with metadata.";
             }

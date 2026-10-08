@@ -11,9 +11,9 @@ import (
 // See ai/rules/plugins.md.
 func TestYangCliCmdSchemaOwnsYangCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:yang-tree"`,
-		`ze:command "ze-show:yang-completion"`,
-		`ze:command "ze-show:yang-doc"`,
+		`ze:command "ze-config-yang:show-yang-tree"`,
+		`ze:command "ze-config-yang:show-yang-completion"`,
+		`ze:command "ze-config-yang:show-yang-doc"`,
 		"container yang",
 	} {
 		if !strings.Contains(ZeYangCliCmdYANG, want) {

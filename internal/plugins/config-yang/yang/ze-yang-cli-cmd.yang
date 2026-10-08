@@ -17,7 +17,7 @@ module ze-yang-cli-cmd {
 
             container tree {
                 config false;
-                ze:command "ze-show:yang-tree";
+                ze:command "ze-config-yang:show-yang-tree";
                 description "Shows node types, data types, and config-vs-state annotations. Similar to
 'pyang -f tree'. Useful for understanding the config or command structure.";
                 ze:help "Print the YANG tree for a module in a readable hierarchy.";
@@ -25,14 +25,14 @@ module ze-yang-cli-cmd {
 
             container completion {
                 config false;
-                ze:command "ze-show:yang-completion";
+                ze:command "ze-config-yang:show-yang-completion";
                 description "Lists every valid completion point in the command tree.";
                 ze:help "Show YANG paths available for tab completion.";
             }
 
             container doc {
                 config false;
-                ze:command "ze-show:yang-doc";
+                ze:command "ze-config-yang:show-yang-doc";
                 description "Produces structured documentation with descriptions, arguments, and usage
 patterns for every registered command.";
                 ze:help "Generate command reference docs from YANG schemas.";

@@ -18,14 +18,14 @@ module ze-storage-cli-cmd {
 
             container list {
                 config false;
-                ze:command "ze-show:data-list";
+                ze:command "ze-config-storage:show-data-list";
                 description "Lists the keys in the selected store. Use 'show data cat <key>' to read one value.";
                 ze:help "List the keys in the selected store.";
             }
 
             container cat {
                 config false;
-                ze:command "ze-show:data-cat";
+                ze:command "ze-config-storage:show-data-cat";
                 description "Outputs the decoded value for the given storage key.";
                 ze:help "Print the value of a storage key.";
                 leaf key {
@@ -40,7 +40,7 @@ module ze-storage-cli-cmd {
 
             container registered {
                 config false;
-                ze:command "ze-show:data-registered";
+                ze:command "ze-config-storage:show-data-registered";
                 description "Lists the storage key patterns registered by subsystems.";
                 ze:help "List the key patterns registered by all subsystems.";
             }

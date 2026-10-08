@@ -12,8 +12,8 @@ import (
 // surface moved rather than vanished. See ai/rules/plugins.md.
 func TestBGPToolsSchemaOwnsDecodeEncode(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:bgp-decode"`,
-		`ze:command "ze-show:bgp-encode"`,
+		`ze:command "ze-bgp:show-decode"`,
+		`ze:command "ze-bgp:show-encode"`,
 		"container bgp",
 		"container decode",
 		"container encode",

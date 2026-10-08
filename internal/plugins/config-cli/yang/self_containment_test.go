@@ -11,12 +11,12 @@ import (
 // See ai/rules/plugins.md.
 func TestConfigCliCmdSchemaOwnsConfigCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:config-dump"`,
-		`ze:command "ze-show:config-diff"`,
-		`ze:command "ze-show:config-history"`,
-		`ze:command "ze-show:config-list"`,
-		`ze:command "ze-show:config-cat"`,
-		`ze:command "ze-show:config-fmt"`,
+		`ze:command "ze-config-cli:show-config-dump"`,
+		`ze:command "ze-config-cli:show-config-diff"`,
+		`ze:command "ze-config-cli:show-config-history"`,
+		`ze:command "ze-config-cli:show-config-list"`,
+		`ze:command "ze-config-cli:show-config-cat"`,
+		`ze:command "ze-config-cli:show-config-fmt"`,
 		"container config",
 	} {
 		if !strings.Contains(ZeConfigCliCmdYANG, want) {

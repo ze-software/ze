@@ -59,7 +59,7 @@ func TestDriftTextColorsTheFindings(t *testing.T) {
 // PREVENTS: a native port that drops the table from the validation payload.
 func TestValidationTextRendersACleanRun(t *testing.T) {
 	result := ValidationResult{
-		YANGCommands: []CommandEntry{{WireMethod: "ze-show:env-list", YANGPath: "show > env > list", Module: "ze-show-cmd"}},
+		YANGCommands: []CommandEntry{{WireMethod: "ze-env:show-list", YANGPath: "show > env > list", Module: "ze-show-cmd"}},
 		Total:        1, TotalHandlers: 2, TotalLocal: 3, Valid: true,
 	}
 
@@ -72,7 +72,7 @@ func TestValidationTextRendersACleanRun(t *testing.T) {
 		"\n## All YANG commands (1)\n\n" +
 		"| WireMethod | YANG Path | Module |\n" +
 		"|------------|-----------|--------|\n" +
-		"| ze-show:env-list | show > env > list | ze-show-cmd |\n"
+		"| ze-env:show-list | show > env > list | ze-show-cmd |\n"
 	if got := result.Text(); got != want {
 		t.Fatalf("the validation result renders\n%q\nwant\n%q", got, want)
 	}

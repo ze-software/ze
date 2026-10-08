@@ -11,11 +11,11 @@ import (
 // See ai/rules/plugins.md.
 func TestSchemaCliCmdSchemaOwnsSchemaCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:schema-list"`,
-		`ze:command "ze-show:schema-methods"`,
-		`ze:command "ze-show:schema-events"`,
-		`ze:command "ze-show:schema-handlers"`,
-		`ze:command "ze-show:schema-protocol"`,
+		`ze:command "ze-config-schema:show-schema-list"`,
+		`ze:command "ze-config-schema:show-schema-methods"`,
+		`ze:command "ze-config-schema:show-schema-events"`,
+		`ze:command "ze-config-schema:show-schema-handlers"`,
+		`ze:command "ze-config-schema:show-schema-protocol"`,
 		"container schema",
 	} {
 		if !strings.Contains(ZeSchemaCliCmdYANG, want) {

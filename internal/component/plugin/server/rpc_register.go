@@ -5,10 +5,10 @@ package server
 import (
 	"errors"
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/callsite"
 )
 
 // registeredRPCs holds RPCs added via RegisterRPCs from init() in register_*.go files.
@@ -20,31 +20,11 @@ var registeredRPCs []RPCRegistration
 // wire-method prefix is derived from (OwnerPrefix). A Registrar the caller set
 // is overwritten, so the stamp is a fact about the call, never a claim.
 func RegisterRPCs(rpcs ...RPCRegistration) {
-	registrar := callerPackage(2)
+	registrar := callsite.Package(2)
 	for _, rpc := range rpcs {
 		rpc.Registrar = registrar
 		registeredRPCs = append(registeredRPCs, rpc)
 	}
-}
-
-// callerPackage answers the import path of a function on the stack:
-// callerPackage(1) names the package of its own caller, callerPackage(2) that
-// caller's caller. It answers "" when the stack is that short.
-// A function name is "<import path>.<symbol>", and the symbol part holds no
-// slash, so the path ends at the first dot after the last slash.
-func callerPackage(skip int) string {
-	pcs := make([]uintptr, 1)
-	if runtime.Callers(skip+1, pcs) == 0 {
-		return ""
-	}
-	frame, _ := runtime.CallersFrames(pcs).Next()
-	name := frame.Function
-	slash := strings.LastIndexByte(name, '/')
-	dot := strings.IndexByte(name[slash+1:], '.')
-	if dot < 0 {
-		return name
-	}
-	return name[:slash+1+dot]
 }
 
 // zeModulePath is the import-path root every Ze package lives under.

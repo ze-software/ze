@@ -24,7 +24,7 @@ module ze-config-cli-cmd {
 
             container dump {
                 config false;
-                ze:command "ze-show:config-dump";
+                ze:command "ze-config-cli:show-config-dump";
                 description "Parses the config and outputs it after includes, defaults, and group
 inheritance have been applied. What you see here is exactly what the daemon is
 using.";
@@ -33,7 +33,7 @@ using.";
 
             container diff {
                 config false;
-                ze:command "ze-show:config-diff";
+                ze:command "ze-config-cli:show-config-diff";
                 description "Shows what was added, removed, or changed. Commonly used with rollback
 revisions to review what changed before you roll back.";
                 ze:help "Compare two configuration versions side by side.";
@@ -41,7 +41,7 @@ revisions to review what changed before you roll back.";
 
             container history {
                 config false;
-                ze:command "ze-show:config-history";
+                ze:command "ze-config-cli:show-config-history";
                 description "Shows revisions with timestamps and commit metadata. Pair with 'show config
 diff' to review changes before rolling back.";
                 ze:help "List available configuration rollback points.";
@@ -49,14 +49,14 @@ diff' to review changes before rolling back.";
 
             container list {
                 config false;
-                ze:command "ze-show:config-list";
+                ze:command "ze-config-cli:show-config-list";
                 description "Shows archived snapshots and the active config.";
                 ze:help "List all configuration files stored in the database.";
             }
 
             container cat {
                 config false;
-                ze:command "ze-show:config-cat";
+                ze:command "ze-config-cli:show-config-cat";
                 description "Outputs the config as-is.";
                 ze:help "Print the full text of a stored configuration snapshot.";
                 leaf id {
@@ -70,7 +70,7 @@ the configuration store and writes its bytes unchanged.";
 
             container fmt {
                 config false;
-                ze:command "ze-show:config-fmt";
+                ze:command "ze-config-cli:show-config-fmt";
                 description "Normalizes indentation and ordering. Output goes to stdout (read-only). To
 rewrite the file in place, use 'ze config fmt -w' from the CLI.";
                 ze:help "Pretty-print the configuration with consistent formatting.";
@@ -78,7 +78,7 @@ rewrite the file in place, use 'ze config fmt -w' from the CLI.";
 
             container graph {
                 config false;
-                ze:command "ze-show:config-graph";
+                ze:command "ze-config-cli:show-config-graph";
                 description "Prints the dependency graph of a config file as JSON. Inactive blocks
 are left out, so the graph is the one the daemon would build.";
                 ze:help "Show how components and peers depend on each other, as JSON.";
@@ -100,7 +100,7 @@ production router.";
 
         container config {
             config false;
-            ze:command "ze-validate:config";
+            ze:command "ze-config-cli:validate-config";
             description "Both the grammar of the file and the meaning of its values are checked,
 and each problem is reported with the diagnostic code that explains it. Nothing is
 applied.";

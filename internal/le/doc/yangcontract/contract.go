@@ -199,6 +199,9 @@ func Validate(root string) (ValidationResult, error) {
 		return ValidationResult{}, err
 	}
 
+	foreign := foreignPrefixes(rpcs)
+	foreign = append(foreign, foreignCommandPrefixes(commands, served, yang.ModuleRegistrar)...)
+
 	result := ValidationResult{
 		YANGCommands:        commands,
 		Handlers:            handlers,
@@ -207,7 +210,7 @@ func Validate(root string) (ValidationResult, error) {
 		OrphanHandlers:      orphanHandlers,
 		OrphanLocalHandlers: orphanLocalHandlers,
 		OrphanRPCs:          unservedRPCs(declarations, served),
-		ForeignPrefixes:     foreignPrefixes(rpcs),
+		ForeignPrefixes:     foreign,
 		SkippedHandlers:     skipped,
 		Total:               len(commands),
 		TotalHandlers:       len(handlers),
@@ -352,6 +355,42 @@ func foreignPrefixes(rpcs []pluginserver.RPCRegistration) []string {
 		}
 		violations = append(violations, rpc.WireMethod+" (registered by "+rpc.Registrar+
 			", which owns "+owned+")")
+	}
+	return violations
+}
+
+// foreignCommandPrefixes names every ze:command node that no builtin handler
+// serves and whose wire-method prefix is not the one pluginserver.OwnerPrefix
+// derives from the package that registered the node's YANG module. Such a
+// command is answered by a local CLI handler or by a plugin process, so no
+// RPCRegistration carries a registrar for it: the module's registrar is its
+// second source, under the same rule (AC-10). A node served by a builtin
+// handler is judged by foreignPrefixes, through the handler's registrar.
+func foreignCommandPrefixes(commands []CommandEntry, served map[string]bool,
+	registrarOf func(module string) (string, bool),
+) []string {
+	var violations []string
+	for _, cmd := range commands {
+		if served[cmd.WireMethod] {
+			continue
+		}
+		registrar, ok := registrarOf(cmd.Module)
+		if !ok {
+			violations = append(violations, cmd.WireMethod+" (module "+cmd.Module+
+				" was registered by no package)")
+			continue
+		}
+		owned, err := pluginserver.OwnerPrefix(registrar)
+		if err != nil {
+			violations = append(violations, cmd.WireMethod+" (module "+cmd.Module+": "+err.Error()+")")
+			continue
+		}
+		prefix, _, _ := strings.Cut(cmd.WireMethod, ":")
+		if prefix == owned {
+			continue
+		}
+		violations = append(violations, cmd.WireMethod+" (module "+cmd.Module+" registered by "+
+			registrar+", which owns "+owned+")")
 	}
 	return violations
 }

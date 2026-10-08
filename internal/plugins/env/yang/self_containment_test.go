@@ -10,9 +10,9 @@ import (
 // and this package MUST. See ai/rules/plugins.md.
 func TestEnvCmdSchemaOwnsShowEnv(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:env-list"`,
-		`ze:command "ze-show:env-get"`,
-		`ze:command "ze-show:env-registered"`,
+		`ze:command "ze-env:show-list"`,
+		`ze:command "ze-env:show-get"`,
+		`ze:command "ze-env:show-registered"`,
 		"container env",
 	} {
 		if !strings.Contains(ZeEnvCmdYANG, want) {

@@ -58,8 +58,16 @@ caller's package, `OwnerPrefix` derives the prefix from it, and the
 command-contract gate (`./le doc yang-contract command-contract`) refuses a
 method under any other prefix. There is no table of owners, so one subsystem
 cannot declare under another's prefix.
+
+A command no builtin handler serves (a local CLI handler such as
+`ze-env:show-list`, or a plugin process) has no registration to stamp, so its
+owner is the package that registered the node's YANG module: `RegisterModule`
+stamps the caller's package the same way, and `OwnerPrefix` applies the same
+rule to it. `ze-env-cmd.yang` is registered from `internal/plugins/env/yang`, so
+its nodes declare `ze-env:`.
 <!-- source: internal/component/plugin/server/rpc_register.go -- RegisterRPCs, OwnerPrefix -->
-<!-- source: internal/le/doc/yangcontract/contract.go -- foreignPrefixes -->
+<!-- source: internal/component/config/yang/register.go -- RegisterModule, ModuleRegistrar -->
+<!-- source: internal/le/doc/yangcontract/contract.go -- foreignPrefixes, foreignCommandPrefixes -->
 
 | Wire Method | Declaration | Kind |
 |-------------|-------------|------|

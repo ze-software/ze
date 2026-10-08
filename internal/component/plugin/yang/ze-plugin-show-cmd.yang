@@ -20,7 +20,7 @@ process filled before main(), so it answers with no daemon running.";
 
             container list {
                 config false;
-                ze:command "ze-show:plugin-list";
+                ze:command "ze-plugin:show-list";
                 description "Each row carries the plugin name, what it does, the address
 families it handles, the RFCs it implements, the BGP capability codes it owns,
 the setup outcome its own init() recorded (succeeded, soft-failure,
@@ -36,7 +36,7 @@ moment.";
 
             container declarations {
                 config false;
-                ze:command "ze-show:plugin-declarations";
+                ze:command "ze-plugin:show-declarations";
                 description "Each row names one plugin, says whether its code is in this
 binary or in another one, and carries the commands it serves and the pipe
 aliases it puts on them. Add 'config <path>' and the plugins that file
@@ -49,7 +49,7 @@ carries and what each plugin's own init() recorded.";
 
                 container config {
                     config false;
-                    ze:command "ze-show:plugin-declarations-config";
+                    ze:command "ze-plugin:show-declarations-config";
                     description "The keyword types the value after it, so the reader of the
 command line knows the token is a config file and not a plugin name. The file is
 read with the daemon's own loader, so the answer covers the plugins the daemon

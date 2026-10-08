@@ -199,7 +199,7 @@ Nothing is stored and the router's state is not changed.";
 
             container keypair {
                 config false;
-                ze:command "ze-generate:wireguard-keypair";
+                ze:command "ze-diag:generate-wireguard-keypair";
                 description "The private key is written on the first line and the public key on the
 second. The wg binary must be installed on this host.";
                 ze:help "Generate a WireGuard keypair with the system wg binary.";

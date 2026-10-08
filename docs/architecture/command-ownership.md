@@ -356,7 +356,7 @@ field returns.
 The first instance is `TestShowSchemaHasNoBGPPluginCommands` in
 `internal/component/cmd/show/yang/self_containment_test.go`. It asserts the
 central `show` verb schema declares no part of the `show bgp ...` subtree
-(`ze-rib-api:`, `ze-bgp:peer-`, `ze-show:bgp-decode`, `ze-show:bgp-encode`),
+(`ze-rib-api:`, `ze-bgp:peer-`, `ze-bgp:show-decode`, `ze-bgp:show-encode`),
 because `show bgp rib ...` and `show bgp peer ...` are owned by
 `internal/component/bgp/plugins/cmd/{rib,peer}/yang`, and the offline
 `show bgp decode` and `show bgp encode` diagnostics are owned by

@@ -19,7 +19,7 @@ func testVerbTree() *Node {
 						ShortHelp: "BGP introspection",
 						Children: map[string]*Node{
 							"peer":   {Name: "peer", ShortHelp: "Show peer(s) details", WireMethod: "ze-show:bgp-peer"},
-							"decode": {Name: "decode", ShortHelp: "Decode BGP message from hex", WireMethod: "ze-show:bgp-decode"},
+							"decode": {Name: "decode", ShortHelp: "Decode BGP message from hex", WireMethod: "ze-bgp:show-decode"},
 						},
 					},
 					"version": {Name: "version", ShortHelp: "Show version and build date", WireMethod: "ze-system:version"},

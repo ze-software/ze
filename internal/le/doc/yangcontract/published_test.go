@@ -12,20 +12,77 @@ import (
 )
 
 // VALIDATES: AC-10. Every registered wire method in the linked product carries
-// the prefix OwnerPrefix derives from the package that called RegisterRPCs, so
-// no subsystem declares under a prefix it does not own.
+// the prefix OwnerPrefix derives from the package that called RegisterRPCs, and
+// every ze:command node no builtin handler serves carries the prefix derived
+// from the package that registered its YANG module, so no subsystem declares
+// under a prefix it does not own.
 // PREVENTS: a shared verb prefix such as ze-show:, where 43 owner directories
 // sat in one namespace and a clash between two of them was possible by
-// construction, and a prefix copied from a module file name (ze-l2tp-api:).
-// MUTATION: register a handler under ze-show: from internal/plugins/ospf and
-// this test names it.
+// construction, and a prefix copied from a module file name (ze-l2tp-api:),
+// including on a command a local CLI handler answers.
+// MUTATION: register a handler under ze-show: from internal/plugins/ospf, or
+// declare ze-show:x in ze-env-cmd.yang, and this test names it.
 func TestEverySubsystemDeclaresUnderItsOwnPrefix(t *testing.T) {
 	rpcs := pluginserver.AllBuiltinRPCs()
 	if len(rpcs) == 0 {
 		t.Fatal("no builtin rpc is registered, so this test proves nothing")
 	}
-	for _, violation := range foreignPrefixes(rpcs) {
+	result, err := Validate(repoRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	served := make(map[string]bool, len(rpcs))
+	for _, rpc := range rpcs {
+		served[rpc.WireMethod] = true
+	}
+	unserved := 0
+	for _, cmd := range result.YANGCommands {
+		if !served[cmd.WireMethod] {
+			unserved++
+		}
+	}
+	if unserved == 0 {
+		t.Fatal("every command node has a builtin handler, so the module-registrar half proves nothing")
+	}
+	for _, violation := range result.ForeignPrefixes {
 		t.Errorf("%s", violation)
+	}
+}
+
+// VALIDATES: a command node no builtin handler serves is judged by the
+// package that registered its module: a foreign prefix, a module no package
+// registered, and a registrar outside every subsystem root are each named,
+// and a served node is left to the handler half.
+// PREVENTS: a local or plugin-served command keeping a prefix copied from its
+// module file name because no RPCRegistration carries a registrar for it.
+func TestForeignCommandPrefixesNamesEachGround(t *testing.T) {
+	registrars := map[string]string{
+		"ze-env-cmd":  "github.com/ze-software/ze/internal/plugins/env/yang",
+		"ze-hub-cmd":  "github.com/ze-software/ze/cmd/ze/hub",
+		"ze-ospf-cmd": "github.com/ze-software/ze/internal/plugins/ospf/schema",
+	}
+	lookup := func(module string) (string, bool) {
+		r, ok := registrars[module]
+		return r, ok
+	}
+	commands := []CommandEntry{
+		{WireMethod: "ze-env:show", Module: "ze-env-cmd"},
+		{WireMethod: "ze-env-api:list", Module: "ze-env-cmd"},
+		{WireMethod: "ze-hub:status", Module: "ze-hub-cmd"},
+		{WireMethod: "ze-gone:x", Module: "ze-gone-cmd"},
+		{WireMethod: "ze-show:served", Module: "ze-ospf-cmd"},
+	}
+	got := foreignCommandPrefixes(commands, map[string]bool{"ze-show:served": true}, lookup)
+	if len(got) != 3 {
+		t.Fatalf("named %d violations, want 3: %v", len(got), got)
+	}
+	for i, want := range []string{"ze-env-api:list", "ze-hub:status", "ze-gone:x"} {
+		if !strings.HasPrefix(got[i], want+" ") {
+			t.Errorf("violation %d is %q, want it to name %s", i, got[i], want)
+		}
+	}
+	if !strings.Contains(got[0], "owns ze-env") {
+		t.Errorf("the violation does not name the owned prefix: %q", got[0])
 	}
 }
 

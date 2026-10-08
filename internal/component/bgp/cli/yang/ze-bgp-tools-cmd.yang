@@ -21,7 +21,7 @@ or l2vpn.";
 
             container decode {
                 config false;
-                ze:command "ze-show:bgp-decode";
+                ze:command "ze-bgp:show-decode";
                 description "Paste a hex BGP UPDATE and get back parsed attributes,
 NLRI, and withdrawn prefixes. Use it to read pcap captures or to debug wire
 issues. The web UI carries the same tool under tools.";
@@ -30,7 +30,7 @@ issues. The web UI carries the same tool under tools.";
 
             container encode {
                 config false;
-                ze:command "ze-show:bgp-encode";
+                ze:command "ze-bgp:show-encode";
                 description "Takes a route in API syntax and returns the BGP UPDATE
 as a hex string. Use it to build a test payload, to feed ze-test, or to verify
 that an announcement encodes correctly.";

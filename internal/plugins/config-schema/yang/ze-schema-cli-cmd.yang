@@ -17,35 +17,35 @@ module ze-schema-cli-cmd {
 
             container list {
                 config false;
-                ze:command "ze-show:schema-list";
+                ze:command "ze-config-schema:show-schema-list";
                 description "Shows module name, namespace, and revision for each schema.";
                 ze:help "List all YANG schemas loaded by the daemon.";
             }
 
             container methods {
                 config false;
-                ze:command "ze-show:schema-methods";
+                ze:command "ze-config-schema:show-schema-methods";
                 description "Useful for plugin developers to discover available operations.";
                 ze:help "List all RPC methods defined in YANG API modules.";
             }
 
             container events {
                 config false;
-                ze:command "ze-show:schema-events";
+                ze:command "ze-config-schema:show-schema-events";
                 description "Shows which events a plugin can subscribe to.";
                 ze:help "List all notification types defined in YANG API modules.";
             }
 
             container handlers {
                 config false;
-                ze:command "ze-show:schema-handlers";
+                ze:command "ze-config-schema:show-schema-handlers";
                 description "Maps module names to their implementing Go handler.";
                 ze:help "Show which handler serves each YANG module.";
             }
 
             container protocol {
                 config false;
-                ze:command "ze-show:schema-protocol";
+                ze:command "ze-config-schema:show-schema-protocol";
                 description "Useful for checking compatibility between Ze versions.";
                 ze:help "Show the wire protocol version and format details.";
             }

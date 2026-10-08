@@ -25,7 +25,7 @@ checks needed for the current diff and is included in `./le verify current mode 
 | Native action | What it validates |
 |---------------|-------------------|
 | `./le doc yang-contract doc-drift` | Published counts and lists agree with live registries and the tree |
-| `./le doc yang-contract command-contract` | Every YANG `ze:command` and every published `-api` rpc has a registered handler, every handler has a node, and every handler's method carries the prefix its registering package owns |
+| `./le doc yang-contract command-contract` | Every YANG `ze:command` and every published `-api` rpc has a registered handler, every handler has a node, and every handler's method carries the prefix its registering package owns, as does every node no builtin handler serves, judged by the package that registered its module |
 | `./le doc yang-contract usage-contract` | The model states every command's argument grammar, and no description spells one in prose |
 | `./le doc yang-contract help-shape` | Every command node, every RPC, every offline local command and every config node declares a one-line summary a row renders whole, with a long text beside it, and the report states how much of each corpus is written |
 | `./le doc index check` | Documentation source paths and claimed symbols resolve |
@@ -129,7 +129,7 @@ Registered handlers: 69
 
 ## YANG commands with no handler (30)
 
-  ze-show:bgp-decode  (show > bgp > decode in ze-bgp-tools-cmd)
+  ze-bgp:show-decode  (show > bgp > decode in ze-bgp-tools-cmd)
   ...
 
 ## Handlers with no YANG command (0)
@@ -142,8 +142,8 @@ Each section it prints is a contract bug, and each one fails the run:
 - RPC handler registered but YANG doesn't declare it -> command unreachable from CLI
 - A local handler (`registry.MustRegisterLocal*`) whose path no YANG command node declares -> command missing from the tree
 - An rpc whose published wire method no handler serves -> `ze schema methods` and `ze help ai --json` publish a method the daemon answers with "unknown method". The method is the one `yang.PublishedRPCs` gives it: the `ze:command` method of the node whose `ze:rpc` points at it. An rpc no node points at, and that declares no `ze:method`, is published under no name and is named as "(no ze:command node points at it)". The row names the wire method, the rpc and the module
-- A wire method under a prefix its package does not own -> two subsystems can then spell one method, and the clash is found only when the daemon refuses to start (`ErrWireMethodHeld`). The prefix a package owns is `pluginserver.OwnerPrefix` of the package that called `RegisterRPCs`: `ze-` and the directory directly under `internal/component/` or `internal/plugins/`, `-cmd` dropped (`docs/architecture/api/wire-format.md`, "Method Naming"). The row names the method, the registering package and the prefix it owns; rename the method in the `ze:command` node and the `WireMethod` literal together
-<!-- source: internal/le/doc/yangcontract/contract.go -- foreignPrefixes -->
+- A wire method under a prefix its package does not own -> two subsystems can then spell one method, and the clash is found only when the daemon refuses to start (`ErrWireMethodHeld`). The prefix a package owns is `pluginserver.OwnerPrefix` of the package that called `RegisterRPCs`: `ze-` and the directory directly under `internal/component/` or `internal/plugins/`, `-cmd` dropped (`docs/architecture/api/wire-format.md`, "Method Naming"). The row names the method, the registering package and the prefix it owns; rename the method in the `ze:command` node and the `WireMethod` literal together. A node no builtin handler serves is judged by the package that called `RegisterModule` for its module, and its row names that module
+<!-- source: internal/le/doc/yangcontract/contract.go -- foreignPrefixes, foreignCommandPrefixes -->
 
 A run that loads no `-api` module is an error rather than a pass, because it
 judged no declaration.
