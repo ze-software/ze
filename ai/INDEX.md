@@ -679,7 +679,9 @@ All architecture docs in `docs/architecture/` unless noted.
 | shutdown | `rfc9003` | `rfc8203` |
 | treat-as-withdraw | `rfc7606` | |
 
-RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`. Each summary's `## Meta` table
+RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`. Non-normative IETF reference
+(IDR, GROW and OPSEC BCPs, Informational RFCs, active drafts): `reference/ietf/`, never a
+requirement source (`reference/README.md`). Each summary's `## Meta` table
 declares its own enrolment and its own row on `docs/features/rfc-status.md`.
 
 ## Session State
