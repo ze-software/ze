@@ -643,11 +643,11 @@
       "rid": "RFC4090-6.4-1",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "5bc24f3eaac14aa3",
+      "unit-sha": "e2f24f1268c191f9",
       "claim-sha": "3752eb3e16a0dde0",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::sendPath",
-      "producer-sha": "529788b1fb577511",
+      "producer-sha": "731fc19567d68946",
       "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -665,7 +665,7 @@
       "rid": "RFC4090-6.4-2",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "5bc24f3eaac14aa3",
+      "unit-sha": "e2f24f1268c191f9",
       "claim-sha": "e39e6588cc951f05",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::backupPath",
@@ -687,7 +687,7 @@
       "rid": "RFC4090-6.4-3",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "5bc24f3eaac14aa3",
+      "unit-sha": "e2f24f1268c191f9",
       "claim-sha": "f2a58d9f6b70f1b1",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::backupPath",
@@ -764,11 +764,11 @@
       "rid": "RFC4090-6.5-3",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize",
-      "unit-sha": "8a1b11a9cd7bdba7",
+      "unit-sha": "cb6cc0f71606f45f",
       "claim-sha": "0e44859b7d91f494",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathErr",
-      "producer-sha": "64f633735c5f1244",
+      "producer-sha": "45cfd925b7122f9d",
       "break": "body of handlePathErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -786,11 +786,11 @@
       "rid": "RFC4090-6.5.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize",
-      "unit-sha": "8a1b11a9cd7bdba7",
+      "unit-sha": "cb6cc0f71606f45f",
       "claim-sha": "9ede3067f462b9a2",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathErr",
-      "producer-sha": "64f633735c5f1244",
+      "producer-sha": "45cfd925b7122f9d",
       "break": "body of handlePathErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -808,7 +808,7 @@
       "rid": "RFC4090-7.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "5bc24f3eaac14aa3",
+      "unit-sha": "e2f24f1268c191f9",
       "claim-sha": "bf339163a2e69801",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::mergeBackupPath",
@@ -830,7 +830,7 @@
       "rid": "RFC4090-7.1-2",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "5bc24f3eaac14aa3",
+      "unit-sha": "e2f24f1268c191f9",
       "claim-sha": "70efdb772d06c7dd",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
@@ -845,7 +845,7 @@
       "claim-sha": "71637b8fb5964675",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
-      "producer-sha": "6284526bbf21cbbe",
+      "producer-sha": "a435d7905a0be7ed",
       "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -856,7 +856,7 @@
       "claim-sha": "ee71347b4c3be82d",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
-      "producer-sha": "6284526bbf21cbbe",
+      "producer-sha": "a435d7905a0be7ed",
       "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

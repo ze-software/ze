@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-08",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -373,41 +373,41 @@
       "verdict": "enforced"
     },
     "RFC4090-6.4-1": {
-      "note": "backup PATH RSVP_HOP equals the PLR router id in link, node and egress cases; no backup PATH without an established bypass",
+      "note": "backup PATH RSVP_HOP equals the PLR router id in link, node and egress cases; no backup PATH without an established bypass Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.",
       "requirement_sha": "8d885928b5aa3fff",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "dd116823db656093"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "63fe630e7c2d0f12"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "694435d13cc59723",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "1a9ecee2d20811e0"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "ef2ad7c3cb5a5e86"
       },
       "verdict": "enforced"
     },
     "RFC4090-6.4-2": {
-      "note": "backup PATH carries the ERO from the MP to the egress (equals psb.ERO[index:]); no backup ERO before repair",
+      "note": "backup PATH carries the ERO from the MP to the egress (equals psb.ERO[index:]); no backup ERO before repair Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.",
       "requirement_sha": "24ef0c6f1ad04d38",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "dd116823db656093"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "63fe630e7c2d0f12"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "694435d13cc59723",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "1a9ecee2d20811e0"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "ef2ad7c3cb5a5e86"
       },
       "verdict": "enforced"
     },
     "RFC4090-6.4-3": {
-      "note": "backup ERO starts at the MP address with the preceding hops removed, including the failed node in the node case; before repair the normal ERO is kept",
+      "note": "backup ERO starts at the MP address with the preceding hops removed, including the failed node in the node case; before repair the normal ERO is kept Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.",
       "requirement_sha": "5a990942a5c5741a",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "dd116823db656093"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "63fe630e7c2d0f12"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "694435d13cc59723",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "1a9ecee2d20811e0"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "ef2ad7c3cb5a5e86"
       },
       "verdict": "enforced"
     },
@@ -440,54 +440,54 @@
       "verdict": "enforced"
     },
     "RFC4090-6.5-3": {
-      "note": "Re-judged 2026-09-30: both units gained only the RFC4090-6.5.2-1 tag comment; bodies byte-identical. Positive TestRFC4090HeadEndRevertsGlobally: on Notify 25/3 the head-end signals a make-before-break replacement (next LSP_ID PATH) and keeps the repaired LSP, the global revertive behavior. Negative TestRFC4090TransitDoesNotReoptimize: a transit starts no replacement and relays the Notify to the head-end.",
+      "note": "Re-judged 2026-09-30: both units gained only the RFC4090-6.5.2-1 tag comment; bodies byte-identical. Positive TestRFC4090HeadEndRevertsGlobally: on Notify 25/3 the head-end signals a make-before-break replacement (next LSP_ID PATH) and keeps the repaired LSP, the global revertive behavior. Negative TestRFC4090TransitDoesNotReoptimize: a transit starts no replacement and relays the Notify to the head-end. Re-judged 2026-10-08 against rfc4090.txt Section 6.5.2: TestRFC4090TransitDoesNotReoptimize changed only by passing nil for buildPathErr's new adspec argument (commit 9b8bfe250c); the inbound Notify is the same bytes as before (no ADSPEC), the assertions are unchanged, and handlePathErr changed only by threading the received ADSPEC into the relayed PathErr. Still red with handlePathErr disabled.",
       "requirement_sha": "d43586a1dd8cbffc",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally": "1bc4bca8a6ee0665",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "1af95a488e3a1e02"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "5f50b17ac2c80375"
       },
       "verdict": "enforced"
     },
     "RFC4090-6.5.2-1": {
-      "note": "Judged 2026-09-30. Positive TestRFC4090HeadEndRevertsGlobally: the head-end receiving Notify 25/3 creates the replacement LSP (LSPID 2) itself, keeps the repaired LSP, and sends a PATH with SenderTemplate LSPID 2. Negative TestRFC4090TransitDoesNotReoptimize: a transit receiving the same Notify creates no replacement, sends no PATH (count unchanged) and relays the PathErr 25/3 to the ingress. Level SHOULD over 'is responsible for' (no keyword) follows the section's SHOULD on global mode, accepted under D-3. Recorded red on frr.go::reoptimizeOnNotify (+) and engine.go::handlePathErr (-).",
+      "note": "Judged 2026-09-30. Positive TestRFC4090HeadEndRevertsGlobally: the head-end receiving Notify 25/3 creates the replacement LSP (LSPID 2) itself, keeps the repaired LSP, and sends a PATH with SenderTemplate LSPID 2. Negative TestRFC4090TransitDoesNotReoptimize: a transit receiving the same Notify creates no replacement, sends no PATH (count unchanged) and relays the PathErr 25/3 to the ingress. Level SHOULD over 'is responsible for' (no keyword) follows the section's SHOULD on global mode, accepted under D-3. Recorded red on frr.go::reoptimizeOnNotify (+) and engine.go::handlePathErr (-). Re-judged 2026-10-08 against rfc4090.txt Section 6.5.2: the negative unit changed only by a nil adspec argument to buildPathErr (commit 9b8bfe250c); input bytes and assertions unchanged, still red with handlePathErr disabled.",
       "requirement_sha": "e4c7ed654d02847d",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally": "7035a090dd33d433",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "7035a090dd33d433"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally": "3fb9184431da8daf",
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "3fb9184431da8daf"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally": "1bc4bca8a6ee0665",
-        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "1af95a488e3a1e02"
+        "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "5f50b17ac2c80375"
       },
       "verdict": "enforced"
     },
     "RFC4090-7.1-1": {
-      "note": "TestRFC4090ProtectedPathSurvivesRepair (link and node cases): after the PLR's backup PATH reaches the MP, the MP forwards the protected LSP's SENDER_TEMPLATE downstream; negative TestRFC4090DifferentPathsDoNotMerge: a PATH whose remaining ERO differs is not merged and keeps its own sender",
+      "note": "TestRFC4090ProtectedPathSurvivesRepair (link and node cases): after the PLR's backup PATH reaches the MP, the MP forwards the protected LSP's SENDER_TEMPLATE downstream; negative TestRFC4090DifferentPathsDoNotMerge: a PATH whose remaining ERO differs is not merged and keeps its own sender Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.",
       "requirement_sha": "0dec8f221f7521a3",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "dd116823db656093"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "63fe630e7c2d0f12"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge": "caf5c7ff30bb47d0",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "1a9ecee2d20811e0"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "ef2ad7c3cb5a5e86"
       },
       "verdict": "enforced"
     },
     "RFC4090-7.1-2": {
-      "note": "TestRFC4090ProtectedPathSurvivesRepair: refreshPaths on the MP emits exactly one more PATH with no new incoming PATH once the merged final PATH is identified; negative: an unmerged transit emits no local refresh",
+      "note": "TestRFC4090ProtectedPathSurvivesRepair: refreshPaths on the MP emits exactly one more PATH with no new incoming PATH once the merged final PATH is identified; negative: an unmerged transit emits no local refresh Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.",
       "requirement_sha": "2693d6d84b0eaa8d",
       "tests": {
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge": "dd116823db656093",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "dd116823db656093"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge": "63fe630e7c2d0f12",
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "63fe630e7c2d0f12"
       },
       "units": {
         "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge": "caf5c7ff30bb47d0",
-        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "1a9ecee2d20811e0"
+        "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "ef2ad7c3cb5a5e86"
       },
       "verdict": "enforced"
     },
