@@ -25,8 +25,8 @@ func mockMCPDispatch() zemcp.CommandDispatcher {
 }
 
 func mockMCPCommands() zemcp.CommandLister {
-	return func() []zemcp.CommandInfo {
-		return nil
+	return func() ([]zemcp.CommandInfo, error) {
+		return nil, nil
 	}
 }
 

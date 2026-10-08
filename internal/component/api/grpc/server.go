@@ -613,7 +613,10 @@ func (s *zeServiceImpl) Stream(req *zepb.CommandRequest, stream zepb.ZeService_S
 }
 
 func (s *zeServiceImpl) ListCommands(_ context.Context, req *zepb.ListCommandsRequest) (*zepb.ListCommandsResponse, error) {
-	cmds := s.engine.ListCommands(fromProtoListCommandsRequest(req))
+	cmds, err := s.engine.ListCommands(fromProtoListCommandsRequest(req))
+	if err != nil {
+		return nil, status.Error(codes.Internal, "command metadata unavailable: "+err.Error())
+	}
 	resp := &zepb.ListCommandsResponse{
 		Commands: make([]*zepb.CommandInfo, len(cmds)),
 	}
@@ -627,6 +630,9 @@ func (s *zeServiceImpl) DescribeCommand(_ context.Context, req *zepb.DescribeCom
 	cmd, err := s.engine.DescribeCommand(fromProtoDescribeCommandRequest(req))
 	if errors.Is(err, api.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "command not found: "+req.GetPath())
+	}
+	if err != nil {
+		return nil, status.Error(codes.Internal, "command metadata unavailable: "+err.Error())
 	}
 	return &zepb.CommandDescription{Info: commandMetaToProto(cmd)}, nil
 }

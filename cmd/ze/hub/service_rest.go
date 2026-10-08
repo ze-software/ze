@@ -49,9 +49,10 @@ func restBuildImpl(in *apiBuildInputs, sh *apiShared) (apiServerHandle, error) {
 	)
 	lazySpec := func() []byte {
 		specOnce.Do(func() {
-			cmds := sh.Engine.ListCommands(&api.ListCommandsRequest{})
-			var err error
-			specData, err = api.OpenAPISchema(cmds)
+			cmds, err := sh.Engine.ListCommands(&api.ListCommandsRequest{})
+			if err == nil {
+				specData, err = api.OpenAPISchema(cmds)
+			}
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "warning: API OpenAPI generation failed: %v\n", err)
 				specData = []byte(`{"openapi":"3.1.0","info":{"title":"Ze API","version":"1.0.0"},"paths":{}}`)

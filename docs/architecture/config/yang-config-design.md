@@ -116,12 +116,15 @@ editor refuse to build their completion tree, `ze help ai` and the MCP
 `ze_reference` tool fail, `ze yang` fails, interface-name validation fails
 rather than accept a reserved CLI keyword, and authorization profile
 extraction fails at daemon start and on reload instead of checking match
-entries against an empty command set. Two callers still discard it, recorded
-in `plan/journal/discarded-error-becomes-destructive.md`: the API and MCP
-command metadata (`commandMetaSource`) and the `ze cli` client's package-init
-loader.
+entries against an empty command set. The API and MCP command metadata
+(`commandMetaSource`) caches the error with the metadata and returns it on
+every call: REST and gRPC answer an internal error naming the cause, and MCP
+`tools/list` and `tools/call` answer a JSON-RPC internal error. One caller still
+discards it, recorded in `plan/journal/discarded-error-becomes-destructive.md`:
+the `ze cli` client's package-init loader.
 
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
+<!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
 <!-- source: cmd/ze/hub/session_factory.go -- buildCommandTree -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- buildEditorCommandTree -->
 <!-- source: internal/component/aihelp/aihelp.go -- CLISubcommands, Build -->

@@ -421,6 +421,13 @@ Schema from each command's YANG RPC metadata, and emits an MCP tool named
 a raw dispatch escape hatch, and `ze_reference` returns the machine-readable
 daemon reference.
 
+When `CommandLister` returns an error (the hub's lister does when the YANG
+loader refuses the schema), `tools/list` and `tools/call` answer a JSON-RPC
+internal error (`-32603`) that names the cause. They never answer a list of
+the handcrafted tools alone, or an unknown-tool refusal.
+
+<!-- source: internal/component/mcp/streamable_tools.go — allTools, lookupTaskSupport, findGeneratedTool -->
+
 Every group is built through one action constructor (`newAction`), so a field
 the group carries reaches each of the three grouping arms. One of those fields
 decides the `peer` argument: a tool advertises `peer` only when a command in its

@@ -137,7 +137,7 @@ type mcpServiceDeps struct {
 	Config   zeconfig.MCPListenConfig
 	ConfigOK bool
 	Dispatch plugin.CommandDispatcher
-	Commands func() []commandMeta
+	Commands func() ([]commandMeta, error)
 	Recorder audit.Recorder
 }
 

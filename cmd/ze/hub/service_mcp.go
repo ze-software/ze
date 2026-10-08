@@ -75,11 +75,14 @@ func buildMCPService(deps *serviceDeps) (Service, error) {
 // This is the ONLY conversion from the neutral type to zemcp types; it lives in
 // the gated file so always-on API code can adapt the same source without
 // pinning the mcp package into the binary.
-func mcpCommandLister(src func() []commandMeta) zemcp.CommandLister {
-	return func() []zemcp.CommandInfo {
-		metas := src()
+func mcpCommandLister(src func() ([]commandMeta, error)) zemcp.CommandLister {
+	return func() ([]zemcp.CommandInfo, error) {
+		metas, err := src()
+		if err != nil {
+			return nil, err
+		}
 		if metas == nil {
-			return nil
+			return nil, nil
 		}
 		infos := make([]zemcp.CommandInfo, len(metas))
 		for i, m := range metas {
@@ -113,7 +116,7 @@ func mcpCommandLister(src func() []commandMeta) zemcp.CommandLister {
 				}
 			}
 		}
-		return infos
+		return infos, nil
 	}
 }
 

@@ -147,7 +147,7 @@ func TestGeneratedToolsHaveUniqueNamesAndEnums(t *testing.T) {
 // PREVENTS: an ordering wobble that only appears once the descriptors are
 // assembled and served, which the generation-level test above cannot see.
 func TestToolsListOrderStableAcrossRequests(t *testing.T) {
-	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: orderProbeCommands})
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: func() ([]CommandInfo, error) { return orderProbeCommands(), nil }})
 	defer cleanup()
 
 	_, first := postMCP(t, hs, methodToolsList, capsNone, "")

@@ -593,7 +593,7 @@ func TestConfigValidationHookRunsFullValidation(t *testing.T) {
 // with every test still green; the hub test over buildParamMeta stops one copy
 // short of this lister.
 func TestAPICommandListerCarriesBothLeafTexts(t *testing.T) {
-	src := func() []commandMeta {
+	src := func() ([]commandMeta, error) {
 		return []commandMeta{{
 			Name:        "show sockets",
 			ShortHelp:   "List the open sockets.",
@@ -603,10 +603,11 @@ func TestAPICommandListerCarriesBothLeafTexts(t *testing.T) {
 				{Name: "port", Type: "uint16", ShortHelp: "The TCP port to list.", Description: "Only the sockets bound to this port are listed.", Required: true},
 				{Name: "label", Type: "string", ShortHelp: "A label to match."},
 			},
-		}}
+		}}, nil
 	}
 
-	metas := apiCommandLister(src)()
+	metas, err := apiCommandLister(src)()
+	require.NoError(t, err)
 	require.Len(t, metas, 1)
 	assert.Equal(t, "show sockets", metas[0].Name)
 	assert.Equal(t, "List the open sockets.", metas[0].ShortHelp)
@@ -625,5 +626,7 @@ func TestAPICommandListerCarriesBothLeafTexts(t *testing.T) {
 	assert.Equal(t, "A label to match.", label.ShortHelp)
 	assert.Equal(t, "", label.Description, "a leaf that declares no explanation publishes none")
 
-	assert.Nil(t, apiCommandLister(func() []commandMeta { return nil })())
+	empty, err := apiCommandLister(func() ([]commandMeta, error) { return nil, nil })()
+	require.NoError(t, err)
+	assert.Nil(t, empty)
 }

@@ -328,11 +328,14 @@ func (w *apiStreamLineWriter) markReady(err error) {
 // stay always-on while MCP is compiled out. The source is a parameter, as it
 // is for mcpCommandLister, so a test can hand it one command and read what
 // the REST and gRPC listers publish for it.
-func apiCommandLister(src func() []commandMeta) api.CommandSource {
-	return func() []api.CommandMeta {
-		cmds := src()
+func apiCommandLister(src func() ([]commandMeta, error)) api.CommandSource {
+	return func() ([]api.CommandMeta, error) {
+		cmds, err := src()
+		if err != nil {
+			return nil, err
+		}
 		if cmds == nil {
-			return nil
+			return nil, nil
 		}
 		infos := make([]api.CommandMeta, len(cmds))
 		for i, cmd := range cmds {
@@ -352,6 +355,6 @@ func apiCommandLister(src func() []commandMeta) api.CommandSource {
 				})
 			}
 		}
-		return infos
+		return infos, nil
 	}
 }

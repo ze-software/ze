@@ -14,7 +14,7 @@ import (
 
 // fakeCommands returns a CommandSource with fixed test data.
 func fakeCommands() CommandSource {
-	return func() []CommandMeta {
+	return func() ([]CommandMeta, error) {
 		return []CommandMeta{
 			{Name: "bgp summary", ShortHelp: "Show BGP summary", ReadOnly: true},
 			{Name: "show bgp rib status", ShortHelp: "Show RIB status", ReadOnly: true},
@@ -23,7 +23,7 @@ func fakeCommands() CommandSource {
 			}},
 			{Name: "peer list", ShortHelp: "List peers", ReadOnly: true},
 			{Name: "daemon reload", ShortHelp: "Reload config", ReadOnly: false},
-		}
+		}, nil
 	}
 }
 
@@ -60,7 +60,10 @@ func allowAllAuth() AuthChecker {
 func TestEngineListCommands(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	cmds := eng.ListCommands(&ListCommandsRequest{})
+	cmds, err := eng.ListCommands(&ListCommandsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	assert.Len(t, cmds, 5)
 
 	// Verify all expected commands are present.
@@ -80,7 +83,10 @@ func TestEngineListCommands(t *testing.T) {
 func TestEngineListCommandsWithPrefix(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	cmds := eng.ListCommands(&ListCommandsRequest{Prefix: "show bgp rib"})
+	cmds, err := eng.ListCommands(&ListCommandsRequest{Prefix: "show bgp rib"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	assert.Len(t, cmds, 2)
 	for _, cmd := range cmds {
 		assert.Contains(t, cmd.Name, "show bgp rib")

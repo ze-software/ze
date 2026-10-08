@@ -100,9 +100,11 @@ type ParamInfo struct {
 	Anchor string
 }
 
-// CommandLister returns all registered commands. Called at tools/list time
-// so the tool list always reflects current registrations.
-type CommandLister func() []CommandInfo
+// CommandLister returns all registered commands, or the error that kept their
+// metadata from being built (a YANG schema the loader refused). Called at
+// tools/list time so the tool list always reflects current registrations. An
+// error is never answered as an empty list.
+type CommandLister func() ([]CommandInfo, error)
 
 // toolGroup is a set of related commands sharing a prefix.
 type toolGroup struct {
@@ -657,12 +659,18 @@ type server struct {
 // command named, as command.WriteInvocation reads them: the name and the
 // anchor of each typed parameter. It answers nil when the server holds no
 // lister or the lister does not know the name, and every value then follows
-// the command in keyword form, which is where an unanchored value goes.
-func (s *server) argDefs(commandName string) []command.ArgDef {
+// the command in keyword form, which is where an unanchored value goes. It
+// returns the lister's error, because answering nil would place an anchored
+// value in the wrong slot.
+func (s *server) argDefs(commandName string) ([]command.ArgDef, error) {
 	if s.commands == nil {
-		return nil
+		return nil, nil
 	}
-	for _, info := range s.commands() {
+	infos, err := s.commands()
+	if err != nil {
+		return nil, err
+	}
+	for _, info := range infos {
 		if info.Name != commandName {
 			continue
 		}
@@ -670,9 +678,9 @@ func (s *server) argDefs(commandName string) []command.ArgDef {
 		for i, p := range info.Params {
 			defs[i] = command.ArgDef{Name: p.Name, Anchor: p.Anchor, Mandatory: p.Required}
 		}
-		return defs
+		return defs, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // context returns the context every dispatch this runner makes MUST run under.
@@ -791,7 +799,11 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 
 	// The command the client named, before the peer selector was spliced in:
 	// that is the name the lister registered its parameters under.
-	defs := s.argDefs(commandName)
+	defs, err := s.argDefs(commandName)
+	if err != nil {
+		var tb textbuf.Buffer
+		return ErrResult(tb.Str("command metadata unavailable: ").Str(err.Error()).String())
+	}
 	if peer != "" {
 		// The peer selector already sits after the `peer` keyword. A typed
 		// parameter anchored to that same keyword names the same slot, so a

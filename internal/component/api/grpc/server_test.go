@@ -61,12 +61,12 @@ func testEngine() *api.APIEngine {
 			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		}
 	}
-	cmds := func() []api.CommandMeta {
+	cmds := func() ([]api.CommandMeta, error) {
 		return []api.CommandMeta{
 			{Name: "bgp summary", ShortHelp: "Show BGP summary", ReadOnly: true},
 			{Name: "bgp monitor", ShortHelp: "Monitor BGP events", ReadOnly: true},
 			{Name: "daemon reload", ShortHelp: "Reload config", ReadOnly: false},
-		}
+		}, nil
 	}
 	auth := func(_, _ string) bool { return true }
 	stream := func(_ context.Context, _ api.CallerIdentity, _ string) (<-chan string, func(), error) {
@@ -267,8 +267,8 @@ func TestGRPCExecuteCompletesAfterPayloadWrite(t *testing.T) {
 			resp.OnTransportComplete(func() { completed <- struct{}{} })
 			return resp, nil
 		},
-		func() []api.CommandMeta {
-			return []api.CommandMeta{{Name: "request shutdown"}}
+		func() ([]api.CommandMeta, error) {
+			return []api.CommandMeta{{Name: "request shutdown"}}, nil
 		},
 		func(_, _ string) bool { return true },
 		nil,
@@ -297,8 +297,8 @@ func TestExecuteUsesPeerRemoteAddr(t *testing.T) {
 			gotAuth = auth
 			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		},
-		func() []api.CommandMeta {
-			return []api.CommandMeta{{Name: "bgp summary", ReadOnly: true}}
+		func() ([]api.CommandMeta, error) {
+			return []api.CommandMeta{{Name: "bgp summary", ReadOnly: true}}, nil
 		},
 		func(_, _ string) bool { return true },
 		nil,
@@ -405,11 +405,11 @@ func TestGRPCSharedIdentitySurvivesStrictAuthorization(t *testing.T) {
 		Run:  authz.Section{Default: authz.Deny},
 		Edit: authz.Section{Default: authz.Deny},
 	})
-	commands := func() []api.CommandMeta {
+	commands := func() ([]api.CommandMeta, error) {
 		return []api.CommandMeta{
 			{Name: "bgp summary", ReadOnly: true},
 			{Name: "daemon reload", ReadOnly: false},
-		}
+		}, nil
 	}
 	var callers []api.CallerIdentity
 	var authorizationCalls []string
@@ -664,7 +664,7 @@ func TestGRPCExecutePermissionDenied(t *testing.T) {
 	exec := func(_ context.Context, _ api.CallerIdentity, _ string) (*plugin.Response, error) {
 		return nil, errors.New("should not reach")
 	}
-	cmds := func() []api.CommandMeta { return nil }
+	cmds := func() ([]api.CommandMeta, error) { return nil, nil }
 	auth := func(_, _ string) bool { return false }
 	engine := api.NewAPIEngine(exec, cmds, auth, nil)
 
@@ -694,8 +694,8 @@ func TestGRPCGetRunningConfigPermissionDenied(t *testing.T) {
 	exec := func(_ context.Context, _ api.CallerIdentity, _ string) (*plugin.Response, error) {
 		return nil, errors.New("should not reach")
 	}
-	cmds := func() []api.CommandMeta {
-		return []api.CommandMeta{{Name: "show config dump", ReadOnly: true}}
+	cmds := func() ([]api.CommandMeta, error) {
+		return []api.CommandMeta{{Name: "show config dump", ReadOnly: true}}, nil
 	}
 	var authorizedCommand string
 	auth := func(_, command string) bool {
@@ -796,7 +796,7 @@ func TestGRPCAuthenticator(t *testing.T) {
 		seenUser = auth.Username
 		return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`"ok"`)), nil
 	}
-	cmds := func() []api.CommandMeta { return nil }
+	cmds := func() ([]api.CommandMeta, error) { return nil, nil }
 	auth := func(_, _ string) bool { return true }
 	engine := api.NewAPIEngine(exec, cmds, auth, nil)
 

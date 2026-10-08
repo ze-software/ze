@@ -408,7 +408,12 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 
 func (s *RESTServer) handleListCommands(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
-	writeJSON(w, http.StatusOK, s.engine.ListCommands(fromRESTListCommandsRequest(prefix)))
+	cmds, err := s.engine.ListCommands(fromRESTListCommandsRequest(prefix))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "command metadata unavailable: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, cmds)
 }
 
 func (s *RESTServer) handleDescribeCommand(w http.ResponseWriter, r *http.Request) {
@@ -420,6 +425,10 @@ func (s *RESTServer) handleDescribeCommand(w http.ResponseWriter, r *http.Reques
 	cmd, err := s.engine.DescribeCommand(fromRESTDescribeCommandRequest(path))
 	if errors.Is(err, api.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "command not found: "+path)
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "command metadata unavailable: "+err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, cmd)

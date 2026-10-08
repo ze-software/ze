@@ -19,7 +19,7 @@ const (
 // uiAnnotatedCommands is a command set whose `show bgp` group carries a UI
 // bundle. The generated descriptor therefore has a _meta.ui object, and the
 // gate admits or removes it.
-func uiAnnotatedCommands() []CommandInfo {
+func uiAnnotatedCommands() ([]CommandInfo, error) {
 	return []CommandInfo{
 		{
 			Name:      "show bgp peer list",
@@ -33,7 +33,7 @@ func uiAnnotatedCommands() []CommandInfo {
 		{Name: "show bgp peer detail", ShortHelp: "Peer details"},
 		{Name: "show bgp rib status", ShortHelp: "RIB summary"},
 		{Name: "show config dump", ShortHelp: "Dump config"},
-	}
+	}, nil
 }
 
 // TestUIExtensionSettingsGate covers the five-case settings table and its
@@ -191,7 +191,7 @@ func TestUIGateAppliesToProviderTools(t *testing.T) {
 	provider := &uiProvider{}
 	s := &Streamable{cfg: StreamableConfig{Provider: provider}}
 
-	gated := s.allTools(clientCapabilities{})
+	gated := allToolsForTest(t, s, clientCapabilities{})
 	if len(gated) != 1 {
 		t.Fatalf("got %d tools, want 1", len(gated))
 	}
@@ -199,7 +199,7 @@ func TestUIGateAppliesToProviderTools(t *testing.T) {
 		t.Errorf("provider descriptor kept _meta through a closed gate: %v", gated[0])
 	}
 
-	ungated := s.allTools(clientCapabilities{UIApps: true})
+	ungated := allToolsForTest(t, s, clientCapabilities{UIApps: true})
 	if _, present := ungated[0][metaKey]; !present {
 		t.Errorf("provider descriptor lost _meta through an open gate: %v", ungated[0])
 	}

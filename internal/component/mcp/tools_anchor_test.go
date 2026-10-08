@@ -52,11 +52,11 @@ func TestDispatchGeneratedBindsAnAnchoredValueThroughTheDispatcher(t *testing.T)
 			gotInput = input
 			return d.Dispatch(&pluginserver.CommandContext{}, input)
 		},
-		commands: func() []CommandInfo {
+		commands: func() ([]CommandInfo, error) {
 			return []CommandInfo{{Name: name, Params: []ParamInfo{
 				{Name: "selector", Type: "string", Required: true, Anchor: "peer"},
 				{Name: "prefix", Type: "string", Required: true},
-			}}}
+			}}}, nil
 		},
 	}
 
@@ -96,8 +96,8 @@ func TestDispatchGeneratedRefusesPeerBesideAnAnchoredSelector(t *testing.T) {
 			dispatched = true
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		},
-		commands: func() []CommandInfo {
-			return []CommandInfo{{Name: name, Params: []ParamInfo{{Name: "selector", Type: "string", Anchor: "peer"}}}}
+		commands: func() ([]CommandInfo, error) {
+			return []CommandInfo{{Name: name, Params: []ParamInfo{{Name: "selector", Type: "string", Anchor: "peer"}}}}, nil
 		},
 	}
 	args, err := json.Marshal(map[string]string{"action": "unicast", "peer": "10.0.0.1", "selector": "192.0.2.9"})

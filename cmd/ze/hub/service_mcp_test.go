@@ -39,7 +39,7 @@ func TestServiceRegistry_BuildsMCP(t *testing.T) {
 			Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
 				return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"status":"ok"}`)), nil
 			},
-			Commands: func() []commandMeta { return nil },
+			Commands: func() ([]commandMeta, error) { return nil, nil },
 		},
 	})
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestBuildMCPService_NotConfigured(t *testing.T) {
 // conversion preserves every field, in particular the task-support mapping
 // (required/forbidden/"" -> optional) that the always-on API path does not use.
 func TestMCPCommandLister(t *testing.T) {
-	src := func() []commandMeta {
+	src := func() ([]commandMeta, error) {
 		return []commandMeta{
 			{
 				Name:        "show bgp rib dump",
@@ -93,10 +93,11 @@ func TestMCPCommandLister(t *testing.T) {
 			},
 			{Name: "ping host", ShortHelp: "Ping", TaskSupport: "forbidden"},
 			{Name: "show config dump", ShortHelp: "Dump config", TaskSupport: ""},
-		}
+		}, nil
 	}
 
-	infos := mcpCommandLister(src)()
+	infos, err := mcpCommandLister(src)()
+	require.NoError(t, err)
 	require.Len(t, infos, 3)
 
 	assert.Equal(t, "show bgp rib dump", infos[0].Name)
@@ -122,5 +123,7 @@ func TestMCPCommandLister(t *testing.T) {
 	assert.Equal(t, zemcp.TaskSupportOptional, infos[2].TaskSupport)
 
 	// A nil source yields a nil list (no panic).
-	assert.Nil(t, mcpCommandLister(func() []commandMeta { return nil })())
+	empty, err := mcpCommandLister(func() ([]commandMeta, error) { return nil, nil })()
+	require.NoError(t, err)
+	assert.Nil(t, empty)
 }

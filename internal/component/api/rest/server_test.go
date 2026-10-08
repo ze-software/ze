@@ -61,7 +61,7 @@ func testEngine() *api.APIEngine {
 			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		}
 	}
-	cmds := func() []api.CommandMeta {
+	cmds := func() ([]api.CommandMeta, error) {
 		return []api.CommandMeta{
 			{Name: "show bgp", ShortHelp: "Show BGP summary", ReadOnly: true},
 			{Name: "show status", ShortHelp: "Show process status", ReadOnly: true},
@@ -70,7 +70,7 @@ func testEngine() *api.APIEngine {
 				{Name: "family", Type: "string", ShortHelp: "Address family"},
 			}},
 			{Name: "request reload", ShortHelp: "Reload config", ReadOnly: false},
-		}
+		}, nil
 	}
 	auth := func(_, _ string) bool { return true }
 	stream := func(_ context.Context, _ api.CallerIdentity, _ string) (<-chan string, func(), error) {
@@ -87,7 +87,7 @@ func testEngine() *api.APIEngine {
 func testServer(t *testing.T) *RESTServer {
 	t.Helper()
 	engine := testEngine()
-	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	openAPI, err := api.OpenAPISchema(listCommandsForTest(t, engine))
 	require.NoError(t, err)
 
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
@@ -264,8 +264,8 @@ func TestRESTExecuteCompletesTransportAfterResponseWrite(t *testing.T) {
 			})
 			return resp, nil
 		},
-		func() []api.CommandMeta {
-			return []api.CommandMeta{{Name: "request shutdown"}}
+		func() ([]api.CommandMeta, error) {
+			return []api.CommandMeta{{Name: "request shutdown"}}, nil
 		},
 		func(_, _ string) bool { return true },
 		nil,
@@ -301,14 +301,14 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 			gotAuth = auth
 			return plugin.NewResponse(api.StatusDone, plugin.Map{"result": "ok", "message": command}), nil
 		},
-		func() []api.CommandMeta {
-			return []api.CommandMeta{{Name: "show bgp", ReadOnly: true}}
+		func() ([]api.CommandMeta, error) {
+			return []api.CommandMeta{{Name: "show bgp", ReadOnly: true}}, nil
 		},
 		func(_, _ string) bool { return true },
 		nil,
 	)
 
-	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	openAPI, err := api.OpenAPISchema(listCommandsForTest(t, engine))
 	require.NoError(t, err)
 
 	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}}, engine, nil, func() []byte { return openAPI })
@@ -414,11 +414,11 @@ func TestRESTSharedIdentitySurvivesStrictAuthorization(t *testing.T) {
 		Run:  authz.Section{Default: authz.Deny},
 		Edit: authz.Section{Default: authz.Deny},
 	})
-	commands := func() []api.CommandMeta {
+	commands := func() ([]api.CommandMeta, error) {
 		return []api.CommandMeta{
 			{Name: "show version", ReadOnly: true},
 			{Name: "request reload", ReadOnly: false},
-		}
+		}, nil
 	}
 	var callers []api.CallerIdentity
 	var authorizationCalls []string
@@ -501,7 +501,7 @@ func TestRESTPeersConvenience(t *testing.T) {
 // PREVENTS: config lifecycle broken over REST.
 func TestRESTConfigSession(t *testing.T) {
 	engine := testEngine()
-	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	openAPI, err := api.OpenAPISchema(listCommandsForTest(t, engine))
 	require.NoError(t, err)
 	var editor *fakeEditor
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
@@ -542,7 +542,7 @@ func TestRESTConfigSession(t *testing.T) {
 // PREVENTS: read-only config users mutating config through REST sessions.
 func TestRESTConfigSessionAuthorizerDeny(t *testing.T) {
 	engine := testEngine()
-	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	openAPI, err := api.OpenAPISchema(listCommandsForTest(t, engine))
 	require.NoError(t, err)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		return &fakeEditor{values: make(map[string]string)}, nil
@@ -569,7 +569,7 @@ func TestRESTConfigSessionAuthorizerDeny(t *testing.T) {
 // PREVENTS: REST config session commits bypassing the unified audit trail.
 func TestRESTConfigCommitAuditRecord(t *testing.T) {
 	engine := testEngine()
-	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	openAPI, err := api.OpenAPISchema(listCommandsForTest(t, engine))
 	require.NoError(t, err)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		return &fakeEditor{values: make(map[string]string)}, nil
@@ -603,7 +603,7 @@ func TestRESTConfigCommitAuditRecord(t *testing.T) {
 // PREVENTS: REST config discards losing audit attribution.
 func TestRESTConfigDiscardAuditRecord(t *testing.T) {
 	engine := testEngine()
-	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	openAPI, err := api.OpenAPISchema(listCommandsForTest(t, engine))
 	require.NoError(t, err)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		return &fakeEditor{values: make(map[string]string)}, nil
@@ -868,7 +868,7 @@ func TestRESTAuthenticator(t *testing.T) {
 		seenUser = auth.Username
 		return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`"ok"`)), nil
 	}
-	cmds := func() []api.CommandMeta { return nil }
+	cmds := func() ([]api.CommandMeta, error) { return nil, nil }
 	auth := func(_, _ string) bool { return true }
 	engine := api.NewAPIEngine(exec, cmds, auth, nil)
 
@@ -1066,4 +1066,15 @@ func TestRESTServerStartReturnsBindFailure(t *testing.T) {
 	require.Error(t, err, "Start must fail before returning when any bind fails")
 	assert.Nil(t, errCh)
 	assert.Contains(t, err.Error(), squattedAddr)
+}
+
+// listCommandsForTest answers the engine's full command list, failing the
+// test when the command source returns an error.
+func listCommandsForTest(t *testing.T, engine *api.APIEngine) []api.CommandMeta {
+	t.Helper()
+	cmds, err := engine.ListCommands(&api.ListCommandsRequest{})
+	if err != nil {
+		t.Fatalf("ListCommands: %v", err)
+	}
+	return cmds
 }

@@ -165,7 +165,11 @@ func (s *Streamable) dispatchMethod(ctx context.Context, scope requestScope, req
 	case methodServerDiscover:
 		return s.serverDiscover(req)
 	case methodToolsList:
-		return s.ok(req.ID, map[string]any{"tools": s.allTools(scope.Capabilities)})
+		tools, err := s.allTools(scope.Capabilities)
+		if err != nil {
+			return s.fail(req.ID, rpcInternalError, "command metadata unavailable: "+err.Error())
+		}
+		return s.ok(req.ID, map[string]any{"tools": tools})
 	case methodToolsCall:
 		return s.callTool(ctx, req, scope, remoteAddr)
 	case methodTasksGet:
@@ -214,22 +218,29 @@ func (s *Streamable) dispatchMethod(ctx context.Context, scope requestScope, req
 // tools sorted by command prefix. MCP 2026-07-28 server/tools says servers
 // SHOULD "return tools in a deterministic order (i.e., the same ordering across
 // requests when the underlying set of tools has not changed)".
-func (s *Streamable) allTools(caps clientCapabilities) []map[string]any {
+//
+// It returns the command lister's error rather than the handcrafted tools
+// alone, which would read as a server with no generated tool.
+func (s *Streamable) allTools(caps clientCapabilities) ([]map[string]any, error) {
 	if s.cfg.Provider != nil {
-		return gateUIMeta(s.cfg.Provider.Tools(), caps.UIApps)
+		return gateUIMeta(s.cfg.Provider.Tools(), caps.UIApps), nil
 	}
 	handcrafted := gateExecuteCommandRequired(handcraftedTools, caps.ElicitForm)
 	if s.cfg.Commands == nil {
 		result := make([]map[string]any, len(handcrafted))
 		copy(result, handcrafted)
-		return gateUIMeta(result, caps.UIApps)
+		return gateUIMeta(result, caps.UIApps), nil
 	}
-	groups := groupCommands(s.cfg.Commands())
+	infos, err := s.cfg.Commands()
+	if err != nil {
+		return nil, err
+	}
+	groups := groupCommands(infos)
 	generated := generateTools(groups, handcraftedNames())
 	result := make([]map[string]any, len(handcrafted), len(handcrafted)+len(generated))
 	copy(result, handcrafted)
 	result = append(result, generated...)
-	return gateUIMeta(result, caps.UIApps)
+	return gateUIMeta(result, caps.UIApps), nil
 }
 
 // callTool executes a tools/call request.
@@ -287,7 +298,11 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 	// client declared. And `required` produces one ONLY for a client that
 	// declared the extension. There is no path to a task handle that skips
 	// either check.
-	if s.lookupTaskSupport(params.Name) == TaskSupportRequired && scope.Capabilities.Tasks {
+	taskSupport, err := s.lookupTaskSupport(params.Name)
+	if err != nil {
+		return s.fail(req.ID, rpcInternalError, "command metadata unavailable: "+err.Error())
+	}
+	if taskSupport == TaskSupportRequired && scope.Capabilities.Tasks {
 		return s.createTask(req, scope, remoteAddr, params)
 	}
 
@@ -311,7 +326,11 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 		return resp
 	}
 	if s.cfg.Commands != nil {
-		if prefix, validActions, ok := s.findGeneratedTool(params.Name); ok {
+		prefix, validActions, ok, err := s.findGeneratedTool(params.Name)
+		if err != nil {
+			return s.fail(req.ID, rpcInternalError, "command metadata unavailable: "+err.Error())
+		}
+		if ok {
 			resp := s.ok(req.ID, runner.dispatchGenerated(prefix, validActions, params.Arguments))
 			resp.completion = runner.completion
 			return resp
@@ -321,35 +340,46 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 }
 
 // lookupTaskSupport returns the taskSupport level for a tool by name.
-// Handcrafted tools default to optional.
-func (s *Streamable) lookupTaskSupport(name string) TaskSupportLevel {
+// Handcrafted tools default to optional. It returns the command lister's
+// error, because optional would run a task-required command inline.
+func (s *Streamable) lookupTaskSupport(name string) (TaskSupportLevel, error) {
 	if s.cfg.Commands == nil {
-		return TaskSupportOptional
+		return TaskSupportOptional, nil
 	}
 	skip := handcraftedNames()
 	if skip[name] {
-		return TaskSupportOptional
+		return TaskSupportOptional, nil
 	}
-	groups := groupCommands(s.cfg.Commands())
+	infos, err := s.cfg.Commands()
+	if err != nil {
+		return TaskSupportOptional, err
+	}
+	groups := groupCommands(infos)
 	for _, g := range groups {
 		if skip[toolName(g.prefix)] {
 			continue
 		}
 		if toolName(g.prefix) == name {
-			return g.taskSupport
+			return g.taskSupport, nil
 		}
 	}
-	return TaskSupportOptional
+	return TaskSupportOptional, nil
 }
 
 // findGeneratedTool maps an auto-generated tool name back to its command prefix
 // and its action set. The returned map's KEYS are the valid action names (an
 // action absent from the map is rejected); each VALUE says whether that
 // command takes a peer selector, which dispatchGenerated needs to decide
-// whether a `peer` argument is accepted and where its value is spliced in.
-func (s *Streamable) findGeneratedTool(name string) (string, map[string]bool, bool) {
+// whether a `peer` argument is accepted and where its value is spliced in. It
+// returns the command lister's error, which is not the same answer as an
+// unknown tool.
+func (s *Streamable) findGeneratedTool(name string) (string, map[string]bool, bool, error) {
 	skip := handcraftedNames()
-	groups := groupCommands(s.cfg.Commands())
+	infos, err := s.cfg.Commands()
+	if err != nil {
+		return "", nil, false, err
+	}
+	groups := groupCommands(infos)
 	for _, g := range groups {
 		if skip[toolName(g.prefix)] {
 			continue
@@ -361,10 +391,10 @@ func (s *Streamable) findGeneratedTool(name string) (string, map[string]bool, bo
 				// offers a `peer` argument its dispatch path would refuse.
 				actionSelector[a.name] = actionAcceptsPeer(a)
 			}
-			return g.prefix, actionSelector, true
+			return g.prefix, actionSelector, true, nil
 		}
 	}
-	return "", nil, false
+	return "", nil, false, nil
 }
 
 // parseTaskID extracts the taskId field from JSON-RPC params (MCP camelCase).
@@ -489,7 +519,11 @@ func (s *Streamable) createTask(req *request, scope requestScope, remoteAddr str
 	var validActions map[string]bool
 	if !isHandcrafted && s.cfg.Commands != nil {
 		var found bool
-		prefix, validActions, found = s.findGeneratedTool(params.Name)
+		var err error
+		prefix, validActions, found, err = s.findGeneratedTool(params.Name)
+		if err != nil {
+			return s.fail(req.ID, rpcInternalError, "command metadata unavailable: "+err.Error())
+		}
 		if !found {
 			var tb textbuf.Buffer
 			return s.fail(req.ID, rpcInvalidParams, tb.Str("unknown tool: ").Str(params.Name).String())

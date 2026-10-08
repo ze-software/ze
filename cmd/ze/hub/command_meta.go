@@ -15,6 +15,7 @@
 package hub
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -75,40 +76,46 @@ type commandUIResource struct {
 
 // commandMetaSource returns a closure that builds the current command metadata
 // from the plugin server's dispatcher. YANG-derived metadata (params,
-// task-support, ui-resource) is loaded lazily once and cached; the dispatcher
-// command list is re-read on every call so the result always reflects current
-// registrations.
-func commandMetaSource(s *pluginserver.Server) func() []commandMeta {
-	var (
-		metaOnce          sync.Once
-		paramsByPath      map[string][]commandParam
-		taskSupportByPath map[string]string
-		uiResourceByPath  map[string]yangloader.UIResourceEntry
-	)
+// task-support, ui-resource) is loaded lazily once and cached together with
+// the loader's error; the dispatcher command list is re-read on every call so
+// the result always reflects current registrations. When yang.DefaultLoader
+// refuses the schema, every call returns that error: metadata built from no
+// schema would publish each command with no parameters and no task support.
+func commandMetaSource(s *pluginserver.Server) func() ([]commandMeta, error) {
+	loadMeta := sync.OnceValues(func() (*yangCommandMeta, error) {
+		loader, err := yangloader.DefaultLoader()
+		if err != nil {
+			return nil, fmt.Errorf("command metadata: %w", err)
+		}
+		return &yangCommandMeta{
+			paramsByPath:      buildParamMeta(loader),
+			taskSupportByPath: buildTaskSupportMap(loader),
+			uiResourceByPath:  yangloader.PathToUIResource(loader),
+		}, nil
+	})
 
-	initMeta := func() {
-		metaOnce.Do(func() {
-			loader, err := yangloader.DefaultLoader()
-			if err != nil {
-				return
-			}
-			paramsByPath = buildParamMeta(loader)
-			taskSupportByPath = buildTaskSupportMap(loader)
-			uiResourceByPath = yangloader.PathToUIResource(loader)
-		})
-	}
-
-	return func() []commandMeta {
+	return func() ([]commandMeta, error) {
 		d := s.Dispatcher()
 		if d == nil {
-			return nil
+			return nil, nil
 		}
 
-		initMeta()
+		meta, err := loadMeta()
+		if err != nil {
+			return nil, err
+		}
 
 		return buildCommandMeta(d.Commands(), d.Registry().All(),
-			paramsByPath, taskSupportByPath, uiResourceByPath)
+			meta.paramsByPath, meta.taskSupportByPath, meta.uiResourceByPath), nil
 	}
+}
+
+// yangCommandMeta is the YANG-derived half of the command metadata, built once
+// per source from the default loader.
+type yangCommandMeta struct {
+	paramsByPath      map[string][]commandParam
+	taskSupportByPath map[string]string
+	uiResourceByPath  map[string]yangloader.UIResourceEntry
 }
 
 // buildCommandMeta merges the dispatcher's builtin commands with the plugin

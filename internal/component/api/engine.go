@@ -27,8 +27,10 @@ var (
 // unmarshal-to-any round trip.
 type Executor = plugin.CommandDispatcher
 
-// CommandSource returns all available commands with metadata.
-type CommandSource func() []CommandMeta
+// CommandSource returns all available commands with metadata, or the error
+// that kept the metadata from being built (a YANG schema the loader refused).
+// An error is never answered as an empty list.
+type CommandSource func() ([]CommandMeta, error)
 
 // AuthChecker checks whether a user is allowed to run a command.
 // Returns true if authorized.
@@ -66,10 +68,14 @@ func NewAPIEngine(exec Executor, cmds CommandSource, auth AuthChecker, stream St
 // ListCommands returns all available commands with metadata.
 // If prefix is non-empty, only commands whose name starts with prefix are returned.
 // This is a byte-level prefix match, not word-boundary: "peer" matches "peering" too.
-func (e *APIEngine) ListCommands(req *ListCommandsRequest) []CommandMeta {
-	all := e.commands()
+// It returns the command source's error when the metadata cannot be built.
+func (e *APIEngine) ListCommands(req *ListCommandsRequest) ([]CommandMeta, error) {
+	all, err := e.commands()
+	if err != nil {
+		return nil, err
+	}
 	if req.Prefix == "" {
-		return all
+		return all, nil
 	}
 	var filtered []CommandMeta
 	for _, cmd := range all {
@@ -77,13 +83,18 @@ func (e *APIEngine) ListCommands(req *ListCommandsRequest) []CommandMeta {
 			filtered = append(filtered, cmd)
 		}
 	}
-	return filtered
+	return filtered, nil
 }
 
 // DescribeCommand returns metadata for a single command.
-// Returns ErrNotFound if the command does not exist.
+// Returns ErrNotFound if the command does not exist, and the command source's
+// error when the metadata cannot be built.
 func (e *APIEngine) DescribeCommand(req *DescribeCommandRequest) (CommandMeta, error) {
-	for _, cmd := range e.commands() {
+	all, err := e.commands()
+	if err != nil {
+		return CommandMeta{}, err
+	}
+	for _, cmd := range all {
 		if cmd.Name == req.Path {
 			return cmd, nil
 		}
@@ -103,7 +114,13 @@ func unauthorizedError(command string) string {
 // Execute runs a command and returns the result.
 // Returns ErrUnauthorized if the auth checker denies the request.
 func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResult, error) {
-	readOnly := e.commandReadOnly(req.Command)
+	readOnly, err := e.commandReadOnly(req.Command)
+	if err != nil {
+		return &ExecResult{
+			Status: StatusError,
+			Error:  err.Error(),
+		}, err
+	}
 	if req.Caller.ReadOnly && !readOnly {
 		return &ExecResult{
 			Status: StatusError,
@@ -141,7 +158,10 @@ func (e *APIEngine) Stream(ctx context.Context, req *StreamRequest) (<-chan stri
 	if e.stream == nil {
 		return nil, nil, errors.New("streaming not supported")
 	}
-	readOnly := e.commandReadOnly(req.Command)
+	readOnly, err := e.commandReadOnly(req.Command)
+	if err != nil {
+		return nil, nil, err
+	}
 	if req.Caller.ReadOnly && !readOnly {
 		return nil, nil, ErrUnauthorized
 	}
@@ -151,14 +171,22 @@ func (e *APIEngine) Stream(ctx context.Context, req *StreamRequest) (<-chan stri
 	return e.stream(ctx, req.Caller, req.Command)
 }
 
-func (e *APIEngine) commandReadOnly(command string) bool {
+// commandReadOnly answers whether the longest registered command prefixing
+// command is read-only. It returns the command source's error rather than
+// false, because false would refuse every read-only caller with a misleading
+// "unauthorized".
+func (e *APIEngine) commandReadOnly(command string) (bool, error) {
 	if e.commands == nil {
-		return false
+		return false, nil
+	}
+	all, err := e.commands()
+	if err != nil {
+		return false, err
 	}
 	input := strings.ToLower(strings.TrimSpace(command))
 	longest := 0
 	readOnly := false
-	for _, cmd := range e.commands() {
+	for _, cmd := range all {
 		name := strings.ToLower(strings.TrimSpace(cmd.Name))
 		if name == "" || len(name) <= longest {
 			continue
@@ -172,5 +200,5 @@ func (e *APIEngine) commandReadOnly(command string) bool {
 		longest = len(name)
 		readOnly = cmd.ReadOnly
 	}
-	return readOnly
+	return readOnly, nil
 }

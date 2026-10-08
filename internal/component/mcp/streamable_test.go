@@ -313,10 +313,10 @@ func resultBearingMethods(taskID string) []methodProbe {
 // TaskSupportOptional, which means synchronous. So a test that wants a task
 // must configure a `required` command. There is no request that a test can
 // send to create one.
-func taskCapableCommands() []CommandInfo {
+func taskCapableCommands() ([]CommandInfo, error) {
 	return []CommandInfo{
 		{Name: "slow cmd", ShortHelp: "Long", TaskSupport: TaskSupportRequired},
-	}
+	}, nil
 }
 
 // createTestTask calls the `required` tool, waits for the task to reach a
@@ -1176,10 +1176,10 @@ func TestStreamableToolsList(t *testing.T) {
 // that failed the request, which is the failure this rule exists to stop.
 func TestStreamable_ForbiddenNeverTasked(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Commands: func() []CommandInfo {
+		Commands: func() ([]CommandInfo, error) {
 			return []CommandInfo{
 				{Name: "fast cmd", ShortHelp: "Quick", TaskSupport: TaskSupportForbidden},
-			}
+			}, nil
 		},
 	})
 	defer cleanup()
@@ -1204,10 +1204,10 @@ func TestStreamable_ForbiddenNeverTasked(t *testing.T) {
 // PREVENTS: regressing to the client-directed opt-in D-1 removed.
 func TestStreamable_RequiredIsTaskedServerDirected(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Commands: func() []CommandInfo {
+		Commands: func() ([]CommandInfo, error) {
 			return []CommandInfo{
 				{Name: "slow cmd", ShortHelp: "Long", TaskSupport: TaskSupportRequired},
-			}
+			}, nil
 		},
 	})
 	defer cleanup()
@@ -1252,10 +1252,10 @@ func TestStreamable_RequiredIsTaskedServerDirected(t *testing.T) {
 // extension).
 func TestTaskNotReturnedWithoutExtension(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Commands: func() []CommandInfo {
+		Commands: func() ([]CommandInfo, error) {
 			return []CommandInfo{
 				{Name: "slow cmd", ShortHelp: "Long", TaskSupport: TaskSupportRequired},
-			}
+			}, nil
 		},
 	})
 	defer cleanup()
@@ -1281,8 +1281,8 @@ func TestTaskNotReturnedWithoutExtension(t *testing.T) {
 // declared it.
 func TestStreamable_TasksMethodWithoutCapability(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Commands: func() []CommandInfo {
-			return []CommandInfo{{Name: "demo cmd", ShortHelp: "Test"}}
+		Commands: func() ([]CommandInfo, error) {
+			return []CommandInfo{{Name: "demo cmd", ShortHelp: "Test"}}, nil
 		},
 	})
 	defer cleanup()
@@ -1307,8 +1307,8 @@ func TestStreamable_TasksMethodWithoutCapability(t *testing.T) {
 // change 6 removed both.
 func TestRemovedTaskMethods(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Commands: func() []CommandInfo {
-			return []CommandInfo{{Name: "demo cmd", ShortHelp: "Test"}}
+		Commands: func() ([]CommandInfo, error) {
+			return []CommandInfo{{Name: "demo cmd", ShortHelp: "Test"}}, nil
 		},
 	})
 	defer cleanup()
