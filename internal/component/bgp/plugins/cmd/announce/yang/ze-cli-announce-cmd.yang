@@ -18,6 +18,7 @@ module ze-cli-announce-cmd {
         container unicast {
             config false;
             ze:command "ze-bgp:announce-unicast";
+            ze:rpc "ze-bgp-cmd-announce-api:announce";
             description "The address family follows the prefix, so it is ipv4 unicast or ipv6
 unicast. The ORIGIN is IGP, and the next hop is this router unless next-hop names one.";
             ze:help "Originate a unicast route on demand.";
@@ -108,6 +109,7 @@ from the registry.";
         container blackhole {
             config false;
             ze:command "ze-bgp:announce-blackhole";
+            ze:rpc "ze-bgp-cmd-announce-api:announce";
             description "This command attaches the BLACKHOLE community itself, so
 RFC 7999 Section 3.1 narrows the fan-out to the sessions that recorded the
 agreement.";
@@ -167,6 +169,7 @@ from the registry.";
         container flowspec {
             config false;
             ze:command "ze-bgp:announce-flowspec";
+            ze:rpc "ze-bgp-cmd-announce-api:announce";
             description "The match components come from ze-flowspec-cmd, which
 augments this container. They are the FlowSpec codec vocabulary, and the plugin
 that owns it declares them, so this module never restates another plugin's
@@ -273,6 +276,7 @@ from the registry.";
         container tag {
             config false;
             ze:command "ze-bgp:withdraw-tag";
+            ze:rpc "ze-bgp-cmd-announce-api:withdraw";
             description "A key of * withdraws every tagged announcement. An absent
 value withdraws every value of the key.";
             ze:help "Withdraw the announcements carrying a tag.";
@@ -296,6 +300,7 @@ or *, every value of the key is withdrawn.";
         container id {
             config false;
             ze:command "ze-bgp:withdraw-id";
+            ze:rpc "ze-bgp-cmd-announce-api:withdraw";
             description "Only a tagged announcement carries an id. The withdraw acts
 only when the selector typed after bgp is the one the announcement was made with, compared as
 text.";
@@ -313,6 +318,7 @@ selector answers 'not found'.";
         container all {
             config false;
             ze:command "ze-bgp:withdraw-all";
+            ze:rpc "ze-bgp-cmd-announce-api:withdraw";
             description "The selector typed after bgp decides the scope: name a
 peer to withdraw only the announcements made to it, or * for every one.";
             ze:help "Withdraw every on-demand announcement.";
@@ -354,6 +360,7 @@ than the same act named twice, and it is the word RFC 4271 and ExaBGP both use."
         container announcements {
             config false;
             ze:command "ze-bgp:show-announcements";
+            ze:rpc "ze-bgp-cmd-announce-api:show-announcements";
             description "Each row carries the id, the tag, the family, the peer selector, the
 source and the creation time. An expiry time is present only when the announcement was made
 with for.";

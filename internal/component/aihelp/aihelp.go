@@ -215,10 +215,10 @@ func SchemaRegistry() *pluginserver.SchemaRegistry {
 		return schemaReg
 	}
 
-	for _, name := range loader.APIModuleNames() {
-		rpcs := yang.ExtractRPCs(loader, name)
-		_ = schemaReg.RegisterRPCs(name, rpcs)
-	}
+	// Each rpc is published under the method of the command node that points
+	// at it; the plugin IPC protocol is not an operator method and stays out.
+	pub, _ := yang.PublishedRPCs(loader)
+	_ = schemaReg.RegisterRPCs(pub.Commands)
 
 	return schemaReg
 }

@@ -393,18 +393,19 @@ func loadAPIRPCs(registry *pluginserver.SchemaRegistry) error {
 		return fmt.Errorf("resolve YANG: %w", err)
 	}
 
-	// Extract and register RPCs and notifications from each API module
-	for _, moduleName := range loader.APIModuleNames() {
-		rpcs := yang.ExtractRPCs(loader, moduleName)
-		if len(rpcs) > 0 {
-			if err := registry.RegisterRPCs(moduleName, rpcs); err != nil {
-				return fmt.Errorf("register RPCs from %s: %w", moduleName, err)
-			}
-		}
-
+	// Each rpc is published under the method of the command node that points
+	// at it (yang.PublishedRPCs). A notification declares its own event name.
+	pub, err := yang.PublishedRPCs(loader)
+	if err != nil {
+		return fmt.Errorf("publish RPCs: %w", err)
+	}
+	if err := registry.RegisterRPCs(pub.Commands); err != nil {
+		return fmt.Errorf("register RPCs: %w", err)
+	}
+	for _, moduleName := range loader.ModuleNames() {
 		notifs := yang.ExtractNotifications(loader, moduleName)
 		if len(notifs) > 0 {
-			if err := registry.RegisterNotifications(moduleName, notifs); err != nil {
+			if err := registry.RegisterNotifications(notifs); err != nil {
 				return fmt.Errorf("register notifications from %s: %w", moduleName, err)
 			}
 		}

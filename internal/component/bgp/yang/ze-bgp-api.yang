@@ -417,7 +417,7 @@ connection from it. 'family' names the address families the OPEN offers, and
 with no 'family' the OPEN carries no multiprotocol capability. 'attach' names
 the plugin processes this peer feeds. The peer lives in the running daemon
 alone: nothing is written to the configuration, so a reload removes it, which is
-what peer-remove mirrors on the way out. 'create bgp peer <address> asn <asn>'
+what 'delete bgp peer' mirrors on the way out. 'create bgp peer <address> asn <asn>'
 is the CLI path.";
         ze:help "Add a new peer.";
         input {
@@ -425,7 +425,7 @@ is the CLI path.";
                 type zt:ip-address;
                 mandatory true;
                 description "The IPv4 or IPv6 address of the peer. It is the key of the peer, and
-peer-remove takes the same address.";
+'delete bgp peer' accepts the same address.";
                 ze:help "Peer address";
             }
             leaf asn {
@@ -524,22 +524,6 @@ leaf selects, asplain or asdot.";
                 description "The constant text 'peer created'. It confirms the peer exists in the running
 daemon and not in the configuration file.";
                 ze:help "Always 'peer created'";
-            }
-        }
-    }
-
-    rpc peer-remove {
-        description "The address leaf takes an IP address and not a peer selector, so this RPC
-removes exactly one peer. peer-teardown takes a selector instead, and it closes
-the session but keeps the peer.";
-        ze:help "Remove a peer.";
-        input {
-            leaf address {
-                type zt:ip-address;
-                mandatory true;
-                description "The IP address of the peer to remove. A peer name and a selector are not
-accepted here.";
-                ze:help "Peer address";
             }
         }
     }
@@ -836,6 +820,7 @@ event registry holds beside it, in registry order.";
     // Notifications
 
     notification peer-state-change {
+        ze:method "ze-bgp:peer-state-change";
         description "Both states are FSM state names. No producer emits this notification today, so a
 subscriber that waits for it receives nothing.";
         ze:help "Peer FSM state changed.";
@@ -857,6 +842,7 @@ subscriber that waits for it receives nothing.";
     }
 
     notification route-received {
+        ze:method "ze-bgp:route-received";
         description "One notification describes one UPDATE message. No producer emits this notification
 today, so a subscriber that waits for it receives nothing.";
         ze:help "BGP UPDATE received from peer.";
@@ -878,6 +864,7 @@ today, so a subscriber that waits for it receives nothing.";
     }
 
     notification route-update-sent {
+        ze:method "ze-bgp:route-update-sent";
         description "The notification names the peer and the family and carries no NLRI count. No
 producer emits this notification today, so a subscriber that waits for it receives nothing.";
         ze:help "BGP UPDATE sent to peer.";
@@ -894,6 +881,7 @@ producer emits this notification today, so a subscriber that waits for it receiv
     }
 
     notification eor-received {
+        ze:method "ze-bgp:eor-received";
         description "One End-of-RIB marker closes the initial table of one address family. No producer
 emits this notification today, so a subscriber that waits for it receives nothing.";
         ze:help "End-of-RIB marker received.";
@@ -910,6 +898,7 @@ emits this notification today, so a subscriber that waits for it receives nothin
     }
 
     notification graceful-restart-state {
+        ze:method "ze-bgp:graceful-restart-state";
         description "The state is a string and no enumeration constrains it. No producer emits this
 notification today, so a subscriber that waits for it receives nothing.";
         ze:help "Graceful restart state changed.";
@@ -926,6 +915,7 @@ notification today, so a subscriber that waits for it receives nothing.";
     }
 
     notification session-established {
+        ze:method "ze-bgp:session-established";
         description "The peer address and its AS number identify the session. No producer emits this
 notification today, so a subscriber that waits for it receives nothing.";
         ze:help "BGP session established.";
@@ -942,6 +932,7 @@ notification today, so a subscriber that waits for it receives nothing.";
     }
 
     notification session-closed {
+        ze:method "ze-bgp:session-closed";
         description "The reason is free text and no enumeration constrains it. No producer emits this
 notification today, so a subscriber that waits for it receives nothing.";
         ze:help "BGP session closed.";

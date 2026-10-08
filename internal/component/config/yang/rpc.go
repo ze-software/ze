@@ -4,7 +4,6 @@ package yang
 
 import (
 	"slices"
-	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 )
@@ -17,6 +16,11 @@ import (
 // it is the LONG explanation a help page prints. Neither is derived from the
 // other, and an empty Description means nobody has written the explanation yet.
 type RPCMeta struct {
+	// WireMethod is the name the rpc is published under. ExtractRPCs fills it
+	// only from an explicit ze:method statement on the rpc; PublishedRPCs
+	// fills it from the ze:command node that points at the rpc. The module
+	// name never contributes to it.
+	WireMethod  string
 	Module      string     // YANG module name (e.g., "ze-bgp-api")
 	Name        string     // RPC name in kebab-case (e.g., "peer-list")
 	ShortHelp   string     // One-line summary, from the ze:help extension
@@ -39,10 +43,13 @@ type LeafMeta struct {
 
 // NotificationMeta describes a notification extracted from a YANG module.
 type NotificationMeta struct {
-	Module    string     // YANG module name
-	Name      string     // Notification name in kebab-case
-	ShortHelp string     // One-line summary, from the ze:help extension
-	Leaves    []LeafMeta // Notification data leaves
+	// WireMethod is the event name, from the notification's ze:method
+	// statement, and empty when the notification declares none.
+	WireMethod string
+	Module     string     // YANG module name
+	Name       string     // Notification name in kebab-case
+	ShortHelp  string     // One-line summary, from the ze:help extension
+	Leaves     []LeafMeta // Notification data leaves
 }
 
 // ExtractRPCs extracts RPC metadata from a loaded YANG module.
@@ -58,6 +65,7 @@ func ExtractRPCs(loader *Loader, moduleName string) []RPCMeta {
 	var rpcs []RPCMeta
 	for _, rpc := range mod.RPC {
 		meta := RPCMeta{
+			WireMethod:  GetMethodExtension(rpc.Exts()),
 			Module:      moduleName,
 			Name:        rpc.Name,
 			ShortHelp:   GetHelpExtension(rpc.Exts()), // the ze:help summary
@@ -91,9 +99,10 @@ func ExtractNotifications(loader *Loader, moduleName string) []NotificationMeta 
 	var notifs []NotificationMeta
 	for _, notif := range mod.Notification {
 		meta := NotificationMeta{
-			Module:    moduleName,
-			Name:      notif.Name,
-			ShortHelp: GetHelpExtension(notif.Exts()), // the ze:help summary
+			WireMethod: GetMethodExtension(notif.Exts()),
+			Module:     moduleName,
+			Name:       notif.Name,
+			ShortHelp:  GetHelpExtension(notif.Exts()), // the ze:help summary
 		}
 
 		// Extract leaves from entry tree
@@ -107,18 +116,6 @@ func ExtractNotifications(loader *Loader, moduleName string) []NotificationMeta 
 	}
 
 	return notifs
-}
-
-// WireModule converts a YANG module name to its wire method prefix.
-// Strips "-api" or "-conf" suffix: "ze-bgp-api" → "ze-bgp".
-func WireModule(moduleName string) string {
-	if base, ok := strings.CutSuffix(moduleName, "-api"); ok {
-		return base
-	}
-	if base, ok := strings.CutSuffix(moduleName, "-conf"); ok {
-		return base
-	}
-	return moduleName
 }
 
 // inputOrder and outputOrder answer the declaration order of an RPC's two

@@ -22,7 +22,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // commandMeta is the neutral, always-on description of one registered command.
@@ -247,44 +246,35 @@ func buildParamMeta(loader *yangloader.Loader) map[string][]commandParam {
 		pathToWire[path] = wire
 	}
 
-	// Extract RPC input params for each command path.
+	// Each rpc a command node points at carries that node's wire method
+	// (yangloader.PublishedRPCs), so the join is by method, and no module name
+	// is rebuilt from it.
+	pub, err := yangloader.PublishedRPCs(loader)
+	if err != nil {
+		return nil
+	}
+	inputs := make(map[string][]yangloader.LeafMeta, len(pub.Commands))
+	for _, rpc := range pub.Commands {
+		inputs[rpc.WireMethod] = rpc.Input
+	}
+
 	result := make(map[string][]commandParam)
-	var tb textbuf.Buffer
 	for path, wire := range pathToWire {
-		// Wire method format: "module:rpc-name". Extract module, add "-api" suffix.
-		module := wireModule(wire)
-		rpcName := wireRPC(wire)
-		if module == "" || rpcName == "" {
+		input := inputs[wire]
+		if len(input) == 0 {
 			continue
 		}
-
-		tb.Reset()
-		rpcs := yangloader.ExtractRPCs(loader, tb.Str(module).Str("-api").String())
-		if rpcs == nil {
-			// Try without -api suffix (some modules use -cmd).
-			tb.Reset()
-			rpcs = yangloader.ExtractRPCs(loader, tb.Str(module).Str("-cmd").String())
+		params := make([]commandParam, len(input))
+		for i, leaf := range input {
+			params[i] = commandParam{
+				Name:        leaf.Name,
+				Type:        leaf.Type,
+				ShortHelp:   leaf.ShortHelp,
+				Description: leaf.Description,
+				Required:    leaf.Mandatory,
+			}
 		}
-		for _, rpc := range rpcs {
-			if rpc.Name != rpcName {
-				continue
-			}
-			if len(rpc.Input) == 0 {
-				break
-			}
-			params := make([]commandParam, len(rpc.Input))
-			for i, leaf := range rpc.Input {
-				params[i] = commandParam{
-					Name:        leaf.Name,
-					Type:        leaf.Type,
-					ShortHelp:   leaf.ShortHelp,
-					Description: leaf.Description,
-					Required:    leaf.Mandatory,
-				}
-			}
-			result[path] = params
-			break
-		}
+		result[path] = params
 	}
 
 	return result
@@ -319,22 +309,4 @@ func lookupUIResource(cmdPath string, m map[string]yangloader.UIResourceEntry) (
 		}
 	}
 	return yangloader.UIResourceEntry{}, false
-}
-
-// wireModule extracts the module prefix from a wire method (e.g. "ze-bgp:peer-list" -> "ze-bgp").
-func wireModule(wire string) string {
-	mod, _, ok := strings.Cut(wire, ":")
-	if !ok {
-		return ""
-	}
-	return mod
-}
-
-// wireRPC extracts the RPC name from a wire method (e.g. "ze-bgp:peer-list" -> "peer-list").
-func wireRPC(wire string) string {
-	_, rpc, ok := strings.Cut(wire, ":")
-	if !ok {
-		return ""
-	}
-	return rpc
 }

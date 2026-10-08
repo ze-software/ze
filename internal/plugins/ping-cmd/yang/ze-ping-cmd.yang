@@ -25,6 +25,7 @@ module ze-ping-cmd {
         container ping {
             config false;
             ze:command "ze-show:ping";
+            ze:rpc "ze-cli-show-api:ping";
             description "Sends ICMP echo requests to <dest> (IP or hostname). Default count is 5.
 Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from
 this box, not from your workstation.";

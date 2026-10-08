@@ -50,6 +50,7 @@ default is 5s.";
         container capture {
             config false;
             ze:command "ze-show:capture";
+            ze:rpc "ze-cli-show-api:capture";
             description "Returns protocol messages you previously enabled capture for. Without a
 protocol keyword, shows all protocols. Use this to debug session establishment
 issues.";

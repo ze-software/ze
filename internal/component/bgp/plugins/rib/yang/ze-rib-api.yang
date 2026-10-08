@@ -331,6 +331,7 @@ whether the route existed, and the best path for that prefix is computed again."
     // Notifications
 
     notification rib-change {
+        ze:method "ze-rib:rib-change";
         description "One event per peer and family whose table changed. It carries counts and
                      not the routes, so a subscriber reads the RIB for the detail.";
         ze:help "RIB content changed";

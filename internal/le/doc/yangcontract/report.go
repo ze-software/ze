@@ -157,7 +157,11 @@ func (r ValidationResult) Text() string {
 	if len(r.OrphanRPCs) > 0 {
 		tb.Str("## RPC declarations with no handler (").Int(int64(len(r.OrphanRPCs))).Str(")\n\n")
 		for _, rpc := range r.OrphanRPCs {
-			tb.Str("  ").Str(rpc.WireMethod).Str("  (rpc ").Str(rpc.RPC).
+			method := rpc.WireMethod
+			if method == "" {
+				method = "(no ze:command node points at it)"
+			}
+			tb.Str("  ").Str(method).Str("  (rpc ").Str(rpc.RPC).
 				Str(" in ").Str(rpc.Module).Str(")\n")
 		}
 		tb.Byte('\n')

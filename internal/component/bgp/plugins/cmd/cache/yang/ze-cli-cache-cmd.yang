@@ -13,6 +13,7 @@ module ze-cli-cache-cmd {
         container cache {
             config false;
             ze:command "ze-bgp:cache-list";
+            ze:rpc "ze-bgp-api:cache";
             description "The answer carries two keys, 'ids' and 'count'. An ID is listed while its entry
 is retained, or while that entry has not expired. The IDs come alone, with no
 retain flag and no consumer state beside them.";

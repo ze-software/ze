@@ -160,6 +160,7 @@ every second. Optionally pass an interface name to watch just one link.";
             container counters {
                 config false;
                 ze:command "ze-clear:interface-counters";
+                ze:rpc "ze-cli-clear-api:interface-counters";
                 description "One call resets every interface the backend manages, and the answer
 reports the scope as all. Nothing else about the interfaces changes.";
                 ze:help "Zero the Rx/Tx counters for every managed interface.";
@@ -174,6 +175,7 @@ answer reports that name as the scope it cleared.";
                 container counters {
                     config false;
                     ze:command "ze-clear:interface-counters";
+                    ze:rpc "ze-cli-clear-api:interface-counters";
                     description "Only the named interface is reset. Ze translates the name to
 its kernel device first, so a name bound to hardware by a selector clears the right port.";
                     ze:help "Zero the Rx/Tx counters for one interface.";

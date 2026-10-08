@@ -141,7 +141,7 @@ Each section it prints is a contract bug, and each one fails the run:
 - YANG declares a command but no Go code registered an RPC or local handler -> dead command
 - RPC handler registered but YANG doesn't declare it -> command unreachable from CLI
 - A local handler (`registry.MustRegisterLocal*`) whose path no YANG command node declares -> command missing from the tree
-- An `-api` module's rpc whose published wire method no handler serves -> `ze schema methods` and `ze help ai --json` publish a method the daemon answers with "unknown method". The method is the one `RegisterRPCs` builds, which strips `-api` from the module name, and the row names the wire method, the rpc and the module
+- An rpc whose published wire method no handler serves -> `ze schema methods` and `ze help ai --json` publish a method the daemon answers with "unknown method". The method is the one `yang.PublishedRPCs` gives it: the `ze:command` method of the node whose `ze:rpc` points at it. An rpc no node points at, and that declares no `ze:method`, is published under no name and is named as "(no ze:command node points at it)". The row names the wire method, the rpc and the module
 
 A run that loads no `-api` module is an error rather than a pass, because it
 judged no declaration.
@@ -190,7 +190,8 @@ Config nodes with a broken summary: 11
 
 The gate walks FOUR corpora. A `-cmd.yang` node declares the CLI path an
 operator types. An `-api.yang` rpc declares the wire method that path reaches,
-and the plugin IPC modules in `internal/core/ipc/yang/` declare 22 more. Every
+and the plugin IPC modules in `internal/core/ipc/yang/` declare 28 more, each
+with its own `ze:method`. Every
 loaded module is walked, so a module whose name carries no `-api` suffix is
 judged with the rest. An offline local command declares its help in a
 `registry.Meta` beside its handler and reaches no YANG module at all, and

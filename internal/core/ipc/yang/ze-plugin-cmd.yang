@@ -18,6 +18,7 @@ module ze-plugin-cmd {
         container help {
             config false;
             ze:command "ze-plugin:help";
+            ze:rpc "ze-plugin-api:help";
             description "The answer is the two words session and command. It is a constant of
 the daemon, so it does not grow when a plugin registers a command.";
             ze:help "List the subcommands the plugin verb accepts.";
@@ -32,6 +33,7 @@ own built-in commands are answered by system command list instead.";
             container list {
                 config false;
                 ze:command "ze-plugin:command-list";
+                ze:rpc "ze-plugin-api:command-list";
                 description "Each row carries the command name and its summary, and nothing
 else. Use plugin command help for the explanation, the argument form and the source plugin.";
                 ze:help "List every command a plugin registered, with its summary.";
@@ -40,6 +42,7 @@ else. Use plugin command help for the explanation, the argument form and the sou
             container help {
                 config false;
                 ze:command "ze-plugin:command-help";
+                ze:rpc "ze-plugin-api:command-help";
                 description "The name is looked up in the plugin registry only, so a built-in
 command is reported as unknown. The answer carries the summary, the long explanation, the
 argument form and the plugin that registered it.";
@@ -56,6 +59,7 @@ no plugin registered fails with unknown plugin command.";
             container complete {
                 config false;
                 ze:command "ze-plugin:command-complete";
+                ze:rpc "ze-plugin-api:command-complete";
                 description "The candidates come from the plugin registry only, and a command
 marked hidden is left out. A built-in command is never offered here.";
                 ze:help "List the completion candidates for a partial plugin command.";
@@ -78,6 +82,7 @@ over the API socket as it starts, runs and stops.";
             container ready {
                 config false;
                 ze:command "ze-plugin:session-ready";
+                ze:rpc "ze-plugin-api:session-ready";
                 description "The reactor counts one signal for each configured plugin process,
 and it stops waiting when the count reaches that total. A daemon that runs without a
 reactor accepts the command and acts on nothing.";
@@ -87,6 +92,7 @@ reactor accepts the command and acts on nothing.";
             container ping {
                 config false;
                 ze:command "ze-plugin:session-ping";
+                ze:rpc "ze-plugin-api:session-ping";
                 description "The answer carries the process id of the daemon process, not of the
 plugin that asked. The command takes no argument and never fails.";
                 ze:help "Answer a health check with the daemon process id.";
@@ -95,6 +101,7 @@ plugin that asked. The command takes no argument and never fails.";
             container bye {
                 config false;
                 ze:command "ze-plugin:session-bye";
+                ze:rpc "ze-plugin-api:session-bye";
                 description "The daemon answers goodbye. It holds no per-client state today, so
 the command frees nothing and is a courtesy.";
                 ze:help "Tell the daemon this session is disconnecting.";

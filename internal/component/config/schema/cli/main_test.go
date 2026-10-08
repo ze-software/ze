@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	bgpyang "github.com/ze-software/ze/internal/component/bgp/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -477,37 +478,28 @@ func TestCmdMethods(t *testing.T) {
 		t.Fatalf("failed to build registry: %v", err)
 	}
 
-	rpcs := registry.ListRPCs("")
-
-	// Verify RPCs from all 4 modules are present
-	modules := make(map[string]int)
-	for _, rpc := range rpcs {
-		modules[rpc.Module]++
+	// Every rpc the four modules declare is published under at least one
+	// method, which is the method of a command node that points at it. The
+	// expectation is read from the modules themselves, so a new rpc is
+	// covered the day it is written, and an rpc no node points at is named.
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		t.Fatalf("load YANG: %v", err)
 	}
-
-	// 27 since peer-save moved here from the deleted ze-bgp-cmd-peer-api.
-	if modules["ze-bgp-api"] != 27 {
-		t.Errorf("expected 27 BGP RPCs, got %d", modules["ze-bgp-api"])
+	published := make(map[string]bool)
+	for _, rpc := range registry.ListRPCs("") {
+		published[rpc.Module+":"+rpc.Name] = true
 	}
-	// 14 since ze-system:quiesce was added. These are hardcoded per-module
-	// counts, so every new RPC breaks them until the literal is bumped; that is
-	// how this sat red in plan/known-failures/. Deriving the expectation the
-	// way the inventory gates do (ai/rules/evidence.md) would be
-	// better, but a count checked against the same registry it reads would be
-	// tautological -- a golden snapshot file (see plugin/all/testdata) is the
-	// shape that actually catches silent removal.
-	if modules["ze-system-api"] != 14 {
-		t.Errorf("expected 14 system RPCs, got %d", modules["ze-system-api"])
-	}
-	if modules["ze-plugin-api"] != 8 {
-		t.Errorf("expected 8 plugin RPCs, got %d", modules["ze-plugin-api"])
-	}
-	// 8 since help, command-list and event-list were deleted on 2026-10-08:
-	// no command node reaches a RIB copy of them, and the ze-bgp-api rpcs
-	// carry the live help, command-list and event-list. command-help and
-	// command-complete went on 2026-09-13 for the same reason.
-	if modules["ze-rib-api"] != 8 {
-		t.Errorf("expected 8 RIB RPCs, got %d", modules["ze-rib-api"])
+	for _, module := range []string{"ze-bgp-api", "ze-system-api", "ze-plugin-api", "ze-rib-api"} {
+		declared := yang.ExtractRPCs(loader, module)
+		if len(declared) == 0 {
+			t.Errorf("%s declares no rpc in this binary, so this test proves nothing about it", module)
+		}
+		for _, rpc := range declared {
+			if !published[module+":"+rpc.Name] {
+				t.Errorf("rpc %s in %s is published under no method", rpc.Name, module)
+			}
+		}
 	}
 }
 
@@ -627,7 +619,9 @@ func TestBuildSchemaRegistryRPCs(t *testing.T) {
 		"ze-bgp:subscribe", "ze-bgp:unsubscribe", "ze-bgp:commit",
 		"ze-system:help", "ze-system:version-software", "ze-system:daemon-status",
 		"ze-plugin:help", "ze-plugin:session-ping", "ze-plugin:session-bye",
-		"ze-rib:show",
+		// The RIB show rpc is published under the method of the node that
+		// points at it, `show rib routes`; no node declares ze-rib:show.
+		"ze-rib-api:routes",
 	}
 	for _, method := range expected {
 		if !wireSet[method] {

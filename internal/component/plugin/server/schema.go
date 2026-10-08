@@ -11,7 +11,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/yang"
-	"github.com/ze-software/ze/internal/core/ipc"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -96,7 +95,10 @@ var (
 	ErrSchemaNotFound         = errors.New("schema not found")
 	ErrRPCNotFound            = errors.New("RPC not found")
 	ErrRPCDuplicate           = errors.New("RPC wire method already registered")
-	ErrNotificationDuplicate  = errors.New("notification wire method already registered")
+	// ErrRPCUnnamed is an rpc or notification that carries no wire method:
+	// no ze:command node points at it and it declares no ze:method.
+	ErrRPCUnnamed            = errors.New("YANG statement carries no wire method")
+	ErrNotificationDuplicate = errors.New("notification wire method already registered")
 )
 
 // NewSchemaRegistry creates a new schema registry.
@@ -143,21 +145,24 @@ func (r *SchemaRegistry) Register(schema *Schema) error {
 	return nil
 }
 
-// RegisterRPCs indexes RPCs extracted from a YANG module.
-// Wire methods use the stripped module prefix (e.g., "ze-bgp-api" → "ze-bgp:peer-list").
-func (r *SchemaRegistry) RegisterRPCs(module string, rpcs []yang.RPCMeta) error {
-	wireModule := yang.WireModule(module)
-
+// RegisterRPCs indexes rpcs under the wire method each carries. The method
+// comes from the ze:command node that points at the rpc, or from the rpc's
+// own ze:method (yang.PublishedRPCs); it is never built from the module name,
+// so an rpc that carries none is refused rather than published under a guess.
+func (r *SchemaRegistry) RegisterRPCs(rpcs []yang.RPCMeta) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for _, meta := range rpcs {
-		wireMethod := ipc.FormatMethod(wireModule, meta.Name)
+		wireMethod := meta.WireMethod
+		if wireMethod == "" {
+			return fmt.Errorf("%w: rpc %s in %s", ErrRPCUnnamed, meta.Name, meta.Module)
+		}
 		if _, exists := r.rpcs[wireMethod]; exists {
 			return fmt.Errorf("%w: %s", ErrRPCDuplicate, wireMethod)
 		}
 		r.rpcs[wireMethod] = &RegisteredRPC{
-			Module:      module,
+			Module:      meta.Module,
 			Name:        meta.Name,
 			WireMethod:  wireMethod,
 			ShortHelp:   meta.ShortHelp,
@@ -169,20 +174,22 @@ func (r *SchemaRegistry) RegisterRPCs(module string, rpcs []yang.RPCMeta) error 
 	return nil
 }
 
-// RegisterNotifications indexes notifications extracted from a YANG module.
-func (r *SchemaRegistry) RegisterNotifications(module string, notifs []yang.NotificationMeta) error {
-	wireModule := yang.WireModule(module)
-
+// RegisterNotifications indexes notifications under the event name each
+// declares with ze:method. A notification that declares none is refused.
+func (r *SchemaRegistry) RegisterNotifications(notifs []yang.NotificationMeta) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for _, meta := range notifs {
-		wireMethod := ipc.FormatMethod(wireModule, meta.Name)
+		wireMethod := meta.WireMethod
+		if wireMethod == "" {
+			return fmt.Errorf("%w: notification %s in %s", ErrRPCUnnamed, meta.Name, meta.Module)
+		}
 		if _, exists := r.notifications[wireMethod]; exists {
 			return fmt.Errorf("%w: %s", ErrNotificationDuplicate, wireMethod)
 		}
 		r.notifications[wireMethod] = &RegisteredNotification{
-			Module:     module,
+			Module:     meta.Module,
 			Name:       meta.Name,
 			WireMethod: wireMethod,
 			ShortHelp:  meta.ShortHelp,

@@ -249,6 +249,7 @@ is 10s. Only a cpu profile reads it. A second cpu profile is refused while one r
         container warnings {
             config false;
             ze:command "ze-show:warnings";
+            ze:rpc "ze-cli-show-api:bgp-warnings";
             description "Displays any conditions that need your attention (degraded peers,
 resource limits approaching, etc.). Use 'source <name>' to filter
 to a single subsystem.";
@@ -323,6 +324,7 @@ output.";
         container health {
             config false;
             ze:command "ze-show:health";
+            ze:rpc "ze-cli-show-api:health";
             description "Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.)
 plus an overall status. Each component reports healthy, degraded, or
 unhealthy with a reason. Start here when troubleshooting.
@@ -342,6 +344,7 @@ outcome each plugin recorded once, before main(), when it set itself up.";
             container name {
                 config false;
                 ze:command "ze-show:metrics-query";
+                ze:rpc "ze-cli-show-api:metrics-query";
                 description "Returns matching time series from the internal registry. Multiple label
 filters are ANDed. More targeted than the full metrics dump.";
                 ze:help "Show one Prometheus metric by name.";
@@ -390,6 +393,7 @@ line, so it MUST be spelled the way the exporter wrote it.";
             container recent {
                 config false;
                 ze:command "ze-show:event-recent";
+                ze:rpc "ze-cli-show-api:event-recent";
                 description "Each event includes timestamp, namespace, and type. Filter with
 namespace <name> to focus on one area, count <N> to limit output.
 Useful for reconstructing what happened before an incident.";
@@ -399,6 +403,7 @@ Useful for reconstructing what happened before an incident.";
             container namespaces {
                 config false;
                 ze:command "ze-show:event-namespaces";
+                ze:rpc "ze-cli-show-api:event-namespaces";
                 description "Tells you which subsystems are generating events and how active
 they are.";
                 ze:help "List all event namespaces and how many events each has logged.";
@@ -407,6 +412,7 @@ they are.";
             container delivery {
                 config false;
                 ze:command "ze-show:event-delivery";
+                ze:rpc "ze-cli-show-api:event-delivery";
                 description "One block per peer, one row per `attach process` block on it: the
 event types that process is fed, and the message types it may send
 toward that peer. A token the event registry does not know is listed

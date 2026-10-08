@@ -14,6 +14,7 @@ module ze-monitor-cmd {
         container bgp {
             config false;
             ze:command "ze-bgp:monitor";
+            ze:rpc "ze-bgp-cmd-monitor-api:monitor";
             ze:task-support required;
             description "Shows all peers with state, uptime, and prefix counts. State changes
 highlight as they happen. Ctrl-C to stop.";

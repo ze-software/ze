@@ -368,24 +368,23 @@ type rpcParams struct {
 	Output []yang.LeafMeta
 }
 
-// loadRPCParams loads YANG API modules and returns a map of wire method to parameters.
+// loadRPCParams answers the parameters of every rpc a command node points at,
+// keyed by that node's wire method (yang.PublishedRPCs).
 func loadRPCParams() (map[string]rpcParams, error) {
 	loader, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("YANG loader: %w", err)
 	}
+	pub, err := yang.PublishedRPCs(loader)
+	if err != nil {
+		return nil, fmt.Errorf("YANG rpc pointers: %w", err)
+	}
 
-	result := make(map[string]rpcParams)
-
-	for _, moduleName := range loader.APIModuleNames() {
-		wireModule := yang.WireModule(moduleName)
-		rpcs := yang.ExtractRPCs(loader, moduleName)
-		for _, rpc := range rpcs {
-			wireMethod := wireModule + ":" + rpc.Name
-			result[wireMethod] = rpcParams{
-				Input:  rpc.Input,
-				Output: rpc.Output,
-			}
+	result := make(map[string]rpcParams, len(pub.Commands))
+	for _, rpc := range pub.Commands {
+		result[rpc.WireMethod] = rpcParams{
+			Input:  rpc.Input,
+			Output: rpc.Output,
 		}
 	}
 

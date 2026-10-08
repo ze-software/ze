@@ -44,6 +44,7 @@ session the selector matches.";
             container raw {
                 config false;
                 ze:command "ze-bgp:peer-raw";
+                ze:rpc "ze-bgp-api:peer-raw";
                 description "Injects arbitrary bytes with no BGP framing and no validation. It is for
 conformance testing and fuzzing only, and it will break the session if it is used
 carelessly. With a type keyword ze writes the marker and the header, and the data carries

@@ -19,6 +19,7 @@ or l2vpn.";
             container rib {
                 config false;
                 ze:command "ze-rib-api:routes";
+                ze:rpc "ze-rib-api:show";
                 ze:task-support required;
                 description "Look at received or advertised routes with flexible filters: peer,
 family, prefix, AS path regex, community, match expression. Pipe
@@ -29,6 +30,7 @@ route inspection command.";
                 container best {
                     config false;
                     ze:command "ze-rib-api:best";
+                    ze:rpc "ze-rib-api:best";
                     description "Same filters as 'show bgp rib'. Use '| reason' to see why each
 path was selected (local-pref, AS path length, MED, etc.).";
                     ze:help "Show the winning route for each prefix.";
@@ -36,6 +38,7 @@ path was selected (local-pref, AS path length, MED, etc.).";
                     container status {
                         config false;
                         ze:command "ze-rib-api:best-status";
+                        ze:rpc "ze-rib-api:best-status";
                         description "Reports idle, pending, or running, plus the last run duration.";
                         ze:help "Check whether best-path computation is still running.";
                     }
@@ -44,6 +47,7 @@ path was selected (local-pref, AS path length, MED, etc.).";
                 container status {
                     config false;
                     ze:command "ze-rib-api:status";
+                    ze:rpc "ze-rib-api:status";
                     description "Shows total peers, received/accepted/advertised route counts, and
 per-family breakdowns. Use this to confirm convergence after a
 peer comes up.";
@@ -99,6 +103,7 @@ name the protocol registry does not hold and names the registered ones.";
                 container in {
                     config false;
                     ze:command "ze-rib-api:clear-in";
+                    ze:rpc "ze-rib-api:clear-in";
                     ze:task-support forbidden;
                     description "Wipes the Adj-RIB-In for matched peers. They will need to
 re-advertise everything (or you can send a route-refresh).
@@ -109,6 +114,7 @@ Selector: IP, name, AS pattern, glob, or *.";
                 container out {
                     config false;
                     ze:command "ze-rib-api:clear-out";
+                    ze:rpc "ze-rib-api:clear-out";
                     ze:task-support forbidden;
                     description "Triggers a full Adj-RIB-Out replay to the selected peers. Useful
 after a policy change to push updated attributes without tearing
@@ -138,6 +144,7 @@ down the session. Selector: IP, name, AS pattern, glob, or *.";
                 container inject {
                     config false;
                     ze:command "ze-rib-api:inject";
+                    ze:rpc "ze-rib-api:inject";
                     ze:task-support forbidden;
                     description "Behaves as if the route was received from a peer. Use this for
 testing policy filters or simulating route announcements.";
@@ -147,6 +154,7 @@ testing policy filters or simulating route announcements.";
                 container withdraw {
                     config false;
                     ze:command "ze-rib-api:withdraw";
+                    ze:rpc "ze-rib-api:withdraw";
                     ze:task-support forbidden;
                     description "Removes a previously injected or received route from a peer's
 Adj-RIB-In, triggering best-path recomputation.";

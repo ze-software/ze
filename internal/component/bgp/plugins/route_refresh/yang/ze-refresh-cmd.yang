@@ -17,6 +17,7 @@ module ze-refresh-cmd {
             container refresh {
                 config false;
                 ze:command "ze-bgp:peer-refresh";
+                ze:rpc "ze-route-refresh-api:peer-refresh";
                 description "Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
 peer will re-advertise its entire Adj-RIB-Out.";
                 ze:help "Ask a peer to re-send all routes (RFC 2918).";
@@ -25,6 +26,7 @@ peer will re-advertise its entire Adj-RIB-Out.";
             container borr {
                 config false;
                 ze:command "ze-bgp:peer-borr";
+                ze:rpc "ze-bgp-api:peer-borr";
                 description "Tells the peer to mark existing routes as stale. After re-sending,
 send EORR to purge anything not refreshed.";
                 ze:help "Start an Enhanced Route Refresh cycle (RFC 7313).";
@@ -33,6 +35,7 @@ send EORR to purge anything not refreshed.";
             container eorr {
                 config false;
                 ze:command "ze-bgp:peer-eorr";
+                ze:rpc "ze-bgp-api:peer-eorr";
                 description "The peer purges any routes not re-advertised since the matching
 BORR. Only send this after the peer has finished re-advertising.";
                 ze:help "Finish an Enhanced Route Refresh cycle (RFC 7313).";
@@ -48,6 +51,7 @@ BORR. Only send this after the peer has finished re-advertising.";
                 container soft {
                     config false;
                     ze:command "ze-bgp:peer-clear-soft";
+                    ze:rpc "ze-bgp-api:peer-clear-soft";
                     description "Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
 to re-send all routes. No session bounce, no traffic impact.";
                     ze:help "Soft-clear a peer without dropping the session.";

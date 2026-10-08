@@ -12,6 +12,7 @@ module ze-command-monitor-cmd {
         container event {
             config false;
             ze:command "ze-event:monitor";
+            ze:rpc "ze-bgp-cmd-monitor-api:monitor";
             ze:task-support required;
             description "Shows a real-time feed of internal events. Filter with include <pattern> or
 exclude <pattern> to focus on what matters. Patterns match event type names.";

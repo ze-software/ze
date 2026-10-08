@@ -18,6 +18,7 @@ module ze-pki-cmd {
             container certificates {
                 config false;
                 ze:command "ze-show:pki-certificates";
+                ze:rpc "ze-pki-api:certificates";
                 description "Shows name, type (CA or device), subject, issuer, expiry, and validity status.
 Check here to find certificates approaching expiration.";
                 ze:help "List all loaded certificates with expiry dates.";
@@ -46,6 +47,7 @@ Check here to find certificates approaching expiration.";
                 container name {
                     config false;
                     ze:command "ze-show:pki-certificate";
+                    ze:rpc "ze-pki-api:certificate";
                     description "Each export form is a command of its own.";
                     ze:help "Inspect a specific certificate in detail.";
                     leaf name {

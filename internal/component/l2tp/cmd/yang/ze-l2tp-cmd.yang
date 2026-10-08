@@ -34,6 +34,7 @@ module ze-l2tp-cmd {
         container l2tp {
             config false;
             ze:command "ze-l2tp-api:summary";
+            ze:rpc "ze-l2tp-api:summary";
             description "Without a subcommand, shows a summary of tunnels and
 sessions.";
             ze:help "L2TP tunnel, session, and subscriber state.";
@@ -41,6 +42,7 @@ sessions.";
             container health {
                 config false;
                 ze:command "ze-show:l2tp-health";
+                ze:rpc "ze-cli-show-api:l2tp-health";
                 description "Sorts sessions by echo loss ratio (worst first). Shows
 subscriber login, session state, echo count, average RTT, and CQM bucket count.
 Reports how many sessions are degraded.";
@@ -50,6 +52,7 @@ Reports how many sessions are degraded.";
             container tunnels {
                 config false;
                 ze:command "ze-l2tp-api:tunnels";
+                ze:rpc "ze-l2tp-api:tunnels";
                 description "One line per tunnel: local/remote ID, peer address,
 session count, and uptime.";
                 ze:help "List all active L2TP tunnels.";
@@ -64,6 +67,7 @@ session count, and uptime.";
                 container id {
                     config false;
                     ze:command "ze-l2tp-api:tunnel";
+                    ze:rpc "ze-l2tp-api:tunnel";
                     description "Pass the local tunnel ID. Returns control channel
 state, peer endpoint, hello interval, and all assigned sessions.";
                     ze:help "Show full detail for one L2TP tunnel.";
@@ -80,6 +84,7 @@ local-tid'.";
                 container history {
                     config false;
                     ze:command "ze-l2tp-api:tunnel-history";
+                    ze:rpc "ze-l2tp-api:tunnel-history";
                     description "Timestamped FSM entries showing how the tunnel
 reached its current state. Use this to diagnose a tunnel establishment
 failure.";
@@ -90,6 +95,7 @@ failure.";
             container sessions {
                 config false;
                 ze:command "ze-l2tp-api:sessions";
+                ze:rpc "ze-l2tp-api:sessions";
                 description "One line per session: local/remote ID, parent tunnel,
 subscriber login, and uptime.";
                 ze:help "List all active L2TP sessions.";
@@ -104,6 +110,7 @@ subscriber login, and uptime.";
                 container id {
                     config false;
                     ze:command "ze-l2tp-api:session";
+                    ze:rpc "ze-l2tp-api:session";
                     description "Pass the local session ID. Returns PPP state,
 assigned addresses, negotiated LCP/NCP options, and traffic counters.";
                     ze:help "Show full detail for one L2TP session.";
@@ -120,6 +127,7 @@ local-sid'.";
                 container history {
                     config false;
                     ze:command "ze-l2tp-api:session-history";
+                    ze:rpc "ze-l2tp-api:session-history";
                     description "Timestamped FSM entries for session establishment.
 Use this when a subscriber's session fails to come up.";
                     ze:help "Show state transitions for a session over time.";
@@ -138,6 +146,7 @@ health.";
             container statistics {
                 config false;
                 ze:command "ze-l2tp-api:statistics";
+                ze:rpc "ze-l2tp-api:statistics";
                 description "Tunnels and sessions established, control messages
 sent and received, retransmits, and errors. It is the first command to run for
 L2TP health.";
@@ -147,6 +156,7 @@ L2TP health.";
             container listeners {
                 config false;
                 ze:command "ze-l2tp-api:listeners";
+                ze:rpc "ze-l2tp-api:listeners";
                 description "Lists each bound address, port, and the number of
 tunnels on it.";
                 ze:help "Show which UDP sockets are listening for L2TP.";
@@ -155,6 +165,7 @@ tunnels on it.";
             container config {
                 config false;
                 ze:command "ze-l2tp-api:config";
+                ze:rpc "ze-l2tp-api:config";
                 description "Returns the effective config after defaults and
 overrides. Confirms what the daemon uses.";
                 ze:help "Show the resolved L2TP configuration.";
@@ -163,6 +174,7 @@ overrides. Confirms what the daemon uses.";
             container observer {
                 config false;
                 ze:command "ze-l2tp-api:observer";
+                ze:rpc "ze-l2tp-api:observer";
                 description "Returns the event ring buffer for one session ID or
 'all'. Use it to find why a session failed to establish.";
                 ze:help "Show recent events for a session (debug aid).";
@@ -171,6 +183,7 @@ overrides. Confirms what the daemon uses.";
             container cqm {
                 config false;
                 ze:command "ze-l2tp-api:cqm";
+                ze:rpc "ze-l2tp-api:cqm";
                 description "Pass a login name for one subscriber or 'summary' for
 an overview. Use it to diagnose a poor subscriber experience.";
                 ze:help "Show subscriber line quality (CQM latency buckets).";
@@ -179,6 +192,7 @@ an overview. Use it to diagnose a poor subscriber experience.";
             container echo {
                 config false;
                 ze:command "ze-l2tp-api:echo";
+                ze:rpc "ze-l2tp-api:echo";
                 description "Returns echo request and reply counters and round-trip
 times. Rising loss or high RTT indicates a degraded line.";
                 ze:help "Show LCP echo health for a subscriber session.";
@@ -187,6 +201,7 @@ times. Rising loss or high RTT indicates a degraded line.";
             container reliable {
                 config false;
                 ze:command "ze-l2tp-api:reliable";
+                ze:rpc "ze-l2tp-api:reliable";
                 description "Returns send and receive sequence numbers, window size,
 and retransmit queue depth. Check here when tunnel control messages stop
 moving.";
@@ -217,6 +232,7 @@ moving.";
                 container id {
                     config false;
                     ze:command "ze-l2tp-api:tunnel-teardown";
+                    ze:rpc "ze-l2tp-api:tunnel-teardown";
                     description "Sends a StopCCN to the peer. Every session on this
 tunnel is disconnected. Pass the local tunnel ID: clear l2tp tunnel id
 <id>.";
@@ -226,6 +242,7 @@ tunnel is disconnected. Pass the local tunnel ID: clear l2tp tunnel id
                 container all {
                     config false;
                     ze:command "ze-l2tp-api:tunnel-teardown-all";
+                    ze:rpc "ze-l2tp-api:tunnel-teardown-all";
                     description "Sends StopCCN for all tunnels. Every subscriber
 session is disconnected. Use with care during maintenance.";
                     ze:help "Tear down every L2TP tunnel on this box.";
@@ -241,6 +258,7 @@ session is disconnected. Use with care during maintenance.";
                 container id {
                     config false;
                     ze:command "ze-l2tp-api:session-teardown";
+                    ze:rpc "ze-l2tp-api:session-teardown";
                     description "Sends a CDN to gracefully close the session. Pass
 the local session ID: clear l2tp session id <id> [reason <text>] [cause
 <code>].";
@@ -250,6 +268,7 @@ the local session ID: clear l2tp session id <id> [reason <text>] [cause
                 container all {
                     config false;
                     ze:command "ze-l2tp-api:session-teardown-all";
+                    ze:rpc "ze-l2tp-api:session-teardown-all";
                     description "Sends CDN for all sessions across all tunnels. The
 tunnels stay up. Use with care.";
                     ze:help "Disconnect every L2TP session on this box.";
@@ -291,6 +310,7 @@ tunnels stay up. Use with care.";
                     container called {
                         config false;
                         ze:command "ze-l2tp-api:outgoing-call";
+                        ze:rpc "ze-l2tp-api:outgoing-call";
                         description "Dials the named remote (which must have
 outgoing-calls enabled), sends OCRQ, and blocks until the call establishes or
 fails. On failure the cause and RFC 2661 Result Code are reported (auth reject,

@@ -17,6 +17,7 @@ module ze-plugin-callback {
     // Stage 2: Engine delivers configuration.
 
     rpc configure {
+        ze:method "ze-plugin-callback:configure";
         description "Called during Stage 2 of the 5-stage startup protocol.";
         ze:help "Engine delivers configuration sections to the plugin.";
         input {
@@ -50,6 +51,7 @@ module ze-plugin-callback {
     // Stage 4: Engine shares command registry.
 
     rpc share-registry {
+        ze:method "ze-plugin-callback:share-registry";
         description "Called during Stage 4 of the 5-stage startup protocol.";
         ze:help "Engine shares the full command registry with the plugin.";
         input {
@@ -88,6 +90,7 @@ module ze-plugin-callback {
     // Runtime: Event delivery.
 
     rpc deliver-event {
+        ze:method "ze-plugin-callback:deliver-event";
         description "Timeout on delivery is FATAL (program terminates).";
         ze:help "Engine delivers a BGP event to the plugin.";
         input {
@@ -106,6 +109,7 @@ module ze-plugin-callback {
     // Runtime: NLRI encoding/decoding callbacks.
 
     rpc encode-nlri {
+        ze:method "ze-plugin-callback:encode-nlri";
         description "The plugin answers one hex string, which the engine writes to the wire as
 the NLRI body. A plugin that registers no OnEncodeNLRI handler cannot answer,
 so the family it claims stays unencodable and the engine has nothing to send.";
@@ -141,6 +145,7 @@ so the family it claims stays unencodable and the engine has nothing to send.";
     }
 
     rpc decode-nlri {
+        ze:method "ze-plugin-callback:decode-nlri";
         description "The plugin answers a value, and the SDK marshals it ONCE into the json
 field rather than encoding a string that holds encoded JSON. This is the
 receive direction of encode-nlri, and a plugin that claims a family declares
@@ -193,6 +198,7 @@ both or the family works in one direction only.";
     }
 
     rpc decode-capability {
+        ze:method "ze-plugin-callback:decode-capability";
         description "The engine passes the numeric capability code and the option bytes as hex,
 so a plugin decodes a code the engine itself does not know. The answer is
 marshaled once into the json field, the shape decode-nlri also uses.";
@@ -228,6 +234,7 @@ marshaled once into the json field, the shape decode-nlri also uses.";
     // Runtime: Command execution.
 
     rpc execute-command {
+        ze:method "ze-plugin-callback:execute-command";
         description "The serial correlates the answer with this request. The engine can have
 several requests in flight on one connection. A handler CAN answer with
 records, which is a walk and not a built value. Over the socket that arrives
@@ -291,6 +298,7 @@ to the single document the record path would have carried.";
     // Runtime: Route filter callback.
 
     rpc filter-update {
+        ze:method "ze-plugin-callback:filter-update";
         description "Plugin responds accept, reject, or modify (delta-only).";
         ze:help "Engine sends UPDATE attributes to a named filter plugin.";
         input {
@@ -378,6 +386,7 @@ to the single document the record path would have carried.";
     // Shutdown: Clean termination.
 
     rpc bye {
+        ze:method "ze-plugin-callback:bye";
         description "Plugin should respond, then cleanup and exit with code 0.";
         ze:help "Engine requests the plugin to shut down cleanly.";
         input {

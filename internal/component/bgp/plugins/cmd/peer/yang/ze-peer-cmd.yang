@@ -50,6 +50,7 @@ module ze-peer-cmd {
         container bgp {
             config false;
             ze:command "ze-bgp:overview";
+            ze:rpc "ze-bgp-api:overview";
             description "Typed with no subcommand, lists every peer with state, ASN,
 prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6,
 or l2vpn.";
@@ -79,6 +80,7 @@ except 'list', which reads every peer.";
                 container list {
                     config false;
                     ze:command "ze-bgp:peer-list";
+                    ze:rpc "ze-bgp-api:peer-list";
                     ze:inherit "none";
                     description "Shows name, address, ASN, state, and uptime. Quick overview without
 the per-peer detail.";
@@ -88,6 +90,7 @@ the per-peer detail.";
                 container detail {
                     config false;
                     ze:command "ze-bgp:peer-detail";
+                    ze:rpc "ze-bgp-api:peer-show";
                     description "Each peer row carries the remote and local ASN, the router ID, the peer type,
 and four timers: receive hold time, send hold time, keepalive, and connect
 retry. The 'connect' and 'accept' flags say which directions this session opens.
@@ -103,6 +106,7 @@ are omitted.";
                 container capabilities {
                     config false;
                     ze:command "ze-bgp:peer-capabilities";
+                    ze:rpc "ze-bgp-api:peer-show-capabilities";
                     description "The row carries the peer address and the FSM state. Once the OPEN exchange
 completed, a negotiated map follows with the address families, the extended
 message capability, enhanced route refresh, and 4-byte ASN support.
@@ -117,6 +121,7 @@ absent limits are omitted. A selector that matches no peer is refused with
                 container statistics {
                     config false;
                     ze:command "ze-bgp:peer-statistics";
+                    ze:rpc "ze-bgp-api:peer-show-statistics";
                     description "Each row carries the peer address, its ASN, the FSM state, and the session
 uptime. Six counters follow, for UPDATE, KEEPALIVE and End-of-RIB messages in
 each direction. Each rate is the cumulative counter divided by the uptime in
@@ -184,6 +189,7 @@ up and advertised nothing: it separates a hold that is working from a daemon tha
             container health {
                 config false;
                 ze:command "ze-show:bgp-health";
+                ze:rpc "ze-cli-show-api:bgp-health";
                 description "Lists every peer with address, state, ASN, and uptime. Reports how
 many are not Established. Much faster than 'show bgp peer *' when
 you just need a status overview.";
@@ -205,6 +211,7 @@ is the one command under it.";
                 config false;
 
                 ze:command "ze-bgp:peer-add";
+                ze:rpc "ze-bgp-api:peer-add";
                 description "The peer address and 'asn' are required. Every other keyword is
 optional. Ze builds the peer, starts it, and dials the address unless 'connect
 false' says otherwise. The peer lives in the running daemon alone. Ze writes
@@ -344,6 +351,7 @@ command under it.";
                 config false;
 
                 ze:command "ze-delete:bgp-peer";
+                ze:rpc "ze-cli-delete-api:bgp-peer";
                 description "Tears down the TCP session and deletes the peer from the running
 configuration. Does not modify the config file on disk.";
                 ze:help "Remove a peer from the running config.";
@@ -402,6 +410,7 @@ to apply.";
             container config {
                 config false;
                 ze:command "ze-bgp:peer-save";
+                ze:rpc "ze-bgp-api:peer-save";
                 description "Ze writes the running peer set into the configuration file. A peer
 'create bgp peer' built is added to the file, and a peer the file declares that
 'delete bgp peer' removed is taken out of it. A peer both sides already hold is
@@ -446,6 +455,7 @@ one peer, and the other commands act on each peer it matches.";
             container teardown {
                 config false;
                 ze:command "ze-bgp:peer-teardown";
+                ze:rpc "ze-bgp-api:peer-teardown";
                 description "The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255.
 Ze sends an RFC 8203 shutdown communication message with subcode 2,
 administrative shutdown, and with subcode 4, administrative reset, and with no
@@ -483,6 +493,7 @@ the session changes.";
             container flush {
                 config false;
                 ze:command "ze-bgp:peer-flush";
+                ze:rpc "ze-bgp-api:peer-flush";
                 description "The command returns once the forward pool has drained, so a test asserts on what
 the peer received without a fixed sleep. A selector of '*' flushes every peer.
 The wait is bounded at 30 seconds.";
@@ -504,6 +515,7 @@ the moment a peer's plugin process finished its startup.";
                     container ready {
                         config false;
                         ze:command "ze-plugin:session-peer-ready";
+                        ze:rpc "ze-plugin-api:session-peer-ready";
                         description "The daemon closes this sending process's share of the peer's
 live-forward replay fence only for the captured peer-UP session token.
 Missing, stale or retired process receipts fail without releasing queued work.

@@ -20,6 +20,7 @@ module ze-update-cmd {
             container update {
                 config false;
                 ze:command "ze-bgp:peer-update";
+                ze:rpc "ze-bgp-api:peer-update";
                 description "The encoding word says how the rest of the line is read. text is the
 route syntax docs/architecture/api/update-syntax.md states, hex and b64 are wire octets, and
 cursor replays a stored position. 'show bgp encode' builds a hex payload. The tokens after

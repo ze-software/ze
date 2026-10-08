@@ -48,6 +48,7 @@ the interface is present. It fails when that name holds an interface of another 
                 container name {
                     config false;
                     ze:command "ze-iface:interface-create-dummy";
+                    ze:rpc "ze-iface-api:interface-create-dummy";
                     ze:backend "netlink";
                     ze:ensure-exists "ze-iface:interface-delete";
                     description "The command is idempotent. When a unit or address command under
@@ -64,6 +65,7 @@ interface of another type is refused, and the error names both types.";
                     container unit {
                         config false;
                         ze:command "ze-iface:interface-unit-add";
+                        ze:rpc "ze-iface-api:interface-unit-add";
                         ze:backend "netlink";
                         description "The VLAN id is 1 to 4094, and the new interface is named
 <name>.<vid>. The dummy is created first when it is absent, and deleted again when this step
@@ -88,6 +90,7 @@ first when it is absent.";
                     container address {
                         config false;
                         ze:command "ze-iface:interface-addr-add";
+                        ze:rpc "ze-iface-api:interface-addr-add";
                         ze:backend "netlink";
                         description "The address is written in CIDR form, for example
 10.0.0.1/32. The dummy is created first when it is absent, and deleted again when this step
@@ -120,6 +123,7 @@ form, so create the pair first, then add a unit or an address to either end.";
                 container name {
                     config false;
                     ze:command "ze-iface:interface-create-veth";
+                    ze:rpc "ze-iface-api:interface-create-veth";
                     ze:backend "netlink";
                     description "The peer name is the second value and is required. A second
 create of the same name changes nothing and reports that the pair is present.";
@@ -166,6 +170,7 @@ interface of another type is refused, and the error names both types.";
                     container unit {
                         config false;
                         ze:command "ze-iface:interface-unit-add";
+                        ze:rpc "ze-iface-api:interface-unit-add";
                         ze:backend "netlink";
                         description "The VLAN id is 1 to 4094, and the new interface is named
 <name>.<vid>. The bridge is created first when it is absent, and deleted again when this
@@ -190,6 +195,7 @@ it first when it is absent.";
                     container address {
                         config false;
                         ze:command "ze-iface:interface-addr-add";
+                        ze:rpc "ze-iface-api:interface-addr-add";
                         ze:backend "netlink";
                         description "The address is written in CIDR form, for example
 10.0.0.1/32. The bridge is created first when it is absent, and deleted again when this step
@@ -216,6 +222,7 @@ example 10.0.0.1/32. Ze passes the string to the netlink backend.";
             container unit {
                 config false;
                 ze:command "ze-iface:interface-unit-add";
+                ze:rpc "ze-iface-api:interface-unit-add";
                 description "The parent interface must already exist.";
                 ze:help "Add a VLAN sub-interface (802.1Q tagged).";
                 leaf name {
@@ -237,6 +244,7 @@ the name must be present in the kernel before the command runs.";
             container address {
                 config false;
                 ze:command "ze-iface:interface-addr-add";
+                ze:rpc "ze-iface-api:interface-addr-add";
                 description "The interface must already exist.";
                 ze:help "Add an IP address to an interface.";
                 leaf name {
@@ -269,6 +277,7 @@ its kernel device, so a name bound to hardware by a selector reaches the right p
             container name {
                 config false;
                 ze:command "ze-iface:interface-delete";
+                ze:rpc "ze-iface-api:interface-delete";
                 description "The dispatcher calls this same command to undo a compound create.
 An interface it created is deleted when the unit or address step after it fails.";
                 ze:help "Delete an interface from the kernel.";
@@ -283,6 +292,7 @@ keep this interface and remove one unit or one address of it.";
                 container unit {
                     config false;
                     ze:command "ze-iface:interface-unit-del";
+                    ze:rpc "ze-iface-api:interface-unit-del";
                     description "The VLAN id is 1 to 4094. The interface deleted is
 <name>.<vid>, so the parent interface stays.";
                     ze:help "Remove a VLAN sub-interface.";
@@ -305,6 +315,7 @@ keep this interface and remove one unit or one address of it.";
                 container address {
                     config false;
                     ze:command "ze-iface:interface-addr-del";
+                    ze:rpc "ze-iface-api:interface-addr-del";
                     description "Give the address in the same CIDR form it was added with. The
 interface stays, and only that address goes.";
                     ze:help "Remove an IP address from an interface.";
@@ -397,6 +408,7 @@ case. The kernel device takes this address in place of the one it has.";
             container migrate {
                 config false;
                 ze:command "ze-iface:interface-migrate";
+                ze:rpc "ze-iface-api:interface-migrate";
                 ze:inherit "none";
                 description "Takes a source interface, a target interface, and the
 address to move. Adds addresses to the target before removing them from the

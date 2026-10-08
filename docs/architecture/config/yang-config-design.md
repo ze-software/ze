@@ -63,6 +63,8 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:backend` | Restricts a node to named backends. Commit validates it and completion filters on it | space-separated backend names |
 | `ze:bcrypt` | Leaf holds a one-way bcrypt hash. The commit hook hashes its `plaintext-<name>` sibling into it | (none) |
 | `ze:command` | Marks a `config false` container as an executable CLI command | WireMethod string |
+| `ze:method` | Declares the wire method of an rpc or notification that no command node points at: the plugin IPC protocol and the event stream | WireMethod string |
+| `ze:rpc` | On a `ze:command` node, names the rpc that documents the command's input and output; the rpc is published under the node's wire method | `module:rpc-name` |
 | `ze:cumulative` | Leaf-list accumulates values from the bgp, group and peer levels instead of the most specific level replacing them | (none) |
 | `ze:decorate` | Attaches a registered display-time decorator to a leaf | decorator name |
 | `ze:display-key` | Names the leaf the web interface shows for a keyless list entry | (none) |
@@ -139,12 +141,18 @@ Config schemas import `ze-types` for leaf types and `ze-extensions` for behavior
 
 Define RPCs (request/response operations) and the CLI command tree. The `-api.yang` modules
 define RPC signatures. The `-cmd.yang` modules define the CLI navigation hierarchy using
-`config false` containers with `ze:command` extensions.
+`config false` containers with `ze:command` extensions. A command node's
+`ze:rpc` statement names the rpc that documents its input and output, and the
+rpc is published under that node's wire method: the rpc names no method of its
+own, and no method is built from a module's file name. An rpc no node reaches
+(the plugin IPC protocol in `internal/core/ipc/yang/`) and a notification
+declare their wire method with `ze:method`. An rpc that has neither is
+published under no name, and the command contract gate refuses it.
+<!-- source: internal/component/config/yang/rpc_publish.go -- PublishedRPCs -->
 
 | Schema | Purpose | Location |
 |--------|---------|----------|
 | `ze-bgp-api` | BGP peer/route/cache RPCs | `component/bgp/yang/` |
-| `ze-bgp-cmd-peer-api` | Peer management commands | `component/bgp/plugins/cmd/peer/yang/` |
 | `ze-rib-api` | RIB query RPCs | `component/bgp/plugins/rib/yang/` |
 | `ze-*-cmd` | CLI command tree nodes | Various `schema/` directories |
 

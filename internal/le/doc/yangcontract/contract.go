@@ -18,6 +18,7 @@ package docyangcontract
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -217,42 +218,53 @@ func Validate(root string) (ValidationResult, error) {
 	return result, nil
 }
 
-// publishedRPCs answers every rpc declaration in the loader's `-api` modules,
-// under the wire method the help surfaces publish for it, sorted by method.
+// publishedRPCs answers every rpc declaration a caller can read, under the
+// wire method the help surfaces publish for it, sorted by method.
 //
-// The methods are built by RegisterRPCs, the function `ze schema methods`
-// (loadAPIRPCs) and `ze help ai --json` (aihelp.SchemaRegistry) both build
-// them with, so this gate judges the spelling a caller reads rather than a
-// second derivation of it. A loader holding no `-api` module is an error: the
-// run would otherwise judge nothing and answer that nothing is orphaned.
+// The methods come from yang.PublishedRPCs, the function `ze schema methods`
+// (loadAPIRPCs) and `ze help ai --json` (aihelp.SchemaRegistry) both publish
+// through, so this gate judges the spelling a caller reads rather than a
+// second derivation of it: each rpc carries the method of the ze:command node
+// that points at it. An rpc no node points at, and that declares no ze:method
+// of its own, is answered with an empty method, which no handler serves, so
+// the gate names it (AC-9). A broken pointer is an error. A loader that
+// publishes no rpc at all is an error too: the run would otherwise judge
+// nothing and answer that nothing is orphaned.
 func publishedRPCs(loader *yang.Loader) ([]RPCDeclaration, error) {
-	modules := loader.APIModuleNames()
-	if len(modules) == 0 {
-		return nil, errNoAPIModule
+	pub, err := yang.PublishedRPCs(loader)
+	if err != nil {
+		return nil, err
 	}
-	schema := pluginserver.NewSchemaRegistry()
-	for _, module := range modules {
-		if err := schema.RegisterRPCs(module, yang.ExtractRPCs(loader, module)); err != nil {
-			return nil, err
+	// This process links every module, so a pointer at a module it did not
+	// load names a module that does not exist.
+	if len(pub.Unlinked) > 0 {
+		return nil, fmt.Errorf("%w: %s", errUnlinkedPointer, strings.Join(pub.Unlinked, ", "))
+	}
+	if len(pub.Commands)+len(pub.Unnamed) == 0 {
+		return nil, errNoPublishedRPC
+	}
+	declarations := make([]RPCDeclaration, 0, len(pub.Commands)+len(pub.Unnamed))
+	for _, rpcs := range [][]yang.RPCMeta{pub.Commands, pub.Unnamed} {
+		for _, rpc := range rpcs {
+			declarations = append(declarations, RPCDeclaration{
+				WireMethod: rpc.WireMethod,
+				Module:     rpc.Module,
+				RPC:        rpc.Name,
+			})
 		}
 	}
-	registered := schema.ListRPCs("")
-	declarations := make([]RPCDeclaration, 0, len(registered))
-	for _, rpc := range registered {
-		declarations = append(declarations, RPCDeclaration{
-			WireMethod: rpc.WireMethod,
-			Module:     rpc.Module,
-			RPC:        rpc.Name,
-		})
-	}
-	sort.Slice(declarations, func(i, j int) bool {
+	sort.SliceStable(declarations, func(i, j int) bool {
 		return declarations[i].WireMethod < declarations[j].WireMethod
 	})
 	return declarations, nil
 }
 
-// errNoAPIModule is publishedRPCs refusing a loader with no `-api` module.
-var errNoAPIModule = errors.New("no -api YANG module is loaded, so no published rpc can be judged")
+// errUnlinkedPointer is publishedRPCs refusing a ze:rpc pointer at a module
+// the fully linked process does not hold.
+var errUnlinkedPointer = errors.New("ze:rpc points at a module no linked component declares")
+
+// errNoPublishedRPC is publishedRPCs refusing a loader that publishes no rpc.
+var errNoPublishedRPC = errors.New("the loaded YANG publishes no rpc, so no published rpc can be judged")
 
 // unservedRPCs answers the declarations whose wire method no handler in served
 // answers. A declaration a caller can read and no dispatcher answers is the

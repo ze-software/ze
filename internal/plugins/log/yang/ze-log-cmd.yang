@@ -19,6 +19,7 @@ module ze-log-cmd {
             container levels {
                 config false;
                 ze:command "ze-bgp:log-levels";
+                ze:rpc "ze-bgp-cmd-log-api:log-show";
                 description "Lists every registered logger with its current level. Use 'request log level'
 to change a level at runtime without restarting.";
                 ze:help "Show what log level each subsystem is using.";
@@ -27,6 +28,7 @@ to change a level at runtime without restarting.";
             container recent {
                 config false;
                 ze:command "ze-bgp:log-recent";
+                ze:rpc "ze-bgp-cmd-log-api:log-recent";
                 description "Filters (all optional): level <lvl>, component <name>, count <N>. Newest
 entries first. Useful when you cannot access the log file directly.";
                 ze:help "Show recent log entries from the in-memory ring.";
@@ -70,6 +72,7 @@ without it every buffered entry is shown.";
             container level {
                 config false;
                 ze:command "ze-bgp:log-set";
+                ze:rpc "ze-bgp-cmd-log-api:log-set";
                 description "Takes effect immediately. Set to debug when troubleshooting, then back to info
 when you are done.";
                 ze:help "Change a subsystem's log level without restarting.";

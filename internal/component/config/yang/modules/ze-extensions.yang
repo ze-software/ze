@@ -124,6 +124,33 @@ module ze-extensions {
                      the handler argument connects it to the registered handler.";
     }
 
+    // Extension: rpc
+    // Points a ze:command node at the rpc statement that documents its input
+    // and output. The node's ze:command argument is the one declaration of the
+    // wire method; the rpc names no method of its own, so a module's file name
+    // carries no meaning on the wire. Several nodes may point at one rpc, and
+    // each publishes it under its own method. An rpc that no node points at,
+    // and that declares no ze:method, is published under no name, and the
+    // command contract gate refuses it
+    // (internal/component/config/yang/rpc.go, PublishedRPCs).
+    extension rpc {
+        argument target;
+        description "Names the rpc statement, as module:rpc-name, that documents
+                     the input and output of this ze:command node. The rpc is
+                     published under the node's wire method.";
+    }
+
+    // Extension: method
+    // Declares the wire method of an rpc or a notification that no command
+    // node reaches: the plugin IPC protocol and the event stream. These names
+    // are an external contract, spelled on the wire exactly as written here.
+    extension method {
+        argument name;
+        description "Declares the wire method of an rpc or notification that no
+                     ze:command node points at, as module:name. The value is the
+                     exact spelling on the wire.";
+    }
+
     // Extension: help
     // Carries the SHORT summary of a command node, an rpc, a notification, a
     // config node or an enum value: one sentence a list row, a completion

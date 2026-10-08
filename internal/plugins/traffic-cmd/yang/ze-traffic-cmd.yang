@@ -24,6 +24,7 @@ module ze-traffic-cmd {
             container control {
                 config false;
                 ze:command "ze-show:traffic";
+                ze:rpc "ze-cli-show-api:traffic";
                 description "Without arguments, lists every interface with its qdisc type and class/filter
 counts. With an interface name, shows the full qdisc and class breakdown. Use
 this to verify your shaping is applied.";

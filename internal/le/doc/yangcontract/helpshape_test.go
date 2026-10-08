@@ -34,6 +34,7 @@ module ze-fixture-cmd {
     container sockets {
       config false;
       ze:command "ze-show:sockets";
+      ze:rpc "ze-fixture-api:socket-list";
       ze:help "List the open sockets.";
       description "One row is written for each socket the daemon holds open.
                The state column names the TCP state.";

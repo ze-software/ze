@@ -1,33 +1,116 @@
 package yang
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestWireModule verifies YANG module name to wire method prefix conversion.
-//
-// VALIDATES: Module names are correctly stripped of -api/-conf suffixes.
-// PREVENTS: Wrong method prefixes on the wire (e.g., "ze-bgp-api:peer-list" instead of "ze-bgp:peer-list").
-func TestWireModule(t *testing.T) {
-	tests := []struct {
-		name   string
-		module string
-		want   string
-	}{
-		{"bgp-api", "ze-bgp-api", "ze-bgp"},
-		{"system-api", "ze-system-api", "ze-system"},
-		{"rib-api", "ze-rib-api", "ze-rib"},
-		{"plugin-api", "ze-plugin-api", "ze-plugin"},
-		{"bgp-conf", "ze-bgp-conf", "ze-bgp"},
-		{"no-suffix", "ze-types", "ze-types"},
-	}
+// publishCmdModule points two nodes at the fixture -api module's socket-list
+// rpc under two wire methods, and points no node at socket-clear.
+const publishCmdModule = `
+module ze-fixture-cmd {
+    namespace "urn:ze:fixture:cmd";
+    prefix zefc;
+    import ze-extensions { prefix ze; }
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, WireModule(tt.module))
+    container show {
+        config false;
+        container sockets {
+            config false;
+            ze:command "ze-show:sockets";
+            ze:rpc "ze-fixture-api:socket-list";
+        }
+        container socket-table {
+            config false;
+            ze:command "ze-fixture:socket-table";
+            ze:rpc "ze-fixture-api:socket-list";
+        }
+        container plain {
+            config false;
+            ze:command "ze-show:plain";
+        }
+    }
+}
+`
+
+// publishLoader loads the fixture -api module and the given -cmd module text.
+func publishLoader(t *testing.T, cmdModule string) *Loader {
+	t.Helper()
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("ze-fixture-api.yang", rpcHelpModule))
+	require.NoError(t, loader.AddModuleFromText("ze-fixture-cmd.yang", cmdModule))
+	require.NoError(t, loader.Resolve())
+	return loader
+}
+
+// TestPublishedRPCsTakeTheMethodOfThePointingNode proves an rpc is published
+// under the wire method of each ze:command node that points at it, and under
+// no method built from its module's file name.
+//
+// VALIDATES: AC-8, the node is the one declaration of the method; AC-9, an rpc
+// no node points at and that declares no ze:method is named as unnamed.
+// PREVENTS: `ze-fixture-api` publishing `ze-fixture:socket-list`, a name no node
+// declares and no handler answers.
+func TestPublishedRPCsTakeTheMethodOfThePointingNode(t *testing.T) {
+	pub, err := PublishedRPCs(publishLoader(t, publishCmdModule))
+	require.NoError(t, err)
+
+	var methods []string
+	for _, rpc := range pub.Commands {
+		if rpc.Module == "ze-fixture-api" {
+			methods = append(methods, rpc.WireMethod)
+			assert.Equal(t, "socket-list", rpc.Name)
+			assert.Equal(t, "List the open sockets.", rpc.ShortHelp, "the pointed rpc keeps its own texts")
+		}
+	}
+	assert.Equal(t, []string{"ze-fixture:socket-table", "ze-show:sockets"}, methods)
+
+	var unnamed []string
+	for _, rpc := range pub.Unnamed {
+		if rpc.Module == "ze-fixture-api" {
+			unnamed = append(unnamed, rpc.Name)
+		}
+	}
+	assert.Equal(t, []string{"socket-clear"}, unnamed, "an rpc no node points at is published under no name")
+}
+
+// TestPublishedRPCsSetAsideAPointerAtAnUnlinkedModule proves a pointer at a
+// module this process did not load is reported as unlinked, not refused, and
+// publishes nothing.
+//
+// VALIDATES: a binary that links a -cmd module without the -api module it
+// points at still builds its schema registry.
+// PREVENTS: `ze schema` failing in a build that leaves one component out.
+func TestPublishedRPCsSetAsideAPointerAtAnUnlinkedModule(t *testing.T) {
+	module := strings.Replace(publishCmdModule, `ze:rpc "ze-fixture-api:socket-list";`, `ze:rpc "ze-absent-api:socket-list";`, 1)
+	pub, err := PublishedRPCs(publishLoader(t, module))
+	require.NoError(t, err)
+	assert.Contains(t, pub.Unlinked, "ze-show:sockets -> ze-absent-api:socket-list")
+}
+
+// TestPublishedRPCsRefuseABrokenPointer proves each pointer the schema cannot
+// honour is refused by name rather than dropped.
+//
+// VALIDATES: a pointer to an rpc no module declares, one method pointing at
+// two rpcs, and a target with no module are each an ErrRPCPointer.
+// PREVENTS: a mistyped ze:rpc publishing nothing in silence.
+func TestPublishedRPCsRefuseABrokenPointer(t *testing.T) {
+	cases := map[string]string{
+		"missing rpc": `container a { config false; ze:command "ze-show:a"; ze:rpc "ze-fixture-api:socket-gone"; }`,
+		"two targets": `container a { config false; ze:command "ze-show:a"; ze:rpc "ze-fixture-api:socket-list"; }
+        container b { config false; ze:command "ze-show:a"; ze:rpc "ze-fixture-api:socket-clear"; }`,
+		"malformed":  `container a { config false; ze:command "ze-show:a"; ze:rpc "socket-list"; }`,
+		"no command": `container a { config false; ze:rpc "ze-fixture-api:socket-list"; }`,
+	}
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			module := "module ze-fixture-cmd { namespace \"urn:ze:fixture:cmd\"; prefix zefc; import ze-extensions { prefix ze; } container show { config false; " + body + " } }"
+			_, err := PublishedRPCs(publishLoader(t, module))
+			require.ErrorIs(t, err, ErrRPCPointer)
 		})
 	}
 }

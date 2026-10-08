@@ -102,7 +102,38 @@ const helpFixtureModule = `module ze-aihelpfixture-api {
     }
 }`
 
-func init() { yang.RegisterModule("ze-aihelpfixture-api", helpFixtureModule) }
+// helpFixtureCmdModule points one command node at each fixture rpc. An rpc
+// is published under the method of the node that points at it, so without
+// these nodes the fixture rpcs would be published under no name.
+const helpFixtureCmdModule = `module ze-aihelpfixture-cmd {
+    namespace "urn:ze:aihelpfixture:cmd";
+    prefix ahfc;
+
+    import ze-extensions { prefix ze; }
+
+    description "Fixture command nodes for the aihelp reference tests.";
+
+    revision 2026-10-08 { description "Initial revision"; }
+
+    container aihelpfixture {
+        config false;
+        container both {
+            config false;
+            ze:command "ze-aihelpfixture:fixture-both";
+            ze:rpc "ze-aihelpfixture-api:fixture-both";
+        }
+        container summary-only {
+            config false;
+            ze:command "ze-aihelpfixture:fixture-summary-only";
+            ze:rpc "ze-aihelpfixture-api:fixture-summary-only";
+        }
+    }
+}`
+
+func init() {
+	yang.RegisterModule("ze-aihelpfixture-api", helpFixtureModule)
+	yang.RegisterModule("ze-aihelpfixture-cmd", helpFixtureCmdModule)
+}
 
 // TestBuildCarriesEveryRegisteredRPCHelpText verifies that the reference an
 // agent reads carries what the schema registry holds, for both help texts and

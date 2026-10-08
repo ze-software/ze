@@ -25,6 +25,7 @@ cache. A name that resolves to nothing is not cached, so the next lookup asks ag
             container a {
                 config false;
                 ze:command "ze-resolve:dns-a";
+                ze:rpc "ze-resolve-api:dns-a";
                 description "The answer is the list of IPv4 addresses. A valid cache entry
 answers without a query, and a fresh answer is cached for the TTL the server gave.";
                 ze:help "Look up IPv4 addresses (A records) for a hostname.";
@@ -40,6 +41,7 @@ with a usage line.";
             container aaaa {
                 config false;
                 ze:command "ze-resolve:dns-aaaa";
+                ze:rpc "ze-resolve-api:dns-aaaa";
                 description "The answer is the list of IPv6 addresses. A valid cache entry
 answers without a query, and a fresh answer is cached for the TTL the server gave.";
                 ze:help "Look up IPv6 addresses (AAAA records) for a hostname.";
@@ -55,6 +57,7 @@ with a usage line.";
             container txt {
                 config false;
                 ze:command "ze-resolve:dns-txt";
+                ze:rpc "ze-resolve-api:dns-txt";
                 description "Returns all TXT strings.";
                 ze:help "Look up TXT records for a hostname.";
                 leaf hostname {
@@ -69,6 +72,7 @@ with a usage line.";
             container ptr {
                 config false;
                 ze:command "ze-resolve:dns-ptr";
+                ze:rpc "ze-resolve-api:dns-ptr";
                 description "The address is turned into its in-addr.arpa or ip6.arpa name before
 the query. The cache holds the answer under that name, so show dns cache record takes it in
 that form.";
@@ -92,6 +96,7 @@ without one. An AS number Team Cymru does not name answers (unknown) instead of 
             container asn-name {
                 config false;
                 ze:command "ze-resolve:cymru-asn-name";
+                ze:rpc "ze-resolve-api:cymru-asn-name";
                 description "Queries Team Cymru DNS to return the organization name for the ASN.";
                 ze:help "Find out who owns an AS number.";
                 leaf asn {
@@ -113,6 +118,7 @@ fail without one. Each one takes an AS number.";
             container max-prefix {
                 config false;
                 ze:command "ze-resolve:peeringdb-max-prefix";
+                ze:rpc "ze-resolve-api:peeringdb-max-prefix";
                 description "Returns IPv4 and IPv6 prefix limits. Apply via the config editor.";
                 ze:help "Get max-prefix limits for an ASN from PeeringDB.";
                 leaf asn {
@@ -126,6 +132,7 @@ one 32-bit value before the query. A spelling that parses to no AS number is ref
             container as-set {
                 config false;
                 ze:command "ze-resolve:peeringdb-as-set";
+                ze:rpc "ze-resolve-api:peeringdb-as-set";
                 description "Feed the result into 'resolve irr expand' to get the full member list.";
                 ze:help "Find the IRR AS-SET registered for an ASN in PeeringDB.";
                 leaf asn {
@@ -147,6 +154,7 @@ without one. Each one takes an AS-SET name rather than an AS number.";
             container expand {
                 config false;
                 ze:command "ze-resolve:irr-expand";
+                ze:rpc "ze-resolve-api:irr-expand";
                 description "Recursively resolves nested AS-SET objects via WHOIS into a flat list. Useful
 for building prefix filters from IRR data.";
                 ze:help "Expand an AS-SET into its member AS numbers.";
@@ -154,6 +162,7 @@ for building prefix filters from IRR data.";
             container prefix {
                 config false;
                 ze:command "ze-resolve:irr-prefix";
+                ze:rpc "ze-resolve-api:irr-prefix";
                 description "Expands the AS-SET, then returns every route/route6 object for each member
 ASN. Use this to build or verify prefix filters.";
                 ze:help "Get all prefixes announced by an AS-SET's members.";
@@ -302,6 +311,7 @@ available without it. Nothing here reaches the network.";
             container cache {
                 config false;
                 ze:command "ze-clear:dns-cache";
+                ze:rpc "ze-cli-clear-api:dns-cache";
                 description "The entries and the four counters go together. Use clear dns cache
 stats to zero the counters and keep the entries, or clear dns cache record to evict one
 name.";

@@ -27,6 +27,7 @@ module ze-update-firmware-cmd {
                 container check {
                     config false;
                     ze:command "ze-update:system-firmware-check";
+                    ze:rpc "ze-update-api:system-firmware-check";
                     description "Bypasses the scheduled interval timer and contacts the update server
 immediately. Compare the result with 'show system update'.";
                     ze:help "Check for a new firmware version right now.";
@@ -35,6 +36,7 @@ immediately. Compare the result with 'show system update'.";
                 container download {
                     config false;
                     ze:command "ze-update:system-firmware-download";
+                    ze:rpc "ze-update-api:system-firmware-download";
                     description "Bypasses the maintenance window and spread timers. The image is staged but not
 applied. Use 'update system firmware apply' or 'restart' to activate it.";
                     ze:help "Download the latest firmware image right now.";
@@ -43,6 +45,7 @@ applied. Use 'update system firmware apply' or 'restart' to activate it.";
                 container apply {
                     config false;
                     ze:command "ze-update:system-firmware-apply";
+                    ze:rpc "ze-update-api:system-firmware-apply";
                     description "Runs the complete update cycle in one command. Only available on platforms
 where Ze owns the update lifecycle (e.g. gokrazy). The box will reboot into
 the new version.";
@@ -52,6 +55,7 @@ the new version.";
                 container restart {
                     config false;
                     ze:command "ze-update:system-firmware-restart";
+                    ze:rpc "ze-update-api:system-firmware-restart";
                     description "No download happens. Use this after 'update system firmware download' when you
 are ready to activate the new version.";
                     ze:help "Reboot into the already-staged firmware.";
@@ -60,6 +64,7 @@ are ready to activate the new version.";
                 container rollback {
                     config false;
                     ze:command "ze-update:system-firmware-rollback";
+                    ze:rpc "ze-update-api:system-firmware-rollback";
                     description "Reverts to the prior image. Only available on platforms with A/B partitioning
 (e.g. gokrazy). Use this if the new version has issues.";
                     ze:help "Roll back to the previous firmware and restart.";

@@ -19,6 +19,7 @@ and no PPP.";
         container emit {
             config false;
             ze:command "ze-fakel2tp-api:fakel2tp-emit";
+            ze:rpc "ze-fakel2tp-api:fakel2tp-emit";
             description "The arguments are 'add' or 'remove', an address family, and a prefix. The batch
 carries one entry and it goes out under the l2tp protocol ID. The answer carries
 'delivered', the number of consumers that received it.";
@@ -28,6 +29,7 @@ carries one entry and it goes out under the l2tp protocol ID. The answer carries
         container help {
             config false;
             ze:command "ze-fakel2tp-api:fakel2tp-help";
+            ze:rpc "ze-fakel2tp-api:fakel2tp-help";
             description "The answer is the one usage line of the plugin: 'fakel2tp emit add|remove
 <family> <prefix>'.";
             ze:help "Print the fakel2tp command surface.";

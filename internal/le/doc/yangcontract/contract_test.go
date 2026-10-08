@@ -306,16 +306,16 @@ func fixtureDeclarations(t *testing.T) []RPCDeclaration {
 	return fixture
 }
 
-// VALIDATES: the gate reads every rpc of an `-api` module under the wire
-// method the help surfaces publish, which strips `-api` from the module name.
-// PREVENTS: the gate judging a spelling no caller reads. A declaration judged
-// as `ze-fixture-api:socket-list` would never match the handler a caller
-// reaches as `ze-fixture:socket-list`, in either direction.
+// VALIDATES: the gate reads every rpc under the wire method of the ze:command
+// node that points at it, and an rpc no node points at under no method.
+// PREVENTS: the gate judging a spelling no caller reads. The module name used
+// to supply the prefix, so the fixture rpc was judged as
+// `ze-fixture:socket-list`, which no node declares and no handler answers.
 func TestPublishedRPCsCarryTheWireMethodCallersRead(t *testing.T) {
 	fixture := fixtureDeclarations(t)
 	want := []RPCDeclaration{
-		{WireMethod: "ze-fixture:socket-clear", Module: "ze-fixture-api", RPC: "socket-clear"},
-		{WireMethod: "ze-fixture:socket-list", Module: "ze-fixture-api", RPC: "socket-list"},
+		{WireMethod: "", Module: "ze-fixture-api", RPC: "socket-clear"},
+		{WireMethod: "ze-show:sockets", Module: "ze-fixture-api", RPC: "socket-list"},
 	}
 	if len(fixture) != len(want) {
 		t.Fatalf("the fixture module publishes %v, want %v", fixture, want)
@@ -333,10 +333,10 @@ func TestPublishedRPCsCarryTheWireMethodCallersRead(t *testing.T) {
 // `-api` rpc no handler serves was never read at all.
 // MUTATION: make unservedRPCs answer nil and this test goes red.
 func TestADeliberatelyOrphanedDeclarationIsNamed(t *testing.T) {
-	served := map[string]bool{"ze-fixture:socket-list": true}
+	served := map[string]bool{"ze-show:sockets": true}
 	result := ValidationResult{OrphanRPCs: unservedRPCs(fixtureDeclarations(t), served)}
 
-	want := RPCDeclaration{WireMethod: "ze-fixture:socket-clear", Module: "ze-fixture-api", RPC: "socket-clear"}
+	want := RPCDeclaration{WireMethod: "", Module: "ze-fixture-api", RPC: "socket-clear"}
 	if len(result.OrphanRPCs) != 1 {
 		t.Fatalf("the orphans are %v, want only %v", result.OrphanRPCs, want)
 	}
@@ -348,21 +348,21 @@ func TestADeliberatelyOrphanedDeclarationIsNamed(t *testing.T) {
 		t.Fatal("a run holding an orphaned declaration passed")
 	}
 	text := result.Text()
-	if !strings.Contains(text, "  ze-fixture:socket-clear  (rpc socket-clear in ze-fixture-api)\n") {
+	if !strings.Contains(text, "  (no ze:command node points at it)  (rpc socket-clear in ze-fixture-api)\n") {
 		t.Fatalf("the report does not name the module, the rpc and the wire method:\n%s", text)
 	}
 }
 
-// VALIDATES: a loader with no `-api` module stops the gate.
+// VALIDATES: a loader that publishes no rpc stops the gate.
 // PREVENTS: a run that judged no declaration answering that none is orphaned,
 // the silent zero aihelp.SchemaRegistry answers after a loader error.
-func TestPublishedRPCsRefuseALoaderWithNoAPIModule(t *testing.T) {
+func TestPublishedRPCsRefuseALoaderThatPublishesNoRPC(t *testing.T) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		t.Fatalf("load the embedded modules: %v", err)
 	}
-	if _, err := publishedRPCs(loader); !errors.Is(err, errNoAPIModule) {
-		t.Fatalf("a loader with no -api module answered %v, want %v", err, errNoAPIModule)
+	if _, err := publishedRPCs(loader); !errors.Is(err, errNoPublishedRPC) {
+		t.Fatalf("a loader publishing no rpc answered %v, want %v", err, errNoPublishedRPC)
 	}
 }
 

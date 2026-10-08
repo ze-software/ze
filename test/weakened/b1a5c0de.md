@@ -6,4 +6,6 @@ assertion on a deleted dead -api module leaves the suite with the module.
 
 | Test | Reason |
 |------|--------|
-| TestMinimalBuildRegistersUpdateSchema | The ze-cli-update-api module is deleted: its five rpcs duplicated the ze-update-api ones with no leaf of their own, and no command node reaches them (owner decision Q3). The test still proves its subject, that a minimal build registers the shared ze-cli-update-cmd command tree. |
+| TestWireModule | Removed with the function it tested: WireModule, which built a wire method from a module's file name, is deleted (owner decision Q3). TestPublishedRPCsTakeTheMethodOfThePointingNode and TestPublishedRPCsRefuseABrokenPointer in the same file assert the method now comes from the pointing ze:command node and that a broken pointer is refused. |
+| TestCmdMethods | Hard-coded per-module row counts became one derived assertion per rpc: every rpc ze-bgp-api, ze-system-api, ze-plugin-api and ze-rib-api declare must be published under some method, and each module must declare at least one rpc. A count passed when one rpc vanished and another was added, and named nothing. |
+| TestPublishedRPCsRefuseALoaderWithNoAPIModule | Renamed, not removed: it is TestPublishedRPCsRefuseALoaderThatPublishesNoRPC with the same body and assertion, because the gate no longer selects modules by the -api file suffix; errNoAPIModule became errNoPublishedRPC. |

@@ -16,6 +16,7 @@ module ze-pppoe-cmd {
         container pppoe {
             config false;
             ze:command "ze-pppoe-api:summary";
+            ze:rpc "ze-pppoe-api:summary";
             description "Without a subcommand, shows a summary of active
 sessions.";
             ze:help "PPPoE session and protocol state.";
@@ -23,6 +24,7 @@ sessions.";
             container sessions {
                 config false;
                 ze:command "ze-pppoe-api:sessions";
+                ze:rpc "ze-pppoe-api:sessions";
                 description "One line per session: session ID, MAC, subscriber
 login, uptime, and assigned addresses.";
                 ze:help "List all active PPPoE sessions.";
@@ -37,6 +39,7 @@ login, uptime, and assigned addresses.";
                 container id {
                     config false;
                     ze:command "ze-pppoe-api:session";
+                    ze:rpc "ze-pppoe-api:session";
                     description "Pass the session ID. Returns discovery tags,
 LCP/NCP state, assigned addresses, and traffic counters.";
                     ze:help "Show full detail for one PPPoE session.";
@@ -53,6 +56,7 @@ because RFC 2516 reserves it, and an unknown id is refused with 'no session with
             container statistics {
                 config false;
                 ze:command "ze-pppoe-api:statistics";
+                ze:rpc "ze-pppoe-api:statistics";
                 description "Returns PADI, PADO, PADR, PADS, PADT counts, active
 sessions, and errors. A rising PADI count with flat PADS means sessions are not
 completing.";
@@ -62,6 +66,7 @@ completing.";
             container interfaces {
                 config false;
                 ze:command "ze-pppoe-api:interfaces";
+                ze:rpc "ze-pppoe-api:interfaces";
                 description "Lists each PPPoE-enabled interface with its service
 name, session limit, and how many sessions are active now.";
                 ze:help "Show which interfaces are accepting PPPoE sessions.";

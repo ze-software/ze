@@ -51,24 +51,28 @@ module ze-plugin-engine {
     }
 
     rpc state-get {
+        ze:method "ze-plugin-engine:state-get";
         ze:help "Read a registered runtime key.";
         description "Read through the daemon-owned store after the startup handshake. Both transports check plugin ownership.";
         input { uses state-key; }
         output { uses state-result; uses state-data; }
     }
     rpc state-put {
+        ze:method "ze-plugin-engine:state-put";
         ze:help "Persist a registered runtime key.";
         description "Write through the daemon-owned store and acknowledge only after the durable write completes.";
         input { uses state-key; uses state-data; }
         output { uses state-result; }
     }
     rpc state-remove {
+        ze:method "ze-plugin-engine:state-remove";
         ze:help "Remove a registered runtime key.";
         description "Delete an owned key after startup. An absent key is already removed; unavailable storage is an error.";
         input { uses state-key; }
         output { uses state-result; }
     }
     rpc state-list {
+        ze:method "ze-plugin-engine:state-list";
         ze:help "List owned runtime keys under a prefix.";
         description "Return only matching keys granted to the calling plugin. An oversized enumeration fails without truncation.";
         input { uses state-key; }
@@ -83,6 +87,7 @@ module ze-plugin-engine {
         }
     }
     rpc state-increment {
+        ze:method "ze-plugin-engine:state-increment";
         ze:help "Atomically advance a durable uint32 counter.";
         description "Increment a big-endian counter under the store write guard. Absent counters start at one; corruption and exhaustion are refused.";
         input { uses state-key; }
@@ -99,6 +104,7 @@ module ze-plugin-engine {
     // Stage 1: Plugin declares itself to the engine.
 
     rpc declare-registration {
+        ze:method "ze-plugin-engine:declare-registration";
         description "Called during Stage 1 of the 5-stage startup protocol.";
         ze:help "Plugin declares families, commands, config wants, and YANG schema.";
         input {
@@ -328,6 +334,7 @@ module ze-plugin-engine {
     // Stage 3: Plugin declares OPEN capabilities.
 
     rpc declare-capabilities {
+        ze:method "ze-plugin-engine:declare-capabilities";
         description "Called during Stage 3 of the 5-stage startup protocol.";
         ze:help "Plugin declares capabilities for BGP OPEN injection.";
         input {
@@ -379,6 +386,7 @@ module ze-plugin-engine {
     // Stage 5: Plugin signals readiness.
 
     rpc ready {
+        ze:method "ze-plugin-engine:ready";
         description "Called during Stage 5 of the 5-stage startup protocol.";
         ze:help "Plugin signals it is operational and ready to process events.";
     }
@@ -386,6 +394,7 @@ module ze-plugin-engine {
     // Runtime: Route injection.
 
     rpc update-route {
+        ze:method "ze-plugin-engine:update-route";
         description
             "The answer carries the announced and withdrawn NLRI counts and nothing
 else. A plugin that needs the target handler's structured response calls
@@ -429,6 +438,7 @@ every peer, so an omitted selector is not a no-op.";
     }
 
     rpc route-metrics {
+        ze:method "ze-plugin-engine:route-metrics";
         ze:help "Read recursive next-hop metrics from the engine.";
         description
             "Returns the Loc-RIB revision and one result per requested address, in
@@ -485,6 +495,7 @@ every peer, so an omitted selector is not a no-op.";
     // Runtime: Command dispatch (inter-plugin communication).
 
     rpc dispatch-command {
+        ze:method "ze-plugin-engine:dispatch-command";
         description "Enables inter-plugin communication: the engine routes the command
 to the target plugin via longest-match registry lookup and returns
 the full {status, data} response. Unlike update-route, which
@@ -523,6 +534,7 @@ extracts only route counters, this preserves structured responses.";
     // Runtime: Event subscription management.
 
     rpc subscribe-events {
+        ze:method "ze-plugin-engine:subscribe-events";
         description
             "An empty peer list means every peer rather than none. The format decides how
 much of each message the engine builds. Hex and base64 carry the bytes. Parsed
@@ -558,6 +570,7 @@ parsed pays the decode cost on every event.";
     }
 
     rpc unsubscribe-events {
+        ze:method "ze-plugin-engine:unsubscribe-events";
         description "It cancels the whole subscription subscribe-events created. There is no
 per-event and no per-peer form, so a plugin that wants a narrower set
 unsubscribes and subscribes again with the set it wants.";
@@ -568,6 +581,7 @@ unsubscribes and subscribes again with the set it wants.";
     // Plugins call these to decode BGP wire data via the engine's parsers.
 
     rpc decode-nlri {
+        ze:method "ze-plugin-engine:decode-nlri";
         description "Engine routes to the compile-time plugin registry for decoding.";
         ze:help "Decode NLRI hex for a specific address family.";
         input {
@@ -617,6 +631,7 @@ unsubscribes and subscribes again with the set it wants.";
     }
 
     rpc encode-nlri {
+        ze:method "ze-plugin-engine:encode-nlri";
         description "Engine routes to the compile-time plugin registry for encoding.";
         ze:help "Encode NLRI from text arguments for a specific address family.";
         input {
@@ -648,6 +663,7 @@ unsubscribes and subscribes again with the set it wants.";
     }
 
     rpc decode-mp-reach {
+        ze:method "ze-plugin-engine:decode-mp-reach";
         description "Engine extracts address family, next-hop, and decoded NLRI.";
         ze:help "Decode a full MP_REACH_NLRI attribute value (RFC 4760 Section 3).";
         input {
@@ -694,6 +710,7 @@ unsubscribes and subscribes again with the set it wants.";
     }
 
     rpc decode-mp-unreach {
+        ze:method "ze-plugin-engine:decode-mp-unreach";
         description "Engine extracts address family and decoded withdrawn NLRI.";
         ze:help "Decode a full MP_UNREACH_NLRI attribute value (RFC 4760 Section 4).";
         input {
@@ -732,6 +749,7 @@ unsubscribes and subscribes again with the set it wants.";
     }
 
     rpc decode-update {
+        ze:method "ze-plugin-engine:decode-update";
         description "Engine parses attributes, NLRI, and withdrawn routes.
 Returns ze-bgp JSON format (same structure as deliver-event).";
         ze:help "Decode a full UPDATE message body (RFC 4271 Section 4.3).";
@@ -768,6 +786,7 @@ Returns ze-bgp JSON format (same structure as deliver-event).";
     // Runtime: Event emission (plugin-generated events).
 
     rpc emit-event {
+        ze:method "ze-plugin-engine:emit-event";
         description "The engine routes the event to all plugins subscribed to the
 matching namespace and event-type.";
         ze:help "Plugin emits a custom event to subscribers.";

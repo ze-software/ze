@@ -42,23 +42,23 @@ Implementation: `pkg/plugin/rpc/framing.go`, `pkg/plugin/rpc/message.go`
 
 ## Method Naming
 
-YANG RPC methods use `module:rpc-name` format. `WireModule` derives the method
-prefix from the declaring module. RPC names use kebab-case.
+Wire methods use `prefix:name` format, and names use kebab-case. The method is
+declared once: a `ze:command` node declares it and points at the rpc that
+documents it with `ze:rpc`, and an rpc no node reaches declares its own with
+`ze:method`. No method is derived from a module's file name.
 
 | Wire Method | Declaration | Kind |
 |-------------|-------------|------|
-| `ze-bgp:peer-list` | `ze-bgp-api` | YANG RPC |
-| `ze-bgp:subscribe` | `ze-cli-subscribe-cmd` | Command-dispatch method for `request subscribe` |
-| `ze-system:daemon-status` | `ze-system-api` | YANG RPC |
-| `ze-system:version-software` | `ze-system-api` | YANG RPC |
-| `ze-system:command-list` | `ze-system-api` | YANG RPC |
-| `ze-rib:show` | `ze-rib-api` | YANG RPC |
-| `ze-plugin:session-ready` | `ze-plugin-api` | YANG RPC |
-| `ze-plugin-engine:subscribe-events` | `ze-plugin-engine` | Plugin SDK RPC |
+| `ze-bgp:peer-list` | `ze-peer-cmd` node, documented by `ze-bgp-api` peer-list | Command method |
+| `ze-bgp:subscribe` | `ze-cli-subscribe-cmd` node, documented by `ze-bgp-api` subscribe | Command method for `request subscribe` |
+| `ze-system:daemon-status` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
+| `ze-system:version-software` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
+| `ze-system:command-list` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
+| `ze-rib-api:routes` | `ze-rib-cmd` node, documented by `ze-rib-api` show | Command method |
+| `ze-plugin:session-ready` | `ze-plugin-cmd` node, documented by `ze-plugin-api` | Command method |
+| `ze-plugin-engine:subscribe-events` | `ze:method` on the `ze-plugin-engine` rpc | Plugin SDK RPC |
 
-`WireModule` removes the `-api` suffix from a YANG RPC module. A `ze:command`
-declaration can set a different wire method for command dispatch.
-<!-- source: internal/component/config/yang/rpc.go -- WireModule -->
+<!-- source: internal/component/config/yang/rpc_publish.go -- PublishedRPCs -->
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer-list -->
 <!-- source: internal/component/cmd/subscribe/yang/ze-cli-subscribe-cmd.yang -- request subscribe -->
 <!-- source: internal/core/ipc/yang/ze-system-api.yang -- daemon-status, version-software, command-list -->

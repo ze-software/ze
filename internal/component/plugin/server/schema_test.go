@@ -327,22 +327,24 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 
 	rpcs := []yang.RPCMeta{
 		{
-			Module:    "ze-bgp-api",
-			Name:      "peer-list",
-			ShortHelp: "List BGP peers",
-			Input:     []yang.LeafMeta{{Name: "selector", Type: "string"}},
+			WireMethod: "ze-bgp:peer-list",
+			Module:     "ze-bgp-api",
+			Name:       "peer-list",
+			ShortHelp:  "List BGP peers",
+			Input:      []yang.LeafMeta{{Name: "selector", Type: "string"}},
 		},
 		{
-			Module:    "ze-bgp-api",
-			Name:      "peer-detail",
-			ShortHelp: "Show peer details",
+			WireMethod: "ze-bgp:peer-detail",
+			Module:     "ze-bgp-api",
+			Name:       "peer-detail",
+			ShortHelp:  "Show peer details",
 		},
 	}
 
-	err := reg.RegisterRPCs("ze-bgp-api", rpcs)
+	err := reg.RegisterRPCs(rpcs)
 	require.NoError(t, err)
 
-	// Lookup by wire method (ze-bgp, not ze-bgp-api)
+	// Lookup by the wire method each row carries
 	rpc, err := reg.findRPC("ze-bgp:peer-list")
 	require.NoError(t, err)
 	assert.Equal(t, "ze-bgp-api", rpc.Module)
@@ -372,14 +374,15 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 func TestRegisterRPCsCarriesBothHelpTexts(t *testing.T) {
 	reg := NewSchemaRegistry()
 
-	err := reg.RegisterRPCs("ze-bgp-api", []yang.RPCMeta{
+	err := reg.RegisterRPCs([]yang.RPCMeta{
 		{
+			WireMethod:  "ze-bgp:peer-list",
 			Module:      "ze-bgp-api",
 			Name:        "peer-list",
 			ShortHelp:   "List the configured BGP peers.",
 			Description: "One row per peer.\nThe row carries the negotiated families.",
 		},
-		{Module: "ze-bgp-api", Name: "peer-detail", ShortHelp: "Show one peer."},
+		{WireMethod: "ze-bgp:peer-detail", Module: "ze-bgp-api", Name: "peer-detail", ShortHelp: "Show one peer."},
 	})
 	require.NoError(t, err)
 
@@ -404,12 +407,12 @@ func TestSchemaRegistry_RegisterRPCs_Duplicate(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	rpcs := []yang.RPCMeta{
-		{Module: "ze-bgp-api", Name: "peer-list"},
+		{WireMethod: "ze-bgp:peer-list", Module: "ze-bgp-api", Name: "peer-list"},
 	}
-	require.NoError(t, reg.RegisterRPCs("ze-bgp-api", rpcs))
+	require.NoError(t, reg.RegisterRPCs(rpcs))
 
-	// Re-registering same module produces duplicate wire method
-	err := reg.RegisterRPCs("ze-bgp-api", rpcs)
+	// Re-registering the same rows produces a duplicate wire method
+	err := reg.RegisterRPCs(rpcs)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrRPCDuplicate)
 }
@@ -422,10 +425,10 @@ func TestSchemaRegistry_FindRPCByCommand(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	rpcs := []yang.RPCMeta{
-		{Module: "ze-bgp-api", Name: "peer-list", ShortHelp: "List peers"},
-		{Module: "ze-bgp-api", Name: "peer-teardown", ShortHelp: "Tear down peer"},
+		{WireMethod: "ze-bgp:peer-list", Module: "ze-bgp-api", Name: "peer-list", ShortHelp: "List peers"},
+		{WireMethod: "ze-bgp:peer-teardown", Module: "ze-bgp-api", Name: "peer-teardown", ShortHelp: "Tear down peer"},
 	}
-	require.NoError(t, reg.RegisterRPCs("ze-bgp-api", rpcs))
+	require.NoError(t, reg.RegisterRPCs(rpcs))
 
 	// Register CLI command mappings
 	require.NoError(t, reg.registerCLICommand("peer list", "ze-bgp:peer-list"))
@@ -468,14 +471,14 @@ func TestSchemaRegistry_ListRPCs(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	bgpRPCs := []yang.RPCMeta{
-		{Module: "ze-bgp-api", Name: "peer-list"},
-		{Module: "ze-bgp-api", Name: "peer-show"},
+		{WireMethod: "ze-bgp:peer-list", Module: "ze-bgp-api", Name: "peer-list"},
+		{WireMethod: "ze-bgp:peer-show", Module: "ze-bgp-api", Name: "peer-show"},
 	}
 	sysRPCs := []yang.RPCMeta{
-		{Module: "ze-system-api", Name: "version"},
+		{WireMethod: "ze-system:version", Module: "ze-system-api", Name: "version"},
 	}
-	require.NoError(t, reg.RegisterRPCs("ze-bgp-api", bgpRPCs))
-	require.NoError(t, reg.RegisterRPCs("ze-system-api", sysRPCs))
+	require.NoError(t, reg.RegisterRPCs(bgpRPCs))
+	require.NoError(t, reg.RegisterRPCs(sysRPCs))
 
 	// All RPCs (empty filter)
 	all := reg.ListRPCs("")
@@ -501,11 +504,11 @@ func TestSchemaRegistry_RegisterNotifications(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	notifs := []yang.NotificationMeta{
-		{Module: "ze-bgp-api", Name: "peer-state-change", ShortHelp: "Peer state changed"},
-		{Module: "ze-bgp-api", Name: "route-received", ShortHelp: "Route received"},
+		{WireMethod: "ze-bgp:peer-state-change", Module: "ze-bgp-api", Name: "peer-state-change", ShortHelp: "Peer state changed"},
+		{WireMethod: "ze-bgp:route-received", Module: "ze-bgp-api", Name: "route-received", ShortHelp: "Route received"},
 	}
 
-	err := reg.RegisterNotifications("ze-bgp-api", notifs)
+	err := reg.RegisterNotifications(notifs)
 	require.NoError(t, err)
 
 	// List all notifications (empty filter)
@@ -536,14 +539,30 @@ func TestSchemaRegistry_RegisterNotifications_Duplicate(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	notifs := []yang.NotificationMeta{
-		{Module: "ze-bgp-api", Name: "peer-state-change"},
+		{WireMethod: "ze-bgp:peer-state-change", Module: "ze-bgp-api", Name: "peer-state-change"},
 	}
-	require.NoError(t, reg.RegisterNotifications("ze-bgp-api", notifs))
+	require.NoError(t, reg.RegisterNotifications(notifs))
 
 	// Re-registering produces duplicate
-	err := reg.RegisterNotifications("ze-bgp-api", notifs)
+	err := reg.RegisterNotifications(notifs)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrNotificationDuplicate)
+}
+
+// TestSchemaRegistryRefusesAnUnnamedRow proves a row carrying no wire method
+// is refused rather than published under a name built from its module.
+//
+// VALIDATES: AC-8, no surface builds a method from a file name.
+// PREVENTS: an rpc no node points at reaching `ze schema methods` as
+// `ze-bgp:peer-gone`, a name no handler answers.
+func TestSchemaRegistryRefusesAnUnnamedRow(t *testing.T) {
+	reg := NewSchemaRegistry()
+	err := reg.RegisterRPCs([]yang.RPCMeta{{Module: "ze-bgp-api", Name: "peer-gone"}})
+	require.ErrorIs(t, err, ErrRPCUnnamed)
+	assert.Empty(t, reg.ListRPCs(""))
+
+	err = reg.RegisterNotifications([]yang.NotificationMeta{{Module: "ze-bgp-api", Name: "peer-gone"}})
+	require.ErrorIs(t, err, ErrRPCUnnamed)
 }
 
 // TestSchemaRegistryFreeze verifies that Freeze creates a snapshot and FindHandler uses it.
