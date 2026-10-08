@@ -134,12 +134,8 @@ func TestASPathSlotDualOrder(t *testing.T) {
 
 // VALIDATES: AC-6 -- an UPDATE with no AS_PATH forwarded to an EBGP peer gains a
 // complete AS_PATH attribute.
-// PREVENTS: a prepend applied to nothing emitting an empty or absent AS_PATH,
-// which RFC 4271 Section 5 makes malformed (well-known mandatory).
-//
-// RFC requirement: RFC4271-5.1.2-3 positive -- case 3: an advertising UPDATE whose
-// AS_PATH is absent (an empty path) gains an AS_PATH of one AS_SEQUENCE segment
-// holding only the prepended AS, 64510.
+// PREVENTS: a requested prepend being lost when no AS_PATH slot exists.
+// This absent-attribute control does not exercise a present empty AS_PATH.
 func TestASPathSlotInsertsWhenAbsent(t *testing.T) {
 	attrs := probeAttr(0x40, attribute.AttrOrigin, []byte{0})
 	payload := buildProbePayload(attrs, probeAdvertisedNLRI)

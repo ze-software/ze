@@ -335,6 +335,17 @@
     {
       "rid": "RFC4271-5.1.2-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_aspath_empty_test.go::TestForwardPresentEmptyASPath",
+      "unit-sha": "035da59c4665bd18",
+      "claim-sha": "d15d3f244e2c22a3",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/aspath.go::Prepend",
+      "producer-sha": "a7056e828b8927aa",
+      "break": "body of Prepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.2-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent",
       "unit-sha": "8dce6521b37b65bc",
       "claim-sha": "6c1a55fae6669a98",
