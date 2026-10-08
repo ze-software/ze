@@ -2882,3 +2882,66 @@ func TestMissingSend(t *testing.T) {
 		t.Fatalf("demonstration moved whole proof: %+v, %v", share, err)
 	}
 }
+
+// VALIDATES: an authoring note in a summary never reaches the reader.
+//
+// rfc/short carries HTML comments that speak to the next author: why a typo is
+// kept verbatim, which file a sentence was checked against. Markdown hides
+// them, and the page and the mirror published them as text on rfc1035, rfc2661
+// and rfc5176 (content review of a real build, 2026-10-08). The method feeds
+// one note through each way authored text reaches this family: the subject of
+// a requirement, the Coverage cell and the Remaining cell.
+func TestAnAuthoringNoteIsNotPublished(t *testing.T) {
+	const note = `<!-- "user" is verbatim: the RFC has a typo -->`
+	requirement := rfcLedgerRequirement{Text: "Messages sent using UDP user server port 53 " + note}
+	entry := rfcLedgerStem{
+		PublicStatus:    "Partial",
+		PublicCoverage:  "first claim; second claim. " + note,
+		PublicRemaining: "Lead sentence. " + note + " Timers: none yet.",
+	}
+	for _, one := range []struct{ surface, text string }{
+		{"the subject", rfcRequirementSubjectHTML(&requirement)},
+		{"the subject in the mirror", requirement.Subject()},
+		{"the Coverage cell", rfcClaimsHTML("covered", rfcCoverageProse(&entry), nil)},
+		{"the Coverage mirror", rfcClaimsMirror("covered", rfcCoverageProse(&entry), nil)},
+		{"the Remaining cell", rfcThemesHTML("remains", rfcRemainingText(&entry), nil)},
+		{"the Remaining mirror", rfcThemesMirror("remains", rfcRemainingText(&entry), nil)},
+	} {
+		if strings.Contains(one.text, "!--") || strings.Contains(one.text, "verbatim") {
+			t.Errorf("%s publishes the authoring note: %q", one.surface, one.text)
+		}
+	}
+	if got := requirement.Subject(); got != "Messages sent using UDP user server port 53" {
+		t.Errorf("the subject reads %q, want the sentence the author wrote and nothing else", got)
+	}
+	if got := rfcRemainingText(&entry); got != "Lead sentence. Timers: none yet." {
+		t.Errorf("the Remaining cell reads %q, want every authored word around the note", got)
+	}
+}
+
+// VALIDATES: the author's Markdown emphasis renders as emphasis, and emphasis
+// the author did not close stays every character of the text.
+//
+// The Remaining cells of rfc2661 and rfc9552 mark a phrase with **...**, and
+// the page published the asterisks. The phrase on rfc2661 holds a code span, so
+// the emphasis has to wrap the span rather than be cut by it.
+func TestTheAuthorsEmphasisRendersAsEmphasis(t *testing.T) {
+	prose := "data sessions, **outgoing call via `request l2tp outgoing-call`**, dial-target config"
+	got := rfcProseHTML(prose, nil)
+	want := "data sessions, <strong>outgoing call via <code>request l2tp outgoing-call</code>" +
+		"</strong>, dial-target config"
+	if got != want {
+		t.Errorf("the page reads\n %q\nwant\n %q", got, want)
+	}
+	if mirror := rfcProseMirror(prose, nil); mirror != prose {
+		t.Errorf("the mirror rewrites Markdown that is already Markdown: %q", mirror)
+	}
+	for _, unclosed := range []string{
+		"a ** that nothing closes",
+		"**a `code ** span` that the emphasis would cut**",
+	} {
+		if got := rfcProseHTML(unclosed, nil); strings.Count(got, "**") != strings.Count(unclosed, "**") {
+			t.Errorf("%q: the page carries %q, losing asterisks the author wrote", unclosed, got)
+		}
+	}
+}

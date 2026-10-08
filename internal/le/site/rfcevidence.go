@@ -61,7 +61,7 @@ func rfcGapRows(entry *rfcLedgerStem) []rfcGapRow {
 		case untested:
 			states = append(states, "no test")
 		}
-		rows = append(rows, rfcGapRow{RID: requirement.RID, Text: requirement.Text,
+		rows = append(rows, rfcGapRow{RID: requirement.RID, Text: requirement.Subject(),
 			Kind: strings.Join(states, ", "), Reason: rfcGapReason(requirement, declared)})
 	}
 	return rows
@@ -240,7 +240,7 @@ func rfcProofHTML(entry *rfcLedgerStem) string {
 	out.Str("<p>").Str(html.EscapeString(rfcProofLegend)).Str("</p>\n")
 	for _, requirement := range rows {
 		out.Str("<h3>").Str(rfcRequirementRefHTML(requirement.RID, "")).Str("</h3>\n")
-		out.Str("<p>").Str(html.EscapeString(requirement.Text)).Str("</p>\n")
+		out.Str("<p>").Str(html.EscapeString(requirement.Subject())).Str("</p>\n")
 		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
 			out.Str("<p>").Str(html.EscapeString("Scoped tag-claim records only: " + requirement.Annotation.Reason)).
 				Str("; zero whole-requirement credit.</p>\n")
@@ -278,7 +278,7 @@ func rfcProofMirror(entry *rfcLedgerStem) string {
 	out.Str(rfcProofLegend).Byte('\n')
 	for _, requirement := range rows {
 		out.Str("\n### ").Str(rfcRequirementRefMirror(requirement.RID, "")).Str("\n\n")
-		out.Str(requirement.Text).Str("\n\n")
+		out.Str(requirement.Subject()).Str("\n\n")
 		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
 			out.Str("Scoped tag-claim records only: ").Str(rfc.TableCell(requirement.Annotation.Reason)).
 				Str("; zero whole-requirement credit.\n\n")
@@ -494,7 +494,7 @@ func rfcSupersededHTML(entry *rfcLedgerStem) string {
 		rfcDisplayName(entry.Successor) + ".")).Str("</p>\n")
 	var body textbuf.Buffer
 	for _, row := range rows {
-		body.Str(rfcRowCells(rfcRequirementRefHTML(row.RID, row.Text),
+		body.Str(rfcRowCells(rfcRequirementRefHTML(row.RID, row.Subject()),
 			html.EscapeString(row.Superseded.Disposition),
 			html.EscapeString(rfcOrUnstated(row.Superseded.Target)),
 			html.EscapeString(row.Superseded.Reason)))
@@ -514,7 +514,7 @@ func rfcSupersededMirror(entry *rfcLedgerStem) string {
 	out.Str(entry.Display).Str(" is obsoleted by ").Str(rfcDisplayName(entry.Successor)).Str(".\n\n")
 	out.Str(rfcMirrorHead("Requirement", "Disposition", "Now stated at", "Reason"))
 	for _, row := range rows {
-		out.Str(rfcMirrorRow(rfc.TableCell(rfcRequirementRefMirror(row.RID, row.Text)),
+		out.Str(rfcMirrorRow(rfc.TableCell(rfcRequirementRefMirror(row.RID, row.Subject())),
 			row.Superseded.Disposition, rfcOrUnstated(row.Superseded.Target),
 			rfc.TableCell(row.Superseded.Reason)))
 	}

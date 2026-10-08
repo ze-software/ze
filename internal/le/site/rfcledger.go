@@ -220,6 +220,15 @@ type rfcLedgerRequirement struct {
 	DemonstratedBy string `json:"demonstrated-by,omitempty"`
 }
 
+// Subject answers the requirement sentence a reader is shown.
+//
+// Text stays the summary row as authored, because the ledger is the record of
+// it. A page and a mirror publish Subject, which drops the HTML comments an
+// author leaves for the next author.
+func (r *rfcLedgerRequirement) Subject() string {
+	return rfcAuthoringNotesRemoved(r.Text)
+}
+
 // rfcLedgerAnnotation is a `{kind: reason}` marker: why this requirement owes
 // less than a positive and a negative test.
 //

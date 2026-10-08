@@ -173,7 +173,10 @@ a stale recorded run; `./le site build refresh` re-records those first
   from one input and `_sources` names that input. Two of them are not derived
   from this tree: the star count reaches api.github.com and keeps the previously
   published number when it cannot, saying so in `_sources`, and the command and
-  configuration counts come from the binary this build compiled.
+  configuration counts come from the binary this build compiled. When every
+  number equals the previous artifact's, the build keeps that file whole, its
+  `generated_at` and `published_at` included, so a build over an unchanged tree
+  rewrites no byte of it (`previousFactsAt` in `internal/le/site/facts.go`).
 - **The release roadmap.** The `roadmap` producer collects committed `HEAD`
   once through `internal/le/spec/roadmap.Collect` on every full or partial build.
   Shared Markdown rendering publishes `/project/roadmap/` and its `index.md`;
@@ -220,6 +223,13 @@ a stale recorded run; `./le site build refresh` re-records those first
   anchor, the linked mention, the scrolling table container and the escaped cell.
   `rfcevidence.go` holds the evidence half of the page -- the gaps, the proof
   state of every tagged unit, the extraction sign-off and the superseded rows.
+  Both halves publish a requirement's sentence through
+  `rfcLedgerRequirement.Subject`, and the Coverage and Remaining cells through
+  `rfcAuthoringNotesRemoved` (`rfcprose.go`), so an HTML comment a summary author
+  left for the next author never reaches a reader; `data/rfc-requirements.json`
+  keeps every row as authored. `rfcProseHTML` renders the author's closed
+  `**emphasis**` as emphasis, and leaves emphasis that is unclosed, or that would
+  cut a code span, as the asterisks the author typed.
   The headline cards are `rfcCardsHTML` and `rfcCardsMirror` in
   `rfccompliance.go`, and the index page and every detail page render through
   them, so the family has one card, and each card declares the rule behind its

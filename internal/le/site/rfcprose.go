@@ -211,15 +211,63 @@ func rfcLinkablePath(path string) bool {
 	return held && rfcRepositoryRoots[root]
 }
 
-// rfcProseHTML renders one run of authored prose: every character escaped,
-// every code span marked up, every requirement id this RFC declares linked to
-// its own row, and every repository path linked to its file.
+// rfcAuthoringNote is an HTML comment and the blanks before it. The author of a
+// summary writes one for the next author, and Markdown never shows it.
+var rfcAuthoringNote = regexp.MustCompile(`(?s)[ \t]*<!--.*?-->`)
+
+// rfcAuthoringNotesRemoved answers authored text as a reader is shown it: every
+// HTML comment removed, and every other character kept.
+//
+// A comment nothing closes is left as text, because the regexp needs the
+// closing "-->" and a sentence is never cut at a guess.
+func rfcAuthoringNotesRemoved(text string) string {
+	return strings.TrimSpace(rfcAuthoringNote.ReplaceAllString(text, ""))
+}
+
+// rfcProseHTML renders one run of authored prose: the author's **emphasis** as
+// emphasis, then every character escaped, every code span marked up, every
+// requirement id this RFC declares linked to its own row, and every repository
+// path linked to its file.
 //
 // The text is never altered. A requirement id this RFC does not declare, and a
 // path that is not addressable from the repository root, are left as the author
 // wrote them: a link nobody can follow is worse than none (owner ruling,
-// 2026-09-01).
+// 2026-09-01). Emphasis the author did not close, or that would cut a code
+// span, is published as the asterisks the author typed.
 func rfcProseHTML(prose string, declared map[string]bool) string {
+	runs := strings.Split(prose, "**")
+	if !rfcProseEmphasisCloses(runs) {
+		return rfcProseSpansHTML(prose, declared)
+	}
+	var out textbuf.Buffer
+	for index, run := range runs {
+		if index%2 == 1 {
+			out.Str("<strong>").Str(rfcProseSpansHTML(run, declared)).Str("</strong>")
+			continue
+		}
+		out.Str(rfcProseSpansHTML(run, declared))
+	}
+	return out.String()
+}
+
+// rfcProseEmphasisCloses answers whether the runs between "**" marks read as
+// closed emphasis: every mark the author opened is closed, and no mark sits
+// inside a code span, which would leave a run with an odd backtick.
+func rfcProseEmphasisCloses(runs []string) bool {
+	if len(runs)%2 == 0 {
+		return false
+	}
+	for _, run := range runs {
+		if !rfcProseCodeSpansClose(run) {
+			return false
+		}
+	}
+	return true
+}
+
+// rfcProseSpansHTML renders one run of prose that carries no emphasis mark: its
+// code spans, its ids and its paths.
+func rfcProseSpansHTML(prose string, declared map[string]bool) string {
 	if !rfcProseCodeSpansClose(prose) {
 		return rfcProseLinksHTML(prose, declared)
 	}

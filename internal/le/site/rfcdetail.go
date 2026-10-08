@@ -517,10 +517,11 @@ func rfcNoPublicRowWhy(entry *rfcLedgerStem) string {
 // rfcCoverageProse answers the public ledger's Coverage cell, and says plainly
 // when the row states none.
 func rfcCoverageProse(entry *rfcLedgerStem) string {
-	if strings.TrimSpace(entry.PublicCoverage) == "" {
+	prose := rfcAuthoringNotesRemoved(entry.PublicCoverage)
+	if prose == "" {
 		return "the public row declares no coverage prose"
 	}
-	return strings.TrimSpace(entry.PublicCoverage)
+	return prose
 }
 
 // rfcRemainingText answers the public ledger's Remaining cell, or says the page
@@ -529,10 +530,11 @@ func rfcRemainingText(entry *rfcLedgerStem) string {
 	if entry.PublicStatus == "" {
 		return rfcNoPublicRow
 	}
-	if strings.TrimSpace(entry.PublicRemaining) == "" {
+	prose := rfcAuthoringNotesRemoved(entry.PublicRemaining)
+	if prose == "" {
 		return "the public row declares no remainder"
 	}
-	return strings.TrimSpace(entry.PublicRemaining)
+	return prose
 }
 
 // rfcCoverageBucket is one polarity bucket: what it counts, how many, and the
@@ -836,10 +838,11 @@ func rfcRequirementsHTML(entry *rfcLedgerStem) string {
 // id then sentence across, and every sentence on the page starts at the same
 // offset instead of after an id of its own width (owner review, 2026-09-01).
 func rfcRequirementSubjectHTML(requirement *rfcLedgerRequirement) string {
-	if requirement.Text == "" {
+	subject := requirement.Subject()
+	if subject == "" {
 		return ""
 	}
-	return `<span class="rfc-subject">` + html.EscapeString(requirement.Text) + "</span>"
+	return `<span class="rfc-subject">` + html.EscapeString(subject) + "</span>"
 }
 
 // rfcRequirementTestsHTML renders one requirement's tests as a GRID: one row
@@ -984,7 +987,7 @@ func rfcRequirementsMirror(entry *rfcLedgerStem) string {
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
 		out.Str(rfcMirrorRow("`"+requirement.RID+"`",
-			rfc.TableCell(requirement.Text), requirement.Level,
+			rfc.TableCell(requirement.Subject()), requirement.Level,
 			rfc.TableCell(rfcSectionText(requirement.Section, names)),
 			rfc.TableCell(rfcRequirementTestsMirror(requirement, ambiguous))))
 	}
