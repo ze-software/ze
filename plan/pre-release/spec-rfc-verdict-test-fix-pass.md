@@ -105,17 +105,18 @@ The child retains the checkpoint evidence and owns the resumed acceptance;
 shared-image execution and canonical RFC writes stay serialized. No push is
 authorized, and neither spec's closure criteria are reduced.
 
-Progress, 2026-10-08: continuation remains Docker-free. The coupled BGP source,
-tests, docs and records landed as `d3e5b4a770`; MRT landed as `9f89c5fac43a`.
-All five committed build flavors passed at `824407ddae1f` after a concurrent
-launcher producer landed. Wiki retirement landed as `328c4dc`. The child's
-"Acceptance evidence, 2026-10-08" distinguishes the 19 promoted fixtures,
-whole-suite and later targeted results, and completed IPv6 claim renewals
-from two pending guest replay bindings. Private site rendering and browser
-proof passed; publication landing remains open. A new actual-writer regression
-reproduced a shared-subnet defect, so its repair and final stress remain owed.
-Remaining clause judgments stay open. Earlier container evidence is historical,
-not a new run under this restriction. Neither spec is closed; no push ran.
+Progress, 2026-10-08: continuation remains Docker-free. The coupled BGP source
+landed as `d3e5b4a770`; completed MRT, unknown-sub-TLV, FlowSpec advertisement,
+present-empty AS_PATH and mapped-self-oracle chunks have since landed separately.
+All five committed build flavors pass at `411d8136e142`. Wiki retirement and its
+main-site input are committed; final publication remains open. The child's
+"Acceptance evidence, 2026-10-08" distinguishes completed clauses from the
+shared-subnet repair's remaining independent-receiver and load proof. Its real
+four-case topology matrix and replacement replay pass once; earlier replay
+eighty-run evidence does not qualify that replacement. Actual recorder and FRR
+runs exposed guest shared-filesystem ownership prerequisites, corrected only in
+disposable recipes. Final streamed race20, replay bindings, remaining judgments
+and publication remain pending. Neither spec is closed; no push ran.
 
 | Stays in the parent | Why |
 |---------------------|-----|
