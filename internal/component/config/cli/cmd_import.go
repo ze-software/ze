@@ -3,6 +3,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"io"
 	"os"
@@ -52,107 +53,161 @@ func cmdImportWithStorage(store storage.Storage, args []string) int {
 		}
 		defer store.Close() //nolint:errcheck // Offline ownership.
 	}
-	names := make([]string, len(files))
-	seen := make(map[string]string, len(files))
-	var existing []string
-	readsStdin := false
-	for i, path := range files {
-		key := filepath.Base(path)
-		if *name != "" {
-			key = *name
-		}
-		if key == "." || key == ".." || strings.ContainsAny(key, "/\\") || cliio.IsStdin(key) {
-			out.Str("error: invalid destination name ").Quoted(key).Str("; use --name for stdin\n").StdErr() //nolint:errcheck // terminal output
-			return exitError
-		}
-		if previous, ok := seen[key]; ok {
-			out.Str("error: import name ").Str(key).Str(" collides between ").Str(previous).Str(" and ").Str(path).
-				Str("; import separately with --name\n").StdErr() //nolint:errcheck // terminal output
-			return exitError
-		}
-		if store.Exists(key) {
-			existing = append(existing, key)
-		}
-		if cliio.IsStdin(path) {
-			readsStdin = true
-		}
-		seen[key] = path
-		names[i] = key
+	targets, err := cmdImportNames(store, files, *name)
+	if err != nil {
+		out.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output
+		return exitError
 	}
-	if len(existing) > 0 && !*yes {
-		// A config read from stdin leaves no terminal to answer on, so that
-		// import is as non-interactive as a script's.
-		interactive := !readsStdin && term.IsTerminal(int(os.Stdin.Fd()))
-		if !confirmImportReplace(existing, interactive, os.Stdin, os.Stderr) {
-			return exitError
+	if !*yes {
+		if existing := cmdImportExisting(targets); len(existing) > 0 {
+			// A config read from stdin leaves no terminal to answer on, so that
+			// import is as non-interactive as a script's.
+			interactive := !slices.ContainsFunc(files, cliio.IsStdin) && term.IsTerminal(int(os.Stdin.Fd()))
+			if !cmdImportConfirm(existing, interactive, os.Stdin, os.Stderr) {
+				return exitError
+			}
 		}
 	}
-	contents := make([][]byte, len(files))
-	for i, path := range files {
-		data, err := cliio.ReadFile(path)
+	if err := cmdImportRead(targets); err != nil {
+		out.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output
+		return exitError
+	}
+	for i := range targets {
+		target := &targets[i]
+		// A replaced config is committed as a new active version, the previous
+		// one kept as rollback, because writing only the file/active mirror is
+		// shadowed by an existing active pointer: the daemon would go on reading
+		// the old config while the import reported success.
+		verb := "imported "
+		if target.exists {
+			verb = "replaced "
+			_, err = storage.RestoreConfig(store, target.name, target.data)
+		} else {
+			err = store.WriteFile(target.name, target.data, 0o600)
+		}
+		out.Reset()
 		if err != nil {
-			out.Str("error: read ").Str(path).Str(": ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output
+			out.Str("error: import ").Str(target.name).Str(": ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output
 			return exitError
 		}
-		contents[i] = data
-	}
-	for i, key := range names {
-		if err := importOne(store, key, contents[i], slices.Contains(existing, key)); err != nil {
-			out.Reset()
-			out.Str("error: import ").Str(key).Str(": ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output
-			return exitError
-		}
+		out.Str(verb).Str(target.name).Str(" (").Int(int64(len(target.data))).Str(" bytes)\n").StdOut() //nolint:errcheck // terminal output
 	}
 	out.Reset()
 	out.Int(int64(len(files))).Str(" file(s) imported\n").StdOut() //nolint:errcheck // terminal output
 	return exitOK
 }
 
-// importOne writes one confirmed input. A replaced config is committed as a new
-// active version, the previous one kept as rollback, because writing only the
-// file/active mirror is shadowed by an existing active pointer: the daemon
-// would go on reading the old config while the import reported success.
-func importOne(store storage.Storage, key string, data []byte, replace bool) error {
-	var out textbuf.Buffer
-	if replace {
-		if _, err := storage.RestoreConfig(store, key, data); err != nil {
-			return err
+// cmdImportTarget is one input of cmdImportWithStorage and the config it lands
+// in. exists records, once, whether the store held that config before the
+// import began, which decides between a replace and a fresh write.
+type cmdImportTarget struct {
+	path   string
+	name   string
+	exists bool
+	data   []byte
+}
+
+// cmdImportNames names the destination of every input: --name when given,
+// else the input's base name. It refuses a name that is not a plain config
+// name, and two inputs that would land on the same config.
+func cmdImportNames(store storage.Storage, files []string, name string) ([]cmdImportTarget, error) {
+	targets := make([]cmdImportTarget, len(files))
+	seen := make(map[string]string, len(files))
+	for i, path := range files {
+		key := filepath.Base(path)
+		if name != "" {
+			key = name
 		}
-		out.Str("replaced ")
-	} else {
-		if err := store.WriteFile(key, data, 0o600); err != nil {
-			return err
+		if !cmdImportNameValid(key) {
+			var tb textbuf.Buffer
+			return nil, errors.New(tb.Str("invalid destination name ").Quoted(key).Str("; use --name for stdin").String())
 		}
-		out.Str("imported ")
+		if previous, ok := seen[key]; ok {
+			var tb textbuf.Buffer
+			return nil, errors.New(tb.Str("import name ").Str(key).Str(" collides between ").Str(previous).Str(" and ").Str(path).
+				Str("; import separately with --name").String())
+		}
+		seen[key] = path
+		targets[i] = cmdImportTarget{path: path, name: key, exists: store.Exists(key)}
 	}
-	out.Str(key).Str(" (").Int(int64(len(data))).Str(" bytes)\n").StdOut() //nolint:errcheck // terminal output
+	return targets, nil
+}
+
+// cmdImportNameValid reports whether key names a config in the store folder
+// itself: not a directory step, not a path, and not the stdin marker.
+func cmdImportNameValid(key string) bool {
+	switch key {
+	case ".", "..":
+		return false
+	}
+	if strings.ContainsAny(key, "/\\") {
+		return false
+	}
+	return !cliio.IsStdin(key)
+}
+
+// cmdImportExisting lists the targets whose config already exists, in input
+// order: the configs an import would replace.
+func cmdImportExisting(targets []cmdImportTarget) []string {
+	var existing []string
+	for i := range targets {
+		if targets[i].exists {
+			existing = append(existing, targets[i].name)
+		}
+	}
+	return existing
+}
+
+// cmdImportRead reads every input before anything is written, so an unreadable
+// input stops the import with the store untouched.
+func cmdImportRead(targets []cmdImportTarget) error {
+	for i := range targets {
+		data, err := cliio.ReadFile(targets[i].path)
+		if err != nil {
+			var tb textbuf.Buffer
+			return errors.New(tb.Str("read ").Str(targets[i].path).Str(": ").Err(err).String())
+		}
+		targets[i].data = data
+	}
 	return nil
 }
 
-// confirmImportReplace asks whether the existing configs in names may be
-// replaced. Without a terminal it asks nothing and refuses, naming --yes, so a
-// script never waits on a prompt. On a terminal, y or yes consents; any other
-// answer, and a failed or empty read, is a refusal.
-func confirmImportReplace(names []string, interactive bool, in io.Reader, errw io.Writer) bool {
+// cmdImportConfirm asks on prompts whether the existing configs in names may be
+// replaced, and reads the reply from answers. Without a terminal it asks
+// nothing and refuses, naming --yes, so a script never waits on a prompt. On a
+// terminal, y or yes consents; any other answer, an empty one, and a failed
+// read are a refusal, the failed read reported as such.
+func cmdImportConfirm(names []string, interactive bool, answers io.Reader, prompts io.Writer) bool {
 	var out textbuf.Buffer
+	subject, exist, pronoun := "destination config ", " already exists", "it"
+	if len(names) > 1 {
+		subject, exist, pronoun = "destination configs ", " already exist", "them"
+	}
 	list := strings.Join(names, ", ")
 	if !interactive {
-		out.Str("error: destination config ").Str(list).Str(" already exists; rerun with --yes to replace it\n")
-		errw.Write(out.Bytes()) //nolint:errcheck,gosec // terminal output
+		out.Str("error: ").Str(subject).Str(list).Str(exist).Str("; rerun with --yes to replace ").Str(pronoun).Byte('\n')
+		prompts.Write(out.Bytes()) //nolint:errcheck,gosec // terminal output
 		return false
 	}
-	out.Str("destination config ").Str(list).Str(" already exists\nreplace it? [y/N] ")
-	errw.Write(out.Bytes()) //nolint:errcheck,gosec // terminal output
-	scanner := bufio.NewScanner(in)
-	answer := ""
-	if scanner.Scan() {
-		answer = strings.ToLower(strings.TrimSpace(scanner.Text()))
+	out.Str(subject).Str(list).Str(exist).Str("\nreplace ").Str(pronoun).Str("? [y/N] ")
+	prompts.Write(out.Bytes()) //nolint:errcheck,gosec // terminal output
+	out.Reset()
+
+	scanner := bufio.NewScanner(answers)
+	// Scan is false both at the end of input and on a read failure. Err tells
+	// them apart: the end of input leaves Text empty, which is a refusal, and a
+	// failure is reported, so it cannot pass for an answer of no.
+	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		out.Str("error: read answer: ").Err(err).Byte('\n')
+		prompts.Write(out.Bytes()) //nolint:errcheck,gosec // terminal output
+		return false
 	}
-	if answer == "y" || answer == "yes" {
+	switch strings.ToLower(strings.TrimSpace(scanner.Text())) {
+	case "y", "yes":
 		return true
 	}
-	out.Reset()
-	out.Str("error: destination config ").Str(list).Str(" not replaced\n")
-	errw.Write(out.Bytes()) //nolint:errcheck,gosec // terminal output
+	out.Str("error: ").Str(subject).Str(list).Str(" not replaced\n")
+	prompts.Write(out.Bytes()) //nolint:errcheck,gosec // terminal output
 	return false
 }

@@ -5,10 +5,13 @@ package cli
 
 import (
 	"bytes"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
@@ -73,10 +76,26 @@ func writeImportInput(t *testing.T, text string) string {
 	return path
 }
 
-// VALIDATES: an import onto an existing config, with no --yes and no terminal
-// to ask on, is refused and leaves the stored config as it was.
-// PREVENTS: a script replacing a config nobody confirmed, or hanging on a prompt.
+// TestImportRefusesExistingWithoutConfirmation proves an import onto an
+// existing config, with no --yes and no terminal to ask on, is refused and
+// leaves the stored config as it was, so a script neither replaces a config
+// nobody confirmed nor hangs on a prompt.
+//
+// The method seeds edge.conf, imports a different config under that name
+// without --yes, and reads the active config back. The import asks only when
+// os.Stdin is a terminal, and go test may hand the test binary the terminal it
+// was started from, so the test points os.Stdin at the null device: the
+// refusal it asserts then does not depend on how go test was run.
 func TestImportRefusesExistingWithoutConfirmation(t *testing.T) {
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatalf("open %s: %v", os.DevNull, err)
+	}
+	defer devNull.Close() //nolint:errcheck // test cleanup
+	stdin := os.Stdin
+	os.Stdin = devNull
+	defer func() { os.Stdin = stdin }()
+
 	store := newImportBlobStore(t)
 	if _, err := storage.RestoreConfig(store, "edge.conf", []byte(showTestConfig)); err != nil {
 		t.Fatalf("seed edge.conf: %v", err)
@@ -121,36 +140,77 @@ func TestImportReplacesExistingWithYes(t *testing.T) {
 	}
 }
 
-// VALIDATES: the replace question names every config it would replace, takes
-// y or yes as consent and anything else, including no answer, as a refusal;
-// without a terminal it asks nothing and names --yes.
-// PREVENTS: a prompt that hides what it replaces, or a failed read read as consent.
-func TestConfirmImportReplace(t *testing.T) {
+// TestImportConfirm proves the replace question names every config it would
+// replace, takes y or yes as consent and anything else as a refusal, reports a
+// failed read instead of reading it as no, asks nothing without a terminal,
+// and speaks of one config in the singular.
+//
+// The method answers cmdImportConfirm from a reader and checks its verdict,
+// the text it must write, and the text that would mean the wrong branch ran:
+// a consent never prints the refusal, and a non-interactive refusal never
+// prints the question.
+func TestImportConfirm(t *testing.T) {
+	both := []string{"edge.conf", "core.conf"}
 	tests := []struct {
 		name        string
+		names       []string
 		interactive bool
-		answer      string
+		answers     io.Reader
 		want        bool
 		mention     string
+		absent      string
 	}{
-		{name: "non-interactive refuses and names --yes", interactive: false, answer: "yes\n", want: false, mention: "--yes"},
-		{name: "yes replaces", interactive: true, answer: "yes\n", want: true, mention: "replace"},
-		{name: "y replaces", interactive: true, answer: "y\n", want: true, mention: "replace"},
-		{name: "no refuses", interactive: true, answer: "n\n", want: false, mention: "not replaced"},
-		{name: "no answer refuses", interactive: true, answer: "", want: false, mention: "not replaced"},
+		{
+			name: "non-interactive refuses and names --yes", names: both, interactive: false,
+			answers: strings.NewReader("yes\n"), want: false,
+			mention: "configs edge.conf, core.conf already exist; rerun with --yes to replace them", absent: "[y/N]",
+		},
+		{
+			name: "one config is singular", names: []string{"edge.conf"}, interactive: false,
+			answers: strings.NewReader(""), want: false,
+			mention: "config edge.conf already exists; rerun with --yes to replace it", absent: "configs",
+		},
+		{
+			name: "yes replaces", names: both, interactive: true,
+			answers: strings.NewReader("yes\n"), want: true,
+			mention: "replace them? [y/N]", absent: "not replaced",
+		},
+		{
+			name: "y replaces", names: both, interactive: true,
+			answers: strings.NewReader("Y\n"), want: true,
+			mention: "replace them? [y/N]", absent: "not replaced",
+		},
+		{
+			name: "no refuses", names: both, interactive: true,
+			answers: strings.NewReader("n\n"), want: false,
+			mention: "not replaced", absent: "read answer",
+		},
+		{
+			name: "no answer refuses", names: both, interactive: true,
+			answers: strings.NewReader(""), want: false,
+			mention: "not replaced", absent: "read answer",
+		},
+		{
+			name: "failed read refuses and says so", names: both, interactive: true,
+			answers: iotest.ErrReader(errors.New("terminal gone")), want: false,
+			mention: "error: read answer: terminal gone", absent: "not replaced",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var errBuf bytes.Buffer
-			got := confirmImportReplace([]string{"edge.conf", "core.conf"}, tt.interactive, strings.NewReader(tt.answer), &errBuf)
+			var prompts bytes.Buffer
+			got := cmdImportConfirm(tt.names, tt.interactive, tt.answers, &prompts)
 			if got != tt.want {
-				t.Fatalf("confirm = %v, want %v; stderr %q", got, tt.want, errBuf.String())
+				t.Fatalf("confirm = %v, want %v; stderr %q", got, tt.want, prompts.String())
 			}
-			out := errBuf.String()
-			for _, want := range []string{"edge.conf", "core.conf", tt.mention} {
+			out := prompts.String()
+			for _, want := range append([]string{tt.mention}, tt.names...) {
 				if !strings.Contains(out, want) {
 					t.Fatalf("stderr %q does not mention %q", out, want)
 				}
+			}
+			if strings.Contains(out, tt.absent) {
+				t.Fatalf("stderr %q mentions %q, which the other branch writes", out, tt.absent)
 			}
 		})
 	}
