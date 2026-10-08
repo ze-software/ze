@@ -215,11 +215,54 @@ func publishSiteFacts(paths Paths) error {
 	if err != nil {
 		return err
 	}
+	content, err := renderSiteFacts(&facts)
+	if err != nil {
+		return err
+	}
+	// The output was seeded from the previous artifact, so it still holds the
+	// facts that artifact published. When the facts differ only in the build
+	// time, the previous file is kept whole, for the reason
+	// carryPublicationStamps keeps a page's stamp: a build over an unchanged
+	// tree must change no byte (AC-14), and a new time over the same facts
+	// states a publication that published nothing new.
+	if previous, carried := previousFactsAt(paths.Output, &facts); carried {
+		content = previous
+	}
+	return writeNamedArtifact(paths.Output, factsFile, content)
+}
+
+// renderSiteFacts answers the published form of the facts snapshot.
+func renderSiteFacts(facts *siteFacts) (string, error) {
 	content, err := json.MarshalIndent(facts, "", "  ")
 	if err != nil {
-		return fmt.Errorf("render %s: %w", factsFile, err)
+		return "", fmt.Errorf("render %s: %w", factsFile, err)
 	}
-	return writeNamedArtifact(paths.Output, factsFile, string(content)+"\n")
+	return string(content) + "\n", nil
+}
+
+// previousFactsAt answers the facts file the previous artifact published, and
+// whether it states exactly these facts at an earlier build time. Any other
+// difference, or an absent or unreadable previous file, answers false, so the
+// new facts are published.
+func previousFactsAt(output string, facts *siteFacts) (string, bool) {
+	content, err := os.ReadFile(filepath.Join(output, filepath.FromSlash(factsFile))) //nolint:gosec // a site build reads the artifact it was pointed at
+	if err != nil {
+		return "", false
+	}
+	var previous siteFacts
+	if err := json.Unmarshal(content, &previous); err != nil {
+		return "", false
+	}
+	restamp := *facts
+	restamp.GeneratedAt, restamp.PublishedAt = previous.GeneratedAt, previous.PublishedAt
+	restamped, err := renderSiteFacts(&restamp)
+	if err != nil {
+		return "", false
+	}
+	if restamped != string(content) {
+		return "", false
+	}
+	return restamped, true
 }
 
 // deriveSiteFacts answers every published number from this checkout.

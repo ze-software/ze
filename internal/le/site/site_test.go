@@ -2,6 +2,8 @@ package site
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -636,4 +638,144 @@ func TestRefreshTalksPreservesHistoricalSlides(t *testing.T) {
 	if !bytes.Equal(updated, slides) {
 		t.Fatalf("historical slides changed:\n%s", updated)
 	}
+}
+
+// VALIDATES: AC-14, a second build over an unchanged tree changes nothing.
+// PREVENTS: a build whose artifact differs from the previous one with no input
+// changed, so every publish commits a diff a reviewer cannot read.
+//
+// Method: two builds write into the published location, the sibling gh-pages,
+// so the second seeds from the first and carries its publication stamps. The
+// second build runs one hour later on the build clock. The only input that
+// moved is the wall clock, and a reader must not see it: the page keeps the
+// first build's stamp and every byte of the tree matches.
+func TestASecondBuildChangesNothing(t *testing.T) {
+	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
+	// The facts snapshot is stated, as stubLiveInputs states it, and stamped
+	// from the build clock the way deriveSiteFacts stamps it, so the build time
+	// reaches the published JSON as it does in a real build.
+	liveSiteFacts = func(Paths) (siteFacts, error) {
+		published := buildClock().UTC()
+		return siteFacts{Sources: map[string]string{"tests": "a test stated these"},
+			GeneratedAt: published.Format(time.DateOnly), PublishedAt: published.Format(time.RFC3339),
+			CLICommands: 1, Tests: factsTests{Unit: 1, UnitDisplay: "1"}}, nil
+	}
+	stubProducers(t, Producer{Name: "labs", Render: func(paths Paths) ([]string, error) {
+		page := filepath.Join(paths.Output, "labs", "index.html")
+		if err := os.MkdirAll(filepath.Dir(page), 0o755); err != nil {
+			return nil, err
+		}
+		body := "<!doctype html><html><body><main>labs</main>\n<footer></footer>\n</body></html>\n"
+		return []string{"/labs/"}, os.WriteFile(page, []byte(body), 0o644)
+	}})
+	root, _ := siteFixture(t)
+	output := filepath.Join(filepath.Dir(root), "gh-pages")
+	first := time.Date(2026, 10, 8, 4, 0, 0, 0, time.UTC)
+
+	previous := buildClock
+	t.Cleanup(func() { buildClock = previous })
+	buildClock = func() time.Time { return first }
+	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
+		t.Fatalf("first build: %v", err)
+	}
+	before := artifactTree(t, output)
+
+	buildClock = func() time.Time { return first.Add(time.Hour) }
+	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
+		t.Fatalf("second build: %v", err)
+	}
+	after := artifactTree(t, output)
+
+	page := after["labs/index.html"]
+	if !strings.Contains(page, publishedDisplay(first)) {
+		t.Fatalf("the page lost the first build's stamp %q:\n%s", publishedDisplay(first), page)
+	}
+	for name, content := range before {
+		changed, present := after[name]
+		if !present {
+			t.Errorf("the second build removed %s", name)
+			continue
+		}
+		if changed != content {
+			t.Errorf("the second build rewrote %s:\nfirst:  %q\nsecond: %q", name, content, changed)
+		}
+	}
+	for name := range after {
+		if _, present := before[name]; !present {
+			t.Errorf("the second build added %s", name)
+		}
+	}
+}
+
+// VALIDATES: a full build over the real checkout leaves no published route
+// unclaimed and none claimed twice: every page in the artifact was written by
+// exactly one registered producer during this build.
+// PREVENTS: the frozen-page defect this work exists for, a page that reaches
+// the artifact from the seed alone with no producer rendering it.
+//
+// Method: `Build` runs over this checkout into a scratch output, seeded from
+// the sibling gh-pages the way a publish is, with every live input real except
+// the star count, which reaches the network and is stated failing so the build
+// takes its no-network path. The coverage the build reports is the end-user
+// answer `./le site build` prints. It takes minutes, as a publish does.
+func TestBuildRendersEveryPublishedRoute(t *testing.T) {
+	root := repositoryRoot(t)
+	previous := liveGitHubStars
+	t.Cleanup(func() { liveGitHubStars = previous })
+	liveGitHubStars = func() (int, error) { return 0, errors.New("this test reaches no network") }
+	output := filepath.Join(t.TempDir(), "artifact")
+
+	report, err := Build(BuildOptions{Repository: root, Output: output})
+	if err != nil {
+		t.Fatalf("build the real checkout: %v", err)
+	}
+
+	coverage := report.Coverage
+	if coverage.Producers != len(allProducers()) {
+		t.Errorf("the build counted %d producers, the registry holds %d", coverage.Producers, len(allProducers()))
+	}
+	if coverage.Published == 0 {
+		t.Fatal("the build published no route")
+	}
+	if len(coverage.Unclaimed) != 0 {
+		t.Errorf("%d published routes no producer wrote: %v", len(coverage.Unclaimed), coverage.Unclaimed)
+	}
+	if len(coverage.Doubled) != 0 {
+		t.Errorf("%d routes two producers wrote: %v", len(coverage.Doubled), coverage.Doubled)
+	}
+	if coverage.Written != coverage.Published {
+		t.Errorf("producers wrote %d routes and the artifact publishes %d", coverage.Written, coverage.Published)
+	}
+}
+
+// artifactTree reads every file of a built artifact, keyed by its slash-form
+// path relative to the artifact root. Git metadata is not part of the artifact.
+func artifactTree(t *testing.T, output string) map[string]string {
+	t.Helper()
+	tree := map[string]string{}
+	err := filepath.WalkDir(output, func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == gitMetadataDir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		content, err := os.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(output, name)
+		if err != nil {
+			return err
+		}
+		tree[filepath.ToSlash(relative)] = string(content)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("read artifact %s: %v", output, err)
+	}
+	return tree
 }
