@@ -294,6 +294,17 @@ configuration is identical. Retention means routes in the received RIB:
 replaying a locally configured static route after reconnect does not demonstrate
 that a received route survived either restart period.
 
+EOR and expiry withdraw only the stale received paths they remove. A refreshed
+path is not withdrawn merely because its new UPDATE has reached the received RIB
+before route-server forwarding or sent-event delivery catches up. Received
+ADD-PATH identifiers, including zero, distinguish paths even when one UPDATE
+originally advertised them together. Cleanup still carries the old destination
+advertisement's receipt, so it cannot remove a newer advertisement from the same
+source or another source. Received-state deletion alone is not proof of delivery
+to the destination; the final wire checks remain separate.
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- purgeStaleCommand, autoExpireStale -->
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- withdrawRemovedSentLocked, sentReceivedOwner -->
+
 Each family's LLST deadline is the original GR deadline plus that family's
 received Long-Lived Stale Time. Time spent dispatching the DOWN commands does
 not extend either period. After retention and stale marking finish, Ze removes

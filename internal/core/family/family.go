@@ -166,11 +166,11 @@ func FamilyLess(a, b Family) bool {
 // RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one
 // encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP
 // attribute.  If such a message contains the NEXT_HOP attribute, the BGP speaker
-// that receives the message SHOULD ignore this attribute." A SHOULD NOT is what
-// makes both answers conformant, so the answer is a compatibility decision rather
-// than a conformance one: ExaBGP sends the attribute for the families below, and
-// the ported ExaBGP contract fixtures pin those bytes
-// (docs/architecture/testing/interop.md).
+// that receives the message SHOULD ignore this attribute." Ze intentionally
+// retains the attribute for the compatibility families below, whose bytes the
+// ported ExaBGP contract fixtures pin (docs/architecture/testing/interop.md).
+// That is a compatibility deviation; the SHOULD NOT keyword alone does not
+// establish conformance.
 //
 // The set is the one Ze's config rail already sends, family by family: VPN
 // (message.(*UpdateBuilder).BuildVPN), MCAST-VPN (nlri/mvpn), MUP (nlri/mup),

@@ -21,7 +21,7 @@
 # BE PRECISE ABOUT WHAT THAT BOUGHT. Re-running the same mutation now, ze DOES emit
 # `level=WARN msg="notification sent" ... code="UPDATE Message Error" subcode=1`, so the rule
 # has a real signal to match instead of matching nothing by construction. It does NOT make this
-# mutation fail faster: that mutation also stops the forward, so the conn=2 expectation below
+# mutation fail faster: that mutation also stops the forward, so the receiver expectation
 # times out at 15s and the runner reports the timeout first. What the rule uniquely catches is
 # the case the expectations CANNOT: ze forwarding the split correctly AND still answering the
 # source with a NOTIFICATION. Before the daemon fix, that case passed silently.
@@ -55,7 +55,7 @@
 #      accept any combination of those fields, so a conforming FRR installs the route whether Ze
 #      splits the UPDATE or relays it whole -- the scenario's own docstring says so. Only an
 #      assertion over the exact bytes Ze emits can tell the two apart, which is what this file
-#      does at conn=2 seq=1.
+#      does at receiver conn=1 seq=3, after the seed receipt acknowledgement.
 #
 # VALIDATES: AC-1 -- a mixed-shape UPDATE received from a route-server client is split before
 # it is relayed, so each UPDATE the receiver sees carries at most one of the four fields named
@@ -76,15 +76,15 @@
 # arriving message against every pending rule rather than the head, so declaration order is not
 # arrival order. That is true only WITHIN one seq group. groupMessages
 # (internal/test/peer/checker.go) builds one group per (conn, seq) and sorts them, and
-# advanceSequence makes only the CURRENT group's rules live, so the seq=2 announce rule below
-# cannot be consumed while the seq=1 withdrawal rule is still pending: an announcement arriving
+# advanceSequence makes only the CURRENT group's rules live, so the seq=4 announce rule below
+# cannot be consumed while the seq=3 withdrawal rule is still pending: an announcement arriving
 # first matches nothing and fails as a mismatch. The two rules are in different seq groups, so
 # this file HAS been asserting arrival order all along.
 #
 # Verified rather than reasoned: reversing result.rawBodies/result.updates at the end of
 # buildFwdBody (reactor/forward_body.go), after supersedeKey and the withdrawal flag are
 # computed so only emission order changes, fails this test 3/3 with "message mismatch" and the
-# announcement as the only frame conn=2 accepted. The unit tests
+# announcement as the only frame the receiver accepted. The unit tests
 # (TestForwardSplitMixedShapeWithdrawalsFirst, TestSplitCompliantWithdrawalsPrecedeAnnouncements)
 # pin the two splitters; this file pins the whole daemon path.
 #
@@ -92,9 +92,9 @@
 # both splitters directly; this test is the one that proves the behavior survives the whole
 # daemon path, from wire receive through the route server to the wire again.
 #
-# Two eBGP peers, following bgp-rs-reactor-fastpath.ci: source (65001) sends ONE UPDATE that
-# both withdraws 172.16.0.0/24 and announces 10.0.0.0/24; receiver (65002) must see those as
-# two separate UPDATEs.
+# Two eBGP peers, following bgp-rs-reactor-fastpath.ci: source (65001) first advertises
+# 172.16.0.0/24 and waits for receiver (65002) to acknowledge it. The subsequent mixed UPDATE
+# withdraws that prefix and announces 10.0.0.0/24; the receiver must see two separate UPDATEs.
 #
 # Deliberately WITHOUT `rs-fast-path enable`, unlike bgp-rs-reactor-fastpath.ci. Both settings
 # reach the code under test (buildFwdBody is on both routes), but with the fast path enabled
@@ -107,30 +107,22 @@
 # are evidence, the producing function has not been read. An unprepended AS_PATH toward an
 # eBGP peer would be a defect in its own right and is worth that investigation.
 
+# Independent peer processes let the receiver acknowledge the seed while the
+# source waits. conn_map runs complete connection scripts serially and cannot
+# express this dialogue. The observer releases the source after both EORs.
 stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=2
+option=tcp_connections:value=1
 option=timeout:value=15s
-option=bind:value=0.0.0.0
-# Map conn=N to a peer by remote IP instead of accept order (peer_connmap.go), and handshake
-# both peers before either script runs, so the forward below is not a race. Same reasoning as
-# bgp-rs-reactor-fastpath.ci.
-option=conn_map:value=remote-ip
-# Wait for ze's End-of-RIB on BOTH connections before either script sends.
-#
-# The handshake alone is NOT the barrier this file's comment above assumed. It
-# proves ze left OpenSent; it does not prove bgp-rs has registered the peer as a
-# forward target. bgp-rs registers at the state=up event and captures its peer-up
-# cut there, so a source UPDATE arriving before conn=2 is registered lands at or
-# below that peer's cut and belongs to the Adj-RIB-In REPLAY -- which carries
-# announcements only. The receiver then sees the announce and never the
-# withdrawal this test asserts, which is exactly the intermittent failure above.
-# ze emits the EoR only after that peer's initial sync, i.e. strictly after
-# registration, so it is the first frame that proves the peer is a live target.
-#
-# Opt-in because consuming the EoR is only safe here: six of the nine conn_map
-# tests declare it as an expectation and Checker.consumeMatches would be robbed
-# of a frame they assert. This file declares none.
-option=await_eor:value=true
+option=bind:value=127.0.0.1
+option=asn:value=65001
+option=linger:value=true
+
+# Advertise the original withdrawn prefix from the same source first. The
+# receiver sends its acknowledgement only after checking that advertisement;
+# the source MUST receive that acknowledgement before sending the mixed input.
+expect=bgp:conn=1:seq=1:announced=18C00004
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE9400304010101014005040000006418AC1000
+expect=bgp:conn=1:seq=3:announced=18C00003
 
 # Source peer (conn=1): ONE UPDATE mixing Withdrawn Routes with NLRI.
 #   withdrawn: 0004 18AC1000            -- 172.16.0.0/24
@@ -138,35 +130,38 @@ option=await_eor:value=true
 #   nlri:      180A0000                 -- 10.0.0.0/24
 # Two NLRI-bearing fields in one message: exactly what Section 5.1 forbids a sender to emit,
 # and exactly what an older speaker is allowed to send us.
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A02000418AC1000001B4001010040020602010000FDE94003040101010140050400000064180A0000
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A02000418AC1000001B4001010040020602010000FDE94003040101010140050400000064180A0000
+EOF_PEER
 
-# // NEITHER peer declares an End-of-RIB expectation, and that is deliberate
-# rather than an omission. Checker.check (internal/test/peer/checker.go:414-418) silently
-# accepts an unmatched KEEPALIVE or EOR, precisely because initial route sync races the read
-# loop. Declaring the EOR opts INTO that race instead of out of it: whichever of the EOR and
-# the forwarded UPDATE arrives first meets the rule, and this test failed twice that way on an
-# unchanged tree (once at the source, once at the receiver) before the rules were left
-# undeclared. Not declaring them costs no coverage here: neither EOR is part of the RFC 7606
-# shape behavior under test, and conn=1's action=send is what keeps that peer listening.
+# The receiver MUST keep reading while the source waits for its acknowledgement.
+# Initial EORs remain silently accepted; all-EOR readiness is observer-fenced.
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=bind:value=127.0.0.2
+option=asn:value=65002
+option=linger:value=true
+expect=bgp:conn=1:seq=1:announced=18AC1000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEA400304010101024005040000006418C00003
 
-# Receiver peer (conn=2), seq=1: the withdrawal, ALONE, asserted byte for byte.
+# Receiver peer, seq=3: the withdrawal, ALONE, asserted byte for byte.
 #   0004 18AC1000 0000  -- withdrawn 172.16.0.0/24, no attributes, no NLRI
 # This is the load-bearing assertion. A withdraw-only UPDATE on this wire can only exist if
 # the relay split the received message: before this change the withdrawal was relayed inside
 # the same UPDATE as the announcement, which cannot match these bytes. Full-message equality
 # is used rather than contains= so that a message carrying the withdrawal PLUS anything else
 # fails.
-expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418AC10000000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418AC10000000
 
-# Receiver peer (conn=2), seq=2: the announcement, in its own UPDATE.
+# Receiver peer, seq=4: the announcement, in its own UPDATE.
 # The asserted bytes are the forwarded route's AS_PATH and NEXT_HOP:
 #   AS_PATH:  40020A02020000FDE80000FDE9 (AS_SEQUENCE[65000, 65001] -- ze prepended its AS)
 #   NEXT_HOP: 40030401010101 (1.1.1.1)
 # contains= rather than hex= for the same reason bgp-rs-reactor-fastpath.ci gives: the eBGP
 # LOCAL_PREF rewrite is an open question settled elsewhere. These bytes cannot be satisfied by
 # a withdraw, which carries no path attributes at all.
-expect=bgp:conn=2:seq=2:contains=40020A02020000FDE80000FDE940030401010101
-EOF_PEER
+expect=bgp:conn=1:seq=4:contains=40020A02020000FDE80000FDE940030401010101
+EOF_RECEIVER
 
 # Observer: shut down cleanly after forwarding completes.
 
@@ -219,6 +214,8 @@ bgp {
 		}
 		attach process shutdown-after-up {
 			receive [ update ]
+			# The readiness marker is source-only, never a receiver seed.
+			send [ update ]
 		}
 	}
 	peer receiver-peer {
@@ -248,6 +245,8 @@ bgp {
 			group-updates disable
 		}
 		attach process adj-rib-in {
+			# The receiver originates the seed acknowledgement back to the source.
+			receive [ update-received state ]
 			send [ update ]
 		}
 		attach process rs {
@@ -262,7 +261,8 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

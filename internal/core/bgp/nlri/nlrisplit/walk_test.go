@@ -16,8 +16,9 @@ import (
 func splitAll(t *testing.T, split Splitter, data []byte, addPath bool) ([][]byte, error) {
 	t.Helper()
 	var out [][]byte
-	_, err := split(data, addPath, func(nlri []byte) {
+	_, err := split(data, addPath, func(nlri []byte) bool {
 		out = append(out, nlri)
+		return true
 	})
 	return out, err
 }
@@ -53,7 +54,10 @@ func TestEveryWalkAllocatesNothing(t *testing.T) {
 			// caller builds it once too: the receive path holds one per section.
 			visited := 0
 			var walkErr error
-			visit := func(nlri []byte) { visited += len(nlri) }
+			visit := func(nlri []byte) bool {
+				visited += len(nlri)
+				return true
+			}
 
 			withVisitor := testing.AllocsPerRun(100, func() {
 				_, walkErr = tc.split(tc.data, false, visit)
@@ -109,5 +113,69 @@ func TestSplitSizesItsResultFromTheCount(t *testing.T) {
 		if !bytes.Equal(got[i], want) {
 			t.Errorf("NLRI %d is % x, want % x", i, got[i], want)
 		}
+	}
+}
+
+// TestEveryWalkStopsBeforeMalformedTail exercises each native framing with and
+// without ADD-PATH. Stopping includes the first entry; continuing and counting
+// must reject the identical truncated second entry without visiting it.
+func TestEveryWalkStopsBeforeMalformedTail(t *testing.T) {
+	extendedFlow := make([]byte, 242)
+	extendedFlow[0], extendedFlow[1] = 0xf0, 240
+	cases := map[string]struct {
+		split Splitter
+		first []byte
+	}{
+		"cidr":               {splitCIDR, []byte{24, 10, 0, 1}},
+		"vpn":                {splitVPN, vpnNLRI(100, false)},
+		"labeled-withdrawal": {splitVPN, []byte{48, 0, 0, 0, 10, 0, 1}},
+		"evpn":               {splitEVPN, []byte{2, 3, 0x11, 0x22, 0x33}},
+		"mvpn":               {splitMVPN, []byte{1, 3, 0x11, 0x22, 0x33}},
+		"mup":                {SplitMUP, mupNLRI(1, 0xaa)},
+		"labeled":            {SplitLabeled, []byte{48, 0x06, 0x40, 0x01, 10, 0, 1}},
+		"flowspec-short":     {SplitFlowSpec, []byte{3, 0x03, 0x81, 6}},
+		"flowspec-extended":  {SplitFlowSpec, extendedFlow},
+		"vpls":               {SplitVPLS, []byte{0, 17, 0, 0, 0xfd, 0xe8, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 16, 1}},
+		"bgpls":              {SplitBGPLS, []byte{0, 1, 0, 9, 3, 0, 0, 0, 0, 0, 0, 0, 1}},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			for _, addPath := range []bool{false, true} {
+				first := tc.first
+				if addPath {
+					first = append([]byte{0, 0, 0, 7}, first...)
+				}
+				data := concat(first, first[:len(first)-1])
+				for _, keepWalking := range []bool{false, true} {
+					visited := 0
+					count, err := tc.split(data, addPath, func(entry []byte) bool {
+						visited++
+						if !bytes.Equal(entry, first) {
+							t.Errorf("ADD-PATH=%v: entry = %x, want %x", addPath, entry, first)
+						}
+						if &entry[0] != &data[0] {
+							t.Error("visitor entry does not alias the input")
+						}
+						return keepWalking
+					})
+					if count != 1 {
+						t.Errorf("ADD-PATH=%v continue=%v: count = %d, want 1", addPath, keepWalking, count)
+					}
+					if visited != 1 {
+						t.Errorf("ADD-PATH=%v continue=%v: visits = %d, want 1", addPath, keepWalking, visited)
+					}
+					if (err != nil) != keepWalking {
+						t.Errorf("ADD-PATH=%v continue=%v: error = %v", addPath, keepWalking, err)
+					}
+				}
+				count, err := tc.split(data, addPath, nil)
+				if count != 1 {
+					t.Errorf("ADD-PATH=%v nil visitor: count = %d, want 1", addPath, count)
+				}
+				if err == nil {
+					t.Errorf("ADD-PATH=%v nil visitor accepted malformed tail", addPath)
+				}
+			}
+		})
 	}
 }

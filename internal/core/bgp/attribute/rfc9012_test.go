@@ -298,7 +298,6 @@ func TestRFC9012MeaninglessSubTLVIgnoredNotRemoved(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, stlvs, 2)
 
-	// RFC requirement: RFC9012-13-16 positive -- the meaningless sub-TLV is disregarded: the value processed out of the TLV is the same as if it were not present at all
 	// RFC requirement: RFC9830-2.3-3 positive -- a VXLAN Encapsulation sub-TLV has no defined applicability to the SR Policy SAFI, and inside a Tunnel Type 15 TLV it is ignored: what ze processes is what it would process without it
 	withMeaningless, ok := tlv.Preference()
 	require.True(t, ok)
@@ -307,7 +306,6 @@ func TestRFC9012MeaninglessSubTLVIgnoredNotRemoved(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, without, withMeaningless)
 
-	// RFC requirement: RFC9012-13-16 negative -- a sub-TLV that IS meaningful for this tunnel type is not disregarded: changing the Preference changes what is processed, so "disregarded" is not "everything is ignored"
 	// RFC requirement: RFC9830-2.3-3 negative -- the Preference sub-TLV, which the SR Policy SAFI does define, is not ignored, so the rule is scoped to the sub-TLVs without applicability
 	other := TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: teCat(meaningless, tePreference(901))}
 	changed, ok := other.Preference()

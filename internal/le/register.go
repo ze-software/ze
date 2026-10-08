@@ -38,6 +38,8 @@ import (
 	_ "github.com/ze-software/ze/internal/le/config/ports"
 	_ "github.com/ze-software/ze/internal/le/config/unreadleaves"
 	_ "github.com/ze-software/ze/internal/le/data/asndelegation"
+	_ "github.com/ze-software/ze/internal/le/data/ietfreference"
+	_ "github.com/ze-software/ze/internal/le/data/ipspecialpurpose"
 	_ "github.com/ze-software/ze/internal/le/doc/check"
 	_ "github.com/ze-software/ze/internal/le/doc/consistency"
 	_ "github.com/ze-software/ze/internal/le/doc/index"

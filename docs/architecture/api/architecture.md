@@ -430,8 +430,9 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 | `ze-plugin-engine` | `internal/core/ipc/yang/` | Engine RPCs served to plugins |
 | `ze-plugin-callback` | `internal/core/ipc/yang/` | Callback RPCs served by plugins |
 
-Wire methods use `module:rpc-name` format with `-api` suffix stripped (e.g., `ze-bgp-api` defines `ze-bgp:peer-list`). This is done by `WireModule()` in `internal/component/config/yang/rpc.go`.
-<!-- source: internal/component/config/yang/rpc.go -- WireModule -->
+An rpc carries no wire method of its own. A `ze:command` node declares the method and points at the rpc that documents it with `ze:rpc` (e.g., a `ze-peer-cmd` node declares `ze-bgp:peer-list` and points at `ze-bgp-api:peer-list`), and the rpc is published under that method. The plugin IPC rpcs and the notifications, which no command node reaches, declare theirs with `ze:method`. `PublishedRPCs` in `internal/component/config/yang/rpc_publish.go` reads both, and no method is built from a module's file name. The prefix of a builtin command method is derived from the package that registers its handler (`OwnerPrefix` in `internal/component/plugin/server/rpc_register.go`, rule in `wire-format.md`, "Method Naming"), so `ze-bgp:` is BGP's and `ze-ospf:` OSPF's, and no subsystem can declare under another's prefix.
+<!-- source: internal/component/config/yang/rpc_publish.go -- PublishedRPCs -->
+<!-- source: internal/component/plugin/server/rpc_register.go -- OwnerPrefix -->
 
 ### Handler Registration
 
@@ -1613,7 +1614,7 @@ declares it when its routes belong to the peer's initial routing update and it
 reports when they are out. A plugin that pushes routes on its own schedule
 declares nothing and is never waited for, and so does every external plugin,
 which is registered nowhere in this tree. The in-tree declarers are `bgp-rib`,
-`bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog`, `bgp-persist` and `bgp-rr`; each
+`bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog` and `bgp-rr`; each
 replays into an establishing peer and reports at the end of that replay.
 
 Declaring is not enough on its own, which is why the peer-state grant is the

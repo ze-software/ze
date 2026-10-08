@@ -1,0 +1,103 @@
+# vpn-withdrawal-inventory-rr-ipv4: explicit VPN withdrawal, then source departure.
+# RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field MUST be ignored."
+# Three equal-length VPN routes differ in RD or prefix. Compatibility 123450
+# withdraws only the first; source departure must withdraw exactly the other two.
+# Registered fixture barriers use owner peer readiness and destination send counts.
+# Peer assertions name complete MP attributes; inventory units also cover ADD-PATH.
+# MUTATION: restore RS full-wire identity or RR size-summary identity.
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+expect=bgp:conn=1:seq=1:contains=18C00002
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006002000000494001010040020040050400000064800E380001800C00000000000000000101010100600006410000FDE8000000010A600006510000FDE8000000020A600006610000FDE8000000010B
+expect=bgp:conn=1:seq=3:contains=18C63364
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A0200000013800F10000180601234500000FDE8000000010A
+expect=bgp:conn=1:seq=5:contains=18CB0071
+action=close:conn=1:seq=6
+EOF_SOURCE
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65000
+option=linger:value=true
+expect=bgp:conn=1:seq=1:contains=800E380001800C00000000000000000101010100600006410000FDE8000000010A600006510000FDE8000000020A600006610000FDE8000000010B
+expect=bgp:conn=1:seq=2:contains=800F10000180601234500000FDE8000000010A
+# Mandatory-RIB recovery must withdraw both distinct survivors, in either order.
+expect=bgp:conn=1:seq=3:contains=800F10000180600006510000FDE8000000020A
+expect=bgp:conn=1:seq=3:contains=800F10000180600006610000FDE8000000010B
+EOF_RECEIVER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal relay { use bgp-rr; }
+    external vpn-withdrawal {
+        run "le test fixture plugin/vpn-withdrawal-inventory rr"
+        encoder json
+    }
+}
+bgp {
+    peer source {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+                ipv4/mpls-vpn { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+        attach process vpn-withdrawal { send [ update ]; }
+    }
+    peer receiver {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+                ipv4/mpls-vpn { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=90s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

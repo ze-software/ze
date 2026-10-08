@@ -272,9 +272,9 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 	front, back := 0, len(buf)
 	addPath := s.ctx != nil && s.ctx.AddPath(fam)
 	var keyErr error
-	_, err := nlrisplit.SplitFlowSpec(data, addPath, func(wire []byte) {
+	_, err := nlrisplit.SplitFlowSpec(data, addPath, func(wire []byte) bool {
 		if keyErr != nil {
-			return
+			return true
 		}
 		raw := wire
 		key := ribevents.ValidationRoute{Peer: s.peer, Family: fam}
@@ -285,7 +285,7 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 		key.NLRI = ribevents.FlowSpecKey(raw)
 		if key.NLRI == "" {
 			keyErr = errors.New("invalid FlowSpec route key")
-			return
+			return true
 		}
 		keep := !ribevents.RouteEligible(key, 0)
 		if announce {
@@ -293,13 +293,14 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 		}
 		if keep {
 			front += copy(buf[front:], wire)
-			return
+			return true
 		}
 		s.changed = true
 		if announce && !ribevents.RouteEligible(key, 0) {
 			back -= len(wire)
 			copy(buf[back:], wire)
 		}
+		return true
 	})
 	if err != nil {
 		return nil, nil, err

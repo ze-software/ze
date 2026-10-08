@@ -35,7 +35,7 @@ const bgpLSHeaderLen = 4
 //
 // The walk is bounded by len(data): a zero Total NLRI Length is rejected below,
 // so every entry advances the offset.
-func SplitBGPLS(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+func SplitBGPLS(data []byte, addPath bool, fn func(nlri []byte) bool) (int, error) {
 	count := 0
 	offset := 0
 	for offset < len(data) {
@@ -63,10 +63,12 @@ func SplitBGPLS(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
 			return count, fmt.Errorf("nlrisplit: BGP-LS NLRI at offset %d extends past data (len=%d)", start, length)
 		}
 
-		if fn != nil {
-			fn(data[start : start+nlriLen])
-		}
 		count++
+		if fn != nil {
+			if !fn(data[start : start+nlriLen]) {
+				return count, nil
+			}
+		}
 		offset = start + nlriLen
 	}
 

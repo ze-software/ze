@@ -87,6 +87,9 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 
 	// Track which families have routes
 	familySeen := make(map[family.Family]bool)
+	// A refused next hop condemns its route group, not the connection or later
+	// usable groups. Retain the refusal alongside successful partial accounting.
+	var announceErr error
 
 	if c.groupUpdates {
 		// Two-level grouping: first by attributes, then by AS_PATH
@@ -97,9 +100,17 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 			for _, aspGroup := range attrGroup.ByASPath {
 				update, err := c.buildGroupedUpdateTwoLevel(&attrGroup, &aspGroup)
 				if err != nil {
+					if errors.Is(err, message.ErrUnicastNextHopUnusable) {
+						announceErr = err
+						continue
+					}
 					return stats, fmt.Errorf("build update: %w", err)
 				}
 				if err := c.sender.SendUpdate(update); err != nil {
+					if errors.Is(err, message.ErrUnicastNextHopUnusable) {
+						announceErr = err
+						continue
+					}
 					return stats, err
 				}
 				stats.UpdatesSent++
@@ -112,9 +123,17 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 		for _, route := range routes {
 			update, err := c.buildSingleUpdate(route)
 			if err != nil {
+				if errors.Is(err, message.ErrUnicastNextHopUnusable) {
+					announceErr = err
+					continue
+				}
 				return stats, fmt.Errorf("build update: %w", err)
 			}
 			if err := c.sender.SendUpdate(update); err != nil {
+				if errors.Is(err, message.ErrUnicastNextHopUnusable) {
+					announceErr = err
+					continue
+				}
 				return stats, err
 			}
 			stats.UpdatesSent++
@@ -140,7 +159,7 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 		}
 	}
 
-	return stats, nil
+	return stats, announceErr
 }
 
 // buildGroupedUpdateTwoLevel builds an UPDATE message for a two-level group.
@@ -450,12 +469,17 @@ func (c *CommitService) buildMPReachNLRI(fam family.Family, nextHop netip.Addr, 
 	mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{nextHop}, nlriBytes)
 
 	if err := mpReach.ValidateNextHops(); err != nil {
-		// The caller above the reactor discards this error, so the record is what
-		// reaches an operator.
+		// Keep the diagnostic alongside the refusal returned to the caller.
 		slog.Warn("commit: announce refused, the next hop has no wire form",
 			"family", fam,
 			"next-hop", nextHop,
 			"error", err)
+		return nil, err
+	}
+	// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1.
+	if err := message.ValidateFamilyNextHop(fam, nextHop, netip.Addr{}); err != nil {
+		slog.Warn("commit: announce refused, the next hop is unusable",
+			"family", fam, "next-hop", nextHop, "error", err)
 		return nil, err
 	}
 

@@ -4,6 +4,7 @@ package rib
 import (
 	"encoding/binary"
 	"net/netip"
+	"slices"
 	"strconv"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
@@ -23,12 +24,12 @@ type sentLifecycleWrite struct {
 	message uint64
 }
 
-// receivedOwner matches route identity and received generation, not egress
-// ADD-PATH identifiers. A generation may advertise several paths for one prefix;
-// their attributes and lifecycle are identical until one is freshly replaced.
+// receivedOwner retains native identity, received ADD-PATH presence/identifier,
+// and generation. One UPDATE can carry several paths for the same prefix.
 type receivedOwner struct {
 	key     ribOutKey
 	message uint64
+	addPath bool
 }
 
 func receivedOwnerKey(fam family.Family, raw []byte, addPath bool, message uint64) (receivedOwner, bool) {
@@ -37,94 +38,164 @@ func receivedOwnerKey(fam family.Family, raw []byte, addPath bool, message uint6
 		fam.SAFI = family.SAFIUnicast
 	}
 	key, ok := ribOutRouteKey(fam, raw, addPath)
-	key.PathID = 0
-	return receivedOwner{key: key, message: message}, ok
+	return receivedOwner{key: key, message: message, addPath: addPath}, ok
 }
 
-// reconcileSentSourceLocked projects current received ownership onto the existing
-// sent inventory. Its temporary index dies with this operation; it is not a
-// second retained-route inventory. A zero family selects all represented families.
-// Caller MUST hold peerMu and MUST dispatch returned writes after unlocking.
-func (r *RIBManager) reconcileSentSourceLocked(source netip.Addr, selected family.Family, community []byte) []sentLifecycleWrite {
-	families := make(map[family.Family]bool)
-	sourcePeer := source.String()
-	for _, destinations := range r.ribOut {
-		for fam, routes := range destinations {
-			if selected != (family.Family{}) && fam != selected {
-				continue
-			}
-			for _, entry := range routes {
-				if entry.SourcePeer == sourcePeer {
-					families[fam] = true
-					break
-				}
-			}
-		}
+// removedReceivedOwners is an operation-local index, never a retained inventory.
+// Its zero value selects nothing. Callers MUST collect it before removing the
+// received entries and while holding peerMu.
+type removedReceivedOwners map[family.Family]map[receivedOwner]struct{}
+
+func (removed *removedReceivedOwners) add(fam family.Family, raw []byte, addPath bool, message uint64) {
+	owner, ok := receivedOwnerKey(fam, raw, addPath, message)
+	if !ok {
+		return
 	}
-	var writes []sentLifecycleWrite
-	for fam := range families {
-		owners := make(map[receivedOwner]uint8)
-		if received := r.bgpPeers[source]; received != nil {
-			addPath := received.IsAddPath(fam)
-			received.IterateFamily(fam, func(raw []byte, entry storage.RouteEntry) bool {
-				owner, ok := receivedOwnerKey(fam, raw, addPath, entry.MsgID)
-				if ok {
-					owners[owner] = entry.StaleLevel
-				}
-				return true
-			})
+	if *removed == nil {
+		*removed = make(removedReceivedOwners)
+	}
+	owners := (*removed)[fam]
+	if owners == nil {
+		owners = make(map[receivedOwner]struct{})
+		(*removed)[fam] = owners
+	}
+	owners[owner] = struct{}{}
+}
+
+// sentReceivedOwner translates egress framing back to the existing ingress
+// receipt. Egress PathID, including zero, is never an ingress identifier.
+func sentReceivedOwner(fam family.Family, key ribOutKey, entry *ribOutEntry) (receivedOwner, bool) {
+	if fam.SAFI == family.SAFIMPLSLabel {
+		_, cidr, err := nlrisplit.ExtractLabels([]byte(entry.NativeNLRI), entry.AddPath)
+		if err != nil {
+			return receivedOwner{}, false
 		}
-		for destination, destinations := range r.ribOut {
+		owner, ok := receivedOwnerKey(fam, cidr, entry.AddPath, entry.SourceMessageID)
+		if !ok {
+			return receivedOwner{}, false
+		}
+		key = owner.key
+	}
+	key.PathID = entry.SourcePath
+	return receivedOwner{key: key, message: entry.SourceMessageID, addPath: entry.SourceAddPath}, true
+}
+
+// withdrawRemovedSentLocked withdraws only the received owners this operation
+// removed. A fresh received revision can precede both forwarding and sent
+// projection; absence of an old revision alone is not a purge instruction.
+// Caller MUST hold peerMu and MUST dispatch returned writes after unlocking.
+func (r *RIBManager) withdrawRemovedSentLocked(source netip.Addr, removed removedReceivedOwners) []sentLifecycleWrite {
+	var writes []sentLifecycleWrite
+	sourcePeer := source.String()
+	for destination, destinations := range r.ribOut {
+		for fam, owners := range removed {
 			routes := destinations[fam]
 			for key, entry := range routes {
 				if entry.SourcePeer != sourcePeer {
 					continue
 				}
-				identity := key
-				identity.PathID = 0
-				if fam.SAFI == family.SAFIMPLSLabel {
-					_, cidr, err := nlrisplit.ExtractLabels([]byte(entry.NativeNLRI), entry.AddPath)
-					if err != nil {
-						continue
-					}
-					owner, ok := receivedOwnerKey(fam, cidr, entry.AddPath, entry.SourceMessageID)
-					if !ok {
-						continue
-					}
-					identity = owner.key
-				}
-				level, present := owners[receivedOwner{key: identity, message: entry.SourceMessageID}]
-				if !present {
-					// Withdrawal needs identity, not a decode/copy of the attributes.
-					// The encoded command MUST own every byte before entry release.
-					withdraw := ribOutEntry{NativeNLRI: entry.NativeNLRI, AddPath: entry.AddPath}
-					command := bgp.FormatWithdrawCommand(reconstructRoute(withdraw, fam, key))
-					delete(routes, key)
-					entry.release()
-					writes = append(writes, sentLifecycleWrite{peer: destination.String(), command: command, message: entry.MsgID})
+				owner, ok := sentReceivedOwner(fam, key, &entry)
+				if !ok {
 					continue
 				}
-				if len(community) == 0 {
+				if _, removed := owners[owner]; !removed {
 					continue
 				}
-				if level < storage.DepreferenceThreshold {
-					continue
-				}
-				if !attachSentCommunity(&entry, community) {
-					continue
-				}
-				entry.StaleLevel = level
-				routes[key] = entry
+				writes = append(writes, sentRemoval(destination, fam, key, &entry))
+				delete(routes, key)
+				entry.release()
 			}
 			if len(routes) == 0 {
 				delete(destinations, fam)
 			}
-			if len(destinations) == 0 {
-				delete(r.ribOut, destination)
-			}
+		}
+		if len(destinations) == 0 {
+			delete(r.ribOut, destination)
 		}
 	}
 	return writes
+}
+
+// pruneSentSourceLocked removes whole source families, not selected received
+// generations. An empty keep list is the explicit release-routes operation.
+// Caller MUST hold peerMu and MUST dispatch returned writes after unlocking.
+func (r *RIBManager) pruneSentSourceLocked(source netip.Addr, keep []family.Family) []sentLifecycleWrite {
+	var writes []sentLifecycleWrite
+	sourcePeer := source.String()
+	for destination, destinations := range r.ribOut {
+		for fam, routes := range destinations {
+			if slices.Contains(keep, fam) {
+				continue
+			}
+			for key, entry := range routes {
+				if entry.SourcePeer != sourcePeer {
+					continue
+				}
+				writes = append(writes, sentRemoval(destination, fam, key, &entry))
+				delete(routes, key)
+				entry.release()
+			}
+			if len(routes) == 0 {
+				delete(destinations, fam)
+			}
+		}
+		if len(destinations) == 0 {
+			delete(r.ribOut, destination)
+		}
+	}
+	return writes
+}
+
+// sentRemoval MUST encode owned command bytes before the caller releases entry.
+// It preserves the actual sent receipt for final-writer admission.
+func sentRemoval(destination netip.Addr, fam family.Family, key ribOutKey, entry *ribOutEntry) sentLifecycleWrite {
+	withdraw := ribOutEntry{NativeNLRI: entry.NativeNLRI, AddPath: entry.AddPath}
+	return sentLifecycleWrite{peer: destination.String(),
+		command: bgp.FormatWithdrawCommand(reconstructRoute(withdraw, fam, key)), message: entry.MsgID}
+}
+
+// attachSentSourceCommunityLocked decorates only matching stale received paths.
+// The command deletes no received entry, so it MUST NOT infer withdrawals from
+// an asynchronous sent projection. Caller MUST hold peerMu.
+func (r *RIBManager) attachSentSourceCommunityLocked(source netip.Addr, fam family.Family, community []byte) {
+	received := r.bgpPeers[source]
+	if received == nil {
+		return
+	}
+	owners := make(map[receivedOwner]uint8)
+	addPath := received.IsAddPath(fam)
+	received.IterateFamily(fam, func(raw []byte, entry storage.RouteEntry) bool {
+		owner, ok := receivedOwnerKey(fam, raw, addPath, entry.MsgID)
+		if ok {
+			owners[owner] = entry.StaleLevel
+		}
+		return true
+	})
+	sourcePeer := source.String()
+	for _, destinations := range r.ribOut {
+		routes := destinations[fam]
+		for key, entry := range routes {
+			if entry.SourcePeer != sourcePeer {
+				continue
+			}
+			owner, ok := sentReceivedOwner(fam, key, &entry)
+			if !ok {
+				continue
+			}
+			level, present := owners[owner]
+			if !present {
+				continue
+			}
+			if level < storage.DepreferenceThreshold {
+				continue
+			}
+			if !attachSentCommunity(&entry, community) {
+				continue
+			}
+			entry.StaleLevel = level
+			routes[key] = entry
+		}
+	}
 }
 
 // attachSentCommunity replaces one owned reference to the deduplicated immutable

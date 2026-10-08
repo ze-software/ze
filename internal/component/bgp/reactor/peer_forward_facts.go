@@ -8,6 +8,7 @@ package reactor
 import (
 	"encoding/binary"
 	"net/netip"
+	"slices"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -16,12 +17,13 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
 )
 
 const (
 	nhModeNone   uint8 = iota // No next-hop ops (Auto or Unchanged)
-	nhModeSelf4               // Self IPv4: legacy NEXT_HOP + mapped MP_REACH
+	nhModeSelf4               // Self IPv4: legacy NEXT_HOP + family-permitted MP_REACH
 	nhModeSelfV6              // Self IPv6: MP_REACH global only
 	// nhModeSelfV6LL is the RFC 2545 Section 3 two-address form: MP_REACH carries
 	// the global address then the link-local one. applyLinkLocalNextHop
@@ -29,7 +31,7 @@ const (
 	// "Self" in the name is historical: what it names is the wire form, and the
 	// global address it carries is already in nhGlobal either way.
 	nhModeSelfV6LL
-	nhModeExplicit4  // Explicit IPv4: legacy NEXT_HOP + mapped MP_REACH
+	nhModeExplicit4  // Explicit IPv4: legacy NEXT_HOP + family-permitted MP_REACH
 	nhModeExplicitV6 // Explicit IPv6: MP_REACH global only
 )
 
@@ -455,13 +457,22 @@ func sendCommunitySuppression(list []string) sendCommunityMask {
 	return mask
 }
 
-func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator) {
+func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFamily family.Family) {
 	switch f.nhMode {
 	case nhModeNone:
 		return
 	case nhModeSelf4, nhModeExplicit4:
 		mods.Op(3, filterapi.AttrModSet, f.nhLegacy[:])
-		mods.Op(14, filterapi.AttrModSet, f.nhMapped[:])
+		// Choose the bytes before admission and materialization read the
+		// operation. A mapped IPv6 field is not a native IPv4 next hop.
+		// Consult the existing family contract: SR Policy permits IPv4 under
+		// either AFI, while IPv6 unicast and VPN framing cannot use four bytes.
+		// Incompatible rewrites retain their form for the withholding gate.
+		if slices.Contains(attribute.ValidNextHopLens(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI)), 4) {
+			mods.Op(14, filterapi.AttrModSet, f.nhLegacy[:])
+		} else {
+			mods.Op(14, filterapi.AttrModSet, f.nhMapped[:])
+		}
 	case nhModeSelfV6, nhModeExplicitV6:
 		mods.Op(14, filterapi.AttrModSet, f.nhGlobal[:])
 	case nhModeSelfV6LL:

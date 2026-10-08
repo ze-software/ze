@@ -255,6 +255,15 @@ follows it removes it.
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->
 <!-- source: internal/component/bgp/plugins/rr/validation.go -- replayFlowSpecs -->
 
+The reflector also completes its readiness report when the optional receive
+store's replay returns an error. It first attempts the independent mandatory
+FlowSpec replay, then reports the original peer-UP session token. Completion
+means its attempts ended, not that every route was delivered: a send-permission
+refusal stays a refusal. The reactor rejects a late token from an old Session,
+so that error exit cannot release a replacement Session's queued live work.
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer, signalSessionReady -->
+<!-- source: internal/component/bgp/reactor/peer.go -- creditAPIReady -->
+
 If no other plugin owns replay for a particular peer, `bgp-adj-rib-in` obtains
 the same authorized FlowSpec snapshot from `bgp-rib` before reporting that its
 initial update is ready. A delegated replay owner suppresses this self-replay;

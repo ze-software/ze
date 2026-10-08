@@ -2,6 +2,9 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
+# Keep the Session alive until the producer reports its captured replay receipt
+# and quiesces. Receiving the last route is not producer completion.
+option=linger:value=true
 cmd=api:conn=1:seq=1:text=send bgp * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["1.1.0.0/24"],"next-hop":"101.1.101.1"}]}
@@ -52,10 +55,9 @@ bgp {
 	
 		attach process add-remove {
 			send [ update ]
-			# The peer-up event, which is what lets this process be part of the
-			# peer's INITIAL routing update: it declares SignalsSessionReady and
-			# reports when its announces are out, so the End-of-RIB waits for
-			# them (Peer.initialUpdateReporters).
+			# Capture the initial-replay token from this peer's UP event before
+			# announcing. The declared reporter completes with that same token;
+			# its completion never delays the independent End-of-RIB.
 			receive [ state ]
 		}
 	}

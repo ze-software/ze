@@ -37,6 +37,8 @@ var labeledWithdrawCompatibilities = []struct {
 	{name: "zero", value: [3]byte{0x00, 0x00, 0x00}},
 	{name: "label 999 bottom of stack", value: [3]byte{0x00, 0x3e, 0x71}},
 	{name: "all ones", value: [3]byte{0xff, 0xff, 0xff}},
+	{name: "S-set label 100", value: [3]byte{0x00, 0x06, 0x41}},
+	{name: "arbitrary S-clear", value: [3]byte{0x12, 0x34, 0x50}},
 }
 
 // TestRFC8277LabeledWithdrawIgnoresCompatibility announces one labeled unicast
@@ -50,7 +52,9 @@ var labeledWithdrawCompatibilities = []struct {
 // past the NLRI, so the route stayed installed.
 //
 // RFC requirement: RFC8277-2.4-1 positive -- a labeled unicast withdrawal removes the route whatever its Compatibility field holds, 0x800000 and zero included, and the Loc-RIB publishes the withdrawal.
+// RFC requirement: RFC8277-2.4-1 negative -- valid nonrecommended Compatibility values cannot retain IPv4/IPv6 labeled paths or remove a different prefix.
 func TestRFC8277LabeledWithdrawIgnoresCompatibility(t *testing.T) {
+	compatibilityRouteState(t, family.SAFIMPLSLabel, false)
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 	for _, tc := range labeledWithdrawCompatibilities {
 		t.Run(tc.name, func(t *testing.T) {
@@ -95,7 +99,9 @@ func TestRFC8277LabeledWithdrawIgnoresCompatibility(t *testing.T) {
 // strips the Compatibility field but loses the path identifier.
 //
 // RFC requirement: RFC8277-2.4-1 positive -- under ADD-PATH a labeled unicast withdrawal removes the path its identifier names whatever its Compatibility field holds, and the other path keeps its route and label.
+// RFC requirement: RFC8277-2.4-1 negative -- Compatibility does not select labels or conflate IPv4/IPv6 ADD-PATH zero and 17; exact survivors and replacement labels remain visible.
 func TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility(t *testing.T) {
+	compatibilityRouteState(t, family.SAFIMPLSLabel, true)
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 	for _, tc := range labeledWithdrawCompatibilities {
 		t.Run(tc.name, func(t *testing.T) {

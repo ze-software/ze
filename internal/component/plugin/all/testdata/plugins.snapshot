@@ -34,7 +34,6 @@ bgp-nlri-rtc
 bgp-nlri-srpolicy
 bgp-nlri-vpls
 bgp-nlri-vpn
-bgp-persist
 bgp-rib
 bgp-role
 bgp-route-refresh

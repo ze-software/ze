@@ -87,6 +87,19 @@ type RFC7606ValidationResult struct {
 	// attribute walk on UPDATEs lacking code 23. It is published only after a
 	// completed walk; earlier returns already require withdrawal or reset.
 	TunnelEncapPresent bool
+	// ASPath locates the first AS_PATH value in the original path-attributes
+	// section. Start != 0 means present, including an empty value. AS4Present
+	// reports either AS4_PATH or AS4_AGGREGATOR for reconstruction decisions.
+	// Only completed walks publish these fields; they do not imply validity.
+	// Callers MUST consume the offsets before any attribute-section rewrite.
+	ASPath     AttrRange
+	AS4Present bool
+	// HasReachableNLRI preserves original legacy or observed nonempty MP_REACH
+	// contents for RFC 7606 Section 5.2 checks after validation. Every outcome
+	// weaker than session-reset carries it, including an abandoned walk.
+	// It is not a fact about a downstream rewritten body. Callers MUST NOT
+	// infer original absence from this field on an immediate session reset.
+	HasReachableNLRI bool
 	// MPReachNLRI and MPUnreachNLRI locate the NLRI portion of the MP_REACH_NLRI
 	// and MP_UNREACH_NLRI attributes, observed on this walk so the RFC 7606
 	// Section 5.4 typed-NLRI check (reactor.enforceRFC7606) does not repeat it.
@@ -218,8 +231,9 @@ func ValidateUpdateRFC7606AddPath(
 		// Empty path attributes with NLRI = missing mandatory attributes
 		if hasNLRI {
 			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				Description: "RFC 7606 Section 3.d: missing well-known mandatory attributes",
+				Action:           RFC7606ActionTreatAsWithdraw,
+				Description:      "RFC 7606 Section 3.d: missing well-known mandatory attributes",
+				HasReachableNLRI: true,
 			}
 		}
 		return &RFC7606ValidationResult{Action: RFC7606ActionNone}
@@ -228,6 +242,7 @@ func ValidateUpdateRFC7606AddPath(
 	// Track which mandatory attributes are present
 	var hasOrigin, hasASPath, hasNextHop bool
 	var mpReachCount, mpUnreachCount int
+	hasReachableNLRI := hasNLRI
 
 	// RFC 7606 Section 3.g: Track seen attribute codes to detect duplicates
 	var seenCodes [256]bool
@@ -247,6 +262,10 @@ func ValidateUpdateRFC7606AddPath(
 	// the EBGP-boundary check does not repeat it. Reported only if the loop below runs to
 	// completion (see PrefixSIDPresent).
 	var sawPrefixSID bool
+
+	// RFC 7606 Section 7.2: retain the first AS_PATH value for the Session's
+	// eBGP first-AS check, without repeating this attribute walk.
+	var asPath AttrRange
 
 	// RFC 7606 Section 5.4: where the MP attributes' NLRI bytes live, observed on this
 	// walk so the typed-NLRI check does not repeat it (see MPReachNLRI).
@@ -281,7 +300,7 @@ func ValidateUpdateRFC7606AddPath(
 	// One helper rather than four literals is the point: the next exit added to this loop
 	// inherits both obligations instead of re-owing them.
 	structuralError := func(attrCode uint8, description string) *RFC7606ValidationResult {
-		if !hasNLRI && mpReachCount == 0 && len(pathAttrs) > 0 {
+		if !hasReachableNLRI {
 			var sb textbuf.Buffer
 			return &RFC7606ValidationResult{
 				Action:   RFC7606ActionSessionReset,
@@ -291,11 +310,12 @@ func ValidateUpdateRFC7606AddPath(
 			}
 		}
 		return &RFC7606ValidationResult{
-			Action:        RFC7606ActionTreatAsWithdraw,
-			AttrCode:      attrCode,
-			Description:   description,
-			MPReachNLRI:   mpReachNLRI,
-			MPUnreachNLRI: mpUnreachNLRI,
+			Action:           RFC7606ActionTreatAsWithdraw,
+			AttrCode:         attrCode,
+			Description:      description,
+			MPReachNLRI:      mpReachNLRI,
+			MPUnreachNLRI:    mpUnreachNLRI,
+			HasReachableNLRI: hasReachableNLRI,
 		}
 	}
 
@@ -404,6 +424,9 @@ func ValidateUpdateRFC7606AddPath(
 			continue
 		}
 		seenCodes[attrCode] = true
+		if attrCode == attrCodeASPath {
+			asPath = AttrRange{Start: pos - attrLen, End: pos}
+		}
 
 		// Validate specific attributes per RFC 7606 Section 7
 		result := validateAttribute(attrCode, attrLen, attrData, isIBGP, asn4)
@@ -440,6 +463,13 @@ func ValidateUpdateRFC7606AddPath(
 		case attrCodeMPReachNLRI:
 			mpReachCount++
 			mpReachNLRI = locateMPNLRI(attrCode, attrData)
+			// RFC 7606 Section 5.2 asks whether the message "doesn't encode any
+			// reachable NLRI", not whether an MP_REACH attribute is present.
+			// RFC 4760 Section 3 value offsets: AFI(0..1), SAFI(2),
+			// next-hop length(3), next hop(4..), reserved, then NLRI.
+			if start, ok := MPNLRIStart(attrCode, attrData); ok && start < len(attrData) {
+				hasReachableNLRI = true
+			}
 		case attrCodeMPUnreachNLRI:
 			mpUnreachCount++
 			mpUnreachNLRI = locateMPNLRI(attrCode, attrData)
@@ -513,11 +543,12 @@ func ValidateUpdateRFC7606AddPath(
 		}
 	}
 
-	// RFC 7606 Section 5.2: "An UPDATE message with only path attributes and no associated
-	// NLRI ... if any path attribute fails the checks ... and the error action is not
-	// 'attribute discard' ... the session-reset action MUST be used."
-	// No reachable NLRI means: no traditional NLRI AND no MP_REACH_NLRI.
-	if !hasNLRI && mpReachCount == 0 && len(pathAttrs) > 0 && strongest > RFC7606ActionAttributeDiscard {
+	// RFC 7606 Section 5.2: "For this reason, if any path attribute errors are
+	// encountered in such an UPDATE message and if any encountered error specifies
+	// an error-handling approach other than 'attribute discard', then the 'session
+	// reset' approach MUST be used."
+	// An empty MP_REACH has no reachable NLRI, just like an empty legacy field.
+	if !hasReachableNLRI && strongest > RFC7606ActionAttributeDiscard {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    strongestCode,
@@ -531,8 +562,11 @@ func ValidateUpdateRFC7606AddPath(
 			DuplicateRanges:    duplicateRanges,
 			PrefixSIDPresent:   sawPrefixSID,
 			TunnelEncapPresent: seenCodes[attribute.AttrTunnelEncap],
+			ASPath:             asPath,
+			AS4Present:         seenCodes[attribute.AttrAS4Path] || seenCodes[attribute.AttrAS4Aggregator],
 			MPReachNLRI:        mpReachNLRI,
 			MPUnreachNLRI:      mpUnreachNLRI,
+			HasReachableNLRI:   hasReachableNLRI,
 		}
 	}
 
@@ -544,8 +578,11 @@ func ValidateUpdateRFC7606AddPath(
 		DuplicateRanges:    duplicateRanges,
 		PrefixSIDPresent:   sawPrefixSID,
 		TunnelEncapPresent: seenCodes[attribute.AttrTunnelEncap],
+		ASPath:             asPath,
+		AS4Present:         seenCodes[attribute.AttrAS4Path] || seenCodes[attribute.AttrAS4Aggregator],
 		MPReachNLRI:        mpReachNLRI,
 		MPUnreachNLRI:      mpUnreachNLRI,
+		HasReachableNLRI:   hasReachableNLRI,
 	}
 }
 

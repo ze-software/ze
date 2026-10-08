@@ -1519,9 +1519,9 @@ func (p *Peer) linkLocalOnlyNextHopPermitted(fam family.Family) bool {
 	nc := p.negotiated.Load()
 	ctx := p.sendCtx.Load()
 	return attribute.LinkLocalOnlyNextHopPermitted(
-		fam.AFI == family.AFIIPv4,
+		rfc8950Family(fam),
 		nc != nil && nc.LinkLocalNextHop,
-		ctx != nil && ctx.ExtendedNextHopFor(fam) != 0,
+		ctx != nil && ctx.ExtendedNextHopFor(fam) == family.AFIIPv6,
 	)
 }
 
@@ -1604,31 +1604,15 @@ func (p *Peer) linkLocalOnlyNextHopRefused(addr netip.Addr, fam family.Family) b
 // RFC 6514). No Ze family decodes it; RFC 8950 names it.
 const safiVPNMulticast family.SAFI = 129
 
-// rfc8950Family reports whether fam is one of the families RFC 8950 extends to
-// an IPv6 next hop. It is the one declaration of that set: the explicit next-hop
-// gate (Peer.resolveNextHop) and the forward gate
-// (egressNextHopLacksExtendedNextHop) both scope RFC 8950 Section 4 with it.
+// rfc8950Family reads the capability scope from the authoritative field profile.
+// Explicit origination and forwarding therefore select the same exact pair.
 //
 // Another AFI 1 family defines its own next hop and is not governed by RFC 8950:
 // IPv4 SR Policy (1/73), for one, takes an IPv6 next hop under RFC 9830
 // Section 2.1 (canUseNextHopFor).
 func rfc8950Family(fam family.Family) bool {
-	if fam.AFI != family.AFIIPv4 {
-		return false
-	}
-	// RFC 8950 Section 3: "The following AFI/SAFI definitions for the IPv4 NLRI
-	// or VPN-IPv4 NLRI (<1/1>, <1/2>, <1/4>, <1/128>, and <1/129>) only have
-	// provisions for advertising a next-hop address that belongs to the IPv4
-	// protocol. This document extends the set of usable next-hop address
-	// families to include IPv6 in addition to IPv4 when advertising an IPv4 or
-	// VPN-IPv4 NLRI."
-	//exhaustive:ignore // Only the five IPv4 SAFIs selected here use this next-hop gate.
-	switch fam.SAFI {
-	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMPLSLabel, family.SAFIVPN, safiVPNMulticast:
-		return true
-	default:
-		return false
-	}
+	// RFC 8950 Section 3: the profile declares the extended IPv4 families.
+	return attribute.MPNextHopProfile(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI)).ExtendedIPv6
 }
 
 // canUseNextHopFor checks if addr is valid as next-hop for family.

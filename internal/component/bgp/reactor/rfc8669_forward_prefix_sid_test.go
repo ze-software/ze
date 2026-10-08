@@ -226,7 +226,7 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 		require.Equal(t, nhModeNone, facts.nhMode)
 
 		var mods filterapi.ModAccumulator
-		applyFactsNextHop(&facts, &mods)
+		applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 		applyFactsPrefixSID(&facts, true, &mods)
 		assert.Equal(t, 1, countCode40(&mods), "the Section 8 suppression is the only one")
 	})
@@ -241,7 +241,7 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 		require.NotEqual(t, nhModeNone, facts.nhMode)
 
 		var mods filterapi.ModAccumulator
-		applyFactsNextHop(&facts, &mods)
+		applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 		applyFactsPrefixSID(&facts, true, &mods)
 		assert.Equal(t, 1, countCode40(&mods), "the next-hop rail records nothing for a destination Section 8 refuses")
 	})

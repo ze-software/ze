@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"encoding/hex"
 	"log/slog"
 	"net/netip"
 	"testing"
@@ -58,8 +59,7 @@ func malformedOriginUpdate() []byte {
 // attribute code and a description, leaving an operator unable to identify which routes
 // were affected or to reconstruct what the peer actually sent.
 //
-// The dump is deliberately the UPDATE BODY: the 19-octet header is a fixed marker plus
-// length and type and carries no diagnostic information. The log key says so.
+// The dump includes the complete 19-octet BGP header and the original body.
 //
 // RFC requirement: RFC7606-6-1 positive -- the debugging facility lists the NLRI involved
 // and contains the malformed UPDATE when a malformed attribute is detected.
@@ -75,10 +75,9 @@ func TestRFC7606DiagnosticsListNLRIAndUpdate(t *testing.T) {
 	require.Contains(t, out, "RFC 7606 diagnostics")
 	assert.Contains(t, out, "nlri-prefixes", "the NLRI involved must be listed")
 	assert.Contains(t, out, "10.0.0.0/8", "the affected prefix must be identifiable")
-	assert.Contains(t, out, "update-body-hex", "the malformed UPDATE must be present")
-	// The ORIGIN attribute's malformed bytes, as the peer sent them, must be recoverable
-	// from the dump: 0x40 0x01 0x02 is the attribute header with the invalid length.
-	assert.Contains(t, out, "400102", "the dump must be the UPDATE the peer actually sent")
+	assert.Contains(t, out, "update-wire-hex", "the malformed UPDATE must be present")
+	assert.Contains(t, out, hex.EncodeToString(buildUpdateMsg(malformedOriginUpdate())),
+		"the dump must include the entire original header and body")
 }
 
 // VALIDATES: the facility costs nothing when it is switched off.
@@ -119,7 +118,8 @@ func TestRFC7606DiagnosticsCoverSessionReset(t *testing.T) {
 
 	out := buf.String()
 	assert.Contains(t, out, "RFC 7606 diagnostics")
-	assert.Contains(t, out, "update-body-hex")
+	assert.Contains(t, out, "update-wire-hex")
+	assert.Contains(t, out, hex.EncodeToString(buildUpdateMsg(body)))
 }
 
 // VALIDATES: the prefix decoder reports what it can and stops, on input already known to

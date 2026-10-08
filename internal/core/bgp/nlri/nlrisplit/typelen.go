@@ -33,7 +33,7 @@ import "fmt"
 //
 // The walk is bounded by len(data): every entry advances the offset by at least
 // the fixed header.
-func splitTypeLength(data []byte, addPath bool, hdrLen, lenOff int, label string, fn func(nlri []byte)) (int, error) {
+func splitTypeLength(data []byte, addPath bool, hdrLen, lenOff int, label string, fn func(nlri []byte) bool) (int, error) {
 	count := 0
 	offset := 0
 	for offset < len(data) {
@@ -51,10 +51,12 @@ func splitTypeLength(data []byte, addPath bool, hdrLen, lenOff int, label string
 		if start+nlriLen > len(data) {
 			return count, fmt.Errorf("nlrisplit: %s NLRI at offset %d extends past data (len=%d)", label, start, length)
 		}
-		if fn != nil {
-			fn(data[start : start+nlriLen])
-		}
 		count++
+		if fn != nil {
+			if !fn(data[start : start+nlriLen]) {
+				return count, nil
+			}
+		}
 		offset = start + nlriLen
 	}
 	return count, nil

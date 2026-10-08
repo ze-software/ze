@@ -119,6 +119,167 @@ family-specific path attributes, which flow through `reactor.PluginRoute` →
 <!-- source: internal/component/bgp/reactor/peer_static_routes.go -- toPluginParams -->
 <!-- source: internal/component/bgp/message/update_build_plugin.go -- BuildPlugin, PluginParams -->
 
+SR Policy preserves a native four-octet IPv4 next hop under either NLRI AFI.
+Its configured-route parser and command encoder do not enable the generic
+IPv4-mapped conversion used by MUP. RFC 9830 Section 2.1 gives SR Policy its own
+next-hop family contract; an IPv6 field still requires a global IPv6 address,
+optionally followed by link-local, without RFC 8950 capability 5 gating.
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- parseConfigRoute -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/encode.go -- EncodeRoute -->
+<!-- test: internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go TestSRPolicyConfigNextHopWire -->
+<!-- test: internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go TestSRPolicyEncodeNextHopWire -->
+
+The single-route IPv6 announce writer uses the shared family/field admission.
+It refuses loopback, unspecified, multicast, native four-octet and unset inputs
+with `ErrNextHopUnencodable`, before writing any bytes. This legacy direct rail
+also refuses standalone link-local input: it has no capability-77 permission
+input. A valid global address can carry its optional link-local second address;
+an explicit mapped address is admitted only as a single sixteen-octet field.
+These checks belong to `announceNextHopOctets`, shared by diagnosis and encoding,
+so bypassing the caller's validation cannot write a malformed announcement.
+<!-- source: internal/component/bgp/reactor/reactor_wire.go -- announceNextHopOctets -->
+<!-- test: internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go TestSendAnnounceRefusesUnusableIPv6NextHop -->
+The announce and default-originate scope fixtures use an explicitly configured
+speaker-owned unicast IPv6 address and connected-prefix snapshot, not the
+loopback address as an advertised global next hop.
+<!-- test: internal/component/bgp/reactor/rfc2545_peer_send_test.go TestSendAnnounceAppendsLinkLocalWhenSection3Holds -->
+<!-- test: internal/component/bgp/reactor/peer_initial_sync_test.go TestDefaultOriginateAppendsLinkLocalWhenSection3Holds -->
+
+The shared `attribute.MPNextHopProfile` declares field widths, plain IPv6 address
+roles, mapped-address exceptions and RFC 8950 capability scope in one place.
+`ValidNextHopLens` derives its answer from that declaration. Native IPv6
+unicast, multicast and labeled fields use 16/32 octets. Their plain IPv4
+counterparts also admit four octets, and IPv6 fields require the exact negotiated
+capability 5 pair. Both SR Policy AFIs admit 4/16/32 octets without capability 5.
+An ordinary IPv6 global slot refuses unset, unspecified, loopback and multicast
+addresses; its optional second address must be link-local. RFC 8950 Section 1
+also recognizes a single sixteen-octet IPv4-mapped field for IPv6 unicast,
+multicast and labeled NLRI. Explicit mapped input is retained without a reverse
+capability 5 tuple; native four-octet input and mapped-plus-link-local pairs
+remain invalid for those fields. This recognizes the existing control-plane
+encoding, not 6PE transport, automatic IPv4 mapping, discovery, LSP installation
+or entity adjacency.
+VPN keeps its RD-bearing layout and RFC 4659 mapped interpretation; MVPN keeps
+its independent IP next-hop family and FlowSpec its ignored zero-hop field.
+Unknown and independently defined plugin profiles retain their own contracts.
+Configured multicast, labeled and SR Policy builders use the same admission.
+`BuildLabeledUnicast` and `BuildPlugin` return nil on refusal; callers must not
+pack or send that result. Native IPv4 remains legal where its profile allows it.
+Admission checks only serialized inputs: the unicast builder ignores an unused
+link-local hint when the emitted next hop is not native IPv6.
+<!-- source: internal/component/bgp/message/update_build.go -- BuildUnicast, checkUnicastNextHop -->
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopRefused -->
+<!-- test: internal/component/bgp/reactor/rfc2545_static_origination_test.go TestStaticOriginateIPv6NextHopAdmission -->
+<!-- test: internal/component/bgp/reactor/mapped_plain_next_hop_test.go TestMappedPlainNextHopBuilder -->
+<!-- test: internal/component/bgp/reactor/mapped_plain_next_hop_test.go TestMappedPlainNextHopOrigination -->
+<!-- test: internal/component/bgp/reactor/mapped_plain_next_hop_test.go TestMappedPlainNextHopForwarding -->
+
+The established batch API, queued initial-sync writer and named-commit service
+also use this family/field admission before their direct MP_REACH construction.
+The check follows the actual field, not a blanket NLRI-AFI restriction.
+The batch API returns an encoding refusal, queued
+initial synchronization still sends End-of-RIB, and named commits report
+`AnnounceRefused` without counting the rejected route as announced. Named commits
+retain the existing `attribute.ErrUnencodableNextHop` classification for an unset
+address: presence validation runs before the additional address-role check.
+The batch API's legacy inline IPv4 branch keeps its existing invalid-hint remedy:
+it leaves the base NEXT_HOP untouched rather than contributing a malformed one.
+That remedy does not apply to MP_REACH, whose emitted next-hop field must pass
+the family/field check.
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MPNextHopProfile, ValidNextHopLens -->
+<!-- source: internal/component/bgp/message/update_build.go -- ValidateFamilyNextHop, ValidateMPNextHop -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- buildBatchAnnounceUpdate, commitToPeer -->
+<!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- buildRIBRouteUpdate -->
+<!-- source: internal/component/bgp/rib/commit.go -- buildMPReachNLRI -->
+<!-- test: internal/component/bgp/reactor/rfc2545_api_origination_test.go TestAPIBatchRefusesUnusableIPv6NextHop -->
+<!-- test: internal/component/bgp/reactor/rfc2545_api_origination_test.go TestQueuedOriginateRefusesUnusableIPv6NextHop -->
+<!-- test: internal/component/bgp/reactor/rfc2545_api_origination_test.go TestNamedCommitRefusesUnusableIPv6NextHop -->
+
+The ordinary session writer repeats this shared check on the final next hop
+**after** export-policy overrides. Admission checks the original field width
+before normalized addresses: stripping a VPN RD cannot authorize that shape in
+a plain field. The writer also rechecks the exact RFC 8950 capability 5 pair
+and capability 77's standalone-link-local permission, including named commits
+that do not use peer resolution. Capability 77 never licenses an invalid pair.
+A refusal is route-scoped: initial-sync queues,
+separate static groups and withdrawals, and originated forward-queue items
+continue to independent usable siblings. The forward worker still flushes
+accepted bytes, and API queue acceptance is not a claim of eventual delivery.
+Named commits continue usable groups, count only successful writes and retain
+`AnnounceRefused` in the partial result. Connection failures remain fail-fast;
+the first-error contract within one split UPDATE and all-or-nothing legacy
+static-group recording are unchanged. Intentional raw injection and pre-filtered
+forwarding retain their distinct admission boundaries.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated -->
+<!-- source: internal/component/bgp/reactor/peer_send.go -- isRouteScopedSendError -->
+<!-- source: internal/component/bgp/rib/commit.go -- Commit -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- payloadNextHop -->
+<!-- source: internal/component/bgp/reactor/peer_static_wire.go -- sendStaticRoutes, sendStaticRoutesGrouped, withdrawStaticRoutes -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler -->
+<!-- test: internal/component/bgp/reactor/rfc2545_api_origination_test.go TestOriginatedIPv6NextHopAdmissionAfterExportPolicy -->
+<!-- test: internal/component/bgp/reactor/rfc2545_static_origination_test.go TestStaticOriginateContinuesAfterUnusablePolicyNextHop -->
+
+IPv6 default origination uses that peer resolution gate too. With automatic local
+addressing, next-hop self resolves to the actual connected session endpoint.
+An absent or unusable IPv6 endpoint refuses the route; the producer does not
+invent `::1`. The ordinary End-of-RIB still closes initial synchronization.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- defaultRouteForAFI, sendDefaultOriginateRoutes -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- connectedLocalAddress -->
+<!-- test: internal/component/bgp/reactor/peer_initial_sync_test.go TestDefaultOriginateRefusesUnusableIPv6NextHop -->
+
+Received and policy-written IPv6 next-hop pairs also pass an egress check on
+both forwarding rails. Their first address must be IPv6 global unicast and
+their second IPv6 link-local unicast. An invalid slot causes a native withdrawal,
+not an announcement with the malformed pair retained or silently trimmed.
+The existing RFC 4659 48-octet VPN exception still permits its canonical
+unspecified first address with a valid link-local second address on qualifying
+peering. Capability 77's negotiated single-address form remains separate.
+Validation judges effective policy output, not an obsolete received pair, and
+preserves a valid legacy sibling in mixed input. These checks validate address
+roles and wire forms, not next-hop-entity adjacency.
+The global-unicast requirement also covers unpaired ordinary IPv6 globals:
+loopback cannot bypass it. The explicit single mapped IPv6 unicast, multicast,
+labeled and RD-bearing VPN forms retain their separate control-plane
+interpretations. A malformed received four-octet AFI 2 field instead triggers
+the existing whole-session reset under RFC 7606 Section 7.11 before forwarding;
+its legacy sibling is not published either.
+The effective next-hop field length supplies this family, independently of the NLRI AFI and
+before addresses are unmapped for identity comparison. Policy replacement updates
+that wire-family fact. Native IPv4 next hops, including those for IPv6 SR Policy
+NLRI (RFC 9830 Section 2.1), and negotiated standalone link-local IPv6 retain
+their separate encodings.
+The MP writer requires an existing MP_REACH source. On a legacy-only route,
+the extra MP operation recorded alongside an IPv4 next-hop rewrite emits no
+attribute and does not trigger IPv6 global-address admission.
+For the plain IPv6-role profiles, both rails check the effective field's original
+length against its declaration. A native IPv4 or VPN-shaped field cannot replace
+a native plain IPv6 field. The same declaration admits extended IPv4 labeled 16/32-octet fields and
+both SR Policy AFIs' 32-octet pairs. Addressless
+zero/eight-octet raw fields are checked before the no-forwarding-address exit,
+so they cannot masquerade as withdrawals. The check preserves wrong-width pairs
+before scope trimming could conceal them; the last legal policy replacement
+still supersedes obsolete input or an earlier invalid operation. A replacement
+of an addressless base remains subject to all address-role, next-hop-self,
+peer-identity, capability and link-scope gates. Raw export responses receive the
+same check, including the route server's export-policy fallback. When mixed
+output is partitioned, the native
+width refusal survives materialization even if an unsupported operation would
+otherwise leave the original attribute unchanged; it does not withdraw the
+independent legacy section. Valid VPN RD forms, SR Policy and MVPN's independent
+next-hop families, FlowSpec zero-hop and negotiated capability 77 remain intact.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf, egressNextHopWithheld -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSecondAddressValidated -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairFirstAddressValidated -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545EffectivePairPolicyAndMixedSibling -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedSingleGlobalAddressValidated -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestSRPolicyNextHopWireFamily -->
+<!-- test: internal/component/bgp/reactor/next_hop_family_admission_test.go TestFamilyNextHopOriginationAdmission -->
+<!-- test: internal/component/bgp/reactor/next_hop_family_admission_test.go TestFamilyConfiguredBuilderAdmission -->
+<!-- test: internal/component/bgp/reactor/next_hop_family_admission_test.go TestFamilyNextHopForwardAdmission -->
+<!-- test: internal/component/bgp/reactor/next_hop_family_admission_test.go TestFamilyIndependentNextHopFields -->
+<!-- test: internal/component/bgp/reactor/next_hop_family_admission_test.go TestMappedVPNNextHopForwardAdmission -->
+
 FlowSpec origination omits the MP_REACH next-hop even when configuration or the
 API supplies an IPv4 or IPv6 address. RFC 8955 Section 4 requires zero next-hop
 length, including the IPv6 families covered by RFC 8956. The config builder,
@@ -467,6 +628,15 @@ adj-rib-out Routes → GroupByAttributesTwoLevel() → ASPathGroups → BuildGro
 
 **Config:** `group-updates true` (default) in peer settings.
 
+Configured static grouping chooses legacy batching only after resolving each
+route's next hop, and only for actual IPv4-unicast routes with native IPv4 next
+hops. Extended IPv4 routes, including next-hop self resolving to IPv6, and
+labeled/VPN routes use their existing per-route builders instead. Each such
+successful send is recorded independently; a refused route does not suppress
+its usable siblings. Genuine legacy batches keep their all-or-nothing recording.
+<!-- source: internal/component/bgp/reactor/peer_static_wire.go -- sendStaticRoutesGrouped -->
+<!-- test: internal/component/bgp/reactor/peer_static_group_next_hop_test.go TestStaticGroupedResolvedNextHopWire -->
+
 The leaf governs every rail that sends several NLRIs to one peer, not the
 adj-rib-out alone. `nlriUnitLen` turns it into framing, and the batch API rails
 (`AnnounceNLRIBatch`, `WithdrawNLRIBatch`) and the LLGR readvertise rail each
@@ -618,7 +788,7 @@ Until 2026-09-06 every withdrawal took the bare shape, so `send bgp <selector> u
 
 ### The Legacy NEXT_HOP Beside MP_REACH_NLRI
 
-RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute." It is a SHOULD NOT, so carrying it is conformant, and `family.Family.LegacyNextHop` is the single declaration of which families Ze carries it for: unicast, labeled unicast, MCAST-VPN, MUP and MPLS-VPN. Multicast, FlowSpec, VPLS, EVPN, SR Policy, RTC and BGP-LS carry none.
+RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute." Ze intentionally retains the extra attribute for the compatibility families declared by `family.Family.LegacyNextHop`, matching its ported ExaBGP contract fixtures. This records a compatibility deviation, not conformance credit merely because the requirement says SHOULD NOT. The same section says receiving speakers SHOULD ignore the extra attribute.
 
 Multicast is the family whose answer reads as an exception and is not one. It shares `UnicastParams` with unicast, and `BuildUnicast` writes the attribute only under `isUnicast := p.SAFI == 0 || p.SAFI == attribute.SAFIUnicast`, so the config rail sends MP_REACH_NLRI alone for `ipv4/multicast`. No ported ExaBGP contract fixture pins the other answer, so the RFC's SHOULD NOT stands.
 
@@ -733,17 +903,18 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 <!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdSplitParsedUpdate -->
 <!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- ChunkMPNLRI -->
 
-**NLRI formats handled by ChunkMPNLRI:**
-| SAFI | Format |
-|------|--------|
-| 1 (Unicast) | `[prefix-len][prefix-bytes]` or Add-Path: `[path-id:4][prefix-len][prefix-bytes]` |
-| 4 (Labeled) | `[total-bits][labels][prefix-bytes]` |
-| 128 (VPN) | `[total-bits][labels][RD:8][prefix-bytes]` |
-| 70 (EVPN) | `[route-type][length][payload]` |
-| 133 (FlowSpec) | `[length:1-2][components]` |
-| 71 (BGP-LS) | `[nlri-type:2][length:2][payload]` |
+`ChunkMPNLRI` and `SplitMPNLRI` use the family's registered native framing
+through `nlrisplit.GetWithdraw`, including negotiated ADD-PATH. The withdrawal
+walker also frames announcements without treating the labeled Compatibility
+field as an S-bit-terminated label stack. Unsupported families return an error;
+there is no CIDR fallback or separate family-size table. Chunking returns
+zero-copy slices, while splitting stops after the first complete route that
+does not fit instead of rescanning the remaining tail.
+See [MP-NLRI ordering](wire/mp-nlri-ordering.md#implementation-notes) and
+[native NLRI framing](wire/nlri.md#add-path-decoding-for-plugin-families).
+<!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- ChunkMPNLRI, SplitMPNLRI -->
 
-**MP Attribute Ordering:** See `wire/MP_NLRI_ORDERING.md` - MP_REACH/MP_UNREACH can be placed at end of PathAttributes.
+**MP Attribute Ordering:** See [MP-NLRI ordering](wire/mp-nlri-ordering.md) for MP_REACH/MP_UNREACH placement at the end of PathAttributes.
 
 ---
 

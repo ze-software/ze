@@ -513,7 +513,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			mods.Op(10, filterapi.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
-		applyFactsNextHop(facts, &mods)
+		applyFactsNextHop(facts, &mods, srcNextHop.mpFamily)
 		applyNextHopFamily(&mods, srcNextHop)
 		applyFactsSendCommunity(facts, &mods)
 		applyFactsAIGP(facts, srcAIGP, srcNextHop, wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
@@ -523,7 +523,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// route server keeps the Global untouched (RFC 7947 Section 2.2.2) and
 		// drops only the Link-Local half a distant client cannot reach. The
 		// general rail (reactor_api_forward.go) answers the same.
-		if global, strip := egressNextHopGlobalHalf(peer, &mods, wire.Payload()); strip {
+		if global, strip := egressNextHopGlobalHalf(peer, &mods, wire.Payload(), srcNextHop.mpFamily); strip {
 			mods.Op(14, filterapi.AttrModSet, global)
 		}
 
@@ -567,12 +567,15 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// The AS-path family is recorded as INTENT, exactly as on the general
 		// forward rail, so the one-pass writer emits it into the client's buffer
 		// alongside every other edit and no intermediate payload is produced.
-		// Recorded BEFORE the AS-override so that override's Set still wins.
+		// Policy, override and protocol prepend are resolved as one path.
 		aspathWidthChanged := false
 		// A client sent the withdrawal carries no AS_PATH, so the path is not
 		// resolved for it: a resolve failure must not cost it the withdrawal.
 		if facts.isEBGP && !mods.IsWithdraw() {
 			intent := wireu.ASPathIntent{SrcASN4: srcASN4, DstASN4: facts.sendASN4}
+			if facts.asOverride {
+				intent.OverridePeerAS, intent.OverrideLocalAS = facts.peerAS, facts.localAS
+			}
 			if !facts.rsClient {
 				// RFC 4271 Section 9.1.2, with RFC 7705 Section 3.3 ordering: the
 				// override ends up outermost, so it is the LAST element.
@@ -585,8 +588,8 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 					intent.Prepend = prependBuf[:2]
 				}
 			}
-			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
-			// Prepend stays empty and Record transcodes only.
+			// RFC 7947 Section 2.2.2: RS clients omit the protocol prepend;
+			// explicit override and width projection share the same intent.
 			changed, aspErr := aspathEdit.Record(&mods, wire.Payload(), intent)
 			if aspErr != nil {
 				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
@@ -595,10 +598,6 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 				continue
 			}
 			aspathWidthChanged = changed && srcASN4 != facts.sendASN4
-		}
-
-		if facts.asOverride && facts.isEBGP {
-			applyASOverride(facts.peerAS, facts.localAS, wire, facts.sendASN4, &mods)
 		}
 
 		// No intermediate rewritten payload, so no read buffer is borrowed here and

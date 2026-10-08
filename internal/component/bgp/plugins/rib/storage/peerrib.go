@@ -103,6 +103,39 @@ func (r *PeerRIB) Remove(fam family.Family, nlriBytes []byte) bool {
 	return rib.Remove(nlriBytes)
 }
 
+// RemoveFamilyMatching selects and removes paths under the same storage lock as
+// InsertEntry. match borrows the current entry. For each successful removal,
+// removed receives owned NLRI bytes, the removed message ID and ADD-PATH state.
+// Neither callback may call a PeerRIB method or publish/dispatch external work.
+func (r *PeerRIB) RemoveFamilyMatching(fam family.Family, match func(RouteEntry) bool, removed func([]byte, uint64, bool)) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	rib := r.families[fam]
+	if rib == nil {
+		return 0
+	}
+	type selectedRoute struct {
+		nlri    []byte
+		message uint64
+	}
+	var selected []selectedRoute
+	rib.IterateEntry(func(raw []byte, entry RouteEntry) bool {
+		if match(entry) {
+			selected = append(selected, selectedRoute{nlri: slices.Clone(raw), message: entry.MsgID})
+		}
+		return true
+	})
+	count := 0
+	for _, route := range selected {
+		if rib.Remove(route.nlri) {
+			count++
+			removed(route.nlri, route.message, rib.addPath)
+		}
+	}
+	return count
+}
+
 // Withdraw removes the path an NLRI split from a received withdrawal names
 // (FamilyRIB.Withdraw). Returns true if the path existed.
 func (r *PeerRIB) Withdraw(fam family.Family, nlriBytes []byte) bool {

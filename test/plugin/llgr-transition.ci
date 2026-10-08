@@ -1,103 +1,49 @@
-# Test: LLGR transition — routes survive GR restart-time expiry
-#
-# Flow:
-# 1. Connection 1: ze sends static route + EOR to ze-peer
-# 2. action=close → TCP drops (no NOTIFICATION)
-# 3. ze detects TCP failure → GR activates → retain-routes → mark-stale
-# 4. GR restart-time (1s) expires → LLGR begins (routes NOT purged)
-# 5. Connection 2: ze reconnects (~3s) → ribOut replay (static route × 2 + EOR)
-#
-# Key: restart-time=1 expires BEFORE ze reconnects (connect-retry=3).
-# Without LLGR, restart-time expiry would purge all stale routes.
-# With LLGR, routes are retained in LLGR state — ribOut replay proves this.
-#
-# VALIDATES: AC-3 — GR restart-time expires with LLGR negotiated → LLGR period instead of purge.
-# VALIDATES: AC-8 — Timer interaction: restart-time=1, LLST=60 → GR then LLGR (serial).
-# PREVENTS: Routes being purged on restart-time expiry when LLGR is negotiated.
-
-# ze-peer expectations
-stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=2
-option=timeout:value=15s
-
-# Connection 1: Static route + EOR from ze
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# Test: received routes survive GR expiry and enter LLGR after a real TCP loss.
+# Both OPEN directions reach GR. The observer checks fresh received routes,
+# GR stale level 1, then LLGR level 2 with LLGR_STALE and NO_LLGR removal.
+# Its received-state observation releases TCP close; no static replay is proof.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=linger:value=true
+option=open:value=router-id:id=192.0.2.1
+option=open:value=graceful-restart:restart-time=3
+option=open:value=llgr:stale-time=60
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# TCP close (no NOTIFICATION) → triggers GR activation in ze
-action=close:conn=1:seq=2
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C400101004002004003040A00000240050400000064C00804FFFF0007180A0001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0002
+expect=bgp:conn=1:seq=2:announced=18C63364
+action=close:conn=1:seq=3
+EOF_SOURCE
 
-# Connection 2: ribOut replay — static route (config + RIB replay) + EOR
-# Routes survived because LLGR prevented purge after restart-time expired
-expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
-expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-EOF_PEER
-
-# ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	internal gr {
-		use bgp-gr
-	}
-	internal bgp-rib {
-		use bgp-rib
-	}
+ internal gr { use bgp-gr; }
+ internal bgp-rib { use bgp-rib; }
+ external observer { run "le test fixture plugin/llgr-transition"; encoder json; }
 }
-
 bgp {
-	peer peer1 {
-		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
-			family {
-				ipv4/unicast { prefix { maximum 10000; } }
-			}
-			capability {
-				graceful-restart {
-					restart-time 1
-					long-lived-stale-time 60
-				}
-			}
-		}
-		behavior {
-			group-updates disable
-		}
-		timer { connect-retry 3; }
-
-		update {
-			attribute {
-				origin igp
-				local-preference 100
-				next-hop 10.0.0.1
-			}
-			nlri {
-				ipv4/unicast add 192.168.1.0/24
-			}
-		}
-
-		attach process gr {
-			receive [ open-received state eor ]
-			send [ update ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-	}
+ peer source {
+  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+  session {
+   asn { local 1; remote 1; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart { restart-time 120; long-lived-stale-time 3600; } }
+  }
+  behavior { group-updates disable; }
+  timer { connect-retry 60; }
+  attach process gr { receive [ open state eor ]; send [ update ]; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+  attach process observer { receive [ state ]; send [ update ]; }
+ }
 }
 EOF_CONF
 
-# Process orchestration
-cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
+await=stderr:contains=OK: received LLGR lifecycle transition:then=stop
+expect=exit:code=0
+expect=stderr:contains=OK: received LLGR lifecycle transition
+reject=stderr:pattern=panic

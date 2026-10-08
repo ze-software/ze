@@ -20,7 +20,7 @@
       "claim-sha": "1a2655168075fc2a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
-      "producer-sha": "b895764b89e72d25",
+      "producer-sha": "78e8daded65398f9",
       "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

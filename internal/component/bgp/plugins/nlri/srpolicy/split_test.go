@@ -4,6 +4,7 @@
 package srpolicy
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,4 +104,45 @@ func TestSRPolicyWalkAllocatesNothing(t *testing.T) {
 	require.NoError(t, walkErr)
 	assert.Equal(t, 2, count)
 	assert.Zero(t, allocs, "the count pass must allocate nothing")
+}
+
+// TestSRPolicyWalkStopsBeforeMalformedTail checks both native endpoint widths.
+// ADD-PATH remains ignored: neither flag value changes the first boundary.
+func TestSRPolicyWalkStopsBeforeMalformedTail(t *testing.T) {
+	for _, bodyBytes := range []int{12, 24} {
+		first := make([]byte, 1+bodyBytes)
+		first[0] = byte(bodyBytes * 8)
+		data := append(append([]byte(nil), first...), first[:len(first)-1]...)
+		for _, addPath := range []bool{false, true} {
+			for _, keepWalking := range []bool{false, true} {
+				visited := 0
+				count, err := SplitSRPolicy(data, addPath, func(entry []byte) bool {
+					visited++
+					if !bytes.Equal(entry, first) {
+						t.Errorf("body=%d ADD-PATH=%v: entry = %x, want %x", bodyBytes, addPath, entry, first)
+					}
+					if &entry[0] != &data[0] {
+						t.Error("visitor entry does not alias the input")
+					}
+					return keepWalking
+				})
+				if count != 1 {
+					t.Errorf("body=%d ADD-PATH=%v continue=%v: count = %d, want 1", bodyBytes, addPath, keepWalking, count)
+				}
+				if visited != 1 {
+					t.Errorf("body=%d ADD-PATH=%v continue=%v: visits = %d, want 1", bodyBytes, addPath, keepWalking, visited)
+				}
+				if (err != nil) != keepWalking {
+					t.Errorf("body=%d ADD-PATH=%v continue=%v: error = %v", bodyBytes, addPath, keepWalking, err)
+				}
+			}
+			count, err := SplitSRPolicy(data, addPath, nil)
+			if count != 1 {
+				t.Errorf("body=%d ADD-PATH=%v nil visitor: count = %d, want 1", bodyBytes, addPath, count)
+			}
+			if err == nil {
+				t.Errorf("body=%d ADD-PATH=%v nil visitor accepted malformed tail", bodyBytes, addPath)
+			}
+		}
+	}
 }

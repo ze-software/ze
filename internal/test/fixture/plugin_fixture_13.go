@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	Register("plugin/prefixsid-duplicate-tlv-relay", routeServerReplay13("shutdown-after-forward", "10.0.2.0/24"))
+	Register("plugin/prefixsid-duplicate-tlv-relay", routeServerReplay13("shutdown-after-forward", "10.0.2.0/24", false))
 	Register("plugin/reload-listener-rejected", reloadListenerRejected13)
 	Register("plugin/reload-shared-secret", reloadSharedSecret13)
 	Register("plugin/reload-listener-rejected-trigger", reloadTrigger13)
@@ -26,12 +26,12 @@ func init() {
 	Register("plugin/remove-private-as-replace-originated", originatedPrivateAS13("remove-private-as-replace-originated"))
 	Register("plugin/remove-private-as-replace-peer", forwardedPrivateAS13("remove-private-as-replace-peer", "receiver-peer", "rewritten"))
 	Register("plugin/resolve-ping", resolvePing13)
-	Register("plugin/rfc4271-partial-unknown-transitive", routeServerReplay13("shutdown-after-up", "10.0.0.0/24"))
-	Register("plugin/rfc7606-54-bgpls-override-propagates", routeServerReplay13("shutdown-after-up", "10.0.0.0/24"))
-	Register("plugin/rfc7606-54-discard-unrecognized-mup-nlri", routeServerReplay13("shutdown-after-up", "10.0.0.0/24"))
-	Register("plugin/rfc7606-54-discard-unrecognized-nlri", routeServerReplay13("shutdown-after-up", "10.0.0.0/24"))
-	Register("plugin/rfc7606-receive-combinations", routeServerReplay13("shutdown-after-forward", "10.40.0.0/24"))
-	Register("plugin/rfc7606-relay-one-field", routeServerReplay13("shutdown-after-up", "10.0.0.0/24"))
+	Register("plugin/rfc4271-partial-unknown-transitive", routeServerReplay13("shutdown-after-up", "10.0.0.0/24", false))
+	Register("plugin/rfc7606-54-bgpls-override-propagates", routeServerReplay13("shutdown-after-up", "10.0.0.0/24", false))
+	Register("plugin/rfc7606-54-discard-unrecognized-mup-nlri", routeServerReplay13("shutdown-after-up", "10.0.0.0/24", false))
+	Register("plugin/rfc7606-54-discard-unrecognized-nlri", routeServerReplay13("shutdown-after-up", "10.0.0.0/24", false))
+	Register("plugin/rfc7606-receive-combinations", routeServerReplay13("shutdown-after-forward", "10.40.0.0/24", true))
+	Register("plugin/rfc7606-relay-one-field", routeServerReplay13("shutdown-after-up", "10.0.0.0/24", true))
 	Register("plugin/rfc7606-reset", passivePlugin13("rfc7606-test"))
 	Register("plugin/rfc7606-withdraw", rfc7606Withdraw13)
 	Register("plugin/rfc9552-52-rs-opaque-withdraw-peer-down", opaqueWithdraw13)
@@ -398,7 +398,7 @@ func emptyNLRI13(value any) bool {
 	}
 }
 
-func routeServerReplay13(name, prefix string) Driver {
+func routeServerReplay13(name, prefix string, seed bool) Driver {
 	return func(ctx context.Context, args []string) error {
 		events := make(chan string, 128)
 		setup := func(plugin *sdk.Plugin) {
@@ -413,6 +413,11 @@ func routeServerReplay13(name, prefix string) Driver {
 			})
 		}
 		return runPlugin13(ctx, name, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+			if seed {
+				if err := withdrawSourceReady03(ctx, plugin, 2); err != nil {
+					return err
+				}
+			}
 			eorPeers := make(map[string]struct{})
 			forwardSeen := prefix == ""
 			idleTimeout := replayIdleTimeout13()

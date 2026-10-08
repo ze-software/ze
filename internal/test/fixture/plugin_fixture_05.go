@@ -519,23 +519,30 @@ func p05ConfigGroupUpdates(ctx context.Context, args []string) error {
 
 func p05ControlCommunityWithdraw(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "control-community-withdraw", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := withdrawSeedReceipts03(ctx, plugin); err != nil {
+			return err
+		}
 		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != statusDone {
 			return fmt.Errorf("quiesce barrier did not settle: status=%q: %w", status, err)
 		}
 		realUpdates := func(peer string) float64 {
 			return p05PeerCounter(ctx, plugin, peer, "updates-sent") - p05PeerCounter(ctx, plugin, peer, "eor-sent")
 		}
-		if !Poll(ctx, 40, 200*time.Millisecond, func() bool { return realUpdates("127.0.0.3") >= 3 }) {
-			return errors.New("included client was not sent both halves and the fence")
+		// Each destination receives one seed before the original asserted traffic.
+		if !Poll(ctx, 40, 200*time.Millisecond, func() bool { return realUpdates("127.0.0.3") >= 4 }) {
+			return errors.New("included client was not sent the seed, both halves and the fence")
+		}
+		if got := realUpdates("127.0.0.3"); got != 4 {
+			return fmt.Errorf("included client was sent %v route UPDATEs, want 4 including seed", got)
 		}
 		fmt.Fprintln(os.Stderr, "OK: included client received both halves and the fence")
-		if !Poll(ctx, 40, 200*time.Millisecond, func() bool { return realUpdates("127.0.0.2") >= 2 }) {
-			return errors.New("excluded client was not sent the withdrawal and the fence")
+		if !Poll(ctx, 40, 200*time.Millisecond, func() bool { return realUpdates("127.0.0.2") >= 3 }) {
+			return errors.New("excluded client was not sent the seed, withdrawal and fence")
 		}
-		if got := realUpdates("127.0.0.2"); got != 2 {
-			return fmt.Errorf("excluded client was sent more than the withdrawal and the fence: %v", got)
+		if got := realUpdates("127.0.0.2"); got != 3 {
+			return fmt.Errorf("excluded client was sent %v route UPDATEs, want 3 including seed", got)
 		}
-		fmt.Fprintln(os.Stderr, "OK: excluded client received the withdrawal and the fence, nothing else")
+		fmt.Fprintln(os.Stderr, "OK: excluded client received the seed, withdrawal and fence, nothing else")
 		return nil
 	})
 }

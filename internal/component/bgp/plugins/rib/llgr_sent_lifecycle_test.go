@@ -9,6 +9,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -60,9 +62,11 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				out := append([]byte{0, 0, 0, 0}, tc.wire...)
 				event := nativeSentEvent(t, dest, tc.fam, out, attrs, true, false)
 				event.RouteMeta["source-message-id"] = float64(91)
+				event.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: tc.fam, PathID: 7}}
 				r.handleSent(event)
 				other := nativeSentEvent(t, control, tc.fam, out, attrs, true, false)
 				other.RouteMeta["source-peer"] = "192.0.2.11"
+				other.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: tc.fam, PathID: 7}}
 				r.handleSent(other)
 				key, ok := ribOutRouteKey(tc.fam, out, true)
 				if !ok {
@@ -80,6 +84,7 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				freshOut := append([]byte{0, 0, 0, 99}, tc.wire...)
 				fresh := nativeSentEvent(t, dest, tc.fam, freshOut, nativeSentAttrs(), true, false)
 				fresh.RouteMeta["source-message-id"] = float64(92)
+				fresh.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: tc.fam, PathID: 8}}
 				r.handleSent(fresh)
 				if operation != "no-llgr" {
 					if _, _, err := r.attachCommunityCommand([]string{source.String(), tc.fam.String(), "ffff0006"}); err != nil {
@@ -304,5 +309,131 @@ func testRetainRoutesSentOwnership(t *testing.T, onDown bool) {
 				t.Fatal("another source's sent family was removed")
 			}
 		})
+	}
+}
+
+// TestLLGRLifecycleScopeKeepsFreshProjection covers the sibling lifecycle
+// operations with a received refresh ahead of sent projection. Identifiers zero
+// and 17 initially share one UPDATE generation; only 17 remains stale.
+func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
+	for _, operation := range []string{"purge", "expiry", "no-llgr", "attach", "retain"} {
+		t.Run(operation, func(t *testing.T) {
+			r := newTestRIBManager(t)
+			source := netip.MustParseAddr("192.0.2.10")
+			dest := netip.MustParseAddr("192.0.2.20")
+			peer := storage.NewPeerRIB(source.String())
+			r.bgpPeers[source] = peer
+			t.Cleanup(func() {
+				peer.Release()
+				for _, families := range r.ribOut {
+					for _, routes := range families {
+						for _, entry := range routes {
+							entry.release()
+						}
+					}
+				}
+			})
+			fam := family.IPv4Unicast
+			peer.SetAddPath(fam, true)
+			attrs := appendAttr(bytes.Clone(nativeSentAttrs()), 8, 0xc0, []byte{255, 255, 0, 7})
+			fresh := []byte{0, 0, 0, 0, 24, 192, 0, 2}
+			stale := []byte{0, 0, 0, 17, 24, 192, 0, 2}
+			for i, raw := range [][]byte{fresh, stale} {
+				peer.Insert(fam, attrs, raw)
+				peer.ModifyFamilyEntry(fam, raw, func(entry *storage.RouteEntry) { entry.MsgID = 91 })
+				out := bytes.Clone(raw)
+				out[3] = byte(41 + i)
+				event := nativeSentEvent(t, dest, fam, out, attrs, true, false)
+				event.MsgID = uint64(101 + i)
+				event.RouteMeta["source-message-id"] = float64(91)
+				event.RouteMeta[bgptypes.SentPathSourcesMeta] = []wireu.SentPathSource{{Family: fam, PathID: uint32(raw[3])}}
+				r.handleSent(event)
+			}
+			if operation == "retain" {
+				raw := []byte{32, 32, 1, 13, 184}
+				peer.Insert(family.IPv6Unicast, nativeSentAttrs(), raw)
+				peer.ModifyFamilyEntry(family.IPv6Unicast, raw, func(entry *storage.RouteEntry) { entry.MsgID = 91 })
+				event := nativeSentEvent(t, dest, family.IPv6Unicast, raw, nativeSentAttrs(), false, false)
+				event.MsgID = 103
+				event.RouteMeta["source-message-id"] = float64(91)
+				r.handleSent(event)
+			}
+			if _, _, err := r.markStaleCommand([]string{source.String(), "0", "2"}); err != nil {
+				t.Fatal(err)
+			}
+			peer.Insert(fam, nativeSentAttrs(), fresh)
+			peer.ModifyFamilyEntry(fam, fresh, func(entry *storage.RouteEntry) { entry.MsgID = 92 })
+			freshKey := ribOutKey{Prefix: netip.MustParsePrefix("192.0.2.0/24"), PathID: 41}
+			staleKey := ribOutKey{Prefix: freshKey.Prefix, PathID: 42}
+			before := r.ribOut[dest][fam][freshKey]
+			var writes []string
+			r.updateHook = func(command string, meta map[string]any) {
+				if meta[bgptypes.SentOwnerMessageMeta] != "102" && meta[bgptypes.SentOwnerMessageMeta] != "103" {
+					t.Fatalf("cleanup targeted refreshed path's receipt: %v", meta)
+				}
+				writes = append(writes, command)
+			}
+			switch operation {
+			case "purge":
+				if _, _, err := r.purgeStaleCommand([]string{source.String(), fam.String()}); err != nil {
+					t.Fatal(err)
+				}
+			case "expiry":
+				r.autoExpireStale(source, r.grState[source])
+			case "no-llgr":
+				if _, _, err := r.deleteWithCommunityCommand([]string{source.String(), fam.String(), "ffff0007"}); err != nil {
+					t.Fatal(err)
+				}
+			case "attach":
+				if _, _, err := r.attachCommunityCommand([]string{source.String(), fam.String(), "ffff0006"}); err != nil {
+					t.Fatal(err)
+				}
+			case "retain":
+				r.retainRoutes(source.String(), []family.Family{fam}, false)
+			}
+			after, present := r.ribOut[dest][fam][freshKey]
+			if !present || after != before {
+				t.Fatal("lifecycle changed the old sent projection of a freshly received path")
+			}
+			wantWrites := 1
+			wantCommand := "update text nlri ipv4/unicast path-information 42 del 192.0.2.0/24"
+			if operation == "attach" {
+				wantWrites = 0
+				decorated := r.ribOut[dest][fam][staleKey]
+				data, err := pool.RibOut.Get(decorated.AttrHandle)
+				if err != nil || !bytes.Contains(data, []byte{255, 255, 0, 6}) {
+					t.Fatal("matching stale received path was not decorated")
+				}
+			}
+			if operation == "retain" {
+				wantCommand = "update text nlri ipv6/unicast del 2001:db8::/32"
+			}
+			if len(writes) != wantWrites {
+				t.Fatalf("lifecycle writes = %v, want %d", writes, wantWrites)
+			}
+			if wantWrites != 0 && writes[0] != wantCommand {
+				t.Fatalf("lifecycle command = %q, want %q", writes[0], wantCommand)
+			}
+		})
+	}
+}
+
+// TestReceivedOwnerKeepsPathPresence distinguishes base NLRI from ADD-PATH zero
+// and two paths in one generation without relying on the outgoing identifier.
+func TestReceivedOwnerKeepsPathPresence(t *testing.T) {
+	base, ok := receivedOwnerKey(family.IPv4Unicast, []byte{24, 192, 0, 2}, false, 91)
+	if !ok {
+		t.Fatal("base owner rejected")
+	}
+	zero, ok := receivedOwnerKey(family.IPv4Unicast, []byte{0, 0, 0, 0, 24, 192, 0, 2}, true, 91)
+	if !ok {
+		t.Fatal("identifier zero rejected")
+	}
+	seventeen, ok := receivedOwnerKey(family.IPv4Unicast, []byte{0, 0, 0, 17, 24, 192, 0, 2}, true, 91)
+	if !ok {
+		t.Fatal("identifier 17 rejected")
+	}
+	if base == zero || zero == seventeen {
+		t.Fatal("received path presence or identifier collapsed within one message")
 	}
 }

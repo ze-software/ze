@@ -2,6 +2,9 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
+# Keep the Session alive through captured replay completion and quiescence,
+# not only until the last route's bytes arrive.
+option=linger:value=true
 cmd=api:conn=1:seq=1:text=send bgp * update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C400101004002004003046501650180040400000064400504000000642001000001
 cmd=api:conn=1:seq=2:text=send bgp * update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.2/32
@@ -64,11 +67,9 @@ bgp {
 	
 		attach process add-remove {
 			send update
-			# The peer-up event. The process announces its whole set into this
-			# peer's INITIAL routing update and reports when it is out, so the
-			# End-of-RIB below waits for it. A process the peer never tells
-			# about the session is not waited for, and the marker then arrives
-			# in the middle of the announces (Peer.initialUpdateReporters).
+			# Capture the initial-replay token from this peer's UP event before
+			# announcing. The declared reporter completes with that same token;
+			# its completion never delays the independent End-of-RIB.
 			receive [ state ]
 		}
 	}

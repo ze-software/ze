@@ -9,11 +9,13 @@ package reactor
 import (
 	"encoding/binary"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 // nextHopValue names every NEXT_HOP address one UPDATE offers a destination.
@@ -35,6 +37,22 @@ type nextHopValue struct {
 	// RFC 8950 Section 4 licenses an IPv6 next hop for. Zero when the UPDATE
 	// carries no MP_REACH_NLRI. A next-hop rewrite never changes it.
 	mpFamily family.Family
+
+	// mpIPv6 records the wire address family before nextHopAddr unmaps it.
+	// The 16/24/32/48-octet forms are IPv6; 4/12 are IPv4. The NLRI AFI
+	// cannot supply this fact (RFC 9830 Section 2.1), and every MP rewrite
+	// replaces it. False with no MP address means no wire family was read.
+	mpIPv6 bool
+
+	// mpWireLen retains the received field's length before address extraction.
+	// Ordinary origination must validate it against its NLRI family: decoding
+	// a VPN-shaped field into a global address does not license that wire form.
+	mpWireLen uint8
+
+	// Canonical RFC 4659 Section 3.2.1.1 absent-global VPN pair: zero RDs,
+	// unspecified Global, and a valid Link-Local second address. Permission
+	// still depends on the family and this destination's actual peering.
+	mpVPNUnspecifiedPair bool
 
 	// A received field that the family forbids must leave on advertisement,
 	// but its bytes never identify a forwarding address or a withholding gate.
@@ -108,10 +126,13 @@ func payloadNextHop(payload []byte) nextHopValue {
 		// AFI(2) + SAFI(1) + next-hop length(1) + next hop.
 		if len(value) >= 4 {
 			out.mpFamily = family.Family{AFI: family.AFI(binary.BigEndian.Uint16(value)), SAFI: family.SAFI(value[2])}
+			out.mpWireLen = value[3]
 			nhLen := int(value[3])
 			if 4+nhLen <= len(value) {
 				if out.mpFamily.NeedsNextHop() {
 					out.mp, out.mpLL = nextHopAddr(value[4 : 4+nhLen])
+					out.mpIPv6 = nhLen == 16 || nhLen == 24 || nhLen == 32 || nhLen == 48
+					out.mpVPNUnspecifiedPair = vpnUnspecifiedNextHopPair(value[4 : 4+nhLen])
 				} else {
 					out.mpIgnored = nhLen != 0
 				}
@@ -159,7 +180,7 @@ func applyNextHopFamily(mods *filterapi.ModAccumulator, base nextHopValue) {
 // about the bytes the rebuild will emit.
 //
 // Codes 3 and 14 are collected independently because one destination can carry
-// both: applyFactsNextHop records the legacy address and the IPv4-mapped
+// both: applyFactsNextHop records the legacy address and the family-permitted
 // MP_REACH form together for an IPv4 next-hop mode.
 func modsNextHop(mods *filterapi.ModAccumulator) (nextHopValue, bool) {
 	var out nextHopValue
@@ -177,6 +198,9 @@ func modsNextHop(mods *filterapi.ModAccumulator) (nextHopValue, bool) {
 		case uint8(attribute.AttrMPReachNLRI):
 			if a, ll := nextHopAddr(op.Buf); a.IsValid() {
 				out.mp, out.mpLL = a, ll
+				out.mpWireLen = uint8(len(op.Buf)) // nextHopAddr accepts at most 48 octets.
+				out.mpIPv6 = len(op.Buf) == 16 || len(op.Buf) == 24 || len(op.Buf) == 32 || len(op.Buf) == 48
+				out.mpVPNUnspecifiedPair = vpnUnspecifiedNextHopPair(op.Buf)
 				set = true
 			}
 		}
@@ -282,21 +306,6 @@ func (n nextHopValue) linkLocalOnly() bool {
 	return n.mp.Is6() && n.mp.IsLinkLocalUnicast()
 }
 
-// globalUnusable reports whether the MP_REACH_NLRI next hop offers no usable
-// Global IPv6 address: it is Link-Local-only, or its Global half is the
-// unspecified address ::. A received 32-octet ":: then fe80::x" pair is the
-// second form. Removing its Link-Local half (egressNextHopGlobalHalf) leaves ::,
-// which names no next hop, so draft-ietf-idr-linklocal-capability Section 4
-// treats the route as having none: "If, after completing these procedures,
-// there are no IPv6 next hop addresses included in the next hop, the BGP route
-// MUST not be advertised to its peer." Both forms answer true.
-func (n nextHopValue) globalUnusable() bool {
-	if n.mp.Is6() && n.mp.IsUnspecified() {
-		return true
-	}
-	return n.linkLocalOnly()
-}
-
 // egressNextHopIsLinkLocalOnly answers, for ONE destination, whether the
 // MP_REACH next hop it is about to be sent is a Link-Local-only Next Hop.
 //
@@ -355,9 +364,9 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 	return dest.linkLocalOnlyNextHopRefused(emitted.mp, base.mpFamily)
 }
 
-// egressNextHopGlobalHalf returns, for ONE destination more than one IP hop
-// away, the Global half of an MP_REACH_NLRI next hop that is about to be
-// written with a Link-Local half behind it, and whether there is one to remove.
+// egressNextHopGlobalHalf returns, for ONE destination, the Global half of an
+// MP_REACH_NLRI pair when either the destination or the Global entity shares
+// no connected subnet with this speaker, and whether the Link-Local is removed.
 //
 // draft-ietf-idr-linklocal-capability Section 4: "When sending a message to an
 // external peer X, and the peer is multiple IP hops away from the speaker (aka
@@ -377,17 +386,18 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 // Set in mods when one exists (a filter rewrite counts: a policy may not grant
 // what the RFC refuses), else basePayload's own field.
 //
-// The hop count is the destination's link scope (Peer.llScope): a peer no
-// connected subnet holds is more than one hop away. A nil scope has read no
-// interface table and proves no shared subnet, so the Link-Local is removed,
-// for the reason linkScope.linkLocalNextHop gives.
+// The destination and the effective Global entity are independent conditions.
+// The received source peer being on-link proves nothing about the Global entity.
+// A nil scope has read no interface table and proves neither shared subnet, so
+// the Link-Local is removed, for the reason linkScope.linkLocalNextHop gives.
+//
+// A pair with an invalid address in either slot MUST remain intact here:
+// trimming it would hide the pair's invalid form from egressNextHopWithheld,
+// which MUST refuse it through the existing per-section withdrawal path.
 //
 // The returned slice aliases the field it was cut from, which lives as long as
 // the operation buffers or the payload the rebuild reads. Allocation-free.
-func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePayload []byte) ([]byte, bool) {
-	if destOnLink(dest) {
-		return nil, false
-	}
+func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePayload []byte, baseFamily family.Family) ([]byte, bool) {
 	field := payloadMPNextHopField(basePayload)
 	for _, op := range mods.Ops() {
 		if op.Code != uint8(attribute.AttrMPReachNLRI) {
@@ -397,22 +407,88 @@ func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePay
 			field = op.Buf
 		}
 	}
+	profile := attribute.MPNextHopProfile(attribute.AFI(baseFamily.AFI), attribute.SAFI(baseFamily.SAFI))
+	if profile.IPv6Roles && !slices.Contains(profile.Lengths, len(field)) {
+		// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1.
+		// Preserve a wrong-width field instead of hiding it by RD stripping.
+		return nil, false
+	}
+	var globalOctets int
 	switch len(field) {
 	case 32: // Global(16) + Link-Local(16)
-		return field[:16], true
+		globalOctets = 16
 	case 48: // RD(8) + Global(16), RD(8) + Link-Local(16)
-		return field[:24], true
+		globalOctets = 24
+	default:
+		return nil, false
 	}
-	return nil, false
+	second := netip.AddrFrom16([16]byte(field[len(field)-16:])).Unmap()
+	if !second.Is6() || !second.IsLinkLocalUnicast() {
+		return nil, false
+	}
+	global := netip.AddrFrom16([16]byte(field[globalOctets-16 : globalOctets])).Unmap()
+	vpnPair := false
+	if !global.Is6() || !global.IsGlobalUnicast() {
+		vpnPair = vpnUnspecifiedNextHopPair(field)
+		if !vpnPair {
+			return nil, false
+		}
+	}
+	if scope := dest.llScope.Load(); scope != nil {
+		if scope.peerOnLink {
+			// RFC 4659 Section 3.2.1.1 explicitly uses an unspecified Global
+			// for VPN-IPv6 speakers peering only over link-local addresses.
+			if vpnPair {
+				if vpnIPv6LinkLocalPeering(dest.forwardFacts(), baseFamily) {
+					return nil, false
+				}
+			}
+			if network.SharesSubnet(scope.connected, global) {
+				return nil, false
+			}
+		}
+	}
+	return field[:globalOctets], true
+}
+
+// vpnUnspecifiedNextHopPair recognizes the exact 48-octet RFC 4659
+// Section 3.2.1.1 form. The first 32 octets hold the zero RD, unspecified
+// Global, and the second zero RD. A single unspecified address is not this form.
+func vpnUnspecifiedNextHopPair(field []byte) bool {
+	if len(field) != 48 {
+		return false
+	}
+	if [32]byte(field[:32]) != ([32]byte{}) {
+		return false
+	}
+	return netip.AddrFrom16([16]byte(field[32:])).IsLinkLocalUnicast()
+}
+
+// vpnIPv6LinkLocalPeering identifies RFC 4659 Section 3.2.1.1's peering
+// exception using the established session's captured local endpoint. Configured
+// LocalAddress cannot substitute for the address the peer actually connects to.
+func vpnIPv6LinkLocalPeering(f *peerForwardFacts, fam family.Family) bool {
+	if fam != (family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}) {
+		return false
+	}
+	if f == nil {
+		return false
+	}
+	if !f.connectedLocal.Is6() {
+		return false
+	}
+	if !f.connectedLocal.IsLinkLocalUnicast() {
+		return false
+	}
+	return f.addr.Is6() && f.addr.IsLinkLocalUnicast()
 }
 
 // destOnLink reports whether dest is one IP hop away: a connected subnet of
 // this speaker holds its address (Peer.llScope, linkScope.peerOnLink).
 //
 // A nil scope has read no interface table and proves no shared subnet, so it
-// answers false, for the reason linkScope.linkLocalNextHop gives. Both
-// Link-Local cuts of the forward rails ask this one question, so they cannot
-// disagree about which peer is more than one hop away.
+// answers false, for the reason linkScope.linkLocalNextHop gives. Pair trimming
+// reads the same snapshot's peerOnLink field before checking the Global entity.
 func destOnLink(dest *Peer) bool {
 	scope := dest.llScope.Load()
 	if scope == nil {
@@ -449,17 +525,16 @@ func destOnLink(dest *Peer) bool {
 // destination keeps the received Link-Local ("the speaker can use the received
 // Link-Local IPv6 address, provided that peer X is directly attached").
 //
-// A Global half that is the unspecified address :: counts as absent
-// (nextHopValue.globalUnusable): the pair ":: then fe80::x" cut to its Global
-// would otherwise reach the multihop peer as the next hop ::.
+// Unspecified and multicast Global addresses are refused independently by
+// egressNextHopWithheld, regardless of the destination's subnet.
 func egressNextHopLinkLocalOnlyOffLink(dest *Peer, mods *filterapi.ModAccumulator, base nextHopValue) bool {
 	if destOnLink(dest) {
 		return false
 	}
 	if nh, set := modsNextHop(mods); set {
-		return nh.globalUnusable()
+		return nh.linkLocalOnly()
 	}
-	return base.globalUnusable()
+	return base.linkLocalOnly()
 }
 
 // withholdGate names the egress next-hop gate that refused ONE destination the
@@ -475,6 +550,9 @@ const (
 	withholdLinkLocalOnlyOffLink                // Link-Local-only, destination more than one hop away
 	withholdNoExtendedNextHop                   // IPv6 next hop for IPv4 NLRI without RFC 8950
 	withholdLinkLocalOnlyRefused                // Link-Local-only to a session that may not carry it
+	withholdUnusableGlobal                      // unusable address in the IPv6 Global slot
+	withholdInvalidPair                         // second address is not IPv6 link-local unicast
+	withholdInvalidWidth                        // wire field length is not valid for IPv6 unicast
 )
 
 // withholdGateText is the operator log line and the governing document of each
@@ -486,6 +564,9 @@ var withholdGateText = [...]struct{ message, rfc string }{
 	withholdLinkLocalOnlyOffLink:   {"withholding route: its next hop is link-local-only and this peer is more than one IP hop away", "draft-ietf-idr-linklocal-capability Section 4"},
 	withholdNoExtendedNextHop:      {"withholding route: its IPv6 next hop for IPv4 NLRI needs the Extended Next Hop capability this peer did not negotiate", "RFC 8950 Section 4"},
 	withholdLinkLocalOnlyRefused:   {"withholding route: its next hop is link-local-only and this peer did not negotiate the Link-Local Next Hop capability", "draft-ietf-idr-linklocal-capability Section 2"},
+	withholdUnusableGlobal:         {"withholding route: its IPv6 global next-hop slot has no usable global address", "RFC 2545 Section 3"},
+	withholdInvalidPair:            {"withholding route: its IPv6 next-hop pair has a non-link-local second address", "RFC 2545 Section 3"},
+	withholdInvalidWidth:           {"withholding route: its next-hop wire length is invalid for IPv6 unicast", "RFC 2545 Section 3"},
 }
 
 // warn logs the suppression. draft-ietf-idr-linklocal-capability Section 4 asks
@@ -555,14 +636,62 @@ func (g withholdGate) warn(f *peerForwardFacts, advertiser netip.Addr, mods *fil
 //     not been negotiated, the procedures in this document do not apply."
 //     (egressNextHopLinkLocalOnlyRefused).
 func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue, reflected bool, advertiser netip.Addr) withholdGate {
-	// Withdrawals and families without forwarding next hops have no address
-	// for these gates to refuse. FlowSpec's received field is ignored by
-	// payloadNextHop; applyNextHopFamily also clears destination MP rewrites.
-	if !base.valid() {
+	// RFC 2545 Section 3 requires a global IPv6 next-hop entity. RFC 4659
+	// Section 3.2.1.1 permits the canonical absent-global VPN pair only for
+	// link-local peering. This is separate from capability 77's single-address
+	// form. Judge the field after every policy rewrite and trim.
+	emitted := base
+	// mpReachNextHopHandler cannot create MP_REACH without a source attribute.
+	// applyFactsNextHop records both legacy and MP rewrites for IPv4 modes;
+	// its unused MP operation must not impose IPv6 rules on a legacy route.
+	if base.mpFamily != (family.Family{}) {
+		if written, set := modsNextHop(mods); set && written.mpWireLen != 0 {
+			emitted = written
+		}
+	}
+	// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1.
+	// The effective replacement wins over obsolete input, before normalization.
+	profile := attribute.MPNextHopProfile(attribute.AFI(base.mpFamily.AFI), attribute.SAFI(base.mpFamily.SAFI))
+	if profile.IPv6Roles && !slices.Contains(profile.Lengths, int(emitted.mpWireLen)) {
+		return withholdInvalidWidth
+	}
+	// An addressless MP_REACH is still an announcement: its family-specific
+	// width must be checked before the no-address exit. A later policy repair
+	// must also reach the self, role, identity, capability and scope gates.
+	// Withdrawals and FlowSpec still have no effective forwarding address;
+	// applyNextHopFamily clears the latter's ignored MP rewrites.
+	if !emitted.valid() {
 		return withholdNone
 	}
 	if f.nhSelfWithheld {
 		return withholdNextHopSelfAbsent
+	}
+	// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the
+	// Network Address of Next Hop field the global IPv6 address of the next
+	// hop, potentially followed by the link-local IPv6 address of the next hop."
+	// The trimming boundary keeps an invalid pair intact so this gate sees
+	// both slots even when either prefix-membership predicate fails.
+	// Capability 77 licenses a single address, never a malformed pair.
+	if emitted.mpLL.IsValid() && (!emitted.mpLL.Is6() || !emitted.mpLL.IsLinkLocalUnicast()) {
+		return withholdInvalidPair
+	}
+	// RFC 9830 Section 2.1: "The Length field of the next-hop address specifies
+	// the next-hop address family."
+	// The next-hop length determines its wire family independently of NLRI
+	// AFI. Keep that fact after unmapping so a mapped IPv6 wire address cannot
+	// pass as native IPv4. A real single link-local is decided by the
+	// capability and scope gates below; a paired first address is not exempt.
+	// RFC 4798 Section 2 and RFC 4659 Section 3.2.1.2 define single mapped
+	// fields for IPv6 labeled and VPN NLRI. They do not license a mapped
+	// global in ordinary plain IPv6 or SR Policy, or a mapped/global pair.
+	mapped := profile.MappedIPv4 && emitted.mp.Is4() && emitted.mpIPv6 &&
+		!emitted.mpLL.IsValid() && slices.Contains(profile.Lengths, int(emitted.mpWireLen))
+	if emitted.mp.IsValid() && emitted.mpIPv6 && !emitted.linkLocalOnly() && !mapped {
+		if !emitted.mp.Is6() || !emitted.mp.IsGlobalUnicast() {
+			if !emitted.mpVPNUnspecifiedPair || !destOnLink(dest) || !vpnIPv6LinkLocalPeering(f, base.mpFamily) {
+				return withholdUnusableGlobal
+			}
+		}
 	}
 	if egressNextHopIsPeerOwn(f, mods, base) {
 		return withholdPeerOwn

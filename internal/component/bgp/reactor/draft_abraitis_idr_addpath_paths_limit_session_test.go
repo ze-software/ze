@@ -33,6 +33,14 @@ func pathsLimitSession(t *testing.T, limits map[family.Family]uint16) (*Session,
 		mp := &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI}
 		local = append(local, mp)
 		remote = append(remote, mp)
+		// pathsLimitUpdate emits IPv6 next hops for every non-inline family.
+		if fam != family.IPv4Unicast && attribute.MPNextHopProfile(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI)).ExtendedIPv6 {
+			ext := &capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{
+				NLRIAFI: fam.AFI, NLRISAFI: fam.SAFI, NextHopAFI: capability.AFIIPv6,
+			}}}
+			local = append(local, ext)
+			remote = append(remote, ext)
+		}
 		ap.Families = append(ap.Families, capability.AddPathFamily{AFI: fam.AFI, SAFI: fam.SAFI, Mode: capability.AddPathBoth})
 		pl.Entries = append(pl.Entries, capability.PathsLimitEntry{AFI: fam.AFI, SAFI: fam.SAFI, Limit: limit})
 	}
@@ -71,7 +79,12 @@ func pathsLimitUpdate(fam family.Family, withdraw bool, routes ...[]byte) *messa
 	value := []byte{byte(fam.AFI >> 8), byte(fam.AFI), byte(fam.SAFI)}
 	if !withdraw {
 		code = byte(attribute.AttrMPReachNLRI)
-		value = append(value, 16)
+		if fam.SAFI == family.SAFIVPN {
+			// RFC 8950 Section 3: IPv6 VPN next hops carry an eight-octet RD.
+			value = append(value, 24, 0, 0, 0, 0, 0, 0, 0, 0)
+		} else {
+			value = append(value, 16)
+		}
 		value = append(value, netip.MustParseAddr("2001:db8::1").AsSlice()...)
 		value = append(value, 0)
 	}
@@ -127,7 +140,10 @@ func pathsLimitReceived(t *testing.T, frames []byte, fam family.Family, withdraw
 		if withdraw {
 			split = nlrisplit.GetWithdraw(fam)
 		}
-		if _, err := split(data, true, func(raw []byte) { ids = append(ids, binary.BigEndian.Uint32(raw)) }); err != nil {
+		if _, err := split(data, true, func(raw []byte) bool {
+			ids = append(ids, binary.BigEndian.Uint32(raw))
+			return true
+		}); err != nil {
 			t.Fatal(err)
 		}
 		frames = frames[n:]

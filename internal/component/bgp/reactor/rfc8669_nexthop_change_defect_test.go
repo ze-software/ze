@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // The TLVs of the relayed Prefix-SID. The Label-Index is RFC 8669 Section 3.1 (index
@@ -195,7 +196,7 @@ func TestPrefixSIDUnknownTLVSurvivesANextHopChange(t *testing.T) {
 		LocalAddress: netip.MustParseAddr("192.0.2.1"),
 	}, &facts)
 	var mods filterapi.ModAccumulator
-	applyFactsNextHop(&facts, &mods)
+	applyFactsNextHop(&facts, &mods, family.IPv4Unicast)
 
 	var removals int
 	for _, op := range mods.Ops() {

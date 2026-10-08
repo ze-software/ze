@@ -32,7 +32,7 @@ All plugin behavior gaps closed by spec-ci-gaps (2026-03-17):
 
 | Plugin | Feature | .ci Test | Status |
 |--------|---------|----------|--------|
-| bgp-persist | Persistence across restart | test/reload/persist-across-restart.ci | Covered |
+| bgp-rib | Static route advertisement and live config reload (not reconnect or daemon restart) | test/reload/rib-static-live-reload.ci | Covered |
 | bgp-adj-rib-in | Query/clear via API | test/plugin/adj-rib-in-query.ci | Covered |
 | role | Strict mode enforcement | test/plugin/role-strict-enforcement.ci | Covered |
 
@@ -44,6 +44,6 @@ All gaps have corresponding `.ci` tests (41 added across 5 phases):
 - Phase 2: 10 API peer management tests (list/detail/add/remove/pause/resume/capabilities/subscribe/unsubscribe/route-refresh)
 - Phase 3: 11 API operation tests (rib show/clear, cache, commit, raw, CLI dispatch)
 - Phase 4: 7 config runtime behavior tests (connect/accept mode, router-id, group-updates, addpath, ext-nexthop, role-strict, adj-rib)
-- Phase 5: 3 plugin behavior tests (persist, adj-rib-in query, role strict enforcement)
+- Phase 5: 3 plugin behavior tests (static route live reload, adj-rib-in query, role strict enforcement)
 
 1 test deferred: `signal-quit.ci` -- `ze signal` has no quit handler, test framework has no `action=sigquit`.

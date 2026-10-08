@@ -168,13 +168,33 @@ func (rr *routeReflector) walkNLRIsAllocating(sourcePeer string, fam family.Fami
 		var tb textbuf.Buffer
 		for _, n := range nlris {
 			s := n.String()
-			routeKey := tb.Reset().Str(familyStr).Byte('|').Str(nlriKey(s)).String()
-			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: familyStr, Prefix: s}
+			tb.Reset().Str(familyStr).Byte('|').Str(nlriKey(s))
+			info := withdrawalInfo{Family: familyStr, Prefix: s}
+			if fam.SAFI == family.SAFIMPLSLabel {
+				if wire, ok := n.(*nlri.WireNLRI); ok && wire.HasAddPath() {
+					// The prefix alone does not identify a negotiated path.
+					// Keep the announcement for native peer-down withdrawal.
+					tb.Str("|addpath|").Uint32(wire.PathID())
+					var native textbuf.Buffer
+					info.Prefix = native.Hex(wire.Bytes()).String()
+					info.WireForm = true
+					info.AddPath = true
+				}
+			}
+			rr.withdrawals[sourcePeer][tb.String()] = info
 		}
 	case actionDel:
 		if rr.withdrawals[sourcePeer] != nil {
+			var tb textbuf.Buffer
 			for _, n := range nlris {
-				delete(rr.withdrawals[sourcePeer], familyStr+"|"+nlriKey(n.String()))
+				tb.Reset().Str(familyStr).Byte('|').Str(nlriKey(n.String()))
+				if fam.SAFI == family.SAFIMPLSLabel {
+					if aware, ok := n.(nlri.AddPathAware); ok && aware.HasAddPath() {
+						// Withdrawal INETs retain negotiation even for PathID zero.
+						tb.Str("|addpath|").Uint32(n.PathID())
+					}
+				}
+				delete(rr.withdrawals[sourcePeer], tb.String())
 			}
 		}
 	}

@@ -670,7 +670,7 @@ Without `peerCodes`, refused capabilities would be invisible after negotiation.
 
 ### NOTIFICATION on Rejection
 
-When a capability mode violation is detected, the session sends a NOTIFICATION per RFC 5492:
+When a capability mode violation is detected, the session sends a NOTIFICATION with the RFC 5492 error code and subcode. Its Data contains complete capability tuples, using the same capability encoders as OPEN.
 
 | Field | Value |
 |-------|-------|
@@ -678,30 +678,35 @@ When a capability mode violation is detected, the session sends a NOTIFICATION p
 | Error Subcode | 7 (Unsupported Capability) |
 | Data | Capability TLVs for each violating code |
 
-**Data format** — each violating capability is encoded as a 2-byte TLV:
+**Data format** — each violating capability carries its code, length, and value:
 
 ```
  0                   1
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-| Cap. Code     | Cap. Length=0 |
+| Cap. Code     | Cap. Length   |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+| Capability Value (variable)   |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-For simple capabilities (ASN4, route-refresh, extended-message), the length is 0 because the NOTIFICATION data signals which capability was problematic, not its value. Multiple violations are concatenated.
+RFC 5492 Section 5 says: "Each such capability is encoded in the same way as it would be encoded in the OPEN message." Missing required capabilities use the values advertised in the local OPEN; refused capabilities use the received peer values. Each selected code includes all its advertised instances. Zero length is valid for route-refresh and extended-message, but ASN4 carries its four-octet AS number and variable-length capabilities retain their values. The former code-only encoder incorrectly emitted length zero for ASN4 and other value-bearing capabilities.
 
-**Example:** `asn4 require;` with peer lacking ASN4 →
-NOTIFICATION hex: `FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF 0017 03 02 07 41 00`
+Per-family ADD-PATH rejection carries code 69 with the causing family's AFI, SAFI, and original advertised Send/Receive value. Missing requirements use the local direction; refusal uses the peer direction, not the negotiated direction. Unrelated families are excluded, while all matching entries stay grouped in their original capability instance. Filtering therefore cannot inflate the capability data beyond its OPEN encoding, even when entries or instances repeat. The existing require/refuse policy is unchanged.
+
+**Example:** local AS 65001, `asn4 require;`, peer lacking ASN4 →
+NOTIFICATION hex: `FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF 001B 03 02 07 41 04 0000FDE9`
 
 | Part | Hex | Meaning |
 |------|-----|---------|
 | Marker | `FFFF...` (16 bytes) | BGP marker |
-| Length | `0017` | 23 bytes |
+| Length | `001B` | 27 bytes |
 | Type | `03` | NOTIFICATION |
 | Error Code | `02` | OPEN Message Error |
 | Error Subcode | `07` | Unsupported Capability |
 | Data: Cap Code | `41` | Code 65 (ASN4) |
-| Data: Cap Length | `00` | Length 0 |
+| Data: Cap Length | `04` | Length 4 |
+| Data: Cap Value | `0000FDE9` | Local AS 65001 |
 
 ### Implementation
 
@@ -709,9 +714,10 @@ NOTIFICATION hex: `FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF 0017 03 02 07 41 00`
 |-----------|------|---------|
 | `CheckRequiredCodes(codes)` | `capability/negotiated.go` | Returns missing required codes |
 | `CheckRefusedCodes(codes)` | `capability/negotiated.go` | Returns peer codes that match refused list |
-| `buildUnsupportedCapabilityDataCodes(codes)` | `reactor/session.go` | Builds NOTIFICATION data for non-family codes |
-| Enforcement in `processOpen()` | `reactor/session.go` | Active session path (we initiated) |
-| Enforcement in `handleOpen()` | `reactor/session.go` | Passive session path (peer initiated) |
+| `buildUnsupportedCapabilityDataCodes(codes, caps)` | `reactor/session_validation.go` | Selects causing OPEN capability objects and encodes complete tuples |
+| `buildUnsupportedAddPathData(family, caps)` | `reactor/session_validation.go` | Encodes the causing ADD-PATH family and original direction |
+| Enforcement in `processOpen()` | `reactor/session_connection.go` | Pre-parsed OPEN path after collision resolution |
+| Enforcement in `handleOpen()` | `reactor/session_handlers.go` | Received OPEN body path |
 
 ### Config to Enforcement Data Flow
 

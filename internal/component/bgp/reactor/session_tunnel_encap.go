@@ -11,10 +11,12 @@ package reactor
 
 import (
 	"encoding/binary"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/ipregistry"
 )
 
 // applyTunnelEncap enforces tunnel framing and carrier constraints after attribute
@@ -64,7 +66,7 @@ func applyTunnelEncap(wu *wireu.WireUpdate, attrs []byte, hasNLRI bool, result *
 		size, keep := tunnelTLVLayout(value[off:], requireEndpoint, policy)
 		if size == 0 {
 			// RFC 9012 Section 13.
-			tunnelReceiveError(result, hasNLRI, "RFC 9012 Section 13: malformed tunnel TLV framing")
+			tunnelReceiveError(result, "RFC 9012 Section 13: malformed tunnel TLV framing")
 			return wu, attrs
 		}
 		tunnels++
@@ -75,7 +77,7 @@ func applyTunnelEncap(wu *wireu.WireUpdate, attrs []byte, hasNLRI bool, result *
 		if policy {
 			if binary.BigEndian.Uint16(value[off:]) != 15 {
 				// RFC 9830 Section 2.2.
-				tunnelReceiveError(result, hasNLRI, "RFC 9830 Section 2.2: non-SR-Policy tunnel type on SAFI 73")
+				tunnelReceiveError(result, "RFC 9830 Section 2.2: non-SR-Policy tunnel type on SAFI 73")
 				return wu, attrs
 			}
 			// RFC 9830 Section 2.2: "A Tunnel Encapsulation Attribute MUST NOT
@@ -84,7 +86,7 @@ func applyTunnelEncap(wu *wireu.WireUpdate, attrs []byte, hasNLRI bool, result *
 			// strategy [RFC7606]."
 			if tunnels > 1 {
 				// RFC 9830 Section 2.2.
-				tunnelReceiveError(result, hasNLRI, "RFC 9830 Section 2.2: multiple SR Policy tunnel TLVs")
+				tunnelReceiveError(result, "RFC 9830 Section 2.2: multiple SR Policy tunnel TLVs")
 				return wu, attrs
 			}
 		}
@@ -95,7 +97,7 @@ func applyTunnelEncap(wu *wireu.WireUpdate, attrs []byte, hasNLRI bool, result *
 	}
 	if kept == 0 {
 		// RFC 9012 Section 13.
-		tunnelReceiveError(result, hasNLRI, "RFC 9012 Section 13: no valid tunnel TLVs")
+		tunnelReceiveError(result, "RFC 9012 Section 13: no valid tunnel TLVs")
 		return wu, attrs
 	}
 	if kept == len(value) {
@@ -177,7 +179,7 @@ func tunnelTLVLayout(data []byte, requireEndpoint, policy bool) (int, bool) {
 		if data[off] == 6 && !policy {
 			endpoints++
 			// RFC 9012 Sections 3.1 and 13.
-			if !tunnelEndpointLengthValid(data[off+headerLen : end]) {
+			if !tunnelEndpointValid(data[off+headerLen : end]) {
 				keep = false
 			}
 		}
@@ -196,26 +198,47 @@ func tunnelTLVLayout(data []byte, requireEndpoint, policy bool) (int, bool) {
 	return size, keep
 }
 
-// tunnelEndpointLengthValid checks only structural length, not reachability or
-// address ownership. Unknown AFIs remain opaque, as required by Section 3.1.
+// tunnelEndpointValid checks structural length and the IANA special-purpose
+// address fields, not reachability or optional origin-AS ownership. Unknown
+// AFIs remain opaque; AFI0 does not classify the route's NEXT_HOP.
 // RFC 9012 Section 3.1 defines a malformed endpoint when: "The length of the
 // sub-TLV's Value field is other than 6 added to the defined length for the
 // address family given in its Address Family subfield.".
-func tunnelEndpointLengthValid(value []byte) bool {
+func tunnelEndpointValid(value []byte) bool {
 	if len(value) < 6 {
 		return false
 	}
+	var address netip.Addr
 	switch binary.BigEndian.Uint16(value[4:6]) {
 	case 0:
 		return len(value) == 6
 	case 1:
-		return len(value) == 10
+		if len(value) != 10 {
+			return false
+		}
+		address = netip.AddrFrom4([4]byte(value[6:10]))
 	case 2:
-		return len(value) == 22
+		if len(value) != 22 {
+			return false
+		}
+		address = netip.AddrFrom16([16]byte(value[6:22]))
 	default:
 		// The wire AFI set is open; unrecognized endpoints are not malformed.
 		return true
 	}
+	// RFC 9012 Section 3.1: "The IP address in the sub-TLV's Address subfield
+	// lies within a block listed in the relevant Special-Purpose IP Address
+	// registry [RFC6890] with either a \"destination\" attribute value or a
+	// \"forwardable\" attribute value of \"false\"."
+	record := ipregistry.Lookup(address)
+	if record.Match != ipregistry.MatchListed {
+		// Only a valid unlisted address is permitted without record fields.
+		return record.Match == ipregistry.MatchUnlisted
+	}
+	if record.Destination == ipregistry.ValueFalse {
+		return false
+	}
+	return record.Forwardable != ipregistry.ValueFalse
 }
 
 // tunnelReceiveError records a tunnel error without disturbing NLRI locations.
@@ -224,7 +247,7 @@ func tunnelEndpointLengthValid(value []byte) bool {
 // withdrawn just as if they had been listed in the WITHDRAWN ROUTES field (or in
 // the MP_UNREACH_NLRI attribute if appropriate) of the UPDATE message, thus causing
 // them to be removed from the Adj-RIB-In according to the procedures of [RFC4271].".
-func tunnelReceiveError(result *message.RFC7606ValidationResult, hasNLRI bool, description string) {
+func tunnelReceiveError(result *message.RFC7606ValidationResult, description string) {
 	result.Action = message.RFC7606ActionTreatAsWithdraw
 	result.AttrCode = uint8(attribute.AttrTunnelEncap)
 	result.Description = description
@@ -232,9 +255,9 @@ func tunnelReceiveError(result *message.RFC7606ValidationResult, hasNLRI bool, d
 	// encountered in such an UPDATE message and if any encountered error
 	// specifies an error-handling approach other than "attribute discard",
 	// then the "session reset" approach MUST be used."
-	if !hasNLRI {
-		if !result.MPReachNLRI.Present {
-			result.Action = message.RFC7606ActionSessionReset
-		}
+	// Attribute presence alone does not establish reachable NLRI: an empty
+	// MP_REACH still needs escalation. Preserve the original validator's fact.
+	if !result.HasReachableNLRI {
+		result.Action = message.RFC7606ActionSessionReset
 	}
 }

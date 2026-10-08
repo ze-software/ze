@@ -1,5 +1,8 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-08",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8277-2-2": {
@@ -86,7 +89,8 @@
       "verdict": "enforced"
     },
     "RFC8277-2.4-1": {
-      "note": "Independent source rejudgment of all 17 current tagged functions and 23 polarity covers. RFC 8277 Section 2.4: \"Upon reception, the value of the Compatibility field MUST be ignored.\" Read the full withdrawal/session/prefix/AFI-SAFI/ADD-PATH context. Exact codec and JSON assertions now cover labeled and VPN IPv4/IPv6, recommended, zero, S-set and other Compatibility values, adjacent identities and negotiated identifiers including zero, with no label output. The real SDK transport checks both decoder directions and preserves labels for announcements. RIB tests assert IPv4 labeled route/label deletion, ADD-PATH survivor labels, VPN removal, original announced withdrawal bytes and remaining-PE promotion. New VPN RR/RS tests assert exact survivor inventories across RD/prefix/path-id controls, plus native peer-down commands and parsed survivor bytes. Producers inspected: keyLabeled/keyVPN; ParseWithdrawnNLRIs/wrapNLRI; appendNLRIJSONValue; registered codec handlers; labeled DecodeNLRIHex/decodeLabeledNLRI; VPN parseVPN; SendDecodeNLRI/SDK DecodeNLRI/OnDecodeNLRI; removeLabeled and opaque RouteKey; checkRouteBestChange; RR walkVPNNLRIs and RS appendOpaqueRecords/recordKey, with both peer-down senders. The prior VPN decoder and opaque-inventory findings are addressed in these current branches and must not be repeated as extant defects. Keep weak, not a whole-stack upgrade: the tagged RIB and labeled RR/RS withdrawal populations do not cover all family/ADD-PATH reception paths, peer-down tests stop at command/RPC boundaries, and real session-to-RIB-to-independent-peer/VPP acceptance remains pending. The promotion carrier does not assert an exact replacement action. Nonrecommended Compatibility is conforming receiver input, not malformed data. Stored native producer-halt records establish reachability only; no execution, freshness validation or semantic mutation was performed by this audit. No partial annotation is present, and no untested-path defect is asserted.",
+      "code": {},
+      "note": "Read full RFC8277 Section 2.4, all 17 current tagged functions and their shared matrices and actual consumers. The current 29 polarity covers require recommended, zero, S-set and other Compatibility values to produce the same withdrawal identity without rejection or label interpretation. Real direct/filtered JSON, registered codec and bidirectional SDK consumers require exact RD/prefix/Path Identifier identities, adjacent-route boundaries and negotiated identifiers zero/17; announcement controls retain labels. Expanded labeled/VPN RIB matrices exercise IPv4/IPv6 with and without ADD-PATH, exact surviving native routes and labels, and exactly one correct withdrawal or replacement publication. Cross-PE promotion requires exactly Update with the surviving PE's own native NLRI, identifier and next hop. RR/RS matrices require exact retained inventories, and VPN peer-down carriers capture and reparse native survivor commands. Withdrawal splitters, canonical keys, storage removal/election and decoder/SDK dispatch carry withdrawal context rather than decoding Compatibility as a stack. The previous family/ADD-PATH and non-exact-promotion gaps are closed. This is real consumer/state evidence, not only encoder coverage; it does not claim independent VPP or remote-session acceptance. The mechanically renamed IPC carrier and its stored records already use internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go. No residual obligation in this reception sentence was found; transmission SHOULD and absent Multiple Labels Capability work remain outside this judgment.",
       "requirement_sha": "712d43a16c62b1a7",
       "tests": {
         "internal/component/bgp/format/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalJSONConsumersIgnoreCompatibility": "9ec0fc1f10e92674",
@@ -94,24 +98,30 @@
         "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues": "8f531bbb7a9e465d",
         "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNamesThePrefix": "8f531bbb7a9e465d",
         "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNeverReachesTheLabelDecoder": "8f531bbb7a9e465d",
-        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility": "7417f4bf72774671",
-        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility": "7417f4bf72774671",
-        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue": "6000c2a21a7e5a47",
-        "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE": "c570b49397044e79",
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility": "a56468eeaabac0f8",
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility#2": "a56468eeaabac0f8",
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility": "a56468eeaabac0f8",
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility#2": "a56468eeaabac0f8",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue": "e55fba0b818b9f39",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue#2": "e55fba0b818b9f39",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE": "ab4041f9537e31fe",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE#2": "ab4041f9537e31fe",
         "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes": "8e2182d79ca99e4e",
         "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory": "8e2182d79ca99e4e",
         "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory#2": "8e2182d79ca99e4e",
-        "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap": "adcba7a7391a9222",
+        "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap": "ce309908bffdf8ac",
+        "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap#2": "ce309908bffdf8ac",
         "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes": "c3d6fd21f62aca5b",
         "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory": "c3d6fd21f62aca5b",
         "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory#2": "c3d6fd21f62aca5b",
-        "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet": "9d2fcd5041177847",
+        "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet": "13f1e6750e52a4f5",
+        "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet#2": "13f1e6750e52a4f5",
         "internal/component/bgp/server/rfc8277_labeled_consumer_test.go::TestLabeledWithdrawalCodecConsumersIgnoreCompatibility": "e01b89d8a37c843b",
         "internal/component/bgp/server/rfc8277_labeled_consumer_test.go::TestLabeledWithdrawalCodecConsumersIgnoreCompatibility#2": "e01b89d8a37c843b",
         "internal/component/bgp/server/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalCodecConsumersIgnoreCompatibility": "81f1f7f03f165039",
         "internal/component/bgp/server/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalCodecConsumersIgnoreCompatibility#2": "81f1f7f03f165039",
-        "internal/component/plugin/ipc/rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers": "b99d292a8388f4f9",
-        "internal/component/plugin/ipc/rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2": "b99d292a8388f4f9"
+        "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers": "b99d292a8388f4f9",
+        "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2": "b99d292a8388f4f9"
       },
       "units": {
         "internal/component/bgp/format/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalJSONConsumersIgnoreCompatibility": "6ceec53b2cf77a4f",
@@ -119,26 +129,32 @@
         "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues": "1cd0a026fa62fdb5",
         "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNamesThePrefix": "16382ea43e0bfbd9",
         "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNeverReachesTheLabelDecoder": "7dd9de739618f859",
-        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility": "a7585bb811f11368",
-        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility": "1b7e5c362b993a25",
-        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue": "6dda0e94bf8a37fc",
-        "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE": "557c570b579d0dad",
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility": "3f54a083efb6572f",
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility#2": "3f54a083efb6572f",
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility": "80f9eb0edafb0bf4",
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility#2": "80f9eb0edafb0bf4",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue": "815db75c429da3a6",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue#2": "815db75c429da3a6",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE": "1fa707996006f271",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE#2": "1fa707996006f271",
         "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes": "33d9c3951f4d2172",
         "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory": "0860d96735285b3f",
         "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory#2": "0860d96735285b3f",
-        "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap": "a0dc29dfb4d8181e",
+        "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap": "1f8f496d46a78b7e",
+        "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap#2": "1f8f496d46a78b7e",
         "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes": "4dd217a7e0e0297c",
         "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory": "832b3dfb42222760",
         "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory#2": "832b3dfb42222760",
-        "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet": "619ab964508b5f2c",
+        "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet": "9bbd715e86cf606f",
+        "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet#2": "9bbd715e86cf606f",
         "internal/component/bgp/server/rfc8277_labeled_consumer_test.go::TestLabeledWithdrawalCodecConsumersIgnoreCompatibility": "783139b6cc227b57",
         "internal/component/bgp/server/rfc8277_labeled_consumer_test.go::TestLabeledWithdrawalCodecConsumersIgnoreCompatibility#2": "783139b6cc227b57",
         "internal/component/bgp/server/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalCodecConsumersIgnoreCompatibility": "73bb5a95c4c1d86d",
         "internal/component/bgp/server/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalCodecConsumersIgnoreCompatibility#2": "73bb5a95c4c1d86d",
-        "internal/component/plugin/ipc/rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers": "b09b1625eedb4b0c",
-        "internal/component/plugin/ipc/rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2": "b09b1625eedb4b0c"
+        "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers": "b09b1625eedb4b0c",
+        "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2": "b09b1625eedb4b0c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8277-2.5-1": {
       "note": "RFC 8277 Section 2.5: \"If [RFC7911] is not being used, UPDATE U2 MUST be interpreted as meaning that L2 is now bound to P at N1 and that L1 is no longer bound to P at N1. That is, the UPDATE U1 is implicitly withdrawn and is replaced by UPDATE U2.\" Read the full same-session, same-prefix, same-next-hop premise and both tagged carriers. TestLabeledImplicitWithdrawalNoAddPath positively requires exactly one received route and labels [200] after replacing [100]; its negative sends another prefix, requires two routes and the original prefix still bound to [200]. TestRFC8277VPNRelabelReplacesTheRoute sends SAFI-128 with fixed peer, RD, prefix, next hop and attributes, changing only label 100 to 200; it requires one stored route, lookup by the old labeled NLRI, an iteration returning only the new NLRI, and a second best-change naming that new NLRI. The post-lint vpnv4NLRI has removed only the constant /8 argument: length remains 96 and label/RD/prefix bytes remain unchanged. RouteKey strips label identity, insertOpaqueNoOp refuses the old-wire shortcut on relabel, and insertOpaque/setRouteNLRI stores the latest wire NLRI. Distinct same-prefix/different-prefix controls isolate implicit replacement and current assertions would fail on old-label retention or duplicate bindings. Existing enforced judgment is preserved after current source rejudgment; renew the existing VPN RouteKey discrimination record natively. This is no claim of generic VPN RS/RR withdrawal correctness; RFC8277-2.4-1 remains weak.",
@@ -146,7 +162,7 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "b185b12eb909f16a",
         "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath#2": "b185b12eb909f16a",
-        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute": "6000c2a21a7e5a47"
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute": "e55fba0b818b9f39"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "0c4f435dc21741b2",

@@ -196,7 +196,7 @@
       "claim-sha": "de89bbd0dc1520be",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-      "producer-sha": "1c87a9d9522cb3b4",
+      "producer-sha": "1fb012d9e446c1a5",
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "22632035ab80403c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-      "producer-sha": "1c87a9d9522cb3b4",
+      "producer-sha": "1fb012d9e446c1a5",
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -220,6 +220,18 @@
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
       "producer-sha": "7d637b6d32bc44a0",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.2-8",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci",
+      "unit-sha": "40f17ec4c38c6931",
+      "claim-sha": "4d4c00df1e5c94e5",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayWithdrawal",
+      "producer-sha": "817b432c02a94923",
+      "break": "body of buildRelayWithdrawal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0025020000000E800F0B40044700630004DEADBEEF"
     },
     {
       "rid": "RFC9552-5.2.1-1",

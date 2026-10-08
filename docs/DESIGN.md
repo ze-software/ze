@@ -309,9 +309,8 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | Plugin | Purpose |
 |--------|---------|
 | `bgp` | Core BGP speaker subsystem plugin |
-| `bgp-rib` | Route Information Base (received/sent routes) |
+| `bgp-rib` | Mandatory Route Information Base (received/sent routes, in-memory reconnect history) |
 | `bgp-adj-rib-in` | Adj-RIB-In with raw hex replay |
-| `bgp-persist` | Route persistence across restarts |
 | `bgp-rs` | Route server, client-to-client reflection (RFC 7947) |
 | `bgp-gr` | Graceful Restart (RFC 4724) + Long-Lived GR (RFC 9494) |
 | `bgp-route-refresh` | Route Refresh handling (RFC 2918, RFC 7313) |

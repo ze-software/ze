@@ -350,21 +350,87 @@ explicit next hop naming another router, even one on the shared link, is sent
 as its Global alone, length 16. RFC 2545 would want that router's own
 Link-Local there, which Ze never learns: a recorded gap, `RFC2545-3-6`.
 
-A relayed route under `next-hop unchanged` or `auto` keeps the next hop it was
-received with, with one removal. When that next hop is the 32-octet Global plus
-Link-Local pair (or the 48-octet VPN-IPv6 pair) and the destination is more
-than one IP hop away (no connected subnet holds its address), the Link-Local
-half is dropped and the Global goes alone, length 16 (24 with the RD).
-draft-ietf-idr-linklocal-capability Section 4 forbids a Link-Local next hop
-toward a multihop external peer and toward an internal peer more than one hop
-away, and RFC 2545 Section 3 includes it only when the speaker shares a subnet
-with the peer. A filter that writes a pair is cut the same way. A directly
-attached destination still receives the pair as it arrived. Both forward rails
-(general and route server) apply it.
+A relayed route under `next-hop unchanged` or `auto` keeps its effective next
+hop only if its wire form is usable. For a 32-octet pair (or a 48-octet VPN-IPv6
+pair), the first address must be IPv6 global unicast and the second must be
+IPv6 link-local unicast, apart from the canonical VPN exception below.
+Link-local, IPv4-mapped, loopback, unspecified and multicast first addresses
+cannot supply the ordinary pair's global slot. A global, unspecified,
+multicast or IPv4-mapped second address is also invalid. Either invalid slot
+causes a native withdrawal. Capability 77 does not legalize such a pair.
+The trimming boundary leaves an invalid pair intact for the shared withholding
+gate; it cannot silently turn it into a valid single-address form.
+
+For a valid pair, the implemented scope predicates require the destination and
+the global address each to belong to a locally connected prefix. If either
+predicate fails, the link-local half is dropped and the global goes alone,
+length 16 (24 with the RD). A filter-written pair is judged after the rewrite.
+Both forward rails apply these decisions without changing the cached input.
+The source peer's prefix does not establish the received next-hop entity's
+adjacency. These prefix-membership predicates and their tests do not establish
+whole RFC2545-3-3 entity adjacency: the scope snapshot has no identity linking a
+received global and link-local to an adjacent router, including one whose
+global identifier belongs to another interface. The separate third-party
+link-local discovery gap on locally constructed routes remains unchanged.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSubnetConditions -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSecondAddressValidated -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairFirstAddressValidated -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545EffectivePairPolicyAndMixedSibling -->
+
+These checks judge the effective pair after policy. A valid replacement of
+obsolete malformed input is announced; a malformed replacement of valid input
+is withdrawn. When legacy and MP announcements share the received UPDATE, a
+refused MP pair does not withdraw an independently valid legacy sibling.
+
+The global-unicast requirement also applies to a single IPv6 global next hop.
+The effective next-hop encoding, not the NLRI AFI, decides its address family:
+4/12-octet fields carry IPv4, while 16/24/32/48-octet fields carry IPv6.
+Loopback, unspecified and multicast addresses in an IPv6 encoding cause a
+native withdrawal even toward an on-link destination. A single sixteen-octet
+IPv4-mapped field remains valid for IPv6 unicast, multicast and labeled NLRI
+(RFC 8950 Section 1); a mapped-plus-link-local pair remains invalid. Native IPv4
+next hops remain outside that IPv6 check, including an IPv4 next hop for
+IPv6 SR Policy NLRI (RFC 9830 Section 2.1). Unmapping an address for identity
+comparison does not change its recorded wire family; an effective MP policy
+replacement updates both facts before admission.
+An MP rewrite is effective only when the source carries MP_REACH: the writer
+cannot create its NLRI from a next-hop operation alone. Configured IPv4 modes
+record both legacy and MP operations, but the unused MP operation does not
+impose IPv6 admission rules on a legacy-only route.
+
+For a configured IPv4 self or explicit rewrite, `applyFactsNextHop` selects the
+native four-octet MP form only when the existing next-hop length contract for
+that AFI/SAFI permits it. Admission and the delta writer consume that same
+operation, rather than judging a mapped IPv6 address and emitting something
+else. This includes IPv6 SR Policy, whose next-hop family is independent of its
+NLRI AFI; it does not flatten VPN framing or make a four-octet field valid for
+IPv6-unicast NLRI. Received or policy-written mapped fields are not normalized
+by this producer choice; their existing family profile decides admission.
+The mixed AIGP socket regression uses a genuine IPv6 self address for MP and an
+export rewrite to a local IPv4 interface for legacy NLRI. Both remain local
+next-hop changes, so initial forwarding and metric replay retain their distinct
+received-distance accumulation.
+`attribute.ValidNextHopLens` returns shared read-only length tables, so this
+per-destination family choice does not allocate or depend on compiler inlining.
+
+RFC 4659 Section 3.2.1.1 explicitly permits one VPN-IPv6 exception: the exact
+48-octet zero-RD plus unspecified
+Global, followed by zero-RD plus a valid Link-Local, when both established
+session endpoints use link-local IPv6 and the destination is on-link. Both
+forward rails retain that complete pair rather than trimming or withdrawing it.
+The session's captured local endpoint decides this, not a configured local
+address that disagrees with the connection. A single unspecified address,
+multicast, invalid second address or nonzero next-hop RD does not qualify.
+Capability 77's Link-Local-only form is a separate case.
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedUnusableGlobalRefused -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedSingleGlobalAddressValidated -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestSRPolicyNextHopWireFamily -->
+<!-- test: internal/component/bgp/reactor/rfc4659_link_local_peering_test.go TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair -->
 
 When the received next hop is Link-Local-only (16 octets, or 24 with the RD),
-or its Global half is the unspecified address `::`, there is no Global to keep. Towards a destination more than one hop away the
-route is then withheld, under any next-hop mode that leaves the received next
+there is no Global to keep. Towards a destination more than one hop away the
+route is withheld, under any next-hop mode that leaves the received next
 hop in place, and a warning names the peer: "withholding route: its next hop is
 link-local-only and this peer is more than one IP hop away". Section 4: "If,
 after completing these procedures, there are no IPv6 next hop addresses included
@@ -388,7 +454,9 @@ communities, RFC 7947 control communities, a genuine egress policy reject, and
 the next-hop gates (next-hop self with no local address, a next hop that is the
 peer's own address, a reflected Link-Local-only next hop off the advertiser's
 segment, a Link-Local-only next hop towards a multihop peer, RFC 8950 without
-Extended Next Hop, a Link-Local-only next hop without capability 77). The
+Extended Next Hop, a Link-Local-only next hop without capability 77, or an
+unusable unspecified or multicast IPv6 Global, excluding the RFC 4659
+link-local-peering exception above). The
 destination may hold the previous generation of the route. The final writer
 therefore admits each synthesized withdrawal when its route is absent or still
 owned by that received source path, but refuses it when another source or a

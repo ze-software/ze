@@ -502,14 +502,14 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 		r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
 	}
 	sourceIndex := 0
-	_, err := split(nlriData, addPath, func(raw []byte) {
+	_, err := split(nlriData, addPath, func(raw []byte) bool {
 		stored := entry
 		setSentPathSource(&stored, fam, ordinal, sources, &sourceIndex)
 		ordinal++
 		key, valid := ribOutRouteKey(fam, raw, addPath)
 		if !valid {
 			logger().Warn("sent: invalid NLRI key", "family", fam)
-			return
+			return true
 		}
 		old, existed := r.ribOut[peerAddr][fam][key]
 		stored.AddPath = addPath
@@ -528,6 +528,7 @@ func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nl
 			_ = pool.RibOut.AddRef(stored.AttrHandle)
 		}
 		r.ribOut[peerAddr][fam][key] = stored
+		return true
 	})
 	if err != nil {
 		logger().Warn("sent: invalid NLRI framing", "family", fam, "error", err)
@@ -548,16 +549,17 @@ func (r *RIBManager) removeSentNLRIs(peerAddr netip.Addr, fam family.Family, wdD
 		logger().Warn("sent withdrawal: unsupported NLRI family", "family", fam)
 		return
 	}
-	_, err := split(wdData, addPath, func(raw []byte) {
+	_, err := split(wdData, addPath, func(raw []byte) bool {
 		key, valid := ribOutRouteKeyForAction(fam, raw, addPath, true)
 		if !valid {
 			logger().Warn("sent withdrawal: invalid NLRI key", "family", fam)
-			return
+			return true
 		}
 		if old, exists := familyRoutes[key]; exists {
 			old.release()
 			delete(familyRoutes, key)
 		}
+		return true
 	})
 	if err != nil {
 		logger().Warn("sent withdrawal: invalid NLRI framing", "family", fam, "error", err)

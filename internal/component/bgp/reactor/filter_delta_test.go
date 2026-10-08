@@ -999,43 +999,78 @@ func payloadASPathValue(t testing.TB, payload []byte) []byte {
 	return nil
 }
 
-// TestRewriteASPathOverride verifies AS-override replaces peer ASN with local ASN.
-//
-// VALIDATES: AC-12 (as-override replaces peer ASN in AS_PATH).
-// PREVENTS: Wrong ASN replaced, or no replacement when needed.
-func TestRewriteASPathOverride(t *testing.T) {
-	t.Run("replaces peer ASN", func(t *testing.T) {
-		// AS_SEQUENCE: type=2, len=3, ASNs: 65001, 65002, 65001
-		data := []byte{
-			2, 3, // type=AS_SEQUENCE, length=3
-			0, 0, 0xFD, 0xE9, // 65001
-			0, 0, 0xFD, 0xEA, // 65002
-			0, 0, 0xFD, 0xE9, // 65001
-		}
-		result := rewriteASPathOverride(data, 65001, 65000, true)
-		require.NotNil(t, result)
-		// Both 65001 occurrences replaced with 65000.
-		assert.Equal(t, byte(0xFD), result[4])
-		assert.Equal(t, byte(0xE8), result[5]) // 65000
-		assert.Equal(t, byte(0xFD), result[8])
-		assert.Equal(t, byte(0xEA), result[9]) // 65002 unchanged
-		assert.Equal(t, byte(0xFD), result[12])
-		assert.Equal(t, byte(0xE8), result[13]) // 65000
-	})
-
-	t.Run("no match returns nil", func(t *testing.T) {
-		data := []byte{
-			2, 1,
-			0, 0, 0xFD, 0xEA, // 65002 only
-		}
-		result := rewriteASPathOverride(data, 65001, 65000, true)
-		assert.Nil(t, result, "no match should return nil")
-	})
-
-	t.Run("empty data", func(t *testing.T) {
-		result := rewriteASPathOverride(nil, 65001, 65000, true)
-		assert.Nil(t, result)
-	})
+// TestASOverrideUsesAttributeValue crosses the attribute-span boundary. Both TLV
+// header forms preserve every segment; the writer changes neither matching nor
+// absent-target source bytes.
+func TestASOverrideUsesAttributeValue(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		asn4  bool
+		value []byte
+		want  []byte
+	}{
+		{
+			name:  "asn2",
+			value: []byte{2, 2, 0xfd, 0xea, 0xfd, 0xe9},
+			want:  []byte{2, 2, 0xfd, 0xe8, 0xfd, 0xe9},
+		},
+		{
+			name:  "asn4",
+			asn4:  true,
+			value: []byte{2, 2, 0, 0, 0xfd, 0xea, 0, 0, 0xfd, 0xe9},
+			want:  []byte{2, 2, 0, 0, 0xfd, 0xe8, 0, 0, 0xfd, 0xe9},
+		},
+		{
+			name:  "repeated-target",
+			asn4:  true,
+			value: []byte{2, 3, 0, 0, 0xfd, 0xea, 0, 0, 0xfd, 0xe9, 0, 0, 0xfd, 0xea},
+			want:  []byte{2, 3, 0, 0, 0xfd, 0xe8, 0, 0, 0xfd, 0xe9, 0, 0, 0xfd, 0xe8},
+		},
+		{name: "empty"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, extended := range []bool{false, true} {
+				t.Run(fmt.Sprint("extended=", extended), func(t *testing.T) {
+					attrs := makeAttr(0x40, byte(attribute.AttrASPath), tc.value)
+					if extended {
+						// RFC 4271 Section 4.3: Extended Length uses two length octets.
+						attrs = append([]byte{0x50, byte(attribute.AttrASPath), 0, byte(len(tc.value))}, tc.value...)
+					}
+					payload := buildUpdatePayload(attrs, modTestNLRI)
+					original := slices.Clone(payload)
+					var edit wireu.ASPathEdit
+					var mods filterapi.ModAccumulator
+					changed, err := edit.Record(&mods, payload, wireu.ASPathIntent{
+						SrcASN4: tc.asn4, DstASN4: tc.asn4, OverridePeerAS: 65002, OverrideLocalAS: 65000,
+					})
+					require.NoError(t, err)
+					if len(tc.value) == 0 {
+						require.False(t, changed)
+						require.Zero(t, mods.Len())
+					} else {
+						require.True(t, changed)
+						result, _, failed := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+						require.False(t, failed.failed())
+						require.Equal(t, tc.want, payloadASPathValue(t, result))
+					}
+					if !slices.Equal(payload, original) {
+						t.Fatal("override changed shared source bytes")
+					}
+					mods.Reset()
+					_, err = edit.Record(&mods, payload, wireu.ASPathIntent{
+						SrcASN4: tc.asn4, DstASN4: tc.asn4, OverridePeerAS: 65003, OverrideLocalAS: 65000,
+					})
+					require.NoError(t, err)
+					if mods.Len() != 0 {
+						t.Errorf("absent target produced %d operations", mods.Len())
+					}
+					if !slices.Equal(payload, original) {
+						t.Fatal("absent-target control changed shared source bytes")
+					}
+				})
+			}
+		})
+	}
 }
 
 // VALIDATES: AC-7 -- community-add directive emits AttrModAdd.

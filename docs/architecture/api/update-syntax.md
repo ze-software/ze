@@ -453,6 +453,14 @@ nlri ipv4/unicast add 18010a00 18020b00
 nlri ipv4/unicast add 18010a0018020b00
 ```
 
+For `update hex` and `update b64`, each NLRI token may hold one route or a
+concatenated section. The parser uses the family's registered native framer,
+including MUP's four-octet header, and rejects an unsupported family or a
+truncated section. `addpath` keeps the four-octet Path Identifier on every
+route; zero is a valid identifier. `del` selects withdrawal framing so a
+labeled Compatibility field is not interpreted as an announcement label stack.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_wire.go -- parseWireNLRISection, splitWireNLRIs -->
+
 ## Received UPDATE Output
 
 **Text format:**

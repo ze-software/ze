@@ -87,14 +87,11 @@ func TestForwardPathIDsDifferForCollidingSources(t *testing.T) {
 // PREVENTS: a generator that mints per message. The receiver keys its table on
 // (prefix, Path Identifier), so a fresh identifier on each refresh accumulates one
 // table entry per UPDATE instead of replacing the path.
-// RFC requirement: RFC7911-2-2 negative -- the re-advertised identifier is NOT the
-// received one. The body asserts that half beside the stability half, because
-// neither is sufficient alone: copying the source's value is trivially stable,
-// and a per-message counter is trivially not the received one.
-//
-// The received identifier is 0xDEADBEEF rather than a small number so that
-// "the emitted value is not the received value" cannot pass by a generator
-// happening to mint the same low integer the source chose.
+// RFC requirement: RFC7911-2-2 negative -- a colliding identifier from another
+// source cannot replace this path, and repeated advertisements cannot create
+// additional paths. Numerical equality with a received identifier is permitted.
+// MUTATION: Relay the received identifier instead of generating it; the two
+// sources then collide. Mint on every UPDATE instead; the repeat then moves.
 //
 // RFC requirement: RFC7911-2-1 positive -- one path re-advertised to one neighbor
 // leaves under the same ze-assigned identifier both times, so (Prefix, Path Identifier)
@@ -105,26 +102,19 @@ func TestForwardPathIDStableAcrossUpdates(t *testing.T) {
 	peer := forwardBodyTestPeer(ctx, ctxID)
 
 	const receivedPathID = 0xDEADBEEF
-	body := pathIDTestBody(t, 65001, receivedPathID)
-
-	firstResult, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.11"), &fwdParseCache{})
-	require.True(t, ok, "first advertisement must forward")
-	defer returnReadBuffer(firstResult.transcodeBuf)
-	secondResult, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.11"), &fwdParseCache{})
-	require.True(t, ok, "re-advertisement of the same path must forward")
-	defer returnReadBuffer(secondResult.transcodeBuf)
-
-	first := forwardedPathID(t, firstResult)
-	second := forwardedPathID(t, secondResult)
-	require.NotEqual(t, uint32(receivedPathID), first,
-		"the re-advertised Path Identifier is the received one, so ze is advertising a value it does not own")
+	firstWire := fwdPathIDWire(pathIDTestBody(t, 65001, receivedPathID), ctxID, fwdTestSourceA)
+	otherWire := fwdPathIDWire(pathIDTestBody(t, 65002, receivedPathID), ctxID, fwdTestSourceB)
+	first := fwdForwardOnePathID(t, firstWire, ctxID, peer)
+	other := fwdForwardOnePathID(t, otherWire, ctxID, peer)
+	second := fwdForwardOnePathID(t, firstWire, ctxID, peer)
+	require.NotEqual(t, first, other, "the same received identifier at two sources must not merge their paths")
 	require.Equal(t, first, second,
 		"the same path left with two different Path Identifiers, so a refresh reads as a new path at the receiver")
 }
 
 // pathIDTestBody builds an UPDATE body announcing 10.0.0.0/24 with the given
-// ADD-PATH Path Identifier, from the given source AS. The AS number is what makes
-// two otherwise identical announcements two distinct paths.
+// ADD-PATH Path Identifier and AS_PATH.
+// WireUpdate's SourceID, not the AS number, identifies the ingress peer.
 func pathIDTestBody(t *testing.T, sourceAS, pathID uint32) []byte {
 	t.Helper()
 	var pathIDBytes [4]byte
@@ -152,8 +142,9 @@ func forwardedPathID(t *testing.T, result fwdBodyResult) uint32 {
 	}
 
 	iter := nlri.NewNLRIIterator(nlriBytes, true)
-	_, pathID, ok := iter.Next()
+	prefix, pathID, ok := iter.Next()
 	require.True(t, ok, "destination frame carries no NLRI")
+	require.Equal(t, fwdPathIDBareNLRI(), prefix, "the generated identifier must accompany the original native prefix")
 	_, _, more := iter.Next()
 	require.False(t, more, "test fixture must announce one prefix")
 	require.Zero(t, iter.Remaining(), "destination NLRI is malformed")

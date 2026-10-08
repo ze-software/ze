@@ -157,7 +157,7 @@
       "quote": "It MUST be all bytes zero otherwise.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "the all-zero-otherwise half of the ESI constraint the row already states: \"ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise\"",
+      "reason": "The restored RFC9136-3.1-4 quotation includes the ESI antecedent and this complete second sentence: \"It MUST be all bytes zero otherwise.\" Both sites therefore target the same two-part ESI constraint; its Overlay Index implementation gap remains.",
       "mapped-to": "RFC9136-3.1-4"
     },
     {

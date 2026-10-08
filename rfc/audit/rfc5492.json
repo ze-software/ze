@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-08",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -11,8 +12,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
-        "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "18bc1871ceb5610d",
-        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "ac1b8bb6f2a0be51"
+        "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "aeb6993b67f2a376",
+        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "00ea84393819df2b"
       },
       "units": {
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
@@ -26,8 +27,8 @@
       "note": "Session level via handleOpen. Positive: unrecognized codes 253/254 interleaved with MP IPv4 and required Route Refresh -> OpenConfirm, one KEEPALIVE, known capabilities negotiated. Negative (R1(b)): code 254 carrying the MP IPv6 value -> accepted but IPv6 not negotiated. Judge breaks: unrecognized 4-octet value parsed as Multiprotocol turned the negative red; unrecognized capability refused turned the positive red. HEAD negative TestParseRejectsMalformedKnownCapabilityLength concerns known capabilities and is supplementary.",
       "requirement_sha": "a4756f2db7068a2d",
       "tests": {
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "c39f47f1420a369e",
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "c39f47f1420a369e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "38d39a330e488737",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "38d39a330e488737",
         "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "3b6ab22b8c99761b",
         "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "3b6ab22b8c99761b"
       },
@@ -43,7 +44,7 @@
       "note": "Forbidden: terminating the session because a received capability is not supported. TestOpenIgnoresUnknownCapability sends an OPEN with code 254 and asserts handleOpen returns nil, state OpenConfirm then Established after KEEPALIVE, and s.Conn() is the same connection. {single-polarity: positive} is justified: a prohibition with no conforming termination input.",
       "requirement_sha": "01756f2830fd72b5",
       "tests": {
-        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "44d90c337eb5fecd"
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "c387bdc6c423bd19"
       },
       "units": {
         "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"
@@ -54,7 +55,7 @@
       "note": "Quote now covers both halves: no Unsupported Capability NOTIFICATION and no termination for an unsupported capability. TestOpenIgnoresUnknownCapability asserts the bytes written after the OPEN are exactly one KEEPALIVE (Len HeaderLen, type KEEPALIVE) and unchanged after establishment (no NOTIFICATION), and that the connection survives to Established. Single-polarity marker present.",
       "requirement_sha": "bfdbf5c628cce4f6",
       "tests": {
-        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "44d90c337eb5fecd"
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "c387bdc6c423bd19"
       },
       "units": {
         "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"
@@ -65,7 +66,7 @@
       "note": "Row single-polarity positive. TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession sends Route Refresh x3 and each MP TLV twice through handleOpen -> OpenConfirm, one KEEPALIVE, all negotiated; closes the session-level gap. Parser-level tag kept as supplementary.",
       "requirement_sha": "2ad7c926df955bc6",
       "tests": {
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "c39f47f1420a369e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "38d39a330e488737",
         "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "3b6ab22b8c99761b"
       },
       "units": {
@@ -78,8 +79,8 @@
       "note": "RFC 5492 \u00a74, rfc/full/rfc5492.txt:201-211: 'However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs.' The next sentence requires processing the capability set the same way whether combined or split. Read all four units. internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters requires exactly two decoded capabilities, first Multiprotocol IPv4/unicast and second ASN4=65002. ::TestOptionalParamRejectsTruncatedCapabilityTLV requires ErrShortRead, but its outer parameter length is itself truncated: this supplementary unit does NOT independently isolate inner-TLV validation and its prose must not be credited as doing so. internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters sends RR, Extended Message and unknown 254 in three parameters and requires OpenConfirm, exactly one KEEPALIVE, RR and both ExtendedMessageRecv/Send flags. ::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing varies which required capability is present across two parameters and requires Idle and exact NOTIFICATION 2/7 Data [6,0] or [2,0], naming only the capability absent from the entire parameter population.\nProducer path read: capability.go::ParseFromOptionalParams bounds-checks and loops over every parameter, appending Parse results; session_open_as.go::validateOpenPeerAS returns the full list; session_handlers.go::handleOpen passes it to session_negotiate.go::negotiateWith, then validates required modes and advances. Unknown code 254 remains external protocol input, not an impossible closed-enum value. Q1 yes collectively; Q2 yes: returning after the first parameter changes negotiated flags and exact missing-capability Data; Q3 yes for the session pair, with the confounded supplemental malformed parser fixture disclosed; Q4 yes for split-parameter acceptance. The missing-capability negatives are policy-boundary controls, not a claim that multiple parameters themselves warrant rejection. No current semantic overlay was executed.\nPending note: retain enforced with the exact session assertions and parser-fixture limitation above; no claim of newly observed discrimination or live-peer acceptance.",
       "requirement_sha": "3ac3408f07f25667",
       "tests": {
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "c39f47f1420a369e",
-        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "c39f47f1420a369e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "38d39a330e488737",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "38d39a330e488737",
         "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "3b6ab22b8c99761b",
         "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "3b6ab22b8c99761b"
       },
@@ -92,21 +93,29 @@
       "verdict": "enforced"
     },
     "RFC5492-5-1": {
-      "note": "Forbidden: Data that does not list the set of capabilities that caused the NOTIFICATION. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet asserts the sent NOTIFICATION's Data octets exactly: both missing -> 02 00 06 00 (the whole set), one missing -> 06 00 only (the causing set, not the required set). Builder-level units remain as supporting evidence.",
-      "requirement_sha": "9bc3c195e5857c2d",
+      "note": "Independently rejudged both RFC5492 Section 5 sentences, requiring the complete causing set and each capability's OPEN encoding; the existing positive/negative TestRFC5492UnsupportedCapabilityDataListsTheCausingSet covers exactly both missing zero-length capabilities, only the still-missing capability, exclusion of an unknown capability, and acceptance when both requirements are met; the three existing builder carriers support ASN4 value retention, empty-valued capability tuples, and empty selection; TestUnsupportedCapabilityNotificationPreservesOpenTuples adds fourteen actual-OPEN cases across handleOpen and processOpen, asserting exact code/length/original local-required or peer-refused values, satisfied/noncausing-code exclusion, repeated Graceful Restart instances, ADD-PATH directions, and variable-length hostname; TestUnsupportedAddPathNotificationPreservesFamilyTuples adds eight actual-OPEN cases covering local-required and peer-refused family directions, exclusion of unrelated families, preserved repeated-instance grouping, and exact complete 3771-byte NOTIFICATIONs from bounded extended-parameter OPENs; buildUnsupportedCapabilityDataCodes uses the parsed actual OPEN capabilities and buildUnsupportedAddPathData retains original grouping, so filtered Data does not expand beyond the source capability bytes; Main's original before/after logs demonstrate the value/direction repairs, job-capability-repeated-grouping-before-89321fb3.log demonstrates all four added grouping cases failing with the 5601/4096 panic, and job-lifecycle-capability-bounded-after-12720db6.log records all fourteen generic and eight family cases passing after repair; these observations are executed proof only, and fresh native discrimination records for new/changed tags remain Main-owned debt before canonical closure.",
+      "requirement_sha": "52485c7d9b26a4db",
       "tests": {
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples": "38d39a330e488737",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples#2": "38d39a330e488737",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedCapabilityNotificationPreservesOpenTuples": "38d39a330e488737",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedCapabilityNotificationPreservesOpenTuples#2": "38d39a330e488737",
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
-        "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "18bc1871ceb5610d",
-        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "ac1b8bb6f2a0be51",
-        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "ac1b8bb6f2a0be51"
+        "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "aeb6993b67f2a376",
+        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "00ea84393819df2b",
+        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "00ea84393819df2b"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples": "1dde6d8ef56d31a9",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples#2": "1dde6d8ef56d31a9",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedCapabilityNotificationPreservesOpenTuples": "f9d31740ce523698",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedCapabilityNotificationPreservesOpenTuples#2": "f9d31740ce523698",
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
         "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
-        "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "aa9265b2087c9bf9",
-        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "8bc8182d4b9a945a",
-        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "ab4bea63254fbb32"
+        "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "0baf6cbaff2ba981",
+        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "17d41d98acd3b70b",
+        "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "e2f64b12b608d642"
       },
       "verdict": "enforced"
     },
@@ -114,7 +123,7 @@
       "note": "Clause 1 (Unsupported Capability MUST NOT be used for a capability not understood): TestOpenIgnoresUnknownCapability asserts only a KEEPALIVE is written for an OPEN with code 254. Clause 2 (such capabilities MUST be ignored): the same unit asserts the following Route Refresh TLV is negotiated and the session reaches Established. Single-polarity marker present.",
       "requirement_sha": "31d1a170026868a1",
       "tests": {
-        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "44d90c337eb5fecd"
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "c387bdc6c423bd19"
       },
       "units": {
         "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"

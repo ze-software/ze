@@ -212,10 +212,32 @@
     },
     {
       "rid": "RFC8277-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility",
+      "unit-sha": "ecd93ff8f0ad1b12",
+      "claim-sha": "a75782ada515c646",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::LabeledWithdrawnPrefix",
+      "producer-sha": "0b7ea75853f3f46d",
+      "break": "body of LabeledWithdrawnPrefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility",
       "unit-sha": "69670219b06fe75b",
       "claim-sha": "da5f630c5ec79e51",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::LabeledWithdrawnPrefix",
+      "producer-sha": "0b7ea75853f3f46d",
+      "break": "body of LabeledWithdrawnPrefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility",
+      "unit-sha": "6c40504ccd60119b",
+      "claim-sha": "e678d54ab641565c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::LabeledWithdrawnPrefix",
       "producer-sha": "0b7ea75853f3f46d",
@@ -234,10 +256,32 @@
     },
     {
       "rid": "RFC8277-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue",
+      "unit-sha": "d3fd59717609b9e1",
+      "claim-sha": "861c968f2137b361",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::Withdraw",
+      "producer-sha": "94a63dd6b94eac2b",
+      "break": "body of Withdraw replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE",
       "unit-sha": "991037d1054df529",
       "claim-sha": "436406a089bf8130",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::Withdraw",
+      "producer-sha": "94a63dd6b94eac2b",
+      "break": "body of Withdraw replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE",
+      "unit-sha": "d70543fa151f168c",
+      "claim-sha": "de3ab6cead37551a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::Withdraw",
       "producer-sha": "94a63dd6b94eac2b",
@@ -289,6 +333,17 @@
     },
     {
       "rid": "RFC8277-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap",
+      "unit-sha": "ae9a17c3627587c9",
+      "claim-sha": "0f4f2fe8c7cb289a",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
+      "producer-sha": "2f44d929356e14e0",
+      "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes",
       "unit-sha": "f3a4d141f8a271fe",
@@ -330,6 +385,17 @@
       "producer": "internal/component/bgp/plugins/rs/server_inventory.go::opaqueRouteCIDR",
       "producer-sha": "e0fac1c4e988d2c3",
       "break": "body of opaqueRouteCIDR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet",
+      "unit-sha": "b08214810382f89b",
+      "claim-sha": "21320e062f148295",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
+      "producer-sha": "2f44d929356e14e0",
+      "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8277-2.4-1",
@@ -378,7 +444,7 @@
     {
       "rid": "RFC8277-2.4-1",
       "polarity": "positive",
-      "unit": "internal/component/plugin/ipc/rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers",
+      "unit": "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers",
       "unit-sha": "75b7e60df8c1041e",
       "claim-sha": "1d3307b221623ca8",
       "route": "revert",
@@ -389,7 +455,7 @@
     {
       "rid": "RFC8277-2.4-1",
       "polarity": "negative",
-      "unit": "internal/component/plugin/ipc/rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers",
+      "unit": "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers",
       "unit-sha": "75b7e60df8c1041e",
       "claim-sha": "b0f2dce09afb957c",
       "route": "revert",

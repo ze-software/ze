@@ -121,14 +121,28 @@ The sent-route view exposes opaque bytes as `raw-nlri` with `add-path` when
 present; its prefix column is the hex representation rather than an invalid
 IP prefix.
 
-GR/LLGR lifecycle commands reconcile that inventory against the received source
-under `peerMu`, using semantic identity plus received generation. The temporary
-index is discarded after each operation, not maintained as a second lifecycle
-store. Labeled received CIDR keys and sent native keys are normalized for this
-comparison. Community changes intern a replacement immutable blob before
-releasing the entry's old reference. Purges encode their withdrawals before
-releasing the removed references, then dispatch after unlocking. Lifecycle
-feedback is ignored so it cannot delete another source's newer advertisement.
+GR/LLGR EOR purge, expiry and NO_LLGR deletion select and remove received paths
+under the same `PeerRIB` storage lock used by received inserts. `peerMu` alone
+does not exclude those inserts. A callback records only successfully removed
+owners while that storage lock is held; it does not dispatch or reacquire the
+storage lock. Sent cleanup matches only those owners: semantic identity,
+received ADD-PATH presence and identifier, and received
+generation. The identifier cannot be discarded: one UPDATE can announce several
+paths for the same prefix, and one can refresh before another is purged.
+The temporary index dies with the operation; it is not a second lifecycle store.
+Labeled received CIDR keys and sent native keys are normalized for comparison.
+
+A fresh received route can precede both RS forwarding and the asynchronous sent
+projection. An old sent generation missing from the current received table is
+therefore not itself a withdrawal instruction. Cleanup leaves that projection
+alone unless the operation actually removed its received owner. Community
+attachment changes only exact matching stale paths and emits no withdrawals.
+Family pruning leaves kept families alone, while explicit release removes the
+source's whole sent inventory. Community changes intern an immutable replacement
+before releasing the old reference. Removal encodes withdrawals and captures the
+actual sent receipt before releasing entries, then dispatches after unlocking.
+The unchanged final writer receipt check refuses obsolete cleanup after a newer
+advertisement. Lifecycle feedback cannot delete that newer ownership.
 
 GR supplies the explicit `on-down` argument with its initial retention allowlist.
 That handoff leaves nonretained sent entries in place until the forwarding owner
@@ -140,7 +154,8 @@ expiry and release encode their source-specific withdrawals here.
 
 <!-- source: internal/component/bgp/plugins/rib/ribout_entry.go -- ribOutRouteKey, reconstructRoute -->
 <!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- storeSentEntries, removeSentNLRIs -->
-<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- reconcileSentSourceLocked, dispatchSentLifecycle -->
+<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- withdrawRemovedSentLocked, pruneSentSourceLocked, attachSentSourceCommunityLocked, dispatchSentLifecycle -->
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- RemoveFamilyMatching -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- formatCursorCommands -->
 
 ### Source-DOWN replacement and sent ordering

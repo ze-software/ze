@@ -160,11 +160,20 @@ text-mode filter judges.
 
 ### Where it runs
 
-The reconciliation runs ONCE, at ingest, over the received UPDATE payload, and
-everything downstream of it reads one four-octet truth. `Session.processMessage`
-calls `collapseASPathFamily` after RFC 7606 enforcement and before the import
-policy chain; that calls `wireu.CollapseAS4Family`, which rewrites the payload
-and calls `attribute.ReconcileASPathFamily` for the rule itself.
+The reconciliation runs once at ingest, and everything downstream reads one
+four-octet truth. Potentially coalescible announcements prepare it after RFC 7606
+classification but before the first-AS check can reject the original message.
+`collapseASPathFamily` then encodes that prepared result after enforcement.
+Other UPDATEs use `wireu.CollapseAS4Family` to prepare and encode together.
+Both paths call `attribute.ReconcileASPathFamily` for the rule itself.
+
+`AS4FamilyPlan` retains reconstructed values it owns. Values already in canonical
+form, including a selected AS4_AGGREGATOR, are retained as offsets rather than
+borrowed slices. Encoding rebinds them to the current payload, even if new
+withdrawals moved its attribute section. This lets coalescing recycle the
+original read buffer without repeating reconciliation or copying that buffer.
+`TestAS4FamilyPlanRebindsPayload` clears the original buffer before encoding a
+replacement payload with a moved attribute section.
 
 No AS4_PATH and no AS4_AGGREGATOR survives that step. RFC 6793 Section 4.1
 forbids carrying either between NEW BGP speakers, and everything downstream of
@@ -182,7 +191,9 @@ The bytes an observer records are NOT the reconciled ones. `processMessage`
 hands `onMessageReceived` the socket's own body beside the reconciled
 `WireUpdate`, so an MRT archive and a pcap keep recording what the peer sent.
 <!-- source: internal/component/bgp/reactor/session_read.go -- collapseASPathFamily -->
-<!-- source: internal/component/bgp/wireu/aspath_collapse.go -- CollapseAS4Family -->
+<!-- source: internal/component/bgp/wireu/aspath_collapse.go -- CollapseAS4Family, PrepareAS4Family, AS4FamilyPlan -->
+<!-- source: internal/component/bgp/reactor/session_validation_receive.go -- prepareRFC7606FirstAS -->
+<!-- source: internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go -- TestAS4FamilyPlanRebindsPayload -->
 
 ### What it costs
 

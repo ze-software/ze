@@ -341,19 +341,19 @@ func TestLocRIBPublicationConcurrentMirrors(t *testing.T) {
 	workers.Go(func() {
 		for range 128 {
 			r.insertLocRIB(family.IPv4Unicast, prefix, locrib.Path{
-				Source: bgpProtocolID, NextHop: netip.MustParseAddr("192.0.2.1"), AdminDistance: 20,
+				Source: bgpProtocolID, NextHop: netip.MustParseAddr("192.0.2.1"), IsBGP: true, IsEBGP: true,
 			}, nil)
 			r.removeLocRIB(family.IPv4Unicast, prefix)
 		}
 	})
 	workers.Wait()
 	path := locrib.Path{
-		Source: bgpProtocolID, NextHop: netip.MustParseAddr("192.0.2.1"), AdminDistance: 20,
+		Source: bgpProtocolID, NextHop: netip.MustParseAddr("192.0.2.1"), IsBGP: true, IsEBGP: true,
 	}
 	r.SetLocRIB(loc)
 	r.insertLocRIB(family.IPv4Unicast, prefix, path, nil)
 	if !loc.Inspect(family.IPv4Unicast, prefix, func(group locrib.PathGroup) {
-		if len(group.Paths) != 1 || group.Paths[0].NextHop != path.NextHop || group.Paths[0].AdminDistance != path.AdminDistance {
+		if len(group.Paths) != 1 || group.Paths[0].NextHop != path.NextHop || group.Paths[0].AdminDistance != 20 {
 			t.Errorf("published route differs after concurrent mirror changes: %+v", group.Paths)
 		}
 	}) {

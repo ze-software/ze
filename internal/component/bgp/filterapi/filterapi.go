@@ -368,6 +368,21 @@ func (a *ModAccumulator) OpCopy(code, action uint8, buf []byte) {
 // Returns nil if no ops have been accumulated.
 func (a *ModAccumulator) Ops() []AttrOp { return a.ops }
 
+// RemoveOps consumes the operations for code after a producer has folded them
+// into a replacement. Other attributes retain their ordering and generator
+// indexes. Generators remain owned by the accumulator until Reset.
+func (a *ModAccumulator) RemoveOps(code uint8) {
+	n := 0
+	for _, op := range a.ops {
+		if op.Code != code {
+			a.ops[n] = op
+			n++
+		}
+	}
+	clear(a.ops[n:])
+	a.ops = a.ops[:n]
+}
+
 // SetWithdraw marks this route for withdrawal conversion.
 // The forward path will convert the announce UPDATE to a withdrawal
 // for this destination peer. Used by LLGR egress filter (RFC 9494)

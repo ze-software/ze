@@ -2,9 +2,9 @@
 // RFC: rfc/short/rfc6793.md -- AS4_PATH reconstruction and the NEW-speaker discard
 // Related: aspath_collapse.go -- CollapseAS4Family, the payload rewrite under test
 //
-// Every test here drives CollapseAS4Family over a whole UPDATE payload, so an
-// arm of the reconciliation is judged by the bytes a peer would receive rather
-// than by the value the rule returned. The entry-point tests that prove a
+// These tests encode whole UPDATE payloads, so an arm of reconciliation is
+// judged by the bytes a peer would receive, including deferred encoding after
+// the original buffer is recycled. The entry-point tests that prove a
 // received UPDATE reaches this code at all live in
 // internal/component/bgp/reactor/as4_ingest_collapse_test.go.
 
@@ -772,4 +772,45 @@ func FuzzCollapseAS4(f *testing.F) {
 			}
 		}
 	})
+}
+
+// TestAS4FamilyPlanRebindsPayload pins deferred encoding's buffer ownership.
+// Reusing a returned receive buffer must not corrupt a cached canonical path or
+// a selected AS4_AGGREGATOR, including when withdrawals move the attribute section.
+func TestAS4FamilyPlanRebindsPayload(t *testing.T) {
+	for _, srcASN4 := range []bool{false, true} {
+		name, octets, pathTail, aggAS := "old", 2, collapseASTrans, collapseASTrans
+		if srcASN4 {
+			name, octets, pathTail, aggAS = "new", 4, collapseRealAS, collapseRealAS
+		}
+		t.Run(name, func(t *testing.T) {
+			attrs := collapseWellKnown()
+			attrs = append(attrs, collapseAttrWire(attribute.FlagTransitive, attribute.AttrASPath,
+				collapsePathValue(octets, collapseSeq(collapseMappableAS, pathTail)))...)
+			attrs = append(attrs, collapseAttrWire(attribute.FlagOptional|attribute.FlagTransitive,
+				attribute.AttrAggregator, collapseAggValue(octets, aggAS))...)
+			attrs = append(attrs, collapseAttrWire(attribute.FlagOptional|attribute.FlagTransitive,
+				attribute.AttrAS4Path, collapsePathValue(4, collapseSeq(collapseMappableAS, collapseRealAS)))...)
+			attrs = append(attrs, collapseAttrWire(attribute.FlagOptional|attribute.FlagTransitive,
+				attribute.AttrAS4Aggregator, collapseAggValue(4, collapseRealAS))...)
+			original := baseTestBody(attrs, collapseNLRI)
+			plan, err := PrepareAS4Family(original, srcASN4)
+			require.NoError(t, err)
+			require.Equal(t, collapsePathValue(4, collapseSeq(collapseMappableAS, collapseRealAS)), plan.ASPath(original))
+			clear(original)
+
+			body := baseTestBody(attrs, append(append([]byte(nil), collapseNLRI...), 0))
+			withdrawn := []byte{24, 203, 0, 113}
+			rebound := make([]byte, len(body)+len(withdrawn))
+			binary.BigEndian.PutUint16(rebound[:2], uint16(len(withdrawn)))
+			copy(rebound[2:], withdrawn)
+			copy(rebound[2+len(withdrawn):], body[2:])
+			want, wantDiscards := collapseRun(t, rebound, srcASN4)
+			dst := make([]byte, CollapseAS4FamilySize(rebound))
+			n, discards, err := plan.WriteTo(dst, rebound)
+			require.NoError(t, err)
+			require.Equal(t, want, dst[:n])
+			require.Equal(t, wantDiscards, discards)
+		})
+	}
 }

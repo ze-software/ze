@@ -600,21 +600,36 @@ announcement, 0x800000 reads as a label entry with the S bit clear and the
 reader runs past the NLRI. Any other family's withdrawal stays an opaque
 `WireNLRI`.
 
+Inventory and wire commands use that same registered framing. The route server
+retains each already-framed `WireNLRI` as one native hex identity, including
+its negotiated Path Identifier; it refuses malformed, unsupported, or
+multi-route carriers rather than reinterpreting them as CIDR bytes. Wire
+commands accept concatenated routes and select the registered announcement or
+withdrawal walk from `add` or `del`. MUP therefore keeps its complete
+four-octet envelope (`architecture:1`, `route-type:2`, `length:1`) and body
+through inventory and peer-down command parsing.
+
+<!-- source: internal/component/bgp/plugins/cmd/update/update_wire.go -- splitWireNLRIs -->
+
 An `INET` is never handed to a plugin family's decoder (`appendNLRIJSONValue`).
 Its `Bytes` are the CIDR, not the family's wire form, so a labeled decoder would
 read the prefix octets as a label stack. `WireNLRI.String` names a route of a
-CIDR-keyed family by its prefix, the way `INET.String` does, so a consumer keyed
-on the name (the route reflector's withdrawal map) pairs a SAFI 4 announcement,
-held as a `WireNLRI`, with its withdrawal, held as an `INET`. The route server
-keys both arms by the prefix and Path Identifier (`appendOpaqueRecords`,
-`appendParsedRecords`) and keeps the announcement's hex for its peer-down
-withdrawal. Inventory extraction keeps CIDR scratch in the same pooled holder
-as its records and reuses it across the UPDATE. Families without CIDR keys do
-not call the CIDR decoder.
+CIDR-keyed family by its prefix, the way `INET.String` does. For labeled unicast,
+the reflector pairs the announcement's `WireNLRI` with the withdrawal's `INET`
+by family and prefix. Under ADD-PATH, both keys also carry the negotiated Path
+Identifier, including zero; the reflector retains the announcement's native
+hex and ADD-PATH framing for peer-down commands. Plain labeled inventory keeps
+its existing CIDR form.
+The route server keys both arms by the prefix and Path Identifier
+(`appendOpaqueRecords`, `appendParsedRecords`) and keeps the announcement's
+hex for its peer-down withdrawal. Inventory extraction keeps CIDR scratch in
+the same pooled holder as its records and reuses it across the UPDATE.
+Families without CIDR keys do not call the CIDR decoder.
 
 <!-- source: internal/component/bgp/wireu/mpwire.go -- ParseWithdrawnNLRIs, wrapNLRI -->
 <!-- source: internal/core/bgp/nlri/wire.go -- WireNLRI.String -->
 <!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- appendOpaqueRecords -->
+<!-- source: internal/component/bgp/plugins/rr/withdrawal.go -- walkNLRIsAllocating -->
 
 ### Native VPN inventory identity
 

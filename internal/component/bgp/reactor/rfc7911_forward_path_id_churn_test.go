@@ -180,7 +180,8 @@ func fwdChurnPathIDs(t *testing.T, section []byte) []uint32 {
 	t.Helper()
 	var out []uint32
 	iter := nlri.NewNLRIIterator(section, true)
-	for _, pathID, ok := iter.Next(); ok; _, pathID, ok = iter.Next() {
+	for prefix, pathID, ok := iter.Next(); ok; prefix, pathID, ok = iter.Next() {
+		require.Equal(t, fwdPathIDBareNLRI(), prefix, "the identifier must accompany the original native prefix")
 		out = append(out, pathID)
 	}
 	require.Zero(t, iter.Remaining(), "the destination section is malformed")
@@ -196,13 +197,12 @@ func fwdChurnPathIDs(t *testing.T, section []byte) []uint32 {
 // identifier a peer sends buys a table entry, and the only release was peer
 // removal, so an established route-server client grew the daemon from the socket
 // until the process was restarted.
-// RFC requirement: RFC7911-2-2 positive -- "the Path Identifier MUST be assigned
-// in such a way that the BGP speaker is able to use the (Prefix, Path
-// Identifier) to uniquely identify a path advertised to a neighbor". A value is
-// free to name a second path once no advertisement of the first one is
-// outstanding, and the relayed withdraw is that point.
+// RFC requirement: RFC7911-2-2 positive -- every recipient-visible withdrawal
+// names the exact prefix and locally generated identifier announced in its
+// cycle. The separate memory-bound assertions are a Ze lifetime contract, not
+// an RFC requirement on the allocator's keys or reclamation policy.
 func TestForwardPathIDsFreedOnRelayedWithdraw(t *testing.T) {
-	r, src, _, _, ctxID := fwdChurnRail(t)
+	r, src, dst, conn, ctxID := fwdChurnRail(t)
 
 	updateID := uint64(9100)
 	for cycle := range 8 {
@@ -221,6 +221,10 @@ func TestForwardPathIDsFreedOnRelayedWithdraw(t *testing.T) {
 		require.Equal(t, 0, fwdPathEntries(),
 			"cycle %d: the withdrawn path kept its identifier, so the table grows by one for every identifier the client ever uses", cycle)
 	}
+	announced, withdrawn := fwdChurnSent(t, dst, conn)
+	require.Len(t, announced, 8, "every cycle must advertise its path to the recipient")
+	require.Len(t, withdrawn, 8, "every cycle must withdraw its advertised path")
+	assert.Equal(t, announced, withdrawn, "reclamation must not strand an advertised prefix/identifier pair")
 }
 
 // TestForwardPathIDWithdrawCarriesTheAnnouncedValue keeps the bound from
@@ -239,24 +243,24 @@ func TestForwardPathIDWithdrawCarriesTheAnnouncedValue(t *testing.T) {
 
 	const received = 0x0BADC0DE
 	fwdChurnRelay(t, r, src, ctxID, 9200, pathIDTestBody(t, fwdChurnSourceAS, received))
+	fwdChurnRelay(t, r, src, ctxID, 9201, pathIDTestBody(t, fwdChurnSourceAS, received+1))
 	// The same path again, with a different AS_PATH: a replacement, not a second
 	// path (RFC 7911 Section 5).
-	fwdChurnRelay(t, r, src, ctxID, 9201, pathIDTestBody(t, fwdChurnSourceAS+9, received))
-	require.Equal(t, 1, fwdPathEntries(),
-		"a re-advertised path must reuse its entry rather than buy a second one")
+	fwdChurnRelay(t, r, src, ctxID, 9202, pathIDTestBody(t, fwdChurnSourceAS+9, received))
+	require.Equal(t, 2, fwdPathEntries(),
+		"a replacement must retain both paths for this prefix")
 
-	fwdChurnRelay(t, r, src, ctxID, 9202, fwdShapeBody(fwdPathIDNLRI(received), nil, nil))
+	fwdChurnRelay(t, r, src, ctxID, 9203, fwdShapeBody(fwdPathIDNLRI(received), nil, nil))
+	require.Equal(t, 1, fwdPathEntries(), "withdrawing one path must retain the sibling")
+	fwdChurnRelay(t, r, src, ctxID, 9204, fwdShapeBody(fwdPathIDNLRI(received+1), nil, nil))
 	require.Equal(t, 0, fwdPathEntries())
 
 	announced, withdrawn := fwdChurnSent(t, dst, conn)
-	require.Len(t, announced, 2, "the destination must have received both advertisements")
-	require.Len(t, withdrawn, 1, "the destination must have received one withdraw")
-	assert.Equal(t, announced[0], announced[1],
-		"the re-advertised path left under a second identifier, so the destination keeps the superseded one forever")
-	assert.Equal(t, announced[0], withdrawn[0],
-		"the withdraw left under an identifier the destination never received, so the route stays")
-	assert.NotEqual(t, uint32(received), withdrawn[0],
-		"the withdraw carries the source's identifier, which ze does not own")
+	require.Len(t, announced, 3, "the recipient must receive two paths and one replacement")
+	require.Len(t, withdrawn, 2, "both paths must be withdrawn")
+	assert.NotEqual(t, announced[0], announced[1], "the same prefix's two paths must stay distinct")
+	assert.Equal(t, announced[0], announced[2], "the replacement must name its existing path")
+	assert.Equal(t, announced[:2], withdrawn, "each withdrawal must name its advertised native prefix/identifier pair")
 }
 
 // TestForwardPathIDWithdrawOfUnknownPathLeavesNothing closes the cheapest growth
@@ -283,22 +287,21 @@ func TestForwardPathIDWithdrawOfUnknownPathLeavesNothing(t *testing.T) {
 // TestForwardPathIDKeepsTheSourceOfARebuiltFrame guards the key itself.
 //
 // VALIDATES: AC-2, AC-7 -- a destination that reads bytes ze rebuilt gets the
-// identifier of the path's real source, so two clients still separate and the
-// entry is still the one the withdraw frees.
-// PREVENTS: the route-server rail dropping the source when it rebuilds a frame.
-// The identifier is keyed on the ingress path, so a rebuilt wire that lost its
-// source keys every client's paths under the singleton config source: two
-// clients that both chose identifier 1 for different prefixes reach the
-// destination under ONE identifier and RFC 7911 Section 5 makes the second
-// replace the first. The withdraw then frees a key nothing holds, and the entry
-// the rebuild made lives until the peer is removed.
+// identifier previously assigned to the ingress path and remains withdrawable.
+// PREVENTS: rebuilding a frame without retaining its ingress source identity.
+// A prior advertisement of the same path must be replaced, not supplemented
+// by a new identifier belonging to the synthetic rebuilt frame.
 // RFC requirement: RFC7911-2-2 positive -- "A BGP speaker that re-advertises a
-// route MUST generate its own Path Identifier", and the path it generates one
-// for is the one the source sent, whatever ze did to the bytes on the way out.
+// route MUST generate its own Path Identifier to be associated with the
+// re-advertised route." (Section 2). Attribute rebuilding preserves that
+// path's association, including its inverse withdrawal.
 func TestForwardPathIDKeepsTheSourceOfARebuiltFrame(t *testing.T) {
-	r, src, _, _, ctxID := fwdChurnRailWith(t, true)
+	r, src, dst, conn, ctxID := fwdChurnRailWith(t, true)
 
 	const received = 7
+	// Establish the identity before reflection changes the frame's attributes.
+	want := fwdForwardOnePathID(t,
+		fwdPathIDWire(pathIDTestBody(t, fwdChurnSourceAS, received), ctxID, fwdChurnSource), ctxID, dst)
 	fwdChurnRelay(t, r, src, ctxID, 9400, pathIDTestBody(t, fwdChurnSourceAS, received))
 	require.Equal(t, 1, fwdPathEntries(),
 		"the rebuilt frame keyed its path under another source, so this client's paths share one identifier with every other client's")
@@ -306,6 +309,9 @@ func TestForwardPathIDKeepsTheSourceOfARebuiltFrame(t *testing.T) {
 	fwdChurnRelay(t, r, src, ctxID, 9401, fwdShapeBody(fwdPathIDNLRI(received), nil, nil))
 	require.Equal(t, 0, fwdPathEntries(),
 		"the withdraw freed a key this path never held")
+	announced, withdrawn := fwdChurnSent(t, dst, conn)
+	require.Equal(t, []uint32{want}, announced, "the rebuilt frame must replace the existing path")
+	require.Equal(t, []uint32{want}, withdrawn, "the rebuilt frame's path must remain withdrawable")
 }
 
 // TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt guards the one

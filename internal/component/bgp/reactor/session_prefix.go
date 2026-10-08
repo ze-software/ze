@@ -678,33 +678,34 @@ type prefixSetWalk struct {
 // It stops changing anything once the family has crossed its maximum, which is
 // the bound that stops one over-limit message from growing the set by its own
 // length before the set is thrown away.
-func (w *prefixSetWalk) visit(entry []byte) {
+func (w *prefixSetWalk) visit(entry []byte) bool {
 	if w.over {
-		return
+		return true
 	}
 	// RFC 8277 Sections 2.4 and 2.5: labels and Compatibility do not name routes.
 	key, err := w.identity(entry, w.addPath, !w.announce)
 	if err != nil {
-		return // The registered key rejects malformed NLRIs; none enters the set.
+		return true // The registered key rejects malformed NLRIs; none enters the set.
 	}
 	if !w.announce {
 		if _, held := w.set[string(key)]; !held {
-			return
+			return true
 		}
 		delete(w.set, string(key))
 		w.session.prefixSetJournal = append(w.session.prefixSetJournal, prefixSetChange{
 			fk: w.fk, entry: entry, addPath: w.addPath,
 		})
-		return
+		return true
 	}
 	if _, held := w.set[string(key)]; held {
-		return
+		return true
 	}
 	w.set[string(key)] = struct{}{}
 	w.session.prefixSetJournal = append(w.session.prefixSetJournal, prefixSetChange{
 		fk: w.fk, entry: entry, addPath: w.addPath, added: true,
 	})
 	w.over = w.hasMax && int64(len(w.set)) > int64(w.maximum)
+	return true
 }
 
 // identity returns a borrowed registered key, retaining the negotiated Path ID.
@@ -1048,7 +1049,7 @@ func buildPrefixNotification(fk, upperBound uint32) *message.Notification {
 // visitor receives wire bytes; prefixSetWalk.identity derives the installed key.
 // RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
 // MUST be ignored." GetWithdraw frames exactly that field, not an S-bit stack.
-func forEachPrefixEntry(fk uint32, data []byte, addPath, withdraw bool, fn func(entry []byte)) int {
+func forEachPrefixEntry(fk uint32, data []byte, addPath, withdraw bool, fn func(entry []byte) bool) int {
 	// RFC 9552 Section 8.2.6: "An implementation MUST have the means to limit
 	// inbound updates." The means is the per-family prefix maximum, and it is only
 	// a means if the number it compares is the number of NLRIs the peer sent.

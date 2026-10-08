@@ -122,9 +122,8 @@ recorded nothing is listed as `unknown`.
 
 | Plugin | Purpose |
 |--------|---------|
-| `bgp-rib` | Route Information Base (received/sent routes, best-path tracking) |
+| `bgp-rib` | Mandatory Route Information Base (received/sent routes, best-path tracking, in-memory reconnect history) |
 | `bgp-adj-rib-in` | Adj-RIB-In with raw hex replay |
-| `bgp-persist` | Route persistence across restarts |
 | `bgp-rs` | Route server, client-to-client reflection (RFC 7947) |
 | `bgp-rr` | Route reflector (RFC 4456) |
 | `bgp-gr` | Graceful Restart (RFC 4724) + Long-Lived GR (RFC 9494) |
@@ -178,11 +177,11 @@ recorded nothing is listed as `unknown`.
 |--------|---------|
 | `bgp` | BGP routing daemon subsystem plugin |
 | `rib` | System RIB: selects best route across protocols by admin distance |
-| `static` | Static route management |
+| `static` | Static route management: main-table routes become Loc-RIB paths ranked by administrative distance, named-table routes are programmed directly |
 | `sysctl` | Kernel sysctl tuning |
 | `memlock` | Locks the running ze executable in memory, so its pages survive memory pressure |
 | `routing-table` | Named routing table registry |
-| `connected` | Connected route redistribution |
+| `connected` | Connected route redistribution, and connected prefixes as Loc-RIB paths; registers that the OS installs its routes |
 | `kernel` | Kernel route redistribution |
 | `policy-routes` | Policy-based routing with nftables marks and ip rules |
 | `fib-kernel` | FIB route installation via netlink |

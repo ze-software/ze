@@ -368,3 +368,127 @@ func TestRFC8654ExtendedAttributeDiscard(t *testing.T) {
 		}
 	}
 }
+
+// TestRFC8654ExtendedDuplicateAttributes observes keep-first at the real session
+// consumer, for recognized and unrecognized attributes, through both readers.
+// RFC 7606 Section 3(g): "If any other attribute (whether recognized or
+// unrecognized) appears more than once in an UPDATE message, then all the
+// occurrences of the attribute other than the first one SHALL be discarded and
+// the UPDATE message will continue to be processed."
+// MUTATION: Skip DuplicateRanges stripping in enforceRFC7606: exact attributes
+// differ even though AttrFind would still return the correct first value.
+// RFC requirement: RFC8654-3-1 positive -- single recognized and unrecognized attributes in extended UPDATEs reach consumers with only RFC 4271 Section 9's mandated Partial-bit normalization.
+// RFC requirement: RFC8654-3-1 negative -- later recognized and unrecognized duplicates alone are removed; the first occurrence and every NLRI survive on the same session.
+func TestRFC8654ExtendedDuplicateAttributes(t *testing.T) {
+	for _, coalesced := range []bool{false, true} {
+		t.Run("coalesced="+strconv.FormatBool(coalesced), func(t *testing.T) {
+			session, client, capture, cleanup := setupCapturingSession(t, 65002, true, false)
+			defer cleanup()
+			answers := make(chan []byte, 1)
+			go func() {
+				data, _ := io.ReadAll(client)
+				answers <- data
+			}()
+			kept := append(fatalLengthAnnouncement().PathAttributes, 0xc0, 99, 2, 0xaa, 0xbb)
+			// RFC 4271 Section 9: "If an optional transitive attribute is
+			// unrecognized, the Partial bit (the third high-order bit) in the
+			// attribute flags octet is set to 1, and the attribute is retained
+			// for propagation to other BGP speakers."
+			// publishBase runs after keep-first; retain exact flags in the oracle
+			// rather than either expecting the input C0 or masking flag changes.
+			published := append(fatalLengthAnnouncement().PathAttributes, 0xe0, 99, 2, 0xaa, 0xbb)
+			nlri := ipv4Slash24s(1100)
+			for _, duplicate := range []bool{false, true} {
+				attrs := append([]byte(nil), kept...)
+				if duplicate {
+					attrs = append(attrs,
+						0x40, 1, 1, 1, // Later valid ORIGIN differs from the first.
+						0xc0, 99, 1, 0xcc, // Later unknown attribute differs in length too.
+						0x40, 1, 1, 2, // Every later occurrence must disappear.
+						0xc0, 99, 2, 0xdd, 0xee)
+				}
+				frame := buildUpdateMsg(receivedUpdateBody(attrs, nlri))
+				require.Greater(t, len(frame), message.MaxMsgLen)
+				written := make(chan error, 1)
+				go func() {
+					_, err := client.Write(frame)
+					written <- err
+				}()
+				if coalesced {
+					require.NoError(t, session.readAndProcessCoalesced(session.Conn(), session.bufReader))
+				} else {
+					require.NoError(t, session.ReadAndProcess())
+				}
+				require.NoError(t, <-written)
+				got := capture.all()
+				expected := 1
+				if duplicate {
+					expected = 2
+				}
+				require.Len(t, got, expected)
+				withdrawn, gotAttrs, gotNLRI := payloadSections(t, got[expected-1])
+				require.Empty(t, withdrawn)
+				require.Equal(t, published, gotAttrs, "only later duplicate ranges and the required Partial bit change")
+				require.Equal(t, nlri, gotNLRI)
+				require.Equal(t, fsm.StateEstablished, session.State())
+			}
+			cleanup()
+			require.Empty(t, <-answers, "keep-first emits no NOTIFICATION")
+		})
+	}
+}
+
+// TestRFC8654ExtendedDuplicateMPResets isolates the MP exception to keep-first.
+// RFC 7606 Section 3(g): "If the MP_REACH_NLRI attribute or the
+// MP_UNREACH_NLRI [RFC4760] attribute appears more than once in the UPDATE
+// message, then a NOTIFICATION message MUST be sent with the Error Subcode
+// 'Malformed Attribute List'."
+// MUTATION: Remove either in-loop duplicate-MP reset in
+// ValidateUpdateRFC7606AddPath: that case dispatches instead of NOTIFICATION 3/1.
+// RFC requirement: RFC8654-3-1 positive -- a single well-formed MP_REACH or MP_UNREACH in an extended UPDATE is processed without resetting.
+// RFC requirement: RFC8654-3-1 negative -- a second identical MP_REACH or MP_UNREACH causes exact NOTIFICATION 3/1, Idle and no additional consumer dispatch.
+func TestRFC8654ExtendedDuplicateMPResets(t *testing.T) {
+	for _, mp := range [][]byte{
+		{0x80, 14, 13, 0, 1, 1, 4, 192, 0, 2, 1, 0, 24, 203, 0, 114},
+		{0x80, 15, 7, 0, 1, 1, 24, 203, 0, 114},
+	} {
+		t.Run(strconv.Itoa(int(mp[1])), func(t *testing.T) {
+			session, client, capture, cleanup := setupCapturingSession(t, 65002, true, false)
+			defer cleanup()
+			attrs := append(fatalLengthAnnouncement().PathAttributes, mp...)
+			nlri := ipv4Slash24s(1100)
+			answers := make(chan []byte, 1)
+			go func() {
+				data, _ := io.ReadAll(client)
+				answers <- data
+			}()
+			for _, duplicate := range []bool{false, true} {
+				if duplicate {
+					attrs = append(attrs, mp...)
+				}
+				frame := buildUpdateMsg(receivedUpdateBody(attrs, nlri))
+				require.Greater(t, len(frame), message.MaxMsgLen)
+				written := make(chan error, 1)
+				go func() {
+					_, err := client.Write(frame)
+					written <- err
+				}()
+				err := session.ReadAndProcess()
+				require.NoError(t, <-written)
+				if duplicate {
+					require.Error(t, err)
+					require.Equal(t, fsm.StateIdle, session.State())
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, fsm.StateEstablished, session.State())
+					got := capture.all()
+					require.Len(t, got, 1)
+					require.Equal(t, receivedUpdateBody(attrs, nlri), got[0])
+				}
+				require.Len(t, capture.all(), 1, "duplicate MP never reaches consumers")
+			}
+			cleanup()
+			assertNotification(t, <-answers, message.NotifyUpdateMessage, message.NotifyUpdateMalformedAttr, []byte{})
+		})
+	}
+}

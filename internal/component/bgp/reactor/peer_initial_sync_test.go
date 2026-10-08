@@ -624,29 +624,26 @@ var defaultRouteNLRI = []byte{0x00}
 //
 // RFC requirement: RFC2545-3-3 positive -- both halves of the condition hold: the
 // speaker's connected-scope snapshot includes the entity named by the global
-// next hop (::1) and the peer the route is advertised to (fd00::2).
+// next hop (2001:db8:1::1) and the peer (2001:db8:1::2).
 //
 // VALIDATES: the originated ::/0 leaves with the 32-octet form, global first.
 // PREVENTS: the default-originate rail emitting the 16-octet form in a case
 // Section 3 requires the second address, which no other test covers -- the
 // exabgp-compat pair drives the STATIC route rail.
 //
-// The peer is fd00::2 and the next hop is ::1, and they must stay different.
-// RFC 4271 Section 5.1.3 forbids advertising a peer its own address as NEXT_HOP,
-// and originatedNextHopIsPeerOwn (forward_next_hop.go) refuses it, so a fixture
-// that gives both ends ::1 asserts the wire form of a message Ze must never send.
-// The fixture supplies both connected prefixes instead of depending on loopback
-// provisioning on the host running this test.
+// The default's advertised global is this speaker's configured unicast IPv6
+// address, distinct from the recipient. The explicit connected-prefix snapshot
+// supplies the scope predicate without depending on host interface provisioning
+// or claiming third-party entity-adjacency proof.
 func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
-	peer, conn := newDefaultOriginatePeer(t, "fd00::2", "::1", "fe80::1")
+	peer, conn := newDefaultOriginatePeer(t, "2001:db8:1::2", "2001:db8:1::1", "fe80::1")
 	peer.refreshLinkScopeFrom([]netip.Prefix{
-		netip.MustParsePrefix("::1/128"),
-		netip.MustParsePrefix("fd00::/64"),
+		netip.MustParsePrefix("2001:db8:1::/64"),
 	})
 
 	peer.sendInitialRoutes()
 
-	assert.Contains(t, string(conn.written()), string(mpReachIPv6Attr(t, defaultRouteNLRI, "::1", "fe80::1")),
+	assert.Contains(t, string(conn.written()), string(mpReachIPv6Attr(t, defaultRouteNLRI, "2001:db8:1::1", "fe80::1")),
 		"RFC 2545 Section 3: global address first, link-local second, length octet 0x20")
 }
 
@@ -663,15 +660,78 @@ func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 // second address. Without this row an encoder that always appended would pass the
 // positive test above.
 func TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink(t *testing.T) {
-	peer, conn := newDefaultOriginatePeer(t, "2001:db8:dead:beef::2", "::1", "fe80::1")
+	peer, conn := newDefaultOriginatePeer(t, "2001:db8:dead:beef::2", "2001:db8:1::1", "fe80::1")
+	peer.refreshLinkScopeFrom([]netip.Prefix{
+		netip.MustParsePrefix("2001:db8:1::/64"),
+	})
 
 	peer.sendInitialRoutes()
 
 	written := string(conn.written())
-	assert.Contains(t, written, string(mpReachIPv6Attr(t, defaultRouteNLRI, "::1")),
+	assert.Contains(t, written, string(mpReachIPv6Attr(t, defaultRouteNLRI, "2001:db8:1::1")),
 		"RFC 2545 Section 3: the global address alone, length octet 0x10")
-	assert.NotContains(t, written, string(mpReachIPv6Attr(t, defaultRouteNLRI, "::1", "fe80::1")),
+	assert.NotContains(t, written, string(mpReachIPv6Attr(t, defaultRouteNLRI, "2001:db8:1::1", "fe80::1")),
 		"no link-local may be appended when the peer shares no subnet with the speaker")
+}
+
+// TestDefaultOriginateRefusesUnusableIPv6NextHop drives default-originate through
+// initial synchronization and checks the bytes delivered by the real Session.
+//
+// RFC requirement: RFC2545-3-1 negative -- unusable IPv6 next hops do not reach
+// the originated default route's global-address field.
+// RFC requirement: RFC2545-3-1 positive -- a genuine global IPv6 next hop still
+// reaches the originated default route's sixteen-octet next-hop field.
+// MUTATION: bypass BuildUnicast's IPv6 next-hop admission; the invalid cases must
+// emit only End-of-RIB, not an UPDATE announcing ::/0.
+func TestDefaultOriginateRefusesUnusableIPv6NextHop(t *testing.T) {
+	cases := []struct {
+		name     string
+		local    netip.Addr
+		announce bool
+	}{
+		{"loopback", netip.MustParseAddr("::1"), false},
+		{"unset", netip.Addr{}, false},
+		{"ipv4", netip.MustParseAddr("192.0.2.1"), false},
+		{"unspecified", netip.MustParseAddr("::"), false},
+		{"multicast", netip.MustParseAddr("ff0e::1"), false},
+		{"mapped", netip.MustParseAddr("::ffff:192.0.2.1"), true},
+		{"link-local", netip.MustParseAddr("fe80::1"), false},
+		{"global", netip.MustParseAddr("2001:db8:1::1"), true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// The recipient differs from every candidate next hop: peer-own
+			// withholding must not hide a malformed announcement.
+			peer, conn := newDefaultOriginatePeer(t, "2001:db8:2::2", "2001:db8:1::1", "fe80::1")
+			peer.settings.LocalAddress = tc.local
+			peer.refreshLinkScopeFrom(nil)
+
+			// RFC 2545 Section 3 applies to default routes too.
+			peer.sendInitialRoutes()
+
+			want := eorWire(family.IPv6Unicast)
+			if tc.announce {
+				// Header, no withdrawn routes, ORIGIN IGP, AS_SEQUENCE
+				// containing four-octet local AS 65000, and MP_REACH(::/0).
+				update := []byte{
+					0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+					0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+					0x00, 0x3d, 0x02, 0x00, 0x00, 0x00, 0x26,
+					0x40, 0x01, 0x01, 0x00,
+					0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe8,
+				}
+				wireHop := "2001:db8:1::1"
+				if tc.name == "mapped" {
+					wireHop = "::ffff:192.0.2.1"
+				}
+				update = append(update, mpReachIPv6Attr(t, defaultRouteNLRI, wireHop)...)
+				want = append(update, want...)
+			}
+			if got := conn.written(); !bytes.Equal(got, want) {
+				t.Fatalf("default-originate with local address %v: wire = %x, want %x", tc.local, got, want)
+			}
+		})
+	}
 }
 
 // TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily drives the whole chain a

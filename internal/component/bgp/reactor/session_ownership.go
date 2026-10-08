@@ -254,25 +254,26 @@ func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, mul
 	}
 	n, occurrence := 0, 0
 	var cause error
-	_, err := split(data, w.encoding.AddPathFor(fam), func(raw []byte) {
+	_, err := split(data, w.encoding.AddPathFor(fam), func(raw []byte) bool {
 		if cause != nil {
-			return
+			return true
 		}
 		// RFC 7911 Section 5; final destination framing, original provenance.
 		allowed, admissionErr := w.allow(fam, raw, withdraw, multiprotocol, occurrence, sig, readable)
 		occurrence++
 		if admissionErr != nil {
 			cause = admissionErr
-			return
+			return true
 		}
 		if !allowed {
 			w.removed++
-			return
+			return true
 		}
 		if dst != nil {
 			copy(dst[n:], raw)
 		}
 		n += len(raw)
+		return true
 	})
 	if err != nil {
 		return 0, err
@@ -457,27 +458,27 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 	var readable, signatureRead bool
 	var stored []byte
 	var cause error
-	_, err := split(data, w.encoding.AddPathFor(fam), func(raw []byte) {
+	_, err := split(data, w.encoding.AddPathFor(fam), func(raw []byte) bool {
 		if cause != nil {
-			return
+			return true
 		}
 		key, keyErr := w.key(fam, raw, withdraw)
 		if keyErr != nil {
 			cause = keyErr
-			return
+			return true
 		}
 		if withdraw {
 			delete(w.table.routes, key)
-			return
+			return true
 		}
 		owner, ok := w.owners[key]
 		if !ok {
 			cause = errAdjOutProvenance
-			return
+			return true
 		}
 		if w.sourceSet && w.source != owner.source {
 			cause = errAdjOutProvenance
-			return
+			return true
 		}
 		w.source, w.sourceSet = owner.source, true
 		if w.session.onMessageReceived != nil {
@@ -524,6 +525,7 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 				entry.exactNLRI = append([]byte(nil), raw...)
 			}
 		}
+		return true
 	})
 	if err != nil {
 		return err

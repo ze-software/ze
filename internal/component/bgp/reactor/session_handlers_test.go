@@ -335,6 +335,7 @@ func TestHandleOpen_RequiredCapMissing(t *testing.T) {
 	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
+		&capability.ExtendedMessage{},
 	}
 	// Require Extended Message — peer won't have it.
 	settings.RequiredCapabilities = []capability.Code{capability.CodeExtendedMessage}

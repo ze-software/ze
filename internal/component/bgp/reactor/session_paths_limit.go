@@ -120,18 +120,18 @@ func (s *Session) pathsLimitSection(dst, data []byte, fam family.Family, withdra
 	}
 	n, dropped := 0, 0
 	var keyErr error
-	_, err := split(data, true, func(raw []byte) {
+	_, err := split(data, true, func(raw []byte) bool {
 		if keyErr != nil {
-			return
+			return true
 		}
 		if len(raw) < 5 {
 			keyErr = errPathsLimitNLRI
-			return
+			return true
 		}
 		key, cause := state.key(raw[4:], state.keyScratch[:], withdraw)
 		if cause != nil {
 			keyErr = cause
-			return
+			return true
 		}
 		id := binary.BigEndian.Uint32(raw)
 		prefix := state.prefixes[string(key)]
@@ -141,12 +141,12 @@ func (s *Session) pathsLimitSection(dst, data []byte, fam family.Family, withdra
 		}
 		if !withdraw && !held && prefix != nil && len(prefix.ids) >= int(state.limit) {
 			dropped++
-			return
+			return true
 		}
 		if withdraw == held {
 			if changes.n == len(changes.entries) {
 				keyErr = errPathsLimitNLRI
-				return
+				return true
 			}
 			if prefix == nil {
 				prefix = &pathsLimitPrefix{key: string(key), ids: make(map[uint32]struct{})}
@@ -166,6 +166,7 @@ func (s *Session) pathsLimitSection(dst, data []byte, fam family.Family, withdra
 		if dst != nil {
 			n += copy(dst[n:], raw)
 		}
+		return true
 	})
 	if err != nil {
 		return 0, 0, err

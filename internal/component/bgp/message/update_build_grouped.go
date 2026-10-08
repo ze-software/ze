@@ -251,6 +251,9 @@ func (ub *UpdateBuilder) buildVPNWithMaxSize(p *VPNParams, maxSize int) (*Update
 // RFC 8654 - Extended Message raises max to 65535 bytes.
 func (ub *UpdateBuilder) buildLabeledUnicastWithMaxSize(p *LabeledUnicastParams, maxSize int) (*Update, error) {
 	update := ub.BuildLabeledUnicast(p)
+	if update == nil {
+		return nil, ErrUnicastNextHopUnusable
+	}
 
 	// Labeled unicast uses MP_REACH_NLRI, no inline NLRI
 	updateSize := HeaderLen + 4 + len(update.PathAttributes)

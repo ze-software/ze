@@ -314,7 +314,7 @@ func (rr *routeReflector) handleStateDown(peerAddr string) {
 		return
 	}
 
-	// Native VPN routes retain their wire form and ADD-PATH negotiation.
+	// VPN and ADD-PATH labeled routes retain native bytes and negotiation.
 	type withdrawalGroup struct {
 		family   string
 		wireForm bool

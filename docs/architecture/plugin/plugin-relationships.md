@@ -248,8 +248,7 @@ These implement ingress/egress route filters.
 | Plugin | Location | Description | Dependencies | Bus publishes |
 |--------|----------|-------------|-------------|---------------|
 | bgp-adj-rib-in | `bgp/plugins/adj_rib_in/` | Raw UPDATE storage for replay | - | - |
-| bgp-rib | `bgp/plugins/rib/` | Loc-RIB: best path selection | - | `bgp-rib/best-change/bgp` |
-| bgp-persist | `bgp/plugins/persist/` | Route persistence across restarts | - | - |
+| bgp-rib | `bgp/plugins/rib/` | Mandatory Loc-RIB: best path selection and in-memory sent history for reconnect | - | `bgp-rib/best-change/bgp` |
 
 ### Protocol Plugins
 
@@ -292,7 +291,7 @@ Plugins load in dependency order. Each tier completes before the next starts.
 ```
 Tier 0 (no dependencies):
   bgp, interface, rib, bgp-adj-rib-in, bgp-rib,
-  bgp-aigp, bgp-persist, all NLRI family plugins
+  bgp-aigp, all NLRI family plugins
 
 Tier 1 (depends on tier 0):
   iface-dhcp (-> interface)
@@ -448,8 +447,7 @@ this is which plugins participate in config transactions and why.
 | bgp-rpki | No | Config mediated by BGP reactor |
 | iface-dhcp | Planned (reader) | Will use `WantsConfig: ["interface"]` to start/stop DHCP clients on interface changes. Not yet wired. |
 | bgp-adj-rib-in | No | No config roots, no WantsConfig |
-| bgp-rib | No | No config roots, no WantsConfig |
-| bgp-persist | No | No config roots, no WantsConfig |
+| bgp-rib | No | `ConfigRoots: ["bgp"]` auto-loads it; no WantsConfig |
 | bgp-aigp | No | No config roots, no WantsConfig |
 | bgp-rs | No | No config roots, no WantsConfig |
 | bgp-rpki-decorator | No | No config roots, no WantsConfig |

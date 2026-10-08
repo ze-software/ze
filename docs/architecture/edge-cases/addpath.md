@@ -104,6 +104,17 @@ Zero has no special wire meaning. Negotiated framing, not the identifier's
 numeric value, determines whether a Path Identifier is present.
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDTable.mintLocked -->
 
+RFC 7911 Section 2 makes assignment a local matter. A generated identifier may
+equal the received number. The RFC requires neither equal numbers across
+different neighbors nor different numbers across different prefixes. The
+required uniqueness is the `(prefix, identifier)` pair at one neighbor.
+
+The forwarding tests check colliding sources for the same native prefix,
+replacement under the existing local identity, and withdrawal of exactly that
+identity. MP_REACH and MP_UNREACH exercise both the raw rewrite and context
+conversion; neither test treats nonzero values as proof of generation.
+<!-- test: internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go TestForwardPathIDMPGeneration -->
+
 ---
 
 ## UPDATE Message Changes

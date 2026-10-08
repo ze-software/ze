@@ -130,10 +130,40 @@ See [the Established FSM](../behavior/fsm-established.md) and
   and AGGREGATOR against their valid counterparts through both readers.
   `TestRFC8654TreatAsWithdrawRemovesInstalledRoutes` observes actual RIB
   removal, downstream withdrawal and recovery after a malformed extended UPDATE.
+- `TestRFC8654ExtendedDuplicateAttributes` compares the exact consumer attribute
+  section after removing later recognized and unrecognized duplicates.
+  `TestRFC8654ExtendedDuplicateMPResets` checks the MP exception: one occurrence
+  is accepted, a second causes NOTIFICATION 3/1 with no additional dispatch.
+- `TestRFC8654ExtendedTwoFamilyWithdrawalRecovery` isolates the extra synthesized
+  MP-family dispatch with actual RIB and Loc-RIB removal and recipient TCP
+  withdrawals. An unrelated IPv6 route survives, and both withdrawn routes
+  recover on the same session. These receive-path cases compose with the
+  clause-specific RFC 7606 tests; they are not a claim that selected malformed
+  UPDATEs alone prove every referenced RFC 7606 obligation.
 - `TestRFC8654FatalLengthReelectsAlternateBest` requires replacement attributes
   on recipient TCP after the fatal event and a single Loc-RIB replacement,
   without transient removal. Source-DOWN recovery queries the selecting RIB
   through the strict applied-delivery fence and one destination writer operation.
+- `TestRFC7606CoalescedMalformedNLRIBoundaries` checks each original NLRI
+  boundary through both readers, with standard and extended messages and
+  ADD-PATH. A truncated /24 cannot consume the next UPDATE's default route.
+  The reader dispatches a preceding valid announcement before NOTIFICATION 3/10.
+- `TestRFC7606DiagnosticWireAndMPNLRI` requires separate original-message error
+  records, exact header-inclusive wire hex, and legacy plus MP NLRI lists.
+  IPv4, IPv6 and typed MP inputs compose with valid-input silence and the
+  disabled-debug allocation guard. First-AS cases retain original bytes before
+  Partial stamping or in-place discard, and use reconstructed OLD-speaker paths
+  with both AGGREGATOR gate outcomes. A separate NEXT_HOP policy control requires
+  an explicitly processed representation rather than claiming original wire.
+  Empty MP_REACH plus a late first-AS or tunnel-endpoint error requires session
+  reset with no consumer UPDATE or false End-of-RIB. Matching-AS, valid-endpoint
+  and real-NLRI controls separate that requirement from valid empty input and
+  ordinary withdrawal handling.
+- `TestReceiveAdmissionSurvivesIdleTransition` stages a timer transition while
+  an unexpected UPDATE is blocked at the existing session mutex. It requires
+  FSM rejection and connection cleanup without an unclassified dispatch or EOR.
+
+<!-- source: internal/component/bgp/reactor/rfc7606_receive_boundary_test.go -- TestRFC7606CoalescedMalformedNLRIBoundaries, TestRFC7606DiagnosticWireAndMPNLRI, TestReceiveAdmissionSurvivesIdleTransition -->
 
 Fixture presence, native execution and fresh discrimination records are separate
 proof obligations.

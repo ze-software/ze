@@ -69,6 +69,11 @@
 # GRACEFUL RESTART IS DISABLED ON BOTH SESSIONS. With it negotiated ze acts as a
 # helper and RETAINS the departed peer's routes as stale, which is the correct
 # behaviour and the opposite of what this file asserts.
+#
+# Source-DOWN recovery selects from the mandatory RIB's sent projection. Both
+# peers grant its update/state events explicitly; loading the process alone
+# does not authorize those events. Recovery drains delivered events before
+# selecting the advertisements owned by the departed source.
 
 # Source client (ASN 65001) on 127.0.0.1. It waits, announces, waits again, and
 # departs. Both waits are BARRIERS the observer satisfies on demand: neither is
@@ -92,11 +97,9 @@ expect=bgp:conn=1:seq=1:contains=18C00002
 # would make it malformed under RFC 9552 Section 8.2.2, and the receive path would
 # discard it before the route server ever saw it
 # (RetainWellFormedNLRI, internal/component/bgp/message/rfc7606_bgpls_nlri.go).
-# ze parses NEITHER of them here. The default branch of wireu.ParseNLRIs has no
-# dedicated parser for bgp-ls, so the whole 21-octet section arrives as ONE
-# *nlri.WireNLRI. The payload carries TWO of them so the fixture covers the SPLIT:
-# appendOpaqueRecords divides that one blob into one record per NLRI with
-# message.GetNLRISizeFunc, and the withdrawal below has to name both.
+# Registered native splitters preserve each of the two NLRIs as an individual
+# WireNLRI. The route-server inventory keeps their exact bytes for source-DOWN
+# recovery; neither a size-summary string nor a combined key identifies both.
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E4001010040020602010000FDE9800E1E4004470401010101000001000902000000000000000000630004DEADBEEF
 # seq=3 -- BARRIER TWO. 198.51.100.0/24 (18 C6 33 64), a DIFFERENT prefix from
 # barrier one so neither can satisfy the other's rule. The observer injects it
@@ -122,44 +125,26 @@ option=linger:value=true
 # carries the same 21 NLRI octets under a different attribute code, and a needle
 # that named only those octets would be satisfied by either frame.
 expect=bgp:conn=1:seq=1:contains=800E1E4004470401010101000001000902000000000000000000630004DEADBEEF
-# seq=2 and seq=3 NEGATIVE -- the departure withdraws BOTH NLRIs. EXACT frames,
+# seq=2 NEGATIVE -- the departure withdraws BOTH NLRIs. EXACT frames,
 # not substrings, because every field of each one is part of the claim.
 #
-# TWO frames, not one, and `behavior { group-updates disable }` below is what
-# decides that: nlriUnitLen (internal/component/bgp/reactor/reactor_api_batch.go)
-# answers 1 for a peer whose group-updates leaf is false, so each rail frames one
-# UPDATE per NLRI. Their ORDER is earned, not timed: sendBatchedWithdrawals sorts
-# the hex spellings before it builds the command, so the type-1 NLRI
-# ("00010009...") always precedes the type-99 one ("00630004...").
+# Both checks share a sequence: recovery delivered these two complete frames
+# in either order under load. Each check consumes one message, so neither a
+# duplicate withdrawal nor a frame omitting the unknown NLRI can satisfy them.
 #
-# Each frame carries ORIGIN and AS_PATH ahead of the MP_UNREACH_NLRI.
-# buildBatchWithdrawUpdate gives a non-unicast withdrawal the announce rail's
-# attribute block, and RFC 4760 Section 4 permits both shapes: "An UPDATE message
-# that contains the MP_UNREACH_NLRI is not required to carry any other path
-# attributes". The AS_PATH is [65000], ze's own ASN, because ze originates this
-# withdrawal rather than relaying one.
+# Source-owned recovery uses buildRelayWithdrawal, not the ordinary originated
+# withdrawal builder. Each frame carries only MP_UNREACH_NLRI, with the SAME
+# native NLRI bytes the receiver was previously sent. No locally synthesized
+# ORIGIN or AS_PATH describes a recovery withdrawal.
 #
-#   seq=2, the type-1 NLRI
-#     0037        message length 55
-#     0000        withdrawn-routes length 0 -- the withdrawal is not IPv4 unicast
-#     0020        total path attribute length 32
-#     4001 01 00  ORIGIN, IGP
-#     4002 06 ..  AS_PATH, AS_SEQUENCE[65000]
-#     800F 10     MP_UNREACH_NLRI, optional, 16 octets of value
-#     4004 47     AFI 16388 / SAFI 71
-#     then the SAME 13 octets the source announced for NLRI 1.
-#   seq=3, the type-99 NLRI
-#     0032        message length 50
-#     001B        total path attribute length 27
-#     800F 0B     MP_UNREACH_NLRI, optional, 11 octets of value
-#     then the SAME 8 octets the source announced for NLRI 2, unchanged.
+# Type 1: message length 42, path attributes length 19, MP_UNREACH value length 16.
+# Type 99: message length 37, path attributes length 14, MP_UNREACH value length 11.
 #
-# seq=3 is the rule this file exists for. Without the fix it never arrives at all:
-# the withdrawal command the route server built named
-# "wire[bgp-ls/bgp-ls](21 bytes)" and was refused before any byte reached this
-# peer.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000204001010040020602010000FDE8800F1040044700010009020000000000000000
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0032020000001B4001010040020602010000FDE8800F0B40044700630004DEADBEEF
+# The type-99 check is the rule this file exists for. The old withdrawal command
+# named "wire[bgp-ls/bgp-ls](21 bytes)" and was refused before any byte reached
+# this peer.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A0200000013800F1040044700010009020000000000000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0025020000000E800F0B40044700630004DEADBEEF
 EOF_RECEIVER
 
 # Observer: makes the departure and the shutdown wait on STATE, never on a clock.
@@ -206,6 +191,10 @@ bgp {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
 		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
 		attach process bgpls-withdraw {
 			send [ update ]
 		}
@@ -240,6 +229,10 @@ bgp {
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}

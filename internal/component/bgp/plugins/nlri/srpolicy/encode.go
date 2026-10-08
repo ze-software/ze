@@ -81,9 +81,12 @@ func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath
 		NLRI:         pr.NLRI,
 		NextHop:      nh,
 		RawAttrs:     rawAttrs,
-		MapV4NextHop: true,
+		MapV4NextHop: false, // RFC 9830 Section 2.1: retain a native IPv4 next hop under either NLRI AFI.
 	}
 	update := ub.BuildPlugin(params)
+	if update == nil {
+		return nil, nil, message.ErrUnicastNextHopUnusable
+	}
 	return message.PackTo(update, nil), pr.NLRI, nil
 }
 

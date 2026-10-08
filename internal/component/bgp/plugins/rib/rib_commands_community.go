@@ -105,10 +105,9 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, any, error) 
 			affected = append(affected, affectedNLRI{nlri: cp, addPath: ap})
 		}
 	})
-	writes := r.reconcileSentSourceLocked(peerAddr, fam, commBytes)
+	r.attachSentSourceCommunityLocked(peerAddr, fam, commBytes)
 
 	r.peerMu.Unlock()
-	r.dispatchSentLifecycle(writes)
 
 	for _, a := range affected {
 		change, ok := r.checkBestPathChange(fam, a.nlri, a.addPath, nil)
@@ -156,40 +155,34 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, any, err
 		return statusDone, map[string]any{"deleted": 0}, nil
 	}
 
-	ap := peerRIB.IsAddPath(fam)
-
-	// Collect NLRIs to delete (avoid modifying during iteration)
-	var toDelete [][]byte
-	peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+	type deletedNLRI struct {
+		nlri    []byte
+		addPath bool
+	}
+	var toDelete []deletedNLRI
+	var removed removedReceivedOwners
+	deleted := peerRIB.RemoveFamilyMatching(fam, func(entry storage.RouteEntry) bool {
 		if entry.StaleLevel == storage.StaleLevelFresh {
-			return true
+			return false
 		}
 		eb := entry.GetBundle()
 		if eb.HasCommunities() {
 			if data, getErr := pool.Communities.Get(eb.Communities); getErr == nil {
-				if containsCommunity(data, commBytes) {
-					nlriCopy := make([]byte, len(nlriBytes))
-					copy(nlriCopy, nlriBytes)
-					toDelete = append(toDelete, nlriCopy)
-				}
+				return containsCommunity(data, commBytes)
 			}
 		}
-		return true
+		return false
+	}, func(raw []byte, message uint64, addPath bool) {
+		toDelete = append(toDelete, deletedNLRI{nlri: raw, addPath: addPath})
+		removed.add(fam, raw, addPath, message)
 	})
-
-	deleted := 0
-	for _, nlriBytes := range toDelete {
-		if peerRIB.Remove(fam, nlriBytes) {
-			deleted++
-		}
-	}
-	writes := r.reconcileSentSourceLocked(peerAddr, fam, nil)
+	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
 
 	r.peerMu.Unlock()
 	r.dispatchSentLifecycle(writes)
 
-	for _, nlriBytes := range toDelete {
-		change, ok := r.checkBestPathChange(fam, nlriBytes, ap, nil)
+	for _, route := range toDelete {
+		change, ok := r.checkBestPathChange(fam, route.nlri, route.addPath, nil)
 		if ok {
 			publishBestChanges([]bestChangeEntry{change}, fam)
 		}

@@ -23,31 +23,35 @@ stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 option=timeout:value=20s
 option=bind:value=0.0.0.0
+option=linger:value=true
 # Bind conn=N by remote IP: which client connects first is a race (peer_connmap.go).
 option=conn_map:value=remote-ip
 
 # Source peer (conn=1, AS 65001) announces three BGP-MUP routes in one MP_REACH_NLRI:
 #   ORIGIN:   40010100                 IGP
 #   AS_PATH:  40020602010000FDE9       AS_SEQUENCE[65001], 4-byte ASNs
-#   MP_REACH: 800E20 000155 04 01010101 00   AFI 1 / SAFI 85, next-hop 1.1.1.1
+#   MP_REACH: 800E36 000155 04 01010101 00   AFI 1 / SAFI 85, next-hop 1.1.1.1
 # draft-ietf-bess-mup-safi Section 3.1 frames each NLRI as
 # [architecture-type:1][route-type:2][length:1][value], so the length octet is the FOURTH:
-#     NLRI 1: 01 0001 04 DEADBEEF       arch 1, route type 1 (ISD)  -- IMPLEMENTED
+#     NLRI 1: 01 0001 0C, RD 65001:1, prefix 192.0.2.0/24 (Section 3.1.1).
 #     NLRI 2: 01 0005 04 CAFEBABE       arch 1, route type 5        -- no such route type
-#     NLRI 3: 01 0004 03 112233         arch 1, route type 4 (T2ST) -- IMPLEMENTED
+#     NLRI 3: 01 0004 11, RD 65001:1, endpoint length 64, 198.51.100.1,
+#             TEID 01020304, no TLVs (Sections 3.1.4 and 3.1.4.1).
+# The recognized bodies are complete routes, not just well-framed envelopes.
 # The unrecognized route sits BETWEEN two implemented ones on purpose: a fix that gave up on
 # the first unfamiliar type would take the third with it, and the assertion below would fail.
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004702000000304001010040020602010000FDE9800E2000015504010101010001000104DEADBEEF01000504CAFEBABE01000403112233
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005D02000000464001010040020602010000FDE9800E360001550401010101000100010C0000FDE90000000118C0000201000504CAFEBABE010004110000FDE90000000140C633640101020304
 
-# An ordinary IPv4 route, sent after the MUP one, is the processing fence. ze reads this
-# connection in TCP order on one goroutine, so the observer seeing 10.0.0.0/24 forwarded
-# proves the MUP UPDATE above was already handled. That is what makes the reject below an
-# assertion rather than a race with shutdown.
+# An ordinary IPv4 route follows the MUP UPDATE on the same source connection.
+# The receiver must observe that fence too; a sent-event observer alone cannot
+# prove its socket consumed every preceding message. Keep reject active until
+# the observer shuts the daemon down.
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 
 # Receiver (conn=2, AS 65002, rs-client so RFC 7947 leaves AS_PATH alone): the two
 # implemented BGP-MUP NLRIs arrive back to back.
-expect=bgp:conn=2:seq=1:contains=01000104DEADBEEF01000403112233
+expect=bgp:conn=2:seq=1:contains=0100010C0000FDE90000000118C00002010004110000FDE90000000140C633640101020304
+expect=bgp:conn=2:seq=2:announced=180A0000
 
 # And the unrecognized one never arrives, in any framing.
 reject=bgp:conn=2:pattern=01000504CAFEBABE

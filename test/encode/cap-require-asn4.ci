@@ -1,11 +1,13 @@
 # Test: asn4 require — peer without ASN4 gets NOTIFICATION
 # ze advertises ASN4 (require → advertise). ze-peer drops ASN4 from its mirrored response.
 # ze detects ASN4 missing → sends NOTIFICATION (OPEN Message Error, Unsupported Capability).
+# RFC 5492 Section 5: "Each such capability is encoded in the same way as
+# it would be encoded in the OPEN message." Code 65 carries the full ASN.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=open:value=drop-capability:code=65
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170302074100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B03020741040000FDE9
 EOF_PEER
 
 # ze bgp configuration

@@ -13,9 +13,9 @@ import (
 // VALIDATES: the single-route announce rail refuses a next hop it cannot encode,
 // instead of panicking (IPv4 branch) or filling the declared octets with an
 // address that names a different host (IPv6 branch).
-// PREVENTS: netip.Addr.As4 panicking inside writeNextHopAttr, and MP_REACH_NLRI
-// reaching a peer with ::ffff:a.b.c.d or :: in the field RFC 2545 Section 3
-// reserves for the global IPv6 address of the next hop.
+// PREVENTS: netip.Addr.As4 panicking inside writeNextHopAttr, and an IPv6 writer
+// silently converting native IPv4 or unset input into a different wire form.
+// Explicit mapped input is a separate valid form recognized by RFC 8950 Section 1.
 
 // v6NLRIDb81 is 2001:db8:1::/64 on the wire: prefix length 0x40 followed by the
 // eight significant octets.
@@ -59,13 +59,16 @@ func TestSendAnnounceRefusesUnusableIPv4NextHop(t *testing.T) {
 // why it is the more expensive of the two.
 //
 // RFC 2545 Section 3 names the first sixteen octets of the Next Hop field "the
-// global IPv6 address of the next hop". netip.Addr.As16 renders 192.0.2.1 as
-// ::ffff:192.0.2.1 and the zero Addr as ::, and both fill the declared sixteen
-// octets. The message is therefore well formed, the peer raises no NOTIFICATION,
-// and it installs a route toward a host that does not exist.
+// global IPv6 address of the next hop". The writer must not silently invent that
+// field from native four-octet or unset input. RFC 8950 Section 1 separately
+// recognizes an explicitly supplied sixteen-octet mapped field.
 //
-// RFC requirement: RFC2545-3-1 negative -- an address that is not the global IPv6
-// address of the next hop never reaches that field.
+// RFC requirement: RFC2545-3-1 negative -- native four-octet, unset,
+// unspecified, loopback, multicast and unnegotiated standalone link-local
+// inputs never reach the IPv6 next-hop field; the separately recognized single
+// mapped field remains a valid control.
+// MUTATION: bypass announceNextHopOctets' family/field eligibility check;
+// each unusable address must report an error and leave no wire bytes.
 func TestSendAnnounceRefusesUnusableIPv6NextHop(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -74,16 +77,31 @@ func TestSendAnnounceRefusesUnusableIPv6NextHop(t *testing.T) {
 	}{
 		{"ipv4", netip.MustParseAddr("192.0.2.1"), "::ffff:192.0.2.1"},
 		{"unset", netip.Addr{}, "::"},
+		{"unspecified", netip.MustParseAddr("::"), "::"},
+		{"loopback", netip.MustParseAddr("::1"), "::1"},
+		{"multicast-link", netip.MustParseAddr("ff02::1"), "ff02::1"},
+		{"multicast-global", netip.MustParseAddr("ff0e::1"), "ff0e::1"},
+		{"mapped", netip.MustParseAddr("::ffff:192.0.2.1"), "::ffff:192.0.2.1"},
+		{"link-local", netip.MustParseAddr("fe80::1"), "fe80::1"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			peer, conn := newAnnouncePeer(t, "::1")
+			// Keep the recipient distinct from every refused next hop, so the
+			// peer-own withholding rule cannot mask the encoding refusal.
+			peer, conn := newAnnouncePeer(t, "2001:db8::2")
 			route := bgptypes.RouteSpec{
 				Prefix:  netip.MustParsePrefix("2001:db8:1::/64"),
 				NextHop: bgptypes.NewNextHopExplicit(tc.nextHop),
 			}
 
 			err := peer.SendAnnounce(route, 65000)
+			if tc.name == "mapped" {
+				require.NoError(t, err, "RFC 8950 Section 1 preserves explicit mapped fields")
+				updates := recoveryWrittenUpdates(t, conn.written())
+				require.Len(t, updates, 1)
+				assert.Contains(t, string(updates[0].PathAttributes), string(mpReachIPv6Attr(t, v6NLRIDb81, "::ffff:192.0.2.1")))
+				return
+			}
 
 			require.ErrorIs(t, err, ErrNextHopUnencodable,
 				"RFC 2545 Section 3: the global IPv6 address of the next hop is not something the encoder may invent")

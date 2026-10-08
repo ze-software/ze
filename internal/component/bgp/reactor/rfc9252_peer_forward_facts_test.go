@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -319,7 +320,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 			assert.Equal(t, tt.wantMode, facts.nhMode)
 
 			var mods filterapi.ModAccumulator
-			applyFactsNextHop(&facts, &mods)
+			applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 			assert.Equal(t, tt.wantOps, mods.Len())
 		})
 	}
@@ -357,7 +358,7 @@ func TestPrefixSIDPropagationNextHop(t *testing.T) {
 		var facts peerForwardFacts
 		precomputeNextHop(&PeerSettings{NextHopMode: NextHopUnchanged}, &facts)
 		var mods filterapi.ModAccumulator
-		applyFactsNextHop(&facts, &mods)
+		applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 
 		assert.Empty(t, prefixSIDOps(&mods), "next-hop unchanged must not touch the Prefix-SID attribute")
 	})
@@ -369,7 +370,7 @@ func TestPrefixSIDPropagationNextHop(t *testing.T) {
 			LocalAddress: netip.MustParseAddr("2001:db8::1"),
 		}, &facts)
 		var mods filterapi.ModAccumulator
-		applyFactsNextHop(&facts, &mods)
+		applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 
 		ops := prefixSIDOps(&mods)
 		require.Len(t, ops, 1, "next-hop self records exactly one Prefix-SID operation")

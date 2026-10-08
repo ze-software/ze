@@ -53,6 +53,7 @@ func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
 		addPath bool
 	}
 	var affected []staleNLRI
+	var removed removedReceivedOwners
 
 	r.peerMu.Lock()
 
@@ -64,23 +65,20 @@ func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
 
 	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB != nil {
+		purged := 0
 		for _, fam := range peerRIB.Families() {
-			ap := peerRIB.IsAddPath(fam)
-			peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
-				if entry.StaleLevel > storage.StaleLevelFresh {
-					cp := make([]byte, len(nlriBytes))
-					copy(cp, nlriBytes)
-					affected = append(affected, staleNLRI{fam: fam, nlri: cp, addPath: ap})
-				}
-				return true
+			purged += peerRIB.RemoveFamilyMatching(fam, func(entry storage.RouteEntry) bool {
+				return entry.StaleLevel > storage.StaleLevelFresh
+			}, func(raw []byte, message uint64, addPath bool) {
+				affected = append(affected, staleNLRI{fam: fam, nlri: raw, addPath: addPath})
+				removed.add(fam, raw, addPath, message)
 			})
 		}
-		purged := peerRIB.PurgeAllStale()
 		logger().Info("auto-expire stale", "peer", peerAddr, "purged", purged)
 	}
 
 	delete(r.grState, peerAddr)
-	writes := r.reconcileSentSourceLocked(peerAddr, family.Family{}, nil)
+	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
 	r.peerMu.Unlock()
 	r.dispatchSentLifecycle(writes)
 
@@ -839,7 +837,7 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 		if len(families) != 0 {
 			r.bgpPeers[peer].RetainFamilies(families)
 			if !onDown {
-				writes = append(writes, r.reconcileSentSourceLocked(peer, family.Family{}, nil)...)
+				writes = append(writes, r.pruneSentSourceLocked(peer, families)...)
 			}
 			// On DOWN, keep sent ownership until RS's fenced withdrawal or
 			// replacement reaches the destination. GR owns retained families.
@@ -879,7 +877,7 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 			state.expiryTimer.Stop()
 		}
 		delete(r.grState, peer)
-		writes = append(writes, r.reconcileSentSourceLocked(peer, family.Family{}, nil)...)
+		writes = append(writes, r.pruneSentSourceLocked(peer, nil)...)
 		released++
 	}
 	r.peerMu.Unlock()
@@ -1026,9 +1024,8 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 		filtered = fam
 	}
 
-	// Collect stale NLRIs under peerMu so no concurrent INSERT can change
-	// stale state between snapshot and purge. Copies NLRI bytes per entry;
-	// acceptable for this cold-path GR command even on a full table.
+	// peerMu protects sent inventory and GR state. Received INSERT runs outside
+	// that lock, so selection and deletion share the PeerRIB storage lock.
 	r.peerMu.Lock()
 
 	purged := 0
@@ -1040,32 +1037,22 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 		addPath bool
 	}
 	var affected []staleNLRI
+	var removed removedReceivedOwners
 
 	if peerRIB != nil {
+		var families []family.Family
 		if familyFilter == "" {
-			for _, fam := range peerRIB.Families() {
-				ap := peerRIB.IsAddPath(fam)
-				peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
-					if entry.StaleLevel > storage.StaleLevelFresh {
-						cp := make([]byte, len(nlriBytes))
-						copy(cp, nlriBytes)
-						affected = append(affected, staleNLRI{fam: fam, nlri: cp, addPath: ap})
-					}
-					return true
-				})
-			}
-			purged = peerRIB.PurgeAllStale()
+			families = peerRIB.Families()
 		} else {
-			ap := peerRIB.IsAddPath(filtered)
-			peerRIB.IterateFamily(filtered, func(nlriBytes []byte, entry storage.RouteEntry) bool {
-				if entry.StaleLevel > storage.StaleLevelFresh {
-					cp := make([]byte, len(nlriBytes))
-					copy(cp, nlriBytes)
-					affected = append(affected, staleNLRI{fam: filtered, nlri: cp, addPath: ap})
-				}
-				return true
+			families = []family.Family{filtered}
+		}
+		for _, fam := range families {
+			purged += peerRIB.RemoveFamilyMatching(fam, func(entry storage.RouteEntry) bool {
+				return entry.StaleLevel > storage.StaleLevelFresh
+			}, func(raw []byte, message uint64, addPath bool) {
+				affected = append(affected, staleNLRI{fam: fam, nlri: raw, addPath: addPath})
+				removed.add(fam, raw, addPath, message)
 			})
-			purged = peerRIB.PurgeFamilyStale(filtered)
 		}
 	}
 
@@ -1075,7 +1062,7 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 		}
 		delete(r.grState, peerAddr)
 	}
-	writes := r.reconcileSentSourceLocked(peerAddr, filtered, nil)
+	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
 	r.peerMu.Unlock()
 	r.dispatchSentLifecycle(writes)
 

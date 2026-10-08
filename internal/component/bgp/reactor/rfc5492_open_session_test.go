@@ -216,3 +216,202 @@ func TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing(t *testing.T) {
 	require.Equal(t, fsm.StateIdle, s.State())
 	requireUnsupportedCapabilityData(t, conn.written()[sent:], []byte{2, 0})
 }
+
+// Goal: preserve complete causing capability tuples on both OPEN processing rails.
+// Method: compare emitted NOTIFICATION Data with literal local or peer OPEN TLVs,
+// including different values on the two sides and repeated variable-length instances.
+// RFC 5492 Section 5: "Each such capability is encoded in the same way as it
+// would be encoded in the OPEN message."
+// MUTATION: encoding only capability codes loses the ASN4/GR/ADD-PATH values.
+// RFC requirement: RFC5492-5-1 positive -- both OPEN paths emit exact code, length and original local-required or peer-refused values, including ASN4, repeated Graceful Restart, ADD-PATH directions and variable-length hostname.
+// RFC requirement: RFC5492-5-1 negative -- exact NOTIFICATION Data excludes satisfied or noncausing capabilities and does not substitute the opposite side's values or strip value-bearing capabilities to zero length.
+func TestUnsupportedCapabilityNotificationPreservesOpenTuples(t *testing.T) {
+	for _, rail := range []string{"handleOpen", "processOpen"} {
+		for _, tc := range []struct {
+			name     string
+			local    []byte
+			peer     []byte
+			required []capability.Code
+			refused  []capability.Code
+			want     []byte
+		}{
+			{
+				name:     "missing-asn4-local-value",
+				required: []capability.Code{capability.CodeASN4},
+				want:     []byte{65, 4, 0, 0, 0xfd, 0xe9},
+			},
+			{
+				name:    "refused-asn4-peer-value",
+				peer:    []byte{65, 4, 0, 0, 0xfd, 0xea},
+				refused: []capability.Code{capability.CodeASN4},
+				want:    []byte{65, 4, 0, 0, 0xfd, 0xea},
+			},
+			{
+				name:     "missing-mixed-values-only-causing-set",
+				local:    []byte{64, 6, 0, 120, 0, 1, 1, 0x80, 2, 0, 6, 0},
+				peer:     []byte{6, 0},
+				required: []capability.Code{capability.CodeASN4, capability.CodeGracefulRestart, capability.CodeRouteRefresh, capability.CodeExtendedMessage},
+				want:     []byte{65, 4, 0, 0, 0xfd, 0xe9, 64, 6, 0, 120, 0, 1, 1, 0x80, 2, 0},
+			},
+			{
+				name:    "refused-variable-values-and-repeated-instances",
+				local:   []byte{64, 2, 0, 30, 2, 0},
+				peer:    []byte{64, 6, 0, 90, 0, 1, 1, 0x80, 2, 0, 64, 6, 0, 120, 0, 2, 1, 0},
+				refused: []capability.Code{capability.CodeGracefulRestart},
+				want:    []byte{64, 6, 0, 90, 0, 1, 1, 0x80, 64, 6, 0, 120, 0, 2, 1, 0},
+			},
+			{
+				name:     "missing-addpath-preserves-all-local-directions",
+				local:    []byte{69, 8, 0, 1, 1, 2, 0, 2, 1, 1},
+				required: []capability.Code{capability.CodeAddPath},
+				want:     []byte{69, 8, 0, 1, 1, 2, 0, 2, 1, 1},
+			},
+			{
+				name:    "refused-addpath-preserves-peer-directions",
+				local:   []byte{69, 4, 0, 1, 1, 2},
+				peer:    []byte{69, 8, 0, 1, 1, 1, 0, 2, 1, 3},
+				refused: []capability.Code{capability.CodeAddPath},
+				want:    []byte{69, 8, 0, 1, 1, 1, 0, 2, 1, 3},
+			},
+			{
+				name:    "refused-hostname-retains-variable-value",
+				peer:    []byte{73, 5, 1, 'r', 2, 'e', 'x'},
+				refused: []capability.Code{capability.CodeFQDN},
+				want:    []byte{73, 5, 1, 'r', 2, 'e', 'x'},
+			},
+		} {
+			t.Run(rail+"/"+tc.name, func(t *testing.T) {
+				caps, err := capability.Parse(tc.local)
+				require.NoError(t, err)
+				s, conn, sent := newCapabilityOpenSession(t, append([]capability.Capability{capIPv4()}, caps...), tc.required)
+				s.settings.RefusedCapabilities = tc.refused
+				body := validOpenBody()
+				if len(tc.peer) > 0 {
+					body = openBodyWithParameters(tc.peer)
+				}
+				if rail == "handleOpen" {
+					err = s.handleOpen(body)
+				} else {
+					var open *message.Open
+					open, err = message.UnpackOpen(body)
+					require.NoError(t, err)
+					err = s.processOpen(open)
+				}
+				require.ErrorIs(t, err, ErrInvalidState)
+				require.Equal(t, fsm.StateIdle, s.State())
+				requireUnsupportedCapabilityData(t, conn.written()[sent:], tc.want)
+			})
+		}
+	}
+}
+
+// Goal: identify the rejected ADD-PATH family, not an unrelated Multiprotocol
+// capability or the negotiated (direction-reversed) value.
+// Method: drive both OPEN rails with local send/peer receive and a second family;
+// compare the complete refusal Data with the causing side's family tuple.
+// RFC 5492 Section 5: "The Data field in the NOTIFICATION message MUST list the
+// set of capabilities that causes the speaker to send the message."
+// MUTATION: using the Multiprotocol tuple builder emits code 1 instead of 69.
+// RFC requirement: RFC5492-5-1 positive -- both OPEN paths preserve the causing ADD-PATH family's original direction and repeated capability grouping, including an exact 3771-byte NOTIFICATION from a legal extended OPEN.
+// RFC requirement: RFC5492-5-1 negative -- exact NOTIFICATION Data excludes the noncausing family and cannot substitute Multiprotocol tuples, reverse directions or inflate repeated family entries into separate oversized capability tuples.
+func TestUnsupportedAddPathNotificationPreservesFamilyTuples(t *testing.T) {
+	for _, rail := range []string{"handleOpen", "processOpen"} {
+		for _, refused := range []bool{false, true} {
+			name := "required"
+			if refused {
+				name = "refused"
+			}
+			t.Run(rail+"/"+name, func(t *testing.T) {
+				caps, err := capability.Parse([]byte{69, 8, 0, 1, 1, 2, 0, 2, 1, 3})
+				require.NoError(t, err)
+				s, conn, sent := newCapabilityOpenSession(t, append([]capability.Capability{capIPv4(), capIPv6()}, caps...), nil)
+				body := openBodyWithParameters([]byte{1, 4, 0, 1, 0, 1, 1, 4, 0, 2, 0, 1})
+				want := []byte{69, 4, 0, 1, 1, 2}
+				if refused {
+					s.settings.RefusedAddPathFamilies = []capability.Family{familyIPv4Unicast}
+					body = openBodyWithParameters([]byte{1, 4, 0, 1, 0, 1, 1, 4, 0, 2, 0, 1, 69, 8, 0, 1, 1, 1, 0, 2, 1, 3})
+					want = []byte{69, 4, 0, 1, 1, 1}
+				} else {
+					s.settings.RequiredAddPathFamilies = []capability.Family{familyIPv4Unicast}
+				}
+				if rail == "handleOpen" {
+					err = s.handleOpen(body)
+				} else {
+					var open *message.Open
+					open, err = message.UnpackOpen(body)
+					require.NoError(t, err)
+					err = s.processOpen(open)
+				}
+				require.ErrorIs(t, err, ErrInvalidState)
+				require.Equal(t, fsm.StateIdle, s.State())
+				requireUnsupportedCapabilityData(t, conn.written()[sent:], want)
+			})
+		}
+		for _, refused := range []bool{false, true} {
+			name := "required-repeated-family-grouping"
+			mode := byte(2)
+			if refused {
+				name = "refused-repeated-family-grouping"
+				mode = 1
+			}
+			t.Run(rail+"/"+name, func(t *testing.T) {
+				// Fifteen legal 254-octet ADD-PATH capabilities fit in one OPEN.
+				// Expanding each of their 63 family entries into a separate TLV
+				// would inflate the rejection past the unnegotiated 4096 limit.
+				var tuples []byte
+				var selected []byte
+				for range 15 {
+					tuples = append(tuples, 69, 252)
+					selected = append(selected, 69, 248)
+					for range 62 {
+						tuples = append(tuples, 0, 1, 1, mode)
+						selected = append(selected, 0, 1, 1, mode)
+					}
+					tuples = append(tuples, 0, 2, 1, 3) // Noncausing family.
+				}
+				caps, err := capability.Parse(tuples)
+				require.NoError(t, err)
+				local := []capability.Capability{capIPv4()}
+				peer := &message.Open{Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x05060708}
+				if refused {
+					local = append(local, &capability.AddPath{Families: []capability.AddPathFamily{
+						{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathSend},
+					}})
+					// RFC 9072 extended parameter framing, length 3810 (0x0ee2).
+					peer.OptionalParams = append([]byte{2, 0x0e, 0xe2}, tuples...)
+					peer.ExtendedParams = true
+				} else {
+					local = append(local, caps...)
+				}
+				s, conn, sent := newCapabilityOpenSession(t, local, nil)
+				if refused {
+					s.settings.RefusedAddPathFamilies = []capability.Family{familyIPv4Unicast}
+				} else {
+					s.settings.RequiredAddPathFamilies = []capability.Family{familyIPv4Unicast}
+				}
+				wire := message.PackTo(peer, nil)
+				require.LessOrEqual(t, len(wire), 4096, "legal OPEN, no Extended Message negotiation")
+				require.NotPanics(t, func() {
+					if rail == "handleOpen" {
+						err = s.handleOpen(wire[message.HeaderLen:])
+					} else {
+						var open *message.Open
+						open, err = message.UnpackOpen(wire[message.HeaderLen:])
+						require.NoError(t, err)
+						err = s.processOpen(open)
+					}
+				})
+				require.ErrorIs(t, err, ErrInvalidState)
+				require.Equal(t, fsm.StateIdle, s.State())
+				// Exact complete NOTIFICATION: length 3771 (0x0ebb), type 3,
+				// OPEN Message Error / Unsupported Capability, grouped causing TLVs.
+				want := append([]byte{
+					0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+					0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+					0x0e, 0xbb, 3, 2, 7,
+				}, selected...)
+				require.Equal(t, want, conn.written()[sent:])
+			})
+		}
+	}
+}

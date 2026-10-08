@@ -266,7 +266,10 @@ func ospfBGPLSApplyUpdate(inventory map[string]ospfBGPLSRoute, body []byte) erro
 	if iterator.Remaining() != 0 {
 		return errors.New("truncated collector path attributes")
 	}
-	if _, err := nlrisplit.SplitBGPLS(unreach, false, func(nlri []byte) { delete(inventory, string(nlri)) }); err != nil {
+	if _, err := nlrisplit.SplitBGPLS(unreach, false, func(nlri []byte) bool {
+		delete(inventory, string(nlri))
+		return true
+	}); err != nil {
 		return err
 	}
 	if len(reach) == 0 {
@@ -281,32 +284,33 @@ func ospfBGPLSApplyUpdate(inventory map[string]ospfBGPLSRoute, body []byte) erro
 		return errors.New("native BGP-LS decoder unavailable")
 	}
 	var decodeErr error
-	_, err = nlrisplit.SplitBGPLS(reach, false, func(nlri []byte) {
+	_, err = nlrisplit.SplitBGPLS(reach, false, func(nlri []byte) bool {
 		if decodeErr != nil {
-			return
+			return true
 		}
 		var input, output bytes.Buffer
 		fmt.Fprintf(&input, "decode nlri bgp-ls/bgp-ls %x\n", nlri)
 		if decoder.InProcessDecoder(&input, &output) != 0 {
 			decodeErr = errors.New("native BGP-LS NLRI decode failed")
-			return
+			return true
 		}
 		text, ok := strings.CutPrefix(output.String(), "decoded json ")
 		if !ok {
 			decodeErr = fmt.Errorf("BGP-LS NLRI not decoded: %s", output.String())
-			return
+			return true
 		}
 		var route ospfBGPLSRoute
 		if decodeErr = json.Unmarshal([]byte(text), &route); decodeErr != nil {
-			return
+			return true
 		}
 		if route.Kind == "" {
 			decodeErr = errors.New("BGP-LS NLRI lacks decoded kind")
-			return
+			return true
 		}
 		route.Kind = strings.TrimPrefix(route.Kind, "bgpls-")
 		route.IDs = ids
 		inventory[string(nlri)] = route
+		return true
 	})
 	if err != nil {
 		return err

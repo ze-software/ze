@@ -85,7 +85,7 @@ func walkAIGPNLRI(wu *wireu.WireUpdate, fn func(aigpNLRI, []byte, []byte, bool))
 		}
 		addPath := ctx != nil && ctx.AddPath(fam)
 		keyFor := nlrisplit.GetPrefixKey(fam)
-		_, _ = split(data, addPath, func(raw []byte) {
+		_, _ = split(data, addPath, func(raw []byte) bool {
 			var id uint32
 			if addPath {
 				id = binary.BigEndian.Uint32(raw[:4])
@@ -96,6 +96,7 @@ func walkAIGPNLRI(wu *wireu.WireUpdate, fn func(aigpNLRI, []byte, []byte, bool))
 			if err == nil {
 				fn(aigpNLRI{family: fam, key: string(key), pathID: id}, raw, nh, withdraw)
 			}
+			return true
 		})
 	}
 	if wd, err := wu.Withdrawn(); err == nil {

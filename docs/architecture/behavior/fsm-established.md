@@ -159,12 +159,24 @@ runbook).
 |-------|--------|-----------------|
 | HoldTimer | **running** (negotiated value) | reset inside the FSM when `EventKeepaliveMsg` or `EventUpdateMsg` fires (RFC 4271 §8.2.2 Events 26, 27); fires `EventHoldTimerExpires` on expiry |
 | KeepaliveTimer | **running** (configured interval or hold/3, jittered) | each arm samples uniformly from 0.75 to 1.0 of the base, with a one-second minimum; callback sends KEEPALIVE and fires `EventKeepaliveTimerExpires` |
-| SendHoldTimer (RFC 9687) | **running** | reset on every successful write to the peer; fires teardown if we cannot send for too long |
+| SendHoldTimer (RFC 9687) | **running** unless the negotiated hold time is zero | reset after a BGP message is written and successfully flushed to the peer; fires teardown if no message is sent within SendHoldTime |
 | ConnectRetryTimer | not running | not used in production |
 
 <!-- source: internal/component/bgp/fsm/timer.go — StartHoldTimer, StartKeepaliveTimer, ResetHoldTimer -->
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires, OnKeepaliveTimerExpires -->
-<!-- source: internal/component/bgp/reactor/session_write.go — startSendHoldTimer, stopSendHoldTimer -->
+<!-- source: internal/component/bgp/reactor/session_write.go — startSendHoldTimer, stopSendHoldTimer, flushWrites -->
+
+A successful writer call is not necessarily a sent message. Export-policy
+suppression, duplicate or ownership filtering, PATHS-LIMIT withholding, and
+stale forward batches can return without emitting a frame. Those attempts,
+including an empty flush, leave the SendHold deadline unchanged. A successful
+flush credits newly written messages even when the buffer already wrote them
+directly to the transport. KEEPALIVE and ROUTE-REFRESH messages, including BoRR
+and EoRR, restart the deadline just as an emitted UPDATE does. A failed write or
+flush still retires the connection; it earns no restart.
+
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated, writeUpdateBody, flushWrites, retireWrite -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler -->
 
 ### Hold timer expiry
 

@@ -240,7 +240,7 @@ func TestCacheConsumerDeclaredBeforeReactorReachesIt(t *testing.T) {
 
 	// Stage 1: the plugins declare. No reactor exists yet.
 	c.RegisterCacheConsumer("bgp-rs", true)
-	c.RegisterCacheConsumer("bgp-persist", false)
+	c.RegisterCacheConsumer("test-ordered-consumer", false)
 
 	// Stage 2: the bgp plugin builds the reactor and attaches it.
 	m := &mockReactor{}
@@ -255,8 +255,8 @@ func TestCacheConsumerDeclaredBeforeReactorReachesIt(t *testing.T) {
 	if !unordered {
 		t.Error("bgp-rs reached the reactor as an ordered consumer; it declared unordered")
 	}
-	if fifo, ok := m.cacheConsumers["bgp-persist"]; !ok || fifo {
-		t.Errorf("bgp-persist = (%v, present=%v), want (false, present=true)", fifo, ok)
+	if fifo, ok := m.cacheConsumers["test-ordered-consumer"]; !ok || fifo {
+		t.Errorf("test-ordered-consumer = (%v, present=%v), want (false, present=true)", fifo, ok)
 	}
 	if n := m.cacheRegisterCalls["bgp-rs"]; n != 1 {
 		t.Errorf("bgp-rs registered %d times, want 1: the cache logs a BUG on a repeat", n)

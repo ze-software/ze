@@ -4,7 +4,7 @@
 // an unknown Link-State NLRI type as an opaque object and MUST preserve and
 // propagate it, overriding the RFC 7606 Section 5.4 instinct to discard what
 // cannot be parsed. Ze meets that structurally. The BGP-LS NLRI framing used on
-// every propagation path is bgpLSNLRISize (chunk_mp_nlri.go:348), which reads
+// every propagation path is the registered nlrisplit.SplitBGPLS, which reads
 // the 2-octet Total NLRI Length and never looks at the NLRI Type, so a type ze
 // has no decoder for is carved out and carried like any other.
 
@@ -129,7 +129,7 @@ func bgpLSVPNWireNLRI(nlriType uint16, bodyLen int, fill byte) []byte {
 //
 // VALIDATES: ChunkMPNLRI and SplitMPNLRI cut SAFI 72 on Link-State NLRI
 // boundaries, keeping each NLRI whole.
-// PREVENTS: SAFI 72 falling through to basicNLRISize, which reads octet 0 -- the
+// PREVENTS: SAFI 72 falling through to CIDR framing, which reads octet 0 -- the
 // high byte of the NLRI Type -- as a prefix length and yields garbage boundaries.
 func TestRFC9552BGPLSVPNNLRIFramedByLength(t *testing.T) {
 	// RFC requirement: RFC9552-5.2-2 positive -- VPN link, node and prefix information carried under AFI 16388 / SAFI 72 is framed as a Link-State NLRI on the propagation path, not as a prefix (§5.2)

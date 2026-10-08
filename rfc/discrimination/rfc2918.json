@@ -75,7 +75,7 @@
       "claim-sha": "365dcdddfa2cf2a0",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
-      "producer-sha": "b895764b89e72d25",
+      "producer-sha": "78e8daded65398f9",
       "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "def37428f24761e2",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
-      "producer-sha": "d0185d0de2bfb80e",
+      "producer-sha": "2c0f8f63185435ba",
       "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801"
     }

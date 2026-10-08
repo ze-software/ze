@@ -57,7 +57,9 @@
       "sites": 1,
       "disposition": "walked",
       "unsourced-ids": [
-        "RFC4659-3.2.1.1-2"
+        "RFC4659-3.2.1.1-2",
+        "RFC4659-3.2.1.1-3",
+        "RFC4659-8-3"
       ]
     },
     {
@@ -243,7 +245,7 @@
       "id": "8:3",
       "quote": "When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address.",
       "disposition": "mapped",
-      "mapped-to": "RFC4659-8-3"
+      "mapped-to": "RFC4659-8-5"
     },
     {
       "id": "8:4",

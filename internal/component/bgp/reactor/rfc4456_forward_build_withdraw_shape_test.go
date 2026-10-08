@@ -108,7 +108,7 @@ func TestRelayCreatesNoAttributeOnABodyAdvertisingNothing(t *testing.T) {
 	}{
 		{
 			name:   "next-hop-self/applyFactsNextHop",
-			record: func(mods *filterapi.ModAccumulator) { applyFactsNextHop(nhSelf, mods) },
+			record: func(mods *filterapi.ModAccumulator) { applyFactsNextHop(nhSelf, mods, family.Family{}) },
 			code:   3,
 		},
 		{

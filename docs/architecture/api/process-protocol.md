@@ -1458,6 +1458,15 @@ If IPC closes while liveness is being read, the engine rechecks activation befor
 reporting the IPC failure. The SDK publishes readiness before sticky activation,
 so an observer cannot confuse incomplete activation with shutdown.
 
+This also applies to `deliver-batch` events queued between bridge publication
+and SDK activation. They wait on the negotiated callback channel, not the
+startup pipe that the SDK is about to close. The batch keeps each event's JSON
+unchanged and is applied once; transport cutover does not retry it. In particular,
+GR must receive both OPEN directions before DOWN can use their capability state.
+<!-- source: internal/component/plugin/ipc/rpc.go -- CallBatchRPC -->
+<!-- test: internal/component/plugin/ipc/rpc_bridge_batch_sdk_test.go TestPluginConnBridgeBatchCutover -->
+<!-- test: internal/component/bgp/reactor/llgr_down_writer_test.go TestLLGRActualDownKeepsWriterOwner -->
+
 After activation the pipe is fully shut down, the MuxConn read loop exits, and
 engine-to-plugin callbacks flow through the bridge callback channels. A failed
 final OK leaves startup unsuccessful: the engine records the error and restores

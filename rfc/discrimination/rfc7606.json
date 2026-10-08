@@ -3,6 +3,17 @@
   "records": [
     {
       "rid": "RFC7606-3.c-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts",
+      "unit-sha": "21c115d0aa90545f",
+      "claim-sha": "6f1b1d62e599fd6d",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.c-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeAsSpecifiedAccepted",
       "unit-sha": "c5a20171e2efb893",
@@ -44,6 +55,61 @@
       "producer": "internal/core/bgp/attribute/flags_spec.go::FlagsConflict",
       "producer-sha": "726dc4ceeeb2fd75",
       "break": "body of FlagsConflict replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.c-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession",
+      "unit-sha": "45c281a3f8f0599e",
+      "claim-sha": "b97eaf55d3e73077",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.d-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "c8dce934395198b7",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.e-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "219a876b8e79810b",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.f-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "836222f254ad4431",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.g-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "b9da3cf5316bc26d",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7606-3.g-2",
@@ -90,6 +156,28 @@
       "break": "body of ValidateUpdateRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7606-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "94937e9eb49dd1cf",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "82ee545538e53bb1",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7606-4-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength",
@@ -110,6 +198,187 @@
       "producer": "internal/component/bgp/message/rfc7606_withdraw.go::SynthesizeWithdrawFamilies",
       "producer-sha": "ccded480ba2e58e9",
       "break": "body of SynthesizeWithdrawFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.1-2",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc7606-relay-one-field.ci",
+      "unit-sha": "d6fcda2a56ba426a",
+      "claim-sha": "639b8ce2b61bf9b7",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_shape.go::MixesNLRIFields",
+      "producer-sha": "d640d39959600009",
+      "break": "body of MixesNLRIFields replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418AC10000000"
+    },
+    {
+      "rid": "RFC7606-5.1-3",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc7606-receive-combinations.ci",
+      "unit-sha": "06e6e7a017dffba0",
+      "claim-sha": "40fa8f5b0d8b8ccf",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=6:contains=180A2800"
+    },
+    {
+      "rid": "RFC7606-5.1-3",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc7606-relay-one-field.ci",
+      "unit-sha": "d6fcda2a56ba426a",
+      "claim-sha": "3d8ce1cc62058473",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=4:contains=40020A02020000FDE80000FDE940030401010101"
+    },
+    {
+      "rid": "RFC7606-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset",
+      "unit-sha": "fa6798a1003cb3b3",
+      "claim-sha": "031d951348e876ba",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "9de8cbc90870d559",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "78a47241dce44e81",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession",
+      "unit-sha": "45c281a3f8f0599e",
+      "claim-sha": "4292ab151ee0ff9d",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries",
+      "unit-sha": "79d8e3e86d645816",
+      "claim-sha": "e513db0d955c506a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606IPv4",
+      "producer-sha": "1f7839683557d5c9",
+      "break": "body of validateRFC7606IPv4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries",
+      "unit-sha": "79d8e3e86d645816",
+      "claim-sha": "9aa2866978aa374d",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606IPv4",
+      "producer-sha": "1f7839683557d5c9",
+      "break": "body of validateRFC7606IPv4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.4-1",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci",
+      "unit-sha": "d43d04bd52764eb3",
+      "claim-sha": "0cec02bf7889b63c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",
+      "producer-sha": "d6f5dc5f89807293",
+      "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=1:contains=0100010C0000FDE90000000118C00002010004110000FDE90000000140C633640101020304"
+    },
+    {
+      "rid": "RFC7606-5.4-1",
+      "polarity": "positive",
+      "unit": "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci",
+      "unit-sha": "58103c0d5fffdcb8",
+      "claim-sha": "15c78265969a8ea3",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/evpn/rfc7606.go::RecognizeNLRI",
+      "producer-sha": "337c783ac3d987ad",
+      "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=2:seq=1:contains=03110000FDE9000000010000000020C000020102210000FDE90000000100000000000000000000000000003000112233445500000641"
+    },
+    {
+      "rid": "RFC7606-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI",
+      "unit-sha": "d8a028c1a5fc453b",
+      "claim-sha": "a8f758497abe8fcb",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606DiagnosticsWithWire",
+      "producer-sha": "4eaec35dad001585",
+      "break": "body of rfc7606DiagnosticsWithWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI",
+      "unit-sha": "d8a028c1a5fc453b",
+      "claim-sha": "7bdd34c1d825c8b4",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606DiagnosticsWithWire",
+      "producer-sha": "4eaec35dad001585",
+      "break": "body of rfc7606DiagnosticsWithWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsCoverSessionReset",
+      "unit-sha": "8f0690012969fcae",
+      "claim-sha": "2304e02fd0897736",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606DiagnosticsWithWire",
+      "producer-sha": "4eaec35dad001585",
+      "break": "body of rfc7606DiagnosticsWithWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsListNLRIAndUpdate",
+      "unit-sha": "b2152d8b3b317cd4",
+      "claim-sha": "5880ad3e2f197043",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606DiagnosticsWithWire",
+      "producer-sha": "4eaec35dad001585",
+      "break": "body of rfc7606DiagnosticsWithWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsSilentWhenDebugDisabled",
+      "unit-sha": "bf6d008d672673ad",
+      "claim-sha": "67e0350783e8359e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606DiagnosticsWithWire",
+      "producer-sha": "4eaec35dad001585",
+      "break": "body of rfc7606DiagnosticsWithWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7606-7.10-2",
@@ -156,6 +425,116 @@
       "break": "body of validateExtCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7606-7.16-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606AttrSetMalformedInnerAttributes",
+      "unit-sha": "b48e64ab72f6f513",
+      "claim-sha": "1248e59cd86bffec",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+      "producer-sha": "f3196e4c79239d0a",
+      "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.16-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerASPathAlwaysFourOctet",
+      "unit-sha": "692bd133f40d17bd",
+      "claim-sha": "e86a6a0cb136762b",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+      "producer-sha": "f3196e4c79239d0a",
+      "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.16-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerIBGPAttributesOnEBGPSession",
+      "unit-sha": "0100d0c526618e7f",
+      "claim-sha": "5ea3531ad36146e9",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+      "producer-sha": "f3196e4c79239d0a",
+      "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.16-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerMalformedStillWithdraws",
+      "unit-sha": "bc40ec1687cda036",
+      "claim-sha": "6bf49e924e671586",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+      "producer-sha": "f3196e4c79239d0a",
+      "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.16-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetNestingCapBoundary",
+      "unit-sha": "fb63710113f47a1b",
+      "claim-sha": "79e72ec3f2a7900f",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+      "producer-sha": "f3196e4c79239d0a",
+      "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.16-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_attrset_discard_test.go::TestRFC7606AttrSetInnerDiscardWithdraws",
+      "unit-sha": "cbe57ca75d8524e5",
+      "claim-sha": "8c1591dca72a2444",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+      "producer-sha": "f3196e4c79239d0a",
+      "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.16-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession",
+      "unit-sha": "45c281a3f8f0599e",
+      "claim-sha": "628062caada98b12",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "e7bf973e75df440d",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "f9e5555bc8376772",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "31f7a24670fe4596",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7606-7.7-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardDiscardsMalformedAggregatorAtMatchingWidth",
@@ -176,6 +555,17 @@
       "producer": "internal/component/bgp/wireu/aspath_slot.go::recordAggregatorDiscard",
       "producer-sha": "94123ef5bb8e3b85",
       "break": "body of recordAggregatorDiscard replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.8-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+      "unit-sha": "a5b85689aac05495",
+      "claim-sha": "0ab493077ee39a02",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "41cb6bc835402bd4",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

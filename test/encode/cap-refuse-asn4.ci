@@ -1,11 +1,13 @@
 # Test: asn4 refuse — peer with ASN4 gets NOTIFICATION
 # ze does NOT advertise ASN4 (refuse → don't advertise). ze-peer adds ASN4 to its response.
 # ze detects peer has ASN4 → sends NOTIFICATION (OPEN Message Error, Unsupported Capability).
+# RFC 5492 Section 5: "Each such capability is encoded in the same way as
+# it would be encoded in the OPEN message." Code 65 carries the full ASN.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=open:value=add-capability:code=65:hex=0000FDE9
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170302074100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B03020741040000FDE9
 EOF_PEER
 
 # ze bgp configuration

@@ -142,6 +142,9 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 		NextHop: parsed.NextHop,
 	}
 	update := ub.BuildPlugin(params)
+	if update == nil {
+		return nil, nil, message.ErrUnicastNextHopUnusable
+	}
 	updateBody := message.PackTo(update, nil)
 
 	return updateBody, nlriBytes, nil

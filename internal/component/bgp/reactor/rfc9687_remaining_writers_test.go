@@ -10,10 +10,10 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 )
 
-// TestRFC9687RemainingWritersRestartSendHold covers writers with their own reset
-// calls. Each sends at 0.6 SendHoldTime and survives to 1.2 SendHoldTime; the
-// exact new deadline also distinguishes a restart from a stopped timer.
-// MUTATION: remove resetSendHoldTimer from any writer: its deadline stays old.
+// TestRFC9687RemainingWritersRestartSendHold covers writers sharing the emission
+// accounting in flushWrites. Each sends at 0.6 SendHoldTime and survives to 1.2
+// SendHoldTime; the exact new deadline also distinguishes a restart from a stopped timer.
+// MUTATION: remove the emitted-message reset in flushWrites: the deadline stays old.
 // RFC requirement: RFC9687-4.3-8 positive -- SendAnnounce, SendUpdateHeld, raw and parsed fwdBatchHandler batches, and flushFwdDirty restart the live session's SendHoldTimer and survive 1.2 SendHoldTime with a send in the middle.
 func TestRFC9687RemainingWritersRestartSendHold(t *testing.T) {
 	for _, name := range []string{"announce", "held", "batch-raw", "batch-parsed", "dirty-flush"} {

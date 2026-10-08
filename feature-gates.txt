@@ -292,7 +292,6 @@ ze_bgp   internal/component/bgp/plugins/nlri/rtc
 ze_bgp   internal/component/bgp/plugins/nlri/srpolicy
 ze_bgp   internal/component/bgp/plugins/nlri/vpls
 ze_bgp   internal/component/bgp/plugins/nlri/vpn
-ze_bgp   internal/component/bgp/plugins/persist
 ze_bgp   internal/component/bgp/plugins/redistribute_egress
 ze_bgp   internal/component/bgp/plugins/rib
 ze_bgp   internal/component/bgp/plugins/role

@@ -532,7 +532,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 
 	// Return warning-level error if no peers accepted (all skipped due to family).
 	//
-	// A rejected BUILD is the one failure that must not be downgraded here.
+	// A rejected build or unusable final next hop must not be downgraded here.
 	// ErrNoPeersAcceptedFamily means "every matching peer was SKIPPED because it
 	// does not carry this family", and DispatchNLRIGroups turns it into a warning
 	// on that basis. For a batch that could not be encoded the family WAS
@@ -556,6 +556,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		switch {
 		case errors.Is(lastErr, errAnnounceTooLarge),
 			errors.Is(lastErr, errAnnounceNextHopUnencodable),
+			errors.Is(lastErr, message.ErrUnicastNextHopUnusable),
 			errors.Is(lastErr, ErrNextHopIncompatible),
 			errors.Is(lastErr, errWithdrawTooLarge),
 			errors.Is(lastErr, errStaleReadvertiseWithheld),
@@ -1166,6 +1167,12 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	inline := inlineIPv4Unicast(batch.Family, facts.nextHop)
 	if !inline {
+		// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1:
+		// validate the MP field, not an unused hint in the legacy inline branch.
+		if err := message.ValidateFamilyNextHop(batch.Family, facts.nextHop, netip.Addr{}); err != nil {
+			logAnnounceNextHopUnencodable(batch, facts.nextHop, err)
+			return nil, errAnnounceNextHopUnencodable
+		}
 		// RFC 4760 Section 3: every other family carries its next-hop and NLRI inside
 		// MP_REACH_NLRI, and so does IPv4 unicast with an IPv6 next hop
 		// (inlineIPv4Unicast). A relayed/replayed block may already carry one; the
@@ -1402,8 +1409,9 @@ func (a *reactorAPIAdapter) planBatchAttrs(plan *announceAttrs, batch bgptypes.N
 		// nlri/mup each add code 3 for an IPv4 next hop, and 42 `conf-*` fixtures pin
 		// it -- while this rail sent MP_REACH_NLRI alone, so the same route reached
 		// the wire as two different byte strings depending on whether an operator
-		// configured it or announced it. RFC 4760 Section 3 makes both conformant
-		// (SHOULD NOT), so the rails agreeing is what the choice is for.
+		// configured it or announced it. This is an intentional compatibility
+		// deviation from RFC 4760 Section 3's SHOULD NOT; agreement between
+		// the configured and API rails does not itself establish conformance.
 		plan.add(plan.nextHopFor(facts.nextHop), nil)
 	}
 
@@ -1506,24 +1514,16 @@ func writeBatchNLRI(nlriBuf []byte, nlris []nlri.NLRI, addPath bool) int {
 // not encode the batch into its pooled build buffer.
 var errAnnounceTooLarge = errors.New("announce attributes exceed the build buffer; split the batch into smaller announcements")
 
-// errAnnounceNextHopUnencodable is what a caller reports when the resolved next
-// hop has no MP_REACH_NLRI wire form, so the batch's own prefixes cannot be
-// carried at all (attribute.ErrUnencodableNextHop).
+// errAnnounceNextHopUnencodable reports an absent required next hop or an
+// unusable IPv6-unicast address role. Neither can carry this batch's prefixes.
 //
 // Separate from errAnnounceTooLarge because the operator action differs: nothing
 // about the batch size would help, and the next hop is what must change
 // (ai/rules/cli.md).
 //
-// The text names UNRESOLVED, which is exactly what attribute.ValidateNextHops
-// tests, and no more. An earlier wording said "configure a next-hop the family can
-// carry", which claimed a family check nobody wrote: a VALID IPv4 address on an
-// IPv6 batch passes ValidateNextHops and encodes four octets under AFI 2, a length
-// RFC 2545 Section 3 does not define. Closing that needs the valid next-hop lengths
-// to be data each NLRI family registers instead of the central switch
-// attribute.ValidNextHopLens is today, so the message was narrowed to the truth
-// rather than the check widened onto that switch (ai/rules/cli.md: leg 3 must be
-// TRUE).
-var errAnnounceNextHopUnencodable = errors.New("announce next-hop is unresolved and has no wire form; set a next-hop for this announcement")
+// Ordinary IPv6 unicast checks address roles as well as presence. Other
+// families retain their own next-hop contracts.
+var errAnnounceNextHopUnencodable = errors.New("announce next-hop is absent or unusable; set a usable next-hop for this announcement")
 
 // errStaleReadvertiseWithheld is the shared cause of an LLGR stale re-advertise
 // (RFC 9494) that this speaker could not carry out for a destination peer. The
@@ -1585,10 +1585,10 @@ func logAnnounceTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
 // AnnounceNLRIBatch returns errAnnounceNextHopUnencodable and DispatchNLRIGroups
 // turns that into a StatusError response (ai/rules/evidence.md, ai/rules/cli.md).
 func logAnnounceNextHopUnencodable(batch bgptypes.NLRIBatch, nextHop netip.Addr, cause error) {
-	routesLogger().Warn("announce rejected: next-hop is unresolved and has no wire form",
+	routesLogger().Warn("announce rejected: next-hop is absent or unusable",
 		"family", batch.Family, "nlri-count", len(batch.NLRIs),
 		"next-hop", nextHop, "error", cause,
-		"action", "route not sent to this peer; set a next-hop for this announcement")
+		"action", "route not sent to this peer; set a usable next-hop for this announcement")
 }
 
 // announceASPathASNs appends to dst, and returns, the AS_PATH ASN sequence this

@@ -5,6 +5,7 @@
 package message
 
 import (
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -15,13 +16,6 @@ import (
 // Sections 7.13, 7.15 and 7.16 were disclosed as gaps rather than enforced.
 //
 // These live in their own file because rfc7606.go is already at the 1000-line limit.
-
-// Attribute type codes validated here.
-const (
-	attrCodeTrafficEng  uint8 = 24  // RFC 5543 Traffic Engineering
-	attrCodeIPv6ExtComm uint8 = 25  // RFC 5701 IPv6 Address Specific Extended Community
-	attrCodeAttrSet     uint8 = 128 // RFC 6368 ATTR_SET
-)
 
 // attrFlagExtendedLn is RFC 4271 Section 4.3 bit 3: the Attribute Length is 2 octets.
 // The outer walk in ValidateUpdateRFC7606 spells this 0x10 inline; ATTR_SET's inner
@@ -47,9 +41,9 @@ const (
 )
 
 func init() {
-	attrValidators[attrCodeTrafficEng] = validateTrafficEngineeringAttr
-	attrValidators[attrCodeIPv6ExtComm] = validateIPv6ExtCommunityAttr
-	attrValidators[attrCodeAttrSet] = validateAttrSetAttr
+	attrValidators[attribute.AttrTrafficEngineering] = validateTrafficEngineeringAttr
+	attrValidators[attribute.AttrIPv6ExtCommunity] = validateIPv6ExtCommunityAttr
+	attrValidators[attribute.AttrSet] = validateAttrSetAttr
 }
 
 // RFC 7606 Section 7.13: "an implementation that determines (for whatever reason) that an
@@ -188,6 +182,19 @@ func validateAttrSetDepth(
 			return malformed("contains an MP_REACH/MP_UNREACH attribute", int64(innerCode))
 		}
 
+		// RFC 6368 Section 5: "When present, it SHOULD be ignored by the
+		// receiving PE." Its framing was checked above; the inner NEXT_HOP
+		// does not supply the enclosing route's next hop.
+		if innerCode == attrCodeNextHop {
+			continue
+		}
+		// RFC 7606 Section 3(c): "the attribute MUST be treated as malformed".
+		// RFC 6368 Section 5 makes malformed included attributes an ATTR_SET
+		// error, regardless of their standalone error-handling action.
+		if r := validateAttributeFlags(innerCode, flags); r != nil {
+			return malformed("an included attribute has conflicting flags, code", int64(innerCode))
+		}
+
 		// "The included attributes are malformed themselves." Same definition, so the same
 		// code: recurse for a nested ATTR_SET (depth-capped), otherwise reuse the ordinary
 		// per-attribute validation.
@@ -206,18 +213,18 @@ func validateAttrSetDepth(
 		//     Protocol"), so LOCAL_PREF, ORIGINATOR_ID and CLUSTER_LIST are legitimate
 		//     inside it. Judging them with the outer session's eBGP context withdrew any
 		//     route whose ATTR_SET carried the customer's LOCAL_PREF.
-		if innerCode == attrCodeAttrSet {
+		if attribute.AttributeCode(innerCode) == attribute.AttrSet {
 			if r := validateAttrSetDepth(code, innerLen, innerData, depth+1); r != nil {
 				return r
 			}
 			continue
 		}
-		// Only a MALFORMED inner attribute makes the ATTR_SET malformed. RFC 7606 assigns
-		// "attribute discard" to AGGREGATOR (7.7), LOCAL_PREF from eBGP (7.5),
-		// ORIGINATOR_ID (7.9) and CLUSTER_LIST (7.10) precisely so the route survives;
-		// escalating those to a whole-UPDATE withdraw would invert that choice.
+		// RFC 6368 Section 5: "The included attributes are malformed themselves."
+		// RFC 7606 Section 7.16: "An UPDATE message with a malformed ATTR_SET
+		// attribute SHALL be handled using the approach of 'treat as withdraw'."
+		// Attribute discard describes handling, not absence of malformation.
 		if r := validateAttribute(innerCode, innerLen, innerData, true, true); r != nil &&
-			r.Action >= RFC7606ActionTreatAsWithdraw {
+			r.Action != RFC7606ActionNone {
 			return malformed("an included attribute is itself malformed, code", int64(innerCode))
 		}
 	}

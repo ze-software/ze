@@ -181,21 +181,32 @@ func (s *Session) notifyHeaderErr(conn net.Conn, header []byte, err error) {
 // processMessage handles a received BGP message.
 // Returns (error, kept) where kept indicates if callback took buffer ownership.
 func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle) (error, bool) {
+	var validation rfc7606Validation
+	if hdr.Type == msgtype.TypeUPDATE {
+		// RFC 4271 Section 8.2.2: an UPDATE in OpenSent/OpenConfirm is
+		// an unexpected FSM event. Resolve that admission here: a timer may
+		// change the state before dispatch, but cannot turn this rejected
+		// message into an unclassified UPDATE handed to enforcement.
+		if updateIsUnexpected(s.fsm.State()) {
+			return s.fsmMessageEvent(fsm.EventUpdateMsg), false
+		}
+		// RFC 7606 Sections 3 and 5.3: classify the original message once.
+		validation = s.classifyRFC7606(body)
+		s.prepareRFC7606FirstAS(body, &validation)
+	}
+	return s.processValidatedMessage(hdr, body, buf, &validation)
+}
+
+// processValidatedMessage dispatches a message whose UPDATE classification is
+// already available. UPDATE admission is settled before entering this function;
+// non-UPDATE messages do not use the classification.
+// RFC 7606 Section 2: "the UPDATE message containing the path attribute in
+// question MUST be treated as though all contained routes had been withdrawn".
+func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf BufHandle, validation *rfc7606Validation) (error, bool) {
 	s.mu.RLock()
 	ctxID := s.recvCtxID
 	sourceID := s.sourceID
 	s.mu.RUnlock()
-
-	// An UPDATE read in OpenSent or OpenConfirm arrives before the session is
-	// Established: nothing is negotiated to parse it against, and it must not
-	// reach the plugins. RFC 4271 Section 8.2.2 files Event 27 and Event 28
-	// under the "any other event" list of both states, so the FSM answers it
-	// with a Finite State Machine Error, whether the UPDATE is well formed
-	// (Event 27) or not (Event 28): the action list is the same. Idle, Connect
-	// and Active hold no connection to read from.
-	if hdr.Type == msgtype.TypeUPDATE && updateIsUnexpected(s.fsm.State()) {
-		return s.fsmMessageEvent(fsm.EventUpdateMsg), false
-	}
 
 	// For UPDATE: create WireUpdate once, use for callback and handler
 	var wireUpdate *wireu.WireUpdate
@@ -207,12 +218,12 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		// RFC 7606: Validate BEFORE dispatching to plugins.
 		// Enforcement must happen before callback so malformed UPDATEs
 		// are never delivered to plugins as valid routes.
-		// enforceRFC7606 returns the UPDATE already rewritten for attribute-discard
+		// applyRFC7606 returns the UPDATE already rewritten for attribute-discard
 		// (attributes tombstoned); treat-as-withdraw synthesis is handled below because it
 		// is negotiation-aware and may produce more than one UPDATE.
 		var err error
 		var action message.RFC7606Action
-		wireUpdate, action, err = s.enforceRFC7606(wireUpdate)
+		wireUpdate, action, err = s.applyRFC7606(wireUpdate, validation)
 		if err != nil {
 			// session-reset: error propagated, no dispatch
 			return err, false
@@ -229,25 +240,31 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 				uint8(attribute.AttrNextHop), "NEXT_HOP is local or outside the directly connected subnets")
 		}
 
+		var lateAttributeError string
 		if action < message.RFC7606ActionTreatAsWithdraw {
 			// Draft ASPA verification -28 Section 5 requires the reconstructed
 			// AS_PATH. First finish raw-wire error handling, including AS 0 and
 			// AS4 attribute discards, then compare the canonical neighbor AS.
-			collapsed, collapseErr := s.collapseASPathFamily(wireUpdate)
+			collapsed, collapseErr := s.collapseASPathFamily(wireUpdate, validation)
 			if collapseErr != nil {
 				sessionLogger().Error("cannot reconcile received AS path",
 					"peer", s.settings.Address, "error", collapseErr)
-				// The NLRI already passed RFC 7606 syntax validation. An
-				// unusable path must withdraw it, not leave an old route installed.
-				action = message.RFC7606ActionTreatAsWithdraw
+				lateAttributeError = "AS_PATH cannot be reconciled: " + collapseErr.Error()
 			} else {
 				wireUpdate = collapsed
-				if s.firstASMismatch(wireUpdate) {
-					action = message.RFC7606ActionTreatAsWithdraw
-					s.rfc7606Diagnostics("treat-as-withdraw",
-						receivedUpdate, uint8(attribute.AttrASPath),
-						"AS_PATH first AS does not match the neighbor AS")
+				if !validation.firstASChecked && s.firstASMismatch(wireUpdate) {
+					lateAttributeError = "AS_PATH first AS does not match the neighbor AS"
 				}
+			}
+		}
+		if lateAttributeError != "" {
+			// RFC 7606 Section 5.2 applies to errors found after raw-wire
+			// validation too. Use original reachability before any synthesis;
+			// an empty MP_REACH must not become a false End-of-RIB.
+			action, err = s.rfc7606LateAttributeError(receivedUpdate, validation,
+				uint8(attribute.AttrASPath), lateAttributeError)
+			if err != nil {
+				return err, false
 			}
 		}
 
@@ -298,6 +315,10 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 				}
 			}
 			wireUpdate = primary
+		} else {
+			// RFC 7606 Section 6 diagnostics precede RFC 4271 Section 9's
+			// Partial stamping: an error must retain what the peer sent.
+			wireUpdate = s.publishBase(wireUpdate)
 		}
 
 		// ActionNone or ActionAttributeDiscard: continue to dispatch.
@@ -453,7 +474,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 // The error means no canonical AS path exists. The caller MUST treat the UPDATE
 // as withdrawn and MUST NOT dispatch its announcements: the NLRI was validated
 // before this call, but a half-rewritten path cannot be used.
-func (s *Session) collapseASPathFamily(wireUpdate *wireu.WireUpdate) (*wireu.WireUpdate, error) {
+func (s *Session) collapseASPathFamily(wireUpdate *wireu.WireUpdate, validation *rfc7606Validation) (*wireu.WireUpdate, error) {
 	// The width is read from the context the PAYLOAD carries, never from the
 	// negotiated capability, so it describes the bytes rather than the session.
 	// rib_structured.go reads the same field the same way, missing context
@@ -462,25 +483,25 @@ func (s *Session) collapseASPathFamily(wireUpdate *wireu.WireUpdate) (*wireu.Wir
 	srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 	srcASN4 := srcCtx == nil || srcCtx.ASN4()
 
-	if srcASN4 && !carriesAS4Attributes(wireUpdate) {
+	if srcASN4 && ((validation.batchable() && !validation.result.AS4Present) || !carriesAS4Attributes(wireUpdate)) {
 		return wireUpdate, nil
 	}
 
 	payload := wireUpdate.Payload()
 	dst := make([]byte, wireu.CollapseAS4FamilySize(payload))
-	n, discards, err := wireu.CollapseAS4Family(dst, payload, srcASN4)
+	var n int
+	var discards []attribute.ASPathDiscard
+	var err error
+	if validation.as4Prepared {
+		n, discards, err = validation.as4Plan.WriteTo(dst, payload)
+	} else {
+		n, discards, err = wireu.CollapseAS4Family(dst, payload, srcASN4)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("reconcile the AS path family: %w", err)
 	}
 
-	for _, discard := range discards {
-		// RFC 6793 Section 6: "The error SHOULD be logged locally for
-		// analysis." The attribute package holds no logger and takes none, so
-		// each caller writes the line under its own subsystem and this one is
-		// the session's.
-		sessionLogger().Warn("discarded a received AS4 attribute",
-			"peer", s.settings.Address, "attribute", discard.Code, "reason", discard.Reason)
-	}
+	s.logAS4Discards(discards)
 
 	if n == 0 {
 		return wireUpdate, nil
@@ -491,6 +512,15 @@ func (s *Session) collapseASPathFamily(wireUpdate *wireu.WireUpdate) (*wireu.Wir
 	collapsed := wireu.NewWireUpdate(dst[:n:n], fwdContextIDWithASN4(wireUpdate.SourceCtxID(), true))
 	collapsed.SetSourceID(wireUpdate.SourceID())
 	return collapsed, nil
+}
+
+// logAS4Discards records the existing reconciliation's nonfatal decisions.
+// RFC 6793 Section 6: "The error SHOULD be logged locally for analysis."
+func (s *Session) logAS4Discards(discards []attribute.ASPathDiscard) {
+	for _, discard := range discards {
+		sessionLogger().Warn("discarded a received AS4 attribute",
+			"peer", s.settings.Address, "attribute", discard.Code, "reason", discard.Reason)
+	}
 }
 
 // carriesAS4Attributes reports whether a received UPDATE holds an AS4_PATH or

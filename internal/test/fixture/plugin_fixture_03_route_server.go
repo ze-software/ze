@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -37,27 +38,72 @@ func routeServerObserver03(expectedPeers int, waitForward bool) ObserverScenario
 }
 
 func bgpRSControlWithdraw03(ctx context.Context, p *sdk.Plugin) error {
+	if err := withdrawSeedReceipts03(ctx, p); err != nil {
+		return err
+	}
 	if err := quiesce03(ctx, p); err != nil {
 		return err
 	}
 	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
 		count, err := realUpdates03(ctx, p, "127.0.0.3")
-		return err == nil && count >= 3
+		return err == nil && count >= 4
 	}) {
-		return fmt.Errorf("included client was not sent both halves and the fence")
+		return fmt.Errorf("included client was not sent the seed, both halves and the fence")
 	}
-	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
-		count, err := realUpdates03(ctx, p, "127.0.0.2")
-		return err == nil && count >= 2
-	}) {
-		return fmt.Errorf("excluded client was not sent the withdrawal and the fence")
-	}
-	count, err := realUpdates03(ctx, p, "127.0.0.2")
+	count, err := realUpdates03(ctx, p, "127.0.0.3")
 	if err != nil {
 		return err
 	}
-	if count != 2 {
-		return fmt.Errorf("excluded client was sent %d route UPDATEs, want 2", count)
+	if count != 4 {
+		return fmt.Errorf("included client was sent %d route UPDATEs, want 4 including seed", count)
+	}
+	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
+		count, err := realUpdates03(ctx, p, "127.0.0.2")
+		return err == nil && count >= 3
+	}) {
+		return fmt.Errorf("excluded client was not sent the seed, withdrawal and fence")
+	}
+	count, err = realUpdates03(ctx, p, "127.0.0.2")
+	if err != nil {
+		return err
+	}
+	if count != 3 {
+		return fmt.Errorf("excluded client was sent %d route UPDATEs, want 3 including seed", count)
+	}
+	return nil
+}
+
+// withdrawSeedReceipts03 releases the mixed UPDATE only after both receivers
+// acknowledge the source's seed. The peer scripts MUST write these run-relative
+// files after checking the seed, and MUST wait for the source-only release route.
+func withdrawSeedReceipts03(ctx context.Context, p *sdk.Plugin) error {
+	if err := withdrawSourceReady03(ctx, p, 3); err != nil {
+		return err
+	}
+	for _, path := range [...]string{"withdraw-seed-2.received", "withdraw-seed-3.received"} {
+		if !Poll(ctx, 40, 100*time.Millisecond, func() bool {
+			info, err := os.Stat(path)
+			return err == nil && info.Mode().IsRegular()
+		}) {
+			return fmt.Errorf("withdrawal seed receipt missing: %s", path)
+		}
+	}
+	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.3.0/24"); err != nil {
+		return fmt.Errorf("release mixed UPDATE after seed receipts: %w", err)
+	}
+	fmt.Fprintln(os.Stderr, "OK: both receivers acknowledged original withdrawal seed")
+	return nil
+}
+
+// withdrawSourceReady03 releases the source only after every destination can
+// receive the seed. Source scripts MUST await this route before advertising;
+// receivers MUST keep reading independently while the source waits for receipts.
+func withdrawSourceReady03(ctx context.Context, p *sdk.Plugin, peers int) error {
+	if !waitPeersEOR03(ctx, p, peers) {
+		return fmt.Errorf("withdrawal seed readiness: %d peers did not send EOR", peers)
+	}
+	if _, _, err := p.UpdateRoute(ctx, "127.0.0.1", "update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.4.0/24"); err != nil {
+		return fmt.Errorf("release original withdrawal seed: %w", err)
 	}
 	return nil
 }

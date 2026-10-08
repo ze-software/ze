@@ -9,6 +9,8 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
+// RFC requirement: RFC7311-3.4.3-2 positive -- overflowing recursive BGP-hop accumulation is capped at 0xffffffffffffffff.
+// RFC requirement: RFC7311-3.4.3-2 negative -- finite two-hop metrics remain 330 and 530 rather than saturating unconditionally.
 // RFC requirement: RFC7311-3.4.3-4 positive -- a terminal interior metric is added once, not once per forwarding gateway.
 // RFC requirement: RFC7311-3.4.3-4 negative -- recursive BGP MED never replaces or contaminates the received AIGP distance.
 // RFC requirement: RFC7311-3.4.3-7 positive -- changes to a recursive BGP route are visible to the next computation.

@@ -514,7 +514,7 @@ operator interface without native topology provenance or originator guarantees.
 <!-- source: internal/component/bgp/plugins/ls_export/export_plugin.go -- runTopologyExporter -->
 <!-- source: internal/component/bgp/plugins/ls_export/export_state.go -- replace, reconcile -->
 <!-- source: internal/component/bgp/plugins/ls_export/export_encode.go -- encodeTopology, originateAttributes -->
-<!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- bgpLSNLRISize -->
+<!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- ChunkMPNLRI, SplitMPNLRI -->
 <!-- source: internal/plugins/isis/spf/computer.go -- Reachability, SetOnComplete -->
 <!-- source: internal/component/bgp/plugins/ls_export/export_config.go -- parseExportConfig -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- establishedPeerInfo, connectedLocalEndpoint -->

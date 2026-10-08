@@ -1166,14 +1166,13 @@ func TestSessionRejectsInvalidHoldTime(t *testing.T) {
 // TestBuildUnsupportedCapabilityDataCodes verifies NOTIFICATION data encoding
 // for non-family capability codes.
 //
-// RFC 5492 Section 3: The Data field contains one or more capability tuples.
-// For non-Multiprotocol codes: code (1) + length (1) = 2 bytes each (length=0).
+// RFC 5492 Section 5: each capability uses its OPEN code, length, and value.
 //
 // VALIDATES: Wire format of capability code NOTIFICATION data.
 // PREVENTS: Malformed NOTIFICATION data for non-family capabilities.
 // RFC requirement: RFC5492-5-1 positive -- each offending capability code is placed in the
-// NOTIFICATION Data encoded exactly as in an OPEN message: code(1)+length(1), e.g. ASN4 as
-// {65, 0} and Extended Message as {6, 0} (internal/component/bgp/reactor/session_validation.go:415).
+// NOTIFICATION Data encoded exactly as in an OPEN message: ASN4 retains its four-octet
+// ASN value, while Extended Message legitimately has an empty value.
 func TestBuildUnsupportedCapabilityDataCodes(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1183,13 +1182,13 @@ func TestBuildUnsupportedCapabilityDataCodes(t *testing.T) {
 		{
 			name:     "single_asn4",
 			codes:    []capability.Code{capability.CodeASN4},
-			expected: []byte{65, 0}, // code=65, length=0
+			expected: []byte{65, 4, 0, 0, 0xfd, 0xe9}, // ASN 65001.
 		},
 		{
 			name:  "multiple_codes",
 			codes: []capability.Code{capability.CodeASN4, capability.CodeExtendedMessage},
 			expected: []byte{
-				65, 0, // ASN4
+				65, 4, 0, 0, 0xfd, 0xe9, // ASN4.
 				6, 0, // ExtendedMessage
 			},
 		},
@@ -1202,7 +1201,9 @@ func TestBuildUnsupportedCapabilityDataCodes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildUnsupportedCapabilityDataCodes(tt.codes)
+			result := buildUnsupportedCapabilityDataCodes(tt.codes, []capability.Capability{
+				&capability.ASN4{ASN: 65001}, &capability.ExtendedMessage{}, &capability.RouteRefresh{},
+			})
 			require.Equal(t, tt.expected, result)
 		})
 	}

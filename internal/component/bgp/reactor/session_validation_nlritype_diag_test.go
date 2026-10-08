@@ -48,8 +48,8 @@ func TestRFC7606Section54EmptiedUpdateStillLogsSection6(t *testing.T) {
 	logged := buf.String()
 	assert.Contains(t, logged, "RFC 7606 diagnostics",
 		"Section 6 requires the malformed UPDATE to be logged, emptied or not")
-	assert.Contains(t, logged, "update-body-hex",
+	assert.Contains(t, logged, "update-wire-hex",
 		"Section 6 asks for the entire malformed UPDATE message")
-	assert.Contains(t, logged, hex.EncodeToString(body),
-		"the body logged must be the one the PEER sent, not the rewritten one")
+	assert.Contains(t, logged, hex.EncodeToString(buildUpdateMsg(body)),
+		"the header and body logged must be the ones the PEER sent, not the rewritten message")
 }

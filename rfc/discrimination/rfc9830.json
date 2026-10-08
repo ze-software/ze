@@ -200,6 +200,28 @@
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9830-2.3-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved",
+      "unit-sha": "3ff984d7e19a03c4",
+      "claim-sha": "4cf0ee5de7b3a2df",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.3-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved",
+      "unit-sha": "3ff984d7e19a03c4",
+      "claim-sha": "203ece3c7326403d",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+      "producer-sha": "9c4ab4344f4c22ff",
+      "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9830-2.4.1-5",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",

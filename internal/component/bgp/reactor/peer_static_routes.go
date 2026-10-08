@@ -185,8 +185,7 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr, prefixSIDAllowed
 // The returned *Update's PathAttributes/NLRI alias ub.scratch. Caller MUST
 // fully consume the Update (send, copy, hand to sendUpdateWithSplit) before
 // calling message.PutUpdateBuilder(ub) or reusing ub for another Build*.
-// The error is message.BuildUnicast's refusal of a unicast route it cannot give
-// a next hop.
+// The error reports a unicast or labeled field that cannot encode its next hop.
 func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext, prefixSIDAllowed bool) (*message.Update, error) {
 	if route.IsVPN() {
 		p := toStaticRouteVPNParams(route, nextHop, prefixSIDAllowed)
@@ -194,7 +193,11 @@ func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, ne
 	}
 	if route.isLabeledUnicast() {
 		p := toStaticRouteLabeledUnicastParams(route, nextHop, prefixSIDAllowed)
-		return ub.BuildLabeledUnicast(&p), nil
+		update := ub.BuildLabeledUnicast(&p)
+		if update == nil {
+			return nil, message.ErrUnicastNextHopUnusable
+		}
+		return update, nil
 	}
 	p := toStaticRouteUnicastParams(route, nextHop, linkLocal, sendCtx, prefixSIDAllowed)
 	return ub.BuildUnicast(&p)

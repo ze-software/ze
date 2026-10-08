@@ -12,7 +12,6 @@
 package reactor
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -642,7 +641,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	var sectionWires []*wireu.WireUpdate
 	for _, peer := range matchingPeers {
 		session := peer.currentSession()
-		nextHopWithheld := false
+		nextHopRefusal := withholdNone
 		facts := peer.forwardFacts()
 		if facts == nil {
 			continue
@@ -773,9 +772,6 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			mods.Op(10, filterapi.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
-		applyFactsNextHop(facts, &mods)
-		applyFactsSendCommunity(facts, &mods)
-
 		peerBaseWire := sourceWire
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
@@ -784,6 +780,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		if peerBaseWire != sourceWire {
 			baseNextHop = payloadNextHop(peerBaseWire.Payload())
 		}
+		applyFactsNextHop(facts, &mods, baseNextHop.mpFamily)
+		applyFactsSendCommunity(facts, &mods)
 		applyNextHopFamily(&mods, baseNextHop)
 		// A raw policy can introduce a second next hop even when the received
 		// UPDATE was single-field. Its AIGP decision needs each output section,
@@ -802,7 +800,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// (egressNextHopGlobalHalf, forward_next_hop.go, which also quotes the
 		// internal-peer sentence and RFC 2545 Section 3). Recorded before the
 		// gates below, so they read the field that will be written.
-		if global, strip := egressNextHopGlobalHalf(peer, &mods, peerBaseWire.Payload()); strip {
+		if global, strip := egressNextHopGlobalHalf(peer, &mods, peerBaseWire.Payload(), baseNextHop.mpFamily); strip {
 			mods.Op(14, filterapi.AttrModSet, global)
 		}
 
@@ -827,7 +825,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				// Finish its edits, then judge the resulting sections without
 				// running policy again.
 				if peerBaseWire.MixesNLRIFields() {
-					nextHopWithheld = true
+					nextHopRefusal = gate
 				} else {
 					gate.warn(facts, srcAddr, &mods, baseNextHop)
 					mods.SetWithdraw()
@@ -871,7 +869,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		applyFactsMED(facts, srcMED, baseMED, peerBaseWire.Payload(), &mods)
 
 		withdrawAll := mods.IsWithdraw()
-		partitioned := nextHopWithheld || (withdrawAll && withdrawalBySection(peerBaseWire, false)) ||
+		partitioned := nextHopRefusal != withholdNone || (withdrawAll && withdrawalBySection(peerBaseWire, false)) ||
 			(aigpBySection && !withdrawAll)
 		oneWire := [1]*wireu.WireUpdate{peerBaseWire}
 		wires := oneWire[:]
@@ -930,9 +928,19 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				baseNextHop := aigpNextHop(peerBaseWire.Payload())
 				if withdrawAll {
 					mods.SetWithdraw()
-				} else if gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr); gate != withholdNone {
-					gate.warn(facts, srcAddr, &mods, baseNextHop)
-					mods.SetWithdraw()
+				} else {
+					gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr)
+					if nextHopRefusal == withholdInvalidWidth && baseNextHop.mpFamily != (family.Family{}) {
+						// A wrong-width operation can be unsupported by the
+						// materializer. Its refusal must survive mods.Reset rather
+						// than silently restore the obsolete valid input. Only the
+						// native section is refused; the legacy sibling is separate.
+						gate = nextHopRefusal
+					}
+					if gate != withholdNone {
+						gate.warn(facts, srcAddr, &mods, baseNextHop)
+						mods.SetWithdraw()
+					}
 				}
 				if aigpBySection && !mods.IsWithdraw() && baseNextHop.valid() {
 					sectionAIGPCostWithheld = applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), srcAddr, srcAIGPLinkMetric, &mods)
@@ -944,8 +952,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// It used to be produced as a whole rewritten payload first, which made an
 			// EBGP destination carrying any policy pay two full payload copies.
 			//
-			// Recorded BEFORE the AS-override on purpose: both write AS_PATH, the last
-			// Set wins, and the override winning is the order these two have always had.
+			// Override, policy and protocol prepend are resolved together before
+			// projecting the effective path to the destination's ASN width.
 			peerBaseSrcASN4 := srcASN4
 			// Only a policy chain's wire override can change the width the rebuild
 			// must read.
@@ -959,6 +967,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// not resolved for it: a resolve failure must not cost it the withdrawal.
 			if facts.isEBGP && !mods.IsWithdraw() {
 				intent := wireu.ASPathIntent{SrcASN4: peerBaseSrcASN4, DstASN4: facts.sendASN4}
+				if facts.asOverride {
+					intent.OverridePeerAS, intent.OverrideLocalAS = facts.peerAS, facts.localAS
+				}
 				if !facts.rsClient {
 					// RFC 7705 Section 3.3: the globally configured AS is appended first
 					// and the override immediately after, so the override ends up
@@ -972,9 +983,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 						intent.Prepend = prependBuf[:2]
 					}
 				}
-				// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
-				// Prepend stays empty and Record transcodes only -- which RFC 6793
-				// Section 4.2.2 still requires when the widths differ.
+				// RFC 7947 Section 2.2.2: RS clients omit the protocol prepend.
+				// An explicitly configured override still belongs to this same intent.
 				changed, aspErr := aspathEdit.Record(&mods, peerBaseWire.Payload(), intent)
 				if aspErr != nil {
 					// Fail closed: an EBGP peer receiving an unprepended path is a
@@ -989,10 +999,6 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 					continue
 				}
 				aspathWidthChanged = changed && peerBaseSrcASN4 != facts.sendASN4
-			}
-
-			if facts.asOverride && facts.isEBGP {
-				applyASOverride(facts.peerAS, facts.localAS, peerBaseWire, facts.sendASN4, &mods)
 			}
 
 			// The prepend and the transcode are already recorded as intent above, so no
@@ -1431,103 +1437,6 @@ func applyNextHopMod(dest *PeerSettings, mods *filterapi.ModAccumulator) {
 // a keyword means.
 func applySendCommunityFilter(dest *PeerSettings, mods *filterapi.ModAccumulator) {
 	applySendCommunityMask(sendCommunitySuppression(dest.SendCommunity), mods)
-}
-
-// applyASOverride replaces occurrences of the peer's ASN with local ASN in AS_PATH.
-// RFC 4271: AS_PATH is type 2. The handler rewrites the AS_PATH segment data.
-func applyASOverride(peerAS, localAS uint32, wire *wireu.WireUpdate, asn4 bool, mods *filterapi.ModAccumulator) {
-	attrs, err := wire.Attrs()
-	if err != nil || attrs == nil {
-		return
-	}
-	raw, err := attrs.GetRaw(attribute.AttrASPath)
-	if err != nil || len(raw) == 0 {
-		return
-	}
-	hdrLen := 3
-	if len(raw) > 0 && raw[0]&0x10 != 0 {
-		hdrLen = 4
-	}
-	if len(raw) <= hdrLen {
-		return
-	}
-	data := raw[hdrLen:]
-	rewritten := rewriteASPathOverride(data, peerAS, localAS, asn4)
-	if rewritten != nil {
-		mods.Op(2, filterapi.AttrModSet, rewritten)
-	}
-}
-
-// rewriteASPathOverride replaces all occurrences of peerAS with localAS in AS_PATH segment data.
-// asn4 determines whether ASNs are 4-byte (true) or 2-byte (false).
-// Returns nil if no replacement was needed.
-func rewriteASPathOverride(data []byte, peerAS, localAS uint32, asn4 bool) []byte {
-	asnSize := 4
-	if !asn4 {
-		asnSize = 2
-	}
-
-	// Check if any replacement is needed first (avoid allocation in common case).
-	found := false
-	pos := 0
-	for pos < len(data) {
-		if pos+2 > len(data) {
-			break
-		}
-		segLen := int(data[pos+1])
-		pos += 2
-		for range segLen {
-			if pos+asnSize > len(data) {
-				return nil // malformed
-			}
-			var asn uint32
-			if asn4 {
-				asn = binary.BigEndian.Uint32(data[pos:])
-			} else {
-				asn = uint32(binary.BigEndian.Uint16(data[pos:]))
-			}
-			if asn == peerAS {
-				found = true
-			}
-			pos += asnSize
-		}
-	}
-
-	if !found {
-		return nil
-	}
-
-	// Make a copy and replace.
-	result := make([]byte, len(data))
-	copy(result, data)
-	pos = 0
-	for pos < len(result) {
-		if pos+2 > len(result) {
-			break
-		}
-		segLen := int(result[pos+1])
-		pos += 2
-		for range segLen {
-			if pos+asnSize > len(result) {
-				return result
-			}
-			var asn uint32
-			if asn4 {
-				asn = binary.BigEndian.Uint32(result[pos:])
-			} else {
-				asn = uint32(binary.BigEndian.Uint16(result[pos:]))
-			}
-			if asn == peerAS {
-				if asn4 {
-					binary.BigEndian.PutUint32(result[pos:], localAS)
-				} else {
-					binary.BigEndian.PutUint16(result[pos:], uint16(localAS)) //nolint:gosec // 2-byte ASN context
-				}
-			}
-			pos += asnSize
-		}
-	}
-	return result
 }
 
 // maxForwardDestinations caps how many destinations a single ForwardUpdatesDirect

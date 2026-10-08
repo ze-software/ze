@@ -19,6 +19,6 @@ package nlrisplit
 // Slices alias data. A malformed entry returns the count of the entries visited
 // before it plus a non-nil error; the caller decides whether to use the partial
 // result.
-func SplitMUP(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+func SplitMUP(data []byte, addPath bool, fn func(nlri []byte) bool) (int, error) {
 	return splitTypeLength(data, addPath, 4, 3, "MUP", fn)
 }

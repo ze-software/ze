@@ -8,7 +8,6 @@ import (
 	"net/netip"
 	"sync"
 
-	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -228,13 +227,9 @@ func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.N
 	return records
 }
 
-// appendOpaqueRecords appends one hex record per NLRI carried by an opaque
-// wire blob.
-//
-// wireu.ParseNLRIs frames registered families as one WireNLRI per NLRI. A
-// carrier can still hold a whole section when its family has no registered
-// splitter, so split each carrier with the same sizer the wire command parser
-// uses (splitWireNLRIs). One key must never stand for several framed routes.
+// appendOpaqueRecords retains one native route already framed by wireu.ParseNLRIs.
+// The registered framer validates that the carrier contains exactly one route;
+// unsupported, malformed, or concatenated carriers cannot become inventory keys.
 //
 // The hex is a copy, which the buffer lifetime requires: the caller runs before
 // ForwardCached and the wire buffer can be freed after it.
@@ -250,53 +245,54 @@ func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string,
 		return records
 	}
 	addPath := w.HasAddPath()
-	sizeFunc := message.GetNLRISizeFunc(fam.AFI, fam.SAFI, addPath)
+	walk := nlrisplit.Get(fam)
+	if action == actionDel {
+		// RFC 8277 Section 2.4: a withdrawal carries Compatibility, not labels.
+		walk = nlrisplit.GetWithdraw(fam)
+	}
+	if walk == nil {
+		logger().Warn("opaque NLRI inventory has no registered framer", "family", famStr)
+		return records
+	}
+	count, err := walk(data, addPath, nil)
+	if err != nil {
+		logger().Warn("opaque NLRI inventory framing rejected", "family", famStr, "error", err)
+		return records
+	}
+	if count != 1 {
+		logger().Warn("opaque NLRI inventory requires one framed route", "family", famStr, "count", count)
+		return records
+	}
 
 	var tb textbuf.Buffer
-	for offset := 0; offset < len(data); {
-		size, err := sizeFunc(data[offset:])
-		if err != nil || size <= 0 || offset+size > len(data) {
-			// Say something rather than degrade silently (ai/rules/evidence.md).
-			// The remainder still gets recorded as one blob: the receiving sizer
-			// will refuse it the same way, and losing the route entirely would
-			// leave it announced forever after the source peer goes down.
-			logger().Warn("opaque NLRI split failed; recording the remainder as one blob",
-				"family", famStr, "offset", offset, "remaining", len(data)-offset, "error", err)
-			size = len(data) - offset
-		}
-		part := data[offset : offset+size]
-		rec := nlriRecord{
-			fam:        fam,
-			familyName: famStr,
-			action:     action,
-			nlriStr:    tb.Reset().Hex(part).String(),
-			wireForm:   true,
-			addPath:    addPath,
-		}
-		if cidrKeyed {
-			rec.prefix, rec.pathID, rec.cidrKeyed = opaqueRouteCIDR(fam, part, addPath, scratch)
-		} else if fam.SAFI == family.SAFIVPN {
-			pathID, payload, splitErr := nlri.SplitPathID(part, addPath)
-			if splitErr != nil {
-				logger().Warn("VPN inventory path identifier rejected", "family", famStr, "error", splitErr)
-				offset += size
-				continue
-			}
-			// RFC 8277 Section 2.4: "Upon reception, the value of the
-			// Compatibility field MUST be ignored." The registered key
-			// retains RD and prefix, but neither label nor Compatibility.
-			key, keyErr := nlrisplit.GetPrefixKey(fam)(payload, scratch, action == actionDel)
-			if keyErr != nil {
-				logger().Warn("VPN inventory identity rejected", "family", famStr, "error", keyErr)
-				offset += size
-				continue
-			}
-			rec.pathID = pathID
-			rec.nativeKey = string(key)
-		}
-		records = append(records, rec)
-		offset += size
+	rec := nlriRecord{
+		fam:        fam,
+		familyName: famStr,
+		action:     action,
+		nlriStr:    tb.Hex(data).String(),
+		wireForm:   true,
+		addPath:    addPath,
 	}
+	if cidrKeyed {
+		rec.prefix, rec.pathID, rec.cidrKeyed = opaqueRouteCIDR(fam, data, addPath, scratch)
+	} else if fam.SAFI == family.SAFIVPN {
+		pathID, payload, splitErr := nlri.SplitPathID(data, addPath)
+		if splitErr != nil {
+			logger().Warn("VPN inventory path identifier rejected", "family", famStr, "error", splitErr)
+			return records
+		}
+		// RFC 8277 Section 2.4: "Upon reception, the value of the
+		// Compatibility field MUST be ignored." The registered key
+		// retains RD and prefix, but neither label nor Compatibility.
+		key, keyErr := nlrisplit.GetPrefixKey(fam)(payload, scratch, action == actionDel)
+		if keyErr != nil {
+			logger().Warn("VPN inventory identity rejected", "family", famStr, "error", keyErr)
+			return records
+		}
+		rec.pathID = pathID
+		rec.nativeKey = string(key)
+	}
+	records = append(records, rec)
 	return records
 }
 

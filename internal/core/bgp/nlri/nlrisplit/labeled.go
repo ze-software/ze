@@ -36,7 +36,7 @@ var (
 //
 // The walk is bounded by len(data): every entry advances the offset by at
 // least the length octet and one label entry.
-func SplitLabeled(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+func SplitLabeled(data []byte, addPath bool, fn func(nlri []byte) bool) (int, error) {
 	count := 0
 	offset := 0
 	for offset < len(data) {
@@ -77,10 +77,12 @@ func SplitLabeled(data []byte, addPath bool, fn func(nlri []byte)) (int, error) 
 			return count, fmt.Errorf("nlrisplit: labeled NLRI at offset %d extends past data", start)
 		}
 
-		if fn != nil {
-			fn(data[start : start+nlriLen])
-		}
 		count++
+		if fn != nil {
+			if !fn(data[start : start+nlriLen]) {
+				return count, nil
+			}
+		}
 		offset = start + nlriLen
 	}
 	return count, nil

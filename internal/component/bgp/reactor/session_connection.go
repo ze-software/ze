@@ -244,12 +244,12 @@ func (s *Session) processOpen(open *message.Open) error {
 	}
 
 	// RFC 5492 Section 3: Validate required/refused capability codes.
-	if err := s.validateCapabilityModes(conn, neg, requiredCaps, refusedCaps); err != nil {
+	if err := s.validateCapabilityModes(conn, neg, requiredCaps, refusedCaps, localCaps, peerCaps); err != nil {
 		return err
 	}
 
 	// Validate per-family ADD-PATH required/refused.
-	if err := s.validateAddPathFamilyModes(conn, neg, s.settings.RequiredAddPathFamilies, s.settings.RefusedAddPathFamilies); err != nil {
+	if err := s.validateAddPathFamilyModes(conn, neg, s.settings.RequiredAddPathFamilies, s.settings.RefusedAddPathFamilies, localCaps, peerCaps); err != nil {
 		return err
 	}
 

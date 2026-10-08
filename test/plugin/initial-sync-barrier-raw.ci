@@ -8,9 +8,10 @@
 #
 # The marker follows ze's own table, without waiting for plugin session ready
 # (docs/architecture/api/architecture.md, API Sync Protocol). The observer
-# deliberately starts on establishment, not on EOR, so its raw write can race
-# the independent marker. Session.SendRawMessage serializes that write with
-# sendInitialRoutes through writeMu; raw messages do not enter opQueue.
+# captures the original peer-UP initial-replay token before injection, not on
+# EOR, so its raw write can race the independent marker. Session.SendRawMessage
+# serializes that write with sendInitialRoutes through writeMu; raw messages do
+# not enter opQueue. Completion reports the same captured token.
 #
 # PREVENTS: losing the raw route or the initial-sync marker when injection
 # starts at establishment. The peer MUST remain connected until the observer

@@ -428,12 +428,10 @@ func TestMixedUpdateWithdrawsOnlyTheLinkLocalOnlyField(t *testing.T) {
 // hop ":: then fe80::9" under next hop unchanged to a destination more than one
 // IP hop away and to one on the link, on both rails.
 //
-// VALIDATES: the multihop destination is announced nothing and written the
-// withdrawal of 2001:db8:7::/64; the on-link one is announced the pair
-// unchanged. Removing the Link-Local half leaves ::, which is no next hop, and
-// draft Section 4 says: "If, after completing these procedures, there are no
-// IPv6 next hop addresses included in the next hop, the BGP route MUST not be
-// advertised to its peer."
+// VALIDATES: both destinations are announced nothing and written the
+// withdrawal of 2001:db8:7::/64. The unspecified global address is not a
+// next hop, even when the destination is on-link. Capability 77 permits a
+// single link-local address, not an unspecified global address in a pair.
 // PREVENTS: the route reaching the multihop peer with the next hop ::.
 func TestUnspecifiedGlobalPairWithdrawnFromMultihopPeer(t *testing.T) {
 	offLink := netip.MustParseAddr(llnhOffSegmentAddr)
@@ -452,13 +450,12 @@ func TestUnspecifiedGlobalPairWithdrawnFromMultihopPeer(t *testing.T) {
 		}
 		assert.Equal(t, mixedUnreachValue(2, 1, mixedV6Prefix), unreach, "%s: the route is withdrawn", rail)
 
-		var nh []byte
+		var onLinkUnreach []byte
 		for _, m := range got[onLink] {
-			if m.hasReach {
-				nh = m.reachNH
-			}
+			assert.False(t, m.hasReach, "%s: the on-link destination is announced nothing: %x", rail, m.reachNH)
+			onLinkUnreach = append(onLinkUnreach, m.unreach...)
 		}
-		assert.Equal(t, pair, nh, "%s: the on-link destination is announced the pair", rail)
+		assert.Equal(t, mixedUnreachValue(2, 1, mixedV6Prefix), onLinkUnreach, "%s: the on-link route is withdrawn", rail)
 	}
 }
 

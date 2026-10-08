@@ -233,19 +233,20 @@ func fwdProvenancePaths(data []byte, fam family.Family, ctx *bgpctx.EncodingCont
 	}
 	addPath := ctx != nil && ctx.AddPath(fam)
 	var visitErr error
-	_, err := split(data, addPath, func(raw []byte) {
+	_, err := split(data, addPath, func(raw []byte) bool {
 		if visitErr != nil {
-			return
+			return true
 		}
 		var received uint32
 		if addPath {
 			if len(raw) < 4 {
 				visitErr = fmt.Errorf("forward ownership: truncated path identifier")
-				return
+				return true
 			}
 			received, raw = binary.BigEndian.Uint32(raw), raw[4:]
 		}
 		visitErr = visit(raw, received, addPath)
+		return true
 	})
 	if err != nil {
 		return err

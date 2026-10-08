@@ -603,7 +603,7 @@ func ownershipRailRead(t *testing.T, frames []byte, ctx *bgpctx.EncodingContext)
 				t.Fatalf("no registered splitter for %v", fam)
 			}
 			// RFC 7911 Section 3 and RFC 8277 Section 2.4.
-			_, err := split(raw, ctx.AddPath(fam), func(nlri []byte) {
+			_, err := split(raw, ctx.AddPath(fam), func(nlri []byte) bool {
 				event := ownershipRailEvent{family: fam, origin: origin, withdraw: withdraw}
 				if ctx.AddPath(fam) {
 					// RFC 7911 Section 3: "In order to carry the Path Identifier in an
@@ -620,6 +620,7 @@ func ownershipRailRead(t *testing.T, frames []byte, ctx *bgpctx.EncodingContext)
 				}
 				event.key = string(key)
 				events = append(events, event)
+				return true
 			})
 			if err != nil {
 				t.Fatal(err)

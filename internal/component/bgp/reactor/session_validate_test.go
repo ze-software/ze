@@ -384,24 +384,26 @@ func TestBuildUnsupportedCapabilityData(t *testing.T) {
 }
 
 // TestBuildUnsupportedCapabilityDataCodes_MultipleCodes verifies NOTIFICATION data for non-family codes.
-// RFC 5492 Section 3: each code encoded as code(1) + length(1).
+// RFC 5492 Section 5: zero-value-length capabilities retain their OPEN encoding.
 //
 // RFC requirement: RFC5492-5-1 positive -- buildUnsupportedCapabilityDataCodes lists each
 // offending capability code in the NOTIFICATION Data encoded exactly as in an OPEN message
-// (code(1)+length(1), length 0 for non-family codes) (internal/component/bgp/reactor/session_validation.go:415).
+// (code(1)+length(1), length 0 for Extended Message and Route Refresh).
 func TestBuildUnsupportedCapabilityDataCodes_MultipleCodes(t *testing.T) {
 	codes := []capability.Code{
 		capability.CodeExtendedMessage,
 		capability.CodeRouteRefresh,
 	}
 
-	data := buildUnsupportedCapabilityDataCodes(codes)
+	data := buildUnsupportedCapabilityDataCodes(codes, []capability.Capability{
+		&capability.ExtendedMessage{}, &capability.RouteRefresh{},
+	})
 
 	// 2 codes * 2 bytes each = 4 bytes.
 	require.Len(t, data, 4)
 
 	assert.Equal(t, byte(capability.CodeExtendedMessage), data[0])
-	assert.Equal(t, byte(0), data[1], "length=0 for non-family codes")
+	assert.Equal(t, byte(0), data[1], "Extended Message has an empty value")
 	assert.Equal(t, byte(capability.CodeRouteRefresh), data[2])
 	assert.Equal(t, byte(0), data[3])
 }
@@ -409,10 +411,9 @@ func TestBuildUnsupportedCapabilityDataCodes_MultipleCodes(t *testing.T) {
 // TestBuildUnsupportedCapabilityDataCodes_Empty verifies nil for empty input.
 //
 // RFC requirement: RFC5492-5-1 negative -- with no offending capabilities the builder
-// produces nil Data: no capability tuples are listed in a NOTIFICATION when none caused it
-// (internal/component/bgp/reactor/session_validation.go:416-418).
+// produces nil Data: no capability tuples are listed when none caused it.
 func TestBuildUnsupportedCapabilityDataCodes_Empty(t *testing.T) {
-	data := buildUnsupportedCapabilityDataCodes(nil)
+	data := buildUnsupportedCapabilityDataCodes(nil, []capability.Capability{&capability.RouteRefresh{}})
 	assert.Nil(t, data)
 }
 

@@ -5,26 +5,59 @@
 package message
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/iter"
 )
 
-var errMalformedNlri = errors.New("malformed NLRI")
+// ErrNLRIMalformed is returned when NLRI structure is invalid.
+var ErrNLRIMalformed = errors.New("malformed NLRI")
 
-// newNLRIElements creates a generic element iterator for NLRI wire bytes.
-// The iterator yields one NLRI at a time as subslices of nlriData.
-// Use GetNLRISizeFunc to obtain the appropriate sizeFunc for the address family.
-func newNLRIElements(nlriData []byte, sizeFunc NLRISizeFunc) iter.Elements {
-	return iter.NewElements(nlriData, iter.SizeFunc(sizeFunc))
+// nlriChunkWalk keeps the registered walk's callback outside the per-call
+// allocation path. The callback is created once per pooled holder, not per NLRI.
+// A caller MUST clear borrowed slices before returning the holder to the pool.
+type nlriChunkWalk struct {
+	data        []byte
+	chunks      [][]byte
+	maxSize     int
+	offset      int
+	chunkStart  int
+	tooLarge    int
+	stopAtLimit bool
+	visit       func([]byte) bool
+}
+
+var nlriChunkWalkPool = sync.Pool{
+	New: func() any {
+		w := new(nlriChunkWalk)
+		w.visit = w.next
+		return w
+	},
+}
+
+// next consumes only the boundary the registered family walk supplied.
+func (w *nlriChunkWalk) next(part []byte) bool {
+	if len(part) > w.maxSize {
+		w.tooLarge = len(part)
+		return false
+	}
+	if w.offset-w.chunkStart+len(part) > w.maxSize {
+		if w.stopAtLimit {
+			return false
+		}
+		w.chunks = append(w.chunks, w.data[w.chunkStart:w.offset])
+		w.chunkStart = w.offset
+	}
+	w.offset += len(part)
+	return true
 }
 
 // ChunkMPNLRI splits MP family NLRIs respecting maxSize.
 //
-// Handles all NLRI formats: Add-Path, Labeled, VPN, EVPN, FlowSpec, BGP-LS.
+// Uses registered native family framing, including negotiated ADD-PATH.
 // Returns subslices of nlriData (zero-copy).
 //
 // Returns error if:
@@ -45,56 +78,40 @@ func ChunkMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool
 		return dst, nil
 	}
 
-	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
-	e := newNLRIElements(nlriData, sizeFunc)
-
-	// Fast path: validate structure and return single chunk if all fits
-	if len(nlriData) <= maxSize {
-		for e.Next() != nil {
-		}
-		if err := e.Err(); err != nil {
-			return dst, err
-		}
-		return append(dst, nlriData), nil
+	// RFC 8277 Section 2.4: the Compatibility field is not a label stack.
+	// The withdrawal framer reads the same envelope boundary for announcements,
+	// without interpreting labels when this section contains withdrawals.
+	walk := nlrisplit.GetWithdraw(family.Family{AFI: afi, SAFI: safi})
+	if walk == nil {
+		return dst, nlrisplit.ErrUnsupported
 	}
-
-	// Slow path: split into chunks respecting element boundaries
-	chunkStart := 0
-	prevOffset := 0
-
-	for elem := e.Next(); elem != nil; elem = e.Next() {
-		nlriSize := len(elem)
-
-		// RFC 7752 Section 3.2: BGP-LS NLRI uses 2-byte length field.
-		// Single NLRI can exceed standard 4096-byte message size.
-		// MUST return error if single NLRI > maxSize (cannot split).
-		if nlriSize > maxSize {
-			return dst, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, nlriSize, maxSize)
-		}
-
-		// Would overflow? Emit current chunk as subslice
-		if e.Offset()-chunkStart > maxSize && prevOffset > chunkStart {
-			dst = append(dst, nlriData[chunkStart:prevOffset])
-			chunkStart = prevOffset
-		}
-
-		prevOffset = e.Offset()
+	w := nlriChunkWalkPool.Get().(*nlriChunkWalk)
+	w.data = nlriData
+	w.chunks = dst
+	w.maxSize = maxSize
+	w.offset = 0
+	w.chunkStart = 0
+	w.tooLarge = 0
+	w.stopAtLimit = false
+	_, err := walk(nlriData, addPath, w.visit)
+	dst = w.chunks
+	if w.tooLarge != 0 {
+		err = fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, w.tooLarge, maxSize)
+	} else if err != nil {
+		err = fmt.Errorf("%w: %w", ErrNLRIMalformed, err)
+	} else if w.offset > w.chunkStart {
+		dst = append(dst, nlriData[w.chunkStart:w.offset])
 	}
-
-	if err := e.Err(); err != nil {
+	// The pool MUST NOT retain the caller's wire buffer or result backing array.
+	w.data = nil
+	w.chunks = nil
+	nlriChunkWalkPool.Put(w)
+	if err != nil {
 		return dst, err
-	}
-
-	// Emit remainder as subslice
-	if prevOffset > chunkStart {
-		dst = append(dst, nlriData[chunkStart:prevOffset])
 	}
 
 	return dst, nil
 }
-
-// ErrNLRIMalformed is returned when NLRI structure is invalid.
-var ErrNLRIMalformed = errMalformedNlri
 
 // SplitMPNLRI splits MP family NLRIs, returning fitting slice and remaining.
 // Returns subslices for zero-copy efficiency.
@@ -119,286 +136,30 @@ func SplitMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool
 	if len(nlriData) == 0 {
 		return nil, nil, nil
 	}
-	if len(nlriData) <= maxSize {
-		return nlriData, nil, nil
+	// RFC 8277 Section 2.4: frame Compatibility by length, not its S bit.
+	walk := nlrisplit.GetWithdraw(family.Family{AFI: afi, SAFI: safi})
+	if walk == nil {
+		return nil, nil, nlrisplit.ErrUnsupported
 	}
-
-	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
-	e := newNLRIElements(nlriData, sizeFunc)
-
-	prevOffset := 0
-	for elem := e.Next(); elem != nil; elem = e.Next() {
-		// RFC 7752 Section 3.2: BGP-LS can have single NLRI > 4096 bytes.
-		// MUST error if single NLRI exceeds maxSize (cannot split one NLRI).
-		if len(elem) > maxSize {
-			return nil, nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, len(elem), maxSize)
-		}
-		if e.Offset() > maxSize {
-			// This NLRI would exceed limit, split here
-			return nlriData[:prevOffset], nlriData[prevOffset:], nil
-		}
-		prevOffset = e.Offset()
+	w := nlriChunkWalkPool.Get().(*nlriChunkWalk)
+	w.maxSize = maxSize
+	w.offset = 0
+	w.chunkStart = 0
+	w.tooLarge = 0
+	w.stopAtLimit = true
+	_, err = walk(nlriData, addPath, w.visit)
+	offset := w.offset
+	if w.tooLarge != 0 {
+		err = fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, w.tooLarge, maxSize)
+	} else if err != nil {
+		err = fmt.Errorf("%w: %w", ErrNLRIMalformed, err)
 	}
-
-	if err := e.Err(); err != nil {
+	nlriChunkWalkPool.Put(w)
+	if err != nil {
 		return nil, nil, err
 	}
-
-	// Everything fit (shouldn't reach here due to len check above, but safe)
-	return nlriData, nil, nil
-}
-
-// NLRISizeFunc returns the size of the first NLRI in the buffer.
-type NLRISizeFunc func(data []byte) (int, error)
-
-// GetNLRISizeFunc returns the appropriate size function for the family.
-// Exported for wire mode API input to split concatenated NLRIs.
-func GetNLRISizeFunc(afi family.AFI, safi family.SAFI, addPath bool) NLRISizeFunc {
-	switch {
-	case safi == family.SAFIEVPN: // EVPN
-		if addPath {
-			return addPathEVPNNLRISize
-		}
-		return evpnNLRISize
-
-	case safi == family.SAFIFlowSpec || safi == 134: // FlowSpec (133=IPv4, 134=IPv6)
-		if addPath {
-			return addPathFlowSpecNLRISize
-		}
-		return flowSpecNLRISize
-
-	// RFC 9552 Section 5.2: SAFI 71 (BGP-LS) and SAFI 72 (BGP-LS-VPN) share the
-	// same Link-State NLRI framing -- Type (2 octets) then Total NLRI Length (2
-	// octets). SAFI 72 differs only inside the value, where an 8-octet Route
-	// Distinguisher precedes the Link-State NLRI, so the same length-driven sizer
-	// frames both. Ze registers and negotiates both (internal/component/bgp/
-	// plugins/nlri/ls/plugin.go:70-71); omitting 72 here sent it to basicNLRISize,
-	// which reads octet 0 -- the high byte of the NLRI Type -- as a prefix length.
-	case afi == family.AFIBGPLS && (safi == family.SAFIBGPLinkState || safi == family.SAFIBGPLinkStateVPN):
-		if addPath {
-			return addPathBGPLSNLRISize
-		}
-		return bgpLSNLRISize
-
-	// RFC 4761 Section 3.2.2: a VPLS NLRI is framed by a TWO-octet length, so
-	// basicNLRISize read the high half of that length as a prefix length and put
-	// every following NLRI boundary in the wrong place. Same shape as the SAFI 72
-	// omission described above.
-	case afi == family.AFIL2VPN && safi == family.SAFIVPLS:
-		if addPath {
-			return addPathVPLSNLRISize
-		}
-		return vplsNLRISize
-
-	case safi == family.SAFIVPN: // VPN (MPLS VPN)
-		if addPath {
-			return addPathVPNNLRISize
-		}
-		return vpnNLRISize
-
-	case safi == family.SAFIMPLSLabel: // Labeled unicast
-		if addPath {
-			return addPathLabeledNLRISize
-		}
-		return labeledNLRISize
-
-	default: // Unicast (SAFI 1, 2)
-		if addPath {
-			return addPathNLRISize
-		}
-		return basicNLRISize
+	if offset == len(nlriData) {
+		return nlriData, nil, nil
 	}
-}
-
-// =============================================================================
-// NLRI Size Functions
-// =============================================================================
-
-// basicNLRISize calculates size of basic IPv4/IPv6 unicast NLRI.
-// Format: [prefix-len-bits:1][prefix-bytes:ceil(len/8)].
-// RFC 4271 Section 4.3 - NLRI encoding.
-func basicNLRISize(data []byte) (int, error) {
-	if len(data) < 1 {
-		return 0, ErrNLRIMalformed
-	}
-	prefixLen := int(data[0])
-	prefixBytes := (prefixLen + 7) / 8
-	return 1 + prefixBytes, nil
-}
-
-// addPathNLRISize calculates size of Add-Path NLRI.
-// Format: [path-id:4][prefix-len-bits:1][prefix-bytes].
-// RFC 7911 Section 3 - ADD-PATH NLRI encoding.
-func addPathNLRISize(data []byte) (int, error) {
-	if len(data) < 5 {
-		return 0, ErrNLRIMalformed
-	}
-	prefixLen := int(data[4])
-	prefixBytes := (prefixLen + 7) / 8
-	return 4 + 1 + prefixBytes, nil
-}
-
-// labeledNLRISize calculates size of labeled unicast NLRI (SAFI 4).
-// Format: [total-bits:1][labels:3*N][prefix-bytes]
-// The total-bits includes label bits + prefix bits.
-// RFC 8277 Section 2 - Labeled unicast NLRI encoding.
-func labeledNLRISize(data []byte) (int, error) {
-	if len(data) < 1 {
-		return 0, ErrNLRIMalformed
-	}
-	totalBits := int(data[0])
-	totalBytes := (totalBits + 7) / 8
-	return 1 + totalBytes, nil
-}
-
-// addPathLabeledNLRISize calculates size of Add-Path labeled unicast NLRI.
-// Format: [path-id:4][total-bits:1][labels:3*N][prefix-bytes].
-// RFC 7911 Section 3 - ADD-PATH encoding; RFC 8277 Section 2 - labeled unicast.
-func addPathLabeledNLRISize(data []byte) (int, error) {
-	if len(data) < 5 {
-		return 0, ErrNLRIMalformed
-	}
-	totalBits := int(data[4])
-	totalBytes := (totalBits + 7) / 8
-	return 4 + 1 + totalBytes, nil
-}
-
-// vpnNLRISize calculates size of VPN NLRI (SAFI 128).
-// Format: [total-bits:1][labels:3*N][RD:8][prefix-bytes]
-// The total-bits includes labels + RD (64 bits) + prefix bits.
-// RFC 4364 Section 4.3.4 - VPN-IPv4 NLRI encoding.
-func vpnNLRISize(data []byte) (int, error) {
-	if len(data) < 1 {
-		return 0, ErrNLRIMalformed
-	}
-	totalBits := int(data[0])
-	totalBytes := (totalBits + 7) / 8
-	return 1 + totalBytes, nil
-}
-
-// addPathVPNNLRISize calculates size of Add-Path VPN NLRI.
-// Format: [path-id:4][total-bits:1][labels:3*N][RD:8][prefix-bytes].
-// RFC 7911 Section 3 - ADD-PATH encoding; RFC 4364 Section 4.3.4 - VPN NLRI.
-func addPathVPNNLRISize(data []byte) (int, error) {
-	if len(data) < 5 {
-		return 0, ErrNLRIMalformed
-	}
-	totalBits := int(data[4])
-	totalBytes := (totalBits + 7) / 8
-	return 4 + 1 + totalBytes, nil
-}
-
-// evpnNLRISize calculates size of EVPN NLRI.
-// Format: [route-type:1][length:1][payload:length].
-// RFC 7432 Section 7 - EVPN NLRI encoding.
-func evpnNLRISize(data []byte) (int, error) {
-	if len(data) < 2 {
-		return 0, ErrNLRIMalformed
-	}
-	// route-type is data[0], length is data[1]
-	length := int(data[1])
-	return 2 + length, nil
-}
-
-// addPathEVPNNLRISize calculates size of Add-Path EVPN NLRI.
-// Format: [path-id:4][route-type:1][length:1][payload:length].
-// RFC 7911 Section 3 - ADD-PATH encoding; RFC 7432 Section 7 - EVPN NLRI.
-func addPathEVPNNLRISize(data []byte) (int, error) {
-	if len(data) < 6 {
-		return 0, ErrNLRIMalformed
-	}
-	// path-id is data[0:4], route-type is data[4], length is data[5]
-	length := int(data[5])
-	return 4 + 2 + length, nil
-}
-
-// flowSpecNLRISize calculates size of FlowSpec NLRI.
-// Format: [length:1-2][components:length]
-// Length < 240: 1 byte
-// Length >= 240: 2 bytes (0xF0|high, low).
-// RFC 5575 Section 4 - FlowSpec NLRI encoding (max 4095 bytes).
-func flowSpecNLRISize(data []byte) (int, error) {
-	if len(data) < 1 {
-		return 0, ErrNLRIMalformed
-	}
-
-	if data[0] < 0xF0 {
-		// 1-byte length
-		length := int(data[0])
-		return 1 + length, nil
-	}
-
-	// 2-byte length
-	if len(data) < 2 {
-		return 0, ErrNLRIMalformed
-	}
-	length := (int(data[0]&0x0F) << 8) | int(data[1])
-	return 2 + length, nil
-}
-
-// addPathFlowSpecNLRISize calculates size of Add-Path FlowSpec NLRI.
-// Format: [path-id:4][length:1-2][components:length].
-// RFC 7911 Section 3 - ADD-PATH encoding; RFC 5575 Section 4 - FlowSpec NLRI.
-func addPathFlowSpecNLRISize(data []byte) (int, error) {
-	if len(data) < 5 {
-		return 0, ErrNLRIMalformed
-	}
-
-	// Skip path-id (4 bytes), then check length encoding
-	if data[4] < 0xF0 {
-		// 1-byte length
-		length := int(data[4])
-		return 4 + 1 + length, nil
-	}
-
-	// 2-byte length
-	if len(data) < 6 {
-		return 0, ErrNLRIMalformed
-	}
-	length := (int(data[4]&0x0F) << 8) | int(data[5])
-	return 4 + 2 + length, nil
-}
-
-// vplsNLRISize calculates the size of a VPLS NLRI.
-// Format: [length:2][body:length].
-// RFC 4761 Section 3.2.2 - VPLS NLRI encoding.
-func vplsNLRISize(data []byte) (int, error) {
-	if len(data) < 2 {
-		return 0, ErrNLRIMalformed
-	}
-	return 2 + int(binary.BigEndian.Uint16(data[:2])), nil
-}
-
-// addPathVPLSNLRISize calculates the size of an Add-Path VPLS NLRI.
-// Format: [path-id:4][length:2][body:length].
-// RFC 7911 Section 3 - ADD-PATH encoding; RFC 4761 Section 3.2.2 - VPLS NLRI.
-func addPathVPLSNLRISize(data []byte) (int, error) {
-	if len(data) < 6 {
-		return 0, ErrNLRIMalformed
-	}
-	return 4 + 2 + int(binary.BigEndian.Uint16(data[4:6])), nil
-}
-
-// bgpLSNLRISize calculates size of BGP-LS NLRI.
-// Format: [nlri-type:2][total-length:2][payload:total-length].
-// RFC 7752 Section 3.2 - BGP-LS NLRI encoding (2-byte length, can exceed 4096).
-func bgpLSNLRISize(data []byte) (int, error) {
-	if len(data) < 4 {
-		return 0, ErrNLRIMalformed
-	}
-	// nlri-type is data[0:2], length is data[2:4]
-	length := int(binary.BigEndian.Uint16(data[2:4]))
-	return 4 + length, nil
-}
-
-// addPathBGPLSNLRISize calculates size of Add-Path BGP-LS NLRI.
-// Format: [path-id:4][nlri-type:2][total-length:2][payload:total-length].
-// RFC 7911 Section 3 - ADD-PATH encoding; RFC 7752 Section 3.2 - BGP-LS NLRI.
-func addPathBGPLSNLRISize(data []byte) (int, error) {
-	if len(data) < 8 {
-		return 0, ErrNLRIMalformed
-	}
-	// path-id is data[0:4], nlri-type is data[4:6], length is data[6:8]
-	length := int(binary.BigEndian.Uint16(data[6:8]))
-	return 4 + 4 + length, nil
+	return nlriData[:offset], nlriData[offset:], nil
 }

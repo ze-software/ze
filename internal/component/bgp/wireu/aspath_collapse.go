@@ -29,6 +29,32 @@ func CollapseAS4FamilySize(payload []byte) int {
 	return len(payload) + len(payload) + 8
 }
 
+// AS4FamilyPlan retains one reconciliation without retaining received buffers.
+// Owned canonical values stay in canonical; values borrowed from the input are
+// represented by spans and rebound to the eventual payload by WriteTo. This lets
+// a receiver check the first AS before coalescing, then encode the same result.
+type AS4FamilyPlan struct {
+	canonical      attribute.CanonicalASPathFamily
+	pathSpan       attrSpan
+	aggregatorSpan attrSpan
+	attrsStart     int
+	rewrite        bool
+}
+
+// ASPath returns the reconciled path. payload MUST carry the same attributes and
+// section offsets that PrepareAS4Family read. The returned path may borrow payload.
+func (p *AS4FamilyPlan) ASPath(payload []byte) []byte {
+	if p.pathSpan.hdrLen != 0 {
+		return p.pathSpan.value(payload)
+	}
+	return p.canonical.ASPath
+}
+
+// Discards reports the existing RFC 6793 reconciliation's attribute discards.
+func (p *AS4FamilyPlan) Discards() []attribute.ASPathDiscard {
+	return p.canonical.Discards
+}
+
 // CollapseAS4Family rewrites payload into dst so that its AS-path family is
 // four-octet truth: AS_PATH carries the reconciled path, AGGREGATOR carries the
 // four-octet aggregating node, and neither AS4_PATH nor AS4_AGGREGATOR
@@ -51,31 +77,47 @@ func CollapseAS4FamilySize(payload []byte) int {
 // AS4_PATH is one of them: Section 6 chooses "attribute discard" for it, so the
 // UPDATE continues with the AS_PATH it carried.
 func CollapseAS4Family(dst, payload []byte, srcASN4 bool) (int, []attribute.ASPathDiscard, error) {
+	plan, err := PrepareAS4Family(payload, srcASN4)
+	if err != nil {
+		return 0, nil, err
+	}
+	return plan.WriteTo(dst, payload)
+}
+
+// PrepareAS4Family performs the RFC 6793 receive reconciliation once, separately
+// from encoding. Its plan owns reconstructed values and stores offsets, never
+// pointers, for values that already have canonical encoding.
+// Callers MUST preserve those attributes until ASPath or WriteTo consumes the plan.
+// ASPath MUST receive the original section offsets; WriteTo permits rebasing.
+func PrepareAS4Family(payload []byte, srcASN4 bool) (AS4FamilyPlan, error) {
+	var plan AS4FamilyPlan
 	if len(payload) < 4 {
-		return 0, nil, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
+		return plan, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
 	}
 
 	wdLen := int(binary.BigEndian.Uint16(payload[0:2]))
 	if len(payload) < 2+wdLen+2 {
-		return 0, nil, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
+		return plan, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
 	}
 
 	attrLenOff := 2 + wdLen
 	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff : attrLenOff+2]))
 	attrsStart := attrLenOff + 2
 	if len(payload) < attrsStart+attrLen {
-		return 0, nil, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
+		return plan, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
 	}
 
 	var found as4FamilySpans
 	if err := found.scan(payload, attrsStart, attrLen); err != nil {
-		return 0, nil, err
+		return plan, err
 	}
+	plan.attrsStart = attrsStart
 
 	// The fast path, and the reason a four-octet fleet pays nothing: a NEW
 	// speaker that sent neither AS4 attribute has already sent the truth.
 	if srcASN4 && found.as4Path.off == -1 && found.as4Agg.off == -1 {
-		return 0, nil, nil
+		plan.pathSpan = found.asPath
+		return plan, nil
 	}
 
 	canonical, err := attribute.ReconcileASPathFamily(attribute.ReceivedASPathFamily{
@@ -86,7 +128,61 @@ func CollapseAS4Family(dst, payload []byte, srcASN4 bool) (int, []attribute.ASPa
 		SourceASN4:    srcASN4,
 	})
 	if err != nil {
-		return 0, nil, fmt.Errorf("collapse AS4 family: %w", err)
+		return plan, fmt.Errorf("collapse AS4 family: %w", err)
+	}
+	plan.canonical = canonical
+	plan.rewrite = true
+	if srcASN4 {
+		plan.pathSpan = found.asPath
+		plan.canonical.ASPath = nil
+	}
+	// The selected AS4_AGGREGATOR already has four-octet encoding. It can
+	// borrow the received buffer even on an OLD-speaker session. A malformed
+	// AGGREGATOR can also be carried unchanged by the low-level API.
+	if canonical.Aggregator != nil && len(canonical.Aggregator) == 0 {
+		plan.aggregatorSpan = found.agg
+		plan.canonical.Aggregator = nil
+	} else if len(canonical.Aggregator) > 0 {
+		for _, span := range [...]attrSpan{found.agg, found.as4Agg} {
+			if span.off >= 0 && span.length > 0 &&
+				&canonical.Aggregator[0] == &payload[span.off+span.hdrLen] {
+				plan.aggregatorSpan = span
+				plan.canonical.Aggregator = nil
+				break
+			}
+		}
+	}
+	return plan, nil
+}
+
+// WriteTo encodes a prepared reconciliation. payload MUST retain the prepared
+// attributes; its withdrawn and announced NLRI may differ after coalescing or
+// route-ignore processing. Borrowed spans are rebased to its current attribute
+// section, so the plan never depends on the lifetime of the original buffer.
+func (p *AS4FamilyPlan) WriteTo(dst, payload []byte) (int, []attribute.ASPathDiscard, error) {
+	if !p.rewrite {
+		return 0, nil, nil
+	}
+	if len(payload) < 4 {
+		return 0, nil, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
+	}
+	attrLenOff := 2 + int(binary.BigEndian.Uint16(payload[:2]))
+	if attrLenOff+2 > len(payload) {
+		return 0, nil, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
+	}
+	attrsStart := attrLenOff + 2
+	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff:attrsStart]))
+	if attrsStart+attrLen > len(payload) {
+		return 0, nil, fmt.Errorf("collapse AS4 family: %w", ErrUpdateTruncated)
+	}
+	canonical := p.canonical
+	if span := p.pathSpan; span.hdrLen != 0 {
+		span.off += attrsStart - p.attrsStart
+		canonical.ASPath = span.value(payload)
+	}
+	if span := p.aggregatorSpan; span.hdrLen != 0 {
+		span.off += attrsStart - p.attrsStart
+		canonical.Aggregator = span.value(payload)
 	}
 
 	// The writes below are sized from the reconciled values rather than from the

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-08",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -8,29 +8,37 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8654-3-1": {
-      "code": {
-        "internal/component/bgp/reactor/session_read.go::processMessage": "3364ae6c395e4732",
-        "internal/component/bgp/reactor/session_validation.go::enforceRFC7606": "361546acbde61cab"
-      },
-      "note": "Independent current-source renewal. RFC8654 Section 3 (rfc/full/rfc8654.txt): \"Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].\" The complete current cover set exercises exact None and TreatAsWithdraw validator results, an extended structural overrun yielding exact NOTIFICATION 3/1 with no dispatch, and isolated malformed ATOMIC_AGGREGATE/AGGREGATOR discard versus intact valid controls through both readers. TestRFC8654TreatAsWithdrawRemovesInstalledRoutes installs two routes with an otherwise valid 4097-octet UPDATE, changes only ORIGIN to 3, requires actual Adj-RIB-In and Loc-RIB removal and recipient TCP withdrawals, then requires fresh ORIGIN=1 recovery in storage, recipient TCP and both Loc-RIB publication callbacks on the same Established session without NOTIFICATION. Its retained ForwardHandles preserve publication evidence until producer cleanup; observers do not modify routing state. Source tracing confirms enforceRFC7606 dispatches the classified action, processMessage synthesizes withdrawals, notifyMessageReceiver publishes WireUpdate.Payload rather than the original malformed body, and the RIB and RS consumers process those withdrawals. The retained semantic observation valid-origin1-recovery-treated-as-withdraw failed specifically at fresh recovery while all eight discard controls passed; that historical targeted observation is distinct from current native producer-dependence records and is not claimed freshly rerun here. This judges implemented extended-message integration with RFC7606, not an independent audit of every incorporated RFC7606 clause. The fixture has no alternate source: live-source RS withdrawal/replacement remains excluded and unimplemented by this proof; source-DOWN replacement evidence must not be substituted for it.",
+      "note": "Independent reviewer ReceiveWholeClauseFinal accepted the complete receive clause: previously reviewed exact-action validator and Session controls, real RIB/Loc-RIB removal and recipient withdrawal/recovery, keep-first versus duplicate-MP behavior, typed-family and ADD-PATH controls, per-physical-message ordinary/coalesced standard/extended validation, and original-message diagnostics, now supplemented by isolated late-first-AS and late-tunnel matrices requiring exact NOTIFICATION 3/1, Idle, connection closure and zero dispatch for empty-MP errors, exact withdrawals without reset for reachable-NLRI counterparts, byte-identical acceptance and diagnostic silence for valid controls, and exact original header-inclusive diagnostic hex. ATTR_SET and empty-MP expectation corrections are RFC-backed improvements, not weakened proof. Observed evidence: job-receive-admission-late-as-after-596971aa.log passed all 16 late-first-AS cases and nine original-reachability metadata cases but had a separate admission-fixture failure; corrected admission accounting passed job-receive-admission-callback-accounting-after-183d1f4a.log and independent ReceiveLogicFinal review; job-tunnel-empty-mp-late-error-after-2096b5cd.log passed all 24 late-tunnel cases and combined diagnostic/endpoint roots. This judgment claims neither a fresh full-package acceptance run nor semantic proof from native producer-halt bindings. Unrelated deterministic-audit findings and owner-approved persist retirement remain outside this bounded conclusion.",
       "requirement_sha": "58d67f2664ef1bc5",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "669936946251c215",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "669936946251c215",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes": "21b670cf20e38954",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes#2": "21b670cf20e38954",
-        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard": "64686e84aed9a944",
-        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard#2": "64686e84aed9a944",
-        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling": "64686e84aed9a944",
-        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2": "64686e84aed9a944"
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery": "933d58b36f544a99",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery#2": "933d58b36f544a99",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes": "933d58b36f544a99",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes#2": "933d58b36f544a99",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard": "c0444b10289a63ff",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard#2": "c0444b10289a63ff",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes": "c0444b10289a63ff",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes#2": "c0444b10289a63ff",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets": "c0444b10289a63ff",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets#2": "c0444b10289a63ff",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling": "c0444b10289a63ff",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2": "c0444b10289a63ff"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "6215492127a94045",
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "ef0a5b1fd070bfe9",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery": "ebb869a31fbafb6a",
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery#2": "ebb869a31fbafb6a",
         "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes": "e8d2e5476e48a725",
         "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes#2": "e8d2e5476e48a725",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard": "e6c5794b4e7e6542",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard#2": "e6c5794b4e7e6542",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes": "58ecfdfa6e0a0822",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes#2": "58ecfdfa6e0a0822",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets": "7c6d62b4519e1eea",
+        "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets#2": "7c6d62b4519e1eea",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling": "6496b9ab79e6256e",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2": "6496b9ab79e6256e"
       },
@@ -136,16 +144,7 @@
       "verdict": "enforced"
     },
     "RFC8654-5-4": {
-      "code": {
-        "internal/component/bgp/plugins/rib/rib.go::handleStructuredState": "433a6ca530a406a3",
-        "internal/component/bgp/plugins/rib/rib_bestchange.go::emitPurgedWithdraws": "d487f3946e24fee7",
-        "internal/component/bgp/plugins/rs/server_handlers.go::handleStateDown": "7832ecf6ab3aa656",
-        "internal/component/bgp/plugins/rs/server_handlers.go::sendPeerDown": "cbddb02511910df3",
-        "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed": "9715b91305228350",
-        "internal/component/bgp/reactor/relay_recovery.go::recoverNLRIBatch": "bf780d8c21654221",
-        "internal/component/plugin/process/delivery.go::DrainEventsApplied": "432901a5e22534c0"
-      },
-      "note": "Independent semantic rejudgment: RFC8654 Section 5: \"Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].\" RFC4271 Section 6 says: \"Before the invalid routes are deleted from the system, it advertises, to its peers, either withdraws for the routes marked as invalid, or the new best routes before the invalid routes are deleted from the system.\" Current fatal-length controls observe exact Notification 1/2, EOF/session loss, Adj-RIB-In/Loc-RIB removal and real downstream withdrawal. The formerly failing TestRFC8654FatalLengthReelectsAlternateBest now passes in job-enum-recovery-causal-race-941bd345.log with original-best preboundary, surviving source attributes on actual TCP, no transient withdrawal of the replaced route, and no-survivor withdrawal. Source retains the detached RS withdrawal inventory in a joined DOWN lifecycle, and recovery uses actual sent ownership/generation with applied-delivery drain before lookup. Omitting that drain now fails the newer-target ownership consumer assertion on both direct and external transports; forgetting prior delivery failure fails strict-drain assertions on both, while legitimate success controls pass. The race log also passes final-worker re-resolution, reconnect/generation refusal, full native Add-Path/pruning and hard-failure destination retirement. This replaces the obsolete failing-TCP objection with observed consumer evidence; canonical and foreign carrier proof remains separate. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
+      "note": "Independent ReceiveWholeClauseFinal renewal: current controls assert exact NOTIFICATION 1/2 with erroneous Length 0x1001 followed by EOF, real Adj-RIB-In/Loc-RIB cleanup and resource release, actual recipient withdrawals, a valid-4096 retention control, and alternate-best replacement with exact survivor attributes, one Loc-RIB ChangeUpdate and no transient withdrawal. readAndProcessCoalesced rejects the fatal header before reading its body; handleStructuredState purges and invokes re-election outside peerMu; the RS retains detached withdrawal identities throughout its joined DOWN operation; recoverNLRIBatch waits for received-event publication and applied delivery before lookup, fences destination/source ownership at the actual writer, and receives completion after write/flush or fails closed. This ownership trace, not cross-plugin timestamp ordering, supports RFC4271 Section6 lifetime obligations. Fatal-length, valid-length, alternate-election and recovery controls pass in job-ownership-final-complete-packages-race-a95e6797.log; current full reactor/message race passes in job-receive-final-reactor-message-race-7d820229.log. Native bindings are separate proof; unchanged header-only missing bindings are standing metadata debt, not a new semantic gap.",
       "requirement_sha": "df841e66398cf2dd",
       "tests": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
@@ -154,7 +153,7 @@
         "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling": "a1acece001388bd1",
         "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654FatalLengthReleasesInstalledRoutes": "2d1638e2334a8ae9",
         "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654ValidLengthRetainsInstalledRoutes": "2d1638e2334a8ae9",
-        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest": "21b670cf20e38954"
+        "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest": "933d58b36f544a99"
       },
       "units": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
@@ -168,12 +167,7 @@
       "verdict": "enforced"
     },
     "RFC8654-6-1": {
-      "code": {
-        "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced": "2a9eaf9b1bdd858f",
-        "internal/component/bgp/reactor/session_negotiate.go::negotiateWith": "8ec36c0a980b469b",
-        "internal/core/bgp/capability/negotiated.go::Negotiate": "c12135995b82302a"
-      },
-      "note": "Independent current-source renewal. RFC8654 Section 6 (rfc/full/rfc8654.txt): \"This document changes the latter number to 65,535 for all messages except for OPEN and KEEPALIVE messages.\" Also: \"For all messages except for OPEN and KEEPALIVE messages, if the receiver has advertised the BGP Extended Message Capability, this document raises that limit to 65,535.\" The complete row retains both paragraphs, including the common 19-octet floor, raised upper bound, receiver-advertisement condition and OPEN/KEEPALIVE exceptions. Current tagged header carriers assert accepted per-type minima, invalid 0/18 lengths, standard and extended maxima, OPEN rejection at 4097/65535 and KEEPALIVE rejection at 20. Capability tests assert separate receive/send fields in Negotiated and EncodingCaps for all four combinations. Actual-OPEN reader tests cover both readers at 4096/4097/65535 with exact accepted payload or rejected-length notification and no dispatch. AnnouncementAccumulation uses individually standard-sized announcements to isolate accumulation from header admission: it asserts exact consumer batches beyond 4096 through exactly 65535, overflow flush, KEEPALIVE flush, no duplicate empty flush and standard-sized batching without local advertisement. Production receive-buffer selection, both header gates and coalescer body capacity use the local receive permission; negotiateWith's moved computation preserves that projection. Retained targeted observations separately changed coalescer capacity and coalesced header admission to bilateral gating: the former failed only local=true/peer=false accumulation at both prefix counts, and the latter failed only that direction's coalesced 4097/65535 admission while prescribed controls passed. Those historical semantic observations are not a mutation claim for the ordinary reader and are distinct from renewed native whole-producer panic dependence. No new execution or foreign scenario verification is claimed here.",
+      "note": "Both Section 6 paragraphs are retained: common header minimum, the raised maximum only after local capability advertisement, and OPEN/KEEPALIVE exceptions; header controls assert per-type limits, invalid lengths, OPEN refusal above 4096 and KEEPALIVE refusal at 20, while capability tests distinguish receive and send permission for all four advertisement combinations; ReceiveLimitFollowsLocalOPEN exchanges actual OPENs and drives both readers at 4096, 4097 and 65535, requiring exact complete dispatched payloads or NOTIFICATION 1/2 with erroneous Length and no dispatch; AnnouncementAccumulation uses individually standard-sized inputs to isolate batching capacity and asserts exact consumer batches beyond 4096 through 65535, overflow/KEEPALIVE flushing and standard-sized batching without local advertisement; current source uses the directional receive permission for buffers and header admission, and existing TestValidateLengthWithMax binding omissions are standing metadata debt rather than a new source or semantic gap",
       "requirement_sha": "e3cfe43c3eb21f36",
       "tests": {
         "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",

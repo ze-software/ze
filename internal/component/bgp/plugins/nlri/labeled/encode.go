@@ -272,6 +272,9 @@ func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath
 
 	// Build UPDATE
 	update := ub.BuildLabeledUnicast(&params)
+	if update == nil {
+		return nil, nil, message.ErrUnicastNextHopUnusable
+	}
 
 	// Pack UPDATE body using PackTo
 	updateBody := message.PackTo(update, nil)

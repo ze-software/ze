@@ -115,7 +115,6 @@ test/plugin/firewall-irr-refresh.ci
 test/plugin/firewall-irr-show.ci
 test/plugin/netlab-lab-profile.ci
 test/plugin/peer-name-selector.ci
-test/plugin/plugin-persist-features.ci
 test/plugin/plugin-rs-features.ci
 test/plugin/rbac-web-config-deny.ci
 test/plugin/rest-peer-set-delete-lifecycle.ci

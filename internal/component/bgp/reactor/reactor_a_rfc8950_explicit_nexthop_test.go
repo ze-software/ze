@@ -66,14 +66,21 @@ func TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair(t *testing.T) {
 			peer := NewPeer(settings)
 			_, messages := newEstablishedSessionForPeer(t, peer)
 			peer.state.Store(int32(PeerStateEstablished))
-			peer.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{family.IPv4Unicast: true, ipv4VPN: true}})
-			extNH := map[capability.Family]capability.AFI{}
-			for _, pair := range tc.negotiated {
-				extNH[pair] = capability.AFIIPv6
+			caps := []capability.Capability{
+				&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+				&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIVPN},
 			}
-			peer.sendCtx.Store(bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{
-				ExtendedNextHop: extNH,
-			}, bgpctx.DirectionSend))
+			var pairs []capability.ExtendedNextHopFamily
+			for _, pair := range tc.negotiated {
+				pairs = append(pairs, capability.ExtendedNextHopFamily{
+					NLRIAFI: pair.AFI, NLRISAFI: pair.SAFI, NextHopAFI: capability.AFIIPv6,
+				})
+			}
+			caps = append(caps, &capability.ExtendedNextHop{Families: pairs})
+			neg := capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65002})
+			peer.currentSession().negotiated = neg
+			peer.negotiated.Store(NewNegotiatedCapabilities(neg))
+			peer.sendCtx.Store(bgpctx.NewEncodingContext(neg.Identity, neg.Encoding, bgpctx.DirectionSend))
 
 			addr, err := peer.resolveNextHop(peer.currentSession(), bgptypes.NewNextHopExplicit(nextHop), ipv4VPN)
 			if tc.vpn {
@@ -134,12 +141,16 @@ func TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach(t *testing.T) {
 	peer := NewPeer(settings)
 	_, messages := newEstablishedSessionForPeer(t, peer)
 	peer.state.Store(int32(PeerStateEstablished))
-	peer.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{family.IPv4Unicast: true}})
-	peer.sendCtx.Store(bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{
-		ExtendedNextHop: map[capability.Family]capability.AFI{
-			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}: capability.AFIIPv6,
-		},
-	}, bgpctx.DirectionSend))
+	caps := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{
+			NLRIAFI: capability.AFIIPv4, NLRISAFI: capability.SAFIUnicast, NextHopAFI: capability.AFIIPv6,
+		}}},
+	}
+	neg := capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65002})
+	peer.currentSession().negotiated = neg
+	peer.negotiated.Store(NewNegotiatedCapabilities(neg))
+	peer.sendCtx.Store(bgpctx.NewEncodingContext(neg.Identity, neg.Encoding, bgpctx.DirectionSend))
 
 	a := &reactorAPIAdapter{r: &Reactor{
 		attrModHandlers: attrModHandlersWithDefaults(),

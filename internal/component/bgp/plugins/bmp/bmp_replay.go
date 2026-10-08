@@ -193,9 +193,9 @@ func (bp *BMPPlugin) cacheAdjNLRIs(st *peerUpState, fam family.Family, direction
 	addPath := ctx != nil && ctx.AddPath(fam)
 	keyOf := nlrisplit.GetPrefixKey(fam)
 	var failed error
-	_, err := walk(data, addPath, func(raw []byte) {
+	_, err := walk(data, addPath, func(raw []byte) bool {
 		if failed != nil {
-			return
+			return true
 		}
 		prefix := raw
 		var pathID uint32
@@ -207,14 +207,14 @@ func (bp *BMPPlugin) cacheAdjNLRIs(st *peerUpState, fam family.Family, direction
 		identity, err := keyOf(prefix, scratch[:], withdraw)
 		if err != nil {
 			failed = err
-			return
+			return true
 		}
 		key := adjRouteKey{family: fam, pathID: pathID, prefix: string(identity), sent: direction == rpc.DirectionSent}
 		old := st.routes[key]
 		if old != nil && announcement != nil {
 			if old.mp == announcement.mp && bytes.Equal(old.attrs, announcement.attrs) &&
 				bytes.Equal(old.nextHop, announcement.nextHop) && bytes.Equal(old.nlri, raw) {
-				return
+				return true
 			}
 		}
 		if old != nil {
@@ -224,12 +224,12 @@ func (bp *BMPPlugin) cacheAdjNLRIs(st *peerUpState, fam family.Family, direction
 			st.routeRevision++
 		}
 		if withdraw {
-			return
+			return true
 		}
 		need := len(announcement.attrs) + len(announcement.nextHop) + len(raw) + len(key.prefix)
 		if bp.adjReplayBytes+need > adjReplayBytesMax || bp.adjReplayRoutes == adjReplayRoutesMax {
 			failed = errAdjReplayLimit
-			return
+			return true
 		}
 		route := *announcement
 		route.nlri = slices.Clone(raw)
@@ -237,6 +237,7 @@ func (bp *BMPPlugin) cacheAdjNLRIs(st *peerUpState, fam family.Family, direction
 		bp.adjReplayBytes += need
 		bp.adjReplayRoutes++
 		st.routeRevision++
+		return true
 	})
 	if err != nil {
 		return err

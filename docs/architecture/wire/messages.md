@@ -141,6 +141,13 @@ capability must end after its hostname and domain fields. Extra octets are
 malformed input, even when the initial fields would otherwise negotiate a
 usable capability. An empty Type 2 parameter is also malformed.
 
+Unsupported Capability (2/7) is a separate rejection: its Data carries complete
+capability code/length/value tuples encoded as in OPEN (RFC 5492 Section 5).
+Missing requirements use local advertised values; refused capabilities use peer
+advertised values. In particular, an ASN4 tuple carries four value octets, not an
+empty value. Per-family ADD-PATH rejection carries code 69 and the advertised
+family direction rather than a Multiprotocol tuple.
+
 <!-- source: internal/core/bgp/capability/capability.go -- ParseFromOptionalParams -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go -- rejectOpenCapabilityError -->
 
@@ -216,9 +223,55 @@ attributes retain NOTIFICATION 3/1.
 <!-- source: internal/component/bgp/message/rfc7606.go -- ValidateUpdateRFC7606AddPath, validateNextHopAttr -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606NLRISyntaxAction, rfc7606ResetNotification -->
 
+With `ze.log.bgp.reactor.session=debug`, RFC 7606 error records include
+`update-wire-hex`: the complete original UPDATE, including its 19-octet header.
+Separate lists identify legacy announcements, legacy withdrawals, MP_REACH NLRI
+and MP_UNREACH NLRI. Prefix families use readable prefixes. Other registered
+families use individually framed NLRI hex, with AFI/SAFI and ADD-PATH bytes
+retained. An unreadable remainder is labeled rather than omitted.
+The disabled facility returns before formatting or allocating diagnostic data.
+First-AS mismatch diagnostics also precede Partial-bit normalization. If an
+earlier attribute discard rewrites bytes in place, its already-formatted original
+wire hex is reused for a later first-AS error rather than copying the input body.
+
+The local-address/subnet NEXT_HOP check is a separate RFC 4271 route-ignore
+policy, not RFC 7606's malformed-length case. It can run on a coalesced batch;
+its diagnostic explicitly uses `representation=processed` and
+`update-processed-hex`, never the original-wire field.
+
+<!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606Diagnostics, mpDiagnosticNLRI -->
+
 Legacy IPv4 NLRI still requires a separate NEXT_HOP when the same UPDATE carries
 MP_REACH_NLRI. The MP next hop serves only its own NLRI. Missing ORIGIN or AS_PATH
 causes treat-as-withdraw for either announcement form.
+
+The completed attribute walk also records the first AS_PATH value's offsets and
+whether AS4_PATH or AS4_AGGREGATOR is present. The clean NEW-speaker path uses
+that metadata for the eBGP first-AS check before batching or rewriting, without
+another attribute scan. OLD-speaker and AS4-bearing paths prepare the existing
+AS4 reconciliation once and reuse it when encoding. Abandoned walks publish
+neither field; recorded offsets must not be reused after an attribute-section
+rewrite.
+
+When no reachable NLRI bytes exist in either the legacy field or MP_REACH_NLRI,
+an attribute error stronger than attribute discard escalates to session reset
+(RFC 7606 Section 5.2). An empty MP_REACH is not evidence of a reachable route,
+including when a later framing error abandons the attribute walk. This prevents
+treat-as-withdraw from turning an empty MP_REACH into a false End-of-RIB marker.
+Attribute-discard-only errors do not trigger this escalation.
+Validation results retain the original reachable-NLRI fact for later Session
+checks. A downstream attribute or typed-NLRI rewrite must not replace that fact
+with the presence or absence of routes in the rewritten body.
+Carrier-aware tunnel validation, AS4 reconciliation and first-AS checking use
+the same original-reachability escalation before withdrawal synthesis. It applies
+to genuine late attribute errors, not the
+typed-NLRI filter's internal drop signal when every originally present route was
+unrecognized. Reset diagnostics reuse original wire hex recorded before any
+in-place attribute discard.
+
+<!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606LateAttributeError -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- processValidatedMessage -->
+<!-- source: internal/component/bgp/reactor/session_tunnel_encap.go -- tunnelReceiveError -->
 
 AIGP validation walks every TLV, including those after the first metric. A
 truncated TLV or a metric TLV whose inclusive length is not 11 causes attribute

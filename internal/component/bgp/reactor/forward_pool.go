@@ -337,6 +337,11 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 				// retain the ordinary writer's export gate.
 				if err := session.writeUpdateGated(update, item.originated); err != nil {
 					fwdLogger().Warn("forward batch write failed", "peer", peer.Settings().Address, "err", err)
+					if item.originated && isRouteScopedSendError(err) {
+						// Refuse this offered item, not later independent items
+						// or the flush of bytes already accepted in the batch.
+						break
+					}
 					failRecoveryWrites(items, session, err)
 					return
 				}
@@ -358,9 +363,6 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 			recovery.written = !recovery.retry && recovery.err == nil
 		}
 	}
-
-	// Successful batch write -- reset RFC 9687 Send Hold Timer.
-	session.resetSendHoldTimer()
 }
 
 // failRecoveryWrites propagates a batch's hard failure even if an admission

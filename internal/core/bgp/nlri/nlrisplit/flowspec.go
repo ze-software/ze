@@ -36,7 +36,7 @@ const flowSpecExtendedLength = 0xF0
 //
 // The walk is bounded by len(data): a zero length is rejected below, so every
 // entry advances the offset.
-func SplitFlowSpec(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+func SplitFlowSpec(data []byte, addPath bool, fn func(nlri []byte) bool) (int, error) {
 	count := 0
 	offset := 0
 	for offset < len(data) {
@@ -71,10 +71,12 @@ func SplitFlowSpec(data []byte, addPath bool, fn func(nlri []byte)) (int, error)
 			return count, fmt.Errorf("nlrisplit: flowspec NLRI at offset %d extends past data (len=%d)", start, length)
 		}
 
-		if fn != nil {
-			fn(data[start : start+nlriLen])
-		}
 		count++
+		if fn != nil {
+			if !fn(data[start : start+nlriLen]) {
+				return count, nil
+			}
+		}
 		offset = start + nlriLen
 	}
 

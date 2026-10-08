@@ -160,5 +160,13 @@ future protocol source registers the same way: a `Path` with an
 `AdminDistance` and nothing else. The type is `Path` and not `Candidate`,
 because one entry is one path from one source.
 
-Per-family NLRI splitting consumes the moved keys.
+Per-family NLRI splitting consumes the moved keys. A registered `nlrisplit.Splitter`
+walks native wire boundaries with a `func([]byte) bool` visitor. Returning `true`
+continues; returning `false` stops after the current NLRI, includes it in the
+returned count, and returns no error without inspecting the remaining bytes.
+A nil visitor validates and counts the entire section without allocating.
+Malformed entries reached by the walk return an error and the count of preceding
+entries. Visitor slices alias the input and retain the ADD-PATH identifier where
+the family uses it; callers MUST copy bytes they retain beyond the callback.
+`Split` and `SplitWithdrawn` materialize all entries using the same framing.
 <!-- source: internal/core/bgp/nlri/nlrisplit/nlrisplit.go -- per-family NLRI split -->

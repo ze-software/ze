@@ -110,6 +110,7 @@ Ask the question from Bash instead
 | Reactor / session | `docs/architecture/core-design.md` sections 1-5 | `ai/rules/goroutine-lifecycle.md`; run `go test -race -count=20 ./internal/component/bgp/reactor/...` |
 | Wire encoding/decoding | `ai/rules/performance.md`, `ai/rules/performance.md` | No `make()`, no `append()`, `WriteTo(buf, off) int`, caller-owned buffers |
 | RIB / route storage | `docs/architecture/route-types.md`, `docs/architecture/rib-transition.md` | Pool dedup, lazy iterators |
+| BGP sent-history replay / retiring bgp-persist | `docs/guide/plugins.md#migrating-from-bgp-persist`, `docs/architecture/bgp/replay-cursor.md` | Mandatory `bgp-rib` autoload, explicit peer receive/send grants; process-memory reconnect history, source/native identity and captured Initial-session validation; no durable restart store or config alias |
 | Route selection | `docs/architecture/route-selection.md` | `plan/learned/DESIGN-HISTORY.md` ("BGP engine: wire encoding and RIB") |
 | Config pipeline | `docs/architecture/config/yang-config-design.md` | File -> Tree -> ResolveBGPTree -> map[string]any |
 | Plugin SDK | `ai/rules/plugins.md` (SDK Is Generic) | No plugin-specific code in SDK |

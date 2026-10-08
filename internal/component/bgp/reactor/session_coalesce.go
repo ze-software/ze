@@ -39,9 +39,10 @@ var _ = env.MustRegister(env.EnvEntry{
 // Original per-message pool buffers are returned immediately after their
 // NLRI bytes are copied into body. Only the coalesce pool buffer is held.
 type coalesceState struct {
-	buf     BufHandle // pool buffer backing body
-	body    []byte    // synthetic UPDATE body; len=written, cap=available
-	attrLen int       // cached attribute length for fast pre-check
+	buf        BufHandle         // pool buffer backing body
+	body       []byte            // synthetic UPDATE body; len=written, cap=available
+	attrLen    int               // cached attribute length for fast pre-check
+	validation rfc7606Validation // clean attribute verdict; each original NLRI was checked
 }
 
 // coalesceEnabled returns true if UPDATE coalescing is active.
@@ -139,6 +140,15 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 		return processErr
 	}
 
+	if updateIsUnexpected(s.fsm.State()) {
+		if err := s.flushCoalesce(); err != nil {
+			return err
+		}
+		// This admission was rejected already. Do not re-enter processMessage
+		// and reinterpret it after an asynchronous FSM transition.
+		return s.fsmMessageEvent(fsm.EventUpdateMsg)
+	}
+
 	sections, parseErr := wire.ParseUpdateSections(body)
 	if parseErr != nil {
 		if err := s.flushCoalesce(); err != nil {
@@ -163,6 +173,20 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 		return processErr
 	}
 
+	// RFC 7606 Section 5.3: "When parsing NLRI contained in the field, the length
+	// of the last NLRI found exceeds the amount of unconsumed data remaining in
+	// the field." The field ends at this original UPDATE, not the next message.
+	// Validate before append: [24,192,0] followed by [0] must not become /24.
+	if result := s.validateRFC7606IPv4(nlriBytes); result != nil {
+		if err := s.flushCoalesce(); err != nil {
+			return err
+		}
+		validation := rfc7606Validation{result: result, syntaxField: "nlri"}
+		var processErr error
+		processErr, kept = s.processValidatedMessage(&hdr, body, buf, &validation)
+		return processErr
+	}
+
 	coal := &s.coalesce
 	if coal.body != nil {
 		if coal.attrLen == attrLen &&
@@ -179,10 +203,24 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 		}
 	}
 
+	// RFC 7606 Sections 3 and 6: classify each new attribute set before batching.
+	// Identical attributes above reuse a clean verdict; errors and MP-bearing
+	// messages retain their original boundary for enforcement and diagnostics.
+	validation := rfc7606Validation{
+		result:      s.validateRFC7606Attrs(attrBytes, true),
+		attrsOffset: 4, attrsLen: attrLen, hasNLRI: true,
+	}
+	s.prepareRFC7606FirstAS(body, &validation)
+	if !validation.batchable() {
+		var processErr error
+		processErr, kept = s.processValidatedMessage(&hdr, body, buf, &validation)
+		return processErr
+	}
+
 	coalBuf := s.getReadBuffer()
 	if coalBuf.Buf == nil {
 		var processErr error
-		processErr, kept = s.processMessage(&hdr, body, buf)
+		processErr, kept = s.processValidatedMessage(&hdr, body, buf, &validation)
 		return processErr
 	}
 
@@ -209,6 +247,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 	coal.buf = coalBuf
 	coal.body = coalBuf.Buf[:off:bodyCap]
 	coal.attrLen = attrLen
+	coal.validation = validation
 
 	if bufReader.Buffered() == 0 {
 		return s.flushCoalesce()
@@ -216,8 +255,8 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 	return nil
 }
 
-// flushCoalesce dispatches the held coalesced UPDATE through processMessage,
-// then releases the coalesce pool buffer. Returns nil if nothing held.
+// flushCoalesce dispatches the validated batch without repeating attribute or NLRI
+// validation, then releases the pool buffer unless the callback retains it.
 func (s *Session) flushCoalesce() error {
 	coal := &s.coalesce
 	if coal.body == nil {
@@ -226,10 +265,12 @@ func (s *Session) flushCoalesce() error {
 
 	coalBuf := coal.buf
 	body := coal.body
+	validation := coal.validation
 
 	coal.buf = BufHandle{}
 	coal.body = nil
 	coal.attrLen = 0
+	coal.validation = rfc7606Validation{}
 
 	totalLen := message.HeaderLen + len(body)
 	hdr := message.Header{
@@ -237,7 +278,7 @@ func (s *Session) flushCoalesce() error {
 		Type:   msgtype.TypeUPDATE,
 	}
 
-	processErr, kept := s.processMessage(&hdr, body, coalBuf)
+	processErr, kept := s.processValidatedMessage(&hdr, body, coalBuf, &validation)
 	if !kept {
 		s.returnReadBuffer(coalBuf)
 	}
@@ -254,4 +295,5 @@ func (s *Session) resetCoalesce() {
 	coal.buf = BufHandle{}
 	coal.body = nil
 	coal.attrLen = 0
+	coal.validation = rfc7606Validation{}
 }

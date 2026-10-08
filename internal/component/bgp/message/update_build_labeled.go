@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 const attrPrefixSID = attribute.AttrPrefixSID
@@ -74,7 +75,17 @@ type LabeledUnicastParams struct {
 // BuildLabeledUnicast builds an UPDATE message for a labeled unicast route (SAFI 4).
 //
 // RFC 8277 - NLRI format: Label(3) + Prefix.
+// Returns nil when the next-hop field cannot satisfy its family contract.
+// Callers MUST check for nil before packing or sending the result.
 func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
+	afi := family.AFIIPv4
+	if p.Prefix.Addr().Is6() {
+		afi = family.AFIIPv6
+	}
+	// RFC 8950 Section 3; RFC 4798 Section 2.
+	if err := ValidateFamilyNextHop(family.Family{AFI: afi, SAFI: family.SAFIMPLSLabel}, p.NextHop, netip.Addr{}); err != nil {
+		return nil
+	}
 	ub.resetScratch()
 
 	var attrs []attribute.Attribute

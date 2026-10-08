@@ -196,33 +196,10 @@ func (m *MPReachNLRI) nextHopOctets(nh netip.Addr) int {
 // of zero on the wire, which ValidNextHopLens admits for no AFI/SAFI pair, so the
 // peer would treat the UPDATE as malformed (RFC 7606 Section 7.11).
 //
-// What it does NOT check is whether the address belongs to the network-layer
-// protocol the <AFI, SAFI> names: a valid IPv4 address under AFI 2 passes here and
-// encodes four octets, a length RFC 2545 Section 3 does not define. Answering that
-// needs the valid lengths to be data each NLRI family registers rather than a
-// central switch, which ValidNextHopLens is not yet (see the errAnnounceNextHopUnencodable
-// message in reactor/reactor_api_batch.go, which is worded to this check and not
-// past it).
-//
-// Who asks, as of 2026-08-29. THREE rails ask before they contribute one, because
-// each is a caller that can name the route and the peer: buildBatchAnnounceUpdate
-// (reactor/reactor_api_batch.go), buildRIBRouteUpdate (reactor/peer_rib_routes.go)
-// and (*CommitService).buildMPReachNLRI (component/bgp/rib/commit.go).
-// announceAttrs.add (reactor/announce_build.go) asks again for anything that reaches
-// the plan without a pre-check, and it is the single point the first two rails reach
-// the wire through. CheckedWriteTo below asks for its own callers.
-//
-// Do NOT read that as saying every assembling caller asks. It does not quantify over
-// the assembly sites, and three of them ask nothing here: (*UpdateBuilder).buildMPReach
-// (component/bgp/message/update_build.go), reachable in production through BuildUnicast
-// from reactor/peer_initial_sync.go and reactor/peer_static_routes.go; and the two that
-// are safe only from an IsValid() test above them, plugins/rib/rib_commands.go and
-// plugins/bmp/bmp_locrib.go. A fourth site added tomorrow inherits nothing from this
-// list, which is why the list names rails rather than counting them.
-//
-// The third rail reaches no such backstop: it writes through attribute.WriteAttrTo
-// rather than through the plan, so its own call is the only thing between an
-// unresolved next hop and a Length of Next Hop Network Address octet of 0x00.
+// This is a presence check, not family admission. Callers must separately
+// validate the field width, address roles and negotiated permissions.
+// MPNextHopProfile supplies the family-specific field contract; session
+// capabilities are not part of this attribute.
 func (m *MPReachNLRI) ValidateNextHops() error {
 	for _, nh := range m.NextHops.Slice() {
 		if !nh.IsValid() {
@@ -367,41 +344,47 @@ const SAFIMPLSLabel SAFI = 4
 // SAFISRPolicy is SAFI 73 (RFC 9830: SR Policy).
 const SAFISRPolicy SAFI = 73
 
-// ValidNextHopLens returns the set of valid next-hop byte lengths for an AFI/SAFI.
-// This is the single source of truth for both encode and decode paths, ensuring
-// they agree on what constitutes a valid wire format.
-//
-// Sources:
-//   - RFC 4760 Section 3: IPv4/IPv6 unicast/multicast
-//   - RFC 5549/8950: Extended next-hop (IPv6 NH for IPv4 NLRI)
-//   - RFC 4364 Section 4.3.4: VPN-IPv4 (RD+IPv4=12, RD+IPv6=24)
-//   - RFC 4659: VPN-IPv6 (RD+IPv6=24, dual=48)
-//   - RFC 3107/8277: MPLS labeled unicast
-//   - RFC 7606 Section 7.11: Validation requirements
-func ValidNextHopLens(afi AFI, safi SAFI) []int {
+// NextHopProfile holds the family-specific field contract. Its zero value names
+// an unknown layout and imposes no new admission on plugin-defined fields.
+// Lengths is shared read-only storage; callers MUST NOT mutate it.
+type NextHopProfile struct {
+	Lengths      []int
+	IPv6Roles    bool
+	MappedIPv4   bool
+	ExtendedIPv6 bool
+}
+
+// MPNextHopProfile is the single declaration of known field widths, plain IPv6
+// address roles, interworking forms and RFC 8950 capability scope.
+// RFC 8950 Section 3: "This field is to be constructed as per Section 3 of
+// [RFC2545]." RFC 9830 Section 2.1: "If the next-hop length is 32, then it has
+// a global IPv6 address followed by a link-local IPv6 address."
+// VPN fields retain their RD(8)+address layouts, not plain IPv6 roles.
+func MPNextHopProfile(afi AFI, safi SAFI) NextHopProfile {
 	switch afi {
 	case AFIIPv4:
 		switch safi {
-		case SAFIUnicast, SAFIMulticast:
+		case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel:
 			// RFC 8950 Section 3, for <1/1>, <1/2> and <1/4>: "Length of Next
 			// Hop Address = 16 or 32" and "Next Hop Address = IPv6 address of a
 			// next hop (potentially followed by the link-local IPv6 address of
 			// the next hop). This field is to be constructed as per Section 3 of
 			// [RFC2545]." So the two-address form of RFC 2545 Section 3 is a
 			// length this AFI/SAFI carries, beside the plain IPv4 one.
-			return []int{4, 16, 32}
-		case SAFIMPLSLabel:
-			return []int{4}
+			return NextHopProfile{Lengths: ipv4ExtendedNextHopLens, IPv6Roles: true, ExtendedIPv6: true}
 		case SAFIVPN:
 			// RFC 8950 Section 3, for <1/128> and <1/129>: "Length of Next Hop
 			// Address = 24 or 48", the VPN-IPv6 address with its zero RD,
 			// "potentially followed by the link-local VPN-IPv6 address of the
 			// next hop with an 8-octet RD set to zero".
-			return []int{12, 24, 48} // RD+IPv4, RD+IPv6, or RD+IPv6 pair
+			return NextHopProfile{Lengths: vpnIPv4NextHopLens, ExtendedIPv6: true}
+		case SAFI(129):
+			// RFC 8950 names SAFI 129; no Ze decoder implements its layout.
+			return NextHopProfile{ExtendedIPv6: true}
 		case SAFISRPolicy:
-			return []int{4, 16} // RFC 9830: NH AFI independent of policy AFI
+			return NextHopProfile{Lengths: ipv4ExtendedNextHopLens, IPv6Roles: true}
 		case SAFIMVPN:
-			return mvpnNextHopLens
+			return NextHopProfile{Lengths: mvpnNextHopLens}
 		case SAFIFlowSpec, SAFIEVPN:
 			// FlowSpec: permissive (no test coverage yet for strict validation)
 			// EVPN: uses AFI L2VPN (25), not IPv4
@@ -410,16 +393,18 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 		}
 	case AFIIPv6:
 		switch safi {
-		case SAFIUnicast, SAFIMulticast:
-			return []int{16, 32} // global or global+link-local
-		case SAFIMPLSLabel:
-			return []int{16, 32}
+		case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel:
+			// RFC 8950 Section 1: the IPv4-mapped IPv6 format can be used
+			// "when the <AFI/SAFI> is <2/1>, <2/2>, or <2/4>".
+			// This recognizes the field, not a 6PE dataplane.
+			return NextHopProfile{Lengths: ipv6NextHopLens, IPv6Roles: true, MappedIPv4: true}
 		case SAFIVPN:
-			return []int{24, 48} // RD+IPv6 or dual
+			// RFC 4659 Section 3.2.1.2 defines zero RD plus mapped IPv6.
+			return NextHopProfile{Lengths: vpnIPv6NextHopLens, MappedIPv4: true}
 		case SAFISRPolicy:
-			return []int{4, 16, 32} // RFC 9830: NH AFI independent of policy AFI
+			return NextHopProfile{Lengths: ipv4ExtendedNextHopLens, IPv6Roles: true}
 		case SAFIMVPN:
-			return mvpnNextHopLens
+			return NextHopProfile{Lengths: mvpnNextHopLens}
 		case SAFIFlowSpec, SAFIEVPN:
 			// FlowSpec: permissive (no test coverage yet for strict validation)
 			// EVPN: uses AFI L2VPN (25), not IPv6
@@ -429,7 +414,7 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 	case AFIL2VPN:
 		switch safi {
 		case SAFIEVPN:
-			return []int{4, 16} // IPv4 or IPv6
+			return NextHopProfile{Lengths: dualAFINextHopLens}
 		case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel, SAFIVPN, SAFIFlowSpec, SAFISRPolicy, SAFIMVPN:
 			// These SAFIs don't apply to L2VPN AFI
 		default:
@@ -438,8 +423,24 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 	default:
 		// The wire AFI set is open; unknown combinations have no length table.
 	}
-	return nil // unknown AFI/SAFI combination
+	return NextHopProfile{}
 }
+
+// ValidNextHopLens returns the profile's shared read-only lengths. Callers MUST
+// NOT mutate them. Unknown or independently defined layouts return nil.
+func ValidNextHopLens(afi AFI, safi SAFI) []int {
+	return MPNextHopProfile(afi, safi).Lengths
+}
+
+// Shared read-only storage keeps length admission allocation-free on the wire
+// path, without requiring ValidNextHopLens to be inlined.
+var (
+	ipv4ExtendedNextHopLens = []int{4, 16, 32}
+	ipv6NextHopLens         = []int{16, 32}
+	vpnIPv4NextHopLens      = []int{12, 24, 48}
+	vpnIPv6NextHopLens      = []int{24, 48}
+	dualAFINextHopLens      = []int{4, 16}
+)
 
 // mvpnNextHopLens are the next-hop lengths an MCAST-VPN route carries, under
 // either AFI.

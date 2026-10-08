@@ -255,6 +255,28 @@
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7311-3.4.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics",
+      "unit-sha": "df8135f01bec7a83",
+      "claim-sha": "a8dba5a79905c917",
+      "route": "revert",
+      "producer": "internal/core/rib/igpcost/igpcost.go::Add",
+      "producer-sha": "27192aca0fa84c30",
+      "break": "body of Add replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics",
+      "unit-sha": "df8135f01bec7a83",
+      "claim-sha": "71b0b4bc58b4d873",
+      "route": "revert",
+      "producer": "internal/core/rib/igpcost/igpcost.go::Add",
+      "producer-sha": "27192aca0fa84c30",
+      "break": "body of Add replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7311-3.4.3-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
@@ -411,6 +433,50 @@
     {
       "rid": "RFC7311-3.4.3-7",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes",
+      "unit-sha": "5b3caa4f0a7f5217",
+      "claim-sha": "d65cce7b2e637479",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::reselectAIGPRoutes",
+      "producer-sha": "d5dc726b25783f47",
+      "break": "body of reselectAIGPRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes",
+      "unit-sha": "5b3caa4f0a7f5217",
+      "claim-sha": "ebf483f8f4a79a25",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::reselectAIGPRoutes",
+      "producer-sha": "d5dc726b25783f47",
+      "break": "body of reselectAIGPRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration",
+      "unit-sha": "e75728ccb74f977b",
+      "claim-sha": "aa2baaad6947741e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/aigp_readvertise.go::replayAIGP",
+      "producer-sha": "6025b4f0eac194c9",
+      "break": "body of replayAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration",
+      "unit-sha": "e75728ccb74f977b",
+      "claim-sha": "9cdb643f8ad9972f",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/aigp_readvertise.go::replayAIGP",
+      "producer-sha": "6025b4f0eac194c9",
+      "break": "body of replayAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go::TestRFC7311ExtendedNextHopCostRecovery",
       "unit-sha": "cf3a549165aafa09",
       "claim-sha": "83a22db653e7f53c",
@@ -455,6 +521,28 @@
     {
       "rid": "RFC7311-3.4.3-7",
       "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311ReceivedRecursiveAIGPChangeReachesWire",
+      "unit-sha": "79c8667fc89dd8eb",
+      "claim-sha": "86170910a072ad03",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+      "producer-sha": "a5957db57472ecce",
+      "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311ReceivedRecursiveAIGPChangeReachesWire",
+      "unit-sha": "79c8667fc89dd8eb",
+      "claim-sha": "9ec7907bd793a063",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+      "producer-sha": "a5957db57472ecce",
+      "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire",
       "unit-sha": "20f3f530e4c3faf8",
       "claim-sha": "3980317c92afce04",
@@ -473,6 +561,28 @@
       "producer": "internal/component/bgp/reactor/aigp_readvertise.go::readvertiseAIGP",
       "producer-sha": "da7463db7c0c6930",
       "break": "body of readvertiseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "positive",
+      "unit": "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics",
+      "unit-sha": "df8135f01bec7a83",
+      "claim-sha": "e060892fb55547e2",
+      "route": "revert",
+      "producer": "internal/component/sysrib/nhresolver.go::IGPMetric",
+      "producer-sha": "d672e5cc20c4145f",
+      "break": "body of IGPMetric replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "negative",
+      "unit": "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics",
+      "unit-sha": "df8135f01bec7a83",
+      "claim-sha": "fea9a10e0004f790",
+      "route": "revert",
+      "producer": "internal/component/sysrib/nhresolver.go::IGPMetric",
+      "producer-sha": "d672e5cc20c4145f",
+      "break": "body of IGPMetric replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -4,9 +4,8 @@
 
 | Plugin | Description |
 |--------|-------------|
-| bgp-rib | Route Information Base -- stores received/sent routes |
+| bgp-rib | Mandatory Route Information Base -- stores received/sent routes and restores eligible in-memory sent history on peer reconnect. No durable daemon or plugin restart storage. See [migration](../guide/plugins.md#migrating-from-bgp-persist). |
 | bgp-adj-rib-in | Adj-RIB-In -- raw hex replay of received routes |
-| bgp-persist | Route persistence across restarts |
 | bgp-rs | Route server -- client-to-client route reflection (RFC 7947). Forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3): DirectBridge in-process, `ze-plugin-engine:forward-cached` over newline-framed YANG RPC for out-of-process plugins. No text-RPC tokenise on the hot path. `bgp-adj-rib-in` is an optional dep; when absent, forwarding still works and replay-on-peer-up is disabled with a WARN. |
 | bgp-watchdog | Deferred route announcement with named watchdog groups |
 | bgp-healthcheck | Service healthcheck with FSM-controlled route announcement/withdrawal via watchdog groups. [Guide](../guide/healthcheck.md) |
@@ -31,7 +30,6 @@ Three filter categories:
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in -->
-<!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs -->
 <!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog -->
 <!-- source: internal/component/bgp/plugins/healthcheck/register.go -- bgp-healthcheck -->
@@ -74,8 +72,8 @@ Three filter categories:
 |--------|-------------|
 | interface | OS network interface monitoring and management via netlink or VPP. Publishes interface and address events to the bus. |
 | iface-ra | IPv6 Router Advertisement sender (RFC 4861) for a LAN interface unit: prefixes for SLAAC, the M and O flags, and RDNSS resolvers (RFC 8106). Linux and netlink only. |
-| static | Config-driven static route programming with ECMP. |
-| connected | Redistributes directly connected interface prefixes. |
+| static | Config-driven static routes with ECMP. A main-table route is a Loc-RIB path that `rib { distance { static } }` ranks against other protocols, and the FIB plugin programs the winner; a named-table route is programmed directly into its table. |
+| connected | Redistributes directly connected interface prefixes, and inserts each one into the Loc-RIB at `rib { distance { connected } }`. It registers that the OS installs its routes, so a connected winner withdraws Ze's route rather than adding one. |
 | kernel | Redistributes externally-installed kernel routes. |
 | rib | System RIB selection by administrative distance. |
 | fib-kernel | Programs OS routes from the system RIB. |
@@ -88,6 +86,8 @@ Three filter categories:
 
 <!-- source: internal/component/iface/register.go -- interface -->
 <!-- source: internal/plugins/iface/ra/register.go -- iface-ra -->
+<!-- source: internal/plugins/static/locrib.go -- inMainTable, applyProgrammed: main-table Loc-RIB path, named-table direct write -->
+<!-- source: internal/plugins/connected/events/events.go -- RegisterOSInstalled declaration -->
 
 ### Plugin Health Metrics
 

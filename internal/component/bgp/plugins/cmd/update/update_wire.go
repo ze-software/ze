@@ -19,10 +19,10 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
 
-	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -315,7 +315,7 @@ func parseWireNLRISection(args []string, decode decodeFunc) (family.Family, []nl
 		}
 
 		// Split into individual NLRIs
-		nlris, err := splitWireNLRIs(bytes, fam, addPath)
+		nlris, err := splitWireNLRIs(bytes, fam, addPath, mode == kwDel)
 		if err != nil {
 			return family.Family{}, nil, nil, 0, fmt.Errorf("failed to split NLRIs for %s: %w", fam, err)
 		}
@@ -339,36 +339,40 @@ func parseWireNLRISection(args []string, decode decodeFunc) (family.Family, []nl
 }
 
 // splitWireNLRIs splits concatenated wire-encoded NLRIs into individual NLRI objects.
-// Uses GetNLRISizeFunc for family-specific boundary detection.
-func splitWireNLRIs(data []byte, fam family.Family, addPath bool) ([]nlri.NLRI, error) {
+// Uses the registered native framer for the command's announce/withdraw action.
+func splitWireNLRIs(data []byte, fam family.Family, addPath, withdraw bool) ([]nlri.NLRI, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
 
-	sizeFunc := message.GetNLRISizeFunc(fam.AFI, fam.SAFI, addPath)
-	var result []nlri.NLRI
-	offset := 0
-
-	for offset < len(data) {
-		size, err := sizeFunc(data[offset:])
+	walk := nlrisplit.Get(fam)
+	if withdraw {
+		// RFC 8277 Section 2.4: withdrawals carry Compatibility, not a label stack.
+		walk = nlrisplit.GetWithdraw(fam)
+	}
+	if walk == nil {
+		return nil, nlrisplit.ErrUnsupported
+	}
+	count, err := walk(data, addPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]nlri.NLRI, 0, count)
+	var wrapErr error
+	_, err = walk(data, addPath, func(part []byte) bool {
+		wn, err := nlri.NewWireNLRI(fam, part, addPath)
 		if err != nil {
-			return nil, err
-		}
-		if size <= 0 || offset+size > len(data) {
-			return nil, fmt.Errorf("invalid NLRI size %d at offset %d", size, offset)
-		}
-
-		// Extract this NLRI's bytes
-		nlriBytes := data[offset : offset+size]
-
-		// Wrap in WireNLRI
-		wn, err := nlri.NewWireNLRI(fam, nlriBytes, addPath)
-		if err != nil {
-			return nil, err
+			wrapErr = err
+			return false
 		}
 		result = append(result, wn)
-
-		offset += size
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	if wrapErr != nil {
+		return nil, wrapErr
 	}
 
 	return result, nil

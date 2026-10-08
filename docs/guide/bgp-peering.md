@@ -308,5 +308,5 @@ Check that:
 
 - [Configuration](configuration.md) covers syntax and the full configuration model.
 - [BGP policy](bgp-policy.md) covers import, export, and redistribution.
-- [BGP resilience](bgp-resilience.md) covers route refresh, restart, persistence, and reflection.
+- [BGP resilience](bgp-resilience.md) covers route refresh, restart, in-memory reconnect replay, and reflection.
 - [Route injection](route-injection.md) covers on-demand announcements.

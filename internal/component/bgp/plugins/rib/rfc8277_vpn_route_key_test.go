@@ -8,6 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // vpnRouteKeyRD is the Route Distinguisher 0:1 every route in this file
@@ -115,7 +116,10 @@ func TestRFC8277VPNRelabelReplacesTheRoute(t *testing.T) {
 // value of the Compatibility field MUST be ignored.").
 //
 // RFC requirement: RFC8277-2.4-1 positive -- a VPN withdrawal whose Compatibility field is 0x800000 removes the route announced under label 100 from the Adj-RIB-In, and the published withdrawal names the route as announced.
+// RFC requirement: RFC8277-2.4-1 negative -- IPv4/IPv6 VPN withdrawals ignore valid nonrecommended Compatibility values and preserve every distinct RD, prefix and ADD-PATH zero/17 sibling with exact native replacement identity.
 func TestVPNWithdrawIgnoresCompatibilityValue(t *testing.T) {
+	compatibilityRouteState(t, family.SAFIVPN, false)
+	compatibilityRouteState(t, family.SAFIVPN, true)
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 	pe := netip.MustParseAddr("192.0.2.1")

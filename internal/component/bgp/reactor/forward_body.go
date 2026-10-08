@@ -642,9 +642,9 @@ func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.En
 	out := make([]byte, size)
 	off := 0
 	var keyErr error
-	_, err = split(data, srcAddPath, func(raw []byte) {
+	_, err = split(data, srcAddPath, func(raw []byte) bool {
 		if keyErr != nil {
-			return
+			return true
 		}
 		var received uint32
 		if srcAddPath {
@@ -656,7 +656,7 @@ func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.En
 			if srcAddPath {
 				id, keyErr = memo.framed(fam, received, raw, withdraw)
 				if keyErr != nil {
-					return
+					return true
 				}
 			} else {
 				id = memo.unframed(0, withdraw)
@@ -665,6 +665,7 @@ func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.En
 			off += 4
 		}
 		off += copy(out[off:], raw)
+		return true
 	})
 	if err != nil {
 		return nil, err

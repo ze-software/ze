@@ -404,8 +404,8 @@ own schedule is not part of the initial update, declares nothing, and is never
 waited for. Every EXTERNAL plugin lands there too, because an external process is
 registered nowhere in this tree.
 
-The in-tree declarers are `bgp-rib`, `bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog`,
-`bgp-persist` and `bgp-rr`, each of which replays into an establishing peer and
+The in-tree declarers are `bgp-rib`, `bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog`
+and `bgp-rr`, each of which replays into an establishing peer and
 reports at the end of that replay. `bgp-gr` does not declare: it coordinates the
 RIB and puts no route of its own into the establishing peer's update.
 `redistribute-orchestrator` does not declare either, because its late-join replay

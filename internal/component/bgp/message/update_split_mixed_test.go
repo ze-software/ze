@@ -14,14 +14,16 @@ import (
 // reactor/forward_body.go.
 
 // mixedMPUpdate returns an UPDATE carrying IPv4 withdrawn routes, IPv4 NLRI, ORIGIN, and an
-// MP_REACH for IPv6 -- large enough that Split must chunk it.
+// MP_REACH for IPv6 -- large enough that Split must chunk it. Every route carries
+// its four-octet Path Identifier because both callers enable ADD-PATH.
 func mixedMPUpdate(t *testing.T) *Update {
 	t.Helper()
 
 	var withdrawn, nlri []byte
 	for i := range 40 {
-		withdrawn = append(withdrawn, 0x18, 0x0a, byte(i), 0x00) // 10.i.0.0/24
-		nlri = append(nlri, 0x18, 0xc0, 0x00, byte(i))           // 192.0.i.0/24
+		// RFC 7911 Section 3: Path Identifier precedes each prefix, including ID zero.
+		withdrawn = append(withdrawn, 0, 0, 0, byte(i), 0x18, 0x0a, byte(i), 0x00) // 10.i.0.0/24
+		nlri = append(nlri, 0, 0, 0, byte(i), 0x18, 0xc0, 0x00, byte(i))           // 192.0.i.0/24
 	}
 
 	mpReachValue := []byte{
@@ -31,7 +33,8 @@ func mixedMPUpdate(t *testing.T) *Update {
 	}
 	for i := range 40 {
 		mpReachValue = append(mpReachValue,
-			0x40, 0x20, 0x01, 0x0d, 0xb8, 0x01, byte(i), 0x00, 0x00) // 2001:db8:1:i::/64
+			0, 0, 0, byte(i), // Path Identifier, matching the negotiated ADD-PATH layout.
+			0x40, 0x20, 0x01, 0x0d, 0xb8, 0x01, byte(i), 0x00, 0x00) // IPv6 /64
 	}
 	mpReach := append([]byte{0x90, 0x0e,
 		byte(len(mpReachValue) >> 8), byte(len(mpReachValue))}, mpReachValue...)

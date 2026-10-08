@@ -214,6 +214,14 @@ For ze's own outbound UPDATEs, the ordering is:
 - When splitting large MP_REACH_NLRI, regenerate the MP attribute with chunked NLRI
 - Regular attributes can be copied verbatim to each split UPDATE
 - MP_UNREACH_NLRI splitting follows the same pattern
+- Chunk boundaries come from the registered native `nlrisplit` walk, not a
+  second family-size table. The generic chunker uses the withdrawal framer so
+  labeled announcements and Compatibility-bearing withdrawals share their
+  length envelope without interpreting the label stack.
+- `SplitMPNLRI` stops after the first complete route beyond the byte limit.
+  Repeated calls therefore do not rescan the remaining section. A malformed
+  route encountered before that stop is refused, including when the whole
+  section fits; `ChunkMPNLRI` validates the complete section.
 
 <!-- source: internal/component/bgp/message/update_split.go -- UPDATE message splitting -->
 <!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- MP NLRI chunking -->

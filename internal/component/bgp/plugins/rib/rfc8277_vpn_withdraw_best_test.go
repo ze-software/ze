@@ -1,11 +1,12 @@
 package rib
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 )
 
 // TestVPNWithdrawPromotesTheOtherPE proves that a VPN withdrawal re-elects the
@@ -22,7 +23,9 @@ import (
 // no candidate, and withdraws the route PE B still carries.
 //
 // RFC requirement: RFC8277-2.4-1 positive -- a VPN withdrawal from PE A whose Compatibility field is 0x800000 or 0x000000 removes PE A's route, keeps PE B's, and the best change it publishes promotes PE B rather than withdrawing the route.
+// RFC requirement: RFC8277-2.4-1 negative -- valid nonrecommended Compatibility cannot withdraw the other source's VPNv4/VPNv6 route; promotion publishes exactly Update and that source's native NLRI and negotiated Path Identifier.
 func TestVPNWithdrawPromotesTheOtherPE(t *testing.T) {
+	compatibilityVPNPromotion(t)
 	for _, tc := range []struct {
 		name          string
 		compatibility [3]byte
@@ -62,12 +65,15 @@ func TestVPNWithdrawPromotesTheOtherPE(t *testing.T) {
 				t.Fatalf("best records after PE A's withdrawal = %d, want 1: PE B still carries the route", n)
 			}
 			changes := vpnBestChanges(bus, vpnv4Family)
-			if len(changes) <= before {
+			if len(changes) != before+1 {
 				t.Fatal("PE A's withdrawal published no best change, yet PE A held the best on its lower MED")
 			}
 			last := changes[len(changes)-1]
-			if last.Action == ribevents.BestChangeWithdraw {
-				t.Fatalf("PE A's withdrawal withdrew the route PE B still carries: %+v", last)
+			if last.Action != routeaction.Update {
+				t.Fatalf("replacement action = %v, want %v", last.Action, routeaction.Update)
+			}
+			if !bytes.Equal(last.NLRI, nlriB) {
+				t.Fatalf("replacement NLRI = %x, want PE B's %x", last.NLRI, nlriB)
 			}
 			if want := netip.MustParseAddr("10.0.0.2"); last.NextHop != want {
 				t.Fatalf("best change after the withdrawal names next hop %s, want PE B's %s", last.NextHop, want)

@@ -174,7 +174,7 @@
       "quote": "The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message.",
       "disposition": "mapped",
       "mapped-to": "RFC5492-5-1",
-      "reason": "The obligation that the NOTIFICATION Data field list the capabilities that caused the message, captured verbatim as RFC5492-5-1 at [MUST]. The row also carries the following sentence, that each such capability is encoded as it would be in the OPEN message, which carries no MUST-level keyword and is therefore no site of its own. Produced by buildUnsupportedCapabilityData and buildUnsupportedCapabilityDataCodes in internal/component/bgp/reactor, which write the code and length octets of each capability in OPEN encoding."
+      "reason": "The causing-capability-set obligation is retained under RFC5492-5-1 at MUST. The summary now also carries the following same-as-OPEN encoding sentence; the keyword-derived site quote remains unchanged. buildUnsupportedCapabilityData encodes Multiprotocol tuples, buildUnsupportedCapabilityDataCodes selects the original local-required or peer-refused capability objects and calls their OPEN encoders, and buildUnsupportedAddPathData filters the causing family while preserving each original capability instance's grouping and direction. The 2026-10-08 correction restores the previously omitted row scope; native discrimination and independent whole-row judgment remain separate from this mapping."
     },
     {
       "id": "5:2",

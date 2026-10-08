@@ -9,37 +9,60 @@
 # in any position or combination when an older speaker sends them.
 # PREVENTS: applying the sender-side position or one-field restriction to received UPDATEs.
 #
-# The source sends four valid but sender-nonconforming shapes after both peers receive Ze's
-# End-of-RIB. IPv6 prefixes identify MP components and IPv4 prefixes identify legacy NLRI.
+# After both peers receive Ze's End-of-RIB, the source establishes the three IPv6
+# withdrawal owners and waits for the receiver's acknowledgement. It then sends
+# four sender-nonconforming shapes. IPv4 prefixes identify legacy NLRI.
 # Receiver rules for each mixed input share one sequence number, so component order is free,
 # but one unsplit frame cannot consume both rules.
 
+# Independent processes are required for a receiver ACK while the source waits.
+# The observer releases the source only after both peers' EOR counters advance.
 stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=2
+option=tcp_connections:value=1
 option=timeout:value=20s
-option=bind:value=0.0.0.0
-option=conn_map:value=remote-ip
-option=await_eor:value=true
+option=bind:value=127.0.0.1
+option=asn:value=65001
+option=linger:value=true
+
+# Seed 2001:db8:10::/64, 2001:db8:21::/64 and 2001:db8:40::/64 from
+# the same source. All three scoped rules MUST match before the receiver ACK.
+expect=bgp:conn=1:seq=1:announced=18C00004
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005702000000404001010040020602010000FDE9800E300002011020010DB8000000000000000000000001004020010DB8001000004020010DB8002100004020010DB800400000
+expect=bgp:conn=1:seq=3:announced=18C00003
 
 # MP_UNREACH_NLRI follows ORIGIN and AS_PATH instead of occupying the first attribute slot.
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0033020000001C4001010040020602010000FDE9800F0C0002014020010DB800100000
-expect=bgp:conn=2:seq=1:contains=4020010DB800100000
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0033020000001C4001010040020602010000FDE9800F0C0002014020010DB800100000
 
 # One UPDATE carries distinct MP_REACH_NLRI and MP_UNREACH_NLRI attributes.
-action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0054020000003D4001010040020602010000FDE9800E1E0002011020010DB8000000000000000000000001004020010DB800200000800F0C0002014020010DB800210000
-expect=bgp:conn=2:seq=2:contains=4020010DB800200000
-expect=bgp:conn=2:seq=2:contains=4020010DB800210000
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0054020000003D4001010040020602010000FDE9800E1E0002011020010DB8000000000000000000000001004020010DB800200000800F0C0002014020010DB800210000
 
 # MP_REACH_NLRI and legacy IPv4 NLRI coexist in one received UPDATE.
-action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005002000000354001010040020602010000FDE940030401010101800E1E0002011020010DB8000000000000000000000001004020010DB800300000180A1E00
-expect=bgp:conn=2:seq=3:contains=4020010DB800300000
-expect=bgp:conn=2:seq=3:contains=180A1E00
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005002000000354001010040020602010000FDE940030401010101800E1E0002011020010DB8000000000000000000000001004020010DB800300000180A1E00
 
 # MP_UNREACH_NLRI and legacy IPv4 NLRI coexist in one received UPDATE.
-action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020602010000FDE940030401010101800F0C0002014020010DB800400000180A2800
-expect=bgp:conn=2:seq=4:contains=4020010DB800400000
-expect=bgp:conn=2:seq=4:contains=180A2800
+action=send:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020602010000FDE940030401010101800F0C0002014020010DB800400000180A2800
 EOF_PEER
+
+# Check all three seeds before acknowledging, then preserve the original four
+# component groups: each received UPDATE must satisfy only its current group.
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=bind:value=127.0.0.2
+option=asn:value=65002
+option=linger:value=true
+expect=bgp:conn=1:seq=1:announced=4020010DB800100000
+expect=bgp:conn=1:seq=1:announced=4020010DB800210000
+expect=bgp:conn=1:seq=1:announced=4020010DB800400000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEA400304010101024005040000006418C00003
+expect=bgp:conn=1:seq=3:contains=4020010DB800100000
+expect=bgp:conn=1:seq=4:contains=4020010DB800200000
+expect=bgp:conn=1:seq=4:contains=4020010DB800210000
+expect=bgp:conn=1:seq=5:contains=4020010DB800300000
+expect=bgp:conn=1:seq=5:contains=180A1E00
+expect=bgp:conn=1:seq=6:contains=4020010DB800400000
+expect=bgp:conn=1:seq=6:contains=180A2800
+EOF_RECEIVER
 
 # Stop only after the final legacy route reaches the route-server output path.
 
@@ -81,6 +104,8 @@ bgp {
 		}
 		attach process shutdown-after-forward {
 			receive [ update ]
+			# The readiness marker is source-only, never a receiver seed.
+			send [ update ]
 		}
 	}
 	peer receiver-peer {
@@ -99,6 +124,8 @@ bgp {
 		}
 		behavior { group-updates disable; }
 		attach process adj-rib-in {
+			# The receiver originates the seed acknowledgement back to the source.
+			receive [ update-received state ]
 			send [ update ]
 		}
 		attach process rs {
@@ -113,7 +140,8 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

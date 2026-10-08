@@ -106,6 +106,9 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	}
 	params := message.PluginParams{AFI: afi, SAFI: 133, IsIPv6: isIPv6, NLRI: nlriBytes, RawAttrs: rawAttrs}
 	update := ub.BuildPlugin(params)
+	if update == nil {
+		return nil, nil, message.ErrUnicastNextHopUnusable
+	}
 	updateBody := message.PackTo(update, nil)
 
 	return updateBody, nlriBytes, nil

@@ -1,4 +1,5 @@
 // Design: docs/architecture/behavior/fsm.md -- administrative start events.
+// RFC naming: untagged -- supplementary duplicate-start lifecycle regression, not coverage of every start event.
 package fsm
 
 import "testing"

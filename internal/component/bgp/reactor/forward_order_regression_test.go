@@ -9,9 +9,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
@@ -211,6 +213,26 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 	}
 	setMPMetric(20)
 	t.Cleanup(func() { locrib.Default().Remove(family.IPv6Unicast, netip.PrefixFrom(mpNextHop, 128), protocol, 0) })
+	// One session endpoint cannot supply both address families. Use genuine
+	// IPv6 next-hop self for MP and an export rewrite to the speaker's IPv4
+	// interface for legacy NLRI. Both are local for AIGP accumulation.
+	legacySelf := f.destination.settings.LocalAddress
+	mpSelf := netip.MustParseAddr("2001:db8:232::fe")
+	f.destination.settings.LocalAddress = mpSelf
+	f.destination.session.nextHopScope.Store(&receiveNextHopScope{
+		local:     mpSelf,
+		addresses: []netip.Prefix{netip.PrefixFrom(legacySelf, 24)},
+	})
+	legacyHop := legacySelf.As4()
+	f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(
+		func(_, _ filterapi.PeerFilterInfo, payload []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+			sections, err := wire.ParseUpdateSections(payload)
+			require.NoError(t, err)
+			if len(sections.NLRI(payload)) != 0 {
+				mods.Op(uint8(attribute.AttrNextHop), filterapi.AttrModSet, legacyHop[:])
+			}
+			return true
+		})
 	for _, peer := range []*Peer{f.source, f.destination} {
 		peer.negotiated.Store(&NegotiatedCapabilities{ASN4: true, families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}})
 		peer.refreshForwardFacts()
@@ -259,6 +281,7 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 			if reach != nil {
 				fam = reach.Family()
 				require.Equal(t, mpAnnounce, []byte(reach)[5+len(reach.NextHopBytes()):])
+				require.Equal(t, mpSelf.AsSlice(), reach.NextHopBytes())
 			} else {
 				require.Equal(t, []byte{24, 10, 20, 0}, nlri)
 			}
@@ -267,6 +290,11 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 			got[fam] = metric
 			parsed, err := wire.ParseUpdateSections(body)
 			require.NoError(t, err)
+			if reach == nil {
+				_, _, nextHop, found := attribute.AttrFind(parsed.Attrs(body), attribute.AttrNextHop)
+				require.True(t, found)
+				require.Equal(t, legacySelf.AsSlice(), nextHop)
+			}
 			_, _, value, found := attribute.AttrFind(parsed.Attrs(body), attribute.AttrCommunity)
 			require.True(t, found)
 			require.Equal(t, community, value)
@@ -384,6 +412,9 @@ func TestForwardAIGPMixedIPv4NextHopsReplay(t *testing.T) {
 			reach, err := wu.MPReach()
 			require.NoError(t, err)
 			if reach != nil {
+				require.Equal(t, family.IPv4Unicast, reach.Family())
+				require.Equal(t, f.destination.settings.LocalAddress.AsSlice(), reach.NextHopBytes(),
+					"native IPv4 MP next-hop self must reach the socket as four bytes")
 				nlri = []byte(reach)[5+len(reach.NextHopBytes()):]
 			}
 			metric, present := aigpReceivedMetric(t, body)
@@ -407,4 +438,70 @@ func TestForwardAIGPMixedIPv4NextHopsReplay(t *testing.T) {
 	all := aigpSocketBodies(t, f.conn)
 	require.Len(t, all, 4)
 	check(all[2:], 120, 130)
+}
+
+// Configured IPv4 rewrites must use native bytes only where the MP family
+// permits them. Read the final socket on both rails, including SR Policy's
+// independent next-hop AFI and IPv6 unicast's incompatible-self withdrawal.
+func TestForwardConfiguredIPv4MPNextHopFamily(t *testing.T) {
+	for _, rail := range []string{"cached", "rs"} {
+		for _, tc := range []struct {
+			name    string
+			family  family.Family
+			hop     string
+			nlri    string
+			allowed bool
+		}{
+			{"ipv4-unicast", family.IPv4Unicast, "198.18.231.1", "180a0900", true},
+			{"ipv6-unicast", family.IPv6Unicast, "2001:db8:1::9", "4020010db800070000", false},
+			{"ipv6-sr-policy", family.Family{AFI: family.AFIIPv6, SAFI: family.SAFISRPolicy},
+				"2001:db8:1::9", "c0000000070000002a20010db8000000000000000000000001", true},
+		} {
+			t.Run(rail+"/"+tc.name, func(t *testing.T) {
+				f := rfc2545ReceiveFixture(t, false, true, true)
+				f.destination.settings.NextHopMode = NextHopSelf
+				for _, peer := range []*Peer{f.source, f.destination} {
+					caps := []capability.Capability{
+						&capability.ASN4{ASN: peer.settings.LocalAS},
+						&capability.Multiprotocol{AFI: tc.family.AFI, SAFI: tc.family.SAFI},
+					}
+					neg := capability.Negotiate(caps, caps, capability.PeerIdentity{
+						LocalASN: peer.settings.LocalAS, PeerASN: peer.settings.PeerAS,
+					})
+					peer.session.negotiated = neg
+					peer.negotiated.Store(NewNegotiatedCapabilities(neg))
+					peer.refreshForwardFacts()
+				}
+				raw := mustHex(t, tc.nlri)
+				var mp [128]byte
+				n := writeMPReach(mp[:], 0, tc.family, netip.MustParseAddr(tc.hop).AsSlice(), raw)
+				attrs := mixedAttrs(mp[:n])
+				if tc.family.SAFI == family.SAFISRPolicy {
+					tunnel := teSRPolicyValue(0, false)
+					attrs = append(attrs, 0xd0, byte(attribute.AttrTunnelEncap), byte(len(tunnel)>>8), byte(len(tunnel)))
+					attrs = append(attrs, tunnel...)
+					attrs = append(attrs, 0xc0, byte(attribute.AttrExtCommunity), 8, 1, 2, 192, 0, 2, 2, 0, 0)
+				}
+				updates := rfc2545ReceiveForward(t, f, rail, buildUpdatePayload(attrs, nil))
+				require.Len(t, updates, 1)
+				update := updates[0]
+				_, _, reach, hasReach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPReachNLRI)
+				_, _, unreach, hasUnreach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPUnreachNLRI)
+				if tc.allowed {
+					require.True(t, hasReach)
+					require.False(t, hasUnreach)
+					n = writeMPReach(mp[:], 0, tc.family, f.destination.settings.LocalAddress.AsSlice(), raw)
+					_, _, want, found := attribute.AttrFind(mp[:n], attribute.AttrMPReachNLRI)
+					require.True(t, found)
+					require.Equal(t, want, reach)
+				} else {
+					require.False(t, hasReach)
+					require.True(t, hasUnreach)
+					require.Equal(t, mixedUnreachValue(uint16(tc.family.AFI), byte(tc.family.SAFI), raw), unreach)
+				}
+				require.Empty(t, update.NLRI)
+				require.Empty(t, update.WithdrawnRoutes)
+			})
+		}
+	}
 }

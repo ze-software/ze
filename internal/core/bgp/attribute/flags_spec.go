@@ -219,27 +219,31 @@ var coreAttributes = []struct {
 	name  string
 	flags FlagsSpec
 }{
-	{AttrOrigin, "ORIGIN", WellKnownFlags()},                                       // RFC 4271 Section 4.3a: "ORIGIN is a well-known mandatory attribute".
-	{AttrASPath, "AS_PATH", WellKnownFlags()},                                      // RFC 4271 Section 4.3b: "AS_PATH is a well-known mandatory attribute".
-	{AttrNextHop, "NEXT_HOP", WellKnownFlags()},                                    // RFC 4271 Section 4.3c: "This is a well-known mandatory attribute".
-	{AttrMED, "MULTI_EXIT_DISC", OptionalNonTransitiveFlags()},                     // RFC 4271 Section 4.3d: "This is an optional non-transitive attribute".
-	{AttrLocalPref, "LOCAL_PREF", WellKnownFlags()},                                // RFC 4271 Section 4.3e: "LOCAL_PREF is a well-known attribute".
-	{AttrAtomicAggregate, "ATOMIC_AGGREGATE", WellKnownFlags()},                    // RFC 4271 Section 4.3f: "ATOMIC_AGGREGATE is a well-known discretionary attribute".
-	{AttrAggregator, "AGGREGATOR", OptionalTransitiveFlags()},                      // RFC 4271 Section 4.3g: "AGGREGATOR is an optional transitive attribute".
-	{AttrCommunity, "COMMUNITIES", OptionalTransitiveFlags()},                      // RFC 1997: "the COMMUNITIES path attribute is an optional transitive attribute".
-	{AttrOriginatorID, "ORIGINATOR_ID", OptionalNonTransitiveFlags()},              // RFC 4456 Section 8: "ORIGINATOR_ID is a new optional, non-transitive BGP attribute".
-	{AttrClusterList, "CLUSTER_LIST", OptionalNonTransitiveFlags()},                // RFC 4456 Section 8: "CLUSTER_LIST is a new, optional, non-transitive BGP attribute".
-	{AttrMPReachNLRI, "MP_REACH_NLRI", mpNLRIFlags},                                // RFC 4760 Section 3: "This is an optional non-transitive attribute".
-	{AttrMPUnreachNLRI, "MP_UNREACH_NLRI", mpNLRIFlags},                            // RFC 4760 Section 4: "This is an optional non-transitive attribute".
-	{AttrExtCommunity, "EXTENDED_COMMUNITIES", OptionalTransitiveFlags()},          // RFC 4360 Section 2: "The Extended Communities Attribute is a transitive optional BGP attribute".
-	{AttrAS4Path, "AS4_PATH", OptionalTransitiveFlags()},                           // RFC 6793 Section 3: "This is an optional transitive attribute".
-	{AttrAS4Aggregator, "AS4_AGGREGATOR", OptionalTransitiveFlags()},               // RFC 6793 Section 3: "AS4_AGGREGATOR, which is optional transitive".
-	{AttrTunnelEncap, "TUNNEL_ENCAPSULATION", OptionalTransitiveFlags()},           // RFC 9012 Section 2: "The Tunnel Encapsulation attribute is an optional transitive BGP path attribute".
+	{AttrOrigin, "ORIGIN", WellKnownFlags()},                              // RFC 4271 Section 4.3a: "ORIGIN is a well-known mandatory attribute".
+	{AttrASPath, "AS_PATH", WellKnownFlags()},                             // RFC 4271 Section 4.3b: "AS_PATH is a well-known mandatory attribute".
+	{AttrNextHop, "NEXT_HOP", WellKnownFlags()},                           // RFC 4271 Section 4.3c: "This is a well-known mandatory attribute".
+	{AttrMED, "MULTI_EXIT_DISC", OptionalNonTransitiveFlags()},            // RFC 4271 Section 4.3d: "This is an optional non-transitive attribute".
+	{AttrLocalPref, "LOCAL_PREF", WellKnownFlags()},                       // RFC 4271 Section 4.3e: "LOCAL_PREF is a well-known attribute".
+	{AttrAtomicAggregate, "ATOMIC_AGGREGATE", WellKnownFlags()},           // RFC 4271 Section 4.3f: "ATOMIC_AGGREGATE is a well-known discretionary attribute".
+	{AttrAggregator, "AGGREGATOR", OptionalTransitiveFlags()},             // RFC 4271 Section 4.3g: "AGGREGATOR is an optional transitive attribute".
+	{AttrCommunity, "COMMUNITIES", OptionalTransitiveFlags()},             // RFC 1997: "the COMMUNITIES path attribute is an optional transitive attribute".
+	{AttrOriginatorID, "ORIGINATOR_ID", OptionalNonTransitiveFlags()},     // RFC 4456 Section 8: "ORIGINATOR_ID is a new optional, non-transitive BGP attribute".
+	{AttrClusterList, "CLUSTER_LIST", OptionalNonTransitiveFlags()},       // RFC 4456 Section 8: "CLUSTER_LIST is a new, optional, non-transitive BGP attribute".
+	{AttrMPReachNLRI, "MP_REACH_NLRI", mpNLRIFlags},                       // RFC 4760 Section 3: "This is an optional non-transitive attribute".
+	{AttrMPUnreachNLRI, "MP_UNREACH_NLRI", mpNLRIFlags},                   // RFC 4760 Section 4: "This is an optional non-transitive attribute".
+	{AttrExtCommunity, "EXTENDED_COMMUNITIES", OptionalTransitiveFlags()}, // RFC 4360 Section 2: "The Extended Communities Attribute is a transitive optional BGP attribute".
+	{AttrAS4Path, "AS4_PATH", OptionalTransitiveFlags()},                  // RFC 6793 Section 3: "This is an optional transitive attribute".
+	{AttrAS4Aggregator, "AS4_AGGREGATOR", OptionalTransitiveFlags()},      // RFC 6793 Section 3: "AS4_AGGREGATOR, which is optional transitive".
+	{AttrTunnelEncap, "TUNNEL_ENCAPSULATION", OptionalTransitiveFlags()},  // RFC 9012 Section 2: "The Tunnel Encapsulation attribute is an optional transitive BGP path attribute".
+	// RFC 5543 Section 3: "The Traffic Engineering attribute is an optional, non-transitive BGP attribute."
+	{AttrTrafficEngineering, "TRAFFIC_ENGINEERING", OptionalNonTransitiveFlags()},
 	{AttrIPv6ExtCommunity, "IPV6_EXTENDED_COMMUNITIES", OptionalTransitiveFlags()}, // RFC 5701 Section 2: "transitive, optional BGP attribute".
-	{AttrAIGP, "AIGP", aigpFlags},                                                  // RFC 7311 Section 3: "The AIGP attribute is an optional, non-transitive BGP path attribute".
-	{AttrLargeCommunity, "LARGE_COMMUNITIES", OptionalTransitiveFlags()},           // RFC 8092 Section 2: "optional transitive path attribute".
-	{AttrPrefixSID, "PREFIX_SID", OptionalTransitiveFlags()},                       // RFC 8669 Section 3: "The BGP Prefix-SID attribute is an optional, transitive BGP path attribute".
-	{AttrTombstone, "ATTR_TOMBSTONE", tombstoneFlags},                              // draft-mangin-idr-attr-tombstone-00 Section 5.1: "ATTR_TOMBSTONE is always Optional".
+	{AttrAIGP, "AIGP", aigpFlags},                                        // RFC 7311 Section 3: "The AIGP attribute is an optional, non-transitive BGP path attribute".
+	{AttrLargeCommunity, "LARGE_COMMUNITIES", OptionalTransitiveFlags()}, // RFC 8092 Section 2: "optional transitive path attribute".
+	{AttrPrefixSID, "PREFIX_SID", OptionalTransitiveFlags()},             // RFC 8669 Section 3: "The BGP Prefix-SID attribute is an optional, transitive BGP path attribute".
+	// RFC 6368 Section 5: "ATTR_SET is an optional transitive attribute that carries a set of BGP path attributes."
+	{AttrSet, "ATTR_SET", OptionalTransitiveFlags()},
+	{AttrTombstone, "ATTR_TOMBSTONE", tombstoneFlags}, // draft-mangin-idr-attr-tombstone-00 Section 5.1: "ATTR_TOMBSTONE is always Optional".
 }
 
 // FlagsConflict reports the handling a received Attribute Flags octet needs for this

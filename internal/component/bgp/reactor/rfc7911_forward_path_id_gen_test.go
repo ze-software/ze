@@ -1,3 +1,5 @@
+// Design: docs/architecture/edge-cases/addpath.md -- locally significant Path Identifiers.
+// Related: forward_path_id.go -- local generation and withdrawal lookup.
 // RFC: rfc/short/rfc7911.md — Section 2, a re-advertised route carries the speaker's own Path Identifier
 package reactor
 
@@ -10,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/source"
 
@@ -22,7 +25,7 @@ import (
 // forward_path_id_test.go and drives the same entry point; these cover the
 // halves a reproduction does not: the withdraw, the source that negotiated no
 // ADD-PATH, the destination that negotiated none, the boundary values, and the
-// agreement between destinations that the replay rail inherits.
+// stability at each destination.
 //
 // Every fixture sets a SourceID on its WireUpdate, which is what the receive
 // path does to every UPDATE it accepts (session_read.go, sourceID is set before
@@ -66,11 +69,9 @@ func TestForwardPathIDDiffersForTwoSourcePeers(t *testing.T) {
 //
 // VALIDATES: AC-4 -- the identifier a withdrawn route carries is the one its
 // announcement carried.
-// PREVENTS: a generator wired into the announcement alone. The receiver matches
-// a withdraw on (prefix, Path Identifier) (RFC 7911 Section 5), so a withdraw
-// carrying the SOURCE's identifier names a path the receiver never heard of and
-// SHOULD be silently ignored: the route never leaves, and the route loss this
-// spec fixes is traded for a route that cannot be removed.
+// PREVENTS: a generator wired into the announcement alone. A receiver matches
+// a withdrawal on (prefix, Path Identifier), so both colliding ingress paths
+// must be withdrawn under their respective advertised identities.
 // RFC requirement: RFC7911-2-2 positive -- the identifier ze generates
 // identifies the path for as long as ze advertises it, withdraw included.
 func TestForwardPathIDMatchesAnnounceAndWithdraw(t *testing.T) {
@@ -78,16 +79,19 @@ func TestForwardPathIDMatchesAnnounceAndWithdraw(t *testing.T) {
 	peer := forwardBodyTestPeer(ctx, ctxID)
 
 	const receivedPathID = 0x0BADC0DE
-	announce := fwdPathIDWire(pathIDTestBody(t, 65001, receivedPathID), ctxID, fwdTestSourceA)
-	withdraw := fwdPathIDWire(fwdShapeBody(fwdPathIDNLRI(receivedPathID), nil, nil), ctxID, fwdTestSourceA)
-
-	announced := fwdForwardOnePathID(t, announce, ctxID, peer)
-	withdrawn := fwdForwardOneWithdrawnPathID(t, withdraw, ctxID, peer)
-
-	assert.Equal(t, announced, withdrawn,
-		"the withdraw left under a different Path Identifier from the announcement, so the receiver cannot match it and the route stays")
-	assert.NotEqual(t, uint32(receivedPathID), withdrawn,
-		"the withdraw carries the source's identifier, which ze does not own")
+	announcedA := fwdForwardOnePathID(t,
+		fwdPathIDWire(pathIDTestBody(t, 65001, receivedPathID), ctxID, fwdTestSourceA), ctxID, peer)
+	announcedB := fwdForwardOnePathID(t,
+		fwdPathIDWire(pathIDTestBody(t, 65002, receivedPathID), ctxID, fwdTestSourceB), ctxID, peer)
+	require.NotEqual(t, announcedA, announcedB, "one recipient must retain both paths for the same prefix")
+	for _, path := range []struct {
+		source source.SourceID
+		id     uint32
+	}{{fwdTestSourceA, announcedA}, {fwdTestSourceB, announcedB}} {
+		withdraw := fwdPathIDWire(fwdShapeBody(fwdPathIDNLRI(receivedPathID), nil, nil), ctxID, path.source)
+		assert.Equal(t, path.id, fwdForwardOneWithdrawnPathID(t, withdraw, ctxID, peer),
+			"the withdrawal must name exactly the path this source advertised")
+	}
 }
 
 // TestForwardPathIDSurvivesAttributeChange guards the replacement.
@@ -156,59 +160,55 @@ func TestForwardPathIDSeparatesNonAddPathSources(t *testing.T) {
 //
 // VALIDATES: AC-5 -- 0 and 2^32-1 are legal received values and neither is
 // treated as unset or reserved.
-// PREVENTS: a generator that reads 0 as "no identifier" and passes it through,
-// or that overflows on the maximum. RFC 7911 Section 3 gives the field four
-// octets and reserves no value in it.
-// RFC requirement: RFC7911-2-2 positive -- every received value, edges
-// included, is replaced by ze's own.
+// PREVENTS: treating zero as absence or overflowing the maximum. Distinct
+// received paths for the same prefix must remain distinct at the recipient;
+// a locally assigned number may equal either received number.
+// RFC requirement: RFC7911-2-2 positive -- paths received under zero and the
+// maximum identifier each retain their own locally generated identity.
 func TestForwardPathIDBoundaryReceivedValues(t *testing.T) {
 	ctx, ctxID := registerForwardBodyTestContext(t, true, true)
 	peer := forwardBodyTestPeer(ctx, ctxID)
 
-	for name, received := range map[string]uint32{"zero": 0, "max_uint32": ^uint32(0)} {
-		t.Run(name, func(t *testing.T) {
-			wire := fwdPathIDWire(pathIDTestBody(t, 65001, received), ctxID, fwdTestSourceB)
-			got := fwdForwardOnePathID(t, wire, ctxID, peer)
-			assert.NotEqual(t, received, got,
-				"the received Path Identifier %d was relayed rather than replaced", received)
-
-			same := fwdForwardOnePathID(t, fwdPathIDWire(pathIDTestBody(t, 65001, received), ctxID, fwdTestSourceB), ctxID, peer)
-			assert.Equal(t, got, same, "the identifier for one path must not move between UPDATEs")
-		})
+	var assigned [2]uint32
+	for index, received := range []uint32{0, ^uint32(0)} {
+		wire := fwdPathIDWire(pathIDTestBody(t, 65001, received), ctxID, fwdTestSourceA)
+		assigned[index] = fwdForwardOnePathID(t, wire, ctxID, peer)
+		other := fwdForwardOnePathID(t,
+			fwdPathIDWire(pathIDTestBody(t, 65002, received), ctxID, fwdTestSourceB), ctxID, peer)
+		assert.NotEqual(t, assigned[index], other, "colliding sources must remain distinct for received identifier %d", received)
+		same := fwdForwardOnePathID(t, wire, ctxID, peer)
+		assert.Equal(t, assigned[index], same, "the identifier for one path must not move between UPDATEs")
+		withdraw := fwdPathIDWire(fwdShapeBody(fwdPathIDNLRI(received), nil, nil), ctxID, fwdTestSourceA)
+		assert.Equal(t, assigned[index], fwdForwardOneWithdrawnPathID(t, withdraw, ctxID, peer))
 	}
+	assert.NotEqual(t, assigned[0], assigned[1], "zero and maximum identify different paths of the same source and prefix")
 }
 
-// TestForwardPathIDIdenticalForEveryDestination is the rail-agreement
-// invariant.
+// TestForwardPathIDStableForEachDestination checks each neighbor's namespace
+// independently. RFC 7911 does not require the same number across neighbors.
 //
-// VALIDATES: AC-7 -- one path leaves under one identifier whatever destination
-// reads it, so a peer-up replay and a live forward of that path are the same
-// bytes.
-// PREVENTS: keying the identifier on the destination. The replay rail and the
-// live rail reach this function with the same source UPDATE and different
-// destinations, so a destination-keyed identifier would make a replayed route
-// differ from the live one for the same path -- the divergence
-// spec-fixit-bgp-egress-rail-divergence closed.
-// RFC requirement: RFC7911-2-2 positive -- ze's identifier belongs to the path,
-// not to the conversation it is sent in.
-func TestForwardPathIDIdenticalForEveryDestination(t *testing.T) {
+// RFC requirement: RFC7911-2-2 positive -- both recipients retain two paths of
+// the same prefix, and a repeat advertisement replaces its own path at each.
+func TestForwardPathIDStableForEachDestination(t *testing.T) {
 	ctx, ctxID := registerForwardBodyTestContext(t, true, true)
-	first := forwardBodyTestPeer(ctx, ctxID)
-	second := forwardBodyTestPeer(ctx, ctxID)
-
-	wire := fwdPathIDWire(pathIDTestBody(t, 65001, 12), ctxID, fwdTestSourceA)
-
-	toFirst, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, first, netip.MustParseAddr("192.0.2.40"), &fwdParseCache{})
-	require.True(t, ok)
-	defer returnReadBuffer(toFirst.transcodeBuf)
-	toSecond, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, second, netip.MustParseAddr("192.0.2.41"), &fwdParseCache{})
-	require.True(t, ok)
-	defer returnReadBuffer(toSecond.transcodeBuf)
-
-	require.Len(t, toFirst.rawBodies, 1, "guard: the fixture must produce one frame per destination")
-	require.Len(t, toSecond.rawBodies, 1)
-	assert.Equal(t, toFirst.rawBodies[0], toSecond.rawBodies[0],
-		"one path reached two destinations as different bytes, so a replay cannot match a live forward")
+	for _, address := range []string{"192.0.2.40", "192.0.2.41"} {
+		t.Run(address, func(t *testing.T) {
+			peer := forwardBodyTestPeer(ctx, ctxID)
+			destination := netip.MustParseAddr(address)
+			emit := func(src source.SourceID) uint32 {
+				t.Helper()
+				wire := fwdPathIDWire(pathIDTestBody(t, 65001, 12), ctxID, src)
+				result, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, peer, destination, &fwdParseCache{})
+				require.True(t, ok)
+				defer returnReadBuffer(result.transcodeBuf)
+				return forwardedPathID(t, result)
+			}
+			first, second := emit(fwdTestSourceA), emit(fwdTestSourceB)
+			assert.NotEqual(t, first, second, "this recipient must distinguish the colliding ingress paths")
+			assert.Equal(t, first, emit(fwdTestSourceA), "a repeat must replace only this source's path")
+			assert.Equal(t, second, emit(fwdTestSourceB), "the sibling path must keep its identity")
+		})
+	}
 }
 
 // TestForwardPathIDLeavesNonAddPathDestinationAlone keeps the cost off the
@@ -237,34 +237,62 @@ func TestForwardPathIDLeavesNonAddPathDestinationAlone(t *testing.T) {
 	assert.Nil(t, result.transcodeBuf.Buf, "nothing may be borrowed when nothing is rewritten")
 }
 
-// TestForwardPathIDReleaseReturnsValues covers the table itself.
-//
-// VALIDATES: AC-4 -- an identifier returns to the pool when its source's paths
-// are gone, and not before.
-// PREVENTS: unbounded growth from a peer that is removed and re-added, and the
-// reverse failure of handing a live path's identifier to a second path.
-// RFC requirement: RFC7911-2-2 positive -- "the Path Identifier MUST be
-// assigned in such a way that the BGP speaker is able to use the (Prefix, Path
-// Identifier) to uniquely identify a path advertised to a neighbor", which a
-// value issued twice at once would break.
-func TestForwardPathIDReleaseReturnsValues(t *testing.T) {
-	table := newFwdPathIDTable()
+// TestForwardPathIDFiniteNamespace seeds valid boundary identifiers as local
+// assignments, then checks their native wire pairs and inverse withdrawals.
+// The fixture selects zero and the maximum; no RFC allocator policy does.
+// A third source meets an occupied candidate at wrap and must remain distinct.
+// RFC requirement: RFC7911-2-2 positive -- locally assigned zero and maximum
+// identifiers retain their association with the re-advertised path.
+// RFC requirement: RFC7911-2-2 negative -- wrap cannot give a third source an
+// identifier already advertising another path of the same prefix to this peer.
+// MUTATION: Return an occupied candidate from mintLocked; the third source
+// then collides. Treat a mapped zero as missing; its advertisement then moves.
+func TestForwardPathIDFiniteNamespace(t *testing.T) {
+	// This serial test owns the isolated table until all synchronous body
+	// generation and inverse withdrawals finish. It starts no forward workers.
+	saved := fwdPathIDs
+	fwdPathIDs = newFwdPathIDTable()
+	t.Cleanup(func() { fwdPathIDs = saved })
 
-	held := table.generate(fwdTestSourceA, 1)
-	other := table.generate(fwdTestSourceB, 1)
-	require.NotEqual(t, held, other, "two sources must not share one identifier")
-	assert.Equal(t, held, table.generate(fwdTestSourceA, 1), "a known path keeps its identifier")
+	const received = 11
+	var key fwdPathKey
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	require.NoError(t, fwdPathKeyFor(&key, family.IPv4Unicast, received,
+		fwdPathIDBareNLRI(), false, scratch[:]))
+	paths := []struct {
+		source source.SourceID
+		id     uint32
+	}{{4501, 0}, {4502, ^uint32(0)}}
+	for _, path := range paths {
+		fwdPathIDs.byPath[path.source] = map[fwdPathKey]uint32{key: path.id}
+		fwdPathIDs.used[path.id] = struct{}{}
+	}
+	fwdPathIDs.next = ^uint32(0)
 
-	table.releaseSource(fwdTestSourceA)
-	assert.NotContains(t, table.bySource, fwdTestSourceA, "a released source keeps no entries")
-	assert.NotContains(t, table.used, held, "a released identifier stays out of the live set")
-	assert.Contains(t, table.used, other, "releasing one source must not free another's identifier")
-
-	// A wrapped counter must step over the identifier the surviving source still
-	// holds rather than issue it twice.
-	table.next = other
-	assert.NotEqual(t, other, table.generate(fwdTestSourceA, 2),
-		"the counter reissued an identifier a live path holds")
+	ctx, ctxID := registerForwardBodyTestContext(t, true, true)
+	peer := forwardBodyTestPeer(ctx, ctxID)
+	for _, path := range paths {
+		wire := fwdPathIDWire(pathIDTestBody(t, 65001, received), ctxID, path.source)
+		require.Equal(t, path.id, fwdForwardOnePathID(t, wire, ctxID, peer),
+			"every valid local identifier must remain attached to its native prefix")
+	}
+	thirdWire := fwdPathIDWire(pathIDTestBody(t, 65002, received), ctxID, 4503)
+	third := fwdForwardOnePathID(t, thirdWire, ctxID, peer)
+	for _, path := range paths {
+		require.NotEqual(t, path.id, third, "wrap must not merge two paths at the recipient")
+	}
+	paths = append(paths, struct {
+		source source.SourceID
+		id     uint32
+	}{4503, third})
+	for _, path := range paths {
+		wire := fwdPathIDWire(pathIDTestBody(t, 65010, received), ctxID, path.source)
+		require.Equal(t, path.id, fwdForwardOnePathID(t, wire, ctxID, peer),
+			"collision avoidance must not renumber a retained path")
+		withdraw := fwdPathIDWire(fwdShapeBody(fwdPathIDNLRI(received), nil, nil), ctxID, path.source)
+		require.Equal(t, path.id, fwdForwardOneWithdrawnPathID(t, withdraw, ctxID, peer),
+			"the native path must remain withdrawable, including identifier zero")
+	}
 }
 
 // fwdPathIDWire wraps a body as the receive path does: the source that sent it
@@ -320,8 +348,9 @@ func fwdForwardOneWithdrawnPathID(t *testing.T, wire *wireu.WireUpdate, destCtxI
 	}
 
 	iter := nlri.NewNLRIIterator(withdrawn, true)
-	_, pathID, ok := iter.Next()
+	prefix, pathID, ok := iter.Next()
 	require.True(t, ok, "the destination frame withdraws nothing")
+	require.Equal(t, fwdPathIDBareNLRI(), prefix, "the withdrawal must name the advertised native prefix")
 	_, _, more := iter.Next()
 	require.False(t, more, "the fixture must withdraw one prefix")
 	require.Zero(t, iter.Remaining(), "the destination withdrawn section is malformed")

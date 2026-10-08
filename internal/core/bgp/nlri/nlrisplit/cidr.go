@@ -29,7 +29,7 @@ const (
 // Slices alias `data` -- fn must copy what it retains. Returns an error
 // when the first malformed NLRI is encountered; the NLRIs before that
 // point have already been visited and are counted.
-func splitCIDR(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+func splitCIDR(data []byte, addPath bool, fn func(nlri []byte) bool) (int, error) {
 	return splitByBitLength(data, addPath, maxPrefixBits, fn)
 }
 
@@ -38,14 +38,14 @@ func splitCIDR(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
 // length counts every one of those bits, so the same walk frames it -- with a
 // bound that admits a value above 128, which a prefix alone never reaches but a
 // label stack and a Route Distinguisher together always exceed.
-func splitVPN(data []byte, addPath bool, fn func(nlri []byte)) (int, error) {
+func splitVPN(data []byte, addPath bool, fn func(nlri []byte) bool) (int, error) {
 	return splitByBitLength(data, addPath, maxLengthOctetBits, fn)
 }
 
 // splitByBitLength walks NLRIs framed as [length(1 byte, in bits)][value bytes],
 // rejecting a length above maxBits. The walk is bounded by len(data): every
 // entry advances the offset by at least the length octet.
-func splitByBitLength(data []byte, addPath bool, maxBits int, fn func(nlri []byte)) (int, error) {
+func splitByBitLength(data []byte, addPath bool, maxBits int, fn func(nlri []byte) bool) (int, error) {
 	count := 0
 	offset := 0
 	for offset < len(data) {
@@ -70,10 +70,12 @@ func splitByBitLength(data []byte, addPath bool, maxBits int, fn func(nlri []byt
 			return count, fmt.Errorf("nlrisplit: NLRI at offset %d extends past data", start)
 		}
 
-		if fn != nil {
-			fn(data[start : start+nlriLen])
-		}
 		count++
+		if fn != nil {
+			if !fn(data[start : start+nlriLen]) {
+				return count, nil
+			}
+		}
 		offset = start + nlriLen
 	}
 	return count, nil

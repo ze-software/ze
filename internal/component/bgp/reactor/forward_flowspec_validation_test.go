@@ -203,12 +203,13 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 			}
 			var rules []byte
 			var identifiers []uint32
-			_, err = nlrisplit.SplitFlowSpec(got, destination.addPath, func(raw []byte) {
+			_, err = nlrisplit.SplitFlowSpec(got, destination.addPath, func(raw []byte) bool {
 				if destination.addPath {
 					identifiers = append(identifiers, binary.BigEndian.Uint32(raw[:4]))
 					raw = raw[4:]
 				}
 				rules = append(rules, raw...)
+				return true
 			})
 			if err != nil || !bytes.Equal(rules, native) {
 				t.Fatalf("forward changed native rule: %x, error %v", rules, err)

@@ -107,30 +107,85 @@ on it at startup rather than registering an attribute whose flags nothing judges
 | 18 | 0x12 | AS4_AGGREGATOR | 0xC0 (O-T) | RFC 6793 | implemented |
 | 22 | 0x16 | PMSI_TUNNEL | 0xC0 (O-T) | RFC 6514 | not implemented |
 | 23 | 0x17 | TUNNEL_ENCAP | 0xC0 (O-T) | RFC 9012 | parsed; carrier-aware receive validation |
+| 24 | 0x18 | TRAFFIC_ENGINEERING | 0x80 (O-NT) | RFC 5543 | receive validation |
 | 25 | 0x19 | IPV6_EXT_COMMUNITY | 0xC0 (O-T) | RFC 5701 | implemented |
 | 26 | 0x1A | AIGP | 0x80 (O-NT) | RFC 7311 | implemented |
 | 29 | 0x1D | BGP_LS | 0x80 (O-NT) | RFC 7752 | not implemented |
 | 32 | 0x20 | LARGE_COMMUNITY | 0xC0 (O-T) | RFC 8092 | implemented |
 | 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669, RFC 9252 | parsed (TLVs kept whole, decoded for JSON) |
+| 128 | 0x80 | ATTR_SET | 0xC0 (O-T) | RFC 6368 | receive validation |
 | 252 | 0xFC | ATTR_TOMBSTONE | 0x80/0xC0 (O, T mirrors discarded attr) | draft-mangin-idr-attr-tombstone-00 | marker implemented, Section 5.3 egress clear not implemented (provisional code point) |
 
 Tunnel carrier constraints derive only from reachable legacy NLRI and
 MP_REACH_NLRI. MP_UNREACH_NLRI is independently syntax-validated; a withdrawn
 family does not constrain an unrelated announcement's tunnel type or endpoints.
 RFC 9012 Section 6 carriers require exactly one Tunnel Egress Endpoint per TLV.
-The receiver removes TLVs with invalid endpoint count or encoded length; invalid
-framing or no surviving TLV invokes treat-as-withdraw.
+The receiver removes entire TLVs with invalid endpoint count, encoded length,
+or an IPv4/IPv6 address whose most-specific IANA Special-Purpose Address Space
+record explicitly marks Destination or Forwardable false. Invalid framing or
+no surviving TLV invokes treat-as-withdraw when the original UPDATE carries
+reachable NLRI. Otherwise RFC 7606 Section 5.2 escalates the error to session
+reset; an empty MP_REACH attribute does not satisfy that reachability condition.
+Private, shared, ULA and benchmarking addresses remain valid when both fields
+permit them; this is not a global reachability or address-ownership test.
 
 Actual SR Policy carriers (AFI 1 or 2, SAFI 73) require exactly one type-15 TLV
 and ignore endpoint, color, UDP, and protocol sub-TLVs under RFC 9830 Sections
 2.2 and 2.3. IPv4 unicast with tunnel type 15 is not an SR Policy carrier.
-This validation does not provide SRPM/headend support or complete endpoint
-address semantics: RFC 9012 Section 3.1's special-purpose address restriction
-remains an existing gap.
-<!-- source: internal/component/bgp/reactor/session_tunnel_encap.go -- applyTunnelEncap, tunnelTLVLayout, tunnelEndpointLengthValid -->
+This validation does not provide SRPM/headend support, a tunnel dataplane
+consumer, or the optional origin-AS ownership procedure. AFI zero still means
+the next hop without classifying it here; unknown endpoint AFIs remain opaque.
+
+The pure `ipregistry` core leaf embeds the canonical
+[IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xml)
+and [IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xml)
+XML snapshots. Both shipped snapshots have IANA update date 2025-10-09.
+They are parsed once; lookup is immutable, offline and allocation-free.
+Longest-prefix selection preserves allowed exceptions and blank/N/A fields,
+which are not false and do not inherit a less-specific record's prohibition.
+IPv4-mapped IPv6 endpoints remain IPv6 and match that registry's mapped block.
+Lookup distinguishes invalid input and an uninitialized registry from a valid
+address with no special-purpose entry; only successfully parsed data is used.
+
+`./le data ip-special-purpose write` deliberately refreshes the two fixed IANA
+sources, validating both complete datasets before writing either snapshot.
+It is not part of offline aggregate generation and does not run during BGP
+receipt or builds. Fetch/parse failure preserves both existing files; the two
+filesystem writes are not an atomic pair. The XML is the sole shipped dataset,
+not a hand-maintained deny list or a second generated prefix table.
+<!-- source: internal/core/ipregistry/registry.go -- Parse, Lookup, Registry.Lookup -->
+<!-- source: internal/le/data/ipspecialpurpose/registry.go -- Write -->
+<!-- source: internal/le/data/ipspecialpurpose/register.go -- init -->
+<!-- source: internal/component/bgp/reactor/session_tunnel_encap.go -- applyTunnelEncap, tunnelTLVLayout, tunnelEndpointValid -->
 
 Legend: WK=Well-known, O=Optional, M=Mandatory, D=Discretionary, T=Transitive, NT=Non-transitive.
 Unimplemented attributes are parsed as opaque (raw bytes preserved for forwarding).
+
+### ATTR_SET receive validation
+
+RFC 6368 Section 5 defines this value envelope:
+
+```
+Value offset 0              4
+             +--------------+------------------------------+
+             | Origin AS(4) | Inner path attributes (...)  |
+             +--------------+------------------------------+
+Inner offset 0       1       2              3 or 4
+             +-------+-------+--------------+--------------+
+             | Flags | Code  | Length(1/2)  | Value (...)  |
+             +-------+-------+--------------+--------------+
+```
+
+The inner stream uses the same registered Optional/Transitive declarations and
+value validators as ordinary attributes. A malformed inner attribute makes the
+enclosing ATTR_SET malformed, even when that attribute alone would receive
+attribute discard. RFC 7606 Section 7.16 then treats the UPDATE as a withdrawal.
+Inner AS_PATH and AGGREGATOR always use four-octet AS numbers, independent of the
+outer session; customer iBGP attributes remain valid on an outer eBGP session.
+An included NEXT_HOP is ignored after checking its framing. Unknown attributes
+remain opaque. MP_REACH and MP_UNREACH are forbidden inside ATTR_SET, and nesting
+is bounded to four levels.
+<!-- source: internal/component/bgp/message/rfc7606_optional_attrs.go -- validateAttrSetDepth -->
 
 ---
 

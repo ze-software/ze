@@ -973,18 +973,17 @@ func TestParseReceiveRefusesRetiredSentToken(t *testing.T) {
 // TestEveryStartupSubscriptionIsExpressible verifies that every in-tree
 // plugin's startup declaration can be stated in a peer's receive list.
 //
-// Each row was read from the plugin's own SetStartupSubscriptions call. Ten of
-// the fifteen could not be stated before this vocabulary: eight need a
-// direction, and two need the wildcard. This is the acceptance evidence for
-// the vocabulary phase.
+// Plugin rows come from their SetStartupSubscriptions calls. The synthetic
+// mixed-directions row preserves independent sent-update and received-open
+// coverage without attributing that declaration to a registered plugin.
 //
 // VALIDATES: A-2, every event type an in-tree plugin needs is expressible.
 // PREVENTS: shipping a config-driven delivery filter that cannot describe the
 // plugins ze itself runs.
 func TestEveryStartupSubscriptionIsExpressible(t *testing.T) {
 	tests := []struct {
-		plugin   string   // the plugin whose SetStartupSubscriptions call this states
-		declares []string // its subscription strings, verbatim
+		plugin   string   // plugin name, or the explicitly synthetic subscription case
+		declares []string // startup subscription strings
 		list     string   // the receive list that says the same thing
 		wantAll  bool
 		expected map[string]events.Direction
@@ -1015,7 +1014,7 @@ func TestEveryStartupSubscriptionIsExpressible(t *testing.T) {
 			expected: map[string]events.Direction{"open": events.DirReceived, "state": events.DirBoth, "eor": events.DirBoth},
 		},
 		{
-			plugin:   "bgp-persist",
+			plugin:   "synthetic-mixed-directions",
 			declares: []string{"update direction sent", "state", "open direction received"},
 			list:     "update-sent state open-received",
 			expected: map[string]events.Direction{"update": events.DirSent, "state": events.DirBoth, "open": events.DirReceived},

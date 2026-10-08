@@ -20,7 +20,7 @@
       "claim-sha": "7b759cd420af5a40",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
-      "producer-sha": "51555b2450550293",
+      "producer-sha": "291f9d91e1b4155a",
       "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "fd8e9f2aef23bf9e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
-      "producer-sha": "51555b2450550293",
+      "producer-sha": "291f9d91e1b4155a",
       "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,8 +42,30 @@
       "claim-sha": "72e61e2dc7102297",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
-      "producer-sha": "51555b2450550293",
+      "producer-sha": "291f9d91e1b4155a",
       "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9687-4.3-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687EmissionRestartsExactSendHoldDeadline",
+      "unit-sha": "3b4907736aa55636",
+      "claim-sha": "7faf3c83e1474506",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_write.go::flushWrites",
+      "producer-sha": "524e95c84e6e824b",
+      "break": "body of flushWrites replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9687-4.3-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687SuppressedAttemptsDoNotRestartSendHold",
+      "unit-sha": "74acc6e151c503ab",
+      "claim-sha": "62834edc103aff41",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_write.go::flushWrites",
+      "producer-sha": "524e95c84e6e824b",
+      "break": "body of flushWrites replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9687-4.3-8",

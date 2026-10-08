@@ -453,9 +453,9 @@ func fwdPatchPathIDs(data []byte, fam family.Family, memo *fwdPathIDMemo, withdr
 		return nlrisplit.ErrUnsupported
 	}
 	var keyErr error
-	_, err := split(data, true, func(raw []byte) {
+	_, err := split(data, true, func(raw []byte) bool {
 		if keyErr != nil {
-			return
+			return true
 		}
 		received := binary.BigEndian.Uint32(raw[:4])
 		var id uint32
@@ -463,6 +463,7 @@ func fwdPatchPathIDs(data []byte, fam family.Family, memo *fwdPathIDMemo, withdr
 		if keyErr == nil {
 			binary.BigEndian.PutUint32(raw[:4], id)
 		}
+		return true
 	})
 	if err != nil {
 		return err
@@ -580,18 +581,19 @@ func fwdReleaseSection(src source.SourceID, peer netip.Addr, fam family.Family, 
 	}
 	var keyErr error
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
-	_, err = split(withdrawn, true, func(raw []byte) {
+	_, err = split(withdrawn, true, func(raw []byte) bool {
 		if keyErr != nil {
-			return
+			return true
 		}
 		var key fwdPathKey
 		keyErr = fwdPathKeyFor(&key, fam, binary.BigEndian.Uint32(raw[:4]), raw[4:], true, scratch[:])
 		if keyErr != nil {
-			return
+			return true
 		}
 		if _, both := alsoAnnounced[key]; !both {
 			fwdPathIDs.releasePath(src, &key, peer, raw[4:])
 		}
+		return true
 	})
 	if err != nil {
 		return err
@@ -625,19 +627,20 @@ func fwdAnnouncedPaths(fam family.Family, section []byte) (map[fwdPathKey]struct
 	var paths map[fwdPathKey]struct{}
 	var keyErr error
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
-	_, err := split(section, true, func(raw []byte) {
+	_, err := split(section, true, func(raw []byte) bool {
 		if keyErr != nil {
-			return
+			return true
 		}
 		var key fwdPathKey
 		keyErr = fwdPathKeyFor(&key, fam, binary.BigEndian.Uint32(raw[:4]), raw[4:], false, scratch[:])
 		if keyErr != nil {
-			return
+			return true
 		}
 		if paths == nil {
 			paths = make(map[fwdPathKey]struct{})
 		}
 		paths[key] = struct{}{}
+		return true
 	})
 	if err != nil {
 		return nil, err

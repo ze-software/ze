@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 
@@ -175,7 +176,6 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 		if err := s.flushWrites(); err != nil {
 			return err
 		}
-		s.resetSendHoldTimer()
 		return nil
 	}
 
@@ -190,6 +190,9 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 		}
 		return err
 	}
+	if written != 0 {
+		s.writePending = true
+	}
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
@@ -200,8 +203,6 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 		s.prefixMetrics.wireBytesSent.With(s.settings.Address.String()).Add(float64(n))
 	}
 
-	// Successful write -- reset RFC 9687 Send Hold Timer.
-	s.resetSendHoldTimer()
 	if s.onWrite != nil {
 		s.onWrite()
 	}
@@ -271,7 +272,7 @@ func (s *Session) startSendHoldTimer() {
 	s.sendHoldTimer = s.clock.AfterFunc(d, s.sendHoldTimerCheck)
 }
 
-// resetSendHoldTimer resets the Send Hold Timer after a successful write.
+// resetSendHoldTimer resets the Send Hold Timer after successful emission and flush.
 // Zero-allocation: stores the new deadline atomically. The timer callback
 // checks the deadline on expiry and reschedules if writes pushed it forward.
 func (s *Session) resetSendHoldTimer() {
@@ -330,7 +331,7 @@ func (s *Session) sendHoldTimerExpired() {
 
 	// Stop the timer before attempting NOTIFICATION. Otherwise the
 	// NOTIFICATION write (if it succeeds) resets the timer via
-	// writeMessage -> resetSendHoldTimer, creating a new timer that
+	// writeMessage -> flushWrites -> resetSendHoldTimer, creating a new timer that
 	// closeConn immediately stops.
 	s.stopSendHoldTimer()
 	s.setCloseReason(ErrSendHoldTimerExpired)
@@ -435,14 +436,41 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	if gate && s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
 		suppress, override := s.egressRouteFilter(body)
 		if suppress {
-			// Suppressed (e.g. export remove ipv4/flow): nothing written. The
-			// caller may still reset the RFC 9687 send-hold timer -- correct, as
-			// that timer tracks TCP write liveness, not whether a route was sent
-			// (and keepalives reset it regardless).
+			// No BGP message was sent, so this attempt earns no SendHold restart.
 			return nil
 		}
 		if override != nil {
 			body = override
+		}
+	}
+
+	var nextHop nextHopValue
+	if gate {
+		nextHop = payloadNextHop(body)
+		profile := attribute.MPNextHopProfile(attribute.AFI(nextHop.mpFamily.AFI), attribute.SAFI(nextHop.mpFamily.SAFI))
+		// RFC 2545 Section 3; RFC 8950 Sections 3 and 4; RFC 9830 Section 2.1.
+		// Policy output must satisfy the field contract, not merely the input.
+		err := message.ValidateMPNextHop(profile, int(nextHop.mpWireLen), nextHop.mp, nextHop.mpLL)
+		extended := false
+		if s.negotiated != nil {
+			extended = s.negotiated.ExtendedNextHopAFI(capability.Family{
+				AFI: capability.AFI(nextHop.mpFamily.AFI), SAFI: capability.SAFI(nextHop.mpFamily.SAFI),
+			}) == capability.AFIIPv6
+		}
+		if profile.ExtendedIPv6 && nextHop.mpIPv6 && !extended {
+			err = message.ErrUnicastNextHopUnusable
+		}
+		if nextHop.linkLocalOnly() && (profile.IPv6Roles || profile.ExtendedIPv6) {
+			if !attribute.LinkLocalOnlyNextHopPermitted(profile.ExtendedIPv6,
+				s.negotiated != nil && s.negotiated.LinkLocalNextHop, extended) {
+				err = message.ErrUnicastNextHopUnusable
+			}
+		}
+		if err != nil {
+			sessionLogger().Warn("withholding originated route: unusable final next hop",
+				"peer", s.settings.Address, "nextHop", nextHop.mp,
+				"error", err, "action", "configure a usable next hop and negotiated address form")
+			return err
 		}
 	}
 
@@ -462,7 +490,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// abandon the route queue, and one unusable route is neither. The refusal is
 	// LOUD instead -- an operator who configured this next hop needs to hear that
 	// the route is not being advertised.
-	if gate && originatedNextHopIsPeerOwn(body, s.settings.Address) {
+	if gate && nextHop.has(s.settings.Address) {
 		sessionLogger().Warn("withholding originated route: its next hop is this peer's own address",
 			"peer", s.settings.Address,
 			"rfc", "RFC 4271 Section 5.1.3",
@@ -615,6 +643,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		}
 		return opaque, err
 	}
+	s.writePending = true
 	if !opaque {
 		s.noteAIGPWrite(body)
 	}
@@ -661,7 +690,8 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	return opaque, nil
 }
 
-// flushWrites flushes the bufWriter. Caller must hold writeMu.
+// flushWrites flushes bufWriter. The caller MUST hold writeMu, and every successful
+// nonempty bufWriter.Write MUST set writePending before calling it.
 // Increments wireWriteErrors on flush failure (TCP write error).
 func (s *Session) flushWrites() error {
 	if s.writeFailed != nil {
@@ -682,6 +712,13 @@ func (s *Session) flushWrites() error {
 		}
 		s.adjOut.mu.Unlock()
 	}
+	// RFC 9687 Section 4.3 -- see rfc/short/rfc9687.md.
+	// Suppression and stale batches can succeed without sending any message.
+	// Buffered() alone misses complete writes that bufio sent directly.
+	if s.writePending {
+		s.writePending = false
+		s.resetSendHoldTimer()
+	}
 	return nil
 }
 
@@ -693,6 +730,7 @@ func (s *Session) retireWrite(err error) {
 		return
 	}
 	s.writeFailed = err
+	s.writePending = false
 	s.seal()
 	s.setCloseReason(err)
 	s.commitAIGPWrites(false)
@@ -760,7 +798,6 @@ func (s *Session) flushFwdDirty() {
 				"peer", dst.settings.Address, "error", err)
 		} else {
 			_ = conn.SetWriteDeadline(time.Time{})
-			dst.resetSendHoldTimer()
 		}
 		dst.writeMu.Unlock()
 	}
@@ -848,7 +885,6 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 		counts.routes = s.pathsLimitTotals.routes - before.routes
 		counts.updates = s.pathsLimitTotals.updates - before.updates
 	}
-	s.resetSendHoldTimer()
 	return nil
 }
 
@@ -912,7 +948,6 @@ func (s *Session) SendUpdateHeld(update *message.Update) error {
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
-	s.resetSendHoldTimer()
 	return nil
 }
 
@@ -1000,7 +1035,6 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 		if err := s.flushWrites(); err != nil {
 			return err
 		}
-		s.resetSendHoldTimer()
 		return nil
 	}
 
@@ -1010,7 +1044,6 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
-	s.resetSendHoldTimer()
 	return nil
 }
 
@@ -1049,8 +1082,6 @@ func (s *Session) sendWithdraw(prefix netip.Prefix, addPath bool) error {
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
-	s.resetSendHoldTimer()
-
 	return nil
 }
 
@@ -1082,7 +1113,6 @@ func (s *Session) sendRawUpdateBody(body []byte) error {
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
-	s.resetSendHoldTimer()
 	return nil
 }
 
@@ -1122,6 +1152,9 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		if err != nil {
 			s.retireWrite(err)
 			return err
+		}
+		if written != 0 {
+			s.writePending = true
 		}
 		return s.finishRawWrite(len(payload) != 0 && !rawControlPacket(payload))
 	}
@@ -1169,6 +1202,7 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		s.retireWrite(err)
 		return err
 	}
+	s.writePending = true
 	return s.finishRawWrite(!rawControlPacket(buf[:totalLen]))
 }
 
@@ -1179,7 +1213,6 @@ func (s *Session) finishRawWrite(opaque bool) error {
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
-	s.resetSendHoldTimer()
 	if opaque {
 		sessionLogger().Warn("raw diagnostic bytes sent; retiring session with unaccountable outbound ownership",
 			"peer", s.settings.Address)

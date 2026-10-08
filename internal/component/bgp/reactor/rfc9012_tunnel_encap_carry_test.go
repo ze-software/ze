@@ -163,7 +163,7 @@ func teCarryBody(value []byte) []byte {
 // constructing a forward item or calling the payload builder from the test.
 // RFC 9012 Section 13: "If the route carrying the Tunnel Encapsulation attribute
 // is propagated with the attribute, the unrecognized TLV MUST remain in the attribute.".
-func teForwardedAttrs(t *testing.T, body []byte, rebuild bool) []byte {
+func teForwardedAttrs(t *testing.T, body []byte, rebuild bool, expectedTunnel ...[]byte) []byte {
 	t.Helper()
 	before, err := wire.ParseUpdateSections(body)
 	require.NoError(t, err)
@@ -235,6 +235,12 @@ func teForwardedAttrs(t *testing.T, body []byte, rebuild bool) []byte {
 		attribute.AttrTunnelEncap, attribute.AttrExtCommunity, attribute.AttrMPReachNLRI,
 	} {
 		wantCount, want := countAttrCode(before.Attrs(body), uint8(code))
+		if code == attribute.AttrTunnelEncap {
+			if len(expectedTunnel) != 0 {
+				require.Len(t, expectedTunnel, 1, "one explicit receive-rewrite expectation")
+				want = expectedTunnel[0]
+			}
+		}
 		gotCount, got := countAttrCode(attrs, uint8(code))
 		require.Equal(t, wantCount, gotCount, "attribute %d count", code)
 		require.Equal(t, want, got, "attribute %d must survive actual export unchanged", code)
@@ -339,8 +345,6 @@ func tePropagationPeer(t *testing.T, address string, peerAS uint32, families ...
 // RFC requirement: RFC9012-13-11 negative -- the rebuilt UPDATE still carries it.
 // RFC requirement: RFC9012-13-12 positive -- a UDP Destination Port sub-TLV of Length 3 is handled as an unrecognized one: no action, carried.
 // RFC requirement: RFC9012-13-12 negative -- the dirty and clean runs reach the same verdict.
-// RFC requirement: RFC9012-13-16 positive -- a UDP Destination Port sub-TLV inside a GRE TLV changes neither verdict nor handling.
-// RFC requirement: RFC9012-13-16 negative -- the dirty and clean runs reach the same verdict.
 // RFC requirement: RFC9012-13-18 positive -- the TLV holding the meaningless sub-TLV gets no RFC 7606 action.
 // RFC requirement: RFC9012-13-18 negative -- the rebuilt UPDATE still carries it.
 // RFC requirement: RFC9012-13-19 positive -- the meaningless sub-TLV reaches the wire unchanged.
@@ -351,8 +355,10 @@ func tePropagationPeer(t *testing.T, address string, peerAS uint32, families ...
 // RFC requirement: RFC9012-3.2.1-2 negative -- the rebuilt UPDATE does not mask them.
 // RFC requirement: RFC9012-3.5-3 positive -- the Embedded Label Handling sub-TLV reaches the wire.
 // RFC requirement: RFC9012-3.5-3 negative -- the rebuilt UPDATE does not strip it.
-// RFC requirement: RFC9012-4.3-2 positive -- the Color Extended Community value reaches the wire unchanged.
-// RFC requirement: RFC9012-4.3-2 negative -- the rebuilt UPDATE does not change it.
+// RFC requirement: RFC9012-4.3-2 positive -- the complete Color Extended Community, including nonzero Flags 0x3fa5, reaches the wire unchanged.
+// RFC requirement: RFC9012-4.3-2 negative -- rebuilding the UPDATE does not clear or change the received Flags field.
+// RFC requirement: RFC9012-3.1-2 positive -- zero endpoint Reserved fields are accepted and delivered unchanged through receive dispatch and downstream receipt.
+// RFC requirement: RFC9012-3.1-2 negative -- nonzero endpoint Reserved fields change neither ActionNone nor successful dispatch and downstream receipt.
 func TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong(t *testing.T) {
 	endpoint := teSub(6, 0, 0, 0, 0, 0, 1, 10, 0, 0, 77)
 	cases := []struct {
@@ -536,4 +542,95 @@ func TestRFC9830ReservedFieldsIgnoredOnReceipt(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRFC9012EndpointAddressRegistryPropagation observes whole-TLV removal at
+// the downstream wire consumer, on both raw and MED-rebuilt forwarding rails.
+// RFC 9012 Section 3.1: "The IP address in the sub-TLV's Address subfield lies
+// within a block listed in the relevant Special-Purpose IP Address registry
+// [RFC6890] with either a \"destination\" attribute value or a \"forwardable\"
+// attribute value of \"false\"."
+// RFC requirement: RFC9012-13-14 positive -- IANA-prohibited IPv4 and IPv6 endpoint TLVs are removed before original-input receive dispatch and raw/rebuilt downstream propagation.
+// RFC requirement: RFC9012-13-14 negative -- valid sibling bytes, private/ULA/benchmark and more-specific allowed endpoints survive; AFI0, unknown AFI and SR Policy semantics remain unchanged.
+// MUTATION: accepting every correctly sized endpoint retains the forbidden TLV.
+// RFC requirement: RFC9012-13-13 positive -- original-input registry violations remove the whole offending endpoint TLV before raw and rebuilt downstream propagation.
+// RFC requirement: RFC9012-13-13 negative -- valid marked siblings and allowed endpoint controls survive original-input receive and export unchanged.
+func TestRFC9012EndpointAddressRegistryPropagation(t *testing.T) {
+	valid := teTLV(2, teRegistryEndpoint("10.0.0.77"), teSub(99, 7))
+	for _, address := range teRegistryForbiddenAddresses {
+		t.Run(address, func(t *testing.T) {
+			bad := teTLV(8, teRegistryEndpoint(address), teSub(99, 8))
+			mixed := append(bytes.Clone(bad), valid...)
+			mixed = append(mixed, bad...)
+			body := teCarryBody(mixed)
+			original := bytes.Clone(body)
+			for _, rebuild := range []bool{false, true} {
+				// RFC 9012 Sections 3.1 and 13: receive the original input,
+				// not a pre-sanitized UPDATE, before forwarding its cache ID.
+				attrs := teForwardedAttrs(t, body, rebuild, valid)
+				count, sent := countAttrCode(attrs, uint8(attribute.AttrTunnelEncap))
+				if count != 1 || !bytes.Equal(sent, valid) {
+					t.Fatalf("rebuild=%v: retained tunnel %x, want %x", rebuild, sent, valid)
+				}
+				if !bytes.Equal(body, original) {
+					t.Fatal("receive changed the original diagnostic buffer")
+				}
+			}
+		})
+	}
+	for _, address := range []string{
+		"10.0.0.77", "172.16.0.1", "192.168.0.1", "100.64.0.1", "198.18.0.1",
+		"fd00::1", "2001:2::1", "100::1", "64:ff9b:1::1", "5f00::1",
+		"192.0.0.1", "192.0.0.9", "192.0.0.10", "2001::1", "2001:1::1",
+		"2001:1::2", "2001:1::3", "2001:3::1", "2001:4:112::1",
+		"2001:20::1", "2001:30::1", "192.88.99.1", "2001:10::1",
+		"8.8.8.8", "2606:4700::1111",
+	} {
+		t.Run("allowed-"+address, func(t *testing.T) {
+			value := teTLV(2, teRegistryEndpoint(address), teSub(99, 7))
+			for _, rebuild := range []bool{false, true} {
+				// RFC 9012 Sections 3.1 and 13.
+				teForwardedAttrs(t, teCarryBody(value), rebuild)
+			}
+		})
+	}
+	for _, endpoint := range [][]byte{
+		teSub(6, 0, 0, 0, 0, 0, 0),
+		teSub(6, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 1),
+	} {
+		for _, rebuild := range []bool{false, true} {
+			// RFC 9012 Section 3.1: AFI0 does not classify NEXT_HOP;
+			// an unknown AFI remains opaque even with documentation bytes.
+			teForwardedAttrs(t, teCarryBody(teTLV(2, endpoint)), rebuild)
+		}
+	}
+	for _, afi := range []byte{1, 2} {
+		value := teTLV(15, teSRPolicyValue(0, false)[4:],
+			teRegistryEndpoint("192.0.2.1"), teRegistryEndpoint("2001:db8::1"))
+		for _, rebuild := range []bool{false, true} {
+			// RFC 9830 Section 2.3: SR Policy ignores endpoint sub-TLVs.
+			teForwardedAttrs(t, teSRPolicyBody(value, afi), rebuild)
+		}
+	}
+}
+
+// These samples are independent wire expectations, not the production dataset.
+// The fixed IANA XML snapshots own the complete special-purpose prefix list.
+var teRegistryForbiddenAddresses = []string{
+	"0.0.0.0", "0.1.2.3", "127.0.0.1", "169.254.1.1",
+	"192.0.0.8", "192.0.0.11", "192.0.0.170", "192.0.0.171",
+	"192.0.2.1", "198.51.100.1", "203.0.113.1", "240.0.0.1", "255.255.255.255",
+	"::", "::1", "::ffff:10.0.0.77", "100:0:0:1::1", "2001:1::4",
+	"2001:db8::1", "3fff::1", "fe80::1",
+}
+
+// teRegistryEndpoint preserves AFI2 mapped IPv4 as sixteen octets.
+// RFC 9012 Section 3.1: the address follows Reserved[0:4] and AFI[4:6].
+func teRegistryEndpoint(address string) []byte {
+	ip := netip.MustParseAddr(address)
+	afi := byte(2)
+	if ip.Is4() {
+		afi = 1
+	}
+	return teSub(6, append([]byte{0, 0, 0, 0, 0, afi}, ip.AsSlice()...)...)
 }

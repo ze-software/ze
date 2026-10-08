@@ -20,7 +20,7 @@ func isFlowSpecFamily(fam family.Family) bool {
 // An absent or nonzero-offset destination has no CIDR equivalent and is denied.
 func appendFlowSpecFilterBlock(buf []byte, fam family.Family, op string, raw []byte, addPath, empty bool) []byte {
 	buf = appendMPBlock(buf, fam, op, nil, empty)
-	_, err := nlrisplit.SplitFlowSpec(raw, addPath, func(one []byte) {
+	_, err := nlrisplit.SplitFlowSpec(raw, addPath, func(one []byte) bool {
 		if addPath {
 			one = one[4:]
 		}
@@ -28,9 +28,10 @@ func appendFlowSpecFilterBlock(buf []byte, fam family.Family, op string, raw []b
 		buf = append(buf, ' ')
 		if !destination.IsValid() {
 			buf = append(buf, "invalid"...)
-			return
+			return true
 		}
 		buf = destination.AppendTo(buf)
+		return true
 	})
 	if err != nil {
 		buf = append(buf, " invalid"...)

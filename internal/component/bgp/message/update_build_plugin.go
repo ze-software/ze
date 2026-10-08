@@ -32,7 +32,7 @@ type PluginParams struct {
 	// LocalPreference is the configured LOCAL_PREF value (0 = default 100 on iBGP).
 	LocalPreference uint32
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 in MP_REACH for IPv6
-	// families (MUP / SR-Policy). MVPN/VPLS/FlowSpec leave it false.
+	// families (MUP). MVPN/VPLS/FlowSpec/SR-Policy leave it false.
 	MapV4NextHop bool
 }
 
@@ -50,7 +50,24 @@ const (
 //
 // Wire order is fixed by OrderAttributes (MP_UNREACH first, regular attrs by
 // code, MP_REACH included), so the order attributes are added here is irrelevant.
+// Returns nil when a plain next-hop profile refuses the field. Callers MUST
+// check for nil before packing, measuring or sending the result.
 func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
+	afi := p.AFI
+	if afi == 0 {
+		afi = 1
+		if p.IsIPv6 {
+			afi = 2
+		}
+	}
+	nextHop := p.NextHop
+	if p.MapV4NextHop && p.IsIPv6 && nextHop.Is4() {
+		nextHop = netip.AddrFrom16(nextHop.As16())
+	}
+	// RFC 9830 Section 2.1: judge the field the plugin will actually emit.
+	if err := ValidateFamilyNextHop(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(p.SAFI)}, nextHop, netip.Addr{}); err != nil {
+		return nil
+	}
 	ub.resetScratch()
 
 	var attrBuf [pluginMaxAttrs]attribute.Attribute

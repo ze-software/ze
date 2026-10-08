@@ -20,6 +20,8 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -36,9 +38,35 @@ import (
 // 5.3's EBGP-boundary clear is NOT performed: Thomas removed that support on
 // 2026-09-09, along with wireu.rewriteASPathPrepend, the unreached path that had
 // been its only implementation (docs/architecture/wire/attributes.md).
-// Called from processMessage() BEFORE callback dispatch so that malformed
-// UPDATEs are never delivered to plugins as valid routes.
+// Direct validation callers use this entry point. Both readers share its
+// classification and applyRFC7606 before dispatching UPDATEs to plugins.
 func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, message.RFC7606Action, error) {
+	// RFC 7606 Sections 3 and 5.3: direct callers classify once before enforcement.
+	validation := s.classifyRFC7606(wu.Payload())
+	out, action, err := s.applyRFC7606(wu, &validation)
+	if err == nil && action < message.RFC7606ActionTreatAsWithdraw {
+		out = s.publishBase(out)
+	}
+	return out, action, err
+}
+
+// applyRFC7606 consumes the shared receive verdict without walking it again.
+// RFC 7606 Section 3(h): "Otherwise, the approach with the strongest action MUST be used."
+// The caller MUST supply a classification of these bytes, or a clean batch of
+// identical attributes whose individual NLRI fields have already been validated.
+func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validation) (*wireu.WireUpdate, message.RFC7606Action, error) {
+	result := validation.result
+	if validation.syntaxField != "" {
+		// RFC 7606 Sections 3(j) and 5.3.
+		return s.rfc7606NLRISyntaxAction(wu, result, validation.syntaxField)
+	}
+	if result.Action == message.RFC7606ActionSessionReset {
+		// RFC 7606 Section 3(a).
+		if result.Notification != nil {
+			return s.rfc7606ResetNotification(wu, result.Description, result.Notification, "")
+		}
+		return s.rfc7606SessionReset(wu, result.Description, "")
+	}
 	body := wu.Payload()
 
 	// RFC 7606 Section 6 asks for "an error listing the NLRI involved and containing the
@@ -48,136 +76,13 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	// log reports what arrived rather than what ze made of it.
 	receivedWU := wu
 
-	// RFC 7911: NLRI in an ADD-PATH family carries a 4-byte Path Identifier before the
-	// prefix. The Section 5.3 NLRI-syntax checks must skip it or they would misread a valid
-	// ADD-PATH UPDATE as malformed and session-reset it. The receive context knows which
-	// families negotiated ADD-PATH; AddPathFor is nil-safe.
+	offset := validation.attrsOffset
+	pathAttrs := body[offset : offset+validation.attrsLen]
+	hasNLRI := validation.hasNLRI
+
 	recvCtx := bgpctx.Registry.Get(s.recvCtxID)
 	addPathFor := func(afi uint16, safi uint8) bool {
 		return recvCtx.AddPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
-	}
-	ipv4AddPath := addPathFor(uint16(family.AFIIPv4), uint8(family.SAFIUnicast))
-	// The IPv4 Withdrawn Routes and NLRI fields are always IPv4 unicast. The common case has
-	// no ADD-PATH there, so use the plain validator; only reach for the add-path-aware one
-	// when RFC 7911 is negotiated for the family.
-	checkIPv4NLRI := func(field []byte) *message.RFC7606ValidationResult {
-		if ipv4AddPath {
-			return message.ValidateNLRISyntaxAddPath(field, false, true)
-		}
-		return message.ValidateNLRISyntax(field, false)
-	}
-
-	// RFC 7606 Section 3 (b): a structural length conflict means the section boundaries
-	// cannot be trusted, so the NLRI field cannot be located at all. Section 3 (j) is
-	// explicit that treat-as-withdraw requires the NLRI to be successfully parsed, and
-	// "if this is not possible ... the 'session reset' approach ... MUST be followed".
-	if len(body) < 4 {
-		return s.rfc7606SessionReset(wu, "RFC 7606 Section 3(b): UPDATE too short for section headers")
-	}
-
-	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
-	offset := 2 + withdrawnLen
-	if offset+2 > len(body) {
-		return s.rfc7606SessionReset(wu, "RFC 7606 Section 3(b): Withdrawn Routes Length exceeds UPDATE")
-	}
-
-	// RFC 7606 Section 3 (i)/5.3: the Withdrawn Routes field is checked for syntactic
-	// correctness in the same manner as the NLRI field. Honor the action the validator
-	// reports -- do not flatten every syntax error to treat-as-withdraw.
-	if withdrawnLen > 0 {
-		withdrawn := body[2 : 2+withdrawnLen]
-		if result := checkIPv4NLRI(withdrawn); result != nil {
-			return s.rfc7606NLRISyntaxAction(wu, result, "withdrawn")
-		}
-	}
-
-	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
-	offset += 2
-	if offset+attrLen > len(body) {
-		return s.rfc7606SessionReset(wu, "RFC 7606 Section 3(b): Total Attribute Length exceeds UPDATE")
-	}
-
-	pathAttrs := body[offset : offset+attrLen]
-	nlriLen := len(body) - (offset + attrLen)
-	hasNLRI := nlriLen > 0
-
-	// RFC 7606 Section 5.3: Validate IPv4 unicast body NLRI syntax, ADD-PATH-aware (RFC 7911).
-	if nlriLen > 0 {
-		nlri := body[offset+attrLen:]
-		if result := checkIPv4NLRI(nlri); result != nil {
-			return s.rfc7606NLRISyntaxAction(wu, result, "nlri")
-		}
-	}
-
-	// Validate path attributes per RFC 7606.
-	//
-	// The verdict is the one rule (session_as_migration.go, isIBGPWith), not the equality
-	// re-derived here. RFC 7705 Section 4.2 requires a migrating session to take this
-	// branch: "the BGP speaker MUST treat UPDATEs sent and received to this peer as if
-	// this was a natively configured iBGP session". An inline equality kept the old rule,
-	// so such a session was iBGP for the forward path and eBGP for RFC 7606 at once.
-	isIBGP := s.settings.IsIBGP()
-	asn4 := false
-	if neg := s.Negotiated(); neg != nil {
-		asn4 = neg.ASN4
-	}
-	result := message.ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor)
-
-	// RFC 7311 Section 3.3: "If an AIGP attribute is received on a BGP
-	// session for which AIGP_SESSION is disabled, the attribute MUST be
-	// treated exactly as if it were an unrecognized non-transitive attribute."
-	if !s.settings.AIGPEnabled() {
-		if _, _, _, present := attribute.AttrFind(pathAttrs, attribute.AttrAIGP); present {
-			if result.Action < message.RFC7606ActionAttributeDiscard {
-				result.Action = message.RFC7606ActionAttributeDiscard
-				result.AttrCode = uint8(attribute.AttrAIGP)
-				result.Description = "RFC 7311 Section 3.3: AIGP disabled on this session"
-			}
-			if result.Action == message.RFC7606ActionAttributeDiscard {
-				recorded := false
-				for _, entry := range result.DiscardEntries {
-					if entry.Code == uint8(attribute.AttrAIGP) {
-						recorded = true
-						break
-					}
-				}
-				if !recorded {
-					result.DiscardEntries = append(result.DiscardEntries, message.DiscardEntry{
-						Code: uint8(attribute.AttrAIGP), Reason: message.DiscardReasonEBGPInvalid,
-					})
-				}
-			}
-		}
-	}
-
-	// RFC 8669 Section 4: discard PrefixSID from EBGP unless configured to accept.
-	//
-	// Presence comes from the walk above, not from a second walk of the same bytes.
-	// PrefixSIDPresent is false whenever that walk abandoned the section early. Every
-	// such abandonment carries treat-as-withdraw or session-reset, and the guards below
-	// already decline to act on both. The two forms therefore agree on every input.
-	if !isIBGP && !s.settings.AcceptSRv6PrefixSID {
-		if result.PrefixSIDPresent {
-			entry := message.DiscardEntry{Code: uint8(attribute.AttrPrefixSID), Reason: message.DiscardReasonEBGPInvalid}
-			if result.Action < message.RFC7606ActionAttributeDiscard {
-				// Raise the action ON the validator's own result. Building a fresh one
-				// here dropped every field this branch does not own, DuplicateRanges
-				// above all: without it the Section 3.g keep-first strip below silently
-				// did nothing, so a duplicated attribute stayed on the wire. When the
-				// duplicate was the Prefix-SID itself, the copy the discard did not
-				// reach survived and Section 4's MUST was violated on the wire.
-				//
-				// The fields set here are exactly the ones the validator leaves zero on
-				// this path (Action None means no strongest error was recorded), so the
-				// verdict this produces is the one the fresh struct produced.
-				result.Action = message.RFC7606ActionAttributeDiscard
-				result.AttrCode = uint8(attribute.AttrPrefixSID)
-				result.Description = "RFC 8669 Section 4: PrefixSID from EBGP discarded (not configured to accept)"
-			}
-			if result.Action == message.RFC7606ActionAttributeDiscard {
-				result.DiscardEntries = append(result.DiscardEntries, entry)
-			}
-		}
 	}
 
 	// RFC 7606 Section 3.g keep-first: strip duplicate non-MP attributes recorded by the
@@ -240,7 +145,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 			// the validator already reaches for an IPv4 or IPv6 unicast MP NLRI; typed
 			// families reach it here because their framing walk is the family's splitter.
 			return s.rfc7606SessionReset(receivedWU,
-				"RFC 7606 Section 5.3: MP NLRI overruns the attribute; Section 3(j) requires session reset")
+				"RFC 7606 Section 5.3: MP NLRI overruns the attribute; Section 3(j) requires session reset", "")
 		case typedNLRIEmptied:
 			// Section 5.4 discarded every route the UPDATE carried. What is left encodes no
 			// reachability, in either of the two shapes applyTypedNLRIDiscard names: a body
@@ -272,7 +177,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 
 	switch result.Action {
 	case message.RFC7606ActionNone:
-		return s.publishBase(wu), message.RFC7606ActionNone, nil
+		return wu, message.RFC7606ActionNone, nil
 
 	case message.RFC7606ActionAttributeDiscard:
 		// RFC 7606 Section 2: "The attribute MUST be discarded ... and the UPDATE
@@ -285,7 +190,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		// RFC 7606 Section 6: the NLRI involved and the entire malformed UPDATE, as the peer
 		// sent it. Not wu: the Section 3.g and Section 5.4 rewrites above have already
 		// replaced that with bytes ze built.
-		s.rfc7606Diagnostics("attribute-discard", receivedWU, result.AttrCode, result.Description)
+		validation.diagnosticWireHex = s.rfc7606Diagnostics("attribute-discard", receivedWU, result.AttrCode, result.Description)
 
 		// draft-mangin-idr-attr-tombstone-00 Section 5.1: "Implementations SHOULD log
 		// the upstream pairs separately before merging to preserve diagnostic
@@ -309,14 +214,14 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		// If not rebuilt, pathAttrs (a slice of body) was modified in-place,
 		// so wu.Payload() already reflects the change.
 
-		return s.publishBase(wu), message.RFC7606ActionAttributeDiscard, nil
+		return wu, message.RFC7606ActionAttributeDiscard, nil
 
 	case message.RFC7606ActionTreatAsWithdraw:
 		// RFC 7606 Section 2: "MUST be handled as though all of the routes contained in an
 		// UPDATE message ... had been withdrawn", "thus causing them to be removed from
 		// the Adj-RIB-In".
 		//
-		// enforceRFC7606 only classifies and logs; processMessage synthesizes the
+		// applyRFC7606 applies the verdict and logs; processValidatedMessage synthesizes the
 		// withdraw-only UPDATE(s) from this body and dispatches them, turning the announced
 		// routes into withdrawals so the malformed UPDATE removes them instead of leaving a
 		// previously-announced prefix installed and stale. The synthesis is deferred to the
@@ -337,10 +242,12 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 
 	case message.RFC7606ActionSessionReset:
+		// Carrier-aware validation may raise this action after keep-first
+		// rebuilding. RFC 7606 Section 6 still requires the received message.
 		if result.Notification != nil {
-			return s.rfc7606ResetNotification(wu, result.Description, result.Notification)
+			return s.rfc7606ResetNotification(receivedWU, result.Description, result.Notification, "")
 		}
-		return s.rfc7606SessionReset(wu, result.Description)
+		return s.rfc7606SessionReset(receivedWU, result.Description, "")
 	default:
 		panic("BUG: invalid RFC 7606 action")
 	}
@@ -355,13 +262,8 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 // Section 5.5 exempts the receiving RS-client; the route server itself still
 // checks paths received from its clients.
 func (s *Session) firstASMismatch(wu *wireu.WireUpdate) bool {
-	peerAS := s.settings.PeerAS
-	if peerAS == 0 {
-		if neg := s.Negotiated(); neg != nil {
-			peerAS = neg.PeerASN
-		}
-	}
-	if s.settings.isIBGPWith(peerAS) || s.localRSClient {
+	peerAS, check := s.firstASPeer()
+	if !check {
 		return false
 	}
 
@@ -399,6 +301,24 @@ func (s *Session) firstASMismatch(wu *wireu.WireUpdate) bool {
 	} else if neg := s.Negotiated(); neg != nil {
 		asn4 = neg.ASN4
 	}
+	return firstASPathMismatch(path, asn4, peerAS)
+}
+
+// firstASPeer preserves the configured neighbor check and RS-client exemption.
+// RFC 7606 Section 7.2 applies only "if the local system is configured to do so".
+func (s *Session) firstASPeer() (uint32, bool) {
+	peerAS := s.settings.PeerAS
+	if peerAS == 0 {
+		if neg := s.Negotiated(); neg != nil {
+			peerAS = neg.PeerASN
+		}
+	}
+	return peerAS, !s.settings.isIBGPWith(peerAS) && !s.localRSClient
+}
+
+// firstASPathMismatch compares the existing most-recent AS_SEQUENCE rule.
+// RFC 7606 Section 7.2 requires the leftmost path AS to equal the sending peer.
+func firstASPathMismatch(path []byte, asn4 bool, peerAS uint32) bool {
 	if len(path) < 4 || path[0] != byte(attribute.ASSequence) || path[1] == 0 {
 		return true
 	}
@@ -415,18 +335,20 @@ func (s *Session) firstASMismatch(wu *wireu.WireUpdate) bool {
 // over the bytes this UPDATE will be published with, on the receive goroutine, and returns
 // the same WireUpdate.
 //
-// It is deliberately the last thing enforceRFC7606 does on every path that PUBLISHES an
-// UPDATE. Two branches above change the bytes after the RFC 7606 walk has read them, and an
-// index built before either would describe an object nobody sees:
+// It runs after RFC 7606 enforcement and first-AS checks, before publication.
+// Direct enforcement callers publish when returning. Two enforcement branches
+// change bytes after the validation walk, and an index built before either
+// would describe an object nobody sees:
 //
 //   - the Section 3.g keep-first strip rebuilds the body and wraps it in a NEW WireUpdate,
 //     shifting every attribute after the first stripped range;
 //   - ApplyAttrDiscard's in-place branch overwrites the type-code byte with ATTR_TOMBSTONE
 //     and builds no new WireUpdate at all, so the offsets survive but the code does not.
 //
-// wireu.WireUpdate.Attrs freezes the index on its first call, so this ordering is the whole
-// guarantee. TestInPlaceDiscardPrecedesIndexBuild and TestStripRebuildIndexMatchesPublished
-// pin it from the receive entry point.
+// wireu.WireUpdate.Attrs freezes the index on its first call, so these code/offset
+// rewrites must precede semantic access. Partial changes only flags, which spans
+// read from the payload. TestInPlaceDiscardPrecedesIndexBuild and
+// TestStripRebuildIndexMatchesPublished pin the enforcement ordering.
 //
 // Four branches return without calling it, and each returns an UPDATE nobody publishes: the
 // two session resets, the Section 5.4 branch whose UPDATE conveys nothing and is dropped, and
@@ -543,54 +465,120 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 // an error listing the NLRI involved and containing the entire malformed UPDATE message
 // when such an attribute is detected."
 //
-// Three deliberate choices:
-//
-//   - It is gated on the subsystem's Debug level and returns before building anything when
-//     that level is off. slog evaluates its arguments eagerly, so an unguarded hex dump
-//     would cost a full encode of every malformed UPDATE even with logging disabled --
-//     which is exactly the amplification a hostile peer would aim for. "Debugging
-//     facilities" is what the section asks for, and `ze.log.bgp.reactor.session=debug`
-//     turns it on.
-//   - The dump is the complete UPDATE body, untruncated, because the section says "the
-//     entire malformed UPDATE message". The 19-octet header is omitted: it is a fixed
-//     marker plus length and type, carries no diagnostic information, and wu.Payload() is
-//     the body. The key name says body so the log does not overclaim.
-//   - The IPv4 Withdrawn Routes and NLRI fields are decoded to prefixes as well as hexed,
-//     since "listing the NLRI involved" is the point. MP-family NLRI lives inside the
-//     attributes and is covered by the full body dump.
-func (s *Session) rfc7606Diagnostics(event string, wu *wireu.WireUpdate, attrCode uint8, description string) {
+// Debug-disabled calls return before building any text. Readers validate the BGP
+// header before this facility runs, so its marker, length and UPDATE type can be
+// reproduced exactly from the original body without retaining another buffer.
+// Coalescing MUST classify original messages before merging them: an erroneous
+// message is diagnosed separately, never as a synthetic batch.
+func (s *Session) rfc7606Diagnostics(event string, wu *wireu.WireUpdate, attrCode uint8, description string) string {
+	return s.rfc7606DiagnosticsWithWire(event, wu, attrCode, description, "")
+}
+
+// rfc7606DiagnosticsWithWire reuses the original hex already logged before an
+// in-place attribute discard. A later first-AS error must not dump tombstones
+// as though the peer had sent them. RFC 7606 Section 6 requires the entire
+// malformed UPDATE, not its rewritten representation.
+func (s *Session) rfc7606DiagnosticsWithWire(event string, wu *wireu.WireUpdate, attrCode uint8, description, wireHex string) string {
 	lg := sessionLogger()
 	if !lg.Enabled(context.Background(), slog.LevelDebug) {
-		return
+		return ""
 	}
 	body := wu.Payload()
-	if len(body) < 4 {
-		lg.Debug("RFC 7606 diagnostics",
-			"event", event, "attr", attrCode, "description", description,
-			"update-body-hex", textbuf.StringHex(body))
-		return
+	if wireHex == "" {
+		var header [message.HeaderLen]byte
+		hdr := message.Header{Length: uint16(message.HeaderLen + len(body)), Type: msgtype.TypeUPDATE}
+		hdr.WriteTo(header[:], 0)
+		var dump textbuf.Buffer
+		wireHex = dump.Hex(header[:]).Hex(body).String()
 	}
 
 	recvCtx := bgpctx.Registry.Get(s.recvCtxID)
-	addPath := recvCtx.AddPathFor(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast})
-
-	var withdrawn, nlri []byte
-	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
-	if offset := 2 + withdrawnLen; offset+2 <= len(body) {
-		withdrawn = body[2 : 2+withdrawnLen]
-		attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
-		if offset+2+attrLen <= len(body) {
-			nlri = body[offset+2+attrLen:]
+	addPath := recvCtx.AddPathFor(family.IPv4Unicast)
+	var withdrawn, nlri, attrs []byte
+	if len(body) >= 4 {
+		withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+		if offset := 2 + withdrawnLen; offset+2 <= len(body) {
+			withdrawn = body[2 : 2+withdrawnLen]
+			attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
+			if offset+2+attrLen <= len(body) {
+				attrs = body[offset+2 : offset+2+attrLen]
+				nlri = body[offset+2+attrLen:]
+			}
 		}
 	}
 
+	var mpReach, mpUnreach []string
+	iter := attribute.NewAttrIterator(attrs)
+	for code, _, value, ok := iter.Next(); ok; code, _, value, ok = iter.Next() {
+		//exhaustive:ignore // Only MP attributes contain NLRI.
+		switch code {
+		case attribute.AttrMPReachNLRI:
+			mpReach = append(mpReach, mpDiagnosticNLRI(code, value, recvCtx)...)
+		case attribute.AttrMPUnreachNLRI:
+			mpUnreach = append(mpUnreach, mpDiagnosticNLRI(code, value, recvCtx)...)
+		}
+	}
+	wireKey, representation := "update-wire-hex", "original"
+	if event == "invalid-next-hop" {
+		// RFC 4271 Section 6.3 local/subnet policy is not RFC 7606
+		// Section 7.3's malformed-length case. It may run on a clean batch.
+		wireKey, representation = "update-processed-hex", "processed"
+	}
 	lg.Debug("RFC 7606 diagnostics",
 		"event", event,
 		"attr", attrCode,
 		"description", description,
+		"representation", representation,
 		"withdrawn-prefixes", ipv4PrefixList(withdrawn, addPath),
 		"nlri-prefixes", ipv4PrefixList(nlri, addPath),
-		"update-body-hex", textbuf.StringHex(body))
+		"mp-reach-prefixes", mpReach,
+		"mp-unreach-prefixes", mpUnreach,
+		wireKey, wireHex)
+	return wireHex
+}
+
+// mpDiagnosticNLRI lists every framed MP NLRI, including unknown typed routes.
+// RFC 7606 Section 6: "At a minimum, such facilities must include logging
+// an error listing the NLRI involved and containing the entire
+// malformed UPDATE message when such an attribute is detected."
+func mpDiagnosticNLRI(code attribute.AttributeCode, value []byte, ctx *bgpctx.EncodingContext) []string {
+	start, ok := message.MPNLRIStart(uint8(code), value)
+	if !ok {
+		var tb textbuf.Buffer
+		return []string{tb.Str("unreadable-mp-header/").Hex(value).String()}
+	}
+	fam := family.Family{AFI: family.AFI(binary.BigEndian.Uint16(value[:2])), SAFI: family.SAFI(value[2])}
+	addPath := ctx.AddPathFor(fam)
+	field := value[start:]
+	if fam.SAFI == family.SAFIUnicast || fam.SAFI == family.SAFIMulticast {
+		if fam.AFI == family.AFIIPv4 {
+			return ipDiagnosticPrefixList(field, addPath, false)
+		}
+		if fam.AFI == family.AFIIPv6 {
+			return ipDiagnosticPrefixList(field, addPath, true)
+		}
+	}
+	split := nlrisplit.Get(fam)
+	if code == attribute.AttrMPUnreachNLRI {
+		split = nlrisplit.GetWithdraw(fam)
+	}
+	var out []string
+	var tb textbuf.Buffer
+	consumed := 0
+	if split != nil {
+		_, err := split(field, addPath, func(one []byte) bool {
+			out = append(out, tb.Reset().Str("afi=").Int(int64(fam.AFI)).
+				Str("/safi=").Int(int64(fam.SAFI)).Str("/nlri=").Hex(one).String())
+			consumed += len(one)
+			return true
+		})
+		if err == nil {
+			return out
+		}
+	}
+	out = append(out, tb.Reset().Str("afi=").Int(int64(fam.AFI)).
+		Str("/safi=").Int(int64(fam.SAFI)).Str("/unreadable-nlri=").Hex(field[consumed:]).String())
+	return out
 }
 
 // ipv4PrefixList renders an IPv4 unicast NLRI field as prefixes for the Section 6 log.
@@ -599,21 +587,33 @@ func (s *Session) rfc7606Diagnostics(event string, wu *wireu.WireUpdate, attrCod
 // stops making sense is reported as far as it parsed rather than discarded. Returning
 // nothing would defeat the point of the requirement.
 func ipv4PrefixList(field []byte, addPath bool) []string {
+	return ipDiagnosticPrefixList(field, addPath, false)
+}
+
+// ipDiagnosticPrefixList formats prefix-framed NLRI without hiding a malformed tail.
+// RFC 7606 Section 6: "logging an error listing the NLRI involved".
+func ipDiagnosticPrefixList(field []byte, addPath, ipv6 bool) []string {
 	var out []string
 	var tb textbuf.Buffer
+	maxBits := 32
+	if ipv6 {
+		maxBits = 128
+	}
 	for pos := 0; pos < len(field); {
 		if addPath {
 			if pos+4 > len(field) {
+				out = append(out, "truncated-path-identifier")
 				break
 			}
 			pos += 4 // RFC 7911 Path Identifier
 		}
 		if pos >= len(field) {
+			out = append(out, "missing-prefix")
 			break
 		}
 		bits := int(field[pos])
 		pos++
-		if bits > 32 {
+		if bits > maxBits {
 			out = append(out, tb.Reset().Str("invalid-prefix-length/").Int(int64(bits)).String())
 			break
 		}
@@ -622,12 +622,38 @@ func ipv4PrefixList(field []byte, addPath bool) []string {
 			out = append(out, "truncated-prefix")
 			break
 		}
-		var addr [4]byte
-		copy(addr[:], field[pos:pos+octets])
+		if ipv6 {
+			var addr [16]byte
+			copy(addr[:], field[pos:pos+octets])
+			out = append(out, textbuf.StringPrefix(netip.PrefixFrom(netip.AddrFrom16(addr), bits)))
+		} else {
+			var addr [4]byte
+			copy(addr[:], field[pos:pos+octets])
+			out = append(out, textbuf.StringPrefix(netip.PrefixFrom(netip.AddrFrom4(addr), bits)))
+		}
 		pos += octets
-		out = append(out, textbuf.StringPrefix(netip.PrefixFrom(netip.AddrFrom4(addr), bits)))
 	}
 	return out
+}
+
+// rfc7606LateAttributeError applies the common error boundary after semantic
+// checks of non-MP_UNREACH attributes. It uses the original validator's fact,
+// not the NLRI remaining after typed-route or attribute rewrites.
+//
+// RFC 7606 Section 5.2: if the UPDATE "doesn't encode any reachable NLRI" and
+// "any encountered error specifies an error-handling approach other than
+// 'attribute discard', then the 'session reset' approach MUST be used."
+// The caller supplies a genuine late error, never Section 5.4's synthetic
+// treat-as-withdraw action used solely to drop an emptied typed UPDATE.
+func (s *Session) rfc7606LateAttributeError(wu *wireu.WireUpdate, validation *rfc7606Validation, attrCode uint8, description string) (message.RFC7606Action, error) {
+	if !validation.result.HasReachableNLRI {
+		_, action, err := s.rfc7606SessionReset(wu,
+			"RFC 7606 Section 5.2: "+description+" (escalated -- attrs with no NLRI)",
+			validation.diagnosticWireHex)
+		return action, err
+	}
+	s.rfc7606DiagnosticsWithWire("treat-as-withdraw", wu, attrCode, description, validation.diagnosticWireHex)
+	return message.RFC7606ActionTreatAsWithdraw, nil
 }
 
 // rfc7606SessionReset performs the session-reset action: NOTIFICATION, FSM event, close.
@@ -640,18 +666,18 @@ func ipv4PrefixList(field []byte, addPath bool) []string {
 //
 // Every session-reset path routes through here, so the mandated NOTIFICATION cannot be
 // skipped by a caller that returns the action directly.
-func (s *Session) rfc7606SessionReset(wu *wireu.WireUpdate, description string) (*wireu.WireUpdate, message.RFC7606Action, error) {
+func (s *Session) rfc7606SessionReset(wu *wireu.WireUpdate, description, wireHex string) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	return s.rfc7606ResetNotification(wu, description, &message.Notification{
 		ErrorCode:    message.NotifyUpdateMessage,
 		ErrorSubcode: message.NotifyUpdateMalformedAttr,
-	})
+	}, wireHex)
 }
 
-func (s *Session) rfc7606ResetNotification(wu *wireu.WireUpdate, description string, notification *message.Notification) (*wireu.WireUpdate, message.RFC7606Action, error) {
+func (s *Session) rfc7606ResetNotification(wu *wireu.WireUpdate, description string, notification *message.Notification, wireHex string) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	sessionLogger().Warn("RFC 7606 session-reset", "description", description)
 	// RFC 7606 Section 6. A session reset is the most damaging outcome and the one an
 	// operator most needs to diagnose, so it carries the same detail as the other two.
-	s.rfc7606Diagnostics("session-reset", wu, 0, description)
+	s.rfc7606DiagnosticsWithWire("session-reset", wu, 0, description, wireHex)
 
 	s.mu.RLock()
 	conn := s.conn
@@ -682,7 +708,7 @@ func (s *Session) rfc7606NLRISyntaxAction(
 		return s.rfc7606ResetNotification(wu, result.Description, &message.Notification{
 			ErrorCode:    message.NotifyUpdateMessage,
 			ErrorSubcode: message.NotifyUpdateInvalidNetwork,
-		})
+		}, "")
 	}
 	sessionLogger().Debug("RFC 7606 NLRI syntax",
 		"field", field,
@@ -835,10 +861,10 @@ func (s *Session) validateUpdateFamilies(body []byte) (drop bool, err error) {
 // validateCapabilityModes checks required/refused capability codes against the negotiated result.
 // Sends NOTIFICATION and tears down the session if any violation is found.
 // RFC 5492 Section 3: Unsupported Capability subcode.
-func (s *Session) validateCapabilityModes(conn net.Conn, neg *capability.Negotiated, required, refused []capability.Code) error {
+func (s *Session) validateCapabilityModes(conn net.Conn, neg *capability.Negotiated, required, refused []capability.Code, localCaps, peerCaps []capability.Capability) error {
 	if len(required) > 0 && neg != nil {
 		if missing := neg.CheckRequiredCodes(required); len(missing) > 0 {
-			capData := buildUnsupportedCapabilityDataCodes(missing)
+			capData := buildUnsupportedCapabilityDataCodes(missing, localCaps)
 			s.logNotifyErr(conn,
 				message.NotifyOpenMessage,
 				message.NotifyOpenUnsupportedCapability,
@@ -852,7 +878,7 @@ func (s *Session) validateCapabilityModes(conn net.Conn, neg *capability.Negotia
 
 	if len(refused) > 0 && neg != nil {
 		if present := neg.CheckRefusedCodes(refused); len(present) > 0 {
-			capData := buildUnsupportedCapabilityDataCodes(present)
+			capData := buildUnsupportedCapabilityDataCodes(present, peerCaps)
 			s.logNotifyErr(conn,
 				message.NotifyOpenMessage,
 				message.NotifyOpenUnsupportedCapability,
@@ -868,7 +894,7 @@ func (s *Session) validateCapabilityModes(conn net.Conn, neg *capability.Negotia
 }
 
 // validateAddPathFamilyModes checks per-family ADD-PATH required/refused against negotiation.
-func (s *Session) validateAddPathFamilyModes(conn net.Conn, neg *capability.Negotiated, required, refused []capability.Family) error {
+func (s *Session) validateAddPathFamilyModes(conn net.Conn, neg *capability.Negotiated, required, refused []capability.Family, localCaps, peerCaps []capability.Capability) error {
 	if neg == nil {
 		return nil
 	}
@@ -877,7 +903,8 @@ func (s *Session) validateAddPathFamilyModes(conn net.Conn, neg *capability.Nego
 		if neg.AddPathMode(f) != capability.AddPathNone {
 			continue
 		}
-		capData := buildUnsupportedCapabilityData([]capability.Family{f})
+		// RFC 5492 Section 5: encode the required local ADD-PATH value.
+		capData := buildUnsupportedAddPathData(f, localCaps)
 		s.logNotifyErr(conn, message.NotifyOpenMessage, message.NotifyOpenUnsupportedCapability, capData)
 		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
@@ -888,7 +915,8 @@ func (s *Session) validateAddPathFamilyModes(conn net.Conn, neg *capability.Nego
 		if neg.AddPathMode(f) == capability.AddPathNone {
 			continue
 		}
-		capData := buildUnsupportedCapabilityData([]capability.Family{f})
+		// RFC 5492 Section 5: encode the refused peer ADD-PATH value.
+		capData := buildUnsupportedAddPathData(f, peerCaps)
 		s.logNotifyErr(conn, message.NotifyOpenMessage, message.NotifyOpenUnsupportedCapability, capData)
 		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
@@ -917,19 +945,94 @@ func buildUnsupportedCapabilityData(families []capability.Family) []byte {
 	return data
 }
 
-// buildUnsupportedCapabilityDataCodes builds NOTIFICATION data for non-family capability codes.
+// buildUnsupportedCapabilityDataCodes selects the causing capabilities from the
+// local OPEN for missing requirements, or the peer OPEN for refused capabilities.
+// It retains every instance and its value, using the same encoder as OPEN.
 //
-// RFC 5492 Section 3: Each capability is encoded as code (1 byte) + length (1 byte).
-// For refused/required non-Multiprotocol codes, length is 0 (no capability-specific data needed).
-func buildUnsupportedCapabilityDataCodes(codes []capability.Code) []byte {
-	if len(codes) == 0 {
+// RFC 5492 Section 5: "The Data field in the NOTIFICATION message MUST list the
+// set of capabilities that causes the speaker to send the message."
+// "Each such capability is encoded in the same way as it would be encoded in
+// the OPEN message."
+//
+// Each tuple: offset 0 Code (1 octet), offset 1 Length (1 octet),
+// offset 2 Value (Length octets). There is no Optional Parameter wrapper.
+func buildUnsupportedCapabilityDataCodes(codes []capability.Code, caps []capability.Capability) []byte {
+	size := 0
+	for _, code := range codes {
+		for _, cap := range caps {
+			if cap.Code() == code {
+				size += cap.Len()
+			}
+		}
+	}
+	if size == 0 {
 		return nil
 	}
-	// Each code: capability code (1 byte) + length (1 byte) = 2 bytes
-	data := make([]byte, len(codes)*2)
-	for i, c := range codes {
-		data[i*2] = byte(c)
-		data[i*2+1] = 0 // length=0: no capability-specific value
+	data := make([]byte, size)
+	offset := 0
+	for _, code := range codes {
+		for _, cap := range caps {
+			if cap.Code() == code {
+				offset += cap.WriteTo(data, offset)
+			}
+		}
+	}
+	return data
+}
+
+// buildUnsupportedAddPathData selects the causing family's original advertised
+// direction, retaining the original capability-instance grouping. Splitting each
+// family entry into its own capability would inflate a legal OPEN's values past
+// the NOTIFICATION size limit.
+//
+// RFC 5492 Section 5: "Each such capability is encoded in the same way as it
+// would be encoded in the OPEN message."
+//
+// Each capability: Code 69 (offset 0), Length (offset 1), then four-octet entries
+// from offset 2: AFI (2 octets), SAFI (1 octet), Send/Receive (1 octet).
+func buildUnsupportedAddPathData(family capability.Family, caps []capability.Capability) []byte {
+	// Both callers supply parsed OPEN capabilities. The one-octet capability
+	// length bounds each ADD-PATH instance to 63 four-octet family entries.
+	var families [255 / 4]capability.AddPathFamily
+	selected := capability.AddPath{}
+	size := 0
+	for _, cap := range caps {
+		addPath, ok := cap.(*capability.AddPath)
+		if !ok {
+			continue
+		}
+		count := 0
+		for _, entry := range addPath.Families {
+			if entry.AFI == family.AFI && entry.SAFI == family.SAFI {
+				count++
+			}
+		}
+		if count > 0 {
+			selected.Families = families[:count]
+			size += selected.Len()
+		}
+	}
+	if size == 0 {
+		return nil
+	}
+	data := make([]byte, size)
+	offset := 0
+	for _, cap := range caps {
+		addPath, ok := cap.(*capability.AddPath)
+		if !ok {
+			continue
+		}
+		count := 0
+		for _, entry := range addPath.Families {
+			if entry.AFI == family.AFI && entry.SAFI == family.SAFI {
+				families[count] = entry
+				count++
+			}
+		}
+		if count > 0 {
+			selected.Families = families[:count]
+			offset += selected.WriteTo(data, offset)
+		}
 	}
 	return data
 }

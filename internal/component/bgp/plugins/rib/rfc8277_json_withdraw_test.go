@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- JSON received-route reconciliation.
+// RFC naming: untagged -- supplementary JSON-to-RIB withdrawal reconciliation, not an independent whole-clause claim.
 package rib
 
 import (

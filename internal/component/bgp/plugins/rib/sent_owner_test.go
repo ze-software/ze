@@ -29,7 +29,7 @@ func TestSentCleanupKeepsReceiptAfterProjectionRemoval(t *testing.T) {
 	event.MsgID = 18446744073709551614
 	r.handleSent(event)
 	r.peerMu.Lock()
-	writes := r.reconcileSentSourceLocked(source, family.IPv4Unicast, nil)
+	writes := r.pruneSentSourceLocked(source, nil)
 	r.peerMu.Unlock()
 	if len(writes) != 1 || len(r.ribOut[destination]) != 0 {
 		t.Fatalf("cleanup did not remove exactly one projected route: writes=%d", len(writes))

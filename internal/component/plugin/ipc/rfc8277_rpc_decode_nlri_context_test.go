@@ -156,7 +156,7 @@ func startDecodeNLRITransport(t *testing.T, ctx context.Context) (*ipc.PluginCon
 	runDone := make(chan error, 1)
 	go func() { runDone <- p.Run(ctx, sdk.Registration{}) }()
 	t.Cleanup(func() {
-		// Closing both endpoints stops their readers before joining Run.
+		// Cleanup MUST close both endpoints before joining Run.
 		if err := p.Close(); err != nil {
 			t.Errorf("close SDK: %v", err)
 		}

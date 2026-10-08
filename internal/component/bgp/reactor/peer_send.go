@@ -237,7 +237,8 @@ var errBuildRejected = errors.New("update build rejected: message does not fit t
 func isRouteScopedSendError(err error) bool {
 	return errors.Is(err, message.ErrAttributesTooLarge) ||
 		errors.Is(err, message.ErrNLRITooLarge) ||
-		errors.Is(err, errBuildRejected)
+		errors.Is(err, errBuildRejected) ||
+		errors.Is(err, message.ErrUnicastNextHopUnusable)
 }
 
 // sendBodyWithSplit reconstructs a *message.Update from a flat UPDATE body

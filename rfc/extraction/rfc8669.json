@@ -67,7 +67,8 @@
         "RFC8669-4.1-11",
         "RFC8669-4.1-12",
         "RFC8669-4.1-13",
-        "RFC8669-4.1-14"
+        "RFC8669-4.1-14",
+        "RFC8669-4.1-15"
       ]
     },
     {
@@ -91,7 +92,11 @@
     {
       "id": "6",
       "sites": 4,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-6-4"
+      ],
+      "reason": "The separate SHOULD logging sentence applies when discarding malformed or invalid labeled-unicast Prefix-SID attributes; RFC8669-6-4 records it without asserting a particular logging enum or proving the invalid-state trigger. Site 6:4 remains the unknown-TLV propagation occurrence mapped to RFC8669-3-1."
     },
     {
       "id": "7",

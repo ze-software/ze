@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // staticWireSet is the static route set one connection has been sent.
@@ -78,6 +79,9 @@ func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bo
 		message.PutUpdateBuilder(ub)
 		if err != nil {
 			routesLogger().Debug("send error", "peer", addr, "error", err)
+			if isRouteScopedSendError(err) {
+				continue
+			}
 			return sent
 		}
 		sent = append(sent, *route)
@@ -117,9 +121,10 @@ func (p *Peer) negotiatedStaticRoutes(routes []StaticRoute) []StaticRoute {
 }
 
 // sendStaticRoutesGrouped is sendStaticRoutes for a peer that asks for grouping:
-// routes with identical attributes travel in one UPDATE.
+// legacy IPv4-unicast routes with identical attributes travel in one UPDATE.
+// Other routes use their family builder and are recorded independently.
 //
-// A multi-route group is all or nothing. BuildGroupedUnicast hands the whole
+// A legacy multi-route batch is all or nothing. BuildGroupedUnicast hands the whole
 // group to one send, so a failure says nothing about which of its prefixes
 // reached the peer, and the safe reading of "unknown" is that none did: the
 // group is then left out of the answer, and a later reload announces it again
@@ -129,55 +134,66 @@ func (p *Peer) sendStaticRoutesGrouped(session *Session, routes []StaticRoute, m
 	sent := make([]StaticRoute, 0, len(routes))
 
 	for _, grouped := range groupRoutesByAttributes(routes) {
-		addPath := p.addPathFor(routeFamily(&grouped[0]))
-		if len(grouped) == 1 {
-			// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4).
-			nextHop, nhErr := p.resolveNextHop(session, grouped[0].NextHop, routeFamily(&grouped[0]))
+		var params []message.UnicastParams
+		var included []StaticRoute
+		for i := range grouped {
+			route := &grouped[i]
+			fam := routeFamily(route)
+			nextHop, nhErr := p.resolveNextHop(session, route.NextHop, fam)
 			if nhErr != nil {
 				routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
 				continue
 			}
+			// RFC 8950 Section 3 carries IPv4 NLRI with IPv6 next hops in
+			// MP_REACH, not legacy NLRI. RFC 8277 Section 2: "This is done by
+			// sending a Multiprotocol BGP UPDATE message, i.e., an UPDATE
+			// message with an MP_REACH_NLRI attribute as specified in [RFC4760]."
+			// An IPv4 prefix alone therefore does not license legacy batching.
+			legacyGroup := len(grouped) > 1 && fam == family.IPv4Unicast && nextHop.Is4()
+			if legacyGroup {
+				if params == nil {
+					params = make([]message.UnicastParams, 0, len(grouped))
+					included = make([]StaticRoute, 0, len(grouped))
+				}
+				params = append(params, toStaticRouteUnicastParams(route, nextHop, p.linkLocalNextHopFor(session, nextHop), p.sendCtx.Load(), prefixSIDAllowed))
+				included = append(included, *route)
+				continue
+			}
+
+			addPath := p.addPathFor(fam)
 			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-			update, buildErr := buildStaticRouteUpdateNew(ub, &grouped[0], nextHop, p.linkLocalNextHopFor(session, nextHop), p.sendCtx.Load(), prefixSIDAllowed)
+			update, buildErr := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(session, nextHop), p.sendCtx.Load(), prefixSIDAllowed)
 			if buildErr != nil {
 				message.PutUpdateBuilder(ub)
-				routesLogger().Warn("static route not sent", "peer", addr, "prefix", grouped[0].Prefix, "error", buildErr)
+				routesLogger().Warn("static route not sent", "peer", addr, "prefix", route.Prefix, "error", buildErr)
 				continue
 			}
 			err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath, false)
 			message.PutUpdateBuilder(ub)
 			if err != nil {
 				routesLogger().Debug("send error", "peer", addr, "error", err)
+				if isRouteScopedSendError(err) {
+					continue
+				}
 				return sent
 			}
-			sent = append(sent, grouped[0])
-			routesLogger().Debug("route sent", "peer", addr, "prefix", grouped[0].Prefix.String(), "nextHop", grouped[0].NextHop.String())
+			sent = append(sent, *route)
+			routesLogger().Debug("route sent", "peer", addr, "prefix", route.Prefix.String(), "nextHop", route.NextHop.String())
+		}
+
+		if len(params) == 0 {
 			continue
 		}
 
-		// Multi-route group -- IPv4 unicast only (routeGroupKey ensures this).
-		// The size-aware builder respects the peer's maximum message size.
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-		params := make([]message.UnicastParams, 0, len(grouped))
-		included := make([]StaticRoute, 0, len(grouped))
-		for i := range grouped {
-			r := &grouped[i]
-			nextHop, nhErr := p.resolveNextHop(session, r.NextHop, routeFamily(r))
-			if nhErr != nil {
-				routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", r.Prefix, "error", nhErr)
-				continue
-			}
-			params = append(params, toStaticRouteUnicastParams(r, nextHop, p.linkLocalNextHopFor(session, nextHop), p.sendCtx.Load(), prefixSIDAllowed))
-			included = append(included, *r)
-		}
-		if len(params) == 0 {
-			message.PutUpdateBuilder(ub)
-			continue
-		}
+		// Only resolved legacy IPv4 unicast reaches the size-aware batch builder.
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), p.addPathFor(family.IPv4Unicast))
 		err := ub.BuildGroupedUnicast(params, maxMsgSize, session.SendUpdate)
 		message.PutUpdateBuilder(ub)
 		if err != nil {
 			routesLogger().Debug("grouped unicast error", "peer", addr, "error", err)
+			if isRouteScopedSendError(err) {
+				continue
+			}
 			return sent
 		}
 		sent = append(sent, included...)
@@ -321,6 +337,9 @@ func (p *Peer) withdrawStaticRoutes(session *Session, routes []StaticRoute, maxM
 		}
 		if err := session.sendBodyWithSplit(context.Background(), withdrawn, maxMsgSize, addPath, false); err != nil {
 			routesLogger().Debug("withdraw send error", "peer", p.addrString, "prefix", route.Prefix, "error", err)
+			if isRouteScopedSendError(err) {
+				continue
+			}
 			return
 		}
 		routesLogger().Debug("route withdrawn", "peer", p.addrString, "prefix", route.Prefix.String())

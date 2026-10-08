@@ -6,7 +6,7 @@
   "source-sha": "0d9a9771610007d7",
   "signed-off": "2026-09-30",
   "reviewer": "claude",
-  "resign-reason": "Walk redone at site 13:7 on 2026-09-30: the sentence binds the speaker that interprets the single-instance sub-TLVs to build a tunnel, which Ze does not implement, so it is excluded as binds-another-role and RFC9012-13-7 is retired (rfc/corrections/rfc9012.md). Re-read against rfc/full/rfc9012.txt section 13; the neighbouring sentences on not-malformed and propagation stay mapped to RFC9012-13-8 and RFC9012-13-9.",
+  "resign-reason": "Site 13:7 now maps to RFC9012-13-21 as an explicit absent-consumer gap, replacing the false binds-another-role exclusion without reusing the historically retired RFC9012-13-7 identity. Section 13's first-occurrence sentence remains an applicable obligation. The separate exactly-one Tunnel Egress Endpoint exception for Section 6 carriers is implemented by tunnelTLVLayout and applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go and is already accounted for by RFC9012-13-13/-14/-15. The non-endpoint first-occurrence consumer remains absent under plan/spec-bgp-tunnel-encapsulation-consumption.md. This restores canonical requirement accounting, not implementation authorization, a new sign-off or conformance proof; see rfc/corrections/rfc9012.md.",
   "sections": [
     {
       "id": "front",
@@ -473,10 +473,9 @@
     {
       "id": "3.2.5:1",
       "quote": "Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Section 3.2.5 repeats Section 3.2.4's rule for the MPLS-in-GRE Encapsulation sub-TLV; the mapped row states the obligation for both sub-TLVs and cites both sections.",
-      "mapped-to": "RFC9012-3.2.4-1"
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.2.5-1",
+      "reason": "Section 3.2.5 names MPLS-in-GRE, whereas Section 3.2.4 names GRE. The 2026-10-08 correction gives this distinct sentence its own identity rather than merging nonidentical quotations; origination applicability remains separate from extraction."
     },
     {
       "id": "3.3:1",
@@ -751,9 +750,9 @@
     {
       "id": "13:7",
       "quote": "If a Tunnel TLV has more than one of any of these sub-TLVs, all but the first occurrence of each such sub-TLV type MUST be disregarded.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "binds the speaker that interprets the listed sub-TLVs (Tunnel Egress Endpoint, Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack, Prefix-SID) to build a tunnel, which Ze does not implement: no product code reads any sub-TLV of a received Tunnel Encapsulation attribute (TunnelTLV.Preference's only non-test caller is internal/test/decode), and Ze only carries the attribute. Row RFC9012-13-7 is retired (rfc/corrections/rfc9012.md)"
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-21",
+      "reason": "Restores the first-occurrence obligation as an explicit absent-consumer gap without reusing retired RFC9012-13-7. TunnelTLV.SubTLVs in internal/core/bgp/attribute/tunnel_encap.go preserves all occurrences; the RFC 9830 Preference accessor is not interpretation of the single-instance sub-TLVs named here. tunnelTLVLayout and applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go implement the separate Section 6 exactly-one-endpoint exception, already accounted for by RFC9012-13-13/-14/-15, not first-occurrence selection for the remaining sub-TLVs. The absent consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md. No endpoint receive obligation is excluded or newly authorized by this mapping."
     },
     {
       "id": "13:8",

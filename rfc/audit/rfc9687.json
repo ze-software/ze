@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-08",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9687-4.3-1": {
@@ -118,17 +118,22 @@
       "verdict": "enforced"
     },
     "RFC9687-4.3-8": {
-      "note": "RFC 9687 Section 4.3: \"Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.\" Row 4.3-9 separately owns the zero-time exception. All four current carriers read: TestRFC9687SendRestartsTheSendHoldTimer, TestRFC9687EveryWriterRestartsTheSendHoldTimer, TestRFC9687RemainingWritersRestartSendHold and TestRFC9687SilenceDoesNotRestartTheSendHoldTimer. Together the positive cases cover SendRawMessage, writeMessage, SendUpdate, sendWithdraw, sendRawUpdateBody, SendAnnounce, SendUpdateHeld, both fwdBatchHandler encodings and flushFwdDirty. The new writer matrix pins the exact advanced deadline as well as an armed timer and Established beyond the old deadline, distinguishing restart from stop. The no-send negative requires Run exit and Idle for the same clock advance. resetSendHoldTimer stores Now+duration only when armed; fwdBatchHandler resets after successful flush. The prior named writer holes are covered without changing production timers. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+      "code": {},
+      "note": "Independently reread RFC9687 Section 4.3's full sentence: 'Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.' The zero-time exception remains attributed to RFC9687-4.3-9. Read all six current tagged functions. The earlier independent weak finding about successful no-emission attempts is closed by current source and distinct new assertions, not by a producer halt. TestRFC9687SuppressedAttemptsDoNotRestartSendHold repeatedly calls actual policy-suppressed, duplicate, stale-batch, empty-flush/raw and PATHS-LIMIT paths at 0.3/0.6/0.9 SendHoldTime, requires no added transport bytes and an unchanged exact deadline, then requires Established one nanosecond before expiry and Idle, released connection and closed transport at expiry. TestRFC9687EmissionRestartsExactSendHoldDeadline requires exact UPDATE/KEEPALIVE/refresh/BoRR/EoRR wire bytes and the exact restarted deadline, including direct bufio writes; buffering alone earns no restart, and a later empty flush cannot reuse the old emission. TestRFC9687RemainingWritersRestartSendHold establishes batch ownership before advancing the clock, so only the selected post-advance writer can satisfy its exact-deadline and live-session assertions. The unchanged original writer and silence carriers retain their narrower contributions. All production bufWriter.Write sites in session_write.go set writePending only after successful nonempty acceptance; flushWrites consumes it after successful flush and resets the timer only then. Suppression and stale-worker branches route to that common accounting without manufacturing an emission; retireWrite clears pending credit on failure. The retained before log shows actual no-emission deadline extension failures, and 7de30816 records passing current emission/suppression/remaining-writer selectors; the latter log is not represented as an overall green run because unrelated tunnel cases failed there. Main's later complete reactor/message evidence is retained. No new runtime or mutation execution is claimed.",
       "requirement_sha": "e84a6c54182b7346",
       "tests": {
+        "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687EmissionRestartsExactSendHoldDeadline": "9ec18ef7b14a933f",
+        "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687SuppressedAttemptsDoNotRestartSendHold": "9ec18ef7b14a933f",
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "0d228841740c950c",
-        "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "086561be38e103f0",
+        "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "e3744645c3dccff5",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "8caa1cc8f2fc140d",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "8caa1cc8f2fc140d"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687EmissionRestartsExactSendHoldDeadline": "f5fe72fff5c4ea2c",
+        "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687SuppressedAttemptsDoNotRestartSendHold": "6dcda723fad48632",
         "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "e82cfcf39bfc5c7d",
-        "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "caf79c94ea2902c8",
+        "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "1bd1935c83a81b98",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "ef727ea44a115c14",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "7581328442f256ff"
       },

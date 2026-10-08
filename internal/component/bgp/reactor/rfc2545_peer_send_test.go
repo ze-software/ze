@@ -142,35 +142,32 @@ func newAnnouncePeer(t *testing.T, peerAddr string) (*Peer, *recordingConn) {
 //
 // RFC requirement: RFC2545-3-3 positive -- both halves of the condition hold: the
 // speaker's connected-scope snapshot includes the entity named by the global
-// next hop (::1) and the peer the route is advertised to (fd00::2).
+// next hop (2001:db8:1::1) and the peer (2001:db8:1::2).
 //
 // VALIDATES: this rail emits the 32-octet form. Before this it hardcoded a next-hop
 // length of 16 and could not encode the second address at all.
 // PREVENTS: an announce leaving with the 16-octet form in a case Section 3 requires
 // the link-local address.
 //
-// The peer is fd00::2 and the next hop is ::1, and they must stay different.
-// RFC 4271 Section 5.1.3 forbids advertising a peer its own address as NEXT_HOP,
-// and originatedNextHopIsPeerOwn (forward_next_hop.go) refuses it, so a fixture
-// that gives both ends ::1 asserts the wire form of a message Ze must never send.
-// The fixture supplies both connected prefixes instead of depending on loopback
-// provisioning on the host running this test. The global next hop remains the
-// speaker's own configured local address.
+// The advertised global belongs to this speaker's explicit local address,
+// not to loopback and not to the recipient. The configured prefix snapshot
+// exercises the implemented scope predicate without depending on host
+// interface provisioning or claiming third-party entity-adjacency proof.
 func TestSendAnnounceAppendsLinkLocalWhenSection3Holds(t *testing.T) {
-	peer, conn := newAnnouncePeer(t, "fd00::2")
+	peer, conn := newAnnouncePeer(t, "2001:db8:1::2")
+	peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 	peer.refreshLinkScopeFrom([]netip.Prefix{
-		netip.MustParsePrefix("::1/128"),
-		netip.MustParsePrefix("fd00::/64"),
+		netip.MustParsePrefix("2001:db8:1::/64"),
 	})
 	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("2001:db8:1::/64"),
-		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("::1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8:1::1")),
 	}
 
 	require.NoError(t, peer.SendAnnounce(route, 65000))
 
 	nlriBytes := []byte{0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00}
-	assert.Contains(t, string(conn.written()), string(mpReachIPv6Attr(t, nlriBytes, "::1", "fe80::1")),
+	assert.Contains(t, string(conn.written()), string(mpReachIPv6Attr(t, nlriBytes, "2001:db8:1::1", "fe80::1")),
 		"RFC 2545 Section 3: global address first, link-local second, length octet 0x20")
 }
 
@@ -189,17 +186,21 @@ func TestSendAnnounceAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 // positive test above.
 func TestSendAnnounceOmitsLinkLocalWhenPeerOffLink(t *testing.T) {
 	peer, conn := newAnnouncePeer(t, "2001:db8:dead:beef::2")
+	peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
+	peer.refreshLinkScopeFrom([]netip.Prefix{
+		netip.MustParsePrefix("2001:db8:1::/64"),
+	})
 	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("2001:db8:1::/64"),
-		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("::1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8:1::1")),
 	}
 
 	require.NoError(t, peer.SendAnnounce(route, 65000))
 
 	nlriBytes := []byte{0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00}
 	written := string(conn.written())
-	assert.Contains(t, written, string(mpReachIPv6Attr(t, nlriBytes, "::1")),
+	assert.Contains(t, written, string(mpReachIPv6Attr(t, nlriBytes, "2001:db8:1::1")),
 		"RFC 2545 Section 3: the global address alone, length octet 0x10")
-	assert.NotContains(t, written, string(mpReachIPv6Attr(t, nlriBytes, "::1", "fe80::1")),
+	assert.NotContains(t, written, string(mpReachIPv6Attr(t, nlriBytes, "2001:db8:1::1", "fe80::1")),
 		"no link-local may be appended when the peer shares no subnet with the speaker")
 }

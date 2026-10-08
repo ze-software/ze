@@ -85,11 +85,21 @@ func announceNextHopOctets(route bgptypes.RouteSpec, linkLocalNextHop netip.Addr
 		nh.v4, err = nextHopV4Octets(route.NextHop.Addr)
 		return nh, err
 	}
-	if nh.global, err = nextHopGlobalOctets(route.NextHop.Addr); err != nil {
-		return nh, err
+	// RFC 8950 Section 1 recognizes a single mapped IPv6 field for <2/1>.
+	// Share field admission with the builders, including mapped-pair refusal.
+	if err := message.ValidateFamilyNextHop(family.IPv6Unicast, route.NextHop.Addr, linkLocalNextHop); err != nil {
+		return nh, fmt.Errorf("%w: %w", ErrNextHopUnencodable, err)
 	}
-	nh.linkLocal, nh.withLinkLocal, err = nextHopLinkLocalOctets(linkLocalNextHop)
-	return nh, err
+	// This legacy direct writer has no capability-77 permission input.
+	if route.NextHop.Addr.IsLinkLocalUnicast() {
+		return nh, fmt.Errorf("%w: MP_REACH next hop %v requires standalone link-local permission", ErrNextHopUnencodable, route.NextHop.Addr)
+	}
+	nh.global = route.NextHop.Addr.As16()
+	if linkLocalNextHop.IsValid() {
+		nh.linkLocal = linkLocalNextHop.As16()
+		nh.withLinkLocal = true
+	}
+	return nh, nil
 }
 
 // nextHopV4Octets returns the four octets RFC 4271 Section 5.1.3 gives the
@@ -103,48 +113,6 @@ func nextHopV4Octets(addr netip.Addr) ([4]byte, error) {
 		return [4]byte{}, fmt.Errorf("%w: NEXT_HOP %v is not an IPv4 address (RFC 4271 Section 5.1.3)", ErrNextHopUnencodable, addr)
 	}
 	return addr.As4(), nil
-}
-
-// nextHopGlobalOctets returns the sixteen octets RFC 2545 Section 3 calls "the
-// global IPv6 address of the next hop", the first address of the MP_REACH_NLRI
-// Next Hop field.
-//
-// attribute.ValidateGlobalNextHop owns the link-local half of that phrase and is
-// reused here rather than restated. It returns nil for an IPv4 address and for
-// the zero Addr, on the stated ground that an unset next hop is the caller's own
-// defect and naming it there would name the wrong producer. This function is that
-// caller, so those two cases are refused here.
-func nextHopGlobalOctets(addr netip.Addr) ([16]byte, error) {
-	if !addr.Is6() || addr.Is4In6() {
-		return [16]byte{}, fmt.Errorf("%w: MP_REACH next hop %v is not an IPv6 address (RFC 2545 Section 3)", ErrNextHopUnencodable, addr)
-	}
-	if err := attribute.ValidateGlobalNextHop(addr); err != nil {
-		return [16]byte{}, fmt.Errorf("%w: %w", ErrNextHopUnencodable, err)
-	}
-	return addr.As16(), nil
-}
-
-// nextHopLinkLocalOctets returns the sixteen octets RFC 2545 Section 3 calls "the
-// link-local IPv6 address of the next hop", and reports whether the 32-octet form
-// is owed at all.
-//
-// The zero Addr is not an error. It is Section 3's "in all other cases" answer,
-// which the caller has already decided against the host interface table
-// (Peer.linkLocalNextHopFor, link_scope.go), and it selects the 16-octet form.
-//
-// An address that is valid but not link-local unicast IS an error. The caller
-// asked for the second slot to be filled, and Section 3 permits exactly one kind
-// of address there. Quietly falling back to the 16-octet form would encode a
-// different answer than the caller gave, which is the failure this guard exists
-// to stop rather than a safe default.
-func nextHopLinkLocalOctets(addr netip.Addr) ([16]byte, bool, error) {
-	if !addr.IsValid() {
-		return [16]byte{}, false, nil
-	}
-	if !addr.Is6() || addr.Is4In6() || !addr.IsLinkLocalUnicast() {
-		return [16]byte{}, false, fmt.Errorf("%w: MP_REACH second next hop %v is not a link-local IPv6 address (RFC 2545 Section 3)", ErrNextHopUnencodable, addr)
-	}
-	return addr.As16(), true, nil
 }
 
 // Zero-allocation attribute writers.
@@ -548,8 +516,8 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 		// field on a MP_REACH_NLRI attribute shall be set to 16, when only a global
 		// address is present, or 32 if a link-local address is also included in the
 		// Next Hop field." The caller decided inclusion; the length follows it, and
-		// nextHopLinkLocalOctets has already refused an address that would fill the
-		// second slot with something Section 3 does not name.
+		// announceNextHopOctets has already applied shared family/field admission,
+		// including the role of the second address.
 		nhLen := 16
 		if nextHop.withLinkLocal {
 			nhLen = 32

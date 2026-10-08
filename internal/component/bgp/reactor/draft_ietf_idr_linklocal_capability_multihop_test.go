@@ -245,10 +245,10 @@ func TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient(t *testing.T) {
 // TestEgressNextHopGlobalHalf drives every branch of the predicate the two
 // tagged units above reach through the forward rail.
 //
-// VALIDATES: an on-link destination keeps any field; an off-link destination,
-// or one with no link scope, gets the first half of a 32-octet pair and of the
-// 48-octet VPN-IPv6 pair, nothing for a 16-octet field, and the last MP_REACH
-// Set in mods is asked in place of the payload's field.
+// VALIDATES: an on-link destination keeps a pair whose global entity is on-link;
+// an off-link destination, or one with no link scope, gets the first half of a
+// 32-octet pair or a 48-octet VPN-IPv6 pair, nothing for a 16-octet field, and the
+// last MP_REACH Set in mods is asked in place of the payload's field.
 // PREVENTS: the VPN form or a filter-written pair escaping the removal.
 func TestEgressNextHopGlobalHalf(t *testing.T) {
 	pair := make([]byte, 32)
@@ -269,29 +269,40 @@ func TestEgressNextHopGlobalHalf(t *testing.T) {
 	unscoped.llScope.Store(nil)
 
 	none := &filterapi.ModAccumulator{}
-	_, strip := egressNextHopGlobalHalf(onLink, none, payload(pair))
+	_, strip := egressNextHopGlobalHalf(onLink, none, payload(pair), family.IPv6Unicast)
 	assert.False(t, strip, "an on-link destination keeps the pair")
 
-	global, strip := egressNextHopGlobalHalf(offLink, none, payload(pair))
+	global, strip := egressNextHopGlobalHalf(offLink, none, payload(pair), family.IPv6Unicast)
 	require.True(t, strip, "an off-link destination loses the Link-Local")
 	assert.Equal(t, pair[:16], global)
 
-	global, strip = egressNextHopGlobalHalf(unscoped, none, payload(pair))
+	global, strip = egressNextHopGlobalHalf(unscoped, none, payload(pair), family.IPv6Unicast)
 	require.True(t, strip, "no link scope proves no shared subnet")
 	assert.Equal(t, pair[:16], global)
 
-	global, strip = egressNextHopGlobalHalf(offLink, none, payload(vpnPair))
+	global, strip = egressNextHopGlobalHalf(offLink, none, payload(vpnPair), family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN})
 	require.True(t, strip, "the VPN-IPv6 pair loses its Link-Local too")
 	assert.Equal(t, vpnPair[:24], global, "RD and Global kept")
 
-	_, strip = egressNextHopGlobalHalf(offLink, none, payload(pair[:16]))
+	_, strip = egressNextHopGlobalHalf(offLink, none, payload(pair[:16]), family.IPv6Unicast)
 	assert.False(t, strip, "a Global alone has nothing to remove")
 
 	written := &filterapi.ModAccumulator{}
 	written.Op(14, filterapi.AttrModSet, pair)
-	global, strip = egressNextHopGlobalHalf(offLink, written, payload(pair[:16]))
+	global, strip = egressNextHopGlobalHalf(offLink, written, payload(pair[:16]), family.IPv6Unicast)
 	require.True(t, strip, "a pair written by a rewrite is asked, not the payload's field")
 	assert.Equal(t, pair[:16], global)
+
+	offSubnetPair := append([]byte(nil), pair...)
+	copy(offSubnetPair, netip.MustParseAddr("2001:db8:ff::9").AsSlice())
+	rewrittenOffSubnet := &filterapi.ModAccumulator{}
+	rewrittenOffSubnet.Op(14, filterapi.AttrModSet, offSubnetPair)
+	global, strip = egressNextHopGlobalHalf(onLink, rewrittenOffSubnet, payload(pair), family.IPv6Unicast)
+	require.True(t, strip, "the rewritten global entity, not the received one, decides subnet membership")
+	assert.Equal(t, offSubnetPair[:16], global)
+
+	_, strip = egressNextHopGlobalHalf(onLink, written, payload(offSubnetPair), family.IPv6Unicast)
+	assert.False(t, strip, "an on-link rewrite restores the common-subnet condition")
 }
 
 // TestMPReachNextHopHandler_Rewrite48To24Bytes applies the cut

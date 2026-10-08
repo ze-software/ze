@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/nlri.md -- native VPN withdrawal decoding
+// RFC naming: untagged -- supplementary CLI consumer regression; it does not claim independent whole-clause coverage.
 
 package cli
 

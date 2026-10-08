@@ -219,16 +219,16 @@ type UnicastParams struct {
 // RFC 4271 Appendix F.3 - Attributes are ordered by type code for
 // consistent wire format and interoperability.
 //
-// Returns ErrUnicastNextHopUnusable, and no Update, for an IPv4 unicast route
-// whose next hop only the NEXT_HOP attribute could carry and that attribute
-// cannot hold.
+// Returns ErrUnicastNextHopUnusable, and no Update, when a unicast next hop
+// cannot fill its address role. Callers MUST check negotiated permission for
+// standalone link-local next hops before calling BuildUnicast.
 func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) (*Update, error) {
-	isUnicast := p.SAFI == 0 || p.SAFI == attribute.SAFIUnicast
-	if isUnicast && p.Prefix.Addr().Is4() {
-		if err := checkInlineNextHop(p); err != nil {
-			return nil, err
-		}
+	// RFC 2545 Section 3; RFC 8950 Section 3: multicast shares the plain
+	// next-hop field contract rather than bypassing unicast admission.
+	if err := checkUnicastNextHop(p); err != nil {
+		return nil, err
 	}
+	isUnicast := p.SAFI == 0 || p.SAFI == attribute.SAFIUnicast
 
 	ub.resetScratch()
 
@@ -253,10 +253,6 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) (*Update, error) {
 	// field. Extended Next Hop changes nothing here, because RFC 8950 moves only
 	// an IPv6 next hop into MP_REACH_NLRI.
 	if isUnicast && p.Prefix.Addr().Is4() && p.NextHop.Is4() {
-		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
-	}
-	// RFC 8950: For IPv6 unicast with IPv4 next-hop, include NEXT_HOP for compatibility
-	if isUnicast && p.Prefix.Addr().Is6() && p.NextHop.Is4() && p.UseExtendedNextHop {
 		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
 	}
 
@@ -378,25 +374,115 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) (*Update, error) {
 	}, nil
 }
 
-// ErrUnicastNextHopUnusable is BuildUnicast's refusal of an IPv4 unicast route
-// whose next hop is neither IPv4 nor an IPv6 address sent with Extended Next Hop.
-var ErrUnicastNextHopUnusable = errors.New(
-	"IPv4 unicast route needs an IPv4 next hop, or an IPv6 one with extended next hop")
+// ErrUnicastNextHopUnusable reports a unicast next hop whose address family or
+// address role cannot be encoded.
+var ErrUnicastNextHopUnusable = errors.New("unicast next hop has an unusable address family or role")
 
-// checkInlineNextHop refuses an IPv4 unicast route BuildUnicast would place in
-// the body NLRI field with no NEXT_HOP attribute. That attribute carries only an
-// IPv4 address; an IPv6 next hop reaches the peer only in MP_REACH_NLRI, which
-// RFC 8950 permits once Extended Next Hop is in use.
-func checkInlineNextHop(p *UnicastParams) error {
-	if p.NextHop.Is4() {
+// checkUnicastNextHop admits native IPv4 or the IPv6 MP_REACH forms.
+// RFC 4271 Section 5: "Some of these attributes are mandatory and MUST be
+// included in every UPDATE message that contains NLRI."
+// RFC 8950 Section 3 permits IPv4 NLRI with an IPv6 next hop: "This field is to
+// be constructed as per Section 3 of [RFC2545]." It does not permit the reverse.
+func checkUnicastNextHop(p *UnicastParams) error {
+	afi := family.AFIIPv6
+	if p.Prefix.Addr().Is4() {
+		afi = family.AFIIPv4
+		if !p.NextHop.Is4() {
+			if !p.UseExtendedNextHop {
+				return ErrUnicastNextHopUnusable
+			}
+		}
+	}
+	safi := family.SAFI(p.SAFI)
+	if safi == 0 {
+		safi = family.SAFIUnicast
+	}
+	// RFC 2545 Section 3; RFC 8950 Section 3.
+	return ValidateFamilyNextHop(family.Family{AFI: afi, SAFI: safi}, p.NextHop, unicastLinkLocalNextHop(p))
+}
+
+// unicastLinkLocalNextHop projects the optional address actually serialized by
+// buildMPReach. Native IPv4 and mapped forms never append a link-local hint.
+func unicastLinkLocalNextHop(p *UnicastParams) netip.Addr {
+	if p.NextHop.Is6() && !p.NextHop.Is4In6() {
+		return p.LinkLocalNextHop
+	}
+	return netip.Addr{}
+}
+
+// ValidateFamilyNextHop checks the plain field a builder will serialize.
+// RFC 8950 Section 3: "The BGP speaker receiving the advertisement MUST use the
+// Length of Next Hop Address field to determine which network-layer protocol
+// the next-hop address belongs to." BitLen counts exactly the address octets.
+// Callers MUST separately establish negotiated permission before sending.
+func ValidateFamilyNextHop(fam family.Family, nextHop, linkLocal netip.Addr) error {
+	profile := attribute.MPNextHopProfile(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI))
+	// RFC 2545 Section 3; RFC 9830 Section 2.1.
+	return ValidateMPNextHop(profile, nextHop.BitLen()/8+linkLocal.BitLen()/8, nextHop, linkLocal)
+}
+
+// ValidateMPNextHop admits the actual plain IPv6-role field, before any address
+// normalization could hide its width. VPN and independent plugin contracts are
+// not plain fields and retain their own admission.
+// RFC 9830 Section 2.1: "The Length field of the next-hop address specifies the
+// next-hop address family." The field is IPv4(4), IPv6(16), or IPv6+LL(32).
+// Callers MUST obtain profile from attribute.MPNextHopProfile and separately
+// check capability 5 and standalone link-local permission.
+func ValidateMPNextHop(profile attribute.NextHopProfile, octets int, nextHop, linkLocal netip.Addr) error {
+	if !profile.IPv6Roles {
 		return nil
 	}
-	if p.UseExtendedNextHop && p.NextHop.Is6() {
+	if !slices.Contains(profile.Lengths, octets) {
+		return ErrUnicastNextHopUnusable
+	}
+	if octets == 4 {
+		if nextHop.Is4() && !linkLocal.IsValid() {
+			return nil
+		}
+		return ErrUnicastNextHopUnusable
+	}
+	if profile.MappedIPv4 && octets == 16 && !linkLocal.IsValid() && nextHop.Unmap().Is4() {
+		// RFC 8950 Section 1 recognizes this IPv4 next-hop representation.
 		return nil
 	}
-	// RFC 4271 Section 5: "Some of these attributes are mandatory and MUST be
-	// included in every UPDATE message that contains NLRI."
-	return ErrUnicastNextHopUnusable
+	// RFC 2545 Section 3: global first, optional link-local second.
+	return ValidateIPv6NextHop(nextHop, linkLocal)
+}
+
+// ValidateIPv6NextHop checks address roles in an ordinary plain IPv6 field.
+// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
+// Address of Next Hop field the global IPv6 address of the next hop, potentially
+// followed by the link-local IPv6 address of the next hop."
+// The MP_REACH value holds AFI[0:2], SAFI[2], length[3], global[4:20],
+// optional link-local[20:36], reserved, then NLRI.
+//
+// Callers MUST check negotiated permission for standalone link-local encoding
+// before advertising it. This address-role check has no session capabilities.
+// Family-specific mapped exceptions are selected by ValidateMPNextHop.
+func ValidateIPv6NextHop(nextHop, linkLocal netip.Addr) error {
+	if !nextHop.Is6() {
+		return ErrUnicastNextHopUnusable
+	}
+	if nextHop.Is4In6() {
+		return ErrUnicastNextHopUnusable
+	}
+	if linkLocal.IsValid() {
+		if !linkLocal.Is6() {
+			return ErrUnicastNextHopUnusable
+		}
+		if !linkLocal.IsLinkLocalUnicast() {
+			return ErrUnicastNextHopUnusable
+		}
+	} else if nextHop.IsLinkLocalUnicast() {
+		// draft-ietf-idr-linklocal-capability Section 3: "it MUST set the
+		// length of the Next Hop field to 16 and include only the IPv6
+		// Link-Local address in the Next Hop field."
+		return nil
+	}
+	if !nextHop.IsGlobalUnicast() {
+		return ErrUnicastNextHopUnusable
+	}
+	return nil
 }
 
 // appendASPath appends the AS_PATH attribute for configuredPath to attrs, and
@@ -582,14 +668,15 @@ func (ub *UpdateBuilder) buildMPReach(p *UnicastParams) *attribute.MPReachNLRI {
 	// negotiated combination: "When this combination has not been negotiated, a
 	// sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next
 	// Hop as 32 octets."
+	linkLocal := unicastLinkLocalNextHop(p)
 	nhCount := 1
-	if p.LinkLocalNextHop.IsValid() && p.NextHop.Is6() && !p.NextHop.Is4In6() {
+	if linkLocal.IsValid() {
 		nhCount = 2
 	}
 	nextHops := make([]netip.Addr, nhCount) // pool-fallback: escapes via MPReachNLRI.NextHops
 	nextHops[0] = p.NextHop
 	if nhCount == 2 {
-		nextHops[1] = p.LinkLocalNextHop
+		nextHops[1] = linkLocal
 	}
 
 	return attribute.NewMPReachNLRI(afi, safi, nextHops, nlriBytes)

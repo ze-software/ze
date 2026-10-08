@@ -338,3 +338,55 @@ func TestPeerRIBRetainedPathsSurviveReplacement(t *testing.T) {
 		}
 	}
 }
+
+// TestPeerRIBRemoveFamilyMatchingOwnsStorageTransaction pins the same lock used
+// by received inserts across selection and removal, and reports only removed
+// generations. The fresh and stale paths initially came from one UPDATE.
+func TestPeerRIBRemoveFamilyMatchingOwnsStorageTransaction(t *testing.T) {
+	rib := NewPeerRIB("192.0.2.1")
+	defer rib.Release()
+	fam := family.IPv4Unicast
+	rib.SetAddPath(fam, true)
+	attrs := []byte{0x40, 0x01, 0x01, 0x00}
+	fresh := []byte{0, 0, 0, 0, 24, 10, 0, 0}
+	stale := []byte{0, 0, 0, 17, 24, 10, 0, 0}
+	for _, raw := range [][]byte{fresh, stale} {
+		rib.Insert(fam, attrs, raw)
+		rib.ModifyFamilyEntry(fam, raw, func(entry *RouteEntry) {
+			entry.MsgID = 91
+			entry.StaleLevel = 2
+		})
+	}
+	rib.Insert(fam, attrs, fresh)
+	rib.ModifyFamilyEntry(fam, fresh, func(entry *RouteEntry) { entry.MsgID = 92 })
+	requireStorageLock := func() {
+		t.Helper()
+		acquired := rib.mu.TryLock()
+		if acquired {
+			rib.mu.Unlock()
+		}
+		require.False(t, acquired, "received inserts must be excluded by the storage lock")
+	}
+	var removed [][]byte
+	count := rib.RemoveFamilyMatching(fam, func(entry RouteEntry) bool {
+		requireStorageLock()
+		return entry.StaleLevel != StaleLevelFresh
+	}, func(raw []byte, message uint64, addPath bool) {
+		requireStorageLock()
+		require.Equal(t, uint64(91), message)
+		require.True(t, addPath)
+		require.Equal(t, stale, raw)
+		_, exists := rib.families[fam].lookupEntry(raw)
+		require.False(t, exists, "callback must describe a successful removal, not a candidate")
+		removed = append(removed, raw)
+	})
+	require.Equal(t, 1, count)
+	require.Len(t, removed, 1)
+	entry, exists := rib.Lookup(fam, fresh)
+	require.True(t, exists)
+	require.Equal(t, uint64(92), entry.MsgID)
+	require.Equal(t, StaleLevelFresh, entry.StaleLevel)
+	rib.Insert(fam, attrs, stale)
+	require.Equal(t, stale, removed[0], "callback bytes must survive later storage mutation")
+	require.Equal(t, 2, rib.Len())
+}

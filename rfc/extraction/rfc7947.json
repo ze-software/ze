@@ -123,7 +123,7 @@
       "id": "2.3.2.2.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "BGP ADD-PATH Approach. Describes RFC 7911 and the send-only mode a route server 'should enforce' toward its clients. The keyword is lower case, so under section 1.1 it carries no RFC 2119 level and the site scan sees nothing. RFC7947-x-6 reads its [MAY] from this subsection. Non-normative by its parent's declaration."
+      "reason": "BGP ADD-PATH Approach. Describes RFC 7911 and the send-only mode a route server 'should enforce' toward its clients. Section 2.3 explicitly states: \"Neither Section 2.3 nor its subsections form part of the normative specification of this document; they are included for information purposes only.\" No normative permission or replacement requirement is extracted from this subsection."
     },
     {
       "id": "2.3.3",

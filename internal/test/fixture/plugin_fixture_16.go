@@ -723,11 +723,15 @@ func plugin16WellknownNoExport(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func plugin16WellknownWithdraw(ctx context.Context, p *sdk.Plugin) error {
-	if err := plugin16WellknownCounts(ctx, p, 3, 2, "internal peer was not sent both halves and the fence", "external peer was not sent the withdrawal and the fence"); err != nil {
+	if err := withdrawSeedReceipts03(ctx, p); err != nil {
+		return err
+	}
+	// Include exactly one seed UPDATE on each destination, never a 10.0.0.0/24 seed.
+	if err := plugin16WellknownCounts(ctx, p, 4, 3, "internal peer was not sent the seed, both halves and the fence", "external peer was not sent the seed, withdrawal and fence"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: internal peer received both halves and the fence")
-	fmt.Fprintln(os.Stderr, "OK: external peer received the withdrawal and the fence, nothing else")
+	fmt.Fprintln(os.Stderr, "OK: external peer received the seed, withdrawal and fence, nothing else")
 	return nil
 }
 

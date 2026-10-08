@@ -310,6 +310,10 @@ type Session struct {
 	initialReplay uint64
 	// A write failure seals this exact connection before any further writer.
 	writeFailed error
+	// A successful nonempty bufWriter.Write MUST set writePending under writeMu.
+	// flushWrites consumes it only after flush succeeds, including direct writes
+	// that bufio has already sent without retaining buffered bytes.
+	writePending bool
 
 	// Negotiated sender limits and advertised path identities, owned by writeMu.
 	pathsLimit       map[capability.Family]*pathsLimitFamily
@@ -506,7 +510,7 @@ type Session struct {
 	// heap allocation for every section of every inbound UPDATE
 	// (applyInstalledPrefixSection, session_prefix.go). Read goroutine only.
 	prefixSetWalk  prefixSetWalk
-	prefixSetVisit func(entry []byte)
+	prefixSetVisit func(entry []byte) bool
 
 	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
@@ -548,8 +552,8 @@ type Session struct {
 
 	// Send Hold Timer (RFC 9687): detects when the local side cannot send.
 	// sendHoldDeadline stores the UnixNano of the next expiry; 0 = not running.
-	// Updated atomically on every write (zero-alloc hot path). A single timer
-	// checks the deadline on expiry and reschedules if writes pushed it forward.
+	// Updated atomically after successful emission and flush (zero-alloc hot path).
+	// A single timer checks expiry and reschedules if writes pushed it forward.
 	sendHoldDeadline atomic.Int64
 	sendHoldTimer    clock.Timer
 	sendHoldMu       sync.Mutex // protects sendHoldTimer start/stop lifecycle

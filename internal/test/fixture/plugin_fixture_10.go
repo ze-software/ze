@@ -11,16 +11,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const fixture10PollDelay = 100 * time.Millisecond
 
 type fixture10Driver struct {
-	pluginName   string
-	registration sdk.Registration
-	setup        func(*sdk.Plugin)
-	scenario     ObserverScenario
+	pluginName     string
+	registration   sdk.Registration
+	setup          func(*sdk.Plugin)
+	scenario       ObserverScenario
+	replayScenario func(context.Context, *sdk.Plugin, uint64) error
 }
 
 func init() {
@@ -51,20 +53,17 @@ func init() {
 		"plugin/ping-show":                   {pluginName: "ping-show-test", scenario: fixture10PingShow},
 		"plugin/pki-ca-root-export":          {pluginName: "pki-ca-root-export-test", scenario: fixture10PKICARootExport},
 		"plugin/pki-certificate-export-show": {pluginName: "pki-export-show-test", scenario: fixture10PKIExport},
-		// Both declare SignalsSessionReady because both push their whole route
-		// set into the peer's INITIAL routing update, and the .ci expects the
-		// End-of-RIB marker AFTER those routes. Without the declaration the
-		// peer waits for nobody and the marker races the announces, which
-		// plugin-attributes.ci caught as an out-of-order marker.
+		// Both report their initial contribution using the original peer-UP
+		// receipt. Their reports do not delay the independent End-of-RIB.
 		"plugin/plugin-announce": {
-			pluginName:   pluginNameAddRemove,
-			registration: sdk.Registration{SignalsSessionReady: true},
-			scenario:     fixture10PluginAnnounce,
+			pluginName:     pluginNameAddRemove,
+			registration:   sdk.Registration{SignalsSessionReady: true},
+			replayScenario: fixture10PluginAnnounce,
 		},
 		"plugin/plugin-attributes": {
-			pluginName:   pluginNameAddRemove,
-			registration: sdk.Registration{SignalsSessionReady: true},
-			scenario:     fixture10PluginAttributes,
+			pluginName:     pluginNameAddRemove,
+			registration:   sdk.Registration{SignalsSessionReady: true},
+			replayScenario: fixture10PluginAttributes,
 		},
 		"plugin/plugin-command-completion": {
 			pluginName: "completion-test",
@@ -90,7 +89,7 @@ func init() {
 	// deliberately rather than indexed.
 	for name, observer := range observers { //nolint:gocritic // the registered closure outlives the iteration
 		Register(name, func(ctx context.Context, _ []string) error {
-			if observer.setup == nil {
+			if observer.setup == nil && observer.replayScenario == nil {
 				return Observe(ctx, observer.pluginName, observer.registration, observer.scenario)
 			}
 			return fixture10Observe(ctx, &observer)
@@ -100,6 +99,9 @@ func init() {
 }
 
 func fixture10Observe(ctx context.Context, driver *fixture10Driver) error {
+	if driver.replayScenario != nil {
+		return fixtureObserveInitialReplay(ctx, driver.pluginName, driver.registration, driver.replayScenario)
+	}
 	plugin, err := newObserver(driver.pluginName)
 	if err != nil {
 		return fmt.Errorf("connect observer %s: %w", driver.pluginName, err)
@@ -865,7 +867,7 @@ func fixture10PKICARootExport(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
-func fixture10PluginAnnounce(ctx context.Context, plugin *sdk.Plugin) error {
+func fixture10PluginAnnounce(ctx context.Context, plugin *sdk.Plugin, initialReplay uint64) error {
 	for _, command := range []string{
 		cmdAnnounceFirstPrefix,
 		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.2.0.0/25",
@@ -874,29 +876,24 @@ func fixture10PluginAnnounce(ctx context.Context, plugin *sdk.Plugin) error {
 			return err
 		}
 	}
-	if err := fixture10SessionReady(ctx, plugin); err != nil {
+	if err := fixture10SessionReady(ctx, plugin, initialReplay); err != nil {
 		return err
 	}
 	return fixture10Quiesce(ctx, plugin)
 }
 
-// fixture10SessionReady reports that this process has finished the routes it
-// owes the peer's INITIAL routing update, which releases the End-of-RIB the peer
-// is holding for it.
-//
-// Owed by every fixture here that declares sdk.Registration.SignalsSessionReady:
-// the declaration arms the wait and this is what ends it, so a fixture that
-// declares and never reports costs its peer the full api-sync timeout.
-//
-// The peer is named by address because the barrier is per peer and the report
-// credits one process on one peer (Reactor.SignalPeerAPIReady). Both scenarios
-// that use it run a single peer at 127.0.0.1.
-func fixture10SessionReady(ctx context.Context, plugin *sdk.Plugin) error {
-	reply := fixture10Call(ctx, plugin, "request peer 127.0.0.1 plugin session ready")
-	return reply.requireDone("request peer 127.0.0.1 plugin session ready")
+// fixture10SessionReady MUST receive the original peer-UP receipt captured before
+// replay starts. Callers MUST NOT fetch a later token to complete this work.
+// Completion reports the process's contribution; it never holds End-of-RIB.
+// These fixtures all use the single peer at 127.0.0.1.
+func fixture10SessionReady(ctx context.Context, plugin *sdk.Plugin, initialReplay uint64) error {
+	var command textbuf.Buffer
+	command.Reset().Str("request peer 127.0.0.1 plugin session ready session ").Uint(initialReplay)
+	reply := fixture10Call(ctx, plugin, command.Slice())
+	return reply.requireDone(command.Slice())
 }
 
-func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin) error {
+func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin, initialReplay uint64) error {
 	for _, command := range []string{
 		"update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32",
 		"update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.2/32",
@@ -907,7 +904,7 @@ func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin) error {
 			return err
 		}
 	}
-	if err := fixture10SessionReady(ctx, plugin); err != nil {
+	if err := fixture10SessionReady(ctx, plugin, initialReplay); err != nil {
 		return err
 	}
 	return fixture10Quiesce(ctx, plugin)

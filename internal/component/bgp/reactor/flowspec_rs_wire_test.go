@@ -185,13 +185,14 @@ func flowForwardLiveRouter(t *testing.T, mode string) []*lowLivePeer {
 // The hub installs its server as the shared EventBus before spawning engines.
 // Without that injection, authorization can race the first forward and no
 // ValidationChange subscriber can replay the newly authorized retained rule.
-func flowForwardPluginServer(t *testing.T, r *Reactor) *pluginserver.Server {
+func flowForwardPluginServer(t *testing.T, r *Reactor, extra ...plugin.PluginConfig) *pluginserver.Server {
 	t.Helper()
 	names := []string{"bgp-rib", "bgp-adj-rib-in", "bgp-rs"}
 	var configs []plugin.PluginConfig
 	for _, name := range names {
 		configs = append(configs, plugin.PluginConfig{Name: name, Internal: true, Encoder: "json"})
 	}
+	configs = append(configs, extra...)
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{Plugins: configs}, &reactorAPIAdapter{r: r})
 	if err != nil {
 		t.Fatal(err)

@@ -1,112 +1,107 @@
-# Test: LLGR RIB stale — peer routes retained through LLGR with LLGR_STALE
-#
-# Flow:
-# 1. Connection 1: ze sends static route + EOR
-# 2. ze-peer sends route to ze (populates ribInPool)
-# 3. action=close → TCP drops → GR activates → retain-routes → mark-stale
-# 4. GR restart-time (1s) expires → LLGR begins:
-#    - LLGR_STALE community attached to stale ribIn routes (rib attach-community)
-#    - NO_LLGR routes deleted (rib delete-with-community)
-#    - Stale level raised to 2 (depreference threshold)
-# 5. Connection 2: ze reconnects → ribOut replay (static route × 2 + EOR)
-# 6. ze-peer sends fresh route + EOR
-# 7. EOR triggers purge-stale → LLGR stale routes purged for that family
-#
-# VALIDATES: AC-4 — LLGR period begins → LLGR_STALE attached, NO_LLGR deleted.
-# VALIDATES: AC-6 — EOR after reconnect during LLGR triggers stale route purge.
-# PREVENTS: Stale ribIn routes being lost during LLGR transition.
-
-# ze-peer expectations
-stdin=peer:terminator=EOF_PEER
+# Test: received routes survive GR and LLGR, then EOR purges only stale routes.
+# Both OPEN directions reach GR. Received-RIB observations and destination-wire
+# acknowledgments release TCP close and EOR; static replay is not retention proof.
+stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=2
-option=timeout:value=15s
-
-# Connection 1: Static route + EOR from ze
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# Send a route to ze (populates ribInPool) then close TCP
-# Route: 10.0.0.0/24, origin=igp, as-path=[], nhop=10.0.0.2, local-pref=100
-action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
-action=close:conn=1:seq=2
-
-# Connection 2: ribOut replay — static route (config + RIB replay) + EOR
-# Routes survived GR restart-time expiry because LLGR retained them
-expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+option=timeout:value=40s
+option=linger:value=true
+option=open:value=router-id:id=192.0.2.1
+option=open:value=graceful-restart:restart-time=3
+option=open:value=llgr:stale-time=60
+expect=bgp:conn=1:seq=1:contains=18C63363
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C400101004002004003040A00000240050400000064C00804FFFF0007180A0001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0002
+expect=bgp:conn=1:seq=2:contains=18C63364
+action=close:conn=1:seq=3
+# The two observer markers replay on reconnect. They synchronize only; the
+# observer separately checks retained received routes before allowing EOR.
+expect=bgp:conn=2:seq=1:announced=18C63363
+expect=bgp:conn=2:seq=1:announced=18C63364
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# Send fresh route + EOR (triggers purge-stale for LLGR stale routes)
-# Fresh route: 172.16.0.0/24, origin=igp, as-path=[], nhop=10.0.0.2, local-pref=100
-action=send:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000024005040000006418AC1000
-# EOR (empty UPDATE) → GR plugin receives eor event → dispatches purge-stale
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
+# A distinct release prefix cannot be suppressed as an unchanged advertisement.
+expect=bgp:conn=2:seq=2:announced=18C63365
 action=send:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-EOF_PEER
+EOF_SOURCE
 
-# ze bgp configuration
+stdin=control:terminator=EOF_CONTROL
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=linger:value=true
+option=open:value=router-id:id=192.0.2.2
+option=open:value=graceful-restart:restart-time=3
+option=open:value=llgr:stale-time=60
+expect=bgp:conn=1:seq=1:announced=180A0000
+expect=bgp:conn=1:seq=1:announced=180A0001:attribute=8,FFFF0007
+expect=bgp:conn=1:seq=1:announced=180A0002
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000024005040000006418CB0070
+# NO_LLGR is withdrawn, not just absent from the received store.
+expect=bgp:conn=1:seq=2:withdrawn=180A0001
+expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF0006
+expect=bgp:conn=1:seq=2:announced=180A0002:attribute=8,FFFF0006
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000024005040000006418CB0071
+# A fresh source UPDATE precedes its EOR-triggered withdrawal of the other route.
+expect=bgp:conn=1:seq=3:announced=180A0000
+expect=bgp:conn=1:seq=3:withdrawn=180A0002
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000024005040000006418CB0072
+# The refreshed route must not be withdrawn at DOWN or during EOR cleanup.
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
+EOF_CONTROL
+
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	internal gr {
-		use bgp-gr
-	}
-	internal bgp-rib {
-		use bgp-rib
-	}
+ internal gr { use bgp-gr; }
+ internal bgp-rib { use bgp-rib; }
+ internal rs { use bgp-rs; }
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ external observer { run "le test fixture plugin/llgr-rib-stale"; encoder json; }
 }
-
 bgp {
-	peer peer1 {
-		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
-			family {
-				ipv4/unicast { prefix { maximum 10000; } }
-			}
-			capability {
-				graceful-restart {
-					restart-time 1
-					long-lived-stale-time 60
-				}
-			}
-		}
-		behavior {
-			group-updates disable
-		}
-		timer { connect-retry 3; }
-
-
-		update {
-			attribute {
-				origin igp
-				local-preference 100
-				next-hop 10.0.0.1
-			}
-			nlri {
-				ipv4/unicast add 192.168.1.0/24
-			}
-		}
-
-		attach process gr {
-			receive [ open-received state eor ]
-			send [ update ]
-		}
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-	}
+ peer source {
+  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+  session {
+   asn { local 1; remote 1; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart { restart-time 120; long-lived-stale-time 3600; } }
+   route-reflector-client true
+   cluster-id 10.10.10.10
+  }
+  behavior { group-updates disable; }
+  timer { connect-retry 8; }
+  attach process gr { receive [ open state eor ]; send [ update ]; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+  attach process observer { receive [ state ]; send [ update ]; }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  # ACKs from control must not be reflected to this strict source dialogue.
+  attach process rs { receive [ update-received state open-received refresh ]; }
+ }
+ peer control {
+  connection { remote { ip ::1; } local { ip ::1; accept false; } }
+  session {
+   asn { local 1; remote 1; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart { restart-time 120; long-lived-stale-time 3600; } }
+   route-reflector-client true
+   cluster-id 10.10.10.10
+  }
+  behavior { group-updates disable; }
+  timer { connect-retry 60; }
+  attach process gr { receive [ open state eor ]; send [ update ]; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+  attach process observer { receive [ state ]; send [ update ]; }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
+ }
 }
 EOF_CONF
 
-# Process orchestration
-cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind ::1 --port $PORT:stdin=control
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
+await=stderr:contains=OK: received LLGR lifecycle eor:then=stop
+expect=exit:code=0
+expect=stderr:contains=OK: received LLGR lifecycle eor
+reject=stderr:pattern=panic

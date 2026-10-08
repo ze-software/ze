@@ -57,7 +57,6 @@
 2 internal/component/bgp/plugins/nlri/srpolicy/encode.go
 2 internal/component/bgp/plugins/nlri/vpls/encode.go
 2 internal/component/bgp/plugins/nlri/vpn/vpn.go
-2 internal/component/bgp/plugins/persist/server.go
 2 internal/component/bgp/plugins/rib/rib_commands.go
 2 internal/component/bgp/plugins/rs/server_text.go
 4 internal/component/bgp/plugins/watchdog/config.go

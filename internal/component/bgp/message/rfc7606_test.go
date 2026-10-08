@@ -2303,43 +2303,41 @@ func TestRFC7606SystematicLengthCorruption(t *testing.T) {
 	})
 
 	// ==================================================================
-	// Gap 5: Missing mandatory attributes with MP_REACH_NLRI.
-	//
-	// rfc7606.go:304-318 checks for missing ORIGIN/AS_PATH when
-	// mpReachCount > 0. Existing tests only cover the hasNLRI=true
-	// path (lines 279-301). This tests the MP_REACH path.
+	// Missing mandatory attributes with an empty MP_REACH_NLRI.
+	// Section 3.d diagnoses the missing attributes; because this fixture
+	// carries no reachable NLRI, Section 5.2 escalates to session reset.
 	// ==================================================================
 	bMPReach := []byte{0x80, 0x0e, 0x09, // MP_REACH, code=14, len=9
 		0x00, 0x01, 0x01, // AFI=1, SAFI=1
 		0x04, 0xc0, 0x00, 0x02, 0x01, // NH_LEN=4, 192.0.2.1
 		0x00} // Reserved
 
-	// RFC requirement: RFC7606-3.d-1 negative — ORIGIN missing on the MP_REACH path is treat-as-withdraw.
+	// RFC requirement: RFC7606-3.d-1 negative — missing ORIGIN is diagnosed with an empty MP_REACH; Section 5.2 escalates to session reset.
 	t.Run("mp_reach/missing_ORIGIN", func(t *testing.T) {
 		// MP_REACH present, AS_PATH present, but no ORIGIN.
 		pathAttr := join(bASPath, bMPReach)
 		result := ValidateUpdateRFC7606(pathAttr, false, false, false)
-		require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+		require.Equal(t, RFC7606ActionSessionReset, result.Action)
 		require.Equal(t, uint8(1), result.AttrCode) // ORIGIN code
 		require.Contains(t, result.Description, "ORIGIN")
 	})
 
-	// RFC requirement: RFC7606-3.d-1 negative — AS_PATH missing on the MP_REACH path is treat-as-withdraw.
+	// RFC requirement: RFC7606-3.d-1 negative — missing AS_PATH is diagnosed with an empty MP_REACH; Section 5.2 escalates to session reset.
 	t.Run("mp_reach/missing_AS_PATH", func(t *testing.T) {
 		// MP_REACH present, ORIGIN present, but no AS_PATH.
 		pathAttr := join(bOrigin, bMPReach)
 		result := ValidateUpdateRFC7606(pathAttr, false, false, false)
-		require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+		require.Equal(t, RFC7606ActionSessionReset, result.Action)
 		require.Equal(t, uint8(2), result.AttrCode) // AS_PATH code
 		require.Contains(t, result.Description, "AS_PATH")
 	})
 
 	t.Run("mp_reach/missing_both_ORIGIN_and_AS_PATH", func(t *testing.T) {
 		// MP_REACH present but both ORIGIN and AS_PATH missing.
-		// Two errors collected; strongest is treat-as-withdraw.
+		// Two errors collected; Section 5.2 escalates their withdrawal action.
 		pathAttr := join(bMPReach)
 		result := ValidateUpdateRFC7606(pathAttr, false, false, false)
-		require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+		require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	})
 
 	// ==================================================================

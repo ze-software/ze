@@ -140,10 +140,32 @@ failed first-AS validation, LOCAL_PREF was discarded on ingress, no destination
 matched, and its observer accepted EOR alone. Adding a delay or retaining that
 observer would not repair the missing stimulus and recipient.
 
+AS override is part of `wireu.ASPathEdit`, not a second AS_PATH Set appended
+after the eBGP prepend. A later Set would discard the prepend generator.
+The composer resolves the effective policy Set, generator and Prepend fragments,
+reconstructs a legacy AS4_PATH when needed, replaces the peer ASN, then applies
+the protocol prepend and projects both outgoing path attributes together.
+It reads segment values through the attribute spans, without stripping another
+TLV header. Matching-width values retain the one-copy generator path; overrides
+touch the destination-owned bytes, never the shared receive body.
+
+`TestForwardASOverrideComposition` observes actual Session-written UPDATEs on
+both rails, for ASN4 and ASN2 recipients. It requires the ordinary eBGP prepend
+alongside override, preserves the RS-client and absent-target controls, and
+exercises policy Set, generated Set and Prepend operations.
+`TestASOverrideComposesLegacyAS4Projection` checks the real non-mappable ASN
+through AS_PATH/AS4_PATH reconstruction, including a policy-provided companion.
+`TestASOverrideUsesAttributeValue` retains both TLV header forms, source
+immutability, repeated targets and the empty-path control.
+<!-- source: internal/component/bgp/wireu/aspath_compose.go -- recordComposed -->
+<!-- source: internal/component/bgp/wireu/aspath_slot.go -- ASPathIntent, ASPathEdit -->
+<!-- test: internal/component/bgp/reactor/forward_as_override_composition_test.go TestForwardASOverrideComposition, TestASOverrideComposesLegacyAS4Projection -->
+<!-- test: internal/component/bgp/reactor/filter_delta_test.go TestASOverrideUsesAttributeValue -->
+
 For semantic discrimination, use an isolated Go overlay of
 `internal/component/bgp/reactor/reactor_api_forward.go` that bypasses only the
-`applyASOverride(facts.peerAS, facts.localAS, peerBaseWire, facts.sendASN4, &mods)`
-call in `forwardUpdateCore`. Leave LOCAL_PREF handling, reflection,
+`intent.OverridePeerAS, intent.OverrideLocalAS = facts.peerAS, facts.localAS`
+assignment in `forwardUpdateSection`. Leave LOCAL_PREF handling, reflection,
 materialization and the fast rail unchanged. The first external exact frame
 must fail; the internal frames and target-AS-absent second external frame must
 remain unchanged. This identifies AS replacement rather than generic forwarding
@@ -151,10 +173,11 @@ as the changed behavior. A separate absent-recipient control can remove only
 `edited-ebgp-recipient` from a draft configuration and reduce the peer harness's
 `tcp_connections` to two, leaving the observer unchanged: it must fail the
 three-address EOR gate, never credit the internal recipient for the missing
-target. Neither control has been executed as part of authoring this repair.
+target. Rebuild the isolated binaries after a producer change before crediting
+either control.
 
 <!-- source: internal/test/fixture/plugin_fixture_03_mod_copy.go -- bgpRSModCopy03 -->
-<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore, applyASOverride -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
 
 ## Traps
 

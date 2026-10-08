@@ -30,13 +30,15 @@ option=conn_map:value=remote-ip
 # Source peer (conn=1, AS 65001) announces three EVPN routes in one MP_REACH_NLRI:
 #   ORIGIN:   40010100                 IGP
 #   AS_PATH:  40020602010000FDE9       AS_SEQUENCE[65001], 4-byte ASNs
-#   MP_REACH: 800E21 0019 46 04 01010101 00   AFI 25 / SAFI 70, next-hop 1.1.1.1
-#     NLRI 1: 0308 0000000000000001     route type 3, Inclusive Multicast -- IMPLEMENTED
+#   MP_REACH: 800E45 0019 46 04 01010101 00   AFI 25 / SAFI 70, next-hop 1.1.1.1
+# RFC 7432 Sections 7.2, 7.3 and 9.2 supply complete recognized route bodies:
+#     NLRI 1: type 3, length 17: RD 65001:1, tag 0, IPv4 router 192.0.2.1.
 #     NLRI 2: 6304 DEADBEEF             route type 99 -- ze implements no such type
-#     NLRI 3: 0206 001122334455         route type 2, MAC/IP Advertisement -- IMPLEMENTED
+#     NLRI 3: type 2, length 33: RD 65001:1, zero ESI/tag, MAC 00:11:22:33:44:55,
+#             MAC length 48, absent IP (length 0), MPLS label 100 (000641).
 # The unrecognized route sits BETWEEN two implemented ones on purpose: a fix that gave up on
 # the first unfamiliar type would take the third with it, and the assertion below would fail.
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020602010000FDE9800E21001946040101010100030800000000000000016304DEADBEEF0206001122334455
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006C02000000554001010040020602010000FDE9800E4500194604010101010003110000FDE9000000010000000020C00002016304DEADBEEF02210000FDE90000000100000000000000000000000000003000112233445500000641
 
 # An ordinary IPv4 route, sent after the EVPN one, is the processing fence. ze reads this
 # connection in TCP order on one goroutine, so the observer seeing 10.0.0.0/24 forwarded
@@ -46,7 +48,7 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 
 # Receiver (conn=2, AS 65002, rs-client so RFC 7947 leaves AS_PATH alone): the two
 # implemented EVPN NLRIs arrive back to back.
-expect=bgp:conn=2:seq=1:contains=030800000000000000010206001122334455
+expect=bgp:conn=2:seq=1:contains=03110000FDE9000000010000000020C000020102210000FDE90000000100000000000000000000000000003000112233445500000641
 
 # And the unrecognized one never arrives, in any framing.
 reject=bgp:conn=2:pattern=6304DEADBEEF

@@ -249,9 +249,9 @@ func TestRFC8654FatalLengthReelectsAlternateBest(t *testing.T) {
 }
 
 // extendedRecoveryPeers uses the registered RIB/route-server and actual TCP.
-// Only the source's local OPEN optionally advertises capability 6; remote OPENs
-// omit it, so the extended test also exercises independent receive permission.
-func extendedRecoveryPeers(t *testing.T, extended, alternate bool) []*lowLivePeer {
+// Only the source's local OPEN optionally advertises capability 6. Remote OPENs
+// omit it unless extra MP families request an extended-message recovery recipient.
+func extendedRecoveryPeers(t *testing.T, extended, alternate bool, families ...capability.Family) []*lowLivePeer {
 	t.Helper()
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	settings := []*PeerSettings{
@@ -265,6 +265,9 @@ func extendedRecoveryPeers(t *testing.T, extended, alternate bool) []*lowLivePee
 		settings = append(settings, lowLiveSettings("192.0.2.3", 65000, 65004))
 	}
 	for _, s := range settings {
+		for _, fam := range families {
+			s.Capabilities = append(s.Capabilities, &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI})
+		}
 		s.RSClient = true
 		for _, binding := range []struct{ name, receive string }{
 			{"bgp-rib", "update state refresh"},
@@ -307,6 +310,14 @@ func extendedRecoveryPeers(t *testing.T, extended, alternate bool) []*lowLivePee
 		open := &message.Open{Version: 4, MyAS: uint16(s.PeerAS), HoldTime: 90,
 			BGPIdentifier:  0x0a000001 + uint32(len(peers)),
 			OptionalParams: []byte{2, 6, 65, 4, 0, 0, byte(s.PeerAS >> 8), byte(s.PeerAS), 2, 6, 1, 4, 0, 1, 0, 1}}
+		for _, fam := range families {
+			open.OptionalParams = append(open.OptionalParams, 2, 6, 1, 4,
+				byte(fam.AFI>>8), byte(fam.AFI), 0, byte(fam.SAFI))
+		}
+		if len(families) > 0 {
+			// The MP recovery recipient must accept the valid extended control.
+			open.OptionalParams = append(open.OptionalParams, 2, 2, 6, 0)
+		}
 		capture.send(t, message.PackTo(open, nil))
 		lowEventually(t, func() bool { return peer.SessionState() == fsm.StateOpenConfirm }, "recovery OPEN accepted")
 		capture.send(t, message.PackTo(message.NewKeepalive(), nil))
@@ -353,4 +364,204 @@ func extendedRecoveryRecipientAttribute(t *testing.T, peer *lowLivePeer, start i
 		}
 	}
 	return routes
+}
+
+// TestRFC8654ExtendedTwoFamilyWithdrawalRecovery sends the same two-MP-family
+// extended UPDATE with valid and invalid ORIGIN through actual storage and TCP.
+// RFC 7606 Section 2: "In this approach, the UPDATE message containing the path
+// attribute in question MUST be treated as though all contained routes had been
+// withdrawn just as if they had been listed in the WITHDRAWN ROUTES field (or in
+// the MP_UNREACH_NLRI attribute if appropriate) of the UPDATE message, thus
+// causing them to be removed from the Adj-RIB-In according to the procedures of
+// [RFC4271]."
+// MUTATION: Skip processMessage's bodies[1:] callback: the previously installed
+// IPv4 route remains in the RIB and its recipient withdrawal never arrives.
+// MUTATION: Dispatch the original MP_REACH instead of its synthesized withdrawal:
+// the IPv6 route remains; resetting the session instead also removes the survivor.
+// RFC requirement: RFC8654-3-1 positive -- a valid extended mixed-family UPDATE preserves its IPv6 announcement and delivers its IPv4 withdrawal; both families recover with new ORIGIN on the identical live session after the error.
+// RFC requirement: RFC8654-3-1 negative -- changing only ORIGIN withdraws both contained MP families from actual RIB and Loc-RIB and recipient TCP, leaving an unrelated IPv6 route intact without NOTIFICATION.
+func TestRFC8654ExtendedTwoFamilyWithdrawalRecovery(t *testing.T) {
+	peers := extendedRecoveryPeers(t, true, false,
+		capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast})
+	source, recipient := peers[0], peers[1]
+	session := source.peer.currentSession()
+	routes := []struct {
+		fam    family.Family
+		raw    []byte
+		hop    []byte
+		prefix netip.Prefix
+	}{
+		{family.IPv4Unicast, []byte{24, 203, 0, 114}, []byte{192, 0, 2, 1},
+			netip.MustParsePrefix("203.0.114.0/24")},
+		{family.IPv6Unicast, []byte{48, 0x20, 1, 0x0d, 0xb8, 0, 2},
+			netip.MustParseAddr("2001:db8::1").AsSlice(), netip.MustParsePrefix("2001:db8:2::/48")},
+		{family.IPv6Unicast, []byte{48, 0x20, 1, 0x0d, 0xb8, 0, 3},
+			netip.MustParseAddr("2001:db8::1").AsSlice(), netip.MustParsePrefix("2001:db8:3::/48")},
+	}
+	announcements := make([][]byte, len(routes))
+	for i, route := range routes {
+		var mp [64]byte
+		n := writeMPReach(mp[:], 0, route.fam, route.hop, route.raw)
+		attrs := append(fatalLengthAnnouncement().PathAttributes, mp[:n]...)
+		announcements[i] = receivedUpdateBody(attrs, nil)
+		source.send(t, buildUpdateMsg(announcements[i]))
+	}
+	for _, route := range routes {
+		lowEventually(t, func() bool {
+			return extendedRecoveryHasMPRoute(route.fam, route.raw, 0)
+		}, "initial route reaches actual source RIB")
+		lowEventually(t, func() bool {
+			_, found := locrib.Default().Lookup(route.fam, route.prefix)
+			return found
+		}, "initial route reaches Loc-RIB")
+		lowEventually(t, func() bool {
+			return extendedRecoveryRecipientMP(t, recipient, 0, route.fam, route.raw, true, 0)
+		}, "initial MP route reaches recipient")
+	}
+
+	// The valid control already carries the IPv4 withdrawal. Reinstall that
+	// route before the ORIGIN-only mutation so suppressing the extra callback
+	// cannot pass by observing a route that was absent before the error.
+	control, err := message.UnpackUpdate(announcements[1])
+	require.NoError(t, err)
+	control.PathAttributes = append(bytes.Clone(control.PathAttributes),
+		0x80, 15, 7, 0, 1, 1, 24, 203, 0, 114)
+	control.PathAttributes = append(control.PathAttributes, 0xd0, 99, 0x10, 0)
+	control.PathAttributes = append(control.PathAttributes, bytes.Repeat([]byte{0x5a}, 4096)...)
+	valid := message.PackTo(control, nil)
+	require.Greater(t, len(valid), message.MaxMsgLen)
+	source.send(t, valid)
+	lowEventually(t, func() bool {
+		return !extendedRecoveryHasMPRoute(routes[0].fam, routes[0].raw, -1)
+	}, "valid control applies its explicit IPv4 withdrawal")
+	lowEventually(t, func() bool {
+		return extendedRecoveryRecipientMP(t, recipient, 0, routes[0].fam, routes[0].raw, false, 0)
+	}, "valid control forwards explicit withdrawal")
+	require.True(t, extendedRecoveryHasMPRoute(routes[1].fam, routes[1].raw, 0))
+	announcements[0][7] = 1
+	source.send(t, buildUpdateMsg(announcements[0]))
+	lowEventually(t, func() bool {
+		return extendedRecoveryHasMPRoute(routes[0].fam, routes[0].raw, 1)
+	}, "IPv4 route reinstalled before malformed input")
+	lowEventually(t, func() bool {
+		return extendedRecoveryRecipientMP(t, recipient, 0, routes[0].fam, routes[0].raw, true, 1)
+	}, "IPv4 reinstall reaches recipient before malformed input")
+	recipient.mu.Lock()
+	start := len(recipient.frames)
+	recipient.mu.Unlock()
+	malformed := bytes.Clone(valid)
+	malformed[message.HeaderLen+7] = 3
+	source.send(t, malformed)
+	for _, route := range routes[:2] {
+		lowEventually(t, func() bool {
+			return !extendedRecoveryHasMPRoute(route.fam, route.raw, -1)
+		}, "both primary and extra families removed from source RIB")
+		lowEventually(t, func() bool {
+			_, found := locrib.Default().Lookup(route.fam, route.prefix)
+			return !found
+		}, "both families removed from Loc-RIB")
+		lowEventually(t, func() bool {
+			return extendedRecoveryRecipientMP(t, recipient, start, route.fam, route.raw, false, 0)
+		}, "both family withdrawals reach actual recipient TCP")
+	}
+	require.True(t, extendedRecoveryHasMPRoute(routes[2].fam, routes[2].raw, 0))
+	_, found := locrib.Default().Lookup(routes[2].fam, routes[2].prefix)
+	require.True(t, found, "unrelated route survives treat-as-withdraw")
+
+	for i, route := range routes[:2] {
+		announcements[i][7] = 2
+		source.send(t, buildUpdateMsg(announcements[i]))
+		lowEventually(t, func() bool {
+			return extendedRecoveryHasMPRoute(route.fam, route.raw, 2)
+		}, "post-error ORIGIN reaches source RIB")
+		lowEventually(t, func() bool {
+			_, present := locrib.Default().Lookup(route.fam, route.prefix)
+			return present
+		}, "post-error route reaches Loc-RIB")
+		lowEventually(t, func() bool {
+			return extendedRecoveryRecipientMP(t, recipient, start, route.fam, route.raw, true, 2)
+		}, "post-error ORIGIN reaches recipient on same session")
+	}
+	require.False(t, extendedRecoveryRecipientMP(t, recipient, start,
+		routes[2].fam, routes[2].raw, false, 0), "surviving route never withdrawn")
+	require.Same(t, session, source.peer.currentSession())
+	require.Equal(t, fsm.StateEstablished, session.State())
+	source.mu.Lock()
+	defer source.mu.Unlock()
+	for _, frame := range source.frames {
+		require.NotEqual(t, byte(msgtype.TypeNOTIFICATION), frame[18])
+	}
+}
+
+// extendedRecoveryHasMPRoute reads registered source storage, not a test mirror.
+// Origin -1 checks presence regardless of attributes, for absence assertions.
+func extendedRecoveryHasMPRoute(fam family.Family, raw []byte, origin int) bool {
+	found := false
+	bgprib.RIBDumpBridge.DumpRIB(registry.RIBDumpVisitor{
+		OnPeer: func(peer string, _ uint32, _ [4]byte, _ bool) uint16 {
+			if peer == "192.0.2.1" {
+				return 1
+			}
+			return 0
+		},
+		OnRoute: func(peer, afi, safi uint16, bits uint8, nlri, attrs []byte) {
+			if peer == 1 && afi == uint16(fam.AFI) && safi == uint16(fam.SAFI) &&
+				bits == raw[0] && bytes.Equal(nlri, raw[1:]) {
+				_, _, value, present := attribute.AttrFind(attrs, attribute.AttrOrigin)
+				found = origin == -1 || present && bytes.Equal(value, []byte{byte(origin)})
+			}
+		},
+	})
+	return found
+}
+
+// extendedRecoveryRecipientMP accepts legacy IPv4 or MP encoding of the same
+// route, but checks complete NLRI records rather than a byte substring.
+func extendedRecoveryRecipientMP(t *testing.T, peer *lowLivePeer, start int,
+	fam family.Family, raw []byte, announce bool, origin byte) bool {
+	t.Helper()
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+	for _, frame := range peer.frames[start:] {
+		if frame[18] != byte(msgtype.TypeUPDATE) {
+			continue
+		}
+		update, err := message.UnpackUpdate(frame[message.HeaderLen:])
+		require.NoError(t, err)
+		code := attribute.AttrMPUnreachNLRI
+		nlri := update.WithdrawnRoutes
+		if announce {
+			code = attribute.AttrMPReachNLRI
+			nlri = update.NLRI
+			_, _, value, present := attribute.AttrFind(update.PathAttributes, attribute.AttrOrigin)
+			if !present || !bytes.Equal(value, []byte{origin}) {
+				continue
+			}
+		}
+		_, _, mp, present := attribute.AttrFind(update.PathAttributes, code)
+		if present {
+			require.GreaterOrEqual(t, len(mp), 3)
+			if uint16(mp[0])<<8|uint16(mp[1]) != uint16(fam.AFI) || mp[2] != byte(fam.SAFI) {
+				continue
+			}
+			offset := 3
+			if announce {
+				require.GreaterOrEqual(t, len(mp), 5)
+				offset = 5 + int(mp[3])
+				require.GreaterOrEqual(t, len(mp), offset)
+			}
+			nlri = mp[offset:]
+		} else if fam != family.IPv4Unicast {
+			continue
+		}
+		for len(nlri) > 0 {
+			octets := 1 + (int(nlri[0])+7)/8
+			require.GreaterOrEqual(t, len(nlri), octets)
+			if bytes.Equal(nlri[:octets], raw) {
+				return true
+			}
+			nlri = nlri[octets:]
+		}
+	}
+	return false
 }

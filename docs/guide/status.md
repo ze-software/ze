@@ -41,12 +41,12 @@ All families decode. Most encode. Use `ze show plugin list` to see the current s
 
 ### Plugins
 
-The current binary reports 97 registered plugins and schemas covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP helpers, OSPF config wiring, firewall, traffic control, VPP, NTP, sysctl, FIB backends, route redistribution, and TACACS+/RADIUS admin AAA. The plugin lifecycle uses a 5-stage handshake, newline-framed YANG RPC IPC, and DirectBridge for internal hot paths. Plugins can be written in any language.
+`show plugin list` reports the registered plugins and schemas covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP helpers, OSPF config wiring, firewall, traffic control, VPP, NTP, sysctl, FIB backends, route redistribution, and TACACS+/RADIUS admin AAA. The plugin lifecycle uses a 5-stage handshake, newline-framed YANG RPC IPC, and DirectBridge for internal hot paths. Plugins can be written in any language.
 <!-- source: internal/component/plugin/all/all.go -- generated plugin imports -->
 
 | Plugin | Status |
 |--------|--------|
-| bgp-rib (route storage) | Working -- stores received/sent routes, best-path selection |
+| bgp-rib (route storage) | Working -- mandatory received/sent route storage, best-path selection and eligible in-memory sent-history replay on peer reconnect; no durable daemon or plugin restart storage |
 | bgp-rs (route server) | Working -- forward-all model with zero-copy optimization |
 | bgp-gr (graceful restart) | Working -- stale route retention, restart marker, timer expiry |
 | bgp-rpki (RPKI validation) | Working -- RTR client, origin validation, fail-open safety |
@@ -55,7 +55,6 @@ The current binary reports 97 registered plugins and schemas covering protocol f
 | role (RFC 9234) | Working -- OTC filtering, role mismatch detection |
 | bgp-hostname, bgp-softver | Working -- capability advertisement |
 | bgp-llnh | Working -- link-local next-hop handling |
-| bgp-persist | Working -- route persistence across restarts |
 | bgp-watchdog | Working -- deferred route announcement |
 | All NLRI plugins (9) | Working -- decode and encode for their families |
 | ospf | Partial -- config schema, validators, event namespace, raw-socket enrolment skeleton |

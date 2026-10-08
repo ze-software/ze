@@ -245,6 +245,11 @@ func TestRFC9830TunnelTypeReceiveVerdicts(t *testing.T) {
 // RFC requirement: RFC9012-13-14 positive -- malformed-length endpoint TLVs are removed before raw or rebuilt forwarding while a valid sibling remains.
 // RFC requirement: RFC9012-13-14 negative -- valid endpoint TLVs and unrelated route bytes are not removed with a malformed sibling.
 // MUTATION: bypassing applyTunnelEncap leaves the invalid TLVs in the socket output.
+// RFC requirement: RFC9012-3.1-4 negative -- short-ipv4 removes its entire TLV around a valid sibling, or selects exact TreatAsWithdraw without a survivor.
+// RFC requirement: RFC9012-3.1-5 negative -- short-ipv6 removes its entire TLV around a valid sibling, or selects exact TreatAsWithdraw without a survivor.
+// RFC requirement: RFC9012-3.1-7 negative -- long-next-hop removes its entire AFI-zero TLV around a valid sibling, or selects exact TreatAsWithdraw without a survivor.
+// RFC requirement: RFC9012-13-13 positive -- structurally malformed endpoints cause whole-TLV removal rather than sub-TLV-only removal.
+// RFC requirement: RFC9012-13-13 negative -- the valid sibling TLV survives structural endpoint removal and remains in downstream output.
 func TestRFC9012EndpointInvalidTLVsRemovedOnUnicast(t *testing.T) {
 	endpoint := teSub(6, 0xFF, 0xFF, 0xFF, 0xFF, 0, 1, 10, 0, 0, 77)
 	valid := teTLV(2, endpoint, teSub(9, 1))
@@ -394,6 +399,9 @@ func TestTunnelEndpointRemovalComposesWithAttributeRepairs(t *testing.T) {
 // RFC 9012 Section 3.1: "In the context of this specification, if the Address
 // Family subfield has any value other than IPv4, IPv6, or the special value 0,
 // the Tunnel Egress Endpoint sub-TLV is considered "unrecognized" (see Section 13).".
+// RFC requirement: RFC9012-3.1-4 positive -- an AFI-1 endpoint with exactly four address octets is accepted unchanged.
+// RFC requirement: RFC9012-3.1-5 positive -- an AFI-2 endpoint with exactly sixteen address octets is accepted unchanged.
+// RFC requirement: RFC9012-3.1-7 positive -- AFI zero with exactly six value octets and no Address subfield is accepted unchanged.
 func TestTunnelEndpointLengthsAccepted(t *testing.T) {
 	for _, endpoint := range [][]byte{
 		{0, 0, 0, 0, 0, 0},

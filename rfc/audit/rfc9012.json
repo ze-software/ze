@@ -1,10 +1,37 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-08",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
+    "RFC9012-11-10": {
+      "note": "RFC 9012 Section 11 says: It MUST be possible to filter the Encapsulation Extended Community from outgoing messages. TestRFC9012ConfiguredEncapsulationECEgress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Both values remain present at source receive dispatch; the configured destination's registered egressFilter and applyEgressFilter produce removal operations consumed by the registered Extended Communities handler and genericCommunityHandler during actual ForwardUpdate export. Socket output and downstream Session receipt contain only the unrelated RT, preserving ORIGIN, AS_PATH, NEXT_HOP and NLRI. A destination with a populated no-match policy receives both original Encapsulation ECs, distinguishing configured destination filtering from unconditional removal. Both named cases passed in the retained f688dd08 race run. This proves configurable outgoing filtering without requiring a type-wide matcher or claiming the separate default-EBGP behavior.",
+      "requirement_sha": "7ec539f24ba75d45",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress": "4487b162dc622658",
+        "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress#2": "4487b162dc622658"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress": "c30125f750d59a37",
+        "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress#2": "c30125f750d59a37"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-11-9": {
+      "note": "RFC 9012 Section 11 says: Any BGP speaker that understands it MUST be able to filter it from incoming BGP UPDATE messages. TestRFC9012ConfiguredEncapsulationECIngress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Established Session receipt reaches the registered ingressFilter, applyIngressFilter and ingressStripCommunities; reactor_notify consumes the replacement payload. The removal case asserts both Encapsulation ECs are absent before dispatch, in cached ForwardUpdate socket output and after downstream Session receipt, while the unrelated RT, ORIGIN, AS_PATH, NEXT_HOP and NLRI survive. A populated no-match policy preserves the identical two Encapsulation ECs through those boundaries, distinguishing configured removal from unconditional stripping or blanket attribute removal. Both named cases passed in the retained f688dd08 race run. This proves configurable ingress filtering, not the separate default-EBGP requirement.",
+      "requirement_sha": "9109888f2e96067d",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress": "4487b162dc622658",
+        "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress#2": "4487b162dc622658"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress": "27910685caa64543",
+        "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress#2": "27910685caa64543"
+      },
+      "verdict": "enforced"
+    },
     "RFC9012-13-1": {
       "note": "Independent rejudgment against RFC9012 Section 13: the accepted control ends exactly at the tunnel boundary; malformed short/long sub-TLV headers and values now follow a valid endpoint and retain exact TreatAsWithdraw assertions. The old eight-case unit survived selective omission of tunnelTLVLayout end > size (job-enum-framing-blindspot-before-da6b72ea.log); after fixture isolation the identical omission failed both truncated-value cases with expected 2, actual 0 (job-enum-framing-boundary-after-red-da6b72ea.log). The real-producer race smoke passed all eight cases and endpoint-removal/composition/length/reset siblings (job-enum-framing-repaired-race-smoke-5388cca1.log). This proves structural boundary discrimination, not separate mutation observations for every header guard or daemon interoperability.",
       "requirement_sha": "f8be3ec24720dc58",
@@ -22,8 +49,8 @@
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"If a TLV of a Tunnel Encapsulation attribute contains a sub-TLV that is not recognized by a particular BGP speaker, the BGP speaker MUST process that TLV as if the unrecognized sub-TLV had not been present.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Selective rx-unknown-subtlv now executes and clean known-tunnel survives, closing the carrier admission counterfactual. Preference 4242 codec comparison is genuine but remains only a local accessor; no tunnel-processing/selection consumer proves the full as-if-absent obligation. Preserve that gap, not the obsolete malformed-fixture objection. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "b4333e2a81b4313c",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing#2": "9c9405d666c6d458"
       },
@@ -39,8 +66,8 @@
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized sub-TLV MUST remain in the attribute.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Isolated type-200 unknown sub-TLV reception and export loss both fail the exact retained bytes; known-tunnel survives. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "970865cc386ad4fe",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "9c9405d666c6d458"
       },
@@ -53,71 +80,95 @@
       "verdict": "enforced"
     },
     "RFC9012-13-12": {
-      "note": "Independent semantic rejudgment: RFC9012 Section 13: \"In general, if a TLV contains a sub-TLV that is malformed, the sub-TLV MUST be treated as if it were an unrecognized sub-TLV.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Applicable MPLS-in-UDP malformed length and zero-port overvalidation faults now fail their isolated victim while valid/absent UDP controls survive. The codec skips malformed Preference and reads a valid sibling. This closes the BGP classification counterfactual, not the absent tunnel consumer treating malformed versus recognized UDP according to their semantics. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
-      "requirement_sha": "ae6e342552796f6f",
+      "note": "Malformed non-endpoint sub-TLVs receive the same actual BGP treatment as unrecognized sub-TLVs: ActionNone, unchanged retained attribute and route bytes, and successful raw/rebuilt downstream propagation. Applicable malformed-length and zero-port UDP cases have absent/valid/unknown controls; the codec also skips malformed Preference while reading a valid sibling. Section 13's general conditional receive rule does not require a new UDP or encapsulation-header consumer; 13-16/-17 retain that separate gap.",
+      "requirement_sha": "0b58e28bb0bb4f21",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "9c9405d666c6d458",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "9c9405d666c6d458"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "025d5c2be60973ae",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "025d5c2be60973ae",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "f10505383aaa6584",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "f10505383aaa6584"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "9484c16509811aa2",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "9484c16509811aa2",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "d4d2c587d50210de",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "d4d2c587d50210de",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "a794ebe4d8d51aa9",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "a794ebe4d8d51aa9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC9012-13-13": {
+      "note": "Structural endpoint cases, original-input registry propagation and real native-route storage jointly prove that malformed endpoint TLVs are ignored wholesale. Valid marked siblings survive; all-invalid replacements remove the installed target on all seven Section 6 carriers. Registry Destination/Forwardable restrictions and allowed exceptions are covered. The optional origin-AS determination is not implemented or inferred, so no unproved determination is claimed.",
+      "requirement_sha": "399c596dffcec7c3",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "025d5c2be60973ae",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation#2": "025d5c2be60973ae",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "b16ff30a26eaffba",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "b16ff30a26eaffba"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "45ab3b1c39f5d7c7",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "45ab3b1c39f5d7c7",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "61d7016fcba8872e",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation#2": "61d7016fcba8872e",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "3c4a5ad1a9f5bfb6"
+      },
+      "verdict": "enforced"
     },
     "RFC9012-13-14": {
-      "note": "Independent first judgment against the complete RFC 9012 Section 13 sentence: \"There is one exception to this rule: if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored and MUST be removed from the Tunnel Encapsulation attribute before the route carrying that attribute is distributed.\" TestRFC9012EndpointInvalidTLVsRemovedOnUnicast meaningfully proves structural removal on IPv4 unicast: missing or duplicate endpoints, a too-short endpoint, short IPv4 and IPv6 values, and an overlong AFI-zero value either remove only the offending TLVs around a valid sibling or yield exact TreatAsWithdraw when none survive. It compares the complete repaired UPDATE, unchanged source input and source identity. For a surviving sibling, teForwardedAttrs exercises real processMessage receive dispatch, ForwardUpdate, default and MED-policy-rebuilt export, socket output and downstream processMessage, with exact retained bytes and NLRI assertions. applyTunnelEncap publishes the rebuilt body and attributes, so the removed TLVs are not handed to that consumer. Nevertheless, the sentence imports every Section 3.1 malformed-endpoint condition: tunnelEndpointLengthValid checks encoded length and AFI only, not the Special-Purpose IP Address registry conditions or determinable origin-AS mismatch; the tests likewise assert no such address-semantic case. The no-survivor branch asserts a classification rather than downstream withdrawal. Existing producer-panic discrimination records establish dependence on applyTunnelEncap, not these absent clauses. Retain weak: structural removal is real and tested, but whole-requirement enforcement is not established. No optional origin-AS-validation feature or new proof scope is authorized.",
-      "requirement_sha": "39baa6d6242d5c48",
+      "note": "The current tagged set proves structural and registry-semantic malformed-endpoint removal, original-input receive dispatch, exact raw/rebuilt downstream output and real received-route storage across all seven Section 6 carriers. Marked valid siblings and independent routes survive; all-invalid replacements withdraw only the target and permit same-session recovery. applyRFC7606 consumes the rewritten body and attributes, and processValidatedMessage dispatches synthesized withdrawals. Optional origin-AS validation is neither provided nor claimed.",
+      "requirement_sha": "241a0ccb366340fb",
       "tests": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "0b4aeaf3624a6954",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "0b4aeaf3624a6954"
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "025d5c2be60973ae",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation#2": "025d5c2be60973ae",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "b16ff30a26eaffba",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "b16ff30a26eaffba"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "51b6b78c518092f7",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "51b6b78c518092f7"
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "45ab3b1c39f5d7c7",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "45ab3b1c39f5d7c7",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "61d7016fcba8872e",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation#2": "61d7016fcba8872e",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "3c4a5ad1a9f5bfb6"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-15": {
-      "note": "Independent first judgment against RFC 9012 Section 13: \"Within a Tunnel Encapsulation attribute that is carried by a BGP UPDATE whose AFI/SAFI is one of those explicitly listed in the first paragraph of Section 6, a TLV that does not contain exactly one Tunnel Egress Endpoint sub-TLV MUST be treated as if it contained a malformed Tunnel Egress Endpoint sub-TLV.\" TestRFC9012EndpointInvalidTLVsRemovedOnUnicast supplies a valid one-endpoint control and genuine missing/duplicate-endpoint violations using teCarryBody's legacy IPv4-unicast NLRI. It checks removal around a valid sibling through default and rebuilt socket forwarding, and exact TreatAsWithdraw when none survive. The producer counts endpoints and applies the requirement to legacy IPv4 NLRI and MP_REACH AFI 1/2 SAFI 1/4/128 plus AFI 25 SAFI 70, excluding the separately specified SR Policy behavior. However, this tagged unit never constructs those other Section 6 MP_REACH carriers; a broken carrier-selection branch for IPv6 unicast, labeled unicast, VPN or EVPN would leave its assertions unchanged. The no-survivor branch also does not assert downstream withdrawal dispatch. Current producer-panic records do not supply that missing carrier or downstream oracle. Keep weak for the full carrier-scoped obligation while crediting the actual IPv4-unicast structural count/removal evidence; do not expand tags, features or declared proof scope.",
+      "note": "Missing and duplicate endpoint TLVs are now exercised through actual Session receipt and real received-route storage for every Section 6 AFI/SAFI, with a causal marked sibling, an independent control route, actual target withdrawal and same-session reinstall. Existing unicast raw/rebuilt forwarding assertions remain complementary. The prior missing-carrier and classification-only objections are closed.",
       "requirement_sha": "13bda2501ea68b8e",
       "tests": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "0b4aeaf3624a6954",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "0b4aeaf3624a6954"
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "b16ff30a26eaffba",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "b16ff30a26eaffba"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "51b6b78c518092f7",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "51b6b78c518092f7"
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "599b3d8b7a249ef6",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "599b3d8b7a249ef6",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "3c4a5ad1a9f5bfb6"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-16": {
-      "note": "Independent semantic rejudgment: RFC9012 Section 13: \"That is, they MUST NOT affect the creation of the encapsulation header.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. The valid-length UDP/GRE selective receiver/export breaks are now observed. No encapsulation header is produced or asserted; Preference readback and opaque forwarding cannot discharge the whole disregard/header-effect obligation. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
+      "code": {
+        "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c43894606dafdb4c"
+      },
+      "note": "Section 13 defines disregard of tunnel-type-meaningless sub-TLVs in terms of encapsulation-header construction. Existing opaque carry and Preference-readback tests do not observe that consumer. checkRouteBestChange exports no attribute-23 tunnel parameters; the absent consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md AC-2/AC-6. The applied owner-ruling annotation and removal of the four obsolete 13-16 carry tags preserve their assertions and existing 13-18/-19/RFC9830 identities. Preserve the complete quote and MUST applicability, with no whole-requirement credit.",
       "requirement_sha": "6eb9e53c070a2d18",
-      "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "9c9405d666c6d458",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "9c9405d666c6d458"
-      },
-      "units": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "9484c16509811aa2",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "9484c16509811aa2",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "b3dc33dfbd302427"
-      },
-      "verdict": "weak"
+      "verdict": "unimplemented"
     },
     "RFC9012-13-18": {
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"However, the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Length-correct UDP under GRE isolates meaninglessness rather than malformed length; selective rejection fails action/bytes, and GRE-without-UDP plus applicable valid UDP survive. Only classification is awarded on this row. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "469cfd0d44defe64",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "9c9405d666c6d458"
       },
@@ -133,8 +184,8 @@
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"However, the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. The well-formed meaningless UDP/GRE field is independently discriminated on receipt and export; applicable valid UDP and known-tunnel controls survive. Both classification and preservation clauses are observed, not header construction. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "792fe366e5d00a94",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "9c9405d666c6d458"
       },
@@ -147,24 +198,28 @@
       "verdict": "enforced"
     },
     "RFC9012-13-2": {
-      "note": "Independent rejudgment: valid endpoints now isolate malformed framing, and the selective boundary omission goes red while the real-producer race smoke passes with exact TreatAsWithdraw rather than acceptance or reset. The sole tagged unit TestRFC9012TunnelFramingReceiveVerdicts calls enforceRFC7606 and discards its returned UPDATE; it does not assert withdrawal synthesis, dispatch or removal of an installed Adj-RIB-In route as RFC7606 Section 2 requires. Those production branches exist in session_validation.go and session_read.go, but source reachability is not a tagged assertion of the whole procedure. This is missing whole-requirement proof, not an observed product defect.",
-      "requirement_sha": "9be99d0ebe26e521",
+      "note": "Framing controls isolate outer and short/long sub-TLV boundary violations against valid endpoints. TestRFC9012ReceiveRemovesInstalledNativeRoutes now supplements the exact-action root with actual target removal, independent-route preservation and same-session reinstall on all seven Section 6 carriers. The prior classification-only and missing-carrier objections no longer describe the tagged test set.",
+      "requirement_sha": "eda2fcfe2576aa8a",
       "tests": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts": "0b4aeaf3624a6954",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts#2": "0b4aeaf3624a6954"
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts": "b16ff30a26eaffba",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts#2": "b16ff30a26eaffba"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "599b3d8b7a249ef6",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "599b3d8b7a249ef6",
         "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts": "be78c366c3f4d803",
         "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts#2": "be78c366c3f4d803"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-3": {
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"If a Tunnel Encapsulation attribute can be parsed correctly but contains a TLV whose tunnel type is not recognized by a particular BGP speaker, that BGP speaker MUST NOT consider the attribute to be malformed.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Unknown type 0xFFFE is isolated against type 2. Selective receiver loss fails byte/action assertions while known-tunnel survives. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "591f3d4d672f65af",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "9c9405d666c6d458"
       },
@@ -180,8 +235,8 @@
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized TLV MUST remain in the attribute.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Selective export removal of the unknown tunnel fails actual attribute-23 equality in dirty input while clean survives; codec fabricated-shorter negatives are not credited. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "2b94c49f2df3ca4c",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTLVRemovalIsObservable": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "9c9405d666c6d458"
       },
@@ -197,8 +252,8 @@
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"However, the Tunnel TLV containing them MUST NOT be considered to be malformed, and all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulation attribute is propagated.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Two listed Embedded Label Handling instances are isolated against one. Rejecting only the duplicate fails action/byte assertions and the single-instance control survives. This row is the non-malformed clause, not first-instance semantic use. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "19966c8f02106fc2",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "9c9405d666c6d458"
       },
@@ -214,8 +269,8 @@
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"However, the Tunnel TLV containing them MUST NOT be considered to be malformed, and all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulation attribute is propagated.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Removing only the second listed ELH occurrence fails actual export equality; single-ELH and known-tunnel controls survive. All duplicate bytes, not a synthetic fixture comparison, are observed. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "3701b8ec3386db8c",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "9c9405d666c6d458"
       },
@@ -227,20 +282,85 @@
       },
       "verdict": "enforced"
     },
-    "RFC9012-3.1-3": {
-      "note": "Independent semantic rejudgment: RFC9012 Section 3.1: \"It MUST be disregarded on receipt, and it MUST be propagated unchanged.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. For this propagation row each of the four endpoint Reserved octets has its own executed export-zeroing break and corresponding receive-overvalidation break; clean endpoint controls survive. The exact copied field is protected. This is field/octet discrimination, not exhaustive per-bit coverage. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
-      "requirement_sha": "1fa5b1a0043f06c7",
+    "RFC9012-3.1-2": {
+      "note": "Section 3.1 receipt-disregard identity: zero and nonzero Tunnel Egress Endpoint Reserved bytes produce ActionNone, survive received-attribute comparison, and reach actual dispatch and downstream receipt in TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong; tunnelEndpointValid never reads the Reserved subfield. The complete quote is retained; propagation and the origination SHOULD retain their separate identities.",
+      "requirement_sha": "810c71bc191fb2a8",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "9c9405d666c6d458",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "9c9405d666c6d458"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "025d5c2be60973ae",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "025d5c2be60973ae"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "9484c16509811aa2",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "9484c16509811aa2",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "d4d2c587d50210de",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "d4d2c587d50210de"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-3.1-3": {
+      "note": "Re-read the full Section 3.1 Reserved-subfield quote and its propagation identity. TestRFC9012ReservedOctetsPropagateUnchanged and TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong compare nonzero Reserved bytes through codec and actual receive/export/downstream paths; both forwarding rails retain the exact field. No origination or tunnel-consumer behavior is claimed.",
+      "requirement_sha": "1759bd80afd8a021",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "025d5c2be60973ae",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "025d5c2be60973ae",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "f10505383aaa6584",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "f10505383aaa6584"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "d4d2c587d50210de",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "d4d2c587d50210de",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "7588509ce4036903",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "7588509ce4036903"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-3.1-4": {
+      "note": "TestTunnelEndpointLengthsAccepted accepts an AFI-1 endpoint containing exactly four address octets unchanged. TestRFC9012EndpointInvalidTLVsRemovedOnUnicast rejects a short AFI-1 address, removing only its TLV around a valid sibling or selecting exact TreatAsWithdraw without a survivor. tunnelEndpointValid requires a ten-octet endpoint value.",
+      "requirement_sha": "2c00200977005034",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "b16ff30a26eaffba",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "b16ff30a26eaffba"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "6d5df34ce0e5416c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-3.1-5": {
+      "note": "TestTunnelEndpointLengthsAccepted accepts an AFI-2 endpoint containing exactly sixteen address octets unchanged. TestRFC9012EndpointInvalidTLVsRemovedOnUnicast rejects a short AFI-2 address, removing only its TLV around a valid sibling or selecting exact TreatAsWithdraw without a survivor. tunnelEndpointValid requires a twenty-two-octet endpoint value.",
+      "requirement_sha": "c04b1a8431e71b1f",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "b16ff30a26eaffba",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "b16ff30a26eaffba"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "6d5df34ce0e5416c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-3.1-7": {
+      "note": "TestTunnelEndpointLengthsAccepted accepts AFI zero with a six-octet value and no Address subfield. TestRFC9012EndpointInvalidTLVsRemovedOnUnicast rejects an overlong AFI-zero value, removing its TLV while preserving a valid sibling or selecting exact TreatAsWithdraw without one. No next-hop ownership or reachability procedure is inferred.",
+      "requirement_sha": "f684f9eb03db7e4f",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "b16ff30a26eaffba",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "b16ff30a26eaffba"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "6d5df34ce0e5416c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-3.1-8": {
+      "note": "TestRFC9012ReceiveRemovesInstalledNativeRoutes exercises all seven Section 6 carriers through actual Session receipt and received-route storage: exactly one endpoint installs, a marked valid sibling survives missing/duplicate-endpoint TLVs, and no survivor removes only the target route before same-session reinstall. tunnelTLVLayout counts endpoints and applyTunnelEncap removes offending TLVs.",
+      "requirement_sha": "9952193eac763c57",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "db256d42d0cdc6ff",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "db256d42d0cdc6ff"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "599b3d8b7a249ef6",
+        "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "599b3d8b7a249ef6"
       },
       "verdict": "enforced"
     },
@@ -248,8 +368,8 @@
       "note": "Independent semantic rejudgment: RFC9012 Section 3.2.1 and 3.2.2: \"Intermediate routers MUST propagate them without modification.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Both merged halves have executed export masks: VXLAN type 8 and NVGRE type 9 flags&0x3F are cleared independently. Each dirty carrier fails byte equality and clean controls survive; neither half is inferred from the other. No dataplane behavior or exhaustive per-bit mutation is claimed. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "159921325e956116",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "9c9405d666c6d458"
       },
@@ -265,8 +385,8 @@
       "note": "Independent semantic rejudgment: RFC9012 Section 3.5: \"In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TLV before the route is propagated.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. The carrier is non-labeled IPv4 unicast under GRE. Removing ignored ELH fails actual export equality; a no-ELH control survives. No label realization is inferred. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "0dca9bfc4e076796",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped": "9c9405d666c6d458",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped#2": "9c9405d666c6d458"
       },
@@ -279,17 +399,17 @@
       "verdict": "enforced"
     },
     "RFC9012-4.3-2": {
-      "note": "Independent semantic rejudgment: RFC9012 Section 4.3: \"No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver; the value MUST NOT be changed when propagating this extended community.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. The existing zero/nonzero codec pair and received 3fa5 Color Flags carrier remain. Independent export breaks clear each of the two Flags octets in community 03/0b, fail actual attribute equality, and preserve zero-Flags controls on both export settings. The renewed evidence specifically closes propagation corruption, not a new Color semantic consumer. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
-      "requirement_sha": "09bf668af6b0717d",
+      "note": "Re-read Section 4.3: the unchanged value is the Color Extended Community Flags field, not the subsequent Color Value. The codec includes zero and nonzero Flags controls, and actual receive/export/downstream assertions preserve Flags 0x3fa5 on both forwarding rails. The applied carry claims now explicitly name that Flags field and its nonzero value. The row retains its full quote and propagation identity.",
+      "requirement_sha": "84129cf9ea571f0d",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "f9e5df2c76f7a3cc",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "f9e5df2c76f7a3cc",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "9c9405d666c6d458",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "9c9405d666c6d458"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "025d5c2be60973ae",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "025d5c2be60973ae",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "f10505383aaa6584",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "f10505383aaa6584"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "9484c16509811aa2",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "9484c16509811aa2",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "d4d2c587d50210de",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "d4d2c587d50210de",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "ae1ecb8043b4023b",
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "ae1ecb8043b4023b"
       },

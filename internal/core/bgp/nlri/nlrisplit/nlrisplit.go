@@ -33,9 +33,11 @@ var ErrUnsupported = errors.New("nlrisplit: no splitter registered for family")
 
 // Splitter carves concatenated NLRI wire bytes into individual NLRIs and
 // visits them in wire order. It calls fn once per NLRI, when fn is non-nil,
-// and returns the number of NLRIs it visited.
+// and returns the number of NLRIs it visited. A true result continues the walk;
+// false stops after the current NLRI, includes it in the count, and returns nil
+// error without inspecting the remaining bytes.
 //
-// A nil fn walks the same bytes to the same verdict and allocates nothing.
+// A nil fn validates and counts the entire input and allocates nothing.
 // That is the count pass: a prefix maximum compares a number and never looks
 // at an NLRI, so it MUST NOT pay for a slice it will not read.
 //
@@ -46,11 +48,11 @@ var ErrUnsupported = errors.New("nlrisplit: no splitter registered for family")
 // The slice fn receives aliases the input data (zero-copy). fn MUST copy the
 // bytes it needs to retain past the call.
 //
-// A well-formed empty input visits nothing and returns 0, nil. A malformed
-// input visits every NLRI before the corruption, counts those, and returns a
-// non-nil error describing the corruption; callers choose whether to use the
-// partial result.
-type Splitter func(data []byte, addPath bool, fn func(nlri []byte)) (int, error)
+// A well-formed empty input visits nothing and returns 0, nil. Unless fn stops
+// first, a malformed input visits every NLRI before the corruption, counts those,
+// and returns a non-nil error describing the corruption; callers choose whether
+// to use the partial result.
+type Splitter func(data []byte, addPath bool, fn func(nlri []byte) bool) (int, error)
 
 var (
 	mu        sync.RWMutex
@@ -128,8 +130,9 @@ func splitWith(fn Splitter, data []byte, addPath bool) ([][]byte, error) {
 	// pass's error is kept, because two readings of one section that disagreed
 	// would mean the walk is not a function of its input.
 	result := make([][]byte, 0, count)
-	_, _ = fn(data, addPath, func(nlri []byte) {
+	_, _ = fn(data, addPath, func(nlri []byte) bool {
 		result = append(result, nlri)
+		return true
 	})
 	return result, err
 }

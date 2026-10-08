@@ -316,8 +316,8 @@ func (p *Peer) sendInitialRoutes() {
 				routesLogger().Debug("teardown error", "peer", addr, "error", err)
 			}
 		}
-		// Clear remaining opQueue - these routes were never sent, so shouldn't
-		// be re-sent on reconnection. Persist plugin tracks actually-sent routes.
+		// Clear remaining opQueue: these routes were never sent, so they have
+		// no sent history for the mandatory RIB to restore on reconnect.
 		p.mu.Lock()
 		queueLocked = true
 		if len(p.opQueue) > 0 {
@@ -749,6 +749,11 @@ func (p *Peer) sendPluginRoutesVia(session *Session, sendFn func(*message.Update
 		// RFC 8669 Section 8, as for the static routes above: a plugin route's
 		// pre-built attribute bytes can carry type code 40.
 		update := ub.BuildPlugin(params)
+		if update == nil {
+			message.PutUpdateBuilder(ub)
+			routesLogger().Warn("skipping plugin route (unusable next hop)", "peer", addr, "family", route.Family)
+			continue
+		}
 		// A single plugin route (e.g. an atomic FlowSpec rule) cannot be split;
 		// skip it rather than emit an UPDATE the peer would reject.
 		if pluginUpdateSize(update) > maxMsgSize {
@@ -794,6 +799,11 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMs
 		params := base
 		params.NLRI = nlri
 		update := ub.BuildPlugin(params)
+		if update == nil {
+			message.PutUpdateBuilder(ub)
+			routesLogger().Warn("skipping plugin route group (unusable next hop)", "peer", addr, "family", g.rep.Family)
+			return
+		}
 		if err := sendFn(update); err != nil {
 			routesLogger().Debug("plugin route group send error", "peer", addr, "family", g.rep.Family, "error", err)
 		}
@@ -806,6 +816,11 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMs
 	params := base
 	params.NLRI = full
 	update := ub.BuildPlugin(params)
+	if update == nil {
+		message.PutUpdateBuilder(ub)
+		routesLogger().Warn("skipping plugin route group (unusable next hop)", "peer", addr, "family", g.rep.Family)
+		return
+	}
 	fits := pluginUpdateSize(update) <= maxMsgSize
 	if fits {
 		if err := sendFn(update); err != nil {
@@ -818,21 +833,33 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMs
 	}
 
 	// Oversized group: split NLRIs across multiple size-bounded UPDATEs.
+	sizingRefused := false
 	batches := packNLRIs(g.nlris, maxMsgSize, func(batch []byte) int {
 		mub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		mparams := base
 		mparams.NLRI = batch
-		sz := pluginUpdateSize(mub.BuildPlugin(mparams))
+		measured := mub.BuildPlugin(mparams)
+		if measured == nil {
+			message.PutUpdateBuilder(mub)
+			sizingRefused = true
+			return 0 // The named refusal below prevents dispatch of these batches.
+		}
+		sz := pluginUpdateSize(measured)
 		message.PutUpdateBuilder(mub)
 		return sz
 	})
+	if sizingRefused {
+		routesLogger().Warn("skipping plugin route group (unusable next hop)", "peer", addr, "family", g.rep.Family)
+		return
+	}
 	for _, batch := range batches {
 		emit(batch)
 	}
 }
 
-// defaultRouteForAFI returns the default prefix and a valid next-hop for the given AFI.
-// Returns ok=false if the AFI is not IPv4 or IPv6 unicast.
+// defaultRouteForAFI returns the default prefix and next-hop hint for the AFI.
+// Returns ok=false if the AFI is not IPv4 or IPv6. An absent IPv6 hint remains
+// unset so the caller resolves next-hop self from the actual session.
 func defaultRouteForAFI(afi family.AFI, hint netip.Addr) (prefix netip.Prefix, nextHop netip.Addr, ok bool) {
 	if afi == family.AFIIPv4 {
 		prefix = netip.MustParsePrefix("0.0.0.0/0")
@@ -845,9 +872,6 @@ func defaultRouteForAFI(afi family.AFI, hint netip.Addr) (prefix netip.Prefix, n
 	if afi == family.AFIIPv6 {
 		prefix = netip.MustParsePrefix("::/0")
 		nextHop = hint
-		if !nextHop.IsValid() || nextHop.Is4() {
-			nextHop = netip.IPv6Loopback()
-		}
 		return prefix, nextHop, true
 	}
 	return netip.Prefix{}, netip.Addr{}, false
@@ -878,19 +902,25 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			continue
 		}
 
-		// Resolve default prefix / next-hop BEFORE acquiring the builder so
-		// early-return paths don't need a Put.
-		var nextHop netip.Addr
-		if p.settings.LocalAddress.IsValid() {
-			nextHop = p.settings.LocalAddress
-		}
-
-		defaultPrefix, nh, ok := defaultRouteForAFI(fam.AFI, nextHop)
+		// Resolve before acquiring the builder so refusals do not need a Put.
+		defaultPrefix, nextHop, ok := defaultRouteForAFI(fam.AFI, p.settings.LocalAddress)
 		if !ok {
 			routesLogger().Debug("default-originate: unsupported family AFI", "peer", addr, "family", familyKey)
 			continue
 		}
-		nextHop = nh
+		session := p.currentSession()
+		nextHopPolicy := bgptypes.NewNextHopExplicit(nextHop)
+		if !nextHop.IsValid() {
+			nextHopPolicy = bgptypes.NewNextHopSelf()
+		}
+		// RFC 8950 Section 4 and draft-ietf-idr-linklocal-capability Section 2:
+		// default routes use the same negotiated permission as static routes.
+		resolvedNextHop, err := p.resolveNextHop(session, nextHopPolicy, fam)
+		if err != nil {
+			p.warnDefaultOriginateRefused(familyKey, defaultPrefix, nextHop, err)
+			continue
+		}
+		nextHop = resolvedNextHop
 
 		// Per-family conditional filter check (dry-run).
 		// An empty filter name means unconditional origination.
@@ -914,7 +944,7 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			// global one when the speaker shares a subnet with both the next-hop
 			// entity and this peer. linkLocalNextHopFor returns the zero Addr in
 			// every other case, and buildMPReach then writes the 16-octet form.
-			LinkLocalNextHop: p.linkLocalNextHopFor(p.currentSession(), nextHop),
+			LinkLocalNextHop: p.linkLocalNextHopFor(session, nextHop),
 		}
 		update, err := ub.BuildUnicast(&params)
 		if err != nil {

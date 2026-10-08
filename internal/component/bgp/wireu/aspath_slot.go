@@ -67,6 +67,10 @@ type ASPathIntent struct {
 	Prepend []uint32
 	SrcASN4 bool
 	DstASN4 bool
+	// OverridePeerAS names the received ASN to replace with OverrideLocalAS,
+	// before protocol prepend and destination-width projection. Zero disables it.
+	OverridePeerAS  uint32
+	OverrideLocalAS uint32
 }
 
 // ASPathEdit resolves the AS-path family for one destination and records it as
@@ -80,11 +84,13 @@ type ASPathIntent struct {
 // consumed its operations has returned: the accumulator holds pointers to these
 // generators, and the writer reads them (filterapi.AttrGenerator).
 type ASPathEdit struct {
-	shift  asPathShiftGen
-	encode asPathEncodeGen
-	as4    as4PathGen
-	agg    aggregatorGen
-	as4Agg as4AggregatorGen
+	shift        asPathShiftGen
+	encode       asPathEncodeGen
+	as4          as4PathGen
+	agg          aggregatorGen
+	as4Agg       as4AggregatorGen
+	inputASPath  []byte // reused only when a preceding policy used a generator
+	inputAS4Path []byte
 	// tomb holds the ATTR_TOMBSTONE value of the one attribute this rail can
 	// discard: the (code, reason) pair of
 	// draft-mangin-idr-attr-tombstone-00 Section 4.3. It is named by the
@@ -146,6 +152,8 @@ func (e *ASPathEdit) Record(mods *filterapi.ModAccumulator, payload []byte, in A
 
 	var changed bool
 	switch {
+	case in.OverridePeerAS != 0 || pendingASPathFamily(mods):
+		changed, err = e.recordComposed(mods, payload, section, &spans, in)
 	case len(in.Prepend) == 0:
 		changed, err = e.recordTranscode(mods, section, &spans, in)
 	case !PayloadAdvertisesNLRI(payload):
@@ -285,7 +293,7 @@ func (e *ASPathEdit) recordPrepend(mods *filterapi.ModAccumulator, section []byt
 	// room, with the widths already matching. It shifts bytes rather than
 	// re-encoding, exactly as tryDirectPrepend does, so it needs no parse and no
 	// generator state beyond a head and a tail.
-	if hasASPath && e.tryShift(mods, section, aspSpan, in) {
+	if hasASPath && e.tryShift(mods, spanValue(section, aspSpan), in) {
 		return true, nil
 	}
 
@@ -468,7 +476,7 @@ func (e *ASPathEdit) recordAggregator(mods *filterapi.ModAccumulator, section []
 // other offsets must stay put. Here the writer decides the class from the final
 // value length (filterapi.AttrPlan.Emit), so a value crossing 255 octets is
 // simply emitted with a 4-octet header.
-func (e *ASPathEdit) tryShift(mods *filterapi.ModAccumulator, section []byte, span attribute.Span, in ASPathIntent) bool {
+func (e *ASPathEdit) tryShift(mods *filterapi.ModAccumulator, val []byte, in ASPathIntent) bool {
 	if in.SrcASN4 != in.DstASN4 || len(in.Prepend) != 1 {
 		return false
 	}
@@ -479,7 +487,6 @@ func (e *ASPathEdit) tryShift(mods *filterapi.ModAccumulator, section []byte, sp
 		// re-encoding path takes it.
 		return false
 	}
-	val := spanValue(section, span)
 	if len(val) < 2 {
 		return false
 	}
@@ -488,7 +495,7 @@ func (e *ASPathEdit) tryShift(mods *filterapi.ModAccumulator, section []byte, sp
 		return false
 	}
 
-	e.shift = asPathShiftGen{tail: val[2:]}
+	e.shift = asPathShiftGen{tail: val[2:], overridePeer: in.OverridePeerAS, overrideLocal: in.OverrideLocalAS, asn4: in.DstASN4, skip: 1}
 	e.shift.head[0] = val[0]
 	e.shift.head[1] = val[1] + 1
 	if in.DstASN4 {
@@ -506,9 +513,13 @@ func (e *ASPathEdit) tryShift(mods *filterapi.ModAccumulator, section []byte, sp
 // the source value's tail. The tail is a window into the base payload and is
 // copied exactly once, into the destination.
 type asPathShiftGen struct {
-	head    [6]byte
-	headLen int
-	tail    []byte
+	head          [6]byte
+	headLen       int
+	tail          []byte
+	overridePeer  uint32
+	overrideLocal uint32
+	asn4          bool
+	skip          int
 }
 
 func (g *asPathShiftGen) GenLen() int { return g.headLen + len(g.tail) }
@@ -516,6 +527,7 @@ func (g *asPathShiftGen) GenLen() int { return g.headLen + len(g.tail) }
 func (g *asPathShiftGen) GenWrite(buf []byte, off int) int {
 	n := copy(buf[off:], g.head[:g.headLen])
 	n += copy(buf[off+n:], g.tail)
+	overrideASPathValue(buf[off:off+n], g.overridePeer, g.overrideLocal, g.asn4, g.skip)
 	return n
 }
 

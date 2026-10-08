@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -52,21 +51,14 @@ func initialSyncBarrierRaw(ctx context.Context, _ []string) error {
 	// Keep the reporter declaration and ready signal paired. This exercises
 	// session-ready bookkeeping without treating it as a marker-order barrier.
 	reg := sdk.Registration{SignalsSessionReady: true}
-	return Observe(ctx, "raw-injector", reg, func(ctx context.Context, plugin *sdk.Plugin) error {
-		established := Poll(ctx, 400, 5*time.Millisecond, func() bool {
-			return plugin01PeerCounter(ctx, plugin, "*", "connections-established") >= 1
-		})
-		if !established {
-			return errors.New("no peer reached established, so nothing was ever injected")
-		}
-
+	return fixtureObserveInitialReplay(ctx, "raw-injector", reg, func(ctx context.Context, plugin *sdk.Plugin, initialReplay uint64) error {
 		if _, err := plugin01RequireDone(ctx, plugin, "send bgp 127.0.0.1 raw hex "+rawUpdateWire); err != nil {
 			return err
 		}
 
 		// Finish the declared reporter's work. This signal does not release or
 		// order sendInitialRoutes' independently emitted marker.
-		if _, err := plugin01RequireDone(ctx, plugin, "request peer 127.0.0.1 plugin session ready"); err != nil {
+		if err := fixture10SessionReady(ctx, plugin, initialReplay); err != nil {
 			return err
 		}
 

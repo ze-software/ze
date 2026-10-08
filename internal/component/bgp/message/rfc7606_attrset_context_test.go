@@ -73,19 +73,13 @@ func TestRFC7606AttrSetInnerIBGPAttributesOnEBGPSession(t *testing.T) {
 	}
 }
 
-// VALIDATES: an inner attribute whose own error action is "attribute discard" does not
-// escalate to a whole-UPDATE withdraw.
-// PREVENTS: inverting RFC 7606's deliberate choice. It assigns attribute-discard to
-// AGGREGATOR (7.7), LOCAL_PREF from eBGP (7.5), ORIGINATOR_ID (7.9) and CLUSTER_LIST
-// (7.10) precisely so the route survives the error; only a TREAT-AS-WITHDRAW-or-worse
-// inner result makes the ATTR_SET malformed under RFC 6368 Section 5.
+// VALIDATES: a malformed inner ORIGIN makes the enclosing ATTR_SET malformed.
+// PREVENTS: accepting an inner attribute whose value violates its own encoding.
 //
-// RFC requirement: RFC7606-7.16-1 negative -- an inner attribute that is genuinely
-// malformed (ORIGIN of length 2, RFC 7606 Section 7.1) still withdraws, so the relaxation
-// above did not disable the check.
+// RFC requirement: RFC7606-7.16-1 negative -- an inner ORIGIN of length 2
+// makes ATTR_SET malformed and causes treat-as-withdraw.
 func TestRFC7606AttrSetInnerMalformedStillWithdraws(t *testing.T) {
-	// ORIGIN with length 2 is malformed per Section 7.1 and carries treat-as-withdraw,
-	// which is strictly stronger than attribute-discard.
+	// RFC 7606 Sections 7.1 and 7.16: ORIGIN length 2 is malformed.
 	inner := []byte{0x40, 0x01, 0x02, 0x00, 0x00}
 	attrs := updateWith(optAttr(0xc0, 0x80, attrSetValue(65000, inner)))
 

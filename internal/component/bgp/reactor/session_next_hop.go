@@ -132,5 +132,5 @@ func (s *Session) withdrawLegacyAnnouncements(wu *wireu.WireUpdate) *wireu.WireU
 	copy(out[attrOffset+len(nlri):], body[attrOffset:nlriOffset])
 	rewritten := wireu.NewWireUpdate(out, wu.SourceCtxID())
 	rewritten.SetSourceID(wu.SourceID())
-	return s.publishBase(rewritten)
+	return rewritten
 }

@@ -229,7 +229,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 		NLRI:         nlri,
 		NextHop:      nextHop,
 		Attrs:        attrs,
-		MapV4NextHop: true, // multiprotocol next-hop: IPv4-mapped IPv6 for IPv6 family.
+		MapV4NextHop: false, // RFC 9830 Section 2.1: native next-hop width is independent of NLRI AFI.
 	}, nil
 }
 

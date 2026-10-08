@@ -1,10 +1,9 @@
-# Test: bgp-persist plugin loaded and the session survives a reload
-# VALIDATES: the persist plugin loads, the session establishes, and a route-set
-#            reload is delivered on the RUNNING session with the plugin attached
-#            (deliverStaticRouteDelta, peer_static_wire.go).
-# PREVENTS: the persist plugin breaking the session or the reload. The fixture
-#           asserted a reconnect until the route-set edit became a swap; a restart
-#           now fails it, because the peer offers one connection slot.
+# Test: mandatory bgp-rib and static routes survive a live configuration reload.
+# VALIDATES: the session establishes and a route-set reload is delivered on the
+#            RUNNING session (deliverStaticRouteDelta, peer_static_wire.go).
+# PREVENTS: mandatory RIB startup breaking the session or static-route reload.
+#           One connection slot makes an unexpected reconnect fail this test.
+#           This is process-memory live reload, not durable daemon-restart storage.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -24,14 +23,8 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 action=sigterm:conn=1:seq=3
 EOF_PEER
 
-# Initial ze bgp configuration (one static route + persist plugin)
+# Initial configuration: one static route; mandatory bgp-rib gets explicit grants.
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-plugin {
-	internal persist {
-		use bgp-persist
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -60,8 +53,8 @@ bgp {
 			group-updates disable
 		}
 
-		attach process persist {
-			receive [ update-sent state open-received ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 
@@ -79,14 +72,8 @@ bgp {
 }
 EOF_CONF
 
-# Rewritten config (two routes -- count change triggers peer restart)
+# Rewritten configuration: the added route is delivered without restarting the peer.
 tmpfs=config2.conf:terminator=EOF_CONF2
-plugin {
-	internal persist {
-		use bgp-persist
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -115,8 +102,8 @@ bgp {
 			group-updates disable
 		}
 
-		attach process persist {
-			receive [ update-sent state open-received ]
+		attach process bgp-rib {
+			receive [ update state refresh ]
 			send [ update ]
 		}
 
