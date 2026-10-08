@@ -14,7 +14,7 @@
 | Real-path tests | test/reload/commit-transactional.ci, test/reload/commit-verify-reject.ci, test/reload/config-reload-invalid-validator.ci, test/parse/config-startup-refuses-invalid-validator.ci, test/parse/config-secret-roundtrip.ci |
 | Docs | docs/features/configuration.md |
 | Doc review | 2026-10-07: row prose matches the audit of internal/component/config (transactional active/candidate/rollback pointers); no sentence found false |
-| Defect review | 2026-10-07: open: plan/immediate/spec-config-verify-rejects-unknown-keys.md, spec-config-leaf-consumption-gate.md, spec-config-set-never-echoes-a-secret.md, and the plan/pre-release/spec-config-yang-*.md set |
+| Defect review | 2026-10-07: open: plan/immediate/spec-config-verify-rejects-unknown-keys.md, spec-config-leaf-consumption-gate.md, and the plan/pre-release/spec-config-yang-*.md set |
 
 ## Description
 

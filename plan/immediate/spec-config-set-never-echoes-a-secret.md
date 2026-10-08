@@ -135,7 +135,7 @@ that value is a secret, and one predicate answers for every such command.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every write-only password leaf is marked `ze:sensitive` | `TestAWriteOnlyPasswordLeafIsMarkedSensitive` walks every YANG module | the mask hides everything except the password that prompted the row | that test | confirmed: both `plaintext-password` leaves now carry the marking |
 | A-2 | The eight sinks are the whole population | read at each producer during the fix | a ninth sink still echoes | grep plus the review; a NINTH was found during the work and folded in | confirmed for the eight plus the conflict |
-| A-3 | `LookupTokenPath` resolves the same path the command acts on | it is the schema-only sibling of the walk `set` uses | the mask answers about a different leaf | asserted from the code; no test drives a divergence | UNVALIDATED |
+| A-3 | `LookupTokenPath` resolves the same path the command acts on | it is the schema-only sibling of the walk `set` uses | the mask answers about a different leaf | asserted from the code; no test drives a divergence | confirmed 2026-10-08: same anonymous-versus-keyed rule at both producers (Pre-Commit Verification, Assumptions Resolved) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -338,5 +338,130 @@ that value is a secret, and one predicate answers for every such command.
 | Journal row | Written in `plan/journal/secret-echoed-to-the-client.md`; its 2026-09-06 FIXED entry records the implementation, not completion of this spec's proof |
 | PROVEN | AC-1 through AC-7 for every producer except `cmdInsert`. Each fix was observed RED against the unfixed producer, and each carries the opposite polarity, so a fail-closed mask cannot satisfy it alone. AC-9 by the YANG walk |
 | PROVEN 2026-10-08 | AC-8 by `TestDisplayValueAtPathFailsClosed`, and AC-1/AC-3 through the real entry point by `test/parse/cli-config-set-secret-never-echoed.ci`; each observed RED against a mutated producer and GREEN restored (TDD and Functional Tests tables) |
-| ASSERTED, not proven | A-3 is unvalidated. `cmdInsert`'s polarity is unreachable by construction, stated in Known Limitations |
-| Remains | Documentation and closure review (`/ze-close`), independent of the author of these tests. The transcript sink remains separately recorded in `plan/journal/secret-echoed-to-the-client.md`; this acknowledgement fix does not establish that every secret-output path is closed |
+| CONFIRMED 2026-10-08 | A-3, by reading both producers. `cmdInsert`'s secret polarity is unreachable by construction, stated in Known Limitations |
+| Remains | nothing in this spec's scope. The transcript sink remains separately recorded in `plan/journal/secret-echoed-to-the-client.md`; this acknowledgement fix does not establish that every secret-output path is closed |
+
+## Implementation Summary
+
+### What Was Implemented
+- `ef20b9d56e` (2026-09-06): `config.DisplayValueAtPath`, `config.DisplayMessageAtPath`, `secretAtPath` and `MaskSecretInMessage` in `internal/component/config/mask.go`; `Schema.LookupTokenPath` in `schema.go`; routed through `cmdSetImpl`, `Model.cmdSet`/`cmdInsert`, `executeTerminalSet`, `PendingChange.Summary` and the four `Conflict` constructions; `web.maskSecretInMessage` delegates.
+- `03d466c58d` (2026-10-08): `TestDisplayValueAtPathFailsClosed` and `test/parse/cli-config-set-secret-never-echoed.ci`, each observed red against a mutated producer.
+
+### Bugs Found/Fixed
+- None at closure.
+
+### Documentation Updates
+- `docs/architecture/ssh/fixit-bcrypt-hash-credential.md` names both display functions, `Schema.LookupTokenPath` and the fail-closed rule, with source anchors (in `ef20b9d56e`).
+- `docs/guide/authentication.md` shows `ze config set ... plaintext-password` answering `/* SECRET-DATA */`, anchored to `cmd_set.go` `DisplayValueAtPath`. `docs/guide/command-reference.md` shows no `config set` output, so it carries no claim to correct.
+- `./le doc check verify` exit 1 on 2026-10-08, from one drift row: generating `ze help command --json` failed to compile `internal/component/bgp/reactor/session_validation_receive.go` (`s.firstASPeer undefined`), uncommitted work of the BGP session. No row names a file of this spec.
+
+### Deviations from Plan
+- None.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | the first scoped `go test` failed `TestConfigSet*` with `no such module: ze-bgp-conf` | BGP is compiled out unless the `feature-gates.txt` tags are passed | the error text | reran with the documented tag recipe: all pass |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| an echoing command asks the schema whether the value is a secret | Done | `internal/component/config/mask.go` `secretAtPath` | one predicate, `LeafHoldsSecret` |
+| one predicate answers for every such command | Done | `DisplayValueAtPath`, `DisplayMessageAtPath` | every sink calls one of the two |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestConfigSetNeverEchoesASecret`; `cli-config-set-secret-never-echoed.ci` seq 1 and 2 | |
+| AC-2 | Done | `TestConfigSetRefusalNeverEchoesASecret` | |
+| AC-3 | Done | `TestConfigSetStillEchoesAValueTheSchemaDoesNotMark`; `.ci` seq 3 | |
+| AC-4 | Done | `TestSSHCLISetNeverEchoesASecret`, `TestSSHCLISetStillEchoesAValueTheSchemaDoesNotMark` | insert's secret case unreachable, Known Limitations |
+| AC-5 | Done | `TestWebTerminalSetNeverEchoesASecret`, `TestWebTerminalSetStillEchoesAValueTheSchemaDoesNotMark` | |
+| AC-6 | Done | `TestPendingChangeSummaryNeverEchoesASecret` | |
+| AC-7 | Done | `TestCommitConflictNeverEchoesASecret` | |
+| AC-8 | Done | `TestDisplayValueAtPathFailsClosed` | |
+| AC-9 | Done | `TestAWriteOnlyPasswordLeafIsMarkedSensitive` | both `plaintext-password` leaves carry `ze:sensitive` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the 12 tests in the TDD table | Done | `cmd_set_secret_test.go`, `model_commands_edit_secret_test.go`, `cli_terminal_secret_test.go`, `mask_test.go` | all PASS on 2026-10-08 with feature tags |
+| `cli-config-set-secret-never-echoed` | Done | `test/parse/` | PASS on 2026-10-08 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| the nine files in Files to Modify | Done | `ef20b9d56e`; the two YANG leaves carry `ze:sensitive` beside `ze:ephemeral` |
+| the three files in Files to Create | Done | `ef20b9d56e` |
+
+### Audit Summary
+- **Total items:** 15
+- **Done:** 15
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| an echoed secret becomes the placeholder at every acknowledging command | functional and unit, both polarities | `./le test bgp parse --pattern cli-config-set-secret-never-echoed` 1/1 PASS; red recorded in the Functional Tests row; the per-sink never-echoes and still-echoes pairs PASS |
+| one schema predicate answers, failing closed | unit | `TestDisplayValueAtPathFailsClosed` PASS, red recorded in the TDD table |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is met; the transcript sink is a journal row outside this spec's ACs | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` on 2026-10-08 |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | AC by AC against the producer, fail-closed and opposite polarity, `%q` escape handling, schema markings, style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | no BLOCKER or ISSUE | - | - |
+
+### Notes (non-blocking)
+- `Schema.LookupTokenPath` (`schema.go`) and `Editor.walkOrCreate` (`editor_commands.go`) each state the anonymous-versus-keyed list rule (`list.Get(next) != nil`). They agree today, which is what confirms A-3, but the rule has two declarations.
+- `MaskSecretInMessage` covers the raw and the `%q` spellings. A message that encoded the value another way (JSON escaping) would need its own case; no current refusal does.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/parse/cli-config-set-secret-never-echoed.ci` | yes | ran 1/1 PASS on 2026-10-08 |
+| `internal/component/config/cli/cmd_set_secret_test.go`, `internal/component/cli/model_commands_edit_secret_test.go`, `internal/component/web/cli_terminal_secret_test.go` | yes | their tests ran on 2026-10-08 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..9 | as the audit table | `go test -tags "$tags" -run 'Secret\|DisplayValueAtPath\|WriteOnlyPassword\|DisplayMessage\|StillEchoes'` over config, config/cli, cli, web: 4 packages ok, 39 PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config set ... plaintext-password <v>` | `test/parse/cli-config-set-secret-never-echoed.ci` | yes: seq 1 and 2 expect `/* SECRET-DATA */` and reject both halves of the value; seq 3 expects the plain leaf in full |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestAWriteOnlyPasswordLeafIsMarkedSensitive` PASS; both YANG leaves read |
+| A-2 | confirmed | the eight sinks plus the conflict each carry a test |
+| A-3 | confirmed | `LookupTokenPath` skips a token after a list only when `list.Get(token) == nil`; `walkOrCreate` takes it as the key under the same condition. The `.ci` drives both directions through list keys (`user alice`, `peer peer1`) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| fixit-bcrypt page: the echo is masked by path and fails closed | `secretAtPath` returns true on a nil node | yes |
+| authentication guide: the `set` line prints `/* SECRET-DATA */` | `DisplayValueAtPath` returns `SecretDataPlaceholder` | yes |
