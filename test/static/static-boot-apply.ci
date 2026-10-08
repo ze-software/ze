@@ -33,8 +33,8 @@ option=env:var=ze.log.static:value=info
 
 cmd=foreground:seq=1:exec=le test fixture static/static-boot-apply-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=static routes loaded
 cmd=foreground:seq=3:exec=le test fixture static/static-boot-apply:timeout=15s
 expect=exit:code=0
-expect=stderr:contains=static routes loaded
 expect=stdout:contains=10.0.0.0/8
 expect=stdout:contains=0.0.0.0/0
