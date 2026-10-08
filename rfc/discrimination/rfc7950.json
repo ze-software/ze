@@ -108,7 +108,7 @@
       "claim-sha": "af6edb2570a68ac2",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "a57640034d109674",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "d9ef8ed1fcfcd94b",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "58691f6a1dfd39a9",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -383,7 +383,7 @@
       "claim-sha": "785a84769dbc27e6",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -394,7 +394,7 @@
       "claim-sha": "857a188f5ab798a1",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -713,7 +713,7 @@
       "claim-sha": "535f0f0c03a115b4",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -724,7 +724,7 @@
       "claim-sha": "92a611c9c7a245c4",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -801,7 +801,7 @@
       "claim-sha": "9b159369e6956571",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -812,7 +812,7 @@
       "claim-sha": "ee849410b01e874e",
       "route": "revert",
       "producer": "internal/component/config/yang/loader.go::Resolve",
-      "producer-sha": "945c456bc577fc4f",
+      "producer-sha": "2472a6df10312e9b",
       "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
