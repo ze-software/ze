@@ -13,6 +13,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -41,7 +42,9 @@ var (
 
 // cmdCommitConfirmed commits with auto-rollback if not confirmed within timeout.
 // Writes the trial config to .live.conf for audit, then overwrites .conf so the
-// daemon picks it up on reload. The original .conf is preserved in a dated backup.
+// daemon picks it up on reload. The original .conf is preserved in a dated
+// backup in the config history, so an editor without history refuses before
+// writing anything.
 // When force is true, warnings are skipped but errors still block.
 func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, error) {
 	// Boundary validation: 1-3600 seconds
@@ -72,6 +75,15 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 		if len(issues) > 0 {
 			return commandResult{}, fmt.Errorf("cannot commit: %s", formatValidationErrors(issues))
 		}
+	}
+
+	// The auto-revert restores .conf from the backup this commit records in
+	// the config history. An editor with no history (a loose file whose folder
+	// holds no store) records none, so it refuses here, before .live.conf or
+	// .conf is written: a permanent commit that then reports an error is the
+	// opposite of what the operator asked for.
+	if !m.editor.HasHistory() {
+		return commandResult{}, fmt.Errorf("commit confirmed needs config history to roll back: %w; run ze init", storage.ErrNoStore)
 	}
 
 	// Write trial config to .live.conf (audit trail + pending indicator)
@@ -114,7 +126,9 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 		reloadWarning = m.tryReload()
 	}
 
-	// Get the most recent backup path for potential rollback
+	// Get the most recent backup path for potential rollback. The editor has
+	// history (checked above), so this fails only when the store cannot list
+	// the version the commit just recorded.
 	backups, err := m.editor.ListBackups()
 	if err != nil || len(backups) == 0 {
 		return commandResult{}, errCommitSucceededButNoBackupFound

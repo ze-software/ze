@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // =============================================================================
@@ -47,6 +49,50 @@ func TestModelCommitConfirmStartsTimer(t *testing.T) {
 
 	// Timer should be active
 	assert.True(t, model.ConfirmTimerActive(), "confirm timer should be active")
+}
+
+// TestModelCommitConfirmRefusesWithoutHistory proves a confirmed commit on an
+// editor with no config history writes nothing.
+//
+// VALIDATES: `commit confirmed N` on a loose file whose folder holds no store
+// refuses before writing: .conf keeps its content, no .live.conf appears, no
+// reload reaches the daemon, and the error names ErrNoStore and `ze init`.
+// PREVENTS: the commit landing permanently and only then failing with "no
+// backup found for rollback", the opposite of the auto-revert asked for.
+func TestModelCommitConfirmRefusesWithoutHistory(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
+
+	ed, err := NewLooseFileEditor(nil, configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+	require.False(t, ed.HasHistory(), "the fixture must be an editor with no history")
+
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
+	require.NoError(t, err)
+	reloaded := false
+	model.editor.SetReloadNotifier(func() error {
+		reloaded = true
+		return nil
+	})
+	_, err = model.cmdSet([]string{"bgp", "router-id", "9.9.9.9"})
+	require.NoError(t, err)
+	require.Contains(t, ed.WorkingContent(), "9.9.9.9", "the edit must be pending before the commit")
+
+	_, err = model.cmdCommitConfirmed(60, false)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, storage.ErrNoStore)
+	assert.Contains(t, err.Error(), "commit confirmed needs config history")
+	assert.Contains(t, err.Error(), "run ze init")
+
+	data, err := os.ReadFile(configPath) //nolint:gosec // Test temp path
+	require.NoError(t, err)
+	assert.Equal(t, testValidBGPConfig, string(data), "the refused commit must not reach .conf")
+	_, err = os.Stat(ed.livePath())
+	assert.True(t, os.IsNotExist(err), "the refused commit must not leave a .live.conf")
+	assert.False(t, reloaded, "the refused commit must not reach the daemon")
+	assert.False(t, model.ConfirmTimerActive(), "no rollback timer may start")
 }
 
 // TestModelCommitConfirmBoundaryLow verifies boundary: seconds must be >= 1.

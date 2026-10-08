@@ -157,7 +157,9 @@ The selected source determines the editor's mode.
 
 **File mode** (`ze config edit -f <file>`): the editor reads and writes the
 explicit loose file. It keeps its `.edit` recovery file alongside it, and
-records rollback versions in an existing store. A file changed externally
+records rollback versions in an existing store in the file's folder.
+`commit confirmed` restores from that history, so in a folder with no store it
+refuses before writing anything and names `ze init`. A file changed externally
 since it was opened causes commit to fail rather than overwrite the edit.
 `-f` cannot be combined with `--web` or `--insecure-web`; use session mode
 without `-f` to serve the web editor from the owning daemon.
@@ -287,6 +289,11 @@ from configuration mode behind `run `, and the keys are in the
 | *or* timer expires | Config reverts automatically |
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
+
+The revert restores the rollback revision the commit records, so `commit
+confirmed` needs config history. An editor without one, such as
+`ze config edit -f` on a file whose folder holds no store, refuses before it
+writes the file and names `ze init`; a plain `commit` still works there.
 
 <!-- terminal-demo: commit-confirmed -->
 
