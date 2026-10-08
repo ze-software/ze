@@ -283,6 +283,14 @@ le test bgp plugin -a                       # 4. now it is real
 
 `--draft` swaps the discovery root; without it you always get the real tests.
 
+**`./le test stress-repro run` builds the `ze` it drives from the working
+tree**, unless `ZE_BIN` pins one, so its verdict is about the code in hand and
+never about a `bin/ze` some earlier build left behind. A run in which every
+finished invocation failed, or none finished, answers exit 2 with no verdict
+rather than "not reproduced": nothing passed, so nothing was tested. Pass
+`any-failure` when that failure is the reproduction.
+<!-- source: internal/le/test/stressrepro/run.go -- run, buildDaemon -->
+
 **Type the runner's own verb, and read the log rather than the exit code.** Not
 every suite sits under `bgp`: `plugin`, `encode`, `decode`, `parse` and `reload`
 do, and `ui`, `editor`, `web` and the protocol suites are typed bare, as

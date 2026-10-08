@@ -131,11 +131,11 @@ type fakeRunner struct {
 	mu          sync.Mutex
 	results     []processResult
 	invocations []invocation
-	build       processResult
+	buildResult processResult
 	buildRoot   string
 	buildOutput string
 	buildTags   string
-	createBuild bool
+	buildRace   bool
 	waitForStop bool
 	started     chan struct{}
 	stopped     chan struct{}
@@ -172,16 +172,18 @@ func (f *fakeRunner) Invoke(ctx context.Context, spec invocation) processResult 
 	return result
 }
 
-func (f *fakeRunner) buildRace(_ context.Context, root, output, tags string) processResult {
+// build records the request and, when the scripted result succeeds, writes the
+// binary a real build would leave.
+func (f *fakeRunner) build(_ context.Context, root, output, tags string, race bool) processResult {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.buildRoot, f.buildOutput, f.buildTags = root, output, tags
-	if f.createBuild {
-		if err := os.WriteFile(output, []byte("race"), 0o755); err != nil {
+	f.buildRoot, f.buildOutput, f.buildTags, f.buildRace = root, output, tags, race
+	if f.buildResult.err == nil && f.buildResult.code == 0 {
+		if err := os.WriteFile(output, []byte("built"), 0o755); err != nil {
 			return processResult{code: 2, err: err}
 		}
 	}
-	return f.build
+	return f.buildResult
 }
 
 func (f *fakeRunner) count() int {
@@ -270,9 +272,12 @@ func TestAnyFailureControlsPlainNonzeroExit(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := stressTree(t)
-			fake := &fakeRunner{results: []processResult{{code: 9, output: "assertion failed"}}}
+			// The first invocation passes, so the crashes-only run has a
+			// verdict: a run in which every invocation failed has none.
+			fake := &fakeRunner{results: []processResult{{}, {code: 9, output: "assertion failed"}}}
 			deps, _ := testDependencies(fake)
 			opts := baseOptions()
+			opts.Iterations = 2
 			opts.AnyFailure = test.any
 			report, code := run(context.Background(), root, opts, deps)
 			if code != test.code || report.Reproduced != test.any ||
@@ -377,8 +382,8 @@ func (r *orderedRunner) Invoke(ctx context.Context, spec invocation) processResu
 	return processResult{code: 1, err: ctx.Err()}
 }
 
-func (r *orderedRunner) buildRace(ctx context.Context, root, output, tags string) processResult {
-	return r.first.buildRace(ctx, root, output, tags)
+func (r *orderedRunner) build(ctx context.Context, root, output, tags string, race bool) processResult {
+	return r.first.build(ctx, root, output, tags, race)
 }
 
 func TestCancellationStopsInvocationsAndBurners(t *testing.T) {
@@ -419,7 +424,7 @@ func TestCancellationStopsInvocationsAndBurners(t *testing.T) {
 
 func TestRaceBuildUsesDerivedSortedTagsAndRemovesTemporaryBinary(t *testing.T) {
 	root := stressTree(t)
-	fake := &fakeRunner{createBuild: true, results: []processResult{{}}}
+	fake := &fakeRunner{results: []processResult{{}}}
 	deps, _ := testDependencies(fake)
 	opts := baseOptions()
 	opts.Race, opts.Tags = true, "ze_extra"
@@ -428,7 +433,7 @@ func TestRaceBuildUsesDerivedSortedTagsAndRemovesTemporaryBinary(t *testing.T) {
 		t.Fatalf("report/code = %#v/%d", report, code)
 	}
 	wantTags := "ze_core ze_distro ze_setup ze_bgp ze_ospf ze_extra"
-	if fake.buildRoot != root || fake.buildTags != wantTags {
+	if fake.buildRoot != root || fake.buildTags != wantTags || !fake.buildRace {
 		t.Fatalf("race build root/tags = %q/%q", fake.buildRoot, fake.buildTags)
 	}
 	if _, err := os.Stat(fake.buildOutput); !errors.Is(err, os.ErrNotExist) {
@@ -439,7 +444,7 @@ func TestRaceBuildUsesDerivedSortedTagsAndRemovesTemporaryBinary(t *testing.T) {
 func TestRaceBuildFailureAndMissingBinariesAreSetupErrors(t *testing.T) {
 	t.Run("build", func(t *testing.T) {
 		root := stressTree(t)
-		fake := &fakeRunner{build: processResult{code: 1, output: "compiler failed"}}
+		fake := &fakeRunner{buildResult: processResult{code: 1, output: "compiler failed"}}
 		deps, _ := testDependencies(fake)
 		opts := baseOptions()
 		opts.Race = true
@@ -450,9 +455,7 @@ func TestRaceBuildFailureAndMissingBinariesAreSetupErrors(t *testing.T) {
 	})
 	t.Run("missing", func(t *testing.T) {
 		root := stressTree(t)
-		if err := os.Remove(filepath.Join(root, "bin", "ze")); err != nil {
-			t.Fatal(err)
-		}
+		t.Setenv("ZE_BIN", filepath.Join(root, "bin", "no-such-ze"))
 		fake := &fakeRunner{}
 		deps, _ := testDependencies(fake)
 		report, code := run(context.Background(), root, baseOptions(), deps)
@@ -512,5 +515,53 @@ func TestEveryValueSlotRefusesAnOptionWithoutStartingTheRun(t *testing.T) {
 	}
 	if payload != nil {
 		t.Errorf("Answer(run suite -help) reached the orchestrator and answered %#v, want a refusal", payload)
+	}
+}
+
+// TestDefaultDaemonIsBuiltFromTheTree proves that a run with no ZE_BIN drives a
+// ze built from the working tree, never the shared bin/ze.
+//
+// VALIDATES: an unpinned run builds its own daemon and every invocation names it.
+// PREVENTS: the 2026-10-07 run that drove a 2026-09-24 bin/ze, so its verdict
+// said nothing about the code in hand (plan/journal/stale-artifact-reused.md).
+func TestDefaultDaemonIsBuiltFromTheTree(t *testing.T) {
+	root := stressTree(t)
+	fake := &fakeRunner{results: []processResult{{}}}
+	deps, _ := testDependencies(fake)
+	report, code := run(context.Background(), root, baseOptions(), deps)
+	if code != 1 {
+		t.Fatalf("report/code = %#v/%d", report, code)
+	}
+	stale := filepath.Join(root, "bin", "ze")
+	if fake.buildOutput == "" || fake.buildOutput == stale || fake.buildRace {
+		t.Fatalf("no daemon was built from the tree: build output %q", fake.buildOutput)
+	}
+	if len(fake.invocations) != 1 || fake.invocations[0].zeBin != fake.buildOutput {
+		t.Fatalf("invocations %#v did not drive the built daemon %q", fake.invocations, fake.buildOutput)
+	}
+	if _, err := os.Stat(fake.buildOutput); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("built daemon survived cleanup: %v", err)
+	}
+}
+
+// TestEveryInvocationFailingIsNoVerdict proves that a run in which no invocation
+// passed answers an error rather than "not reproduced".
+//
+// VALIDATES: all-failed without a crash signature is a setup failure, exit 2.
+// PREVENTS: five failed invocations reported as "not reproduced", which reads
+// as a pass for a run that tested nothing.
+func TestEveryInvocationFailingIsNoVerdict(t *testing.T) {
+	root := stressTree(t)
+	failed := processResult{code: 1, output: "daemon refused the config"}
+	fake := &fakeRunner{results: []processResult{failed, failed, failed}}
+	deps, _ := testDependencies(fake)
+	opts := baseOptions()
+	opts.Iterations = 3
+	report, code := run(context.Background(), root, opts, deps)
+	if code != 2 || report.Reproduced || !strings.Contains(report.SetupError, "every one of 3 invocation(s) failed") {
+		t.Fatalf("report/code = %#v/%d", report, code)
+	}
+	if strings.Contains(report.Text(), "not reproduced") {
+		t.Fatalf("an all-failed run printed a verdict: %s", report.Text())
 	}
 }

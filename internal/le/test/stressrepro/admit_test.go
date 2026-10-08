@@ -7,6 +7,7 @@ package teststressrepro
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"sync"
 	"testing"
@@ -45,7 +46,12 @@ func (r *admittingRunner) Invoke(_ context.Context, spec invocation) processResu
 	return processResult{code: ticket.Code}
 }
 
-func (r *admittingRunner) buildRace(context.Context, string, string, string) processResult {
+// build writes the binary a real build would leave, so the run reaches its
+// invocations.
+func (r *admittingRunner) build(_ context.Context, _, output, _ string, _ bool) processResult {
+	if err := os.WriteFile(output, []byte("built"), 0o755); err != nil {
+		return processResult{code: 2, err: err}
+	}
 	return processResult{}
 }
 

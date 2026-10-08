@@ -1,4 +1,4 @@
-// Design: docs/functional-tests.md -- le test invocation and test-only race build
+// Design: docs/functional-tests.md -- le test invocation and the daemon build
 // Overview: run.go -- orchestration owns cancellation and result classification
 
 package teststressrepro
@@ -56,12 +56,19 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 	return result
 }
 
-func (realProcessRunner) buildRace(ctx context.Context, root, output, tags string) processResult {
-	env := setEnvironment(append([]string(nil), os.Environ()...), "CGO_ENABLED", "1")
-	return runCommand(ctx, root, env, "go",
-		"build", "-race", "-tags", tags,
+// build compiles the daemon under test from the working tree in root.
+// A race build needs cgo, so it enables it; a plain build keeps the caller's.
+func (realProcessRunner) build(ctx context.Context, root, output, tags string, race bool) processResult {
+	env := append([]string(nil), os.Environ()...)
+	argv := []string{"build"}
+	if race {
+		env = setEnvironment(env, "CGO_ENABLED", "1")
+		argv = append(argv, "-race")
+	}
+	argv = append(argv, "-tags", tags,
 		"-ldflags", "-X main.version=stress -X main.buildDate=stress",
 		"-o", output, "./cmd/ze")
+	return runCommand(ctx, root, env, "go", argv...)
 }
 
 func runCommand(ctx context.Context, dir string, env []string, program string, argv ...string) processResult {

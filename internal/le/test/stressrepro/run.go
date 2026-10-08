@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -123,7 +124,7 @@ type processResult struct {
 
 type processRunner interface {
 	Invoke(context.Context, invocation) processResult
-	buildRace(context.Context, string, string, string) processResult
+	build(ctx context.Context, root, output, tags string, race bool) processResult
 }
 
 type runDependencies struct {
@@ -257,28 +258,21 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	stamp := deps.now().Format("20060102-150405")
 	report.Log = filepath.Join(outDir, slug+"-"+stamp+".log")
 
-	zeBin := binaryFromEnvironment(root, "ze.bin", "ze")
 	testBin, err := os.Executable()
 	if err != nil {
 		return setupFailure(report, fmt.Errorf("the harness is this le, and it cannot name its own file: %w", err))
 	}
-	var raceBin string
-	if opts.Race {
-		tags, tagErr := raceTags(root, opts.Tags)
-		if tagErr != nil {
-			return setupFailure(report, tagErr)
+	// The daemon under test is built from the tree in hand unless ZE_BIN pins
+	// one. The shared bin/ze is never a fallback: it is whatever some earlier
+	// build left there, and a verdict over it says nothing about this tree.
+	zeBin, pinned := pinnedBinary("ze.bin")
+	if opts.Race || !pinned {
+		built, buildErr := buildDaemon(ctx, root, outDir, opts, deps)
+		if buildErr != nil {
+			return setupFailure(report, buildErr)
 		}
-		raceBin = filepath.Join(outDir, fmt.Sprintf("ze-race-%d", deps.pid))
-		build := deps.runner.buildRace(ctx, root, raceBin, tags)
-		if build.err != nil || build.code != 0 {
-			message := strings.TrimSpace(build.output)
-			if message == "" && build.err != nil {
-				message = build.err.Error()
-			}
-			return setupFailure(report, fmt.Errorf("stress build failed: %s", message))
-		}
-		zeBin = raceBin
-		defer func() { _ = os.Remove(raceBin) }()
+		zeBin = built
+		defer func() { _ = os.RemoveAll(filepath.Dir(filepath.Dir(built))) }()
 	}
 	if err := ensureBinaries(zeBin, testBin); err != nil {
 		return setupFailure(report, err)
@@ -306,6 +300,11 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 		root: root, suite: opts.Suite, test: opts.Test, zeBin: zeBin, testBin: testBin,
 		timeout: time.Duration(opts.Timeout) * time.Second, extraTags: opts.Tags,
 	}
+	// ran counts the invocations that finished on their own, and failed the
+	// ones among them that exited non-zero without counting as a hit. When
+	// every finished invocation failed, nothing passed, so "not reproduced"
+	// would be a verdict about a run that tested nothing.
+	ran, failed := 0, 0
 	for report.Completed < opts.Iterations && runCtx.Err() == nil && !report.Reproduced {
 		batch := min(parallel, opts.Iterations-report.Completed)
 		batchCtx, cancelBatch := context.WithCancel(runCtx)
@@ -335,8 +334,12 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 				cancelBatch()
 				continue
 			}
+			ran++
 			signature := crashSignature(result.output)
 			hit := signature != "" || (opts.AnyFailure && result.code != 0)
+			if !hit && result.code != 0 {
+				failed++
+			}
 			label := "ok"
 			if signature != "" {
 				label = "CRASH:" + signature
@@ -366,6 +369,20 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 		return report, 0
 	}
 	report.Interrupted = ctx.Err() != nil
+	if report.Interrupted {
+		return report, 1
+	}
+	if ran == 0 {
+		report.SetupError = "no invocation finished before the deadline, so the run has no verdict; raise minutes or timeout"
+		return report, 2
+	}
+	if failed == ran {
+		var tb textbuf.Buffer
+		report.SetupError = tb.Str("every one of ").Str(strconv.Itoa(ran)).
+			Str(" invocation(s) failed without a crash signature, so nothing passed and the run has no verdict; read ").
+			Str(report.Log).Str(", and pass any-failure if the failure is the reproduction").String()
+		return report, 2
+	}
 	return report, 1
 }
 
@@ -385,30 +402,62 @@ func ensureBinaries(paths ...string) error {
 	if len(missing) == 0 {
 		return nil
 	}
-	return fmt.Errorf("missing prebuilt binaries: %v; build them first with a canonical native run, for example `ZE_TEST_CANONICAL=1 ./le test functional parse`", missing)
+	return fmt.Errorf("missing prebuilt binaries: %v; point ZE_BIN at a built ze, or unset it so the run builds one from the tree", missing)
 }
 
-func binaryFromEnvironment(root, key, name string) string {
+// pinnedBinary answers the path an environment key names, in its dotted or
+// upper-case spelling, and whether the key was set at all.
+func pinnedBinary(key string) (string, bool) {
 	for _, spelling := range []string{key, strings.ToUpper(strings.ReplaceAll(key, ".", "_"))} {
 		if value := os.Getenv(spelling); value != "" {
 			absolute, err := filepath.Abs(value)
 			if err == nil {
-				return absolute
+				return absolute, true
 			}
-			return value
+			return value, true
 		}
 	}
-	return filepath.Join(root, "bin", name)
+	return "", false
 }
 
-// raceBase is the personality a race repro compiles, before the gates
-// featuretags adds to it: the daemon, plus the setup surface the repro drives.
-const raceBase = "ze_core ze_distro ze_setup"
+// buildDaemon compiles ze from the working tree into a directory of its own
+// under outDir and answers the binary's path. The binary sits in a bin/
+// directory because ze derives its other directories from that parent. The
+// caller MUST remove the directory two levels above the answer when done.
+func buildDaemon(ctx context.Context, root, outDir string, opts Options, deps runDependencies) (string, error) {
+	tags, err := daemonTags(root, opts.Tags)
+	if err != nil {
+		return "", err
+	}
+	name := "ze-"
+	if opts.Race {
+		name = "ze-race-"
+	}
+	binDir := filepath.Join(outDir, name+strconv.Itoa(deps.pid), "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		return "", fmt.Errorf("create build directory: %w", err)
+	}
+	output := filepath.Join(binDir, "ze")
+	build := deps.runner.build(ctx, root, output, tags, opts.Race)
+	if build.err == nil && build.code == 0 {
+		return output, nil
+	}
+	_ = os.RemoveAll(filepath.Dir(binDir))
+	message := strings.TrimSpace(build.output)
+	if message == "" && build.err != nil {
+		message = build.err.Error()
+	}
+	return "", fmt.Errorf("stress build failed: %s", message)
+}
 
-// raceTags answers the `-tags` value for the race build, with the caller's
+// daemonBase is the personality a repro compiles, before the gates
+// featuretags adds to it: the daemon, plus the setup surface the repro drives.
+const daemonBase = "ze_core ze_distro ze_setup"
+
+// daemonTags answers the `-tags` value for the daemon build, with the caller's
 // extra tag last.
-func raceTags(root, extra string) (string, error) {
-	tags, err := repofeaturetags.DaemonBuildTags(root, raceBase)
+func daemonTags(root, extra string) (string, error) {
+	tags, err := repofeaturetags.DaemonBuildTags(root, daemonBase)
 	if err != nil {
 		return "", fmt.Errorf("read feature gates: %w", err)
 	}
