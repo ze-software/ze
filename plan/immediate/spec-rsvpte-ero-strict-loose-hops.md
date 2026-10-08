@@ -28,7 +28,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The started implementation replaces the old ERO-only next-hop selection with `internal/plugins/rsvpte/routing.go::resolveExplicitPath` and the transport's native route query. Strict hops must resolve to an adjacent member of their abstract node. Loose hops insert the resolved adjacent next hop before the remaining loose subobject; expansion is bounded. `resolveReceivedPath` validates and removes local subobjects before forwarding. This is source coverage awaiting Main's strict/loose wire scenarios and native RFC discrimination, not a claim of CSPF or full RFC 3209 support.
+The started implementation replaces the old ERO-only next-hop selection with `internal/plugins/rsvpte/routing.go::resolveExplicitPath` and the transport's native route query. Strict hops must resolve to an adjacent member of their abstract node. Loose hops insert the resolved adjacent next hop before the remaining loose subobject; expansion is bounded. `resolveReceivedPath` validates and removes local subobjects before forwarding. Five PATH wire tests cover the two MUST rows with revert-route records, and the Docker suite `interop-rsvpte` proves strict forward, strict refusal and loose expansion at a Ze transit against freeRouter, each with a recorded red run (see "Interop status"). This is not a claim of CSPF or full RFC 3209 support.
 
 | Requirement | RFC text | Producer or absence |
 |---|---|---|
@@ -111,7 +111,7 @@ Wire bytes in and out; the native route query on the transport.
 
 ### Documentation Update Checklist
 
-- [ ] No page describes behavior this work changed: no producer code changed
+- [ ] Producer code changed in 9b8bfe250c (`buildPathErr` sends the ADSPEC of the PATH in error, and a ResvTear carries its FLOWSPEC, so a freeRouter relay accepts both); its page edit is `docs/architecture/rsvpte/mpls-rsvp-te.md`, in the same commit
 - [ ] `rfc/short/rfc3209.md` Support remaining and `docs/guide/rsvp-te.md` state what the interop suite proves (53c35bc0db)
 
 ### Deliverables Checklist
@@ -140,7 +140,7 @@ Wire bytes in and out; the native route query on the transport.
 | Item | Note |
 |------|------|
 | Not CSPF | Next-hop selection is the native route query; no TE path computation is claimed |
-| Interop | Proven against freeRouter only, in `./le test integration interop-rsvpte` (see "Interop status"). freeRouter originates only loose hops and never enforces strict hops or originates PathErr, so the strict scenarios prove freeRouter accepts and relays what a Ze transit sends, not that a second implementation agrees on strict-hop validation |
+| Interop | Proven against freeRouter only, in `./le test integration interop-rsvpte` (see "Interop status"). freeRouter names its configured hops loose and prepends one strict subobject for its own next hop (`ipFwdTab.fillRsvpFrst`), routes each hop without reading the strict bit (`rtrRsvpIface.getHop`), and never originates PathErr, so it does not enforce strict hops and the strict scenarios prove freeRouter accepts and relays what a Ze transit sends, not that a second implementation agrees on strict-hop validation |
 
 ## Acceptance Criteria
 
@@ -157,8 +157,11 @@ test carries a revert-route record in `rfc/discrimination/rfc3209.json`.
 
 Semantic discrimination beyond the revert records, by Go overlay on 2026-10-08:
 disabling the `!inside && !target.Loose` refusal in `resolveExplicitPath`
-reddens both negative tests. No producer defect was exposed and no producer
-code changed.
+reddens both negative tests. The overlay exposed no producer defect. Producer
+code did change for interop: 9b8bfe250c makes `buildPathErr` send the ADSPEC of
+the PATH in error and a ResvTear carry its FLOWSPEC, because freeRouter drops
+either message without that object; its page edit is
+`docs/architecture/rsvpte/mpls-rsvp-te.md`.
 
 ## Closure Review (2026-10-08): closure withheld on interop
 
@@ -193,9 +196,12 @@ up. The suite now has back-to-back scenarios: Ze originates, freeRouter
 is the independent implementation that parses the message, keeps the
 state it needs and re-encodes it, and a second Ze captures what freeRouter sent.
 freeRouter relays what Ze originates; it neither originates PathErr nor enforces
-strict hops itself, and every ERO hop it originates is loose
-(`clntMplsTeP2p.workDoer`, `ipFwdTab.fillRsvpPack`), so the evidence is that
-freeRouter accepts and relays Ze's messages. Run log: session scratch
+strict hops itself. It names its configured ERO hops loose
+(`clntMplsTeP2p.workDoer`, `ipFwdTab.fillRsvpPack`) and prepends one strict
+subobject for its own next hop unless the first hop is already strict
+(`ipFwdTab.fillRsvpFrst`), and it routes each hop without reading the strict bit
+(`rtrRsvpIface.getHop`). The evidence is that freeRouter accepts and relays Ze's
+messages. Run log: session scratch
 `rsvpte-run8.log` (3 passed, 2 failed) before commit 9b8bfe250c, and
 `rsvpte-run9.log` (5 passed, 0 failed) after it. Discrimination for (3):
 `rsvpte-disc-run10.log`. Discrimination for (1) and (2), 2026-10-08: each red
@@ -215,7 +221,7 @@ here sets one, so freeRouter runs its upstream behavior in all three.
 |-------------------------|----------|--------|
 | (1) strict direct hop | `transit-strict-hop-forwarded` | PASS. The Ze ingress names every hop strict through a freeRouter relay; the freeRouter egress captures the Ze transit's PATH with the ERO trimmed to strict `172.29.81.14` alone, the Ze ingress captures the labelled RESV freeRouter relays, and the Ze transit holds a swap via `.14`. Discrimination: with `resolveReceivedPath` changed to keep the transit's own subobject in the forwarded ERO (a transit-only break; the Ze ingress originates through `resolveOriginatingPath` and is untouched), the run is red, `strict-fwd-red4.log`: "egress received ERO [... Strict, 172.29.81.3/32 ... Strict, 172.29.81.14/32 ...], want only strict 172.29.81.14". Over this checkout it passes, `strict-fwd-green.log` (1 passed, 0 failed). Three earlier red runs are not counted as discrimination: `strict-fwd-red.log` and `strict-fwd-red2.log` broke the trim inside `resolveExplicitPath`, which the Ze ingress also runs, and `strict-fwd-red3.log` disabled step 4 there, which made the Ze ingress refuse its own PATH ("strict node 172.29.81.15/32 is not adjacent"); in all three the checker never read the egress capture, so the red does not isolate the transit |
 | (2) strict hop outside -> PathErr 24/2 | `transit-strict-hop-outside-refused` | PASS (`rsvpte-run9.log`, and `strict-refused-green.log` on 2026-10-08: 1 passed, 0 failed). The Ze transit sends PathErr Routing Problem / Bad strict node (24/2), error node `172.29.81.3`, and never forwards the PATH; the Ze ingress captures that PathErr as freeRouter relays it. Discrimination: with the guard `if !inside && !target.Loose` in `resolveExplicitPath` disabled, the run is red, `strict-refused-red.log`: "wait for Ze ingress receives the PathErr freeRouter relays timed out", while the relay capture holds the PATH it relayed to the transit with ERO [strict `172.29.81.3`, strict `198.51.100.9`] and no PathErr from the transit. `rsvpte-run8.log` is not a discrimination of this guard: it was red because Ze's PathErr then carried no ADSPEC, which `packRsvp.parseDatPatErr` requires (RFC 2205 Section 3.1.3: "<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC> [ <ADSPEC> ]"); since 9b8bfe250c `buildPathErr` copies the ADSPEC of the PATH in error, per the owner's decision of 2026-10-08 |
-| (3) loose hop expanded | `transit-loose-ero-expansion` | PASS. freeRouter ingress, Ze transit, freeRouter egress: from `[Ze loose, 198.51.100.4 loose]` the egress captures `[172.29.81.14 strict, 198.51.100.4 loose]`, the ingress captures a labelled RESV, and Ze holds the swap. Discrimination: with the replacement in `resolveExplicitPath` removed the check goes red (the egress receives `[172.29.81.3 loose, 198.51.100.4 loose]`); restored, it passes |
+| (3) loose hop expanded | `transit-loose-ero-expansion` | PASS. freeRouter ingress, Ze transit, freeRouter egress: from the ingress ERO `[172.29.81.3 strict, 172.29.81.3 loose, 198.51.100.4 loose]` (Ze is `172.29.81.3`; ingress capture in `rsvpte-disc-run10.log`) the egress captures `[172.29.81.14 strict, 198.51.100.4 loose]`, the ingress captures a labelled RESV, and Ze holds the swap. Discrimination: with the replacement in `resolveExplicitPath` removed the check goes red (the egress receives `[172.29.81.3 loose, 198.51.100.4 loose]`); restored, it passes |
 
 All three needed scenarios pass with no freeRouter test knob set, and each goes
 red when its producer in `routing.go` is broken.
