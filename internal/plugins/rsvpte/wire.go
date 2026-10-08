@@ -966,6 +966,15 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 		if err := checkObjectPlacement(msg, objHdr, off, &seen); err != nil {
 			return msg, err
 		}
+		// RFC 2205 Section 3.1.5: "A PathTear message may include a
+		// SENDER_TSPEC or ADSPEC object in its sender descriptor, but these
+		// must be ignored." Skipped before the C-Type check: an ignored object
+		// is not examined, so the Section 3.10 unknown C-Type rejection does
+		// not reach it.
+		if pathTearIgnored(hdr.MsgType, objHdr.ClassNum) {
+			off += int(objHdr.Length)
+			continue
+		}
 		if !knownCType(objHdr) {
 			if !msg.HasUnknownObject {
 				msg.UnknownObject, msg.HasUnknownObject, msg.UnknownCType = objHdr, true, true
@@ -1068,10 +1077,6 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 				return msg, err
 			}
 		case ClassSenderTSpec:
-			if hdr.MsgType == MsgTypePathTear {
-				off += int(objHdr.Length)
-				continue
-			}
 			if objHdr.CType != 2 {
 				return msg, errIntserv
 			}
@@ -1086,10 +1091,6 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			msg.HasSenderTSpec = true
 			msg.SenderTSpecRaw = data[off : off+int(objHdr.Length)]
 		case ClassAdspec:
-			if hdr.MsgType == MsgTypePathTear {
-				off += int(objHdr.Length)
-				continue
-			}
 			if msg.HasAdspec {
 				return msg, errIntserv
 			}

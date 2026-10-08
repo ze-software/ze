@@ -201,6 +201,34 @@ func TestRFC2205PathTearTSpecNotUsed(t *testing.T) {
 	assert.InDelta(t, 4e8, tspec.TokenRate, 1, "the stored TSPEC, not the received one, is relayed")
 }
 
+// TestPathTearUnknownCTypeObjectsIgnored sends a transit holding path state a
+// PathTear whose SENDER_TSPEC, then whose ADSPEC, carries a C-Type ze does not
+// know, and checks each tear is still acted on with no PathErr. RFC 2205
+// Section 3.1.5 says these two objects "must be ignored" in a PathTear; an
+// ignored object's C-Type is not examined, so the Section 3.10 rejection of an
+// unknown C-Type, a "should" stated "generally", does not reach them.
+func TestPathTearUnknownCTypeObjectsIgnored(t *testing.T) {
+	for _, class := range []uint8{ClassSenderTSpec, ClassAdspec} {
+		e, ft, psb := rfc2205TransitWithPath(t)
+		object := []byte{0, 8, class, 9, 0xde, 0xad, 0xbe, 0xef}
+		tear := encodeMessage(MsgTypePathTear, defaultIPTTL, []objEncoder{
+			func(b []byte) int { return encodeSessionIPv4(b, psb.Session) },
+			func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: rfc2205Ingress}) },
+			func(b []byte) int { return encodeSenderTemplate(b, psb.SenderTemplate) },
+			func(b []byte) int { return encodeOpaqueObject(b, object) },
+		})
+		require.NotEmpty(t, tear)
+
+		e.handlePacket(Packet{Src: rfc2205Ingress, Payload: tear})
+
+		assert.Empty(t, e.table.All(), "class %d: the PathTear deleted the path state", class)
+		_, dst, relayed := ft.lastByType(MsgTypePathTear)
+		require.True(t, relayed, "class %d: the PathTear is relayed downstream", class)
+		assert.Equal(t, rfc2205Egress, dst)
+		assert.Zero(t, ft.countByType(MsgTypePathErr), "class %d: the ignored object draws no error", class)
+	}
+}
+
 // TestRFC2205ResvTearRoutedLikeResv tears a transit's reservation from the
 // egress, and checks the ResvTear goes where the Resv went: the unicast
 // address of the previous hop.

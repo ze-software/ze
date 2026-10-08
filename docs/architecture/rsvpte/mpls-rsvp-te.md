@@ -73,6 +73,14 @@ or one without a descriptor when none was decoded. Other message types are
 logged and dropped. The error code is 13 for an unknown class or 14 for an
 unknown C-Type. Error Value carries Class-Num and C-Type.
 
+A PathTear's SENDER_TSPEC and ADSPEC are skipped before the C-Type check, so
+an unknown C-Type or a malformed body in either never rejects the tear. RFC
+2205 Section 3.1.5 says these objects "must be ignored" in a PathTear, and an
+ignored object is not examined; the Section 3.10 rejection is a "should" that
+applies "generally".
+<!-- source: internal/plugins/rsvpte/message_validation.go -- pathTearIgnored -->
+<!-- source: internal/plugins/rsvpte/wire.go -- DecodeMessage -->
+
 <!-- source: internal/plugins/rsvpte/wire.go -- classifyUnknownClass, classKnownUnprocessed -->
 <!-- source: internal/plugins/rsvpte/engine.go -- rejectUnknownObject -->
 <!-- source: internal/plugins/rsvpte/reservation.go -- receivedPathState, receivedReservation -->

@@ -61,6 +61,18 @@ func objectAllowed(kind, class uint8) bool {
 	return true // Unknown classes follow Section 3.10, not the known grammar.
 }
 
+// RFC 2205 Section 3.1.5: "A PathTear message may include a SENDER_TSPEC or
+// ADSPEC object in its sender descriptor, but these must be ignored."
+//
+// pathTearIgnored reports whether DecodeMessage skips an object unread: the
+// SENDER_TSPEC and ADSPEC of a PathTear, whatever their C-Type or body.
+func pathTearIgnored(msgType, classNum uint8) bool {
+	if msgType != MsgTypePathTear {
+		return false
+	}
+	return classNum == ClassSenderTSpec || classNum == ClassAdspec
+}
+
 func knownCType(h objectHeader) bool {
 	switch h.ClassNum {
 	case ClassSession, ClassSenderTemplate, ClassFilterSpec:
