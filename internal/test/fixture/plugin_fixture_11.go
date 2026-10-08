@@ -385,7 +385,7 @@ func metricsRegistered(ctx context.Context, _ []string) error {
 // The filter names a label no series carries, so it answers zero series. A
 // filter that never reached the handler answers every series of the metric,
 // which is what the retired `label=value` packing did to any token it could not
-// split (plan/spec-generated-command-usage.md).
+// split (spec-generated-command-usage).
 func metricsLabelFilter11(ctx context.Context, p *sdk.Plugin, metric string) error {
 	status, data, err := dispatchMap11(ctx, p, "show metrics name "+metric+" label nosuchlabel nosuchvalue")
 	if err != nil || status != statusDone {

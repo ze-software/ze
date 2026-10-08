@@ -2618,7 +2618,7 @@ func TestRouteToProcessRefusesARowThatIsNotJSON(t *testing.T) {
 }
 
 // socketFilterDefs are the three optional filters `show system sockets`
-// declares. They are the case R-1 of plan/spec-generated-command-usage.md names:
+// declares. They are the case R-1 of spec-generated-command-usage names:
 // `state` is a pattern-less string, so it accepts a port number, and only the
 // alphabet kept 8080 away from it.
 func socketFilterDefs() []command.ArgDef {
@@ -2679,7 +2679,7 @@ func TestPositionalDefPrefersConstrainedDef(t *testing.T) {
 // VALIDATES: the answer `show system sockets 8080` and `show system sockets
 // ESTABLISHED` produce is the same for every ordering of the filter
 // definitions, read at the entry point rather than at the helper.
-// PREVENTS: R-1 of plan/spec-generated-command-usage.md -- changing the
+// PREVENTS: R-1 of spec-generated-command-usage -- changing the
 // definition order to the declared one moving a bare port onto the state
 // filter, which the daemon then acts on without an error.
 func TestPositionalBindingIsOrderIndependent(t *testing.T) {

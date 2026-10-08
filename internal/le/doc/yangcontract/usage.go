@@ -165,7 +165,7 @@ func usageContract(loader *yang.Loader, head map[string]UsageRow) UsageReport {
 // The fold is blind to the placeholder wording and to nothing else. `request
 // interface <name> down` and `request interface down <name>` order their tokens
 // differently, so they fold to different shapes and the gate still refuses that
-// deletion (plan/spec-generated-command-usage.md, Known Limitations).
+// deletion (spec-generated-command-usage, Known Limitations).
 //
 // The loop is bounded by the line: every pass either writes the tail and stops
 // or advances openAt past one whole bracket group, so at strictly increases.
@@ -379,7 +379,7 @@ const cmdModuleFile = cmdModuleSuffix + ".yang"
 // The gate compares against HEAD rather than against a checked-in baseline
 // file. A file can be edited to lie, and editing it is then the cheapest route
 // from red to green; HEAD cannot be edited without also editing history
-// (plan/spec-generated-command-usage.md, Key Design Decisions).
+// (spec-generated-command-usage, Key Design Decisions).
 //
 // Every failure returns an error rather than an empty map. An empty baseline
 // reports no deletion at all, which is the answer that lets the whole gate be

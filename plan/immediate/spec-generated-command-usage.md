@@ -1058,6 +1058,22 @@ verdict clean, 9 files pinned, `./le spec review check` exits 0.
 | HEAD compiles | `go build ./...` and `go build -tags <each of the nine>` `./cmd/ze` both exit 0 in a detached worktree at eff4c1e38 |
 | Neither repair reverted another session's work | e53c244ab restores two string literals the consumer never needed; bd25f033e ADDS a const block. Both files are clean in the working tree, so nothing was overwritten |
 
+### Run 3 (closure, 2026-10-08)
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure |
+| `./le spec review check` | clean |
+| Rounds | 3 |
+| Reviewer lenses used | aa7a3b8ea1 and b882e7d7b0 against their producers (`handleShowSystemSockets`, `usageGroupToken`, `writeUsageToken`); every TDD row against the tree; Run 1 findings against HEAD |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Run 1's `show metrics name ... peer=edge1` row was still at HEAD, stating an invocation `metricLabelFilters` refuses | `internal/component/plugin/server/usage_model_test.go` | row now `label peer edge1`; green under the feature tag set |
+
+NOTE: two TDD rows name tests that were renamed (Deviations). No BLOCKER or ISSUE remains.
+
 ## Closure investigation, 2026-08-30: one command remained
 
 Measured on 2026-08-30 with `./le doc yang-contract usage-contract`, over an overlay of
@@ -1134,3 +1150,117 @@ argument declarations and their completion, validation and web-form effects.
 Its August 8 count of 30 cannot be added to this spec's migration counts:
 declaration-order extraction, inherited arguments and the command splits here
 changed the population.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The usage line and its `grammar` token list are generated from the command model (`internal/component/command/usage.go`), published by `commandEntry` (`cmd/ze/help_command.go`), and the authored `Usage:` prose is gone from every `-cmd` module: the corpus run of 2026-10-08 reports 404 command nodes and 0 authored sentences.
+- `usageContract` (`internal/le/doc/yangcontract/usage.go`) refuses authored grammar prose and a hidden deletion, wired into documentation verification.
+- Functional proof added 2026-10-08: `test-show-system-sockets-keyword-filters.ci` (aa7a3b8ea1) and `test-help-usage-modifiers.ci` (b882e7d7b0).
+
+### Bugs Found/Fixed
+- Run 1 ISSUE, left open because another session then held the file: the `show metrics name` row of `TestDeclaredValuesKeepAcceptedInvocations` (`internal/component/plugin/server/usage_model_test.go`) kept `peer=edge1`, a form `metricLabelFilters` (`internal/component/cmd/show/show.go`) refuses. The file is now clean, and the row reads `show metrics name ze_bgp_updates_total label peer edge1` with args `label peer edge1`. Green under the feature tag set.
+
+### Documentation Updates
+- None at closure. The pages were updated by the implementation commits the Run 1 and Run 2 review covered; closure changed one test row and comment citations only.
+
+### Deviations from Plan
+- `TestHelpListingUnchangedWithoutUsageProse` became `TestHelpListingIsTheDeclaredSummaryByteForByte` (`internal/component/command/help_test.go`): the first-sentence cut it relied on was deleted once no prose remained, so the test now pins that a listing row is the declared summary. `TestCLIGrammarGateStatic` is `TestTheRealCheckoutPassesAndWasRead` in `internal/le/cli/grammar/cligrammar_test.go` (the package moved from `internal/le/cligrammar`). The TDD table above keeps the planned names.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | A Run 1 ISSUE was recorded as "NOT landed" and the review still closed clean in Run 2 | An ISSUE whose fix is blocked by a foreign hunk stays open until it lands | closure review read the row at HEAD | fixed at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Usage line generated from the model | Done | `internal/component/command/usage.go` | |
+| Prose deleted | Done | corpus run 2026-10-08, 0 authored | |
+| Gate keeps the two honest | Done | `usageContract`, `internal/le/doc/yangcontract/usage.go` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestHelpCommandJSONPublishesUsage`, `test-help-command-json-usage.ci` | |
+| AC-2 | Done | `TestUsagePlacesValueAfterDeclaringKeyword`, `test-help-usage-generated.ci` | |
+| AC-3 | Done | `TestArgDefsFollowDeclarationOrder` | |
+| AC-4 | Done | `test-show-system-sockets-keyword-filters.ci`, `TestPositionalBindingIsOrderIndependent` | |
+| AC-5 | Done | `TestHelpPrintsUsageForNodeWithChildren`, `test-help-usage-node-with-children.ci` | |
+| AC-6 | Done | `TestUsageContractRefusesAuthoredProse` | |
+| AC-7 | Done | `TestUsageContractRefusesHiddenGap` | |
+| AC-8 | Done | `TestUsageContractRefusesAuthoredProse` | |
+| AC-10 | Done | `test-help-usage-modifiers.ci` seq 1-3, `TestUsageRendersModifierGroup` | |
+| AC-11 | Done | `test-withdraw-forms-are-separate-commands.ci` | |
+| AC-12 | Done | `TestUsageGrammarRendersToUsageString` | |
+| AC-13 | Done | `TestDeclaredValuesKeepAcceptedInvocations` | completion offers the declared children |
+| AC-14 | Changed | `TestHelpListingIsTheDeclaredSummaryByteForByte` | see Deviations |
+| AC-15 | Done | `test-help-usage-modifiers.ci` seq 4, `TestUsageRendersOptionalLeafWithKeyword`, `TestUsageRendersEnumValueSet` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 14 named unit tests | Done | TDD table | green 2026-10-08 under the feature tags |
+| 2 renamed unit tests | Changed | Deviations | |
+| 6 functional tests | Done | `test/ui/` | the two newest red-proven per the Functional Tests table |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify / Create | Done | the commits listed under Review Gate, plus aa7a3b8ea1 and b882e7d7b0 |
+
+### Audit Summary
+- **Total items:** 14 AC, 3 requirements
+- **Done:** 13 AC, 3 requirements
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-14, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every command usage line is generated from the model | functional | `test-help-usage-generated.ci`, `test-help-usage-modifiers.ci`, `test-help-command-json-usage.ci` |
+| The prose is deleted | corpus gate | `./le --name gcu doc yang-contract usage-contract`, 2026-10-08: exit 0, 404 nodes, 0 authored, 0 disagree, 0 hidden |
+| A gate keeps model and prose honest | negative unit test | `TestUsageContractRefusesAuthoredProse`, `TestUsageContractRefusesHiddenGap` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Announce grammar and its functional proof | split out on 2026-08-30 | `plan/immediate/spec-announce-grammar-stated-and-enforced.md` |
+| Residual commands that declare no leaves | split out | `plan/immediate/spec-declared-commands-without-leaves.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ui/test-help-usage-modifiers.ci` | yes | committed in b882e7d7b0 |
+| `test/ui/test-show-system-sockets-keyword-filters.ci` | yes | committed in aa7a3b8ea1 |
+
+### AC Verified (grep/test)
+| AC | Command | Result |
+|----|---------|--------|
+| AC-1..AC-15 unit half | `./le job run label gcu-units command go test -count=1 -tags <lint tag set> -run ...` over yang, plugin/server, command, yangcontract, cli/grammar, cmd/ze | six `ok`, 2026-10-08 |
+
+### Wiring Verified (end-to-end)
+| Path | Evidence |
+|------|----------|
+| YANG to `ze ... help` stderr | `./le test ui -v test-help-usage-modifiers` green 2026-10-08 (b882e7d7b0 handoff) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-2, A-3, A-5, A-7 | confirmed | each row carries its 2026-08-29 validation; A-3 later superseded, as recorded in Deviations |
+| A-6 | broken | its row records the break and the re-cut phase; "Corrections to this spec, 2026-08-29" carries the deviation |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| no page changed at closure | the closure diff is one test row and comment citations | yes |

@@ -228,7 +228,7 @@ func BuildCommandTree(loader *Loader) *command.Node {
 // its keyword ONCE, and each command under it acts on that object: `request
 // interface <name> up`, `<name> down`, `<name> mtu <bytes>`. Declaring the leaf
 // on each command instead put the value after the LAST keyword, which is a line
-// no operator types (plan/spec-generated-command-usage.md, Known Limitations).
+// no operator types (spec-generated-command-usage, Known Limitations).
 //
 // It runs after every module is merged, never during the merge, because the
 // container and the commands under it can come from different modules:

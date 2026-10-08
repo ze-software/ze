@@ -202,7 +202,7 @@ Measured with `bin/ze` on 2026-09-13, on a peer holding `update drop-ssh-scan`,
 |----------|--------|
 | What breaks if this is wrong? | Config load. A wrong duplicate-entry condition refuses every config with two bare update blocks, which is most of the BGP test corpus and every interop scenario that announces routes. A wrong serializer writes a fabricated name into an operator's file on `ze config fmt -w`. No wire behavior changes either way |
 | How is it reverted? | A single commit revert. The config text an operator writes stays valid before and after, with the one exception of `update { name <x>; }`, which nothing in the tree uses |
-| Who else touches this path? | `internal/component/config` serialization is shared by the CLI show, diff, blame and annotated views and by the web editor. `ze:display-key` has exactly one user in the tree. No open spec in `plan/` names `display-key` except `plan/immediate/spec-generated-command-usage.md`, which mentions it in passing |
+| Who else touches this path? | `internal/component/config` serialization is shared by the CLI show, diff, blame and annotated views and by the web editor. `ze:display-key` has exactly one user in the tree. No open spec in `plan/` names `display-key` except spec-generated-command-usage (closed 2026-10-08), which mentioned it in passing |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

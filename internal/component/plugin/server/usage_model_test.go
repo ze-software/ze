@@ -2,7 +2,7 @@
 //
 // usage_model_test.go proves both halves of one change: a command whose value
 // lived only in a description now DECLARES that value, and the invocation an
-// operator already typed still dispatches (plan/spec-generated-command-usage.md,
+// operator already typed still dispatches (spec-generated-command-usage,
 // R-5).
 //
 // The two halves have to be proven together, and here. A leaf is only visible
@@ -459,10 +459,11 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 		},
 		{
 			path:  "show metrics name",
-			input: "show metrics name ze_bgp_updates_total peer=edge1",
+			input: "show metrics name ze_bgp_updates_total label peer edge1",
 			// The leaf and its container are both called `name`, so the metric
-			// name is lifted and only the label filters remain.
-			args:      []string{"peer=edge1"},
+			// name is lifted and only the label groups remain, in the
+			// `label <key> <value>` form metricLabelFilters accepts.
+			args:      []string{"label", "peer", "edge1"},
 			selectors: map[string]string{"name": "ze_bgp_updates_total"},
 		},
 	}

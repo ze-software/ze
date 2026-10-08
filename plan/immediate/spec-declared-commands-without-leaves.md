@@ -67,7 +67,7 @@ inherited from `request peer`; a missing local leaf alone proves no defect.
 
 Before implementation, derive the effective definitions after inheritance and
 subtract paths already repaired by
-`plan/immediate/spec-generated-command-usage.md`. Keep completion and
+spec-generated-command-usage (closed 2026-10-08). Keep completion and
 type-check improvements for otherwise reachable commands in this spec, but
 separate their release cost from confirmed missing-input defects. No current
 total is asserted until that merged-tree inventory is recorded.

@@ -210,7 +210,7 @@ var cleanModule = strings.Replace(proseModule,
 // VALIDATES: deleting an authored sentence whose generated line differed at
 // HEAD fails the gate, and the failure quotes both lines.
 // PREVENTS: the cheapest route from red to green. R-2 in
-// plan/spec-generated-command-usage.md names it: a session drops the sentence,
+// spec-generated-command-usage names it: a session drops the sentence,
 // the authored count falls, and the model still cannot state the grammar. The
 // difference is then unrecorded anywhere.
 func TestUsageContractRefusesHiddenGap(t *testing.T) {

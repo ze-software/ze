@@ -49,7 +49,7 @@ this source check records no new test result. Resume the proof against the
 current `send bgp <selector> flowspec ...` entry point documented in
 `docs/architecture/bgp/on-demand-origination.md`, while preserving the dated
 August command spellings as history. This spec owns the announce grammar and
-its functional proof; `plan/immediate/spec-generated-command-usage.md` retains
+its functional proof; spec-generated-command-usage (closed 2026-10-08) delivered
 the usage gate integration and proof.
 
 ## Task
