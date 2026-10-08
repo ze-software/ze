@@ -314,8 +314,9 @@ read-only, and only when that store exists.
 
 Inside the daemon the same table answers two commands. Both are declared in
 `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang`, as a `container`
-carrying a `ze:command` extension, which is how every `ze-show:` and
-`ze-update:` method of this component is declared.
+carrying a `ze:command` extension, which is how every `ze-resolve:` method of
+this component is declared, `ze-resolve:show-rir` and `ze-resolve:update-rir`
+alike: the prefix names the component, and the verb is part of the name.
 
 | Command | Wire method | Answers |
 |---------|-------------|---------|

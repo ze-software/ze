@@ -252,8 +252,9 @@ package that owns the behaviour (the one whose code the handler calls), per
 command into its owner"). The owner schema lives in `<owner>/yang/ze-<x>-cmd.yang`
 (top level, sibling of `cli`/`cmd`), re-declaring `container <verb> { container <x> {...} }`
 so the loader merges it onto the verb tree with no central edit. Determine the
-owner from the handler's dependencies, not from the `ze-<ns>:` WireMethod prefix
-(that prefix is a label, often a legacy misnomer).
+owner from the handler's dependencies. The `ze-<owner>:` WireMethod prefix then
+follows from where the handler registers (see "WireMethod Naming" below), so
+moving a handler to its owner moves its prefix with it.
 
 ### RPC Registration
 
@@ -261,7 +262,7 @@ owner from the handler's dependencies, not from the `ze-<ns>:` WireMethod prefix
 func init() {
     pluginserver.RegisterRPCs(
         pluginserver.RPCRegistration{
-            WireMethod:       "ze-<verb>:<noun>-<action>",  // kebab-case
+            WireMethod:       "ze-<owner>:<noun>-<action>",  // kebab-case; <owner> from this package's directory
             Handler:          handler.HandleMyCommand,
             RequiresSelector: true,  // needs IP/glob selector
         },
@@ -278,7 +279,7 @@ container <verb> {
         config false;
         container peer {
             config false;
-            ze:command "ze-<verb>:bgp-peer";
+            ze:command "ze-<owner>:<noun>-<action>";
             ze:help "One-line summary every listing prints.";
             description "The long explanation the command's own help page prints.";
         }
@@ -291,16 +292,26 @@ container <verb> {
 
 ### WireMethod Naming
 
-Format: `ze-<verb>:<resource>-<action>` (kebab-case throughout).
-The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `ze-show:bgp-peer`.
+Format: `ze-<owner>:<name>` (kebab-case throughout). The prefix names the
+subsystem whose package registers the handler, never the verb: `ze-` and the
+directory directly under `internal/component/` or `internal/plugins/`, with a
+`-cmd` suffix dropped, so every BGP plugin declares `ze-bgp:`. The verb, when it
+is needed to tell two commands apart, goes in the name (`ze-cmd:show-version`).
+A local command with no builtin handler takes the prefix of the package that
+registers its YANG module. The command-contract gate
+(`./le doc yang-contract command-contract`) refuses any other prefix. Full rule:
+`docs/architecture/api/wire-format.md`, "Method Naming".
 
 | WireMethod | YANG path | Selector? |
 |------------|-----------|-----------|
-| `ze-show:bgp-peer` | `show bgp peer` | Yes (`RequiresSelector: true`) |
-| `ze-show:bgp-warnings` | `show bgp warnings` | No |
+| `ze-bgp:peer-list` | `show bgp peer list` | No |
+| `ze-bgp:peer-teardown` | `request peer teardown` | Yes (`RequiresSelector: true`) |
 | `ze-cmd:show-version` | `show version` | No |
-| `ze-show:bgp-peer` | `show bgp peer` | Yes (`RequiresSelector: true`) |
-| `ze-env:show-list` | `show env list` | No |
+| `ze-cmd:show-warnings` | `show warnings` | No |
+| `ze-env:show-list` | `show env list` | No (local handler; `ze-env-cmd.yang` is registered from `internal/plugins/env/yang`) |
+
+<!-- source: internal/component/plugin/all/testdata/wire-methods.snapshot -- ze-bgp:peer-teardown -->
+<!-- source: internal/component/plugin/server/rpc_register.go -- OwnerPrefix -->
 
 ## Conventions
 

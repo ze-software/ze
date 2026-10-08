@@ -34,11 +34,13 @@ The file header comment says so; keep it.
 
 ## Decision: no per-component API YANG module
 
-Both verbs bind into the **central** `ze-show:` and `ze-clear:` namespaces, so
-the component ships only a command module with two separate augment-style roots,
-a `show` container and a **separate** `clear` container, never nested. A
-per-component API module is needed only when a component coins its own RPC
-namespace.
+Both verbs' methods carry the component's own `ze-isis:` prefix, which the
+package location gives them (`ze-isis:show-neighbor`, `ze-isis:clear-adjacency`),
+and each `ze:command` node in `ze-isis-cmd.yang` declares its method. So the
+component ships only a command module with two separate augment-style roots, a
+`show` container and a **separate** `clear` container, never nested. A
+per-component API module is needed only to document an rpc that a command node
+points at with `ze:rpc`, and no IS-IS command node does.
 
 ## Decision: diagnostic codes live in the component
 

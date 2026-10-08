@@ -240,13 +240,16 @@ classification rule is ownership before grammar.
 
 ## Finding the Owner: follow the code, not the wire method
 
-The `ze-<ns>:` prefix on a `WireMethod` is a label rather than an ownership
-claim, and it is often a legacy misnomer. The owner is what the handler actually
-calls.
+The `ze-<owner>:` prefix on a `WireMethod` names the package that registers the
+handler (`docs/architecture/api/wire-format.md`, "Method Naming"), and the
+command-contract gate enforces it. That records where the handler lives, which
+is not yet proof that it lives with its owner: a handler still in a central
+package carries `ze-cmd:`. The owner is what the handler actually calls, and
+carving the handler into that owner moves its prefix with it.
 
 | Command (WireMethod) | What the handler calls | Owner |
 |----------------------|------------------------|-------|
-| `ze-show:ip-route`, `ze-show:neighbors`, `ze-show:kernel-routes` | `iface.ListKernelRoutes`, `iface.ListNeighbors` (kernel tables through the iface backend) | `internal/component/iface`, not central `show` and not the BGP RIB |
+| `ze-iface:show-route`, `ze-iface:show-neighbor` | `iface.ListKernelRoutes`, `iface.ListNeighbors` (kernel tables through the iface backend) | `internal/component/iface`, not central `show` and not the BGP RIB |
 | `ze-bgp:pool-stats` | `bgp/plugins/rib/pool` attribute-pool metrics | The BGP RIB plugin |
 | `ze-cmd:bgp-metrics-values`, `ze-cmd:bgp-metrics-list` | The generic core Prometheus registry (`internal/core/metrics`) | Generic, stays central |
 | `ze-cmd:bgp-subscribe`, `ze-cmd:bgp-unsubscribe` | The generic `pluginserver` subscription manager | Generic, stays central |
@@ -255,8 +258,8 @@ calls.
 A command is generic, and stays central, only when it has no single removable
 owner: it aggregates a cross-plugin registry, reads a generic core system, or is
 process-global (`show warnings`, `show health`, `subscribe`). Everything that
-reads one plugin's or one component's state belongs to that owner, whatever the
-`ze-<ns>:` label on its WireMethod says.
+reads one plugin's or one component's state belongs to that owner, even while
+its WireMethod still carries the central `ze-cmd:` prefix.
 
 ## Carving a Command Into Its Owner
 
