@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | 5/8 |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 ## Post-Compaction Recovery
 
@@ -21,9 +21,12 @@
 
 The four config-route families have migrated through the generic path as
 recorded in Implementation Summary. The remaining contract is community
-parser extraction and removal of the retained central code. The
-`BuildFlowSpec` chaos caller and legacy `FlowSpecRouteConfig` DTO remain
-accounted for in the deviations below; neither is an approved scope reduction.
+parser extraction and removal of the retained central code. Phase 6 also
+migrates the `BuildFlowSpec` chaos caller (`internal/chaos/peer/sender.go`)
+off `BuildFlowSpec` and `FlowSpecRouteConfig`, so the builders and the central
+community tokens can be removed; the owner accepted no deviation.
+
+-> Decision (owner, 2026-10-08): Phase 6 migrates the chaos caller (`internal/chaos/peer/sender.go`) off `BuildFlowSpec`/`FlowSpecRouteConfig` so the builders and central community tokens can be removed. No deviation is accepted.
 
 ### Original migration scope
 
@@ -400,9 +403,9 @@ Migrate one family at a time. Each family is an independently mergeable unit. Or
    - Files: move bgp_routes_flowspec.go content to plugins/nlri/flowspec/config.go
    - Verify: FlowSpec encode .ci tests pass, max-size splitting works
 
-6. **Phase: Community parser extraction** -- move FlowSpec/MUP community parsing to plugins
+6. **Phase: Community parser extraction** -- move FlowSpec/MUP community parsing to plugins, and migrate the chaos caller off `BuildFlowSpec`/`FlowSpecRouteConfig` (owner decision, 2026-10-08)
    - Tests: TestFlowSpecExtCommunityParsing, TestMUPExtCommunityParsing
-   - Files: routeattr_community.go (remove hardcoded parsers), registry.go (add community parser hook), plugin config.go files (register community parsers)
+   - Files: routeattr_community.go (remove hardcoded parsers), registry.go (add community parser hook), plugin config.go files (register community parsers), `internal/chaos/peer/sender.go` (stop calling `BuildFlowSpec`), `update_build_flowspec.go` and `FlowSpecRouteConfig` (removed once no caller remains)
    - Verify: extended community tests pass
 
 7. **Phase: Central cleanup** -- remove all remaining per-family code
@@ -499,8 +502,9 @@ was still hardcoded).
 - MVPN grouping was implemented in phase 4 through the generic route-grouping
   path recorded below. It is no longer an unresolved design prerequisite.
 - The retained FlowSpec builder and legacy config DTO remain closure
-  obligations unless the owner accepts a documented scope change. The
-  original removal criteria remain in force.
+  obligations. The owner accepted no scope change (2026-10-08): Phase 6
+  removes them after migrating the chaos caller. The original removal
+  criteria remain in force.
 
 ## Implementation Summary
 
@@ -575,13 +579,14 @@ plugin dispatch. `test/encode/{flow-encode,flow-redirect,simple-flow,flow-rate-p
 - **Deviation: `update_build_flowspec.go` retained.** The recorded caller is
   `internal/chaos/peer/sender.go`, which still calls `BuildFlowSpec`.
   Removing the builder requires migrating that caller. The earlier summary
-  called it out of scope, but no owner acceptance is recorded here; the
-  builder-removal requirement remains unresolved.
+  called it out of scope; the owner decided on 2026-10-08 that Phase 6
+  migrates it and accepted no deviation, so the builder is removed.
 - **Deviation: `FlowSpecRouteConfig` retained.** The legacy `flow{}` reader
-  still uses this central DTO. The original central-type removal requirement
-  remains unresolved until that path is migrated or the owner accepts the
-  deviation explicitly.
-- Spec stays open until Phase 6 + the deviations are resolved (or the deviations are accepted by the user).
+  still uses this central DTO. The owner accepted no deviation (2026-10-08):
+  the central type is removed once that path and the chaos caller are
+  migrated.
+- Spec stays open until Phase 6, including the chaos-caller migration and the
+  removal of both retained items, is done. No deviation is accepted.
 
 ### Bugs Found/Fixed
 - (fill during implementation)

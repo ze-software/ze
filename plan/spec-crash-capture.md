@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | 7/8 |
+| Phase | 7/7 |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -25,11 +25,15 @@ gone, and nothing on the appliance survives to say why: root is read-only
 SquashFS, there is no shell, and there is no busybox to run a post-mortem from.
 The operator gets a reboot and no evidence.
 
-This spec adds kernel crash capture in two phases. Phase 1 records the panic
-message and backtrace into a small reserved memory region that survives a warm
-reboot, and copies it into the existing crash directory at next boot. Phase 2
-adds a full memory image behind an opt-in leaf, for the rare fault a backtrace
-does not explain.
+This spec adds kernel crash capture. Phase 1 records the panic message and
+backtrace into a small reserved memory region that survives a warm reboot, and
+copies it into the existing crash directory at next boot. Phase 2, a full
+memory image behind an opt-in leaf for the rare fault a backtrace does not
+explain, moved to `plan/spec-crash-capture-memory-image.md` together with the
+lockdown signing-key question and the A-7 full-memory-image question it
+carries. This spec closes after its implementation step 7 QEMU labs.
+
+-> Decision (owner, 2026-10-08): Phase 2 (the memory image), with the lockdown signing-key and full-memory-image (A-7) questions it carries, is split into a new spec, `plan/spec-crash-capture-memory-image.md`. This spec closes after its Phase 7 QEMU labs.
 
 Prompted by VyOS T8868, which added `system option kdump`, `show system kdump`,
 and folded kdump artifacts into `show tech-support report`.
@@ -171,7 +175,7 @@ Four entries, which do not share a trigger:
 | A-4 | Adding pstore symbols is the whole Phase 1 kernel-config delta | `gokrazy/kernel/kernel.config` carries no pstore symbol in its 107 lines | The floor row is incomplete and the feature is silently dead, exactly the `CONFIG_INET_ESP` failure | Build the kernel with the symbols added and assert the floor check passes against the built config | unvalidated -- the floor rows exist and are asserted (`TestRuntimeKernelRequirementsIncludePstore`), but no runtime kernel has been built with them |
 | A-5 | `/perm` is writable early enough in boot for the harvest to run | `docs/guide/appliance.md`: `/perm` is ext4 and the only writable store; the crash directory probe already prefers `/perm/ze/crash` | The harvest silently drops records, or writes to `/tmp` and loses them on the next reboot | QEMU lab asserting the artifact is present after the reboot, in the probed directory | unvalidated |
 | A-6 | Phase 2 is amd64-only | `plan/spec-kernel-lockdown-hardening.md` C-2: gokrazy `reboot.go` never kexecs on `!amd64` | arm64 appliances accept a config that silently captures nothing | Assert the memory-image leaf is refused with a reason on a non-amd64 build | confirmed -- `TestMemoryImageRefusedOnNonAmd64` refuses arm64 and riscv64 and names the architecture; `TestReadinessRefusesMemoryImageOnUnsupportedArch` proves readiness never reports armed there |
-| A-7 | Operators accept a full memory image sized to RAM when they opt into Phase 2 | Owner statement during design: full dumps accepted, gated on available space | Phase 2 should filter by default rather than capture everything | Owner confirmation before Phase 2 starts | unvalidated |
+| A-7 | Operators accept a full memory image sized to RAM when they opt into Phase 2 | Owner statement during design: full dumps accepted, gated on available space | Phase 2 should filter by default rather than capture everything | Owner confirmation before Phase 2 starts | moved with Phase 2 to `plan/spec-crash-capture-memory-image.md` (owner, 2026-10-08) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -226,7 +230,8 @@ Four entries, which do not share a trigger:
 | AC-12 | `system crash-dump memory-image enabled true` on a non-amd64 build | The config is refused with a reason naming the architecture limit |
 | AC-13 | `system crash-dump memory-image enabled true` where free space is below the estimate plus reserve | Readiness reports armed false with the shortfall in bytes; no capture is attempted |
 | AC-14 | Every command in this feature run through `| json` | The payload renders as structured data with kebab-case keys |
-| AC-15 | Supported amd64 appliance with memory-image capture explicitly enabled, sufficient space, and the approved signing prerequisites satisfied; a kernel panic occurs | Readiness reports the capture kernel armed before the panic. The capture writer persists a usable memory image in the configured crash storage, the appliance returns to normal service, and an offline reader can open the image with the matching kernel symbols and recover the panic context |
+
+AC-15 moved verbatim to `plan/spec-crash-capture-memory-image.md` with Phase 2 (owner, 2026-10-08).
 
 ## End-to-End User Stories
 
@@ -237,7 +242,6 @@ Four entries, which do not share a trigger:
 | 3 | Sends a support bundle after a kernel panic | panic → harvest → `crashes` module → archive | `TestSupportArchiveContainsKernelArtifact` |
 | 4 | Checks why capture is not working | `ze doctor` → three checks → diagnostic codes | `TestDoctorReportsCrashCaptureReadiness` |
 | 5 | Inspects a crash with the daemon down | offline fallback → crash directory → listing | `TestOfflineShowCrashesListsKernelKind` |
-| 6 | Opts into full-memory capture and investigates a panic after service returns | config → reservation and capture-kernel staging → panic → image persistence → normal boot → offline image inspection | `qemu-crash-capture-memory-image` |
 
 ## 🧪 TDD Test Plan
 
@@ -279,7 +283,6 @@ Four entries, which do not share a trigger:
 |------|--------------|----------------|--------|
 | `qemu-crash-capture-panic-harvest` | `internal/le/qemu/actions.go`, runtime-kernel labs | A-2, A-3, A-5, AC-3: reserve, panic, warm reboot, artifact present in the probed directory | |
 | `qemu-crash-capture-ota-unaffected` | `internal/le/qemu/actions.go` | R-5: an OTA-style kexec reboot still works with crash capture active | |
-| `qemu-crash-capture-memory-image` | `internal/le/qemu/actions.go`, amd64 runtime-kernel lab | AC-15: opt-in configuration, armed staging, induced panic, persisted image readable with matching kernel symbols, and return to normal service | not written |
 
 ### Interop Tests (Scope: protocol)
 N-A. This feature is not protocol-implementing and changes no wire-visible behavior.
@@ -384,10 +387,9 @@ N-A. This feature is not protocol-implementing and changes no wire-visible behav
    - Tests: `qemu-crash-capture-panic-harvest`, `qemu-crash-capture-ota-unaffected`
    - Files: `internal/le/qemu/actions.go`
    - Verify: A-2, A-3 and A-5 move to confirmed or the design changes. STOP and report if the reserved region does not survive the reboot
-8. **Phase: Phase 2, memory image (opt-in)** -- only after 1 to 7 are closed and A-7 is confirmed
-   - Tests: `TestReadinessReportsSpaceShortfall` extended to the image estimate, `qemu-crash-capture-ota-unaffected` re-run with staging active, and `qemu-crash-capture-memory-image`
-   - Files: crash-dump kernel symbols, the capture writer, the memory-image leaves
-   - Verify: AC-12, AC-13, AC-15, R-5 and R-7 hold. The writer reboots unconditionally on every error path; the positive lab must prove that a usable image survives and service returns
+Phase 2, the memory image, was step 8 here. It moved verbatim to
+`plan/spec-crash-capture-memory-image.md` (owner, 2026-10-08), and this spec
+closes after step 7.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

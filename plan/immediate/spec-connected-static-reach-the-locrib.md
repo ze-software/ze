@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 6/7 |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -15,8 +15,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 The recorded implementation is at phase 6/7. Final surfaces and closure
 evidence remain. Named-table and VRF support stays with
-`plan/immediate/spec-fib-depth.md`; it is outside this spec's main-table scope
-and does not block that scope.
+`plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` (the TableID producer,
+split out of `plan/immediate/spec-fib-depth.md` on 2026-10-08); it is outside
+this spec's main-table scope and does not block that scope.
+
+-> Decision (owner, 2026-10-08): interface-layer route arbitration (DHCP, RA and PPP routes) gets its own spec, `plan/immediate/spec-iface-route-arbitration.md`. It does not block this spec.
 
 ### Original defect
 
@@ -366,7 +369,7 @@ requires it to be measured RED.
 |----------|--------|
 | What breaks if this is wrong? | The kernel forwarding table. A wrong winner blackholes a prefix, and a wrong withdraw removes a route an operator configured. Connected's half additionally changes recursive next-hop resolution for BGP, OSPF, IS-IS and SRv6 |
 | How is it reverted? | Single commit revert per half, with no config migration: the YANG leaves already exist and keep their values. A reverted static half restores `RTPROT_STATIC` on the next config apply, and a reverted connected half stops inserting; neither leaves state behind |
-| Who else touches this path? | `plan/immediate/spec-fib-depth.md` (in-progress) owns `BestChangeEntry.TableID` and `ECMPPath.Weight`; `spec-fixit-bgp-distance-declaration` closed on 2026-09-05 and left the distance seam this spec consumes at `internal/core/rib/distance` (`Of`, `OrDefault`), published by `publishDistances` (`internal/component/sysrib/register.go`); read the seam rather than the closed spec |
+| Who else touches this path? | `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` owns `BestChangeEntry.TableID` and `plan/immediate/spec-fib-depth.md` (in-progress) owns `ECMPPath.Weight`; `spec-fixit-bgp-distance-declaration` closed on 2026-09-05 and left the distance seam this spec consumes at `internal/core/rib/distance` (`Of`, `OrDefault`), published by `publishDistances` (`internal/component/sysrib/register.go`); read the seam rather than the closed spec |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -740,7 +743,7 @@ requires it to be measured RED.
 | A main-table static route AUTO-LOADS the FIB writer instead of refusing a config with no `fib { }` block (owner decision, 2026-09-06) | (a) the `static-fib-writer` doctor check at error severity, which is what commit `125979ea99` shipped; (b) a hard `Dependencies: ["fib-kernel"]` on static, which is what OSPF and IS-IS already do | The owner's words are "the FIB block should be auto-loaded when we use static", so (a) is withdrawn: a config an operator could commit before the relocation must still start after it. (b) spells one plugin name in a producer, so a VPP deployment loads the kernel writer. The writer is DECLARED instead: `Registration.DataPlane` names the data plane a plugin programs, `Registration.NeedsDataPlane` says a producer's routes reach forwarding only through one, and the engine resolves the pair against the `interface { backend }` the operator already chose. No package holds a list of FIB plugins, and `fib-p4` declares no data plane, so a backend that programs nothing is never the answer |
 | "The OS installs this protocol's routes" is a property the PROTOCOL declares at registration, read by sysrib through the ID | (a) a new `routetype.Type` value; (b) a boolean field on `locrib.Path`; (c) sysrib comparing the winner's protocol name to "connected" | (a) is wrong on the type's own terms: `routetype` values ARE the Linux RTN_ constants and describe the forwarding ACTION, and a connected route IS unicast. The question is ownership, not action. (b) touches `Path`, `Equal`, the RPC entry, `protocolRoute`, `BestChangeEntry` and every producer, to carry a value that is constant per protocol. (c) spells a plugin name in a component, which `ai/rules/plugins.md` forbids. The registry already carries exactly this shape in `RegisterProducer` |
 | An OS-installed winner produces a WITHDRAW of Ze's own FIB entry, not silence | emit nothing and let the previous entry stand | Silence leaves a stale `RTPROT_ZE` route competing with the kernel's own connected route for the same prefix, which is a second writer by another name. The withdraw is the whole behavior: a connected route wins by REMOVING Ze's |
-| Only MAIN-table static routes join the Loc-RIB; a named-table route keeps the direct path | (a) add a table dimension to the Loc-RIB key; (b) carry `TableID` on `Path` and let sysrib populate `BestChangeEntry.TableID` | The Loc-RIB is keyed by (family, prefix) with no table, so (a) is a storage-shape change for every protocol and every shard, to serve one producer. (b) is already owned by `plan/immediate/spec-fib-depth.md`, whose `TableID` item depends on `spec-vrf-0-umbrella`. A named table has exactly one writer by construction and nothing to arbitrate, so distance decides nothing there: this is a boundary, not a scope cut. It is guarded by a test rather than left as a convention |
+| Only MAIN-table static routes join the Loc-RIB; a named-table route keeps the direct path | (a) add a table dimension to the Loc-RIB key; (b) carry `TableID` on `Path` and let sysrib populate `BestChangeEntry.TableID` | The Loc-RIB is keyed by (family, prefix) with no table, so (a) is a storage-shape change for every protocol and every shard, to serve one producer. (b) is already owned by `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` (split out of `spec-fib-depth` on 2026-10-08), which depends on `spec-vrf-0-umbrella`. A named table has exactly one writer by construction and nothing to arbitrate, so distance decides nothing there: this is a boundary, not a scope cut. It is guarded by a test rather than left as a convention |
 | The forked path re-stamps `AdminDistance` in the ENGINE, taking the wire value as the fallback | (a) publish the distance table to every forked plugin over RPC; (b) leave the forked producer stamping its bootstrap default | (a) is a second distribution channel for a value the engine already holds, and it has to be replayed on every reload to every plugin. (b) is the current defect: `rib { distance { ospf 5 } }` is inert for a forked OSPF at the Loc-RIB arbitration point. The engine is where the declaration lives and where the Path is rebuilt anyway |
 | Static keeps its synchronous refusal of routes it cannot RESOLVE, and loses only the synchronous netlink error | keep a synchronous confirmation by making the insert acknowledge kernel programming | An acknowledgement path from fib-kernel back to static is a new cross-plugin round trip on the config apply, for a failure class fib-kernel already reports as `fib-sync-failure`. The split is by failure class, and the doctor check's text narrows to match what it can still see |
 | `Path` gains one next-hop list carrying address, interface and weight | separate parallel slices, or a second field beside `ECMP` | Three facts about one next-hop belong in one value. The list follows the `Labels` contract: built once, shared, never mutated, excluded from `key()`, compared by `Equal` so the FIB observes a change |
@@ -754,12 +757,11 @@ requires it to be measured RED.
   a destination spec, `spec-admin-distance-reaches-the-kernel`, that does not
   exist on disk. This spec cannot be that destination: its Task and ACs cover
   the connected/static main-table paths, and `rib { distance { } }` declares
-  no iface leaf. Current ownership of the interface-layer remainder is
-  unresolved. The owner must authorize either a separate iface-route
-  arbitration spec or an explicit scope addition with its own acceptance
-  criteria; the historical row must not imply this spec owns that work.
+  no iface leaf. The owner decided on 2026-10-08 that the interface-layer
+  remainder gets its own spec, `plan/immediate/spec-iface-route-arbitration.md`,
+  and that it does not block this spec.
 - `BestChangeEntry.TableID` stays unpopulated by sysrib. It belongs to
-  `plan/immediate/spec-fib-depth.md` and the VRF umbrella.
+  `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` and the VRF umbrella.
 - The BGP RIB's `IsEBGP` remains the way sysrib classifies eBGP from iBGP. This
   spec does not revisit it.
 

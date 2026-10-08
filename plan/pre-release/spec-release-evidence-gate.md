@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 The historical Make matrix implementation landed at `d0e9d388c`, but the native
 cutover retired its composite runner (`internal/le/completeness_record_test.go`,
@@ -92,10 +92,10 @@ belongs in the capable-host rerun; source membership is no claim that it passed.
 ## Current Behavior (MANDATORY)
 
 **Current producing-source evidence (2026-09-19):**
-- `internal/le/evidence/evidence.go`, `Runner.Run` and `ContainerScript`: clean-clone Docker verification only.
-- `internal/le/completeness_record_test.go`, `retiredProducers`: explicitly retires `ze-evidence-release-verify` as a Make loop.
-- `internal/le/perfbench/bench.go`, `EvidenceRecord`: native benchmark, history append and regression-check composition.
-- `internal/le/qemu/alltests.go`, `vmSuites`: automated Linux static-suite membership, as recorded above.
+- [ ] `internal/le/evidence/evidence.go` - `Runner.Run` and `ContainerScript`: clean-clone Docker verification only.
+- [ ] `internal/le/completeness_record_test.go` - `retiredProducers`: explicitly retires `ze-evidence-release-verify` as a Make loop.
+- [ ] `internal/le/perfbench/bench.go` - `EvidenceRecord`: native benchmark, history append and regression-check composition.
+- [ ] `internal/le/qemu/alltests.go` - `vmSuites`: automated Linux static-suite membership, as recorded above.
 
 **Behavior to preserve:**
 - `./le verify current mode full` retains its current producer-defined population.
@@ -106,8 +106,8 @@ belongs in the capable-host rerun; source membership is no claim that it passed.
 **Behaviour to change:**
 - Restore the complete category composition, continue-after-failure behaviour,
   explicit skip accounting and final nonzero failure result through a native
-  registered action. Its final command spelling must be settled during design
-  and carried consistently into help, the tests and release-distribution.
+  registered action, `./le verify release`, carried consistently into help,
+  the tests and release-distribution.
 - Keep Docker mandatory and QEMU absence explicitly reported under AC-1/AC-6.
 
 ## Data Flow (MANDATORY)
@@ -116,7 +116,8 @@ The native matrix composes existing test runners and produces release evidence.
 The following path is required behaviour, not a claim about the clean-clone action.
 
 ### Entry Point
-- The registered release-matrix action, whose final command spelling remains a design decision.
+- The registered release-matrix action, `./le verify release`.
+  -> Decision (owner, 2026-10-08): the release-matrix command is ./le verify release
 - No runtime data flow; this is build/test infrastructure
 
 ### Transformation Path
@@ -213,7 +214,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 
 ### Phase 1: Native matrix wiring
 
-1. Resolve the exact registered matrix command and the current action for each category above.
+1. Register the matrix as `./le verify release` and resolve the current action for each category above.
 2. Implement preflight, continue-after-failure, `ZE_RELEASE_SKIP` accounting and summary through existing native runners.
 3. Preserve the independent clean-clone action and use `./le perf evidence-record` for the perf chain.
 4. Prove the matrix through its command, including failure and skip cases, and keep AC-9/AC-10's scheduled Linux evidence.

@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 3/4 |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -104,8 +104,10 @@ runs of the `plugin` and `encode` suites, and the owner refused a suite run in t
 session because another session holds the box for the ExaBGP compatibility work.
 A-1 and A-2 stay `unvalidated` for that reason, and neither is a code gap.
 
-The September 5 refusal remains a historical owner pause, not permission to
-start a suite run during this reconciliation. The later load-independence work
+-> Decision (owner, 2026-10-08): the box-holding suite runs that AC-2, AC-4 and AC-5 need are permitted, on condition that the BGP session has landed and the machine is quiet. Both halves of the condition are checked before the first run, and a busy box is a reason to wait, not to run.
+
+The September 5 refusal remains a historical owner pause; the 2026-10-08
+decision above replaces it with the stated condition. The later load-independence work
 in `plan/pre-release/spec-a-test-passes-at-any-concurrency.md` owns the remaining
 synchronisation mechanisms and refuses lower concurrency or wider fixture
 waits as substitutes for them. This spec retains AC-2 and AC-4's measurements;

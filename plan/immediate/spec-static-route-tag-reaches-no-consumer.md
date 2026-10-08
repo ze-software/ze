@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -15,9 +15,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Tag emission and precedence are implemented in `routeManager.emitRouteChangeID`
 and `externalRouteTag`; the test tables below record the implementation
-session's evidence. D-2 still asks for owner confirmation and the closure
-sections remain unfinished. This spec is not an unstarted implementation or
-a closure verdict.
+session's evidence. The owner resolved D-2 on 2026-10-08 in favor of the
+reading the code implements, so no open decision remains and the spec is
+ready for independent closure: a context that did not author the work runs
+the review gate and fills the closure sections, which remain unfinished.
 
 ### Original defect (2026-09-06)
 
@@ -71,7 +72,7 @@ answer covers both halves the survey below separates.
 | # | Question | Answer |
 |---|----------|--------|
 | D-1 | Which consumer is this leaf for? | BOTH. A static route's `tag` is a LOCAL marker a redistribution rule matches on, which is the promise `docs/guide/static-routes.md` still prints ("opaque value for route policy matching in redistribute"). AND, when the route is redistributed into OSPF, the same value becomes the External Route Tag of the Type 5 / Type 7 LSA |
-| D-2 | Route tag or `ospf { redistribute { source static { tag N } } }`? | OPEN, for the owner to confirm. The implementer's reading is below, and the code implements it |
+| D-2 | Route tag or `ospf { redistribute { source static { tag N } } }`? | RESOLVED by the owner on 2026-10-08: the route's own nonzero tag wins, the reading below and the one the code and `docs/guide/ospf.md` already implement |
 | D-3 | Is the leaf refused at commit? | No. The behavior is built |
 
 RFC 2328 defines the field in Appendix A.4.5, page 215, and Section 12.4.4
@@ -81,7 +82,9 @@ It may be used to communicate information between AS boundary routers; the
 precise nature of such information is outside the scope of this specification."
 Ze therefore owes the field a value, and the RFC does not say which value.
 
-### D-2: the reading this spec implements, for the owner to confirm
+### D-2: the reading this spec implements, confirmed by the owner
+
+-> Decision (owner, 2026-10-08): a route's own nonzero tag wins over `ospf redistribute ... tag N`, which stays the fallback for routes that carry none. This is the reading the code and `docs/guide/ospf.md` already implement. D-2 is resolved, and the spec is ready for independent closure.
 
 **The route's own tag WINS when it is nonzero. The per-source `tag N` under
 `ospf { redistribute { source <src> } }` is the fallback for routes that carry
@@ -295,7 +298,7 @@ indistinguishable, which is the defect this spec exists to remove.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Per-entry evaluation costs one rule-set walk for each redistributed route rather than one per batch | a redistribution burst showing more CPU in `evaluate` | The rule set is a handful of entries and the dispatch loop is already per entry, so the order of the work is unchanged. The batch-level call was DELETED rather than kept beside the new one: two evaluations of one rule set is layering (`ai/rules/no-layering.md`) |
-| R-2 | An operator who set `ospf { redistribute { static { tag N } } }` and also tags individual routes sees the per-route value win where the per-source one used to apply | an external route arriving at a peer with a tag the operator did not expect | This is D-2 and it is the point of the change. The behavior is documented in `docs/guide/ospf.md`, `docs/guide/configuration.md` and the `tag` leaf's `ze:help`, and the interop scenario asserts both halves. Marked for the owner to confirm |
+| R-2 | An operator who set `ospf { redistribute { static { tag N } } }` and also tags individual routes sees the per-route value win where the per-source one used to apply | an external route arriving at a peer with a tag the operator did not expect | This is D-2 and it is the point of the change. The behavior is documented in `docs/guide/ospf.md`, `docs/guide/configuration.md` and the `tag` leaf's `ze:help`, and the interop scenario asserts both halves. Confirmed by the owner on 2026-10-08 |
 | R-3 | A route tag that is legitimately 0 cannot override a nonzero per-source tag | an operator asking for "tag this route 0, whatever the source tag says" | Accepted. Zero already means "no tag" everywhere in the static plugin and in OSPF, so the request cannot be expressed today in any daemon Ze is compared against. Naming it here so a later reader can find the decision |
 
 ## Blast Radius
@@ -565,7 +568,7 @@ indistinguishable, which is the defect this spec exists to remove.
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| The route's own tag wins; the per-source `tag` is the fallback | The per-source tag stays authoritative and the route's tag is the fallback | The specific beats the general, `RouteChangeEntry.OriginAS` already resolves the same fork that way in the same dispatch path, and every existing configuration keeps its behavior. Marked D-2, for the owner to confirm |
+| The route's own tag wins; the per-source `tag` is the fallback | The per-source tag stays authoritative and the route's tag is the fallback | The specific beats the general, `RouteChangeEntry.OriginAS` already resolves the same fork that way in the same dispatch path, and every existing configuration keeps its behavior. D-2, confirmed by the owner on 2026-10-08 |
 | `ImportRule.MatchTag bool` beside `ImportRule.Tag uint32` | One `uint32` where 0 means "no filter", matching the `Families` idiom | Zero is a tag a route really carries, so one field makes "import the untagged routes" indistinguishable from "import everything". The `Families` idiom is safe because an empty family list is not a family |
 | A third parameter on `InjectExternal` | A value struct carrying prefix, source and tag; a second method beside the first | The struct is machinery for one field, and a second method is layering. Three parameters still reads at the call site |
 | The tag filter lives on the existing `ImportRule` | A new filter type, or a BGP filter plugin | The operator already writes `import <source> { family [...] }`. A tag is another narrowing of the same rule, judged by the same `Accept` |

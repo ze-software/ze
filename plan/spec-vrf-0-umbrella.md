@@ -122,7 +122,7 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
 - [ ] `internal/core/events/bus.go` -- EventBus
   --> Constraint: topic-based pub/sub with prefix matching
 - [ ] `internal/plugins/fib/kernel/backend_linux.go` -- route programming
-  --> Constraint: `buildRichRoute` in `nexthop_linux.go` already consumes a supplied TableID; sysrib's `fibChange` does not produce it. Per-VRF route identity and TableID production remain shared with `plan/immediate/spec-fib-depth.md`.
+  --> Constraint: `buildRichRoute` in `nexthop_linux.go` already consumes a supplied TableID; sysrib's `fibChange` does not produce it. Per-VRF route identity and TableID production are shared with `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md`, which took them over from `spec-fib-depth` on 2026-10-08.
 - [ ] `vendor/github.com/vishvananda/netlink/link.go` -- VRF device creation
   --> Constraint: netlink.Vrf{Table: N} for VRF device type
 - [ ] `vendor/github.com/vishvananda/netlink/rule.go` -- ip rule management
@@ -495,7 +495,7 @@ Umbrella scope; the detailed per-file lists live in the child specs.
 - `internal/component/plugin/process/manager.go` - derived plugin names (`bgp:vrf-red`) and multiple instances (vrf-1)
 - `internal/component/hub/hub.go` - orchestrator support for per-VRF hubs (vrf-1, vrf-3) <!-- doc-links: ignore (the orchestrator runtime was deleted in 8d92e9fab; the daemon entry point is runYANGConfig in cmd/ze/hub/main.go) -->
 - `internal/component/iface/register.go` - VRF device creation and interface master binding entry (`spec-vrf.md`)
-- `internal/component/sysrib/fibimport.go` and `internal/plugins/fib/kernel/nexthop_linux.go` - per-VRF TableID production and existing backend consumption (`spec-vrf.md`, coordinated with `plan/immediate/spec-fib-depth.md`)
+- `internal/component/sysrib/fibimport.go` and `internal/plugins/fib/kernel/nexthop_linux.go` - per-VRF TableID production and existing backend consumption (`spec-vrf.md`, coordinated with `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md`)
 - `internal/component/bgp/reactor/reactor.go` - constructor accepts a hub reference (vrf-3; the global-state analysis above shows no other reactor change is needed)
 
 ## Implementation Steps

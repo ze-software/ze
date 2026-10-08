@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | spec-vrf-0-umbrella.md |
 | Phase | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 The July 22 review recorded SRv6 (learned 1113), ECMP (learned 774) and VPP
 parity (learned 798) as delivered while the header still said `7/12`.
@@ -21,8 +21,8 @@ hardcoded 1; it is now populated from the producer through
 `nexthop.NextHop.Weight`, and `ecmpWeight` keeps 1 for a producer that states
 none, so nothing an unweighted BGP, OSPF or IS-IS group programs changed.
 `ECMPPath` also gained `Interface`. `BestChangeEntry.TableID` is untouched and
-stays this spec's, which is why a named-table static route is kept out of the
-Loc-RIB. -->
+belongs, since 2026-10-08, to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md`,
+which is why a named-table static route is kept out of the Loc-RIB. -->
 
 ## Post-Compaction Recovery
 
@@ -44,15 +44,18 @@ implemented rich-route path. Both backends already accept more than
 prefix/gateway tuples, and the BGP best-path comparison already reads IGP
 cost through the shared resolver seam.
 
-The remaining implementation includes end-to-end VRF/table production:
-`fibChange` does not populate `BestChangeEntry.TableID`, although both
-backends can consume a supplied value. Two original requirements also differ
-from the current implementation: AC-4 requires Linux nexthop objects, where
-`buildRichRoute` emits per-route `MultiPath`, and AC-8 requires VPP metric
-mapping, where `richRouteAddDel` uses explicit next-hop weights. These ACs
-remain open until implemented or explicitly amended by the owner. All other
-ACs retain their functional and interop evidence obligations, including
-cost-change reselection under AC-13 and backend parity under AC-15.
+Two original requirements differed from the current implementation: AC-4
+required Linux nexthop objects, where `buildRichRoute` emits per-route
+`MultiPath`, and AC-8 required VPP metric mapping, where `richRouteAddDel`
+uses explicit next-hop weights. Both, with the end-to-end VRF/table production
+they need (`fibChange` does not populate `BestChangeEntry.TableID`, although
+both backends can consume a supplied value), now belong to
+`plan/immediate/spec-fib-nexthop-objects-vpp-metric.md`, which depends on
+`plan/spec-vrf-0-umbrella.md`. All other ACs retain their functional and
+interop evidence obligations, including cost-change reselection under AC-13
+and backend parity under AC-15.
+
+-> Decision (owner, 2026-10-08): AC-4 (Linux nexthop objects) and AC-8 (VPP metric), plus the TableID production they need, move to a new spec, `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md`, which depends on `plan/spec-vrf-0-umbrella.md`. They are removed from this spec's acceptance criteria.
 
 ### Competitive Context
 
@@ -63,7 +66,7 @@ cost-change reselection under AC-13 and backend parity under AC-15.
 | Junos | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
 | Nokia SR OS | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
 | Arista EOS | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
-| Ze (current source) | yes | yes (multipath) | no (AC-4 open) | backend input supported; sysrib TableID absent | yes | kernel Priority; VPP AC-8 open | yes | yes |
+| Ze (current source) | yes | yes (multipath) | no (AC-4, moved to `spec-fib-nexthop-objects-vpp-metric.md`) | backend input supported; sysrib TableID absent | yes | kernel Priority; VPP AC-8 open | yes | yes |
 
 ### Design Decisions (proposed, pending approval)
 
@@ -125,9 +128,7 @@ cost-change reselection under AC-13 and backend parity under AC-15.
 - Metrics: route install/update/remove counters unchanged
 
 **Behavior to change:**
-- Populate the table dimension end to end under the VRF design, including safe per-table route identity; backend TableID consumption alone does not satisfy AC-9.
-- Satisfy AC-4's Linux nexthop-object requirement or obtain an explicit owner amendment; existing per-route multipath does not prove it.
-- Satisfy AC-8's VPP metric requirement or obtain an explicit owner amendment; explicit path weight and route metric are separate inputs today.
+- TableID production, AC-4 (Linux nexthop objects), AC-8 (VPP metric) and AC-9 (table install) moved to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` (owner, 2026-10-08).
 - Establish the remaining AC evidence against the implemented resolver, cost comparison, ECMP and backend paths, especially AC-13 cost-change reselection.
 
 ## Data Flow (MANDATORY)
@@ -175,7 +176,6 @@ cost-change reselection under AC-13 and backend parity under AC-15.
 | Two equal-cost iBGP paths | → | sysrib ECMP grouping | `TestECMPGroupEmission` |
 | BestChangeEntry with RouteType=blackhole | → | kernel backend RTN_BLACKHOLE | `TestKernelBlackhole` |
 | BestChangeEntry with ECMPPaths | → | kernel backend nexthop group | `TestKernelECMPGroup` |
-| BestChangeEntry with TableID | → | kernel backend route in table N | `TestKernelVRFTable` |
 | BestChangeEntry with ECMPPaths | → | VPP backend multi-path | `TestVPPMultiPath` |
 | BestChangeEntry with Labels | → | kernel backend MPLS push | `TestKernelMPLSPush` |
 
@@ -186,18 +186,20 @@ cost-change reselection under AC-13 and backend parity under AC-15.
 | AC-1 | Two iBGP paths to same prefix, different IGP cost to NH | Best-path selects lower IGP cost (step 6 no longer deferred) |
 | AC-2 | Recursive next-hop (NH not directly connected) | sysrib resolves to directly-connected NH before emitting to FIB |
 | AC-3 | N equal-cost paths after best-path | BestChangeEntry.ECMPPaths contains all N next-hops |
-| AC-4 | ECMP change emitted to kernel backend | Linux nexthop group created, route points to nhg ID |
 | AC-5 | ECMP change emitted to VPP backend | IPRouteAddDel with NPaths=N and N FibPath entries |
 | AC-6 | BestChangeEntry with RouteType=blackhole | Kernel: RTN_BLACKHOLE, VPP: drop adjacency |
 | AC-7 | BestChangeEntry with RouteType=unreachable | Kernel: RTN_UNREACHABLE, VPP: unreach adjacency |
-| AC-8 | BestChangeEntry with Metric set | Kernel: route.Priority = metric, VPP: route weight |
-| AC-9 | BestChangeEntry with TableID != 0 | Kernel: route installed in table N, VPP: route in table N |
 | AC-10 | BestChangeEntry with Labels (kernel) | Kernel: MPLS encap via lwtunnel (ip route ... encap mpls) |
 | AC-11 | BestChangeEntry with SRv6SID | Kernel: SRv6 encap via seg6, VPP: SR policy |
 | AC-12 | NH becomes unreachable | All routes using that NH withdrawn from FIB |
 | AC-13 | NH cost changes | Best-path re-evaluated for all prefixes using that NH |
 | AC-14 | ECMP member fails (NH unreachable) | Nexthop group updated (member removed), not full withdrawal |
 | AC-15 | Kernel/VPP produce identical forwarding for same input | Functional test with both backends shows same reachability |
+
+AC-4 and AC-8 moved verbatim to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` (owner, 2026-10-08), together with the `BestChangeEntry.TableID` producer.
+
+AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both backends) moved verbatim to the same spec, with its `TestKernelVRFTable` wiring row.
+-> Decision (main thread, 2026-10-08): AC-9 cannot be proven end to end without the TableID producer, which now lives in `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md`, so the AC moves with it.
 
 ## 🧪 TDD Test Plan
 
@@ -322,12 +324,12 @@ Its numbers are not a current completion fraction.
 
 | Original phase | Current state and remaining obligation |
 |----------------|----------------------------------------|
-| 1, event contract | Rich fields exist; TableID still needs a producer for AC-9 |
+| 1, event contract | Rich fields exist; the TableID producer moved to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` |
 | 2, NH resolver | `nhResolver.Resolve` and dependency tracking exist; retain AC-2/12 evidence |
 | 3, IGP cost | Lookup registration and step-6 comparison exist; AC-1 and AC-13 require end-to-end evidence, including reselection when cost changes |
 | 4, ECMP grouping | Grouping and producer weights exist; AC-3/14 evidence remains part of closure |
-| 5, kernel depth | Rich routes, MPLS, SEG6 and per-route multipath exist; AC-4 nexthop objects and end-to-end AC-9 remain open |
-| 6, VPP depth | Multipath, route types, supplied table overrides and SRv6 steering exist; AC-8 metric mapping and end-to-end AC-9 remain open |
+| 5, kernel depth | Rich routes, MPLS, SEG6 and per-route multipath exist; AC-4 nexthop objects and AC-9 table install moved to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` |
+| 6, VPP depth | Multipath, route types, supplied table overrides and SRv6 steering exist; AC-8 metric mapping and AC-9 table install moved to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` |
 | 7, NH cascade | `cascadeRecompute` exists; retain AC-12/14 failure-transition evidence |
 | 8 through 12 | Functional and interop evidence, RFC review, final verification and closure remain required; this reconciliation supplies none of those results |
 
@@ -464,7 +466,9 @@ Add `// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP m
 - The current phase accounting above identifies the existing producers for
   recursive resolution, IGP-cost comparison, rich events, ECMP and both FIB
   backends. Historical closure records cover ECMP, VPP parity and SRv6.
-- TableID production, AC-4 and AC-8 remain unresolved. This source read
+- TableID production, AC-4, AC-8 and AC-9 moved to
+  `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` (owner,
+  2026-10-08). This source read
   does not establish the remaining functional, interop or closure gates.
 
 ### Bugs Found/Fixed

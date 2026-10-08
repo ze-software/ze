@@ -6,9 +6,11 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | 7/8 |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+-> Decision (owner, 2026-10-08): this spec stays in scope as a long-running, multi-session effort. It is not near-done work in progress: the `Phase 7/8` above counts phases of the method, not the backlog, which the 2026-09-05 measurement below puts at up to 1993 exported declarations. A session takes a bounded batch, commits it, and leaves the spec open.
 
 ## Correction 2026-09-05: this spec is NOT closeable, and a green check does not say it is
 

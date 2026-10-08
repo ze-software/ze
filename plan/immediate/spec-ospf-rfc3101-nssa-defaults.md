@@ -6,16 +6,21 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The remaining implementation is the single ABR producer required by AC-13 and
-the transition behavior required by AC-14. The three new interop scenarios
-remain required evidence. The September 5 amendment records AC-1 through
-AC-12 as implemented; it does not close this spec.
+The single ABR producer required by AC-13, the transition behavior required
+by AC-14, the three missing interop scenarios (`ospf-v6-nssa-abr-frr`,
+`ospf-nssa-two-abr-frr`, `ospf-v6-nssa-two-abr-frr`) and
+`test/ospf/ospf-nssa-no-summary-default.ci` moved to
+`plan/immediate/spec-ospf-nssa-single-abr-producer.md`. AC-1 through AC-12
+stay here; the September 5 amendment records them as implemented, and this
+spec can now close on them.
+
+-> Decision (owner, 2026-10-08): AC-13/AC-14 (single ABR default producer), the three missing interop scenarios and `ospf-nssa-no-summary-default.ci` move to a new spec, `plan/immediate/spec-ospf-nssa-single-abr-producer.md`. AC-1..AC-12 stay in this spec and it can close.
 
 ### Original defect (2026-08-02)
 
@@ -293,8 +298,8 @@ Two entry points, one per direction.
 | AC-10 | An operator setting `nssa { default-originate true }` on an internal NSSA router with no usable forwarding address | The daemon originates no Type-7 default (RFC3101-2.4-2) |
 | AC-11 | `./le rfc check` over the tree | RFC3101-2.4-4, 2.4-5, 2.5-1 and 2.7-2 each carry positive and negative tagged evidence, and the Section 2.7 MUST NOT carries a checklist id with both polarities |
 | AC-12 | A reader of `docs/features/rfc-status.md` and `docs/guide/ospf.md` | Both state the NSSA default behaviour for BOTH address families, carry source anchors, and the Remaining count agrees with the real `{gap}` count |
-| AC-13 | Any reachable router state, including mid-transition, with at least one attached NSSA | What Ze ADVERTISES and what Ze ORIGINATES agree: whenever the self Router-LSA carries the B-bit, every attached NSSA holds its required default (Type-7 for a regular NSSA, Type-3 or `::/0` for a no-summary one), and whenever the B-bit is clear, Ze originates no border-router default in any area. The single-producer refactor is the means of achieving this, not the assertion |
-| AC-14 | A backbone interface transitioning down then up on a router attached to a no-summary NSSA | The area never holds zero defaults as a result of the two consumers disagreeing. Any remaining absence is bounded by the single producer's own update, not by a race between producers |
+
+AC-13 and AC-14 moved verbatim to `plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08).
 
 ### Verification note, 2026-09-04
 
@@ -344,8 +349,8 @@ interop scenarios are NOT, and were cut into their own work packages rather than
 | AC-10 | done | `TestOSPFNSSAInternalDefaultFunctional`, carried by `test/ospf/ospf-nssa-internal-default.ci`; the run with a usable forwarding address is the control for the absence assertion |
 | AC-11 | done | `RFC3101-2.7-3 [MUST NOT]` added to `rfc/short/rfc3101.md`, enforced at `applyAreaTypePolicy` and `v6ApplyAreaTypePolicy`, tagged in both polarities in both families. 13 discrimination records in `rfc/discrimination/rfc3101.json`; `./le rfc discriminate stem rfc3101` reports no stale record |
 | AC-12 | done | `rfc/short/rfc3101.md` Meta rows (which generate the `docs/features/rfc-status.md` row), `docs/guide/ospf.md`, `docs/guide/configuration.md`, `docs/features.md`, `docs/comparison.md`, `docs/functional-tests.md`, `docs/architecture/wire/ospfv3.md` (a new NSSA-LSA section, the page had none), `docs/architecture/ospf/ospf-11-stub-nssa.md`, `ospfv3-5-nssa-redist.md`, `ospfv3-6-interop-coverage.md`, and the `default-originate` YANG help |
-| AC-13 | outstanding | four sites still compute ABR status independently: `lsdb.isAreaBorderRouter`, `v6IsAreaBorderRouter` (`internal/plugins/ospf/origination_v6.go`), `ospfspf.IsABR` in `applyNSSADefaults`, and `IsABR` in `Computer.Run`. All four are the same predicate over the same derivation; what differs is the snapshot and the instant |
-| AC-14 | outstanding | AC-13 is its precondition |
+| AC-13 | moved to `plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08) | four sites still compute ABR status independently: `lsdb.isAreaBorderRouter`, `v6IsAreaBorderRouter` (`internal/plugins/ospf/origination_v6.go`), `ospfspf.IsABR` in `applyNSSADefaults`, and `IsABR` in `Computer.Run`. All four are the same predicate over the same derivation; what differs is the snapshot and the instant |
+| AC-14 | moved to `plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08) | AC-13 is its precondition |
 
 **Why AC-13 and AC-14 are a separate package.** The second default-route consumer is the
 summary originator, reached through `IsABR(in.Areas)` in `spf/summary.go` and
@@ -355,8 +360,9 @@ Router-LSA B-bit the producer for it means either a new `AFPrefixStrategy` metho
 area's summary set rather than the NSSA default alone. That is a different blast radius from
 AC-5..AC-12 and it owes its own commit and its own review.
 
-**Deferred evidence, and the command that produces it.** The three interop scenarios named
-in the Interop Tests table below are not written. When the box is quiet:
+**Deferred evidence, and the command that produces it.** The three interop scenarios once
+named in the Interop Tests table below are not written; they moved to
+`plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08). When the box is quiet:
 `INTEROP_SCENARIO=<name> ./le test integration interop`, then
 `./le rfc discriminate-record ... route revert` on each new checker.
 
@@ -395,8 +401,6 @@ in the Interop Tests table below are not written. When the box is quiet:
 | `TestOSPFv3NSSABorderRouterDefaultPBit` | `internal/plugins/ospf/spf/external_nssa_test.go` | AC-6 and AC-7 on the v6 reader, proving the shared gate fires for 0x2007 | |
 | `TestOSPFNSSANonBorderRouterInstallsPClearDefault` | `internal/plugins/ospf/spf/external_nssa_test.go` | AC-8: the permissive direction, currently unproven | |
 | `TestOSPFv3NSSADefaultForwardingAddressDeterministic` | `internal/plugins/ospf/origination_v6_nssa_test.go` | `externalScopeV6` ordering and zero-address upgrade parity with the v4 path | |
-| `TestOSPFNSSADefaultAgreesWithRouterLSABBit` | `internal/plugins/ospf/nssa_ac14_16_test.go` | AC-13: table-driven over reachable states. For each, assert the self Router-LSA B-bit and the per-area default set agree in both directions, both families | |
-| `TestOSPFNSSANoSummaryDefaultSurvivesBackboneFlap` | `internal/plugins/ospf/nssa_ac14_16_test.go` | AC-14: a backbone down/up transition never leaves a no-summary NSSA holding zero defaults through producer disagreement | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -409,23 +413,16 @@ in the Interop Tests table below are not written. When the box is quiet:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ospf-nssa-abr-default` | `test/ospf/ospf-nssa-abr-default.ci` | An operator configures an NSSA ABR with no `default-originate` leaf and the daemon originates the Type-7 default anyway | |
-| `ospf-nssa-no-summary-default` | `test/ospf/ospf-nssa-no-summary-default.ci` | An operator configures a no-summary NSSA and the daemon originates a Type-3 default rather than a Type-7 | |
 | `ospf-nssa-internal-default` | `test/ospf/ospf-nssa-internal-default.ci` | An operator sets `default-originate` on an internal NSSA router and the daemon originates a P-set Type-7 only when a forwarding address is usable | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `ospf-stub-nssa-frr` | `test/interop/scenarios/` (existing) | FRR 10.3.1 `ospfd` | AC-1 for OSPFv2: the ABR default reaches FRR with no `default-originate` leaf. Already passing and already discriminating | passing |
-| `ospf-v6-nssa-abr-frr` | `test/interop/scenarios/` (new) | FRR 10.3.1 `ospf6d` | AC-1 and AC-3 for OSPFv3: Ze as a dual-area v6 NSSA ABR originates a 0x2007 default and FRR installs `::/0` as an NSSA route | |
-| `ospf-nssa-two-abr-frr` | `test/interop/scenarios/` (new) | FRR 10.3.1 `ospfd` | AC-6 and AC-7 for OSPFv2: FRR is a second NSSA ABR configured with `area X nssa default-information-originate`, so Ze receives a P-clear Type-7 default and must not install it. A no-summary variant proves AC-7 | |
-| `ospf-v6-nssa-two-abr-frr` | `test/interop/scenarios/` (new) | FRR 10.3.1 `ospf6d` | AC-6 and AC-7 for OSPFv3 through the same two-ABR topology | |
-
-Each new scenario asserts on BOTH sides: FRR's route table via `FRROSPF6.wait_ospf6_route` or
-`FRROSPF.wait_ospf_route`, and Ze's own state via `docker_exec_quiet(ZE_CONTAINER, ["ze",
-"show", "ospf", "database", "nssa-external"])` and `["ze", "show", "ospf", "route"]`. The
-receive-side scenarios must show the LSA PRESENT in Ze's LSDB while `0.0.0.0/0` (or `::/0`)
-is ABSENT from Ze's route table: that pair is what distinguishes "gate worked" from "LSA
-never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.md` names.
+The three new scenarios this table named (`ospf-v6-nssa-abr-frr`,
+`ospf-nssa-two-abr-frr`, `ospf-v6-nssa-two-abr-frr`) moved, with their rows and
+their two-sided assertion requirement, to
+`plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08).
 
 ## Files to Modify
 - `internal/plugins/ospf/nssa.go` - extract the address-family-neutral default-route policy
@@ -456,12 +453,10 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 
 ## Files to Create
 - `test/ospf/ospf-nssa-abr-default.ci` - AC-9 through the running daemon
-- `test/ospf/ospf-nssa-no-summary-default.ci` - AC-2 for OSPFv2 through the running daemon
 - `test/ospf/ospf-nssa-internal-default.ci` - AC-10 through the running daemon
 - `test/ospfv3/ospfv3-nssa-abr-default.ci` - AC-1 and AC-3 for OSPFv3 through the daemon
-- `test/interop/scenarios/ospf-v6-nssa-abr-frr/{ze.conf,frr.conf,check.py}`
-- `test/interop/scenarios/ospf-nssa-two-abr-frr/{ze.conf,frr.conf,check.py}`
-- `test/interop/scenarios/ospf-v6-nssa-two-abr-frr/{ze.conf,frr.conf,check.py}`
+- The three interop scenario directories and `test/ospf/ospf-nssa-no-summary-default.ci`
+  moved to `plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -511,7 +506,7 @@ along with the three interop scenarios and final closure gates.
    - Tests: `TestOSPFv3NSSABorderRouterOriginatesDefault`, `TestOSPFv3NSSADefaultUsesV6Producer`
    - Files: `internal/plugins/ospf/nssa.go` (family branch), `origination_v6_nssa.go` (stub originator)
    - Verify: both tests FAIL first because an OSPFv3 ABR currently installs a 0x0007-keyed LSA. `TestOSPFv3NSSADefaultUsesV6Producer` is the wiring test and must go red before it goes green
-2. **Phase: Unify the ABR producer** -- one source of truth for "am I an ABR"
+2. **Phase: Unify the ABR producer** -- one source of truth for "am I an ABR". Moved to `plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08); kept here as history
    - Tests: `TestOSPFNSSADefaultAgreesWithRouterLSABBit`, `TestOSPFNSSANoSummaryDefaultSurvivesBackboneFlap`
    - Files: `internal/plugins/ospf/lsdb/origination.go`, `internal/plugins/ospf/origination_v6.go`, `internal/plugins/ospf/nssa.go`, `internal/plugins/ospf/spf/computer.go`
    - Verify: AC-13 and AC-14 in both address families. The B-bit determination becomes the producer; `applyNSSADefaults` and the summary path read it. All four existing producer sites must use that contract rather than recomputing from independent snapshots.
@@ -640,7 +635,8 @@ the origination side needed a whole branch.
   Integration Checklist.
 - R-2's design choice was settled on 2026-08-02: the Router-LSA B-bit
   determination must become the single ABR producer. The implementation remains
-  open under AC-13, with AC-14 dependent on it. `applyNSSADefaults`,
+  open under AC-13, with AC-14 dependent on it, both now owned by
+  `plan/immediate/spec-ospf-nssa-single-abr-producer.md` (owner, 2026-10-08). `applyNSSADefaults`,
   `Computer.Run`, `lsdb.isAreaBorderRouter` and `v6IsAreaBorderRouter` still
   compute ABR state separately. The September 5 amendment supersedes the
   earlier completion claim; the risk cannot close before implementation and
