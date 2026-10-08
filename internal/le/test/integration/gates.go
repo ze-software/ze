@@ -147,7 +147,7 @@ func Table() []Action {
 		{
 			Verb:   "interop-rsvpte",
 			Native: runRSVPTEInterop,
-			Why: "RSVP-TE interop with Ze as transit between two freeRouter nodes, every" +
+			Why: "RSVP-TE interop between Ze and freeRouter in ingress, transit, relay and egress roles, every" +
 				" scenario under test/interop-rsvpte/scenarios/. Needs Docker, privileged" +
 				" containers and host MPLS routing. RSVPTE_INTEROP_SCENARIO=<name> runs one scenario",
 		},

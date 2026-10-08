@@ -162,17 +162,27 @@ outside both abstract nodes: the ingress peer receives PathErr 24/2, and (3)
 the same hop loose: the downstream peer receives the PATH with the expanded
 ERO. The carrier needs root, so it was not run in this review.
 
-## Interop status (2026-10-08): loose expansion proven at the peer, strict has no originator
+## Interop status (2026-10-08): strict forward and loose expansion proven, strict refusal red on freeRouter's parser
 
 `./le test integration interop-rsvpte` (`internal/le/interoplab/rsvpte/`,
-catalog `rsvpte/transit-loose-ero-expansion`) runs freeRouter ingress, Ze
-transit and freeRouter egress in Docker without root.
+catalog suite `rsvpte`) ran on 2026-10-08 over a tree carrying the MPLS
+path-MTU probe (f3caa99352), so a Ze transit installs its swap and the LSP comes
+up. The suite now has back-to-back scenarios: Ze originates, an unpatched
+freeRouter is the independent implementation that parses the message, keeps the
+state it needs and re-encodes it, and a second Ze captures what freeRouter sent.
+freeRouter relays what Ze originates; it neither originates PathErr nor enforces
+strict hops itself, and every ERO hop it originates is loose
+(`clntMplsTeP2p.workDoer`, `ipFwdTab.fillRsvpPack`), so the evidence is that
+freeRouter accepts and relays Ze's messages. Run log: session scratch
+`rsvpte-run8.log` (3 passed, 2 failed). Discrimination: `rsvpte-disc-run10.log`,
+a copy of the tree with the producer broken, run with `ze_repo_root=<copy>`.
 
-| Needed | Status |
-|--------|--------|
-| (3) loose hop expanded | Observed at the egress's own capture: the ingress sends `[Ze loose, 198.51.100.4 loose]`, the egress receives `[172.29.81.14 strict, 198.51.100.4 loose]`. Discrimination: with the replacement in `resolveExplicitPath` disabled the check goes red on the ERO (`rsvpte-run5-break.log`), restored it passes the ERO check |
-| LSP comes up | Red: Ze's transit swap install fails (EINVAL, Linux AF_MPLS refuses the path MTU `addMPLSSwap` attaches) and Ze sends ResvErr code 22, `plan/journal/kernel-refuses-what-the-installer-sends.md` |
-| (1) strict direct hop, (2) strict hop outside -> PathErr 24/2 | No originator: freeRouter encodes every ERO hop it originates as loose (`clntMplsTeP2p.workDoer`, `ipFwdTab.fillRsvpPack`, pinned revision and upstream master) |
+| Needed (Closure Review) | Scenario | Result |
+|-------------------------|----------|--------|
+| (1) strict direct hop | `transit-strict-hop-forwarded` | PASS. The Ze ingress names every hop strict through a freeRouter relay; the freeRouter egress captures the Ze transit's PATH with the ERO trimmed to strict `172.29.81.14` alone, the Ze ingress captures the labelled RESV freeRouter relays, and the Ze transit holds a swap via `.14`. No discrimination run for this scenario |
+| (2) strict hop outside -> PathErr 24/2 | `transit-strict-hop-outside-refused` | FAIL at the last step. The Ze transit sends PathErr Routing Problem / Bad strict node (24/2), error node `172.29.81.3`, and never forwards the PATH; freeRouter's capture holds that PathErr, but freeRouter never relays it to the Ze ingress: `packRsvp.parseDatPatErr` refuses a PathErr without an ADSPEC, and Ze's carries SESSION, ERROR_SPEC, SENDER_TEMPLATE and SENDER_TSPEC only. RFC 2205 Section 3.1.3: "<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC> [ <ADSPEC> ]" |
+| (3) loose hop expanded | `transit-loose-ero-expansion` | PASS. freeRouter ingress, Ze transit, freeRouter egress: from `[Ze loose, 198.51.100.4 loose]` the egress captures `[172.29.81.14 strict, 198.51.100.4 loose]`, the ingress captures a labelled RESV, and Ze holds the swap. Discrimination: with the replacement in `resolveExplicitPath` removed the check goes red (the egress receives `[172.29.81.3 loose, 198.51.100.4 loose]`); restored, it passes |
 
-Closure needs the owner to decide the path-MTU fix and which peer originates a
-strict ERO.
+Not ready for closure. The owner decides how (2) is carried across a peer (Ze
+sends the optional ADSPEC in a PathErr, a freeRouter patched in the image, or
+another implementation).

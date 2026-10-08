@@ -1,5 +1,5 @@
 #!/bin/sh
-# Ze transit for transit-loose-ero-expansion. The loose hop 198.51.100.4 is the
+# Ze transit (transit.conf) for transit-loose-ero-expansion. The loose hop 198.51.100.4 is the
 # egress loopback, reached natively through the egress's segment address
 # 172.29.81.14, which no ERO subobject names: Ze MUST insert it.
 set -eu

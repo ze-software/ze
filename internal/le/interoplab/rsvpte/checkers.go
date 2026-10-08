@@ -17,14 +17,23 @@ import (
 )
 
 const (
-	scenarioLooseExpansion = "transit-loose-ero-expansion"
+	scenarioLooseExpansion  = "transit-loose-ero-expansion"
+	scenarioResvErrRelayed  = "ingress-resv-error-relayed"
+	scenarioStrictForwarded = "transit-strict-hop-forwarded"
+	scenarioStrictRefused   = "transit-strict-hop-outside-refused"
+	scenarioResvTearRelayed = "transit-resv-tear-relayed"
 
 	captureFile = "/run/fr/rsvp.txt"
 
-	addressIngress = "172.29.81.12"
-	addressZe      = "172.29.81.3"
-	addressEgress  = "172.29.81.14"
-	loopbackEgress = "198.51.100.4"
+	// A Ze node answers on its container address, a freeRouter node on its
+	// own address beside it (rsvpte.go, labRole).
+	addressZeIngress      = "172.29.81.2"
+	addressZeTransit      = "172.29.81.3"
+	addressZeEgress       = "172.29.81.4"
+	addressFreeRtrIngress = "172.29.81.12"
+	addressFreeRtrEgress  = "172.29.81.14"
+	addressFreeRtrRelay   = "172.29.81.15"
+	loopbackEgress        = "198.51.100.4"
 )
 
 type scenarioCheck func(context.Context, interoplab.CheckerLab, time.Duration) error
@@ -131,7 +140,7 @@ func checkLooseExpansion(ctx context.Context, lab interoplab.CheckerLab, timeout
 	// 3.1.3), so Ze's relay is the PATH whose RSVP_HOP names Ze.
 	path, err := waitMessage(ctx, lab, peerEgress, "egress receives Ze's PATH", timeout, func(message rsvpMessage) bool {
 		return strings.HasPrefix(message.target, loopbackEgress) && strings.Contains(message.text, "Path Message") &&
-			strings.Contains(message.text, hopFrom(addressZe))
+			strings.Contains(message.text, hopFrom(addressZeTransit))
 	})
 	if err != nil {
 		return err
@@ -141,10 +150,10 @@ func checkLooseExpansion(ctx context.Context, lab interoplab.CheckerLab, timeout
 		return err
 	}
 	if len(ero) != 2 {
-		return fmt.Errorf("egress received ERO %q, want the inserted hop %s then loose %s", ero, addressEgress, loopbackEgress)
+		return fmt.Errorf("egress received ERO %q, want the inserted hop %s then loose %s", ero, addressFreeRtrEgress, loopbackEgress)
 	}
-	if !strings.Contains(ero[0], addressEgress) {
-		return fmt.Errorf("egress received ERO %q: first hop is not the inserted %s", ero, addressEgress)
+	if !strings.Contains(ero[0], addressFreeRtrEgress) {
+		return fmt.Errorf("egress received ERO %q: first hop is not the inserted %s", ero, addressFreeRtrEgress)
 	}
 	if !strings.Contains(ero[1], loopbackEgress) {
 		return fmt.Errorf("egress received ERO %q: second hop is not %s", ero, loopbackEgress)
@@ -153,20 +162,186 @@ func checkLooseExpansion(ctx context.Context, lab interoplab.CheckerLab, timeout
 		return fmt.Errorf("egress received ERO %q: %s lost its loose bit", ero, loopbackEgress)
 	}
 	if _, err := waitMessage(ctx, lab, peerIngress, "ingress receives Ze's RESV", timeout, func(message rsvpMessage) bool {
-		return isMessage(message, addressZe, addressIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
+		return isMessage(message, addressZeTransit, addressFreeRtrIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
 	}); err != nil {
 		return err
 	}
-	return waitSwap(ctx, lab, timeout)
+	return waitSwap(ctx, lab, addressFreeRtrEgress, timeout)
 }
 
-// waitSwap polls Ze's MPLS table until a label forwards toward the egress.
-func waitSwap(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+// waitSwap polls the Ze transit's MPLS table until a label forwards toward next.
+func waitSwap(ctx context.Context, lab interoplab.CheckerLab, next string, timeout time.Duration) error {
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "Ze installs the transit swap"},
 		func(ctx context.Context) (string, error) {
-			return lab.Query(ctx, peerZe, []string{"ip", "-f", "mpls", "route", "show"}, nil)
+			return lab.Query(ctx, peerTransit, []string{"ip", "-f", "mpls", "route", "show"}, nil)
 		},
-		func(table string) bool { return strings.Contains(table, "via inet "+addressEgress) })
+		func(table string) bool { return strings.Contains(table, "via inet "+next) })
+	return err
+}
+
+// errorFrom is how tcpdump prints the ERROR_SPEC node address.
+func errorFrom(address string) string {
+	return "Error Node Address: " + address + ","
+}
+
+// checkResvErrRelayed proves RFC 2205 Sections 2.5 and 3.1.8 across an
+// independent relay: Ze ingress, freeRouter transit, Ze egress. The ingress
+// interface reserves less than the tunnel asks, so the ingress refuses the
+// RESV freeRouter relays and originates a ResvErr naming itself, admission
+// control failure. freeRouter relays it downstream, and the Ze egress MUST
+// receive it from freeRouter with Ze's error node and code intact.
+func checkResvErrRelayed(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	if _, err := waitMessage(ctx, lab, peerRelay, "freeRouter receives the Ze ingress's ResvErr", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeIngress, addressFreeRtrRelay, "ResvErr Message") && strings.Contains(message.text, errorFrom(addressZeIngress))
+	}); err != nil {
+		return err
+	}
+	relayed, err := waitMessage(ctx, lab, peerEgress, "Ze egress receives the ResvErr freeRouter relays", timeout, func(message rsvpMessage) bool {
+		return strings.HasPrefix(message.target, addressZeEgress) && strings.Contains(message.text, "ResvErr Message") &&
+			strings.Contains(message.text, hopFrom(addressFreeRtrRelay))
+	})
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(relayed.text, errorFrom(addressZeIngress)) {
+		return fmt.Errorf("relayed ResvErr lost the error node %s:\n%s", addressZeIngress, relayed.text)
+	}
+	// RFC 2205 Appendix B: Error Code 1 is Admission Control failure, and the
+	// ingress refuses the reservation for want of bandwidth, value 2.
+	code, value, err := errorSpec(relayed.text)
+	if err != nil {
+		return err
+	}
+	if code != "1" {
+		return fmt.Errorf("relayed ResvErr carries Error Code %s, want 1 Admission Control failure:\n%s", code, relayed.text)
+	}
+	if value != "2" {
+		return fmt.Errorf("relayed ResvErr carries Error Value %s, want 2 requested bandwidth unavailable:\n%s", value, relayed.text)
+	}
+	return nil
+}
+
+// errorSpec answers the Error Code and Error Value of the ERROR_SPEC object in
+// one decoded message. tcpdump names neither for every code (it prints
+// Admission Control failure as "unknown (1)"), so the check compares the two
+// numbers it prints in parentheses: the first is the code, the last the value.
+func errorSpec(text string) (code, value string, err error) {
+	for line := range strings.SplitSeq(text, "\n") {
+		_, rest, found := strings.Cut(line, "Error Code: ")
+		if !found {
+			continue
+		}
+		var numbers []string
+		for {
+			_, after, open := strings.Cut(rest, "(")
+			if !open {
+				break
+			}
+			number, tail, closed := strings.Cut(after, ")")
+			if !closed {
+				break
+			}
+			numbers = append(numbers, number)
+			rest = tail
+		}
+		if len(numbers) < 2 {
+			return "", "", fmt.Errorf("ERROR_SPEC line %q names no code and value", strings.TrimSpace(line))
+		}
+		return numbers[0], numbers[len(numbers)-1], nil
+	}
+	return "", "", errors.New("message carries no ERROR_SPEC object")
+}
+
+// checkStrictForwarded proves RFC 3209 Section 4.3.4.1 at a Ze transit fed by
+// an independent relay: Ze ingress, freeRouter, Ze transit, freeRouter egress.
+// The ingress names every hop strict. The PATH the freeRouter egress receives
+// from Ze MUST carry the ERO shortened to the egress alone, still strict, and
+// the LSP MUST come up: the Ze ingress receives a labelled RESV through
+// freeRouter and the Ze transit holds a swap toward the egress.
+func checkStrictForwarded(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	path, err := waitMessage(ctx, lab, peerEgress, "freeRouter egress receives Ze's PATH", timeout, func(message rsvpMessage) bool {
+		return strings.Contains(message.text, "Path Message") && strings.Contains(message.text, hopFrom(addressZeTransit))
+	})
+	if err != nil {
+		return err
+	}
+	ero, err := explicitRoute(path.text)
+	if err != nil {
+		return err
+	}
+	if len(ero) != 1 || !strings.Contains(ero[0], addressFreeRtrEgress+"/32") || !strings.Contains(ero[0], "Strict") {
+		return fmt.Errorf("egress received ERO %q, want only strict %s", ero, addressFreeRtrEgress)
+	}
+	if _, err := waitMessage(ctx, lab, peerIngress, "Ze ingress receives the RESV freeRouter relays", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressFreeRtrRelay, addressZeIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
+	}); err != nil {
+		return err
+	}
+	return waitSwap(ctx, lab, addressFreeRtrEgress, timeout)
+}
+
+// checkStrictRefused proves RFC 3209 Section 4.3.3.1 across an independent
+// relay: Ze ingress, freeRouter, Ze transit. The ERO's last hop is strict and
+// the transit's native route to it runs through a node outside both abstract
+// nodes, so the transit MUST NOT forward the PATH and MUST send PathErr
+// "Routing Problem / Bad strict node" (24/2). freeRouter relays it upstream,
+// and the Ze ingress MUST receive it from freeRouter with the transit as the
+// error node.
+func checkStrictRefused(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	refusal, err := waitMessage(ctx, lab, peerIngress, "Ze ingress receives the PathErr freeRouter relays", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressFreeRtrRelay, addressZeIngress, "PathErr Message")
+	})
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(refusal.text, errorFrom(addressZeTransit)) {
+		return fmt.Errorf("relayed PathErr does not name the Ze transit %s:\n%s", addressZeTransit, refusal.text)
+	}
+	// RFC 3209 Section 4.3.3.1: Routing Problem (24), Bad strict node (2).
+	code, value, err := errorSpec(refusal.text)
+	if err != nil {
+		return err
+	}
+	if code != "24" {
+		return fmt.Errorf("relayed PathErr carries Error Code %s, want 24 Routing Problem:\n%s", code, refusal.text)
+	}
+	if value != "2" {
+		return fmt.Errorf("relayed PathErr carries Error Value %s, want 2 Bad strict node:\n%s", value, refusal.text)
+	}
+	capture, err := lab.Query(ctx, peerTransit, []string{"cat", captureFile}, nil)
+	if err != nil {
+		return err
+	}
+	for _, message := range parseCapture(capture) {
+		if strings.Contains(message.text, "Path Message") && strings.Contains(message.text, hopFrom(addressZeTransit)) {
+			return fmt.Errorf("Ze transit forwarded the refused PATH:\n%s", message.text)
+		}
+	}
+	return nil
+}
+
+// checkResvTearRelayed proves RFC 2205 Section 3.1.6 across an independent
+// relay: Ze ingress, freeRouter, Ze transit, Ze egress. Once the LSP is up the
+// egress is frozen, so the transit's reservation times out while its path
+// state is refreshed. The transit MUST send a ResvTear upstream, freeRouter
+// relays it, and the Ze ingress MUST receive it from freeRouter.
+func checkResvTearRelayed(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	if _, err := waitMessage(ctx, lab, peerIngress, "Ze ingress receives the RESV freeRouter relays", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressFreeRtrRelay, addressZeIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
+	}); err != nil {
+		return err
+	}
+	if _, err := lab.Query(ctx, peerEgress, []string{"sh", "-c", "kill -STOP $(pidof ze) && echo frozen"}, nil); err != nil {
+		return fmt.Errorf("freeze the Ze egress: %w", err)
+	}
+	if _, err := waitMessage(ctx, lab, peerRelay, "freeRouter receives the Ze transit's ResvTear", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressFreeRtrRelay, "ResvTear Message")
+	}); err != nil {
+		return err
+	}
+	_, err := waitMessage(ctx, lab, peerIngress, "Ze ingress receives the ResvTear freeRouter relays", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressFreeRtrRelay, addressZeIngress, "ResvTear Message")
+	})
 	return err
 }
 
@@ -197,7 +372,8 @@ func explicitRoute(text string) ([]string, error) {
 func diagnosticError(ctx context.Context, lab interoplab.CheckerLab, cause error) error {
 	var report strings.Builder
 	report.WriteString(cause.Error())
-	for _, peer := range []string{peerIngress, peerZe, peerEgress} {
+	for _, role := range labRoles {
+		peer := role.name
 		if capture, err := lab.Query(ctx, peer, []string{"sh", "-c", "tail -c 6000 " + captureFile + " 2>/dev/null; tail -n 40 /run/fr/console.txt 2>/dev/null"}, nil); err == nil {
 			report.WriteString("\n--- " + peer + " capture ---\n" + capture)
 		}

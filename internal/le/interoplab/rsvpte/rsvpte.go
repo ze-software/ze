@@ -1,7 +1,9 @@
 // Design: docs/architecture/testing/interop.md -- RSVP-TE interop against freeRouter.
 // Related: checkers.go -- what each scenario observes at the peers.
 //
-// The lab puts Ze between two freeRouter nodes on one Docker segment. Each
+// The lab puts up to four nodes on one Docker segment, and each scenario
+// decides which implementation fills each role by the files it carries:
+// <role>.conf makes the role a Ze node, <role>-sw.txt a freeRouter node. Each
 // freeRouter owns its own IPv4 stack and MAC, reached through rawInt.bin on
 // its container's eth0 (test/interop-rsvpte/run-freertr.sh), so no host root,
 // TAP device or network namespace is needed: Docker and privileged containers
@@ -29,7 +31,8 @@ const (
 	labDirectory = "test/interop-rsvpte"
 
 	peerIngress = "ingress"
-	peerZe      = "ze"
+	peerTransit = "transit"
+	peerRelay   = "relay"
 	peerEgress  = "egress"
 
 	imageZe      = "ze"
@@ -43,9 +46,25 @@ const (
 // freeRouter configurations and Ze's routes cannot follow a moved subnet.
 var labNetwork = netip.MustParsePrefix("172.29.81.0/24")
 
+// labRole is one position on the path and the host number its container
+// takes. A Ze node answers on the container address 172.29.81.<host>; a
+// freeRouter node owns 172.29.81.<10+host> beside it.
+type labRole struct {
+	name string
+	host uint8
+}
+
+// labRoles lists every position downstream first, so the first PATH the
+// ingress sends meets nodes that already listen.
+var labRoles = []labRole{{peerEgress, 4}, {peerTransit, 3}, {peerRelay, 5}, {peerIngress, 2}}
+
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
-		scenarioLooseExpansion: checker(checkLooseExpansion, timeout),
+		scenarioLooseExpansion:  checker(checkLooseExpansion, timeout),
+		scenarioResvErrRelayed:  checker(checkResvErrRelayed, timeout),
+		scenarioStrictForwarded: checker(checkStrictForwarded, timeout),
+		scenarioStrictRefused:   checker(checkStrictRefused, timeout),
+		scenarioResvTearRelayed: checker(checkResvTearRelayed, timeout),
 	}
 }
 
@@ -120,22 +139,36 @@ func containerName(role, suffix string) string {
 	return tb.Str("ze-rsvpte-").Str(role).Byte('-').Str(suffix).String()
 }
 
-// scenarioPlan starts the egress first and the ingress last, so the first
-// PATH the ingress sends meets a transit and an egress that already listen.
+// scenarioPlan starts every role the scenario fills, downstream first. A role
+// with <role>.conf is a Ze node and one with <role>-sw.txt a freeRouter node;
+// a role with neither is absent from the scenario.
 func scenarioPlan(suffix string, source interoplab.ScenarioSource) interoplab.ScenarioPlan {
-	return interoplab.ScenarioPlan{
+	plan := interoplab.ScenarioPlan{
 		Source: source,
 		Network: interoplab.NetworkSpec{
 			Name:       containerName("net", suffix),
 			Candidates: []interoplab.Subnet{{IPv4: labNetwork}},
 		},
-		Containers: []string{containerName(peerIngress, suffix), containerName(peerZe, suffix), containerName(peerEgress, suffix)},
-		Peers: []interoplab.PeerConfig{
-			freeRtrPeer(peerEgress, 4, suffix, source.Directory),
-			zePeer(suffix, source.Directory),
-			freeRtrPeer(peerIngress, 2, suffix, source.Directory),
-		},
 	}
+	for _, role := range labRoles {
+		var peer interoplab.PeerConfig
+		switch {
+		case fileExists(filepath.Join(source.Directory, role.name+".conf")):
+			peer = zePeer(role.name, role.host, suffix, source.Directory)
+		case fileExists(filepath.Join(source.Directory, role.name+"-sw.txt")):
+			peer = freeRtrPeer(role.name, role.host, suffix, source.Directory)
+		default:
+			continue
+		}
+		plan.Containers = append(plan.Containers, peer.Container)
+		plan.Peers = append(plan.Peers, peer)
+	}
+	return plan
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 func freeRtrPeer(role string, host uint8, suffix, directory string) interoplab.PeerConfig {
@@ -157,19 +190,24 @@ func freeRtrPeer(role string, host uint8, suffix, directory string) interoplab.P
 	}
 }
 
-func zePeer(suffix, directory string) interoplab.PeerConfig {
+// zePeer runs <role>-setup.sh, which enables MPLS, adds the role's routes and
+// execs the daemon on <role>.conf. tcpdump records the RSVP the node sends and
+// receives in the same capture file a freeRouter node writes.
+func zePeer(role string, host uint8, suffix, directory string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
-		Name:      peerZe,
-		Container: containerName(peerZe, suffix),
+		Name:      role,
+		Container: containerName(role, suffix),
 		Image:     imageZe,
-		Host:      3,
+		Host:      host,
 		Mounts: []interoplab.Mount{
-			{Source: filepath.Join(directory, "ze.conf"), Target: "/etc/ze/ze.conf", ReadOnly: true},
-			{Source: filepath.Join(directory, "ze-setup.sh"), Target: "/etc/ze/setup.sh", ReadOnly: true},
+			{Source: filepath.Join(directory, role+".conf"), Target: "/etc/ze/ze.conf", ReadOnly: true},
+			{Source: filepath.Join(directory, role+"-setup.sh"), Target: "/etc/ze/setup.sh", ReadOnly: true},
 		},
 		Arguments:   []string{privilegedArgument},
 		Environment: []interoplab.EnvironmentVariable{{Name: "ze.log.rsvp-te", Value: "debug"}},
-		Command:     []string{"sh", "/etc/ze/setup.sh"},
+		Command: []string{"sh", "-c", "mkdir -p /run/fr; " +
+			"tcpdump -i eth0 -nn -l -vvv 'ip proto 46' > " + captureFile + " 2> /run/fr/tcpdump.err & " +
+			"exec sh /etc/ze/setup.sh"},
 		Ready: &interoplab.ReadyProbe{
 			// Ze listens on a raw IPv4 socket for protocol 46 once RSVP-TE runs.
 			Command:  []string{"sh", "-c", "grep -q ':002E ' /proc/net/raw"},

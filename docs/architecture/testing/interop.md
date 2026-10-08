@@ -888,33 +888,68 @@ as evidence.
 
 ### The freeRouter RSVP-TE suite
 
-`internal/le/interoplab/rsvpte/` puts Ze between two freeRouter nodes on one
-Docker segment, `172.29.81.0/24`: the ingress at `.12` with loopback
-`198.51.100.2`, Ze at `.3`, the egress at `.14` with loopback `198.51.100.4`.
-The addresses are fixed because the freeRouter configurations and Ze's routes
-in each scenario directory name them. Each freeRouter owns its own IPv4 stack
+`internal/le/interoplab/rsvpte/` puts up to four nodes on one Docker segment,
+`172.29.81.0/24`, in four roles: `ingress` (host 2), `transit` (3), `egress`
+(4) and `relay` (5). A scenario directory decides which implementation fills
+each role by the files it carries: `<role>.conf` with `<role>-setup.sh` makes
+the role a Ze node answering on the container address `.<host>`, and
+`<role>-hw.txt` with `<role>-sw.txt` makes it a freeRouter node answering on
+its own address `.<10+host>`. A role with neither file is absent. Nodes start
+downstream first, so the first PATH meets nodes that already listen. The
+addresses are fixed because the configurations in each scenario directory name
+them. Two shapes are used: freeRouter, Ze, freeRouter, where freeRouter
+originates and Ze relays; and Ze, freeRouter, Ze (and Ze, freeRouter, Ze, Ze),
+where Ze originates PATH, ResvErr, ResvTear, PathErr and strict hops and
+freeRouter is the independent implementation that parses, relays and
+re-encodes them. A Ze head-end tunnel in this suite requests `fast-reroute`,
+because freeRouter's `packRsvp.parseDatPatReq` refuses a PATH without
+SESSION_ATTRIBUTE and Ze emits that object only for a protected tunnel. Each freeRouter owns its own IPv4 stack
 and MAC: `test/interop-rsvpte/run-freertr.sh` makes the container's `eth0`
 promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
 suite needs Docker and privileged containers, never host root, a TAP device or
 a network namespace. Ze's container is privileged because it programs MPLS
 labels; the preflight loads `mpls_router` and refuses a host kernel without it.
 
-Every assertion reads what a peer received. Each freeRouter container runs
-`tcpdump -vvv` on its `eth0`, and the checker parses that text: a message Ze
+Every assertion reads what a peer received. Every container, Ze or freeRouter,
+runs `tcpdump -vvv` on its `eth0` into `/run/fr/rsvp.txt`, and the checker
+parses that text: a message Ze
 logs as sent counts for nothing until the peer's capture holds it.
 
 | Scenario | What the peers observe |
 |----------|------------------------|
-| `transit-loose-ero-expansion` | The ingress signals `[Ze loose, egress loopback loose]`. Ze's native route to the loopback runs through `.14`, which no subobject names, so the PATH the egress captures carries `.14` ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label, and Ze's MPLS table holds a swap via `.14` |
+| `transit-loose-ero-expansion` | freeRouter ingress, Ze transit, freeRouter egress. The ingress signals `[Ze loose, egress loopback loose]`. Ze's native route to the loopback runs through `.14`, which no subobject names, so the PATH the egress captures carries `.14` ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label, and Ze's MPLS table holds a swap via `.14` |
+| `transit-strict-hop-forwarded` | Ze ingress, freeRouter relay `.15`, Ze transit, freeRouter egress `.14`. The Ze ingress names every hop strict. The PATH the egress captures from Ze carries the ERO shortened to strict `.14` alone, the Ze ingress captures a labelled RESV relayed by freeRouter, and the Ze transit holds a swap via `.14` |
+| `transit-strict-hop-outside-refused` | Ze ingress, freeRouter relay, Ze transit. The last strict hop's native route at the transit runs through a node outside both abstract nodes, so the transit sends PathErr Routing Problem / Bad strict node (24/2) and never forwards the PATH (RFC 3209 Section 4.3.3.1). The Ze ingress captures that PathErr as freeRouter relays it, naming the transit as the error node |
+| `ingress-resv-error-relayed` | Ze ingress, freeRouter relay, Ze egress. The ingress interface reserves less than the tunnel asks, so the ingress refuses the RESV freeRouter relays and sends a ResvErr naming itself, Error Code 1 Admission Control failure, value 2. The Ze egress captures that ResvErr from freeRouter with the error node, code and value intact (RFC 2205 Sections 2.5 and 3.1.8) |
+| `transit-resv-tear-relayed` | Ze ingress, freeRouter relay, Ze transit, Ze egress. Once the LSP is up the egress is frozen with `SIGSTOP`, so the transit's reservation times out while its path state is refreshed; the transit sends a ResvTear upstream, and the Ze ingress captures it as freeRouter relays it (RFC 2205 Section 3.1.6) |
+
+The checker compares the ERROR_SPEC code and value as the numbers tcpdump
+prints in parentheses, because tcpdump names no code for every value: it prints
+Admission Control failure as `unknown (1)`.
 
 The pinned freeRouter originates only PATH, PathTear and RESV. It relays
 PathErr, ResvErr and ResvTear but never originates them, encodes every ERO
 subobject it originates as loose (`clntMplsTeP2p.workDoer`,
 `ipFwdTab.fillRsvpPack`), signals one fixed bandwidth for the life of an LSP,
-and sends only fixed-filter RESVs naming its own sender. Strict-hop handling,
-a peer ResvErr or ResvTear, an in-place bandwidth increase and a multi-sender
-fixed-filter RESV therefore have no freeRouter originator, and no scenario here
-claims them.
+and sends only fixed-filter RESVs naming its own sender. The suite runs the
+image unpatched, so in every scenario where Ze originates a message freeRouter
+is the independent implementation that parses it, keeps the state it needs to
+relay it, and re-encodes it toward the next Ze node: the evidence is that
+freeRouter accepts and relays what Ze originates, not that freeRouter
+originates strict hops, ResvErr, ResvTear or PathErr itself. No scenario here
+covers an in-place bandwidth increase or a multi-sender fixed-filter RESV.
+
+Two scenarios are red against the pinned image, and the cause is freeRouter's
+parser, not the message Ze sends. In both, the relay's own capture holds Ze's
+message and freeRouter never re-sends it. `packRsvp.parseDatPatErr` refuses a
+PathErr without an ADSPEC, and Ze's PathErr carries none, so
+`transit-strict-hop-outside-refused` never reaches the ingress.
+`packRsvp.parseDatResTer` refuses a ResvTear without a FLOWSPEC, and Ze omits
+it, so `transit-resv-tear-relayed` never reaches the ingress. RFC 2205 makes
+both objects optional: the PathErr sender descriptor is "<SENDER_TEMPLATE>
+<SENDER_TSPEC> [ <ADSPEC> ]" (Section 3.1.3), and "FLOWSPEC objects in the flow
+descriptor list of a ResvTear message will be ignored and may be omitted"
+(Section 3.1.6).
 
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
 <!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
