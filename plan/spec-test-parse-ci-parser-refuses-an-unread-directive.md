@@ -168,7 +168,7 @@ uncommitted rewrite.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | the parse suite itself | `test/parse/*.ci` | an author writes a `test/parse` file and its assertions run | migration committed; corpus-wide assertion accounting and red diagnosis remain evidence obligations |
-| `config-dump-masks-bcrypt` | `test/parse/config-dump-masks-bcrypt.ci` | `ze config dump` masks a bcrypt hash | live `reject=stdout:contains=UlwuiuH82Unfsq` since `8c7f0a5bf2`; AC-6 discrimination still owed |
+| `config-dump-masks-bcrypt` | `test/parse/config-dump-masks-bcrypt.ci` | `ze config dump` masks a bcrypt hash | live `reject=stdout:contains=UlwuiuH82Unfsq` since `8c7f0a5bf2`. AC-6 was discriminated on 2026-10-08 with no file on disk modified. A Go overlay passed in `GOFLAGS=-overlay=` replaced `internal/component/config/cli/cmd_dump.go`. Under it, `resolveDump` kept the masked tree and also published the unmasked tree as `dumpMap["leak"]`. That is a second render path, so `/* SECRET-DATA */` still appears and only the reject assertion can fail. `./le test bgp parse --pattern config-dump-masks-bcrypt` then FAILED with `seq 1: stdout must not contain "UlwuiuH82Unfsq"`. The same command without the overlay PASSED both before and after the red run |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
