@@ -145,6 +145,28 @@
       "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2205-2-8",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvErrForOtherSenderNotRelayed",
+      "unit-sha": "74f537acec7cc807",
+      "claim-sha": "db9e66c7431507c0",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation.go::handleResvErr",
+      "producer-sha": "d73b85dd41d9fd22",
+      "break": "body of handleResvErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-2-8",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvErrRelayedToReceiver",
+      "unit-sha": "0f059b9ae8a4a6b5",
+      "claim-sha": "5ac3c7d0f96aa214",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation.go::handleResvErr",
+      "producer-sha": "d73b85dd41d9fd22",
+      "break": "body of handleResvErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2205-2.3-1",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB",
@@ -310,6 +332,28 @@
       "break": "body of pathTearLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2205-3-13",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205PathTearObjectsIgnored",
+      "unit-sha": "3a51df76111adef2",
+      "claim-sha": "327f0640623a87b3",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
+      "producer-sha": "59b3b08faf6f7d2b",
+      "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-13",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205PathTearTSpecNotUsed",
+      "unit-sha": "a2533534689828d0",
+      "claim-sha": "fcdefa1b45fab682",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reroute.go::pathTearLocked",
+      "producer-sha": "c52ba35b9241f646",
+      "break": "body of pathTearLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2205-3-14",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation",
@@ -354,6 +398,72 @@
       "break": "body of expiredPSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2205-3-17",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvTearForOtherHopNotRouted",
+      "unit-sha": "890efcbd7e293f70",
+      "claim-sha": "c0083a79fa3b4f66",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation.go::handleResvTear",
+      "producer-sha": "8e5ad9b57ffef3db",
+      "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-17",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvTearRoutedLikeResv",
+      "unit-sha": "17848d306ae5bbe0",
+      "claim-sha": "d9d9a946d98b1152",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation.go::handleResvTear",
+      "producer-sha": "8e5ad9b57ffef3db",
+      "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-18",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205FixedFilterErrorPerDescriptor",
+      "unit-sha": "189fe4a04d5a720b",
+      "claim-sha": "d5bae6605c5373e9",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/engine.go::handleResv",
+      "producer-sha": "fb9186cf86009608",
+      "break": "body of handleResv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-18",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205FixedFilterGoodDescriptorKept",
+      "unit-sha": "c6ce1506bec5167b",
+      "claim-sha": "961de06bd8b84c6d",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/engine.go::handleResv",
+      "producer-sha": "fb9186cf86009608",
+      "break": "body of handleResv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-19",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvErrCarriesErrorAndRoute",
+      "unit-sha": "2c450cc201dc619f",
+      "claim-sha": "eaca8c4cc814ab6f",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation_build.go::sendResvError",
+      "producer-sha": "2bc66ce7b4c6be6c",
+      "break": "body of sendResvError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-19",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205ResvErrWrongStyleNotRouted",
+      "unit-sha": "c28ec039dfe8605a",
+      "claim-sha": "eea0ec18ef919a6a",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation.go::handleResvErr",
+      "producer-sha": "d73b85dd41d9fd22",
+      "break": "body of handleResvErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2205-3-2",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesAreSenderAndSession",
@@ -374,6 +484,28 @@
       "producer": "internal/plugins/rsvpte/engine.go::sendPath",
       "producer-sha": "529788b1fb577511",
       "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-20",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205FailedFirstReservationNotInPlace",
+      "unit-sha": "cd7f980a7c301609",
+      "claim-sha": "50f2eebd32940c1d",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation_build.go::rejectReservation",
+      "producer-sha": "4d1dfaad32d9dd1a",
+      "break": "body of rejectReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-20",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/rfc2205_resv_error_test.go::TestRFC2205FailedIncreaseLeavesReservationInPlace",
+      "unit-sha": "30421437be4357e5",
+      "claim-sha": "34dade7afbb06548",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reservation_build.go::rejectReservation",
+      "producer-sha": "4d1dfaad32d9dd1a",
+      "break": "body of rejectReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2205-3.1-1",
