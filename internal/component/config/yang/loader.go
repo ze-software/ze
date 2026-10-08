@@ -177,27 +177,61 @@ func (l *Loader) checkPatterns() error {
 	return errors.Join(errs...)
 }
 
+// patternOwnerKeywords are the statements whose name an operator recognizes
+// as the owner of a `pattern`: the node or the named type the restriction
+// constrains. The pattern error names the nearest one enclosing it.
+var patternOwnerKeywords = []string{"leaf", "leaf-list", "typedef", "deviation"}
+
+// pendingPattern is one statement on the modulePatternErrors walk, carrying
+// the nearest enclosing owner statement (nil at the module's top level).
+type pendingPattern struct {
+	statement *yang.Statement
+	owner     *yang.Statement
+}
+
 // modulePatternErrors returns one error for each `pattern` statement in mod
-// that compilePattern cannot compile. The walk is an explicit stack, as in
-// moduleExtensionErrors.
+// that compilePattern cannot compile. Each error names the module, the leaf,
+// leaf-list, typedef or deviation the pattern restricts, the source location, and the
+// reason compilePattern gave, which quotes the pattern. The walk is an
+// explicit stack, as in moduleExtensionErrors.
 func modulePatternErrors(mod *yang.Module) []error {
 	if mod.Source == nil {
 		return nil
 	}
 	var errs []error
-	pending := slices.Clone(mod.Source.SubStatements())
+	var pending []pendingPattern
+	for _, statement := range mod.Source.SubStatements() {
+		pending = append(pending, pendingPattern{statement: statement})
+	}
 	for len(pending) > 0 {
-		statement := pending[len(pending)-1]
-		pending = append(pending[:len(pending)-1], statement.SubStatements()...)
-		if statement.Keyword != "pattern" {
+		entry := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		owner := entry.owner
+		if slices.Contains(patternOwnerKeywords, entry.statement.Keyword) {
+			owner = entry.statement
+		}
+		for _, child := range entry.statement.SubStatements() {
+			pending = append(pending, pendingPattern{statement: child, owner: owner})
+		}
+		if entry.statement.Keyword != "pattern" {
 			continue
 		}
-		if _, err := compilePattern(statement.Argument); err != nil {
-			errs = append(errs, fmt.Errorf("%w: module %s: %s: %w",
-				ErrUncompilablePattern, mod.Name, statement.Location(), err))
+		if _, err := compilePattern(entry.statement.Argument); err != nil {
+			errs = append(errs, fmt.Errorf("%w: module %s: %s: %s: %w",
+				ErrUncompilablePattern, mod.Name, patternOwnerName(owner),
+				entry.statement.Location(), err))
 		}
 	}
 	return errs
+}
+
+// patternOwnerName answers the owner statement as "<keyword> <name>", the form
+// the operator wrote it in, or "module level" for a pattern no owner encloses.
+func patternOwnerName(owner *yang.Statement) string {
+	if owner == nil {
+		return "module level"
+	}
+	return owner.Keyword + " " + owner.Argument
 }
 
 // sourceModules answers every loaded module and submodule, sorted by name,

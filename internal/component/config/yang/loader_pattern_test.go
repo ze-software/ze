@@ -73,7 +73,7 @@ func TestEveryShippedYANGPatternCompiles(t *testing.T) {
 
 // TestResolveRefusesUncompilablePattern: a module whose pattern the XSD
 // translation cannot compile fails Resolve with ErrUncompilablePattern, naming
-// the module, the location and the pattern. Before this check the command
+// the module, the leaf, the location and the pattern. Before this check the command
 // argument builder dropped such a pattern and the argument accepted any string.
 // Method: one probe module beside the embedded set; goyang alone accepts it.
 //
@@ -96,7 +96,7 @@ func TestResolveRefusesUncompilablePattern(t *testing.T) {
 	if !errors.Is(err, ErrUncompilablePattern) {
 		t.Fatalf("error %q does not wrap ErrUncompilablePattern", err)
 	}
-	assertNames(t, err, "ze-probe-pattern", "[a-z")
+	assertNames(t, err, "ze-probe-pattern", "leaf name", "[a-z")
 }
 
 // TestConfigStringLengthCountsCharacters: the config validator judges a YANG

@@ -9,7 +9,8 @@ import (
 
 // TestYANGPatternRestrictionsValidateParse verifies YANG pattern statements
 // reject invalid values during config parsing, including list keys and
-// bracket-syntax leaf-lists.
+// bracket-syntax leaf-lists. A pattern the XSD translation cannot compile never
+// reaches the parser: TestYANGPatternUncompilableRefusedAtSchemaBuild covers it.
 //
 // VALIDATES: YANG pattern constraints are enforced by the parser.
 // PREVENTS: `ze config validate` accepting values outside schema patterns.
@@ -31,12 +32,6 @@ module ze-pattern-test-conf {
 	    leaf alt {
 	      type string {
 	        pattern 'good|ok';
-	      }
-	    }
-
-	    leaf unsupported {
-	      type string {
-	        pattern '[a-z-[aeiou]]';
 	      }
 	    }
 
@@ -82,11 +77,6 @@ module ze-pattern-test-conf {
 	assert.Contains(t, err.Error(), "alt")
 	assert.Contains(t, err.Error(), "does not match pattern")
 
-	_, err = NewParser(schema).Parse(`pattern-test { unsupported abc; }`)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported")
-	assert.Contains(t, err.Error(), "unsupported XSD regex character-class subtraction")
-
 	_, err = NewParser(schema).Parse(`pattern-test { peer 1bad { description test; } }`)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "peer")
@@ -104,6 +94,39 @@ module ze-pattern-test-conf {
 
 	_, err = NewParser(schema).Parse(`pattern-test { slug good-name; alt good; peer good_1 { description test; } inline item good text; tag [ good other-1 ]; }`)
 	require.NoError(t, err)
+}
+
+// TestYANGPatternUncompilableRefusedAtSchemaBuild verifies a module whose
+// pattern uses XSD character-class subtraction, which the XSD-to-RE2
+// translation does not support, is refused when the schema is built. The
+// refusal names the module, the leaf, the reason and the pattern, so the
+// operator can find the statement. Method: one module with a single such leaf,
+// built through YANGSchemaWithPlugins, the path the config loader takes.
+//
+// VALIDATES: an uncompilable pattern stops the schema build.
+// PREVENTS: `ze config validate` accepting values outside schema patterns,
+// through a pattern that constrains nothing.
+func TestYANGPatternUncompilableRefusedAtSchemaBuild(t *testing.T) {
+	_, err := YANGSchemaWithPlugins(map[string]string{
+		"ze-pattern-subtraction-conf.yang": `
+module ze-pattern-subtraction-conf {
+  namespace "urn:ze:pattern-subtraction-test";
+  prefix zpsub;
+
+  container pattern-subtraction-test {
+    leaf unsupported {
+      type string {
+        pattern '[a-z-[aeiou]]';
+      }
+    }
+  }
+}`,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "module ze-pattern-subtraction-conf")
+	assert.Contains(t, err.Error(), "leaf unsupported")
+	assert.Contains(t, err.Error(), "unsupported XSD regex character-class subtraction")
+	assert.Contains(t, err.Error(), "[a-z-[aeiou]]")
 }
 
 // TestYANGPatternRestrictionsValidateSetParse verifies set-format parsing uses

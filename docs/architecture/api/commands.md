@@ -1524,10 +1524,12 @@ same XSD translation the config validator uses, and anchored to the whole
 value: `up|down` matches `up` and `down` only. `Loader.Resolve` and
 `DefaultLoader` refuse a module holding a pattern that translation cannot
 compile, wrapping `ErrUncompilablePattern`, so no argument is ever built with
-its pattern missing.
+its pattern missing. The error names the module, the leaf, leaf-list,
+typedef or deviation the pattern restricts, the source location, and the reason, which
+quotes the pattern.
 <!-- source: internal/component/config/yang/command.go -- applyLength, applyPatterns -->
 <!-- source: internal/component/command/argvalidate.go -- validateString -->
-<!-- source: internal/component/config/yang/loader.go -- checkPatterns -->
+<!-- source: internal/component/config/yang/loader.go -- checkPatterns, modulePatternErrors -->
 
 A container that names an object declares the value the operator types after
 its keyword, once, and every command under it takes that value:
