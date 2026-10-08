@@ -93,7 +93,7 @@ func TestPublishedRPCsSetAsideAPointerAtAnUnlinkedModule(t *testing.T) {
 }
 
 // TestPublishedRPCsRefuseABrokenPointer proves each pointer the schema cannot
-// honour is refused by name rather than dropped.
+// honor is refused by name rather than dropped.
 //
 // VALIDATES: a pointer to an rpc no module declares, one method pointing at
 // two rpcs, and a target with no module are each an ErrRPCPointer.

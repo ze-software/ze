@@ -134,7 +134,8 @@ var ErrUncompilablePattern = errors.New("uncompilable YANG pattern")
 //
 // RFC 7950 Section 6.3.1: "When an imported extension is used, the
 // extension's keyword MUST be qualified using the prefix with which the
-// extension's module was imported."
+// extension's module was imported." A prefix that resolves to no declaring
+// module breaks that requirement.
 var ErrUndeclaredExtension = errors.New("undeclared YANG extension")
 
 // checkExtensions walks the statements of every loaded module and submodule
@@ -254,7 +255,8 @@ func moduleExtensionErrors(mod *yang.Module) []error {
 // includes. When mod is a submodule, the owner is the module it belongs to.
 //
 // RFC 7950 Section 5.1: "A submodule can reference any definition in the
-// module it belongs to and in all submodules included by the module."
+// module it belongs to and in all submodules included by the module." So the
+// owner's body and every submodule it includes are searched.
 func declaresExtension(mod *yang.Module, keyword string) bool {
 	owner := mod
 	if mod.BelongsTo != nil {

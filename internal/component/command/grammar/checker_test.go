@@ -267,11 +267,11 @@ func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namesp
 
 func TestExemptCategory(t *testing.T) {
 	cases := map[string]string{
-		"ze-meta:bgp-help":            "bridge",
-		"ze-plugin:command-list": "wire-protocol",
+		"ze-meta:bgp-help":              "bridge",
+		"ze-plugin:command-list":        "wire-protocol",
 		"ze-plugin:system-command-list": "wire-protocol",
-		"ze-meta:bgp-plugin-encoding": "wire-protocol",
-		"ze-cli:editor-mode-command": "editor",
+		"ze-meta:bgp-plugin-encoding":   "wire-protocol",
+		"ze-cli:editor-mode-command":    "editor",
 	}
 	for wm, wantCat := range cases {
 		cat, ok := ExemptCategory(wm)

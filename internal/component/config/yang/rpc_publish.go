@@ -5,6 +5,7 @@ package yang
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -34,7 +35,7 @@ type RPCPublication struct {
 	Unlinked []string
 }
 
-// ErrRPCPointer marks a ze:rpc pointer the schema cannot honour: a target
+// ErrRPCPointer marks a ze:rpc pointer the schema cannot honor: a target
 // that is malformed or names no loaded rpc, a pointer on a node that declares
 // no ze:command, one wire method pointing at two rpcs, or an rpc that is both
 // pointed at and carries its own ze:method.
@@ -107,7 +108,7 @@ func PublishedRPCs(loader *Loader) (RPCPublication, error) {
 		}
 	}
 
-	sort.Strings(pub.Unlinked)
+	slices.Sort(pub.Unlinked)
 	sortByWireMethod(pub.Commands)
 	sortByWireMethod(pub.Protocol)
 	sort.Slice(pub.Unnamed, func(i, j int) bool {
@@ -130,7 +131,7 @@ func collectRPCPointers(entry *gyang.Entry, module string, pointers map[string]s
 	for name := range entry.Dir {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		child := entry.Dir[name]
 		if target := GetRPCExtension(child); target != "" {
