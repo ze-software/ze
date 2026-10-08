@@ -14,7 +14,7 @@
 | RFCs | rfc7606 |
 | Docs | docs/features/bgp-protocol.md |
 | Stub evidence | bgp/bgp-rfc7606-typed-nlri-discard |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; BGP-LS preserves unknown NLRI types and MUP discards per the anchored plugins |
+| Doc review | 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; RFC 7606 Section 5.4 row untouched, 2026-10-07 review stands |
 | Defect review | 2026-10-07: no plan/immediate spec or journal row found naming these NLRI plugins |
 | Extra criteria | supported: MCAST-VPN unrecognized route type discarded through the daemon = test/plugin/rfc7606-54-discard-unrecognized-mcast-vpn-nlri.ci |
 

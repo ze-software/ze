@@ -11,7 +11,7 @@
 | Components | internal/component/plugin/registry/setup.go, internal/component/plugin/register.go, cmd/ze/hub/startup_gate.go |
 | Real-path tests | test/parse/show-plugin-list.ci, test/parse/show-plugin-list-memlock.ci, cmd/ze/hub/startup_gate_test.go::TestRunRefusesOnHardSetupFailure, cmd/ze/hub/startup_gate_test.go::TestRunRefusalNamesEveryHardFailure, cmd/ze/hub/startup_gate_test.go::TestCLIVerbUnaffectedByHardSetupFailure |
 | Docs | docs/guide/status.md, docs/features/introspection.md |
-| Doc review | 2026-10-07: re-read at promotion; registry/setup.go zero value SetupUnknown prints unknown, hub run calls hardSetupFailure as its first statement and startup_gate.go names every hard failure; matches the row |
+| Doc review | 2026-10-08: status.md 2026-10-08 edit drops the 97-plugin count and bgp-persist row; the Plugin setup results row and show plugin list outcome/reason claims unchanged, 2026-10-07 review stands |
 | Defect review | 2026-10-07: journal 2026-09-17 row fixed; no immediate spec names these paths |
 
 ## Description

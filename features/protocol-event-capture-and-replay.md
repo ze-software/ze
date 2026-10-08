@@ -11,7 +11,7 @@
 | Components | internal/component/bgp/reactor/capture_replay.go, internal/core/capture, internal/test/cli/cmd_replay.go |
 | Real-path tests | test/plugin/bgp-capture-replay.ci |
 | Docs | docs/guide/configuration.md, docs/features/bgp-protocol.md |
-| Doc review | 2026-10-07: maximum-size range 1..1024 default 100 and on-limit rotate or stop read in ze-bgp-conf.yang; ze_bgp_capture_dropped_events_total registered in reactor_metrics.go |
+| Doc review | 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; capture rows untouched, 2026-10-07 review stands |
 | Defect review | 2026-10-07: no journal row or immediate spec names capture_replay.go or internal/core/capture |
 | Extra criteria | supported: rotation at the maximum-size cap = test/plugin/bgp-capture-rotate.ci |
 

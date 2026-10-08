@@ -14,7 +14,7 @@
 | Interop | bgp/bgp-local-pref-strip-gobgp, bgp/bgp-med-across-as-gobgp, bgp/bgp-attribute-default-localpref-gobgp, bgp/bgp-relay-withdraw-shape-frr |
 | RFCs | rfc4271 |
 | Docs | docs/features/bgp-protocol.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; Section numbers 5.1.3 5.1.4 5.1.5 match the rules named |
+| Doc review | 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; Section 5.1.3 own-address refusal still at egressNextHopIsPeerOwn and originatedNextHopIsPeerOwn in forward_next_hop.go; other anchors unchanged |
 | Defect review | 2026-10-07: plan/immediate/spec-rfc4271-med-ibgp-readvertisement.md open; journal NEXT_HOP rail and LOCAL_PREF producer rows taken as open |
 | Extra criteria | supported: each egress rule asserted on every rail that writes an UPDATE = test/plugin/egress-rules-every-rail.ci |
 
