@@ -1,26 +1,26 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-08",
   "requirements": {
     "RFC3209-3-1": {
       "note": "Forbidden: LABEL or RECORD_ROUTE placed before its FILTER_SPEC or after a subsequent one. TestRFC3209ResvLabelFollowsFilterSpec asserts objs[filter+1]==LABEL and objs[filter+2]==RECORD_ROUTE; TestRFC3209LabelFollowsFilterSpec asserts exactly one FILTER_SPEC and label==filter+1; TestRFC3209ResvNeverCarriesSenderTemplate asserts no LABEL/RRO precedes the FILTER_SPEC. buildResv emits one sender per RESV, so both clauses are pinned.",
       "requirement_sha": "59ea364af5b04729",
       "tests": {
-        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsFilterSpec": "76ac04cc7023e893",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvLabelFollowsFilterSpec": "8d0e9940256c124f",
-        "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvNeverCarriesSenderTemplate": "8d0e9940256c124f"
+        "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvNeverCarriesSenderTemplate": "8d0e9940256c124f",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsFilterSpec": "76ac04cc7023e893"
       },
       "units": {
-        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsFilterSpec": "8f3cd37e5ca169e4",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvLabelFollowsFilterSpec": "4b9d16843d37fdc5",
-        "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvNeverCarriesSenderTemplate": "258636afb352f8d7"
+        "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvNeverCarriesSenderTemplate": "258636afb352f8d7",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsFilterSpec": "8f3cd37e5ca169e4"
       },
       "verdict": "enforced"
     },
     "RFC3209-4.2-1": {
-      "note": "Rejudged 2026-09-29 (routing child). Sender obligation now driven through the ingress: TestRFC3209IngressPathCarriesLabelRequest (setupTunnel PATH carries LABEL_REQUEST, L3PID 0x0800) and TestRFC3209IngressPathNeverWithoutLabelRequest (originated PATH, two refreshes and the make-before-break PATH all carry it). The older receiver-rule negative TestRFC3209NoLabelWithoutLabelRequest stays tagged and proves a neighbouring rule.",
+      "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.2.4: \"To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object.\" TestRFC3209IngressPathCarriesLabelRequest reads the PATH the ingress engine sends and asserts LABEL_REQUEST with L3PID 0x0800; TestRFC3209IngressPathNeverWithoutLabelRequest asserts it on the originated PATH, two refreshes and the make-before-break PATH. TestBuildPathRoundTrip proves buildPath appends the object; TestRFC3209NoLabelWithoutLabelRequest proves the neighbouring receiver rule.",
       "requirement_sha": "f9b13de724c061e3",
       "tests": {
-        "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildPathRoundTrip": "6afc32e8dc23d780",
+        "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildPathRoundTrip": "af8410d3ed30ac9e",
         "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209NoLabelWithoutLabelRequest": "76ac04cc7023e893",
         "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathCarriesLabelRequest": "0fabf3da631549e2",
         "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathNeverWithoutLabelRequest": "0fabf3da631549e2"
@@ -161,11 +161,11 @@
       "verdict": "enforced"
     },
     "RFC3209-4.6.1-1": {
-      "note": "Rejudged 2026-09-29 (routing child). Single-polarity row. TestRFC3209SessionReservedZeroOverDirtyBuffer encodes into a 0xFF-prefilled buffer and asserts the two reserved octets are zero, with the literal header 16/1/7, so an encoder that skipped the reserved write now goes red. Its record breaks encodeObjectHeader (reach), not the reserved write itself; the prefill makes the assertion discriminating.",
+      "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.1.1 diagram: the field before Tunnel ID is \"MUST be zero\". TestRFC3209SessionReservedZeroOverDirtyBuffer encodes over a 0xFF-prefilled buffer and asserts buf[8:10] zero, so encodeSessionIPv4 skipping its buf[8]=0, buf[9]=0 goes red. TestRSVPSessionObjectEncoding encodes into a zeroed buffer and alone would not discriminate the write; the dirty-buffer test carries the verdict.",
       "requirement_sha": "93388d6496d487d1",
       "tests": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC3209SessionReservedZeroOverDirtyBuffer": "8cea1a3ca4572fd1",
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "edeb000ca6bd1f57"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "c1c346406058c0f1"
       },
       "units": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC3209SessionReservedZeroOverDirtyBuffer": "04175a5064f207a7",
@@ -174,10 +174,10 @@
       "verdict": "enforced"
     },
     "RFC3209-4.6.1-2": {
-      "note": "The row is the LSP_TUNNEL_IPv6 SESSION (C-Type 8) reserved field. The tagged unit TestRSVPSessionObjectEncoding encodes only the IPv4 SESSION (C-Type 7) and asserts its C-Type and reserved octets: it proves the neighbouring IPv4 rule (RFC3209-4.6.1-1). Ze has no IPv6 SESSION encoder, so no tagged unit can observe this row.",
+      "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. The row is the LSP_TUNNEL_IPv6 SESSION (Section 4.6.1.2, C-Type 8) reserved field. TestRSVPSessionObjectEncoding encodes only the IPv4 SESSION via encodeSessionIPv4 (C-Type 7) and proves RFC3209-4.6.1-1. Ze has no IPv6 SESSION encoder, so the tag claims a row its test cannot observe.",
       "requirement_sha": "ac65c0a91789a9c3",
       "tests": {
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "edeb000ca6bd1f57"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "c1c346406058c0f1"
       },
       "units": {
         "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "2407b2fdac03b64d"
@@ -185,10 +185,10 @@
       "verdict": "wrong"
     },
     "RFC3209-4.6.2-1": {
-      "note": "Forbidden: a SENDER_TEMPLATE sent with a non-zero reserved field. TestRSVPSenderTemplateReservedZeroOnSend prefills the buffer with 0xAA and asserts buf[8],buf[9]==0 and the whole 12-octet object, so an encoder that skips or corrupts the reserved write goes red. The diagram's other fields are layout, not obligations. Single polarity is declared on the row: the decoder does not read the field.",
+      "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.2.1 diagram: the field before LSP ID is \"MUST be zero\". TestRSVPSenderTemplateReservedZeroOnSend prefills 0xAA, asserts buf[8],buf[9]==0 and the whole 12-octet object, and that nothing past it was written, so an encodeSenderTemplate that skips or corrupts the reserved write goes red. Single polarity: the decoder does not read the field.",
       "requirement_sha": "129b494a432a9007",
       "tests": {
-        "internal/plugins/rsvpte/wire_test.go::TestRSVPSenderTemplateReservedZeroOnSend": "edeb000ca6bd1f57"
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPSenderTemplateReservedZeroOnSend": "c1c346406058c0f1"
       },
       "units": {
         "internal/plugins/rsvpte/wire_test.go::TestRSVPSenderTemplateReservedZeroOnSend": "3a99a1f2ce24289c"
@@ -226,10 +226,10 @@
       "verdict": "enforced"
     },
     "RFC3209-6-2": {
-      "note": "Rejudged 2026-09-29 (routing child). Single-polarity row, now driven at the engine: TestRFC3209EgressResvStyleIsSharedExplicit has an egress receive a PATH through handlePacket and reads the STYLE of the RESV it sends as the literal 0x12.",
+      "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.4: \"On receipt of the Path message, the egress node sends a Resv message with the STYLE Shared Explicit toward the ingress node.\" TestRFC3209EgressResvStyleIsSharedExplicit drives a PATH into an egress engine through handlePacket and asserts the STYLE of the RESV it sends is 0x12. TestBuildResvRoundTrip proves the builder encodes SE when asked.",
       "requirement_sha": "5c909aad02e9253a",
       "tests": {
-        "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildResvRoundTrip": "6afc32e8dc23d780",
+        "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildResvRoundTrip": "af8410d3ed30ac9e",
         "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EgressResvStyleIsSharedExplicit": "0fabf3da631549e2"
       },
       "units": {
