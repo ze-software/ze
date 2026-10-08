@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 // TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit prepares
@@ -227,7 +228,7 @@ func runCommitScript(t *testing.T, root, script string) string {
 }
 
 // TestAPreparedBlobSurvivesAnOrdinaryGC validates A-2 of
-// plan/spec-commit-stages-in-a-private-index.md: the snapshot blob `create`
+// spec-commit-stages-in-a-private-index (closed): the snapshot blob `create`
 // writes is unreferenced until the script commits it, so a collection between
 // preparation and the run is the one thing that could lose it.
 //
@@ -297,7 +298,7 @@ func TestAPreparedBlobSurvivesAnOrdinaryGC(t *testing.T) {
 }
 
 // TestAPeerStagedEntryForANamedPathIsResetToTheCommit settles A-3 of
-// plan/spec-commit-stages-in-a-private-index.md for the case the other tests
+// spec-commit-stages-in-a-private-index (closed) for the case the other tests
 // leave open: a peer has staged THIS block's path in the shared index.
 //
 // The method is a peer `git add` of the named path with its own content after
@@ -360,7 +361,7 @@ func removalFixture(t *testing.T, session string) (string, Prepared) {
 
 // TestARemovalDeletesTheWorkingTreeCopyItCommitted is AC-1 of the closed
 // spec-remove-takes-the-working-tree-copy (contract: docs/contributing/committing.md,
-// "What the generated script contains", step 9): the file the
+// "What the generated script contains", step 8): the file the
 // commit removed, identical to what git held, is gone from disk afterwards.
 //
 // PREVENTS: plan/journal/removal-leaves-the-file-on-disk.md, a closed spec left
@@ -611,5 +612,115 @@ func TestAClosureLeavesNoSpecBehind(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(root, "notes", "spec-x.md")); err == nil {
 		t.Fatalf("the closed spec is still on disk\n%s", output)
+	}
+}
+
+// TestTheRepairWaitsForAPeersIndexLock holds `.git/index.lock` the way a peer's
+// `git status` does, for two seconds after the commit, and runs the script.
+//
+// VALIDATES: AC-5 of the private-index design (docs/contributing/committing.md,
+// "What the generated script contains"): the step that points the shared index
+// at the commit waits for a lock another process holds, so the run ends with
+// this block's paths reading as committed.
+// PREVENTS: the three runs of 2026-10-04 and 2026-10-05
+// (plan/journal/concurrent-session-corruption.md) whose commit landed and whose
+// repair then refused the lock at once, leaving every session reading the
+// committed paths as staged changes that only `git restore --staged` clears.
+func TestTheRepairWaitsForAPeersIndexLock(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "index-lock-wait-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	// A named path and a removal in one block, the shape of a closure's commit:
+	// the repair then runs two git commands, and the lock refusal of the first
+	// has to be read as well as that of the second.
+	prepared, err := Create(root, &Options{
+		Subject: "commit under a held lock", Files: []string{"mine.txt"}, Remove: []string{"tracked.txt"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock := filepath.Join(root, ".git", "index.lock")
+	if err := os.WriteFile(lock, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	release := time.AfterFunc(2*time.Second, func() { _ = os.Remove(lock) })
+	t.Cleanup(func() { release.Stop() })
+
+	output := runCommitScript(t, root, prepared.Script)
+
+	if staged := strings.TrimSpace(runCommitGitOutput(t, root, "diff", "--cached", "--name-only")); staged != "" {
+		t.Fatalf("the shared index still differs from HEAD after the lock cleared: %q\n%s", staged, output)
+	}
+	if code, _ := gitExit(root, "cat-file", "-e", "HEAD:tracked.txt"); code == 0 {
+		t.Fatalf("the removal did not reach the commit\n%s", output)
+	}
+	if content := runCommitGitOutput(t, root, "show", "HEAD:mine.txt"); content != "mine\n" {
+		t.Fatalf("the commit carried %q", content)
+	}
+}
+
+// TestARepairThatCannotTakeTheLockNamesThePathsAndTheRepair holds the lock
+// for longer than the bound, so the repair has to give up.
+//
+// VALIDATES: a repair that cannot run fails the script loudly, names the paths
+// the shared index still holds stale, and prints repair commands that, run as
+// printed once the lock is gone, leave the shared index describing the commit.
+// PREVENTS: a stale shared index that nobody is told about, and a repair the
+// reader has to reconstruct from the script while other sessions read the
+// paths as staged.
+func TestARepairThatCannotTakeTheLockNamesThePathsAndTheRepair(t *testing.T) {
+	indexLockWaitSeconds = 1
+	t.Cleanup(func() { indexLockWaitSeconds = indexLockWaitSecondsMax })
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "index-lock-held-fixture")
+	configureCommitAuthor(t, root)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	prepared, err := Create(root, &Options{Subject: "commit under a stuck lock", Files: []string{"mine.txt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock := filepath.Join(root, ".git", "index.lock")
+	if err := os.WriteFile(lock, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	command := exec.CommandContext(t.Context(), "bash", filepath.Join(root, filepath.FromSlash(prepared.Script)))
+	command.Dir = root
+	raw, err := command.CombinedOutput()
+	output := string(raw)
+	if err == nil {
+		t.Fatalf("the script succeeded with the shared index stale:\n%s", output)
+	}
+	if subject := strings.TrimSpace(runCommitGitOutput(t, root, "log", "--format=%s", "-n", "1")); subject != "commit under a stuck lock" {
+		t.Fatalf("the commit did not land before the repair: HEAD subject = %q\n%s", subject, output)
+	}
+	if !strings.Contains(output, "the shared index could not be pointed at it") {
+		t.Fatalf("the failure does not say the commit landed and the index is stale:\n%s", output)
+	}
+	_, repair, found := strings.Cut(output, "once .git/index.lock is released:\n")
+	if !found {
+		t.Fatalf("the failure prints no repair:\n%s", output)
+	}
+	stale, _, _ := strings.Cut(output, "Run this from")
+	if !strings.Contains(stale, "\nmine.txt\n") {
+		t.Fatalf("the failure does not name the stale path:\n%s", output)
+	}
+
+	if err := os.Remove(lock); err != nil {
+		t.Fatal(err)
+	}
+	for line := range strings.SplitSeq(strings.TrimSpace(repair), "\n") {
+		step := exec.CommandContext(t.Context(), "bash", "-c", line)
+		step.Dir = root
+		if said, err := step.CombinedOutput(); err != nil {
+			t.Fatalf("the printed repair %q failed: %v: %s", line, err, said)
+		}
+	}
+	if staged := strings.TrimSpace(runCommitGitOutput(t, root, "diff", "--cached", "--name-only")); staged != "" {
+		t.Fatalf("the printed repair left the shared index staged: %q", staged)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(indexFileFor(prepared.Script)))); !os.IsNotExist(err) {
+		t.Fatalf("the printed repair left the private index behind: %v", err)
 	}
 }

@@ -164,7 +164,7 @@ them. One commit block holds, in order:
    so the content is fixed at preparation time.
 5. For any `remove` paths, their `git ls-files -s` lines captured from the
    private index into `_ze_removed`, then `git update-index --force-remove`.
-   The captured lines are the entries HEAD holds, mode included, and step 9
+   The captured lines are the entries HEAD holds, mode included, and step 8
    compares against them.
 6. A drift note. It stages the working tree into a throwaway index and reports
    any named path whose content, mode, or existence moved since preparation. It
@@ -173,10 +173,7 @@ them. One commit block holds, in order:
    is not, twice over: it rewrites the entry it reports, and it refreshes the
    whole index rather than the pathspec.
 7. `git commit -F <message-file>` against the private index.
-8. `git ls-tree HEAD -- <paths> | git update-index --index-info`, which points
-   the SHARED index at what was just committed. Without it every other session
-   reads those paths as staged changes of yours.
-9. For a block with `remove` paths, the working-tree deletion
+8. For a block with `remove` paths, the working-tree deletion
    (`renderWorkingTreeRemoval`). Each removed path's copy is staged into a
    throwaway index, and the copy is deleted only when its entry line is one of
    the lines step 5 captured. A copy whose content or mode differs, a copy Git
@@ -188,8 +185,20 @@ them. One commit block holds, in order:
    failed commit deletes nothing, and a deleted copy is always one `git show`
    away. A spec closure therefore leaves no file behind: commit A carries the
    spec's final content with `file`, and commit B's `remove` finds the copy
-   equal to it.
-<!-- source: internal/le/commit/script.go -- renderPrivateIndex, renderWorkingTreeRemoval -->
+   equal to it. A commit carrying RFC approvals then drops the rows it used
+   from the session's approvals file.
+9. `git ls-tree HEAD -- <paths> | git update-index --index-info`, and
+   `git update-index --force-remove` for the `remove` paths, which point the
+   SHARED index at what was just committed, then the private index is deleted.
+   Without it every other session reads those paths as staged changes of yours.
+   It is the block's last step because it is the one that waits on another
+   process: while git refuses over a `.git/index.lock` that a peer holds, it
+   retries once a second for up to 30 seconds. Any other failure, or a lock
+   still held after that, stops the script with the commit landed and prints
+   `ERROR: the commit above landed, but the shared index could not be pointed
+   at it.`, the paths left stale, and the exact commands to run from the checkout
+   once the lock is released. A later block in the same script has not run.
+<!-- source: internal/le/commit/script.go -- renderPrivateIndex, renderWorkingTreeRemoval, renderSharedIndexRepair, indexLockWaitSecondsMax -->
 
 The script opens with `set -euo pipefail` and a `cd` to the checkout it was
 PREPARED for, named as an absolute path, so a failed step stops it and a script

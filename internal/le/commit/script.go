@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -42,6 +43,16 @@ type commitBlock struct {
 	ApprovalsDropped []string
 }
 
+// indexLockWaitSecondsMax bounds how long a block's shared-index repair waits
+// for a `.git/index.lock` another process holds. A peer's `git status` or
+// `git add` holds the lock for well under a second; a lock still held after
+// this long is a stuck holder or an orphan, which waiting cannot clear.
+const indexLockWaitSecondsMax = 30
+
+// indexLockWaitSeconds is the bound renderSharedIndexRepair writes into the
+// script. It is a variable only so a test can shorten it.
+var indexLockWaitSeconds = indexLockWaitSecondsMax
+
 // indexInfoDelimiter closes the heredoc that feeds the snapshot to git. A
 // `git ls-files -s` line starts with a six-digit mode, so no entry can spell it.
 const indexInfoDelimiter = "ZE_INDEX_INFO"
@@ -57,14 +68,17 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	}
 	lines = append(lines,
 		renderPrivateIndex(block, scriptPath),
-		`GIT_INDEX_FILE="$_ze_index" git commit -F `+shellQuote(block.MessagePath),
-		renderSharedIndexRepair(block))
+		`GIT_INDEX_FILE="$_ze_index" git commit -F `+shellQuote(block.MessagePath))
 	if len(block.Removed) != 0 {
 		lines = append(lines, renderWorkingTreeRemoval(block.Removed))
 	}
 	if len(block.ApprovalsDropped) != 0 {
 		lines = append(lines, renderApprovalPrune(block))
 	}
+	// The shared-index repair is the block's last step: it is the one step that
+	// waits on another process, and when it gives up, everything else this
+	// block owes is already done.
+	lines = append(lines, renderSharedIndexRepair(block, scriptPath))
 	return strings.Join(lines, "\n") + "\n"
 }
 
@@ -179,17 +193,60 @@ func renderDriftNote(paths []string) string {
 // change of this session's. Nobody could clear that without `git restore
 // --staged`, which no agent may run. `git commit` does this itself for a
 // partial commit; a commit made from a private index has to do it here.
-func renderSharedIndexRepair(block commitBlock) string {
-	lines := make([]string, 0, 3)
+//
+// The entries come from HEAD as it stands when the step runs, not from the
+// private index: a peer's commit can land while this step waits, and the
+// shared index then has to describe that commit for a path both of them
+// touched, or `git status` reads the peer's change as staged in reverse.
+//
+// The shared index is the one file this block writes that other processes also
+// lock. A peer holding `.git/index.lock` made the repair refuse at once three
+// times in two days (plan/journal/concurrent-session-corruption.md, 2026-10-04
+// and 2026-10-05), each time after the commit had landed. So the step retries
+// while git names the lock, once a second, up to indexLockWaitSeconds. Any
+// other failure, or a lock still held at the bound, stops the script with the
+// commit landed, names the paths the shared index still holds stale, and
+// prints the repair to run once the lock is released, private index removal
+// included.
+func renderSharedIndexRepair(block commitBlock, scriptPath string) string {
+	steps := make([]string, 0, 2)
 	if len(block.Paths) != 0 {
-		lines = append(lines,
-			"# Point the shared index at what was committed. Nothing else in it is touched.",
-			"git ls-tree HEAD -- "+quotePaths(block.Paths)+" | git update-index --index-info")
+		steps = append(steps, "git ls-tree HEAD -- "+quotePaths(block.Paths)+" | git update-index --index-info")
 	}
 	if len(block.Removed) != 0 {
-		lines = append(lines, "git update-index --force-remove -- "+quotePaths(block.Removed))
+		steps = append(steps, "git update-index --force-remove -- "+quotePaths(block.Removed))
 	}
-	lines = append(lines, `rm -f "$_ze_index"`)
+	cleanup := `rm -f ` + shellQuote(indexFileFor(scriptPath))
+	if len(steps) == 0 {
+		return cleanup
+	}
+	stale := append(append([]string{}, block.Paths...), block.Removed...)
+	lines := []string{
+		"# Point the shared index at what was committed. Nothing else in it is touched.",
+		`_ze_waited=0`,
+		`until _ze_said=$({ ` + strings.Join(steps, " && ") + `; } 2>&1); do`,
+		`  case "$_ze_said" in`,
+		`    *index.lock*)`,
+		`      if [ "$_ze_waited" -lt ` + strconv.Itoa(indexLockWaitSeconds) + ` ]; then`,
+		`        sleep 1`,
+		`        _ze_waited=$((_ze_waited + 1))`,
+		`        continue`,
+		`      fi`,
+		`      ;;`,
+		`  esac`,
+		// The commit is named by the line `git commit` printed above, never by
+		// HEAD: a peer's commit can have landed while this step waited.
+		`  echo "ERROR: the commit above landed, but the shared index could not be pointed at it." >&2`,
+		`  echo "git said: $_ze_said" >&2`,
+		`  echo "These paths read as staged changes in every session until the repair runs:" >&2`,
+		`  printf '%s\n' ` + quotePaths(stale) + ` >&2`,
+		`  echo "Any later commit in this script did not run." >&2`,
+		`  printf 'Run this from %s once .git/index.lock is released:\n' "$PWD" >&2`,
+	}
+	for _, step := range append(steps, cleanup) {
+		lines = append(lines, `  echo `+shellQuote(step)+` >&2`)
+	}
+	lines = append(lines, "  exit 1", "done", cleanup)
 	return strings.Join(lines, "\n")
 }
 

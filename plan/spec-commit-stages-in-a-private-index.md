@@ -7,7 +7,7 @@
 | Depends | - (`spec-ledger-shards-per-commit-session`, which also touched `internal/le/commit/prepare.go`, closed 2026-10-07) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-07 |
+| Updated | 2026-10-08 |
 
 Product code landed in `a9f2207a3` and `06f6185cb`. End-to-end proof and
 closure remain outstanding.
@@ -278,7 +278,11 @@ care is irrelevant to whether that holds.
   hunks this author wrote. A signal is not a mechanism, and the seventh journal
   row is the measurement of what a signal is worth against habit.
 - The September 6 evidence record below does not establish the end-to-end
-  obligations. Reconcile it with the current script tests before closure.
+  obligations. Reconciled at closure (2026-10-08): the end-to-end obligations
+  are proved by the script tests named in the Functional Tests table.
+- A `.git/index.lock` held past `indexLockWaitSecondsMax` (30 seconds) still
+  leaves the shared index stale after the commit. The script then fails loudly
+  and prints the exact repair; waiting cannot clear an orphaned lock.
 
 ## Checklist
 
@@ -326,4 +330,140 @@ evidence rows below describe that dated record; they are not a fresh test run.
 | Done 2026-10-07 | (1) the script regressions run green and are mapped in the Functional Tests table: AC-1, AC-2, AC-3, AC-5 by `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit`, AC-4 by `TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex`, AC-6 by `TestSnapshotRefusesAPathGitStagedNothingFor`. (2) A-2 confirmed with a fail-closed bound and A-3 confirmed with the same-path qualification, see the Assumptions table. Package run: `./le job run label unit-pkg quiet command go test -count=1 ./internal/le/commit/...` exit 0 |
 | Observed live 2026-10-07 | commit `c14ec85d74` succeeded and its shared-index repair then failed on `.git/index.lock` held by another process, leaving three paths `MM`. Re-running the two repair lines cleared it. Already journaled twice in `plan/journal/concurrent-session-corruption.md` (2026-10-04, 2026-10-05); not in this spec's ACs, but AC-5 ("no other entry in the shared index moved" and this block's paths show committed) does not hold on that path |
 | OWNER DECISION | the Known Limitation "an interloper's edit ALREADY in the working tree when preparation runs is still carried" is a gap against the stated Goal ("the author's care is irrelevant"). The spec cannot close without the owner choosing: accept it as a recorded limitation (goal narrowed to edits after preparation), or scope a follow-up mechanism |
-| Remains | the owner decision above, then closure: `/ze-close` by an independent reviewer. Owed by the main thread: `./le go lint run`, `./le verify worktree` |
+| OWNER DECISION, resolved 2026-10-08 | Accepted as a recorded limitation: the goal is narrowed to edits made after preparation. A foreign edit already in the working tree at preparation stays governed by the git-safety rule (judge foreign hunks against HEAD, carry only what is safe, name whose hunks rode along). No follow-up per-hunk ownership mechanism |
+| Remains | closure: `/ze-close` by an independent reviewer. Owed by the main thread: `./le go lint run`, `./le verify worktree` |
+| Closed 2026-10-08 | `/ze-close` by an independent reviewer. The `.git/index.lock` failure of the shared-index repair was judged a defect against AC-5 in this spec's own code and fixed (`renderSharedIndexRepair`, bounded wait plus a loud failure with the exact repair). See the closure sections below |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Before this closure: the private index (`renderPrivateIndex`), the preparation-time snapshot (`snapshotIndexEntries`, `checkSnapshot`), the drift note (`renderDriftNote`) and the shared-index repair (`renderSharedIndexRepair`), landed in `a9f2207a3` and `06f6185cb`. The end-to-end script tests and the A-2/A-3 validations landed in `a0226dd2ab`.
+- In this closure: `renderSharedIndexRepair` (`internal/le/commit/script.go`) now retries while git's refusal names `.git/index.lock`, once a second, up to `indexLockWaitSecondsMax` (30). On any other failure, or a lock still held at the bound, it stops the script with exit 1, says the commit above landed, lists the paths the shared index still holds stale, and prints the exact repair commands, private index removal included. The repair moved to the block's last step (after the working-tree removal and the approval prune), so a give-up leaves only the shared index to repair.
+
+### Bugs Found/Fixed
+- AC-5 did not hold when a peer held `.git/index.lock` after the commit: the repair refused at once and `set -e` ended the script, leaving the block's paths staged in reverse for every session (three live runs, `plan/journal/concurrent-session-corruption.md`, 2026-10-04 and 2026-10-05; a fourth on 2026-10-07, `c14ec85d74`). Covered by `TestTheRepairWaitsForAPeersIndexLock` and `TestARepairThatCannotTakeTheLockNamesThePathsAndTheRepair` (`internal/le/commit/snapshot_test.go`).
+- Found in review: with two repair commands joined by `&&`, a trailing `2>&1` captured only the second command's stderr, so a lock refusal of the first was not seen and not retried. Fixed by grouping (`{ ...; } 2>&1`). Discrimination: removing the grouping reddens `TestTheRepairWaitsForAPeersIndexLock` (observed, `-count=1`, then restored from a pristine copy).
+- Found in review: the failure message named `$(git rev-parse --short HEAD)`, which names a peer's commit if one landed during the wait. It now points at the line `git commit` printed.
+
+### Documentation Updates
+- `docs/contributing/committing.md`, "What the generated script contains": the removal is step 8 (with the approval prune), the shared-index repair is step 9 and states the wait, its bound, the failure message and the printed repair. Anchor: `<!-- source: internal/le/commit/script.go -- renderPrivateIndex, renderWorkingTreeRemoval, renderSharedIndexRepair, indexLockWaitSecondsMax -->`. Step 5's cross-reference moved from step 9 to step 8, and the three test comments citing step 9 for the removal now cite step 8.
+- `./le doc check verify`: source anchors, drift and rules stages pass; the run ends FAILED on the command help shape stage (one RPC leaf text of 292 without a summary), which no file in this change touches.
+
+### Deviations from Plan
+- The shared-index repair is no longer the step right after `git commit`; it is the block's last step. The plan's Data Flow step 4 described it after the commit; it still is, with the removal and the approval prune now between them.
+- The goal is narrowed, by the owner's decision of 2026-10-08, to edits made after preparation (see Current Condition).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The first version of the lock fix read the repair entries from the private index, to avoid a race with a peer's commit during the wait | The shared index has to describe HEAD as it stands, or a peer's commit to a shared path reads as staged in reverse; `git ls-tree HEAD` at run time was already right | Review of the draft before any commit | Reverted to `git ls-tree HEAD`, with a comment saying why |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A block commits its own population | Done | `internal/le/commit/script.go` `renderPrivateIndex` | the commit reads `GIT_INDEX_FILE` |
+| A block commits its own content | Done | `internal/le/commit/snapshot.go` `snapshotIndexEntries` | blobs fixed at preparation |
+| The author's care is irrelevant | Changed | Current Condition, OWNER DECISION resolved 2026-10-08 | narrowed to edits made after preparation |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit` | foreign staged path not carried |
+| AC-2 | Done | same test | parent subject is the peer commit |
+| AC-3 | Done | same test | prepared content committed, edit on disk, drift NOTE |
+| AC-4 | Done | `TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex`, `TestTheRepairWaitsForAPeersIndexLock` | removal committed, shared index clean |
+| AC-5 | Done | `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit`, `TestTheRepairWaitsForAPeersIndexLock`, `TestARepairThatCannotTakeTheLockNamesThePathsAndTheRepair` | now also under a held `.git/index.lock`; a lock past the bound fails loudly with the exact repair |
+| AC-6 | Done | `TestSnapshotRefusesAPathGitStagedNothingFor` | missing entry and unrequested quoted entry refused |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| snapshot round-trip and refusal cases | Done | `internal/le/commit/snapshot_test.go` | |
+| rendered block shape | Done | `internal/le/commit/commit_test.go` `TestGeneratedBlockQuotesPathsAndCommitsFromItsOwnIndex`, `TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit` | the latter's order list moved the repair after the deletion |
+| end-to-end script runs | Done | `internal/le/commit/snapshot_test.go` | the Functional Tests rows, plus the two lock tests |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/commit/script.go` | Done | plus the lock wait in this closure |
+| `internal/le/commit/prepare.go` | Done | unchanged in this closure |
+| `internal/le/commit/commit_test.go` | Done | |
+| `internal/le/commit/snapshot.go` | Done | |
+| `internal/le/commit/snapshot_test.go` | Done | |
+| `docs/contributing/committing.md` | Done | |
+
+### Audit Summary
+- **Total items:** 15
+- **Done:** 14
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the goal narrowing, owner decision 2026-10-08)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A block commits its OWN population and its own content, for every edit made after preparation | functional (generated script run in a throwaway repository) | `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit`: a peer commit, a foreign staged path and a later edit of the named path; asserts `git show HEAD:mine.txt` is the prepared content, the population equals the prepared paths, the parent is the peer commit, and the shared index holds only the peer's path. PASS 2026-10-08 |
+| The shared index is left describing the commit, even with a peer holding the lock | functional | `TestTheRepairWaitsForAPeersIndexLock` (lock released after 2 s: `git diff --cached` empty) and `TestARepairThatCannotTakeTheLockNamesThePathsAndTheRepair` (lock held: exit 1, paths named, printed repair run as printed leaves `git diff --cached` empty and the private index gone). Both red before the fix with git's `index.lock` refusal |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | the one open item, the pre-preparation interloper, was resolved by the owner on 2026-10-08 as a recorded limitation with no follow-up mechanism | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/commit-stages-in-a-private-index-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` |
+| `./le spec review check` | clean: `review_gate: OK (3 code files, clean, hashes match ...)` |
+| Rounds | 2 |
+| Reviewer lenses used | logic and shell semantics under `set -euo pipefail`, concurrency (peer commit and peer lock during the wait), removed-behavior audit, tests and discrimination, documentation drift, Go style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A peer's `.git/index.lock` after the commit made the repair refuse at once and leave the shared index stale (AC-5) | `internal/le/commit/script.go` `renderSharedIndexRepair` | bounded wait on the lock, loud failure with the exact repair; two tests red before, green after |
+| 2 | ISSUE | `A | B && C 2>&1` captured only `C`'s stderr, so a lock refusal of `B` was not retried | same | `{ ...; } 2>&1`; mutation reddens `TestTheRepairWaitsForAPeersIndexLock` |
+| 3 | ISSUE | The failure message named HEAD, which can be a peer's commit after the wait | same | the message points at the `git commit` line above |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/commit/snapshot.go` | Yes | `ls -l`: 4029 bytes |
+| `internal/le/commit/snapshot_test.go` | Yes | `ls -l`: 33112 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3 | prepared population and content, peer commit kept | `--- PASS: TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit` (2026-10-08, `-count=1`) |
+| AC-4 | removal committed and the shared index agrees | `--- PASS: TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex`, `--- PASS: TestTheRepairWaitsForAPeersIndexLock` |
+| AC-5 | shared index describes the commit, under a held lock too | `--- PASS: TestTheRepairWaitsForAPeersIndexLock`, `--- PASS: TestARepairThatCannotTakeTheLockNamesThePathsAndTheRepair`, `--- PASS: TestABlockLeavesTheSharedIndexAloneWhenItsCommitFails` |
+| AC-6 | refusal at preparation naming the path | `--- PASS: TestSnapshotRefusesAPathGitStagedNothingFor` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le commit create` then the generated script | none: tooling, the end-to-end proof is `Create` plus `bash <script>` in `snapshot_test.go` | Yes, every end-to-end test calls `Create` and runs the script it wrote |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `snapshot_test.go` round-trip; every end-to-end test commits through `--index-info` |
+| A-2 | confirmed | `--- PASS: TestAPreparedBlobSurvivesAnOrdinaryGC` |
+| A-3 | confirmed (qualified for the same path) | `--- PASS: TestAPeerStagedEntryForANamedPathIsResetToTheCommit` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `committing.md` step 9: wait, 30 s bound, failure message, printed repair | `renderSharedIndexRepair`, `indexLockWaitSecondsMax` in `internal/le/commit/script.go` | Yes |
+| `committing.md` step 8: removal, then approval prune | `renderBlock` order in `internal/le/commit/script.go` | Yes |
+| `docs/features/ai-first.md` (anchor of `prepare.go`) | `prepare.go` unchanged in this closure | No update needed |

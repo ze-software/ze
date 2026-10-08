@@ -71,7 +71,7 @@ func TestAddAndRemoveValidationProtectExplicitStaging(t *testing.T) {
 
 // TestCreateAcceptsARemovalWhoseFileIsStillOnDisk is AC-11 of the closed
 // spec-remove-takes-the-working-tree-copy (contract: docs/contributing/committing.md,
-// "What the generated script contains", step 9): preparing a
+// "What the generated script contains", step 8): preparing a
 // removal puts no condition on the working tree, and leaves the file where it
 // is, because the generated script deletes it only after its commit succeeds.
 // PREVENTS: a `create` that refuses, or deletes early, unless the caller ran
@@ -1167,13 +1167,15 @@ func debtGateFixture(t *testing.T, gate string) string {
 
 // TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit asserts the order of
 // the rendered block for a removal: the captured entries before the private
-// `force-remove`, the commit, the shared-index repair, and only then the
-// working-tree deletion, with a path holding a space and a quote quoted the
-// way every other path is.
+// `force-remove`, the commit, the working-tree deletion, and last the
+// shared-index repair, with a path holding a space and a quote quoted the way
+// every other path is. The repair is last because it is the one step that
+// waits on another process's `.git/index.lock`, and when it gives up the
+// deletion has already run.
 //
 // VALIDATES: AC-9 and the ordering AC-7 relies on in the closed
 // spec-remove-takes-the-working-tree-copy; the contract is
-// docs/contributing/committing.md, "What the generated script contains", step 9.
+// docs/contributing/committing.md, "What the generated script contains", step 8.
 // PREVENTS: a deletion rendered before `git commit`, which would delete a file
 // whose content no commit holds yet.
 func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
@@ -1185,9 +1187,9 @@ func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
 		`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- ` + quoted + `)`,
 		`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- ` + quoted,
 		`git commit -F `,
-		`git update-index --force-remove -- ` + quoted,
 		`_ze_gone=(` + quoted + `)`,
 		`rm -f -- "$_ze_path"`,
+		`until _ze_said=$({ git update-index --force-remove -- ` + quoted,
 	}
 	at := 0
 	for _, want := range order {
