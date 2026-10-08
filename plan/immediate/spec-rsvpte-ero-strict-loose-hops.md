@@ -162,7 +162,7 @@ outside both abstract nodes: the ingress peer receives PathErr 24/2, and (3)
 the same hop loose: the downstream peer receives the PATH with the expanded
 ERO. The carrier needs root, so it was not run in this review.
 
-## Interop status (2026-10-08): strict forward and loose expansion proven, strict refusal red on freeRouter's parser
+## Interop status (2026-10-08): strict forward, strict refusal and loose expansion proven
 
 `./le test integration interop-rsvpte` (`internal/le/interoplab/rsvpte/`,
 catalog suite `rsvpte`) ran on 2026-10-08 over a tree carrying the MPLS
@@ -174,15 +174,15 @@ freeRouter relays what Ze originates; it neither originates PathErr nor enforces
 strict hops itself, and every ERO hop it originates is loose
 (`clntMplsTeP2p.workDoer`, `ipFwdTab.fillRsvpPack`), so the evidence is that
 freeRouter accepts and relays Ze's messages. Run log: session scratch
-`rsvpte-run8.log` (3 passed, 2 failed). Discrimination: `rsvpte-disc-run10.log`,
+`rsvpte-run8.log` (3 passed, 2 failed) before commit 9b8bfe250c, and
+`rsvpte-run9.log` (5 passed, 0 failed) after it. Discrimination: `rsvpte-disc-run10.log`,
 a copy of the tree with the producer broken, run with `ze_repo_root=<copy>`.
 
 | Needed (Closure Review) | Scenario | Result |
 |-------------------------|----------|--------|
 | (1) strict direct hop | `transit-strict-hop-forwarded` | PASS. The Ze ingress names every hop strict through a freeRouter relay; the freeRouter egress captures the Ze transit's PATH with the ERO trimmed to strict `172.29.81.14` alone, the Ze ingress captures the labelled RESV freeRouter relays, and the Ze transit holds a swap via `.14`. No discrimination run for this scenario |
-| (2) strict hop outside -> PathErr 24/2 | `transit-strict-hop-outside-refused` | FAIL at the last step. The Ze transit sends PathErr Routing Problem / Bad strict node (24/2), error node `172.29.81.3`, and never forwards the PATH; freeRouter's capture holds that PathErr, but freeRouter never relays it to the Ze ingress: `packRsvp.parseDatPatErr` refuses a PathErr without an ADSPEC, and Ze's carries SESSION, ERROR_SPEC, SENDER_TEMPLATE and SENDER_TSPEC only. RFC 2205 Section 3.1.3: "<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC> [ <ADSPEC> ]" |
+| (2) strict hop outside -> PathErr 24/2 | `transit-strict-hop-outside-refused` | PASS (`rsvpte-run9.log`). The Ze transit sends PathErr Routing Problem / Bad strict node (24/2), error node `172.29.81.3`, and never forwards the PATH; the Ze ingress captures that PathErr as freeRouter relays it. Red in `rsvpte-run8.log` while Ze's PathErr carried no ADSPEC, which `packRsvp.parseDatPatErr` requires (RFC 2205 Section 3.1.3: "<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC> [ <ADSPEC> ]"). Since 9b8bfe250c `buildPathErr` copies the ADSPEC of the PATH in error, per the owner's decision of 2026-10-08 |
 | (3) loose hop expanded | `transit-loose-ero-expansion` | PASS. freeRouter ingress, Ze transit, freeRouter egress: from `[Ze loose, 198.51.100.4 loose]` the egress captures `[172.29.81.14 strict, 198.51.100.4 loose]`, the ingress captures a labelled RESV, and Ze holds the swap. Discrimination: with the replacement in `resolveExplicitPath` removed the check goes red (the egress receives `[172.29.81.3 loose, 198.51.100.4 loose]`); restored, it passes |
 
-Not ready for closure. The owner decides how (2) is carried across a peer (Ze
-sends the optional ADSPEC in a PathErr, a freeRouter patched in the image, or
-another implementation).
+All three needed scenarios pass against an unpatched freeRouter. Scenario (1)
+still has no discrimination run.

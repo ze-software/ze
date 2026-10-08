@@ -195,7 +195,7 @@ to the egress, (3) a peer ResvTear reaches the ingress and removes Ze's swap
 route, (4) an FF Resv with one unknown sender yields one ResvErr while the good
 LSP stays up. The carrier needs root, so it was not run in this review.
 
-## Interop status (2026-10-08): ResvErr relay proven, ResvTear red on freeRouter's parser
+## Interop status (2026-10-08): ResvErr relay and ResvTear relay proven
 
 `./le test integration interop-rsvpte` (`internal/le/interoplab/rsvpte/`,
 catalog suite `rsvpte`) ran on 2026-10-08 over a tree carrying the MPLS
@@ -206,7 +206,8 @@ state it needs and re-encodes it, and a second Ze captures what freeRouter sent.
 freeRouter relays what Ze originates; it neither originates ResvErr, ResvTear or
 PathErr nor enforces strict hops itself (`rtrRsvpIface.recvPack`), so the
 evidence is that freeRouter accepts and relays Ze's messages. Run log: session
-scratch `rsvpte-run8.log` (3 passed, 2 failed). Discrimination:
+scratch `rsvpte-run8.log` (3 passed, 2 failed) before commit 9b8bfe250c, and
+`rsvpte-run9.log` (5 passed, 0 failed) after it. Discrimination:
 `rsvpte-disc-run10.log`, a copy of the tree with the producer broken, run with
 `ze_repo_root=<copy>`.
 
@@ -214,9 +215,7 @@ scratch `rsvpte-run8.log` (3 passed, 2 failed). Discrimination:
 |-------------------------|----------|--------|
 | (1) Ze ResvErr with InPlace on an increase | none | Not covered: freeRouter re-signals a new LSP-ID on a bandwidth change (`clntMplsTeP2p.workDoer`), so no peer drives an in-place increase |
 | (2) a ResvErr relayed across a peer | `ingress-resv-error-relayed` | PASS. The Ze ingress refuses the RESV freeRouter relays (admission), freeRouter captures its ResvErr, and the Ze egress captures it as freeRouter relays it, error node, code 1 and value 2 intact. Discrimination: with the admission refusal in `acceptReservation` sending Traffic Control instead, the check goes red ("relayed ResvErr carries Error Code 22, want 1 Admission Control failure"); restored, it passes |
-| (3) a ResvTear reaching the ingress | `transit-resv-tear-relayed` | FAIL. With the Ze egress frozen (`SIGSTOP`), the Ze transit's reservation times out and its ResvTear is in freeRouter's capture, but freeRouter never relays it: `packRsvp.parseDatResTer` refuses a ResvTear without a FLOWSPEC, and Ze omits it (`buildReservationControl`). RFC 2205 Section 3.1.6: "FLOWSPEC objects in the flow descriptor list of a ResvTear message will be ignored and may be omitted." |
+| (3) a ResvTear reaching the ingress | `transit-resv-tear-relayed` | PASS (`rsvpte-run9.log`). With the Ze egress frozen (`SIGSTOP`), the Ze transit's reservation times out, its ResvTear is in freeRouter's capture, and the Ze ingress captures it as freeRouter relays it. Red in `rsvpte-run8.log` while Ze omitted the optional FLOWSPEC, which `packRsvp.parseDatResTer` requires (RFC 2205 Section 3.1.6: "FLOWSPEC objects in the flow descriptor list of a ResvTear message will be ignored and may be omitted."). Since 9b8bfe250c `buildReservationControl` writes the torn-down reservation's FLOWSPEC, per the owner's decision of 2026-10-08 |
 | (4) FF Resv with an unknown sender | none | Not covered: every freeRouter RESV names its own one sender |
 
-Not ready for closure. The owner decides how (3) is carried (Ze sends the
-optional FLOWSPEC in a ResvTear, a freeRouter patched in the image, or another
-implementation) and how (1) and (4) are proven.
+Not ready for closure: the owner decides how (1) and (4) are proven.

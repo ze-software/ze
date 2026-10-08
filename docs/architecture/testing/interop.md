@@ -939,17 +939,16 @@ freeRouter accepts and relays what Ze originates, not that freeRouter
 originates strict hops, ResvErr, ResvTear or PathErr itself. No scenario here
 covers an in-place bandwidth increase or a multi-sender fixed-filter RESV.
 
-Two scenarios are red against the pinned image, and the cause is freeRouter's
-parser, not the message Ze sends. In both, the relay's own capture holds Ze's
-message and freeRouter never re-sends it. `packRsvp.parseDatPatErr` refuses a
-PathErr without an ADSPEC, and Ze's PathErr carries none, so
-`transit-strict-hop-outside-refused` never reaches the ingress.
-`packRsvp.parseDatResTer` refuses a ResvTear without a FLOWSPEC, and Ze omits
-it, so `transit-resv-tear-relayed` never reaches the ingress. RFC 2205 makes
-both objects optional: the PathErr sender descriptor is "<SENDER_TEMPLATE>
-<SENDER_TSPEC> [ <ADSPEC> ]" (Section 3.1.3), and "FLOWSPEC objects in the flow
-descriptor list of a ResvTear message will be ignored and may be omitted"
-(Section 3.1.6).
+Two scenarios depend on objects RFC 2205 makes optional and freeRouter's parser
+requires. `packRsvp.parseDatPatErr` refuses a PathErr without an ADSPEC, which
+`transit-strict-hop-outside-refused` relies on, and `packRsvp.parseDatResTer`
+refuses a ResvTear without a FLOWSPEC, which `transit-resv-tear-relayed` relies
+on. The PathErr sender descriptor is "<SENDER_TEMPLATE> <SENDER_TSPEC>
+[ <ADSPEC> ]" (Section 3.1.3), and "FLOWSPEC objects in the flow descriptor list
+of a ResvTear message will be ignored and may be omitted" (Section 3.1.6). Ze
+sends both objects (`buildPathErr`, `buildReservationControl`), so both
+scenarios pass against the unpatched image. Before Ze carried them, freeRouter's
+capture held Ze's message and freeRouter never relayed it.
 
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
 <!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
