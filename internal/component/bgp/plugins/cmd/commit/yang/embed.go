@@ -4,8 +4,5 @@ package yang
 
 import _ "embed"
 
-//go:embed ze-bgp-cmd-commit-api.yang
-var ZeBGPCmdCommitAPIYANG string
-
 //go:embed ze-cli-commit-cmd.yang
 var ZeCliCommitCmdYANG string

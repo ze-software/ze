@@ -4,8 +4,5 @@ package yang
 
 import _ "embed"
 
-//go:embed ze-bgp-cmd-meta-api.yang
-var ZeBGPCmdMetaAPIYANG string
-
 //go:embed ze-cli-meta-cmd.yang
 var ZeCliMetaCmdYANG string

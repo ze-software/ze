@@ -18,9 +18,6 @@ func TestMinimalBuildRegistersUpdateSchema(t *testing.T) {
 	if err := loader.LoadRegistered(); err != nil {
 		t.Fatalf("LoadRegistered() error = %v", err)
 	}
-	if got := loader.GetModule("ze-cli-update-api"); got == nil {
-		t.Fatal("ze-cli-update-api module not registered")
-	}
 	if got := loader.GetModule("ze-cli-update-cmd"); got == nil {
 		t.Fatal("ze-cli-update-cmd module not registered")
 	}

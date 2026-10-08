@@ -8,6 +8,12 @@ module ze-plugin-api {
         "Plugin lifecycle API operations for Ze.
          RPCs for plugin session management and health checking.";
 
+    // The session leaf was declared on the copy of session-peer-ready in
+    // ze-bgp-cmd-peer-api.yang, which published a method no handler answers.
+    revision 2026-10-08 {
+        description "Declare the session token input of session-peer-ready.";
+    }
+
     revision 2026-02-01 {
         description "Initial revision";
     }
@@ -114,9 +120,21 @@ session-peer-ready instead.";
 
     rpc session-peer-ready {
         description "The daemon signals readiness for the one peer the process
-serves. A request that names no peer, or that names the wildcard peer, is
-accepted and signals nothing.";
+serves. A plugin process sends 'session <initial-replay token>', with the token
+captured from that peer's UP event, and a request from a plugin process without
+the token is refused. An operator request needs no token. The reactor's refusal
+of a token is answered with an error naming the peer. A request that names no
+peer, or that names the wildcard peer, is accepted and signals nothing.";
         ze:help "Signal that this peer's plugin process finished its initialization.";
+        input {
+            leaf session {
+                type string {
+                    pattern '[1-9][0-9]*';
+                }
+                description "Opaque nonzero uint64 initial-replay token captured when this replay began.";
+                ze:help "Initial-replay session token";
+            }
+        }
     }
 
     rpc session-ping {

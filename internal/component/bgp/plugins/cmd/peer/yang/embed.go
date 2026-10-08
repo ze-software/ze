@@ -4,8 +4,5 @@ package yang
 
 import _ "embed"
 
-//go:embed ze-bgp-cmd-peer-api.yang
-var ZeBGPCmdPeerAPIYANG string
-
 //go:embed ze-peer-cmd.yang
 var ZePeerCmdYANG string

@@ -21,67 +21,6 @@ module ze-rib-api {
         description "Initial revision";
     }
 
-    // Introspection
-
-    rpc help {
-        description "The list holds the first word after show bgp rib, clear bgp rib or request
-bgp rib. It is read from the RIB command registry and sorted.";
-        ze:help "Show RIB subcommands.";
-        output {
-            leaf-list subcommands {
-                type string;
-                description "Each value is one word, the first word after the verb and bgp rib
-                             in a registered command name. A word that follows more than one
-                             verb is listed once.";
-                ze:help "Available subcommands";
-            }
-        }
-    }
-
-    rpc command-list {
-        description "Each row is a full command name and its summary, sorted by name. The rows
-are read from the RIB command registry, so the community and inject commands registered
-after the built-in table are in it.";
-        ze:help "List RIB commands.";
-        output {
-            list command {
-                leaf name {
-                    type string;
-                    description "The full command name with its verb, as the operator types it,
-                                 for example show bgp rib status.";
-                    ze:help "Command name";
-                }
-                leaf description {
-                    type string;
-                    description "The one-line summary the RIB plugin registered beside the
-                                 command.";
-                    ze:help "Command description";
-                }
-            }
-        }
-    }
-
-    rpc event-list {
-        description "The four types are cache, route, peer and memory. The list is a constant of
-the RIB plugin and does not change with the configuration.";
-        ze:help "List RIB event types.";
-        output {
-            list event {
-                leaf name {
-                    type string;
-                    description "The name of the event type, one of cache, route, peer and
-                                 memory.";
-                    ze:help "Event type name";
-                }
-                leaf description {
-                    type string;
-                    description "The text that says what the event type reports.";
-                    ze:help "Event description";
-                }
-            }
-        }
-    }
-
     // RIB operations
 
     rpc status {

@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-bgp-cmd-peer-api.yang", ZeBGPCmdPeerAPIYANG)
 	configyang.RegisterModule("ze-peer-cmd.yang", ZePeerCmdYANG)
 }

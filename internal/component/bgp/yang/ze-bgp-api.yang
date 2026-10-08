@@ -10,6 +10,12 @@ module ze-bgp-api {
          RPCs for peer management, route operations, cache control,
          and event subscriptions. Notifications for BGP events.";
 
+    // peer-save was declared in ze-bgp-cmd-peer-api.yang, which published it as
+    // ze-bgp-cmd-peer:peer-save while the handler answers ze-bgp:peer-save.
+    revision 2026-10-08 {
+        description "Declare peer-save, moved from ze-bgp-cmd-peer-api.";
+    }
+
     revision 2026-02-01 {
         description "Initial revision.";
     }
@@ -536,6 +542,18 @@ accepted here.";
                 ze:help "Peer address";
             }
         }
+    }
+
+    rpc peer-save {
+        description "The method takes no argument and acts on the whole running peer
+set. It reconciles the configuration file to that set in both directions: a
+peer created through 'ze-bgp:peer-add' is written into the file, and a peer the
+file declares that 'ze-delete:bgp-peer' removed is taken out of it. A peer both
+sides hold is not rewritten. Nothing about the running daemon changes. The
+answer carries 'added', 'removed' and 'config', which names the file. An
+argument is refused, because after a removal no peer is left for a selector to
+name.";
+        ze:help "Write the running peer set to the configuration file.";
     }
 
     rpc peer-teardown {

@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-bgp-cmd-commit-api.yang", ZeBGPCmdCommitAPIYANG)
 	configyang.RegisterModule("ze-cli-commit-cmd.yang", ZeCliCommitCmdYANG)
 }

@@ -485,8 +485,9 @@ func TestCmdMethods(t *testing.T) {
 		modules[rpc.Module]++
 	}
 
-	if modules["ze-bgp-api"] != 26 {
-		t.Errorf("expected 26 BGP RPCs, got %d", modules["ze-bgp-api"])
+	// 27 since peer-save moved here from the deleted ze-bgp-cmd-peer-api.
+	if modules["ze-bgp-api"] != 27 {
+		t.Errorf("expected 27 BGP RPCs, got %d", modules["ze-bgp-api"])
 	}
 	// 14 since ze-system:quiesce was added. These are hardcoded per-module
 	// counts, so every new RPC breaks them until the literal is bumped; that is
@@ -501,12 +502,12 @@ func TestCmdMethods(t *testing.T) {
 	if modules["ze-plugin-api"] != 8 {
 		t.Errorf("expected 8 plugin RPCs, got %d", modules["ze-plugin-api"])
 	}
-	// 11 since command-help and command-complete were deleted. Neither reached
-	// a RIB command: the table in rib_commands.go answers neither name, so both
-	// declared a command Ze cannot run, and the owner ruled on 2026-09-13 that
-	// they go. The live pair is in ze-plugin-api and ze-system-api.
-	if modules["ze-rib-api"] != 11 {
-		t.Errorf("expected 11 RIB RPCs, got %d", modules["ze-rib-api"])
+	// 8 since help, command-list and event-list were deleted on 2026-10-08:
+	// no command node reaches a RIB copy of them, and the ze-bgp-api rpcs
+	// carry the live help, command-list and event-list. command-help and
+	// command-complete went on 2026-09-13 for the same reason.
+	if modules["ze-rib-api"] != 8 {
+		t.Errorf("expected 8 RIB RPCs, got %d", modules["ze-rib-api"])
 	}
 }
 
@@ -626,7 +627,7 @@ func TestBuildSchemaRegistryRPCs(t *testing.T) {
 		"ze-bgp:subscribe", "ze-bgp:unsubscribe", "ze-bgp:commit",
 		"ze-system:help", "ze-system:version-software", "ze-system:daemon-status",
 		"ze-plugin:help", "ze-plugin:session-ping", "ze-plugin:session-bye",
-		"ze-rib:help", "ze-rib:show", "ze-rib:event-list",
+		"ze-rib:show",
 	}
 	for _, method := range expected {
 		if !wireSet[method] {

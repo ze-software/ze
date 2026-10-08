@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-bgp-cmd-raw-api.yang", ZeBGPCmdRawAPIYANG)
 	configyang.RegisterModule("ze-raw-cmd.yang", ZeRawCmdYANG)
 }

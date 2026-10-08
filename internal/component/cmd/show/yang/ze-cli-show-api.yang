@@ -7,12 +7,6 @@ module ze-cli-show-api {
   description
     "Ze show verb RPCs -- read-only introspection commands.";
 
-  rpc bgp-peer {
-    description "The peer selector is an address, a peer name, an AS pattern such
-as as65001, a glob, or *. 'show bgp peer list' is the one form that ignores
-the selector and reads every peer.";
-    ze:help "Show peer(s) details.";
-  }
   rpc bgp-warnings {
     description "Two codes reach this answer. Ze raises prefix-stale where a peer's
 prefix data is old, and prefix-threshold where a family's prefix count passes
@@ -92,11 +86,5 @@ build without it.";
 checked-at time. A component row carries a reason only where the component
 reported one.";
     ze:help "Show aggregated component health status.";
-  }
-  rpc system-update-history {
-    description "Each row carries the timestamp, the from version, the to version
-and the result. Ze keeps the last 20 events. With no update backend
-configured, the answer is an empty history and a count of 0.";
-    ze:help "Show firmware update history.";
   }
 }

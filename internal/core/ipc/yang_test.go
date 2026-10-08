@@ -219,7 +219,6 @@ func TestYANGRibAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"help", "command-list", "event-list",
 		"show", "best", "best-status", "clear-in", "clear-out", "status",
 	}
 
@@ -307,8 +306,8 @@ func TestExtractRPCs(t *testing.T) {
 				"help", "command-list", "command-help", "command-complete",
 				"plugin-encoding", "plugin-format", "plugin-ack",
 				"overview", "peer-show-capabilities", "peer-show-statistics", "peer-clear-soft",
-				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown", "peer-flush",
-				"peer-update",
+				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-save", "peer-teardown",
+				"peer-flush", "peer-update",
 				"peer-borr", "peer-eorr", "peer-raw",
 				"cache", "commit",
 				"subscribe", "unsubscribe", "event-list",
@@ -329,7 +328,6 @@ func TestExtractRPCs(t *testing.T) {
 			name:   "rib-api",
 			module: "ze-rib-api",
 			wantRPCs: []string{
-				"help", "command-list", "event-list",
 				"show", "best", "best-status", "clear-in", "clear-out", "status",
 				"inject", "withdraw",
 			},

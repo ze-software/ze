@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-cli-update-api.yang", ZeCliUpdateAPIYANG)
 	configyang.RegisterModule("ze-cli-update-cmd.yang", ZeCliUpdateCmdYANG)
 }
