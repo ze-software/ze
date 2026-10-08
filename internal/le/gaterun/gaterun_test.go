@@ -87,3 +87,12 @@ func TestStreamTeeWithNoReaderIsStream(t *testing.T) {
 		t.Errorf("StreamTee with a nil tee answered %d, want 5", code)
 	}
 }
+
+// VALIDATES: a child that exited cleanly (a nil wait error) maps to status 0.
+// PREVENTS: every successful child reading as exit 1 at callers that pass the
+// wait error straight in, as the stress harness's DUT build and process waits do.
+func TestExitCodeOfACleanExitIsZero(t *testing.T) {
+	if got := ExitCode(nil); got != 0 {
+		t.Fatalf("ExitCode(nil) = %d, want 0", got)
+	}
+}

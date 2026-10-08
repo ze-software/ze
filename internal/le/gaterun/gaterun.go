@@ -117,9 +117,14 @@ func StreamTee(argv []string, dir string, environ []string, tally io.Writer) int
 // internal/le/job tees that child's output to a job log. Both child execution
 // paths must map a finished wait to the same status.
 //
+// A nil error is a child that exited cleanly, and ExitCode returns 0: callers
+// pass the wait error straight in, and a success read as 1 fails every run.
 // For an error that is not an exit, ExitCode returns 1. No child status exists
 // in this case. The caller receives a failure status instead of a success status.
 func ExitCode(err error) int {
+	if err == nil {
+		return 0
+	}
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) {
 		return 1
