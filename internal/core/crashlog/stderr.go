@@ -24,14 +24,20 @@ var (
 	flushOnce  sync.Once
 )
 
-// relayQueueLimit is how many bytes of stderr the relay holds while its
-// downstream (the real stderr, syslog) is slower than the writers. Past it the
-// relay drops bytes, counts them, and writes the count into the stream where
-// they went missing. It never makes a writer wait on the downstream.
-const relayQueueLimit = 4 * 1024 * 1024
+const (
+	// relayQueueLimit is how many bytes of stderr the relay holds while its
+	// downstream (the real stderr, syslog) is slower than the writers. Past it
+	// the relay drops bytes, counts them, and writes the count into the stream
+	// where they went missing. It never makes a writer wait on the downstream.
+	relayQueueLimit = 4 * 1024 * 1024
 
-// relayReadSize is how much the pump takes out of the pipe in one read.
-const relayReadSize = 64 * 1024
+	// relayReadSize is how much the pump takes out of the pipe in one read.
+	relayReadSize = 64 * 1024
+
+	// relayLineOctetsMax is how much of one line the relay holds for syslog and
+	// for panic detection. A longer line is handed on in fragments of this size.
+	relayLineOctetsMax = 256 * 1024
+)
 
 // redirectStderr points os.Stderr at a pipe and starts the relay that copies it
 // to the original stderr and to syslog.
@@ -125,10 +131,6 @@ func stderrReader(r io.Reader, out io.Writer, syslogW *syslog.Writer, crashDirPa
 	}
 }
 
-// relayStderrBuffer is how much of one line the relay holds for syslog and for
-// panic detection. A longer line is handed on in fragments of this size.
-const relayStderrBuffer = 256 * 1024
-
 // relayStderr copies r to out as each read returns, collects a panic trace once
 // it sees the start of one, and sends each line to syslog. It returns the
 // trace, whether a panic was seen, and the read error, which is nil at EOF.
@@ -140,7 +142,7 @@ const relayStderrBuffer = 256 * 1024
 //
 // Syslog and panic detection keep the line framing: one syslog message per
 // line, and a line is complete at its newline, at the end of input, or when it
-// fills relayStderrBuffer, after which the rest of it is relayed as fragments.
+// fills relayLineOctetsMax, after which the rest of it is relayed as fragments.
 // A syslog message is a record, and a prompt split from its answer would be two.
 // Only the start of a line can open a panic trace, so a fragment is never
 // matched against the pattern. The relay once stopped at an overlong line, as
@@ -152,63 +154,90 @@ const relayStderrBuffer = 256 * 1024
 // reader takes the last frame in it for the last frame there was, so the
 // truncation is written into the trace itself.
 func relayStderr(r io.Reader, out io.Writer, syslogW *syslog.Writer) ([]byte, bool, error) {
-	lines := lineRelay{syslogW: syslogW, lineStart: true}
+	relay := lineRelay{
+		syslogW:   syslogW,
+		line:      make([]byte, 0, relayLineOctetsMax),
+		lineStart: true,
+	}
 	chunk := make([]byte, relayReadSize)
-	line := make([]byte, 0, relayStderrBuffer)
+	// A nil out forwards nowhere: the tests that watch only the trace pass nil.
+	if out == nil {
+		out = io.Discard
+	}
 
 	for {
 		n, readErr := r.Read(chunk)
-		data := chunk[:n]
-		if out != nil && n > 0 {
-			out.Write(data) //nolint:errcheck // the real stderr has nobody to report to
+		if n > 0 {
+			out.Write(chunk[:n]) //nolint:errcheck // the real stderr has nobody to report to
 		}
-		for len(data) > 0 {
-			room := relayStderrBuffer - len(line)
-			end := bytes.IndexByte(data, '\n')
-			if end >= 0 && end <= room {
-				line = append(line, data[:end]...)
-				lines.take(line, true)
-				line = line[:0]
-				data = data[end+1:]
-				continue
-			}
-			keep := min(len(data), room)
-			line = append(line, data[:keep]...)
-			data = data[keep:]
-			if len(line) == relayStderrBuffer {
-				lines.take(line, false)
-				line = line[:0]
-			}
-		}
+		relay.write(chunk[:n])
 		if readErr == nil {
 			continue
 		}
 
 		// The input ended, so a partial line is as complete as it will get.
-		if len(line) > 0 {
-			lines.take(line, true)
-		}
+		relay.flush()
 		if errors.Is(readErr, io.EOF) {
-			return lines.panicBuf, lines.inPanic, nil
+			return relay.panicBuf, relay.inPanic, nil
 		}
-		if lines.inPanic {
+		if relay.inPanic {
 			// The trace stops here because the read stopped, not because the
 			// panic finished printing. Say so inside the trace: the crash file
 			// is the only thing its reader will have.
 			var tb textbuf.Buffer
-			lines.panicBuf = append(lines.panicBuf, tb.Str("\n=== TRUNCATED: stderr relay stopped: ").Err(readErr).Str(" ===\n").String()...)
+			relay.panicBuf = append(relay.panicBuf, tb.Str("\n=== TRUNCATED: stderr relay stopped: ").Err(readErr).Str(" ===\n").String()...)
 		}
-		return lines.panicBuf, lines.inPanic, readErr
+		return relay.panicBuf, relay.inPanic, readErr
 	}
 }
 
 // lineRelay is the line-framed half of the relay: syslog and panic collection.
+// It owns the partial line, so write frames the input and flush ends it.
 // Not safe for concurrent use; relayStderr owns it.
 type lineRelay struct {
-	syslogW   *syslog.Writer
-	panicBuf  []byte
-	inPanic   bool
-	lineStart bool // the next fragment starts a line
+	syslogW  *syslog.Writer
+	line     []byte
+	panicBuf []byte
+	inPanic  bool
+	// lineStart is true when the next fragment handed to take begins a line,
+	// and false when it continues an overlong line already partly handed on.
+	lineStart bool
+}
+
+// write frames data into lines and hands each one on, holding the unfinished
+// last line until a later write completes it or flush ends it. A line that
+// reaches relayLineOctetsMax with no newline is handed on as a fragment.
+func (l *lineRelay) write(data []byte) {
+	for len(data) > 0 {
+		room := relayLineOctetsMax - len(l.line)
+		// Only a newline the line still has room for ends it: the window
+		// holds the room plus the newline itself.
+		window := data[:min(len(data), room+1)]
+		if end := bytes.IndexByte(window, '\n'); end >= 0 {
+			l.line = append(l.line, data[:end]...)
+			l.take(l.line, true)
+			l.line = l.line[:0]
+			data = data[end+1:]
+			continue
+		}
+		keep := min(len(data), room)
+		l.line = append(l.line, data[:keep]...)
+		data = data[keep:]
+		if len(l.line) == relayLineOctetsMax {
+			l.take(l.line, false)
+			l.line = l.line[:0]
+		}
+	}
+}
+
+// flush hands on the unfinished last line as complete. relayStderr calls it
+// once, when the input ends.
+func (l *lineRelay) flush() {
+	if len(l.line) == 0 {
+		return
+	}
+	l.take(l.line, true)
+	l.line = l.line[:0]
 }
 
 // take hands on one line, or one fragment of an overlong line when complete is
@@ -220,19 +249,14 @@ func (l *lineRelay) take(fragment []byte, complete bool) {
 
 	if l.syslogW != nil {
 		if err := l.syslogW.Warning(string(fragment)); err != nil {
+			// Syslog stops here for good, so the operator hears of it once.
 			l.syslogW = nil
+			var tb textbuf.Buffer
+			writeMsg(origStderr, tb.Str("crashlog: syslog forwarding stopped: ").Err(err).Byte('\n').String())
 		}
 	}
 
-	if l.lineStart && !l.inPanic && panicPattern.Match(fragment) {
-		l.inPanic = true
-		ring := slogutil.GlobalLogRing()
-		entries := ring.Recent(64)
-		l.panicBuf = appendCrashMetadata(l.panicBuf)
-		l.panicBuf = appendRingHeader(l.panicBuf, entries)
-		l.panicBuf = append(l.panicBuf, "\n=== Panic ===\n"...)
-	}
-
+	l.startPanic(fragment)
 	if l.inPanic {
 		l.panicBuf = append(l.panicBuf, fragment...)
 		if complete {
@@ -240,6 +264,27 @@ func (l *lineRelay) take(fragment []byte, complete bool) {
 		}
 	}
 	l.lineStart = complete
+}
+
+// startPanic opens the panic trace when fragment begins a line that starts
+// one. Only the first trace is collected, and a fragment that continues a line
+// never opens one.
+func (l *lineRelay) startPanic(fragment []byte) {
+	if !l.lineStart {
+		return
+	}
+	if l.inPanic {
+		return
+	}
+	if !panicPattern.Match(fragment) {
+		return
+	}
+	l.inPanic = true
+	ring := slogutil.GlobalLogRing()
+	entries := ring.Recent(64)
+	l.panicBuf = appendCrashMetadata(l.panicBuf)
+	l.panicBuf = appendRingHeader(l.panicBuf, entries)
+	l.panicBuf = append(l.panicBuf, "\n=== Panic ===\n"...)
 }
 
 func appendRingHeader(b []byte, entries []slogutil.LogEntry) []byte {

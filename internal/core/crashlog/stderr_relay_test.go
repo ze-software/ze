@@ -97,7 +97,7 @@ func TestRelayStderrSurvivesALongLine(t *testing.T) {
 	}
 	defer sink.Close() //nolint:errcheck // test cleanup
 
-	input := strings.Repeat("x", 2*relayStderrBuffer) + "\nthe line after\n"
+	input := strings.Repeat("x", 2*relayLineOctetsMax) + "\nthe line after\n"
 	buf, inPanic, err := relayStderr(strings.NewReader(input), sink, nil)
 	if err != nil {
 		t.Fatalf("the relay stopped: %v", err)
@@ -114,11 +114,11 @@ func TestRelayStderrSurvivesALongLine(t *testing.T) {
 	}
 }
 
-// chanWriter hands every write to a channel, so a test can wait for one
-// without polling a shared buffer.
-type chanWriter chan string
+// forwardedWrites holds every write the relay forwards, one string per write,
+// so a test can wait for one without polling a shared buffer.
+type forwardedWrites chan string
 
-func (c chanWriter) Write(p []byte) (int, error) {
+func (c forwardedWrites) Write(p []byte) (int, error) {
 	c <- string(p)
 	return len(p), nil
 }
@@ -133,7 +133,7 @@ func (c chanWriter) Write(p []byte) (int, error) {
 // the operator saw nothing to answer.
 func TestRelayStderrForwardsAPartialLine(t *testing.T) {
 	pr, pw := io.Pipe()
-	out := make(chanWriter, 16)
+	out := make(forwardedWrites, 16)
 	done := make(chan error, 1)
 	go relayPartialLine(pr, out, done)
 
@@ -185,8 +185,11 @@ func TestRelayStderrKeepsLineFramingForPanics(t *testing.T) {
 	if !inPanic {
 		t.Fatal("a panic header split across reads was not detected")
 	}
-	if !strings.Contains(string(buf), "main.main()\n") || !strings.HasSuffix(string(buf), "no line end\n") {
-		t.Fatalf("the trace lost its lines:\n%s", buf)
+	if !strings.Contains(string(buf), "main.main()\n") {
+		t.Fatalf("the trace lost the frame line split across reads:\n%s", buf)
+	}
+	if !strings.HasSuffix(string(buf), "no line end\n") {
+		t.Fatalf("the trace lost the partial line at the end of input:\n%s", buf)
 	}
 	got, err := os.ReadFile(sink.Name())
 	if err != nil {
