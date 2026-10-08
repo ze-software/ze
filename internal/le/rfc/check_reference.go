@@ -113,8 +113,8 @@ func referenceTexts(tree string) (map[string]string, error) {
 }
 
 // citesReference answers whether a text names a path under the top-level
-// reference/ tree. The match starts a path token, so `docs/reference/` and a
-// URL ending in `/reference/` are other trees and do not count.
+// reference/ tree. The match starts a path token, so a reference/ segment
+// inside a longer path or a URL names another tree and does not count.
 func citesReference(content string) bool {
 	const token = referenceRel + "/"
 	for offset := 0; ; {
