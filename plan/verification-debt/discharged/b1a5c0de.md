@@ -15,3 +15,5 @@ Write rows only through `le commit debt-discharge`.
 | Date | Shard | Line | Row digest | Kind | Commits | Artifact | Authorisation |
 |------|-------|------|------------|------|---------|----------|---------------|
 | 2026-10-08 | b1a5c0de.md | 12 | 692d4c3c520b491ae754985a0bedfbf02755d8126b5abcf7be8b565f13e9f659 | owner |  |  | Thomas, 2026-10-08: mechanical: Register now returns an error the test checks; no assertion or claim changed |
+| 2026-10-08 | b1a5c0de.md | 13 | 0715c7d58762a2336ba2c5869032114189b091a1f8f9a84cb5629bc4028620d8 | owner |  |  | Thomas, 2026-10-08: mechanical: deleted constant replaced by its value 20; no assertion or claim changed |
+| 2026-10-08 | b1a5c0de.md | 14 | 62fe86673b42d8c128dc92da1f39302059448aa468f5fba63ee8d718fa6efaff | owner |  |  | Thomas, 2026-10-08: mechanical: new parameter passed as nil; messages byte-identical; no assertion changed |
