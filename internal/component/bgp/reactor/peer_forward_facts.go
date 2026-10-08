@@ -465,9 +465,9 @@ func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFa
 		mods.Op(3, filterapi.AttrModSet, f.nhLegacy[:])
 		// Choose the bytes before admission and materialization read the
 		// operation. A mapped IPv6 field is not a native IPv4 next hop.
-		// Consult the existing family contract: SR Policy permits IPv4 under
-		// either AFI, while IPv6 unicast and VPN framing cannot use four bytes.
-		// Incompatible rewrites retain their form for the withholding gate.
+		// Consult the existing family contract: SR Policy permits native IPv4
+		// under either AFI. Other families use the mapped IPv6 form here;
+		// IPv6 unicast's use of that form is described in RFC 8950 Section 1.
 		if slices.Contains(attribute.ValidNextHopLens(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI)), 4) {
 			mods.Op(14, filterapi.AttrModSet, f.nhLegacy[:])
 		} else {

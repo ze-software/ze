@@ -440,9 +440,9 @@ func TestForwardAIGPMixedIPv4NextHopsReplay(t *testing.T) {
 	check(all[2:], 120, 130)
 }
 
-// Configured IPv4 rewrites must use native bytes only where the MP family
-// permits them. Read the final socket on both rails, including SR Policy's
-// independent next-hop AFI and IPv6 unicast's incompatible-self withdrawal.
+// Configured IPv4 rewrites use native bytes where the MP family permits them
+// and mapped IPv6 bytes for IPv6 unicast. Both rails must put the selected
+// form on the final socket, including SR Policy's independent next-hop AFI.
 func TestForwardConfiguredIPv4MPNextHopFamily(t *testing.T) {
 	for _, rail := range []string{"cached", "rs"} {
 		for _, tc := range []struct {
@@ -450,16 +450,19 @@ func TestForwardConfiguredIPv4MPNextHopFamily(t *testing.T) {
 			family  family.Family
 			hop     string
 			nlri    string
-			allowed bool
+			wantHop string
 		}{
-			{"ipv4-unicast", family.IPv4Unicast, "198.18.231.1", "180a0900", true},
-			{"ipv6-unicast", family.IPv6Unicast, "2001:db8:1::9", "4020010db800070000", false},
+			{"ipv4-unicast", family.IPv4Unicast, "198.18.231.1", "180a0900", "198.18.232.254"},
+			{"ipv6-unicast", family.IPv6Unicast, "2001:db8:1::9", "4020010db800070000", "::ffff:198.18.232.254"},
 			{"ipv6-sr-policy", family.Family{AFI: family.AFIIPv6, SAFI: family.SAFISRPolicy},
-				"2001:db8:1::9", "c0000000070000002a20010db8000000000000000000000001", true},
+				"2001:db8:1::9", "c0000000070000002a20010db8000000000000000000000001", "198.18.232.254"},
 		} {
 			t.Run(rail+"/"+tc.name, func(t *testing.T) {
 				f := rfc2545ReceiveFixture(t, false, true, true)
 				f.destination.settings.NextHopMode = NextHopSelf
+				// Fix the IPv4 source of next-hop self independently of the
+				// shared fixture's IPv6 recipient identity.
+				f.destination.settings.LocalAddress = netip.MustParseAddr("198.18.232.254")
 				for _, peer := range []*Peer{f.source, f.destination} {
 					caps := []capability.Capability{
 						&capability.ASN4{ASN: peer.settings.LocalAS},
@@ -486,19 +489,13 @@ func TestForwardConfiguredIPv4MPNextHopFamily(t *testing.T) {
 				require.Len(t, updates, 1)
 				update := updates[0]
 				_, _, reach, hasReach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPReachNLRI)
-				_, _, unreach, hasUnreach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPUnreachNLRI)
-				if tc.allowed {
-					require.True(t, hasReach)
-					require.False(t, hasUnreach)
-					n = writeMPReach(mp[:], 0, tc.family, f.destination.settings.LocalAddress.AsSlice(), raw)
-					_, _, want, found := attribute.AttrFind(mp[:n], attribute.AttrMPReachNLRI)
-					require.True(t, found)
-					require.Equal(t, want, reach)
-				} else {
-					require.False(t, hasReach)
-					require.True(t, hasUnreach)
-					require.Equal(t, mixedUnreachValue(uint16(tc.family.AFI), byte(tc.family.SAFI), raw), unreach)
-				}
+				_, _, _, hasUnreach := attribute.AttrFind(update.PathAttributes, attribute.AttrMPUnreachNLRI)
+				require.True(t, hasReach)
+				require.False(t, hasUnreach)
+				n = writeMPReach(mp[:], 0, tc.family, netip.MustParseAddr(tc.wantHop).AsSlice(), raw)
+				_, _, want, found := attribute.AttrFind(mp[:n], attribute.AttrMPReachNLRI)
+				require.True(t, found)
+				require.Equal(t, want, reach)
 				require.Empty(t, update.NLRI)
 				require.Empty(t, update.WithdrawnRoutes)
 			})

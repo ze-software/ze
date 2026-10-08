@@ -2,17 +2,7 @@
 
 | Test | Reason |
 |------|--------|
-| TestRFC7606AttrSetInnerDiscardDoesNotWithdraw | Replaced the incorrect inner-AGGREGATOR acceptance oracle with `TestRFC7606AttrSetInnerDiscardWithdraws`: malformed ATTR_SET withdraws, the valid inner form survives, and the same malformed standalone AGGREGATOR is discarded. The enclosing and standalone obligations are distinct. |
-| TestRewriteASPathOverride | Replaced the removed private helper test with `TestASOverrideUsesAttributeValue`, crossing the actual attribute span and modified-payload writer for both ASN widths and header forms, repeated matches, empty and absent-target controls, with exact output and immutable source checks. |
-| TestForwardPathIDBoundaryReceivedValues | Removed incidental emitted-versus-received numeric inequality. Zero and maximum inputs each retain stable local identity, colliding sources remain distinct, and exact native withdrawals match their advertisements. |
-| TestForwardPathIDIdenticalForEveryDestination | Replaced equality across different neighbors with `TestForwardPathIDStableForEachDestination`: each recipient retains both colliding ingress paths and stable replacement identity independently. |
-| TestForwardPathIDReleaseReturnsValues | Replaced the former private-table assertions with `TestForwardPathIDFiniteNamespace`, covering native output for zero, maximum and occupied wrap candidates, retained identities and inverse withdrawals without prescribing allocator policy. |
-| TestForwardPathIDStableAcrossUpdates | Replaced the incidental emitted-versus-received numeric inequality with two colliding ingress sources and a repeated advertisement; exact native prefix, distinct recipient paths and stable replacement identity are checked by the shared output helper. |
-| fwdPathIDTableSize | Removed the helper exposing obsolete private table layouts. The consumer-lifetime test below observes exact native output instead of entry counts. |
-| TestPathIDKeyFollowsWhatTheSourceFramed | Removed assertions prescribing internal entry counts. All three source/context modes now check exact native prefixes, repeat replacement, sibling withdrawal, surviving identity and final inverse withdrawal. Unknown-withdrawal nonallocation remains at the actual writer in the separately approved test above. |
-| internal/component/bgp/plugins/persist/server_test.go | Owner selected retirement of bgp-persist. Its private inventory, fake forwarding/EOR counters, replacement/refcount helpers and OPEN-family parser tests leave with the deleted producer; they do not prove mandatory-RIB replay. Actual populated RIB reconnect/current-stale ownership and completion were exercised in `7de30816`, with live reload in `68bae000`. No daemon-restart durability is claimed. |
-| internal/component/bgp/plugins/persist/session_ready_test.go | Retired the obsolete persist event-token parser with its producer. Current/stale mandatory-RIB and RR completion cross actual peer/session consumers in `7de30816`; retaining a parser test for the removed plugin would preserve dead code. |
-| plugin-persist-features | Removed the feature-name assertion for the owner-retired plugin. Native replacement feature listing passed `a827d58b`; this is registration proof only, not populated replay or durable storage. |
+| TestForwardConfiguredIPv4MPNextHopFamily | Removed the obsolete IPv6-unicast rejection/withdrawal branch: the existing producer maps configured IPv4 self into the sixteen-octet AFI2 next-hop field. All three families now check exact MP_REACH next-hop bytes, unchanged NLRI and no MP_UNREACH on both forwarding rails. This does not relax received native-four-octet AFI2 rejection, which remains covered by `TestMappedPlainNextHopForwarding`. |
 
 ## Reviewed fixture corrections
 
