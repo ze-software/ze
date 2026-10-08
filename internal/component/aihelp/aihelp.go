@@ -370,7 +370,17 @@ func Build() (Reference, error) {
 			Leaves:     leavesOf(notif.Leaves),
 		})
 	}
+	// A builtin RPC that YANG documents is already published with its help
+	// text; only an undocumented builtin earns a bare row. `ze help ai` text
+	// output applies the same rule (printAPICommands in cmd/ze/help_ai.go).
+	documented := make(map[string]bool, len(ref.RPCs))
+	for _, rpc := range ref.RPCs {
+		documented[rpc.WireMethod] = true
+	}
 	for _, brpc := range pluginserver.AllBuiltinRPCs() {
+		if documented[brpc.WireMethod] {
+			continue
+		}
 		ref.RPCs = append(ref.RPCs, RPC{WireMethod: brpc.WireMethod})
 	}
 

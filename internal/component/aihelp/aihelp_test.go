@@ -10,6 +10,9 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	// Registers ze-plugin-cmd.yang and ze-system-cmd.yang, which document
+	// builtin RPCs, so TestBuildPublishesEachRPCOnce meets the overlap.
+	_ "github.com/ze-software/ze/internal/core/ipc/yang"
 )
 
 // TestReferenceJSONShape locks the wire shape of the AI reference so the CLI
@@ -214,4 +217,39 @@ func TestCLISubcommandModeMatchesTheVerbRegistry(t *testing.T) {
 			"the mode published for %q must be the answer authorization gives for it", verb)
 	}
 	assert.Positive(t, checked, "no verb root reached the reference; the tree cannot be empty")
+}
+
+// TestBuildPublishesEachRPCOnce asserts that every wire method appears in the
+// reference's RPC list exactly once. A builtin RPC that the schema registry
+// also documents is published by its documented row, and the bare builtin row
+// is dropped, the same rule `ze help ai` text output applies.
+//
+// VALIDATES: Build adds a builtin RPC only when no documented row names it.
+// PREVENTS: `ze help ai --json` and the MCP ze_reference tool listing a method
+// twice, once with its help text and once bare, so an agent sees two
+// contradictory descriptions of one method.
+func TestBuildPublishesEachRPCOnce(t *testing.T) {
+	documented := make(map[string]bool)
+	for _, rpc := range SchemaRegistry().ListRPCs("") {
+		documented[rpc.WireMethod] = true
+	}
+	overlap := 0
+	for _, brpc := range pluginserver.AllBuiltinRPCs() {
+		if documented[brpc.WireMethod] {
+			overlap++
+		}
+	}
+	// Only discriminating while some builtin RPC is also documented: that is
+	// the case which produced the duplicate rows.
+	require.Positive(t, overlap, "no builtin RPC is also documented, so this test proves nothing")
+
+	ref, err := Build()
+	require.NoError(t, err)
+	count := make(map[string]int, len(ref.RPCs))
+	for _, rpc := range ref.RPCs {
+		count[rpc.WireMethod]++
+	}
+	for method, n := range count {
+		assert.Equal(t, 1, n, "the reference publishes %q %d times", method, n)
+	}
 }
