@@ -99,12 +99,18 @@
     {
       "id": "4.2.2.5",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8955-4.2.2.5-1"
+      ]
     },
     {
       "id": "4.2.2.6",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8955-4.2.2.6-1"
+      ]
     },
     {
       "id": "4.2.2.7",
@@ -117,7 +123,10 @@
     {
       "id": "4.2.2.8",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8955-4.2.2.8-1"
+      ]
     },
     {
       "id": "4.2.2.9",
@@ -127,7 +136,10 @@
     {
       "id": "4.2.2.10",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8955-4.2.2.10-1"
+      ]
     },
     {
       "id": "4.2.2.11",
@@ -202,7 +214,10 @@
     {
       "id": "7.2",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8955-7.2-3"
+      ]
     },
     {
       "id": "7.3",

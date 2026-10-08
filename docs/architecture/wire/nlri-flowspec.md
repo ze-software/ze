@@ -183,6 +183,32 @@ families without changing their semantic flags.
 An operator list without an end-of-list bit is malformed.
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/types_numeric.go -- numericComponent, parseNumericComponent -->
 
+RFC 8955 recommends one or two octets for destination port (type 5), source port
+(type 6) and packet length (type 10), and one octet for ICMP code (type 8).
+Ze chooses the shortest encoding: values through 255 emit one octet; 256
+through 65535 emit two. For types 5, 6 and 10, using one rather than two octets
+for 255 is Ze's policy, not an additional RFC requirement. The typed
+constructors, generic numeric builder, registered config parser and registered
+text NLRI encoder share this writer. These emission **SHOULDs** do not impose
+receiving-width **MUSTs**. Reconstructing a parsed component chooses the smallest
+width for its value; cached forwarding preserves the received operand bytes.
+
+`TestFlowSpecPreferredNumericEmission` pins the operator and value bytes at the
+width boundaries. `TestFlowSpecPreferredNumericWideReception` accepts value 255
+in two-, four- and eight-octet operands. These are compatibility controls, not
+negative evidence for emission or proof of arbitrary high-bit preservation.
+`TestFlowSpecPreferredNumericForwarding` drives registered
+text and config producers through the UPDATE builder, receive cache and
+forwarding pipeline to a TCP recipient. It also checks the separate `match ...
+then ...` route-command encoder for destination/source ports using its bare
+numeric grammar. That route-command entry does not support ICMP-code or
+packet-length criteria; the registered text NLRI and config entries do.
+The forwarding test's authorization lookup is a fixture, not proof of RIB
+validation.
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go -- TestFlowSpecPreferredNumericEmission, TestFlowSpecPreferredNumericWideReception -->
+<!-- source: internal/component/bgp/reactor/rfc8955_width_wire_test.go -- TestFlowSpecPreferredNumericForwarding -->
+
 ---
 
 ## Component Examples

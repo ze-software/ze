@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-08",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -88,6 +88,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC8955-4.2.2.10-1": {
+      "note": "Packet-length emission asserts one/two-octet encoding at 0/255/256/65535 through typed, generic, registered config/text and forwarding paths; shortest selection is local policy, and the separate route-command grammar lacks this criterion. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "requirement_sha": "0f57ab4586d8f6b2",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "62b760e381317095",
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "18942c52e4531d65",
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
+      },
+      "verdict": "enforced"
+    },
     "RFC8955-4.2.2.11-1": {
       "note": "single-polarity positive: DSCP 46, 0 and 63 each encode as exactly one octet",
       "requirement_sha": "9de9fa5f99284bba",
@@ -120,6 +133,45 @@
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "90d28de1c170f3c5",
         "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "48eecee9411b80d1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8955-4.2.2.5-1": {
+      "note": "Destination-port emission asserts independent literal widths and values at 0/255/256/65535 across typed, generic, registered config/text and supported route-command producers, including recipient TCP observation; one or two octets satisfy the RFC SHOULD, whereas shortest encoding is Ze policy; legal-wide reception remains separate compatibility coverage. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "requirement_sha": "be10025decf5c2c3",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "62b760e381317095",
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "18942c52e4531d65",
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8955-4.2.2.6-1": {
+      "note": "Source-port emission has the same boundary, producer and forwarding coverage; the single-polarity annotation is justified and does not turn the recommendation into a receiving-width MUST. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "requirement_sha": "fc598b483c50d2eb",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "62b760e381317095",
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "18942c52e4531d65",
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8955-4.2.2.8-1": {
+      "note": "ICMP-code emission asserts the recommended single octet at 0/255 across typed, generic, registered config/text and recipient forwarding paths; the separate route-command grammar lacks this criterion, and wider representations of 255 remain valid compatibility controls. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "requirement_sha": "ede78e78a8974f4c",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "62b760e381317095",
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "4ab6e5908e201226"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "18942c52e4531d65",
+        "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
       },
       "verdict": "enforced"
     },
@@ -238,6 +290,19 @@
       "units": {
         "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "490a9bdb50aed2bf",
         "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "490a9bdb50aed2bf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8955-7.2-3": {
+      "note": "Literal packet-rate community 0x800c zero reaches the selected callback and real nft backend, with four target drops, exact four-packet/116-byte counters, unaffected-destination and positive-rate controls; the repaired sequence reinstalls zero, sends target token 7 and control token 8, requires only 8 plus a timeout, then withdraws that active discard and requires token 6 delivery, so stale zero-rate enforcement is now distinguishable from removal. Independent source judgment: FlowWidthZeroWholeReview. Current restored numeric/forwarding race observation: job-flowspec-numeric-restored-after-mutations-c672abd1.log. Width and legal-wide reception semantic negatives: 267ffab7, b0675576, 4cb46ab9, d65876fe, 73bd5cbc, 85fdc2cb, 567fcfe2, adf991fd. Packet-zero negative: job-flowspec-semantic-packet-zero-kernel-9c4ece52.log; repaired non-skipped runtime-kernel positive: job-flowspec-zero-restored-guest-path-637874ca.log. Direct selected-callback entry is not subscription-delivery proof; local IPv4 input is not VPN or transit dataplane coverage.",
+      "requirement_sha": "3339e6ba32c3d90a",
+      "tests": {
+        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel": "4b06784d308985f2",
+        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel#2": "4b06784d308985f2"
+      },
+      "units": {
+        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel": "160317d8e10ce4d1",
+        "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel#2": "160317d8e10ce4d1"
       },
       "verdict": "enforced"
     },

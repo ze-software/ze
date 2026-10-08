@@ -135,6 +135,94 @@
       "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8955-4.2.2.10-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission",
+      "unit-sha": "3bb53ebc77b4b33a",
+      "claim-sha": "20544f19ff338eff",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_numeric.go::writeToAFI",
+      "producer-sha": "7fe5d130bba96fc8",
+      "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2.2.10-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding",
+      "unit-sha": "bc38f727442f52d1",
+      "claim-sha": "04f3f95e6cafeead",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_numeric.go::writeToAFI",
+      "producer-sha": "7fe5d130bba96fc8",
+      "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2.2.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission",
+      "unit-sha": "3bb53ebc77b4b33a",
+      "claim-sha": "fa85976c02f0b8e5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_numeric.go::writeToAFI",
+      "producer-sha": "7fe5d130bba96fc8",
+      "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2.2.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding",
+      "unit-sha": "bc38f727442f52d1",
+      "claim-sha": "5804c12f7f8922be",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_numeric.go::writeToAFI",
+      "producer-sha": "7fe5d130bba96fc8",
+      "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2.2.6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission",
+      "unit-sha": "3bb53ebc77b4b33a",
+      "claim-sha": "1fd923179debf674",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_numeric.go::writeToAFI",
+      "producer-sha": "7fe5d130bba96fc8",
+      "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2.2.6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding",
+      "unit-sha": "bc38f727442f52d1",
+      "claim-sha": "d04e32899d9665ae",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_numeric.go::writeToAFI",
+      "producer-sha": "7fe5d130bba96fc8",
+      "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2.2.8-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission",
+      "unit-sha": "3bb53ebc77b4b33a",
+      "claim-sha": "f4caee391722ab61",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_numeric.go::writeToAFI",
+      "producer-sha": "7fe5d130bba96fc8",
+      "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4.2.2.8-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding",
+      "unit-sha": "bc38f727442f52d1",
+      "claim-sha": "1ecd7686f7b7b252",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_numeric.go::writeToAFI",
+      "producer-sha": "7fe5d130bba96fc8",
+      "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8955-5.1-2",
       "polarity": "positive",
       "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
@@ -265,6 +353,28 @@
       "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
       "producer-sha": "ab86a7e561be6508",
       "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-7.2-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel",
+      "unit-sha": "3ed7b419aa1fde8c",
+      "claim-sha": "864d9dbcc9d26bb3",
+      "route": "revert",
+      "producer": "internal/plugins/flowspec-firewall/translate.go::parseExtendedCommunities",
+      "producer-sha": "5ad9bff9b6cbcaf4",
+      "break": "body of parseExtendedCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-7.2-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go::TestSelectedFlowSpecZeroPacketRateKernel",
+      "unit-sha": "3ed7b419aa1fde8c",
+      "claim-sha": "37295d73e8005f9b",
+      "route": "revert",
+      "producer": "internal/plugins/flowspec-firewall/translate.go::parseExtendedCommunities",
+      "producer-sha": "5ad9bff9b6cbcaf4",
+      "break": "body of parseExtendedCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8955-7.3-2",
