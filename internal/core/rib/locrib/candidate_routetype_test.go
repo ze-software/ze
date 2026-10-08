@@ -16,12 +16,12 @@ import (
 
 func routeTypePath(t routetype.Type) Path {
 	return Path{
-		Source:        1,
-		Instance:      7,
-		NextHop:       netip.MustParseAddr("192.0.2.254"),
-		AdminDistance: 20,
-		Metric:        0,
-		RouteType:     t,
+		Source:           1,
+		Instance:         7,
+		NextHop:          netip.MustParseAddr("192.0.2.254"),
+		DistanceOverride: 20, HasDistanceOverride: true,
+		Metric:    0,
+		RouteType: t,
 	}
 }
 

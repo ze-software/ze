@@ -133,10 +133,11 @@ func TestConnectedRefcountInsertsOnce(t *testing.T) {
 	}
 }
 
-// TestConnectedStampsTheDeclaredDistance is AC-3 at the producer: the number the
-// operator writes is the number selectBest ranks the connected prefix on, and it
-// is read at insert so a reload takes effect on the next address event.
-func TestConnectedStampsTheDeclaredDistance(t *testing.T) {
+// TestConnectedRanksAtTheDeclaredDistance is AC-3 under RIB-owned distance: the
+// path the producer hands over carries nothing that stands in the way of the
+// declaration, so the Loc-RIB ranks the connected prefix at the number the
+// operator writes.
+func TestConnectedRanksAtTheDeclaredDistance(t *testing.T) {
 	declareConnectedDistance(t, 250)
 	obs, sink := observerWithSink(t)
 
@@ -145,17 +146,20 @@ func TestConnectedStampsTheDeclaredDistance(t *testing.T) {
 	if len(sink.inserted) != 1 {
 		t.Fatalf("inserted %d paths, want 1", len(sink.inserted))
 	}
-	if sink.inserted[0].AdminDistance != 250 {
-		t.Errorf("AdminDistance = %d, want the declared 250", sink.inserted[0].AdminDistance)
+	loc := locrib.NewRIB()
+	pfx := netip.MustParsePrefix("10.0.0.0/24")
+	loc.Insert(family.IPv4Unicast, pfx, sink.inserted[0])
+	best, ok := loc.Best(family.IPv4Unicast, pfx)
+	if !ok || best.AdminDistance != 250 {
+		t.Errorf("Loc-RIB best = (%+v, %v), want it ranked at the declared 250", best, ok)
 	}
 }
 
-// TestConnectedBootstrapDistanceIsZeroDeliberately pins the one fallback in this
-// tree that IS zero. Zero is the best distance a route can hold, which is what a
-// prefix on this box holds; every other producer's fallback is its own constant
-// precisely so a zero nobody chose can never win a prefix.
-func TestConnectedBootstrapDistanceIsZeroDeliberately(t *testing.T) {
-	ribdistance.Set(nil)
+// TestConnectedPathCarriesNoDistance pins the RIB-owned design: a connected
+// prefix hands the Loc-RIB no distance, so the Loc-RIB ranks it at the declared
+// connected distance (0 by default, internal/core/rib/distance) and re-ranks it
+// on a reload.
+func TestConnectedPathCarriesNoDistance(t *testing.T) {
 	obs, sink := observerWithSink(t)
 
 	obs.handleAddrAdded(makePayload("10.0.0.1", 24))
@@ -163,8 +167,8 @@ func TestConnectedBootstrapDistanceIsZeroDeliberately(t *testing.T) {
 	if len(sink.inserted) != 1 {
 		t.Fatalf("inserted %d paths, want 1", len(sink.inserted))
 	}
-	if sink.inserted[0].AdminDistance != DefaultAdminDistance {
-		t.Errorf("AdminDistance = %d, want the bootstrap %d", sink.inserted[0].AdminDistance, DefaultAdminDistance)
+	if sink.inserted[0].HasDistanceOverride {
+		t.Errorf("a connected path carries override %d", sink.inserted[0].DistanceOverride)
 	}
 }
 

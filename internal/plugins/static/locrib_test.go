@@ -68,33 +68,33 @@ func TestStaticPathCarriesTheRegisteredSource(t *testing.T) {
 	}
 }
 
-// TestStaticStampsTheDeclaredDistance is the producer half of AC-8 and AC-9: the
-// number the operator writes is the number selectBest ranks on, and it is read at
-// insert so a reload takes effect on the next apply.
-func TestStaticStampsTheDeclaredDistance(t *testing.T) {
-	for _, declared := range []uint8{5, 250} {
-		declareStaticDistance(t, declared)
-		path, err := staticPath(fwd("10.0.0.0/8", "192.0.2.1"))
-		if err != nil {
-			t.Fatalf("staticPath: %v", err)
-		}
-		if path.AdminDistance != declared {
-			t.Errorf("AdminDistance = %d, want the declared %d", path.AdminDistance, declared)
-		}
-	}
-}
-
-// TestStaticBootstrapDistanceAppliesBeforeTheDeclaration pins the other half of
-// the seam contract: with nothing published, the producer uses its own constant
-// rather than a zero, which would be the best distance any route can hold.
-func TestStaticBootstrapDistanceAppliesBeforeTheDeclaration(t *testing.T) {
-	ribdistance.Set(nil)
+// TestStaticPathCarriesNoProtocolDistance pins the RIB-owned design: a static
+// route without its own `distance` leaf hands the Loc-RIB no distance, so the
+// Loc-RIB ranks it at the declared static distance and re-ranks it on a reload.
+func TestStaticPathCarriesNoProtocolDistance(t *testing.T) {
 	path, err := staticPath(fwd("10.0.0.0/8", "192.0.2.1"))
 	if err != nil {
 		t.Fatalf("staticPath: %v", err)
 	}
-	if path.AdminDistance != DefaultAdminDistance {
-		t.Errorf("AdminDistance = %d, want the bootstrap %d", path.AdminDistance, DefaultAdminDistance)
+	if path.HasDistanceOverride {
+		t.Errorf("a route with no distance leaf carries override %d", path.DistanceOverride)
+	}
+}
+
+// TestStaticPathCarriesTheRouteOwnDistance is the producer half of the per-route
+// override: a route whose config names `distance N` hands the Loc-RIB N, 0
+// included, because 0 is the best distance rather than "unset".
+func TestStaticPathCarriesTheRouteOwnDistance(t *testing.T) {
+	for _, own := range []uint8{0, 3, 250} {
+		route := fwd("10.0.0.0/8", "192.0.2.1")
+		route.Distance, route.HasDistance = own, true
+		path, err := staticPath(route)
+		if err != nil {
+			t.Fatalf("staticPath: %v", err)
+		}
+		if !path.HasDistanceOverride || path.DistanceOverride != own {
+			t.Errorf("override = (%d,%v), want (%d,true)", path.DistanceOverride, path.HasDistanceOverride, own)
+		}
 	}
 }
 

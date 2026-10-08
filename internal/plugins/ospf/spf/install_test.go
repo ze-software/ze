@@ -36,7 +36,7 @@ func TestOSPFInstallPath(t *testing.T) {
 		t.Fatalf("inserted %d paths, want 2", len(paths))
 	}
 	for i, p := range paths {
-		if p.Source != ProtocolID() || p.AdminDistance != DefaultAdminDistance || p.Metric != 42 {
+		if p.Source != ProtocolID() || p.AdminDistance != 110 || p.Metric != 42 {
 			t.Fatalf("path[%d] = %+v", i, p)
 		}
 	}
@@ -206,7 +206,7 @@ func TestOSPFRedistArbitrationFunctional(t *testing.T) {
 	in := NewInstaller(loc)
 	pfx := netip.MustParsePrefix("10.40.0.0/24")
 	staticID := redistevents.RegisterProtocol("static")
-	staticPath := locrib.Path{Source: staticID, Instance: 0, NextHop: netip.MustParseAddr("10.0.0.1"), AdminDistance: 1, Metric: 1}
+	staticPath := locrib.Path{Source: staticID, Instance: 0, NextHop: netip.MustParseAddr("10.0.0.1"), DistanceOverride: 1, HasDistanceOverride: true, Metric: 1}
 	loc.InsertForward(family.IPv4Unicast, pfx, staticPath, nil)
 	in.Apply([]RouteEntry{{
 		AreaID: testArea(), Prefix: pfx, Metric: 10, Type: RouteIntraArea,
@@ -216,7 +216,7 @@ func TestOSPFRedistArbitrationFunctional(t *testing.T) {
 	if !ok || best.Source != staticID {
 		t.Fatalf("best with static distance 1 = %+v, want static", best)
 	}
-	staticPath.AdminDistance = 200
+	staticPath.DistanceOverride = 200
 	loc.InsertForward(family.IPv4Unicast, pfx, staticPath, nil)
 	best, ok = loc.Best(family.IPv4Unicast, pfx)
 	if !ok || best.Source != ProtocolID() {

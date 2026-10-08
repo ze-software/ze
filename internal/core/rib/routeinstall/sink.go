@@ -78,7 +78,7 @@ func (s *Sink) InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Pa
 		OnLink:             p.OnLink,
 		Weight:             p.Weight,
 		RouteType:          uint8(p.RouteType),
-		AdminDistance:      p.AdminDistance,
+		DistanceOverride:   distanceOverride(p),
 		Metric:             p.Metric,
 		Labels:             p.Labels,
 		SRv6SID:            addrString(p.SRv6SID),
@@ -187,4 +187,15 @@ func addrString(a netip.Addr) string {
 		return ""
 	}
 	return a.String()
+}
+
+// distanceOverride returns the route's own distance for the wire, or nil when
+// the route has none and the engine's Loc-RIB ranks it at its protocol's
+// declared distance.
+func distanceOverride(p locrib.Path) *uint8 {
+	if !p.HasDistanceOverride {
+		return nil
+	}
+	d := p.DistanceOverride
+	return &d
 }

@@ -23,11 +23,9 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
@@ -175,47 +173,39 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 		if err != nil {
 			return nil, err
 		}
-		// A BGP route arrives owned by "bgp", while the declaration names its
-		// two classes. routeaction.ProtocolType holds those names, so this
-		// forwarder translates the class and never spells a name of its own.
-		distanceProtocol := e.Protocol
-		if e.IsBGP || e.IsEBGP {
-			class := routeaction.ProtocolIBGP
-			if e.IsEBGP {
-				class = routeaction.ProtocolEBGP
-			}
-			distanceProtocol = class.String()
+		// No distance is resolved here. The Loc-RIB ranks every path at the
+		// distance `rib { distance { } }` declares for its protocol, looked up
+		// when it ranks, so a forked plugin that never sees the declaration is
+		// ranked by it all the same. Only a route's own override crosses the wire.
+		var override uint8
+		hasOverride := e.DistanceOverride != nil
+		if hasOverride {
+			override = *e.DistanceOverride
 		}
 		ops = append(ops, installOp{
 			fam:    family.Family{AFI: family.AFI(e.AFI), SAFI: family.SAFI(e.SAFI)},
 			prefix: prefix,
 			path: locrib.Path{
-				Source:    id,
-				Instance:  e.Instance,
-				NextHop:   nextHop,
-				Interface: e.Interface,
-				OnLink:    e.OnLink,
-				Weight:    e.Weight,
-				RouteType: routetype.Type(e.RouteType),
-				// The distance the operator declared is resolved HERE, not in the
-				// plugin. The seam is process-global (internal/core/rib/distance),
-				// so a forked producer never sees a declaration and stamps its own
-				// bootstrap default: `rib { distance { ospf 5 } }` was inert for a
-				// forked OSPF at the point arbitration happens. The wire value is
-				// the fallback, so a protocol the declaration does not name keeps
-				// what its producer chose.
-				AdminDistance:      ribdistance.OrDefault(distanceProtocol, e.AdminDistance),
-				Metric:             e.Metric,
-				Labels:             e.Labels,
-				SRv6SID:            srv6SID,
-				IsEBGP:             e.IsEBGP,
-				IsBGP:              e.IsBGP,
-				AIGP:               e.AIGP,
-				AIGPPresent:        e.AIGPPresent,
-				MetricRecursive:    e.MetricRecursive,
-				ECMP:               ecmp,
-				BackupNextHop:      backup,
-				BackupRepairLabels: e.BackupRepairLabels,
+				Source:              id,
+				Instance:            e.Instance,
+				NextHop:             nextHop,
+				Interface:           e.Interface,
+				OnLink:              e.OnLink,
+				Weight:              e.Weight,
+				RouteType:           routetype.Type(e.RouteType),
+				DistanceOverride:    override,
+				HasDistanceOverride: hasOverride,
+				Metric:              e.Metric,
+				Labels:              e.Labels,
+				SRv6SID:             srv6SID,
+				IsEBGP:              e.IsEBGP,
+				IsBGP:               e.IsBGP,
+				AIGP:                e.AIGP,
+				AIGPPresent:         e.AIGPPresent,
+				MetricRecursive:     e.MetricRecursive,
+				ECMP:                ecmp,
+				BackupNextHop:       backup,
+				BackupRepairLabels:  e.BackupRepairLabels,
 			},
 		})
 	}

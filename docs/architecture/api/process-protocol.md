@@ -937,11 +937,14 @@ The engine resolves it against its registered protocols and refuses an unknown n
 <!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
 <!-- source: internal/core/rib/routeinstall/sink.go -- Sink -->
 
-The engine stamps the configured administrative distance before Loc-RIB
-arbitration. For a BGP path, `is-bgp` and `is-ebgp` select the `ibgp` or `ebgp`
-configuration leaf without changing the canonical `bgp` route owner. Other
-protocols use their registered name. The producer's wire distance is the fallback
-only when the engine has no declaration for that class.
+An entry carries no protocol-wide administrative distance. The engine's Loc-RIB
+looks up the configured distance when it ranks the path: for a BGP path,
+`is-bgp` and `is-ebgp` select the `ibgp` or `ebgp` configuration leaf without
+changing the canonical `bgp` route owner, and other protocols use their
+registered name. The optional `distance` field is a route's own distance (a
+static route's `distance` leaf), and overrides the configured value for that
+route alone.
+<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, DistanceProtocol -->
 <!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
 
 The process boundary preserves the primary next-hop device and `on-link` marker,

@@ -29,7 +29,6 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/replay"
-	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
@@ -1006,26 +1005,16 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		if !cidr {
 			return
 		}
-		// AdminDistance comes from the DECLARATION, `rib { distance { } }`, and
-		// never from a constant this plugin owns; Metric carries MED.
-		// locrib.selectBest ranks paths on what is stamped here and runs before
-		// sysrib sees the route, so the operator's value has to reach this line
-		// or it cannot change cross-protocol selection at all.
-		// DefaultAdminDistanceEBGP and DefaultAdminDistanceIBGP (rib_distance.go)
-		// are the bootstrap, reachable only before sysrib's first publish.
-		proto, fallback := "ibgp", DefaultAdminDistanceIBGP
-		if isEBGP {
-			proto, fallback = "ebgp", DefaultAdminDistanceEBGP
-		}
-		distance := ribdistance.OrDefault(proto, fallback)
+		// No distance and Metric carries MED. The Loc-RIB ranks the path at the
+		// distance `rib { distance { } }` declares for its class, ebgp or ibgp,
+		// which IsEBGP selects, and re-ranks it when a reload changes that.
 		r.insertLocRIB(fam, pfx, locrib.Path{
-			Source:        bgpProtocolID,
-			Instance:      bgpLocRIBInstance,
-			NextHop:       nextHop,
-			AdminDistance: distance,
-			// Carry the eBGP/iBGP class explicitly so the sysrib replay path
-			// classifies the protocol type without re-deriving it from the
-			// (operator-overridable) AdminDistance above.
+			Source:   bgpProtocolID,
+			Instance: bgpLocRIBInstance,
+			NextHop:  nextHop,
+			// Carry the eBGP/iBGP class explicitly: the Loc-RIB picks the
+			// declared ebgp or ibgp distance by it, and the sysrib replay path
+			// classifies the protocol type by it.
 			IsEBGP:      isEBGP,
 			IsBGP:       true,
 			AIGP:        newBest.AIGP,

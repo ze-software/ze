@@ -9,9 +9,8 @@
 // is owned by isis-11; it NEVER installs to the FIB) -- see umbrella Shared
 // Contracts "Route install vs redistribution".
 //
-// Admin distance: IS-IS sets a single AdminDistance (115) on every locrib.Path,
-// looked up by sysrib effectivePriority from the existing rib.distance.isis
-// leaf. locrib.Path has no protoType/level field, so the L1-over-L2 preference is
+// Admin distance: IS-IS states none. The Loc-RIB ranks every IS-IS Path at the
+// distance the rib.distance.isis leaf declares. locrib.Path has no protoType/level field, so the L1-over-L2 preference is
 // resolved INSIDE SPF (route.go) before exactly one Path per prefix is published
 // (umbrella A-3).
 //
@@ -31,7 +30,6 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
@@ -48,12 +46,6 @@ var isisProtocolID = redistevents.RegisterProtocol("isis")
 // than registering a second one (the registry is idempotent on name, but a
 // single accessor keeps the contract explicit).
 func ProtocolID() redistevents.ProtocolID { return isisProtocolID }
-
-// DefaultAdminDistance is the IS-IS administrative distance set on every
-// locrib.Path (classical default 115). sysrib overrides it from the
-// rib.distance.isis leaf via effectivePriority; this is the value placed on
-// the Path so that, absent config, IS-IS ranks at 115 against other protocols.
-const DefaultAdminDistance uint8 = 115
 
 // RouteSink receives Loc-RIB install/remove operations when the installer has no
 // local Loc-RIB (a forked subprocess, where locrib.Default() returns nil). The
@@ -75,11 +67,10 @@ type RouteSink interface {
 // operation is a no-op, exactly as the BGP RIB is nil-safe; a forked subprocess
 // gets a RouteSink (SetRemoteSink) so ops reach the engine over RPC.
 type Installer struct {
-	loc      *locrib.RIB
-	remote   RouteSink
-	fam      family.Family
-	afi      string // metric label ("ipv4"|"ipv6") for ze_isis_routes_installed
-	distance uint8
+	loc    *locrib.RIB
+	remote RouteSink
+	fam    family.Family
+	afi    string // metric label ("ipv4"|"ipv6") for ze_isis_routes_installed
 
 	// installed is the last set of routes pushed to the Loc-RIB, keyed by prefix,
 	// so the next run diffs against it. Holds the per-prefix next-hop Instances
@@ -105,8 +96,7 @@ type installedRoute struct {
 }
 
 // NewInstaller constructs an Installer for the IPv4-unicast family over loc (may
-// be nil in a forked subprocess). distance is the admin distance to stamp on
-// each Path (DefaultAdminDistance unless overridden). Metrics start as no-ops
+// be nil in a forked subprocess). Metrics start as no-ops
 // until SetMetrics wires a registry.
 func NewInstaller(loc *locrib.RIB) *Installer {
 	return newInstaller(loc, family.IPv4Unicast, "ipv4")
@@ -126,7 +116,6 @@ func newInstaller(loc *locrib.RIB, fam family.Family, afi string) *Installer {
 		loc:             loc,
 		fam:             fam,
 		afi:             afi,
-		distance:        DefaultAdminDistance,
 		installed:       make(map[netip.Prefix]installedRoute),
 		routesInstalled: metrics.NopRegistry{}.GaugeVec("", "", nil),
 	}
@@ -229,8 +218,8 @@ func (in *Installer) Apply(cur []RouteEntry) RouteDelta {
 }
 
 // insert pushes one prefix's equal-cost next-hops into the Loc-RIB as one
-// locrib.Path each (Source = IS-IS ProtocolID, distinct Instance, AdminDistance
-// = the IS-IS distance, Metric = the 32-bit-derived path cost truncated to the
+// locrib.Path each (Source = IS-IS ProtocolID, distinct Instance, no
+// distance of its own, Metric = the 32-bit-derived path cost truncated to the
 // Path's uint32 Metric field). It first removes any Instances from a previous
 // insert of the same prefix that are no longer present (a shrinking ECMP set), so
 // the Loc-RIB path-group ends up with exactly the current next-hops. L1-over-L2
@@ -263,14 +252,9 @@ func (in *Installer) insert(r RouteEntry) {
 			Interface: nh.Interface,
 			OnLink:    nh.OnLink,
 			RouteType: routeType,
-			// The DECLARATION decides. locrib.selectBest ranks paths on what is
-			// stamped here and runs before sysrib sees the route, so
-			// `rib { distance { isis N } }` has to reach this line to change
-			// cross-protocol selection. in.distance is the bootstrap value,
-			// reachable only before the first configure. Read HERE rather than
-			// at construction so a reload takes effect.
-			AdminDistance: ribdistance.OrDefault("isis", in.distance),
-			Metric:        metric,
+			// No distance: the Loc-RIB ranks the path at the distance
+			// `rib { distance { isis N } }` declares, and re-ranks on a reload.
+			Metric: metric,
 		})
 	}
 

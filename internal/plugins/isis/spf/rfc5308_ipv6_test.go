@@ -180,8 +180,8 @@ func TestISISIPv6RouteLocRIBInsert(t *testing.T) {
 		if p.Source != ProtocolID() {
 			t.Errorf("path Source = %v, want IS-IS ProtocolID %v", p.Source, ProtocolID())
 		}
-		if p.AdminDistance != DefaultAdminDistance {
-			t.Errorf("path AdminDistance = %d, want %d", p.AdminDistance, DefaultAdminDistance)
+		if p.AdminDistance != 115 {
+			t.Errorf("path AdminDistance = %d, want %d", p.AdminDistance, 115)
 		}
 		if !p.NextHop.Is6() {
 			t.Errorf("path NextHop %v is not IPv6", p.NextHop)

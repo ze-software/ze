@@ -51,8 +51,8 @@ func fibWithholdOneProtocol(ctx context.Context, plugin *sdk.Plugin) error {
 	defer commandIgnore(context.WithoutCancel(ctx), "ip", "link", "del", fibWithholdDevice)
 
 	routes := []rpc.RouteInstallEntry{
-		fibWithholdRoute(fibWithholdProtocol, fibWithholdPrefix, 20),
-		fibWithholdRoute(fibWithholdKeptProto, fibWithholdKept, 110),
+		fibWithholdRoute(fibWithholdProtocol, fibWithholdPrefix),
+		fibWithholdRoute(fibWithholdKeptProto, fibWithholdKept),
 	}
 	installed, err := plugin.RouteInstall(ctx, routes)
 	if err != nil {
@@ -101,18 +101,17 @@ func fibWithholdOneProtocol(ctx context.Context, plugin *sdk.Plugin) error {
 	return ok.StdErr()
 }
 
-// fibWithholdRoute builds one route-install entry. The distance is the
-// protocol's own, so the two prefixes are ranked the way a running router ranks
-// them.
-func fibWithholdRoute(protocol, prefix string, distance uint8) rpc.RouteInstallEntry {
+// fibWithholdRoute builds one route-install entry. It carries no distance: the
+// engine's Loc-RIB ranks it at the distance declared for its protocol, the way
+// a running router ranks it.
+func fibWithholdRoute(protocol, prefix string) rpc.RouteInstallEntry {
 	return rpc.RouteInstallEntry{
-		Protocol:      protocol,
-		AFI:           1,
-		SAFI:          1,
-		Prefix:        prefix,
-		NextHop:       fibWithholdNextHop,
-		AdminDistance: distance,
-		Metric:        10,
+		Protocol: protocol,
+		AFI:      1,
+		SAFI:     1,
+		Prefix:   prefix,
+		NextHop:  fibWithholdNextHop,
+		Metric:   10,
 	}
 }
 

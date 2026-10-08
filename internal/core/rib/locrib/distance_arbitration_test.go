@@ -34,13 +34,13 @@ func TestRaisedEbgpDistanceLetsOspfWin(t *testing.T) {
 	def := NewRIB()
 	def.Insert(fam, prefix, Path{
 		Source: bgpID, Instance: 1,
-		NextHop:       netip.MustParseAddr("192.0.2.1"),
-		AdminDistance: 20,
+		NextHop:          netip.MustParseAddr("192.0.2.1"),
+		DistanceOverride: 20, HasDistanceOverride: true,
 	})
 	def.Insert(fam, prefix, Path{
 		Source: ospfID, Instance: 2,
-		NextHop:       netip.MustParseAddr("192.0.2.2"),
-		AdminDistance: 110,
+		NextHop:          netip.MustParseAddr("192.0.2.2"),
+		DistanceOverride: 110, HasDistanceOverride: true,
 	})
 	best, ok := def.Best(fam, prefix)
 	if !ok {
@@ -56,13 +56,13 @@ func TestRaisedEbgpDistanceLetsOspfWin(t *testing.T) {
 	raised := NewRIB()
 	raised.Insert(fam, prefix, Path{
 		Source: bgpID, Instance: 1,
-		NextHop:       netip.MustParseAddr("192.0.2.1"),
-		AdminDistance: 250,
+		NextHop:          netip.MustParseAddr("192.0.2.1"),
+		DistanceOverride: 250, HasDistanceOverride: true,
 	})
 	raised.Insert(fam, prefix, Path{
 		Source: ospfID, Instance: 2,
-		NextHop:       netip.MustParseAddr("192.0.2.2"),
-		AdminDistance: 110,
+		NextHop:          netip.MustParseAddr("192.0.2.2"),
+		DistanceOverride: 110, HasDistanceOverride: true,
 	})
 	best, ok = raised.Best(fam, prefix)
 	if !ok {

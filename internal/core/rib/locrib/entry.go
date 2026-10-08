@@ -24,6 +24,7 @@ type PathGroup struct {
 // upsert inserts or replaces the Path at its (Source, Instance) key and
 // recomputes Best.
 func (g *PathGroup) upsert(p Path) {
+	p.AdminDistance = resolvedDistance(p)
 	k := p.key()
 	for i := range g.Paths {
 		if g.Paths[i].key() == k {

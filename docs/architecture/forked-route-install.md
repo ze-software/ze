@@ -24,14 +24,16 @@ A protocol ID is per-process, allocated in registration order, so it cannot
 travel. The payload names the protocol and the engine looks the name up with
 `redistevents.ProtocolIDOf`, then REJECTS an unknown name.
 
-**The engine also RE-STAMPS the administrative distance.** The declaration seam
+**No protocol-wide distance crosses the boundary.** The declaration seam
 (`internal/core/rib/distance`) is process-global and sysrib is its only publisher,
-so a forked producer never sees it and ships whatever bootstrap constant its own
-package holds. `rib { distance { ospf 5 } }` was therefore inert for a forked OSPF
-at the point arbitration happens, and nothing said so. `applyRouteInstall` reads
-the declaration for the protocol the entry names and takes the wire value as the
-fallback, so a protocol the declaration does not name keeps what its producer
-chose.
+so a forked producer never sees it. It does not need to: the engine's Loc-RIB
+resolves every path's distance from the declaration when it ranks
+(`resolvedDistance`), and re-ranks on a reload (`(*RIB).Reselect`), so a forked
+OSPF ranks at `rib { distance { ospf 5 } }` exactly as an in-process one does.
+The entry's optional `distance` field carries only a route's OWN distance, the
+static `distance` leaf, which overrides the declared value for that route alone.
+<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, Reselect -->
+<!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
 
 **The entry carries the whole path.** Besides the gateway, `RouteInstallEntry`
 carries the outgoing device, the next-hop's weight, the forwarding action

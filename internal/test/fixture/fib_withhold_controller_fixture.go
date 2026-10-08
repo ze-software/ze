@@ -56,9 +56,9 @@ func fibWithholdController(ctx context.Context, plugin *sdk.Plugin) error {
 	table := fibControllerTable()
 	routes := make([]rpc.RouteInstallEntry, 0, len(table)+1)
 	for _, prefix := range table {
-		routes = append(routes, fibControllerRoute(fibControllerProtocol, prefix, 20))
+		routes = append(routes, fibControllerRoute(fibControllerProtocol, prefix))
 	}
-	routes = append(routes, fibControllerRoute(fibControllerKeptProto, fibControllerKept, 110))
+	routes = append(routes, fibControllerRoute(fibControllerKeptProto, fibControllerKept))
 
 	installed, err := plugin.RouteInstall(ctx, routes)
 	if err != nil {
@@ -115,16 +115,16 @@ func fibControllerTable() []string {
 }
 
 // fibControllerRoute builds one route-install entry over the scenario's shared
-// on-link gateway, with the protocol's own administrative distance.
-func fibControllerRoute(protocol, prefix string, distance uint8) rpc.RouteInstallEntry {
+// on-link gateway. It carries no distance: the engine's Loc-RIB ranks it at
+// the distance declared for its protocol.
+func fibControllerRoute(protocol, prefix string) rpc.RouteInstallEntry {
 	return rpc.RouteInstallEntry{
-		Protocol:      protocol,
-		AFI:           1,
-		SAFI:          1,
-		Prefix:        prefix,
-		NextHop:       fibControllerNextHop,
-		AdminDistance: distance,
-		Metric:        10,
+		Protocol: protocol,
+		AFI:      1,
+		SAFI:     1,
+		Prefix:   prefix,
+		NextHop:  fibControllerNextHop,
+		Metric:   10,
 	}
 }
 

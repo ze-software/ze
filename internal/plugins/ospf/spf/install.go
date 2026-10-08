@@ -12,7 +12,6 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -21,9 +20,6 @@ var ospfProtocolID = redistevents.RegisterProtocol("ospf")
 // ProtocolID returns the single OSPF Loc-RIB source identity. Redistribution in a
 // later spec reuses this identity rather than registering a second source.
 func ProtocolID() redistevents.ProtocolID { return ospfProtocolID }
-
-// DefaultAdminDistance is the classical OSPF administrative distance.
-const DefaultAdminDistance uint8 = 110
 
 // RouteSink receives Loc-RIB install/remove operations when the installer has no
 // local Loc-RIB (a forked subprocess, where locrib.Default() returns nil). The
@@ -41,11 +37,10 @@ type RouteSink interface {
 // Installer mirrors the BGP and IS-IS Loc-RIB insertion shape: one locrib.Path per
 // equal-cost next-hop, with Source=ProtocolID and distinct Instance values.
 type Installer struct {
-	loc      *locrib.RIB
-	remote   RouteSink
-	fam      family.Family
-	afLabel  string
-	distance uint8
+	loc     *locrib.RIB
+	remote  RouteSink
+	fam     family.Family
+	afLabel string
 
 	installed map[netip.Prefix]installedRoute
 
@@ -129,7 +124,6 @@ func NewInstallerFamily(loc *locrib.RIB, fam family.Family) *Installer {
 		loc:             loc,
 		fam:             fam,
 		afLabel:         famAFLabel(fam),
-		distance:        DefaultAdminDistance,
 		installed:       make(map[netip.Prefix]installedRoute),
 		routesInstalled: metrics.NopRegistry{}.GaugeVec("", "", nil),
 	}
@@ -225,13 +219,8 @@ func (in *Installer) insert(r RouteEntry) {
 			NextHop:   nh.Addr,
 			Interface: nh.Interface,
 			OnLink:    nh.Interface != "",
-			// The DECLARATION decides. locrib.selectBest ranks paths on what is
-			// stamped here and runs before sysrib sees the route, so
-			// `rib { distance { ospf N } }` has to reach this line to change
-			// cross-protocol selection. in.distance is the bootstrap value,
-			// reachable only before the first configure. Read HERE rather than
-			// at construction so a reload takes effect.
-			AdminDistance:      ribdistance.OrDefault("ospf", in.distance),
+			// No distance: the Loc-RIB ranks the path at the distance
+			// `rib { distance { ospf N } }` declares, and re-ranks on a reload.
 			Metric:             metric,
 			BackupNextHop:      backupNH,
 			BackupRepairLabels: repair,

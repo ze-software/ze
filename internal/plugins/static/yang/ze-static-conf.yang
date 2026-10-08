@@ -82,6 +82,16 @@ module ze-static-conf {
                              (lower is preferred) and carried in redistribute.";
                 }
 
+                leaf distance {
+                    type uint8;
+                    description "Ze ranks this route at the value against every other protocol's route for
+                        the same prefix, in place of the distance rib distance static declares. The value
+                        applies to this route alone. Lower wins, and 0 is the best rank. Without the leaf
+                        the route ranks at the declared static distance, and a reload that changes the
+                        declaration re-ranks it.";
+                    ze:help "Administrative distance for this route alone (overrides rib distance static).";
+                }
+
                 leaf tag {
                     type uint32;
                     description "Ze prints the value in the tag field of show static route and in the config

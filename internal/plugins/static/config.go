@@ -125,6 +125,10 @@ func parseRoute(prefixStr string, entry map[string]any) (staticRoute, error) {
 	}
 	r.Tag = tag
 
+	if err := parseRouteDistance(entry, &r); err != nil {
+		return r, fmt.Errorf("route %s: %w", prefixStr, err)
+	}
+
 	if _, ok := entry["blackhole"]; ok {
 		r.Action = actionBlackhole
 		return r, nil
@@ -237,6 +241,26 @@ func parseInterfaceNextHop(ifName string, entry map[string]any) (nextHop, error)
 	}
 
 	return nh, nil
+}
+
+// parseRouteDistance reads the route's own `distance` leaf into r. An absent
+// leaf leaves HasDistance unset, so the route ranks at the distance declared for
+// static; a present one, 0 included, overrides it.
+func parseRouteDistance(entry map[string]any, r *staticRoute) error {
+	v, ok := entry["distance"]
+	if !ok {
+		return nil
+	}
+	n, ok := cfgFloat(v)
+	if !ok {
+		return fmt.Errorf("distance: value %v is not a number", v)
+	}
+	if n < 0 || n > math.MaxUint8 {
+		return fmt.Errorf("distance: value %v out of the 0-255 range", n)
+	}
+	r.Distance = uint8(n)
+	r.HasDistance = true
+	return nil
 }
 
 func mapUint32(m map[string]any, key string) (uint32, error) {

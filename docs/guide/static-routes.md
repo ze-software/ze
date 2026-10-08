@@ -313,13 +313,32 @@ rib {
 ```
 
 At 250 a static route LOSES the prefix to an eBGP route at 20, and the kernel
-forwards on the BGP next-hop. At 5 it keeps the prefix. The number is read when a
-static route is installed, so a route already installed keeps the distance it was
-installed with until that route's own config changes or the daemon restarts; a
-commit that changes only the distance does not re-rank it. The number applies to
-main-table routes: a named-table route has nothing to be ranked against.
+forwards on the BGP next-hop. At 5 it keeps the prefix. The RIB looks the number
+up each time it ranks, so a commit or reload that changes only the distance
+re-ranks the routes already installed, and the kernel moves to the new winner.
+The number applies to main-table routes: a named-table route has nothing to be
+ranked against.
+<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, Reselect -->
+<!-- source: internal/component/sysrib/register.go -- reselectLocRIB -->
+
+One route can carry its own distance, which wins over `static N` for that route
+alone:
+
+```
+static {
+    table default {
+        route 10.0.0.0/8 {
+            distance 3
+            next { hop 192.0.2.1 { } }
+        }
+    }
+}
+```
+
+A reload that changes `rib { distance { static } }` leaves such a route at its
+own number.
+<!-- source: internal/plugins/static/config.go -- parseRouteDistance -->
 <!-- source: internal/plugins/static/locrib.go -- staticPath -->
-<!-- source: internal/plugins/static/inject.go -- applyRoutes (routesEqual skips an unchanged route) -->
 
 `show rib` reports the winner per prefix with the protocol that holds it.
 

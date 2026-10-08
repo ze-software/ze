@@ -29,30 +29,30 @@ var (
 
 func pathStatic() Path {
 	return Path{
-		Source:        idStatic,
-		Instance:      0,
-		NextHop:       netip.MustParseAddr("192.0.2.1"),
-		AdminDistance: 1,
+		Source:           idStatic,
+		Instance:         0,
+		NextHop:          netip.MustParseAddr("192.0.2.1"),
+		DistanceOverride: 1, HasDistanceOverride: true,
 	}
 }
 
 func pathBGP(instance, metric uint32) Path {
 	return Path{
-		Source:        idBGP,
-		Instance:      instance,
-		NextHop:       netip.MustParseAddr("192.0.2.2"),
-		AdminDistance: 20,
-		Metric:        metric,
+		Source:           idBGP,
+		Instance:         instance,
+		NextHop:          netip.MustParseAddr("192.0.2.2"),
+		DistanceOverride: 20, HasDistanceOverride: true,
+		Metric: metric,
 	}
 }
 
 func pathOSPF(metric uint32) Path {
 	return Path{
-		Source:        idOSPF,
-		Instance:      0,
-		NextHop:       netip.MustParseAddr("192.0.2.3"),
-		AdminDistance: 110,
-		Metric:        metric,
+		Source:           idOSPF,
+		Instance:         0,
+		NextHop:          netip.MustParseAddr("192.0.2.3"),
+		DistanceOverride: 110, HasDistanceOverride: true,
+		Metric: metric,
 	}
 }
 
@@ -252,7 +252,7 @@ func TestOnChangeCarriesECMPSiblings(t *testing.T) {
 	nh2 := netip.MustParseAddr("10.0.0.2")
 
 	isis := func(instance uint32, nh netip.Addr, metric uint32) Path {
-		return Path{Source: idOSPF, Instance: instance, NextHop: nh, AdminDistance: 115, Metric: metric}
+		return Path{Source: idOSPF, Instance: instance, NextHop: nh, DistanceOverride: 115, HasDistanceOverride: true, Metric: metric}
 	}
 
 	// First equal-cost IS-IS Path: a fresh single-path group => nil ECMP. This
@@ -312,7 +312,7 @@ func TestOnChangeCarriesBestPathECMP(t *testing.T) {
 	nh3 := netip.MustParseAddr("10.0.0.3")
 
 	bgpMulti := func(ecmp ...netip.Addr) Path {
-		return Path{Source: idBGP, Instance: 0, NextHop: nh1, AdminDistance: 20, Metric: 0, ECMP: hops(ecmp...)}
+		return Path{Source: idBGP, Instance: 0, NextHop: nh1, DistanceOverride: 20, HasDistanceOverride: true, Metric: 0, ECMP: hops(ecmp...)}
 	}
 
 	// One BGP best Path carrying its own ECMP siblings (single Path, no per-
@@ -355,7 +355,7 @@ func TestOnChangeDispatchesECMPMembershipChanges(t *testing.T) {
 	nh2 := netip.MustParseAddr("10.0.1.2")
 	nh3 := netip.MustParseAddr("10.0.1.3")
 	path := func(instance uint32, nh netip.Addr) Path {
-		return Path{Source: idOSPF, Instance: instance, NextHop: nh, AdminDistance: 115, Metric: 10}
+		return Path{Source: idOSPF, Instance: instance, NextHop: nh, DistanceOverride: 115, HasDistanceOverride: true, Metric: 10}
 	}
 
 	r.Insert(famV4, ecmpPfx, path(0, nh1))
@@ -681,11 +681,11 @@ func TestAdminDistanceTrumpsMetric(t *testing.T) {
 	// OSPF with very low metric, then Static with very high metric.
 	r.Insert(famV4, pfx, pathOSPF(1))
 	best, changed := r.Insert(famV4, pfx, Path{
-		Source:        idStatic,
-		Instance:      0,
-		NextHop:       netip.MustParseAddr("192.0.2.1"),
-		AdminDistance: 1,
-		Metric:        999999,
+		Source:           idStatic,
+		Instance:         0,
+		NextHop:          netip.MustParseAddr("192.0.2.1"),
+		DistanceOverride: 1, HasDistanceOverride: true,
+		Metric: 999999,
 	})
 	require.True(t, changed)
 	assert.Equal(t, idStatic, best.Source, "lower AdminDistance must win despite higher Metric")

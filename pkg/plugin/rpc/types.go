@@ -901,10 +901,15 @@ type RouteInstallEntry struct {
 	// FIB installs an ordinary route. A discard route names no next-hop, so
 	// without this field a forked plugin's blackhole arrives as a route to
 	// nowhere and is dropped.
-	RouteType     uint8    `json:"route-type,omitempty"`
-	AdminDistance uint8    `json:"distance"`
-	Metric        uint32   `json:"metric"`
-	Labels        []uint32 `json:"labels,omitempty"`
+	RouteType uint8 `json:"route-type,omitempty"`
+	// DistanceOverride is this one route's own administrative distance, and is
+	// absent for every route that has none. The engine's Loc-RIB ranks a route
+	// at the distance `rib { distance { } }` declares for its protocol, so a
+	// plugin sends no protocol-wide distance; only a route whose own config
+	// names one (a static route's `distance` leaf) carries it here.
+	DistanceOverride *uint8   `json:"distance,omitempty"`
+	Metric           uint32   `json:"metric"`
+	Labels           []uint32 `json:"labels,omitempty"`
 	// SRv6SID is the service SID selected for this path, in IPv6 text form.
 	SRv6SID         string `json:"srv6-sid,omitempty"`
 	IsEBGP          bool   `json:"is-ebgp,omitempty"`

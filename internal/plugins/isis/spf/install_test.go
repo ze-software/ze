@@ -59,8 +59,8 @@ func TestISISInstallPath(t *testing.T) {
 		if name := redistevents.ProtocolName(p.Source); name != "isis" {
 			t.Errorf("Path Source = %q, want isis", name)
 		}
-		if p.AdminDistance != DefaultAdminDistance {
-			t.Errorf("Path AdminDistance = %d, want %d", p.AdminDistance, DefaultAdminDistance)
+		if p.AdminDistance != 115 {
+			t.Errorf("Path AdminDistance = %d, want %d", p.AdminDistance, 115)
 		}
 		if p.Metric != 25 {
 			t.Errorf("Path Metric = %d, want 25", p.Metric)

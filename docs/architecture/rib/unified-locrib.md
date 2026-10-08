@@ -35,10 +35,19 @@ a path-id map in the value layer.
 
 **Cross-source best path runs off a distance table.** `Path.AdminDistance
 uint8` orders before metric inside `selectBest`. The defaults follow Cisco and
-Juniper, and `rib { distance { } }` overrides each of them. The producer stamps
-the value it reads from `internal/core/rib/distance`, because `selectBest` runs
-before sysrib sees the route, so a number that reaches sysrib alone cannot change
-cross-source selection.
+Juniper, and `rib { distance { } }` overrides each of them. The Loc-RIB owns the
+number: producers hand a path over without one, and every insert writes
+`AdminDistance` from `resolvedDistance`, which reads the declaration for the
+path's protocol from `internal/core/rib/distance` (BGP picks `ebgp` or `ibgp`
+by `IsEBGP`). A path's own `DistanceOverride`, set only by a static route that
+names `distance`, wins over the declared value for that path alone. A protocol
+neither declared nor in the bootstrap table ranks at `UndeclaredDistance` (255),
+never at zero. When sysrib publishes a changed declaration it calls
+`(*RIB).Reselect`, which re-resolves every stored path, re-runs selection, and
+dispatches a `ChangeUpdate` for each prefix whose best or equal-cost set moved,
+so a reload re-ranks the routes already installed and the FIB follows.
+<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, DistanceProtocol, Reselect -->
+<!-- source: internal/component/sysrib/register.go -- reselectLocRIB -->
 
 **A Path carries its whole next-hop set, not one address.** `NextHop` is the
 route's gateway, `Interface` names its outgoing device, and `Weight` gives
@@ -57,7 +66,7 @@ same path. `Equal` compares them so the change reaches the FIB. `ECMP` stays out
 of both; a group change is detected through `Change.ECMP`. The Service SID
 survives local changes, forked route-install RPC and replay.
 <!-- source: internal/core/rib/nexthop/nexthop.go -- the NextHop value type -->
-<!-- source: internal/core/rib/distance/distance.go -- the declaration seam producers read -->
+<!-- source: internal/core/rib/distance/distance.go -- the declaration seam the Loc-RIB reads -->
 
 **The sources.** BGP, OSPF, IS-IS, the static plugin and the connected plugin
 insert paths, and sysrib reads them. A connected path names NO next-hop, which is

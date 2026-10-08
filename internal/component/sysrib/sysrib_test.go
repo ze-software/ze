@@ -928,21 +928,23 @@ func TestSysRIBOSPFLocRIBAdminDistanceArbitration(t *testing.T) {
 
 	seen := len(captureSysribEvents(bus))
 	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{
-		Source:        staticID,
-		Instance:      0,
-		NextHop:       staticNH,
-		AdminDistance: 1,
-		Metric:        1,
+		Source:              staticID,
+		Instance:            0,
+		NextHop:             staticNH,
+		DistanceOverride:    1,
+		HasDistanceOverride: true,
+		Metric:              1,
 	})
 	waitForSysribBest(t, bus, seen, pfx, routeaction.Update, "static", staticNH, nil)
 
 	seen = len(captureSysribEvents(bus))
 	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{
-		Source:        staticID,
-		Instance:      0,
-		NextHop:       staticNH,
-		AdminDistance: 200,
-		Metric:        1,
+		Source:              staticID,
+		Instance:            0,
+		NextHop:             staticNH,
+		DistanceOverride:    200,
+		HasDistanceOverride: true,
+		Metric:              1,
 	})
 	waitForSysribBest(t, bus, seen, pfx, routeaction.Update, "ospf", ospfNH, nil)
 

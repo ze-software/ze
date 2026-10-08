@@ -102,7 +102,7 @@ func kernelHasRoute08(ctx context.Context, prefix string) bool {
 }
 
 func routeEntry08(protocol string) rpc.RouteInstallEntry {
-	return rpc.RouteInstallEntry{Protocol: protocol, AFI: 1, SAFI: 1, Prefix: prefixTenNinetyNine, NextHop: addrTestNet1First, AdminDistance: 110, Metric: 10}
+	return rpc.RouteInstallEntry{Protocol: protocol, AFI: 1, SAFI: 1, Prefix: prefixTenNinetyNine, NextHop: addrTestNet1First, Metric: 10}
 }
 
 func routeRemove08() rpc.RouteRemoveEntry {

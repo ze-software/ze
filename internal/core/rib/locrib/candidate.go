@@ -77,10 +77,21 @@ type Path struct {
 	// with an unchanged next-hop set is a change the kernel must see.
 	Weight uint8
 
-	// AdminDistance is the protocol's trustworthiness rank. Classical
-	// Cisco/Juniper defaults: Connected=0, Static=1, eBGP=20, OSPF=110,
-	// RIP=120, iBGP=200. Lower wins across protocols.
+	// AdminDistance is the rank the Loc-RIB gave this path: lower wins across
+	// protocols. The RIB OWNS it. Every insert, and every Reselect after the
+	// declaration `rib { distance { } }` changes, overwrites it with
+	// resolvedDistance (distance.go), so a producer's value here is discarded.
+	// A producer states no protocol-wide distance; it reads this field only on a
+	// Path the RIB handed back (Best, Lookup, LPM, a Change).
 	AdminDistance uint8
+
+	// DistanceOverride is this one route's own distance, which wins over the
+	// distance declared for its protocol. It is meaningful only when
+	// HasDistanceOverride is set, because 0 is a real distance (the best one).
+	// The static plugin is the producer: a route that names `distance` in its
+	// config. Compared by Equal, so changing it re-programs the FIB.
+	DistanceOverride    uint8
+	HasDistanceOverride bool
 
 	// Metric is the per-protocol tiebreaker when AdminDistance ties. Lower
 	// wins. Semantics are protocol-defined (BGP MED, OSPF cost, hop count).
@@ -188,6 +199,8 @@ func (p Path) Equal(q Path) bool {
 		p.OnLink == q.OnLink &&
 		p.Weight == q.Weight &&
 		p.AdminDistance == q.AdminDistance &&
+		p.DistanceOverride == q.DistanceOverride &&
+		p.HasDistanceOverride == q.HasDistanceOverride &&
 		p.Metric == q.Metric &&
 		p.IsBGP == q.IsBGP &&
 		p.AIGP == q.AIGP &&

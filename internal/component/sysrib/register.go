@@ -59,17 +59,18 @@ func init() {
 }
 
 // publishDistances installs the resolved table on the shared seam
-// (internal/core/rib/distance) so the PRODUCERS stamp the operator's value.
+// (internal/core/rib/distance), where the Loc-RIB reads it each time it ranks.
 //
-// This is not a convenience. locrib.selectBest ranks paths on what the producer
-// stamped and runs BEFORE sysrib sees the route: sysrib consumes one
-// already-arbitrated best per prefix. A distance that reaches sysrib alone
-// therefore cannot change cross-protocol selection, however carefully it was
-// resolved. The seam is how the one declaration reaches the only layer that can
-// act on it.
+// This is not a convenience. locrib.selectBest ranks across protocols BEFORE
+// sysrib sees the route: sysrib consumes one already-arbitrated best per
+// prefix. A distance that reaches sysrib alone therefore cannot change
+// cross-protocol selection, however carefully it was resolved. The seam is how
+// the one declaration reaches the only layer that can act on it.
 //
 // Called from every site that assigns s.adminDist, the rollback included, so
-// the seam and the map cannot disagree.
+// the seam and the map cannot disagree. A caller that publishes a CHANGED table
+// MUST call reselectLocRIB after it releases s.mu, so the routes already in the
+// Loc-RIB are re-ranked.
 func publishDistances(dist map[string]int) {
 	distance.Set(func(protocol string) (uint8, bool) {
 		d, ok := dist[protocol]
@@ -78,6 +79,19 @@ func publishDistances(dist map[string]int) {
 		}
 		return uint8(d), true //nolint:gosec // bounded immediately above
 	})
+}
+
+// reselectLocRIB re-runs Loc-RIB best-path selection under the distances just
+// published, so a reload that changes `rib { distance { } }` re-ranks the routes
+// already installed rather than only the ones inserted after it. Every changed
+// winner reaches sysrib, and through it the FIB, as an ordinary Loc-RIB change.
+//
+// The caller MUST NOT hold s.mu: the Loc-RIB dispatches its changes to sysrib's
+// own subscription before Reselect returns.
+func reselectLocRIB() {
+	if loc := getLocRIB(); loc != nil {
+		loc.Reselect()
+	}
 }
 
 func verifySysRIBConfig(sections []sdk.ConfigSection) error {
@@ -234,6 +248,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 				s.adminDist = dist
 				publishDistances(dist)
 				s.mu.Unlock()
+				reselectLocRIB()
 
 				changes := s.reapplyAdminDistances()
 				for famName, ch := range changes {
@@ -258,6 +273,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 				s.adminDist = rollbackDist
 				publishDistances(rollbackDist)
 				s.mu.Unlock()
+				reselectLocRIB()
 
 				changes := s.reapplyAdminDistances()
 				for famName, ch := range changes {

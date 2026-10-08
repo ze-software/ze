@@ -44,7 +44,7 @@ func TestApplyRouteInstallRejectsUnknownProtocol(t *testing.T) {
 	rib := locrib.NewRIB()
 	in := rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{{
 		Protocol: "totally-unregistered-xyz", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-		Prefix: "10.7.0.0/24", NextHop: "192.0.2.9", AdminDistance: 110,
+		Prefix: "10.7.0.0/24", NextHop: "192.0.2.9", DistanceOverride: distanceOf(110),
 	}}}
 	keys, err := applyRouteInstall(rib, in)
 	if err == nil {
@@ -63,14 +63,14 @@ func TestApplyRouteInstallRejectsUnknownProtocol(t *testing.T) {
 func TestApplyRouteInstallInsertsPath(t *testing.T) {
 	rib := locrib.NewRIB()
 	in := rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{{
-		Protocol:      "test-proto-install",
-		AFI:           uint16(family.AFIIPv4),
-		SAFI:          uint8(family.SAFIUnicast),
-		Prefix:        "10.1.0.0/24",
-		Instance:      0,
-		NextHop:       "192.0.2.1",
-		AdminDistance: 110,
-		Metric:        42,
+		Protocol:         "test-proto-install",
+		AFI:              uint16(family.AFIIPv4),
+		SAFI:             uint8(family.SAFIUnicast),
+		Prefix:           "10.1.0.0/24",
+		Instance:         0,
+		NextHop:          "192.0.2.1",
+		DistanceOverride: distanceOf(110),
+		Metric:           42,
 	}}}
 	n, err := applyRouteInstall(rib, in)
 	if err != nil {
@@ -99,7 +99,7 @@ func TestApplyRouteInstallResolvesProtocolByName(t *testing.T) {
 	want := redistevents.RegisterProtocol(name) // this process's id for the name
 	in := rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{{
 		Protocol: name, AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-		Prefix: "10.2.0.0/24", NextHop: "192.0.2.2", AdminDistance: 110,
+		Prefix: "10.2.0.0/24", NextHop: "192.0.2.2", DistanceOverride: distanceOf(110),
 	}}}
 	if _, err := applyRouteInstall(rib, in); err != nil {
 		t.Fatalf("applyRouteInstall: %v", err)
@@ -123,7 +123,7 @@ func TestApplyRouteRemoveWithdrawsPath(t *testing.T) {
 	const name = "test-proto-remove"
 	install := rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{{
 		Protocol: name, AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-		Prefix: "10.3.0.0/24", NextHop: "192.0.2.3", AdminDistance: 110,
+		Prefix: "10.3.0.0/24", NextHop: "192.0.2.3", DistanceOverride: distanceOf(110),
 	}}}
 	if _, err := applyRouteInstall(rib, install); err != nil {
 		t.Fatalf("install: %v", err)
@@ -159,7 +159,7 @@ func TestApplyRouteInstallRejectsBadProtocolName(t *testing.T) {
 			rib := locrib.NewRIB()
 			in := rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{{
 				Protocol: name, AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-				Prefix: "10.4.0.0/24", NextHop: "192.0.2.4", AdminDistance: 110,
+				Prefix: "10.4.0.0/24", NextHop: "192.0.2.4", DistanceOverride: distanceOf(110),
 			}}}
 			n, err := applyRouteInstall(rib, in)
 			if err == nil {
@@ -181,9 +181,9 @@ func TestApplyRouteInstallBatchAtomicOnBadEntry(t *testing.T) {
 	rib := locrib.NewRIB()
 	in := rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{
 		{Protocol: "test-batch", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-			Prefix: "10.5.0.0/24", NextHop: "192.0.2.5", AdminDistance: 110},
+			Prefix: "10.5.0.0/24", NextHop: "192.0.2.5", DistanceOverride: distanceOf(110)},
 		{Protocol: "test-batch", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-			Prefix: "not-a-prefix", NextHop: "192.0.2.6", AdminDistance: 110},
+			Prefix: "not-a-prefix", NextHop: "192.0.2.6", DistanceOverride: distanceOf(110)},
 	}}
 	if _, err := applyRouteInstall(rib, in); err == nil {
 		t.Fatal("expected error for malformed prefix in batch")
@@ -200,9 +200,9 @@ func TestApplyRouteInstallECMP(t *testing.T) {
 	const name = "test-ecmp"
 	in := rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{
 		{Protocol: name, AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-			Prefix: "10.6.0.0/24", Instance: 0, NextHop: "192.0.2.7", AdminDistance: 110, Metric: 5},
+			Prefix: "10.6.0.0/24", Instance: 0, NextHop: "192.0.2.7", DistanceOverride: distanceOf(110), Metric: 5},
 		{Protocol: name, AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-			Prefix: "10.6.0.0/24", Instance: 1, NextHop: "192.0.2.8", AdminDistance: 110, Metric: 5},
+			Prefix: "10.6.0.0/24", Instance: 1, NextHop: "192.0.2.8", DistanceOverride: distanceOf(110), Metric: 5},
 	}}
 	if _, err := applyRouteInstall(rib, in); err != nil {
 		t.Fatalf("applyRouteInstall: %v", err)
@@ -225,7 +225,7 @@ func TestWithdrawPluginRoutesOnDisconnect(t *testing.T) {
 	rib := locrib.Default()
 	in := rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{{
 		Protocol: "test-disconnect", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-		Prefix: "198.51.100.0/24", NextHop: "192.0.2.20", AdminDistance: 110,
+		Prefix: "198.51.100.0/24", NextHop: "192.0.2.20", DistanceOverride: distanceOf(110),
 	}}}
 	keys, err := applyRouteInstall(rib, in)
 	if err != nil {

@@ -11,23 +11,11 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
-	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 	staticevents "github.com/ze-software/ze/internal/plugins/static/events"
 )
-
-// DefaultAdminDistance is the classical static administrative distance, and the
-// value ze-rib-conf.yang declares as the default of `rib { distance { static } }`.
-// It is reachable only before sysrib publishes the declaration, which sysrib does
-// at process start from that same schema, so a running daemon stamps the
-// operator's value.
-//
-// Exported and named for the bootstrap-distance gate, which pairs every seam
-// reader's constant with the YANG leaf it stands in for
-// (internal/component/sysrib/distance_bootstrap_test.go).
-const DefaultAdminDistance uint8 = 10
 
 // routeSink receives Loc-RIB install and remove operations when the plugin holds
 // no local Loc-RIB, which is a forked subprocess: locrib.Default() answers nil
@@ -155,10 +143,12 @@ func staticPath(r staticRoute) (locrib.Path, error) {
 		Source:   staticevents.ProtocolID,
 		Instance: pathInstance,
 		Metric:   r.Metric,
-		// The seam carries `rib { distance { static } }` from sysrib, which is
-		// the one declaration. Read at insert so a reload takes effect on the
-		// next apply rather than at the next restart.
-		AdminDistance: ribdistance.OrDefault("static", DefaultAdminDistance),
+		// No protocol-wide distance: the Loc-RIB looks up
+		// `rib { distance { static } }` itself when it ranks, and re-ranks on a
+		// reload that changes it. Only the route's own `distance` leaf rides on
+		// the Path, because it is a fact about this route rather than about static.
+		DistanceOverride:    r.Distance,
+		HasDistanceOverride: r.HasDistance,
 	}
 
 	switch r.Action {

@@ -50,16 +50,16 @@ func TestBGPProtocolTypeFromPath(t *testing.T) {
 }
 
 // TestSysRIBReplayClassifiesOverriddenAdminDistance exercises the full replay
-// path (changeToBatch -> bgpProtocolTypeFromPath -> processEvent ->
-// effectivePriority), the end-to-end behavior the unit test above isolates.
+// path (changeToBatch -> bgpProtocolTypeFromPath -> processEvent), the
+// end-to-end behavior the unit test above isolates.
 //
-// VALIDATES: a startup-replayed eBGP best whose admin distance was overridden
-// away from the default 20 is still classified eBGP, so a sysrib-level "ebgp"
-// distance override applies to it.
+// VALIDATES: a startup-replayed eBGP best whose admin distance is away from the
+// default 20 is still classified eBGP, and keeps the distance the Loc-RIB
+// ranked it at, because the Loc-RIB owns distance and re-ranks on every reload.
 // PREVENTS: the regression where the replay path derived the class from the
-// (operator-overridable) AdminDistance: a distance of 40 was neither 20 nor 200,
-// so the route fell back to the generic "bgp" type and missed the per-type
-// override, disagreeing with the live event-bus classification.
+// AdminDistance: a distance of 40 was neither 20 nor 200, so the route fell back
+// to the generic "bgp" type; and sysrib replacing the Loc-RIB's rank with a
+// table lookup, which would erase a static route's own override.
 func TestSysRIBReplayClassifiesOverriddenAdminDistance(t *testing.T) {
 	redistevents.ResetForTest()
 	bgpID := redistevents.RegisterProtocol("bgp")
@@ -88,6 +88,8 @@ func TestSysRIBReplayClassifiesOverriddenAdminDistance(t *testing.T) {
 	s.mu.RUnlock()
 
 	require.NotNil(t, route)
-	assert.Equal(t, 30, route.priority,
-		"overridden-distance eBGP replay must still receive the ebgp distance override")
+	assert.Equal(t, "ebgp", route.protocolType,
+		"a replayed eBGP best must be classified ebgp whatever its distance")
+	assert.Equal(t, 40, route.priority,
+		"a Loc-RIB change keeps the distance the Loc-RIB ranked it at")
 }

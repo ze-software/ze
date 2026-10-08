@@ -71,8 +71,9 @@ func TestSinkInsertForwardMarshalsEntry(t *testing.T) {
 			{Addr: netip.MustParseAddr("192.0.2.10"), Interface: "eth10", OnLink: true, Weight: 2},
 			{Addr: netip.MustParseAddr("192.0.2.11"), Interface: "eth11", Weight: 1},
 		},
-		AdminDistance: 110,
-		Metric:        7,
+		DistanceOverride:    110,
+		HasDistanceOverride: true,
+		Metric:              7,
 	})
 	sink.Flush()
 	if len(cc.installed) != 1 {
@@ -107,8 +108,11 @@ func TestSinkInsertForwardMarshalsEntry(t *testing.T) {
 	if e.Prefix != "10.9.0.0/24" || e.NextHop != "192.0.2.9" {
 		t.Errorf("prefix/next-hop = %q/%q", e.Prefix, e.NextHop)
 	}
-	if e.Instance != 2 || e.AdminDistance != 110 || e.Metric != 7 {
-		t.Errorf("instance/admin/metric = %d/%d/%d, want 2/110/7", e.Instance, e.AdminDistance, e.Metric)
+	if e.DistanceOverride == nil || *e.DistanceOverride != 110 {
+		t.Errorf("distance override = %v, want the route's own 110", e.DistanceOverride)
+	}
+	if e.Instance != 2 || e.Metric != 7 {
+		t.Errorf("instance/metric = %d/%d, want 2/7", e.Instance, e.Metric)
 	}
 }
 

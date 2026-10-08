@@ -1,5 +1,5 @@
-// VALIDATES: the engine re-stamps a forked plugin's administrative distance from
-// the declaration, taking the wire value as the fallback (AC-17, A-5); and the
+// VALIDATES: a forked plugin's route ranks at the declared distance of its
+// protocol, or at its own override when it carries one (AC-17, A-5); and the
 // route-install entry carries the forwarding action and the equal-cost next-hop
 // set, each with its device and share (A-8).
 // PREVENTS: `rib { distance { <protocol> N } }` staying inert for every FORKED
@@ -40,6 +40,9 @@ func declareDistance(t *testing.T, protocol string, d uint8) {
 	t.Cleanup(func() { ribdistance.Set(nil) })
 }
 
+// distanceOf returns a route's own distance for the wire.
+func distanceOf(d uint8) *uint8 { return new(d) }
+
 func installOne(t *testing.T, rib *locrib.RIB, entry rpc.RouteInstallEntry) locrib.Path {
 	t.Helper()
 	if _, err := applyRouteInstall(rib, rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{entry}}); err != nil {
@@ -52,34 +55,41 @@ func installOne(t *testing.T, rib *locrib.RIB, entry rpc.RouteInstallEntry) locr
 	return group.Paths[group.Best]
 }
 
-// TestForkedProducerDistanceIsRestampedByTheEngine is AC-17. A forked producer
-// never sees the declaration, so it ships its own bootstrap value; the engine is
-// where the declaration lives and where the Path is rebuilt, so that is where the
-// operator's number is applied.
-func TestForkedProducerDistanceIsRestampedByTheEngine(t *testing.T) {
+// TestForkedRouteRanksAtTheDeclaredDistance is AC-17. A forked producer never
+// sees the declaration and sends no distance; the engine's Loc-RIB ranks the
+// route at the distance declared for its protocol all the same.
+func TestForkedRouteRanksAtTheDeclaredDistance(t *testing.T) {
 	declareDistance(t, "test-restamp", 5)
 	path := installOne(t, locrib.NewRIB(), rpc.RouteInstallEntry{
 		Protocol: "test-restamp", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
 		Prefix: "10.90.0.0/24", NextHop: "192.0.2.1",
-		// The bootstrap value the forked producer stamped, having no declaration.
-		AdminDistance: 110,
 	})
 	if path.AdminDistance != 5 {
-		t.Errorf("AdminDistance = %d, want the declared 5, not the producer's bootstrap 110", path.AdminDistance)
+		t.Errorf("AdminDistance = %d, want the declared 5", path.AdminDistance)
 	}
 }
 
-// TestForkedProducerKeepsItsOwnDistanceWhenUndeclared is R-8: a protocol the
-// declaration does not name keeps what its producer chose, so the re-stamp never
-// overwrites a value nobody declared.
-func TestForkedProducerKeepsItsOwnDistanceWhenUndeclared(t *testing.T) {
-	declareDistance(t, "some-other-protocol", 5)
+// TestForkedRouteKeepsItsOwnOverride is R-8 under RIB-owned distance: a route
+// that carries its own distance across the wire ranks at it, whatever its
+// protocol declares, and a route with neither an override nor a declared
+// protocol ranks last rather than at zero.
+func TestForkedRouteKeepsItsOwnOverride(t *testing.T) {
+	declareDistance(t, "test-restamp", 5)
 	path := installOne(t, locrib.NewRIB(), rpc.RouteInstallEntry{
 		Protocol: "test-restamp", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-		Prefix: "10.91.0.0/24", NextHop: "192.0.2.1", AdminDistance: 110,
+		Prefix: "10.91.0.0/24", NextHop: "192.0.2.1", DistanceOverride: distanceOf(110),
 	})
 	if path.AdminDistance != 110 {
-		t.Errorf("AdminDistance = %d, want the wire value 110 for a protocol the declaration does not name", path.AdminDistance)
+		t.Errorf("AdminDistance = %d, want the route's own 110 over the declared 5", path.AdminDistance)
+	}
+
+	declareDistance(t, "some-other-protocol", 5)
+	path = installOne(t, locrib.NewRIB(), rpc.RouteInstallEntry{
+		Protocol: "test-restamp", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
+		Prefix: "10.91.0.0/24", NextHop: "192.0.2.1",
+	})
+	if path.AdminDistance != locrib.UndeclaredDistance {
+		t.Errorf("AdminDistance = %d, want UndeclaredDistance for an undeclared protocol", path.AdminDistance)
 	}
 }
 
@@ -89,7 +99,7 @@ func TestRouteInstallEntryCarriesRouteTypeAndECMP(t *testing.T) {
 	path := installOne(t, locrib.NewRIB(), rpc.RouteInstallEntry{
 		Protocol: "test-restamp", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
 		Prefix: "10.92.0.0/24", NextHop: "192.0.2.1", Interface: "tun100", OnLink: true, Weight: 3,
-		RouteType: uint8(routetype.Blackhole), AdminDistance: 10,
+		RouteType: uint8(routetype.Blackhole),
 		ECMP: []rpc.RouteNextHop{
 			{NextHop: "192.0.2.2", Interface: "tun100", OnLink: true, Weight: 1},
 			{Interface: "tun101", Weight: 2},
@@ -126,7 +136,7 @@ func TestRouteInstallRejectsAnEmptyECMPMember(t *testing.T) {
 	rib := locrib.NewRIB()
 	_, err := applyRouteInstall(rib, rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{{
 		Protocol: "test-restamp", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-		Prefix: "10.93.0.0/24", NextHop: "192.0.2.1", AdminDistance: 10,
+		Prefix: "10.93.0.0/24", NextHop: "192.0.2.1",
 		ECMP: []rpc.RouteNextHop{{Weight: 1}},
 	}}})
 	if err == nil {
@@ -191,8 +201,8 @@ func TestRouteInstallRPCSelectsConfiguredBGPDistance(t *testing.T) {
 			defer cancel()
 			const prefix = "198.19.248.0/24"
 			routes := []rpc.RouteInstallEntry{
-				{Protocol: "static", AFI: 1, SAFI: 1, Prefix: prefix, AdminDistance: 1},
-				{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: prefix, IsBGP: true, IsEBGP: true, AdminDistance: 20},
+				{Protocol: "static", AFI: 1, SAFI: 1, Prefix: prefix},
+				{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: prefix, IsBGP: true, IsEBGP: true},
 			}
 			t.Cleanup(func() {
 				cleanup, done := context.WithTimeout(context.Background(), 5*time.Second)
@@ -219,7 +229,6 @@ func TestRouteInstallRPCSelectsConfiguredBGPDistance(t *testing.T) {
 			}
 			assertBest(static)
 			routes[1].IsEBGP = false
-			routes[1].AdminDistance = 200
 			if _, err := client.RouteInstall(ctx, routes[1:]); err != nil {
 				t.Fatal(err)
 			}

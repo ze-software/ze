@@ -151,9 +151,12 @@ type protocolRoute struct {
 	nextHopOnLink    bool   // protocol-established adjacency, never recursively replaced
 	priority         int    // effective admin distance (lower wins)
 	incomingPriority int    // original priority from protocol RIB (before override)
-	metric           uint32
-	labels           []uint32   // MPLS label stack (nil for unlabeled routes)
-	srv6SID          netip.Addr // SRv6 SID from PrefixSID attribute (zero if absent)
+	// rankedByLocRIB marks a route whose priority the Loc-RIB resolved. Its
+	// distance is never looked up here, because the Loc-RIB owns it.
+	rankedByLocRIB bool
+	metric         uint32
+	labels         []uint32   // MPLS label stack (nil for unlabeled routes)
+	srv6SID        netip.Addr // SRv6 SID from PrefixSID attribute (zero if absent)
 
 	// routeType is the forwarding action the FIB programs: an ordinary next-hop,
 	// or a discard. Unset means the protocol has no opinion and the FIB installs
@@ -505,7 +508,14 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 			if c.ProtocolType == routeaction.ProtocolUnspecified {
 				protoType = proto
 			}
-			priority := s.effectivePriority(protoType, c.Priority)
+			// A Loc-RIB change arrives already ranked: its Priority is the
+			// distance the Loc-RIB resolved, a static route's own override
+			// included, and the Loc-RIB re-ranks on every reload. Only the
+			// event-bus rail, whose producers rank nothing, is looked up here.
+			priority := c.Priority
+			if !batch.FromLocRIB {
+				priority = s.effectivePriority(protoType, c.Priority)
+			}
 
 			// Loc-RIB vs event-bus storage (see the gated store after this literal).
 			// A unified Loc-RIB has already arbitrated across every source and emits
@@ -528,6 +538,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				nextHopOnLink:    c.OnLink,
 				priority:         priority,
 				incomingPriority: c.Priority,
+				rankedByLocRIB:   batch.FromLocRIB,
 				metric:           c.Metric,
 				labels:           c.Labels,
 				srv6SID:          c.SRv6SID,
@@ -591,6 +602,12 @@ func (s *sysRIB) reapplyAdminDistances() map[family.Family][]outgoingChange {
 	// Recalculate effective priority for every stored route.
 	for _, protocols := range s.routes {
 		for _, route := range protocols {
+			if route.rankedByLocRIB {
+				// The Loc-RIB re-ranked it (reselectLocRIB) and sent the new
+				// distance as an ordinary change; a table lookup here would
+				// replace a static route's own override with the protocol's.
+				continue
+			}
 			route.priority = s.effectivePriority(route.protocolType, route.incomingPriority)
 		}
 	}

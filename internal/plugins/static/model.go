@@ -38,6 +38,11 @@ type staticRoute struct {
 	Description string
 	Metric      uint32
 	Tag         uint32
+	// Distance is this route's own administrative distance, which wins over
+	// `rib { distance { static } }` for this route alone. It is meaningful only
+	// when HasDistance is set: 0 is a real distance, the best one.
+	Distance    uint8
+	HasDistance bool
 	Action      actionType
 	NextHops    []nextHop
 }

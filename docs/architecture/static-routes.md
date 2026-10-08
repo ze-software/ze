@@ -31,10 +31,14 @@ remains valid.
 ## A main-table route reaches the FIB through the Loc-RIB
 
 `applyProgrammed` sends a main-table route to `insertPathLocked`, which builds one
-`locrib.Path` and inserts it. `selectBest` then ranks that path against BGP, OSPF
-and IS-IS on the administrative distance the path carries, and `rib { distance {
-static N } }` is where that number comes from. The FIB plugin programs the winner
-as `RTPROT_ZE` (250).
+`locrib.Path` and inserts it. The path carries no protocol-wide distance: the
+Loc-RIB ranks it against BGP, OSPF and IS-IS at the distance
+`rib { distance { static N } }` declares, looked up when it ranks, and re-ranks
+it when a reload changes that number. A route's own `distance` leaf travels on
+the path as `DistanceOverride` and wins for that route alone. The FIB plugin
+programs the winner as `RTPROT_ZE` (250).
+<!-- source: internal/plugins/static/locrib.go -- staticPath -->
+<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, Reselect -->
 
 Direct FIB programming was the first design and it was reversed. Its two reasons
 had both expired. The first was that the pipeline had no concept of an ECMP group
@@ -51,10 +55,13 @@ same entry whenever their metrics agreed, which they do by default. Which one
 forwarded was decided by write order. One writer per prefix is what makes the
 declared distance mean anything.
 
-The kernel side is read back by four functional tests in `test/static/`.
+The kernel side is read back by five functional tests in `test/static/`.
 `static-kernel-distance-static-wins.ci` and `static-kernel-distance-bgp-wins.ci`
 declare opposite distances for one contested prefix and each expect exactly one
 kernel entry, `proto 250`, via the winner's next-hop.
+`static-kernel-distance-reload.ci` starts at `static 5`, reloads to `static 250`
+with no other change, and expects the kernel entry to move to the BGP next-hop
+with one entry left, because the Loc-RIB re-ranks the installed route.
 `static-kernel-weighted-multipath.ci` expects the configured weights on the
 kernel's multipath hops, and `static-kernel-interface-nexthop.ci` expects an
 interface-only route to leave by that device with no gateway. A reload that
