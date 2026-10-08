@@ -37,6 +37,26 @@ func skipWithoutMPLSIPMTU(t *testing.T) {
 	}
 }
 
+// requireMPLSIPMTU is a safety precondition, not a coverage choice: it runs a
+// case only when the probe answers "present". The cases behind it inject IPv4
+// with DF clear into a push whose path MTU leaves less than one 8-byte fragment
+// quantum after the label headroom. A stock kernel (6.8 on the shared host)
+// lacks the patch's ip_do_fragment floor, so its fragmentation loop rounds every
+// fragment's payload to zero, never shortens what is left, and spins in the
+// injecting thread's softirq until the host reboots. "Unknown" cannot rule that
+// kernel out, so it skips too. The QEMU guest's patched kernel answers
+// "present" and runs every case. MUST be called after enableNetnsMPLS, in the
+// test namespace, for the same reason as skipWithoutMPLSIPMTU.
+func requireMPLSIPMTU(t *testing.T) {
+	t.Helper()
+	probe := kernelcap.MPLSIPMTU()
+	if probe.State != kernelcap.StatePresent {
+		t.Skipf("refusing to run: kernel transit MTU probe answered %v (%v), not present; "+
+			"without CONFIG_MPLS_IP_MTU a sub-quantum fragment budget livelocks the kernel",
+			probe.State, probe.Reason)
+	}
+}
+
 // TestMPLSIntegration_PathMTU exercises RFC 3209 Section 2.6 through the native
 // forwarding owner's acknowledged installation. PathMTU is deliberately different
 // from the device MTU. Transit retains label 900 while replacing 100 with two
@@ -159,8 +179,9 @@ func TestMPLSIntegration_FragmentProgress(t *testing.T) {
 				enableNetnsMPLS(t)
 				// The fragment progress these cases prove is the patch's. On the
 				// stock 6.8 kernel rounded-zero-payload left the injecting thread
-				// spinning in the kernel, unkillable, until the host reboots.
-				skipWithoutMPLSIPMTU(t)
+				// spinning in the kernel, unkillable, until the host reboots, and
+				// IPv4-options reaches the same zero quantum: run only on "present".
+				requireMPLSIPMTU(t)
 				bed := newMPLSTestbed(t, h)
 				link, err := h.LinkByName(mplsZeLink)
 				require.NoError(t, err)

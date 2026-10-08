@@ -162,6 +162,20 @@ warning when enforcement is lost. `ze doctor` reports the same probe as the
 refuse a start. Ze's appliance kernel carries the patch and keeps full
 enforcement.
 
+A push metric is also a hazard on a stock kernel. A forwarded IPv4 packet on a
+push route is bounded by `ip_dst_mtu_maybe_forward`: `RTAX_MTU` minus the
+lwtunnel label headroom. With path MTU 68 and eleven labels that leaves 24
+bytes, so a 68-byte DF-clear datagram enters `ip_do_fragment` with four bytes of
+data space after its 20-byte header. `ip_frag_next` caps each fragment at four
+bytes and, because that is less than what remains, rounds it down to a multiple
+of eight: zero. The remaining length never shrinks, and the loop sends empty
+fragments through `mpls_xmit` forever, in the softirq that the sending thread
+runs. That thread never returns to user space to take a signal, and the host
+needs a reboot. Upstream has no floor there through 7.2; the patch adds the
+`EMSGSIZE` check described above. Ze installs a peer's path MTU on a push with
+no floor of its own, which is an open defect
+(`plan/journal/kernel-refuses-what-the-installer-sends.md`).
+
 <!-- source: internal/component/kernelcap/probe_linux.go -- MPLSIPMTU, classifyMPLSIPMTU -->
 <!-- source: internal/plugins/fib/kernel/mplsentry_linux.go -- transitRouteMTU, askTransitMTU -->
 <!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- transitMTUCapability -->
@@ -180,6 +194,11 @@ source-address policy over a conflicting preferred source.
 budgets with a forwarded marker on the same veth queue, covering rounding to
 zero, physical-link underflow and the maximum IPv4 option header.
 The carrier must run inside a guest booted with the rebuilt runtime kernel.
+Rounding to zero and the option header livelock a stock kernel as described
+above, so this test runs only when `kernelcap.MPLSIPMTU` answers "present", and
+skips on "absent" or "unknown" with the answer in the skip message. The other
+patch-only cases skip only on "absent": they fragment at budgets of 1280 bytes
+and above, which always leave a whole fragment quantum.
 A capability skip leaves the behaviour unverified.
 `TestMPLSIntegration_TransitPathMTUFollowsTheProbe` runs on any kernel: it
 installs a transit swap and pop carrying a path MTU, requires the probe to
