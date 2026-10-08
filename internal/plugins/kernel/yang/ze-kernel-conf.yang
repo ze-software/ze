@@ -21,6 +21,5 @@ module ze-kernel-conf {
                      redirect route never reach BGP. The plugin registers the kernel route
                      source, and a redistribute statement names that source.";
         ze:help "Kernel route redistribution. Presence enables the plugin.";
-        ze:config-root "kernel";
     }
 }

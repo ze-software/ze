@@ -23,7 +23,6 @@ module ze-bgp-ls-export-conf {
              last accepted database. This feature requires the in-process
              engine event bus; it does not originate from a forked plugin.";
         ze:help "Export native routing state through BGP-LS.";
-        ze:config-root "bgp-ls-export";
         list domain {
             key "name";
             max-elements 65536;

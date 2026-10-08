@@ -496,7 +496,6 @@ section 3.4). An unset leaf advertises no TLV.";
 defines. The address-family container adds the OSPFv3 families of RFC 5340, and each one
 runs as a separate engine instance.";
         ze:help "OSPFv2 routing instance configuration.";
-        ze:config-root "ospf";
 
         // RFC 2328 Appendix C.1: Router ID is a 32-bit AS-unique identifier.
         // When unset, Ze derives it from the highest loopback IPv4 address, then

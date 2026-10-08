@@ -22,6 +22,5 @@ module ze-connected-conf {
                      registers the connected route source, and a redistribute statement names
                      that source.";
         ze:help "Connected route redistribution. Presence enables the plugin.";
-        ze:config-root "connected";
     }
 }

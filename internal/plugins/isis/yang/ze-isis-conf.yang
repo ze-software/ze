@@ -14,7 +14,6 @@ module ze-isis-conf {
             the engine to run. A commit with no net is accepted, and the engine then stays idle, opens no circuit and
             originates no LSP.";
         ze:help "IS-IS routing instance configuration.";
-        ze:config-root "isis";
 
         // ISO/IEC 10589 section 6.2: a NET is an Area Address (1..13 octets) +
         // the 6-octet System ID + a 1-octet NSEL of 0x00 for an IS. At least one

@@ -14,7 +14,6 @@ module ze-bgp-epe-conf {
 
     container bgp-epe {
         presence "Enable native BGP EPE segments.";
-        ze:config-root "bgp-epe";
         ze:help "Instantiate BGP Egress Peer Engineering segments.";
         description
             "The internal bgp-epe plugin consumes state events from attached
