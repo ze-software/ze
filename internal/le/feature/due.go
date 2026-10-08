@@ -2,10 +2,14 @@
 // Related: runrecord.go -- the age bound a due run is measured against
 // Related: recordrun.go -- the writer each due feature is run through
 //
-// A recorded run counts for runAgeDaysMax days. No workflow can write a record
-// back to the repository (.github/workflows/evidence-nightly.yml holds
-// `contents: read` and commits nothing), so a maintainer re-records the runs
-// that are about to age out, before a release, with `record-run due <days>`.
+// A recorded run is current for runAgeDaysMax days. A stale run never lowers a
+// Supported level HEAD holds (held.go), but it is named: `./le feature report`
+// lists it as a warning, and `./le site build` names every supported feature
+// carrying one before it publishes, re-recording them first when given
+// `refresh` (StaleSupported, RefreshStale). No workflow can write a record back
+// to the repository (.github/workflows/evidence-nightly.yml holds
+// `contents: read` and commits nothing), so the refresh runs on a maintainer's
+// machine, through the site build or `record-run due <days>`.
 
 package feature
 
@@ -54,7 +58,7 @@ func recordDue(tree string, days int, today time.Time, record func(id string) er
 	}
 	if days > runAgeDaysMax {
 		return nil, errors.New("record-run due " + strconv.Itoa(days) + ": a run older than " +
-			strconv.Itoa(runAgeDaysMax) + " days already stopped counting, so a bound above " +
+			strconv.Itoa(runAgeDaysMax) + " days is already stale, so a bound above " +
 			strconv.Itoa(runAgeDaysMax) + " would skip it")
 	}
 	declarations, problems, err := Load(tree)
@@ -103,4 +107,66 @@ func (r RunRecord) oldestDate() (string, bool) {
 		}
 	}
 	return oldest, oldest != ""
+}
+
+// StaleFeature is one feature HEAD holds at Supported that carries a stale
+// recorded run. Stale holds the check's warnings, one per stale run, each
+// naming why it is stale.
+type StaleFeature struct {
+	Feature string   `json:"feature"`
+	Stale   []string `json:"stale"`
+	// Refreshed is true when RefreshStale re-recorded every run of the
+	// feature; Refusal is why it did not. Both are empty before a refresh.
+	Refreshed bool   `json:"refreshed,omitempty"`
+	Refusal   string `json:"refusal,omitempty"`
+}
+
+// StaleSupported answers every feature HEAD holds at Supported whose recorded
+// runs include a stale one, judged today. A declaration the parser refuses is
+// an error: the answer would otherwise omit it in silence.
+func StaleSupported(tree string) ([]StaleFeature, error) {
+	return staleSupportedOn(tree, calendarDay(time.Now()))
+}
+
+func staleSupportedOn(tree string, today time.Time) ([]StaleFeature, error) {
+	verdicts, problems, err := checkOn(tree, today)
+	if err != nil {
+		return nil, err
+	}
+	if len(problems) > 0 {
+		return nil, errors.Join(problems...)
+	}
+	stale := []StaleFeature{}
+	for i := range verdicts {
+		if len(verdicts[i].Warnings) == 0 {
+			continue
+		}
+		stale = append(stale, StaleFeature{Feature: verdicts[i].Declaration.ID, Stale: verdicts[i].Warnings})
+	}
+	return stale, nil
+}
+
+// RefreshStale re-records, through RecordRun, every feature stale names, and
+// answers each with whether it recorded. One refused feature does not stop the
+// others. A refused refresh leaves the run stale and the level standing.
+func RefreshStale(tree string, stale []StaleFeature) []StaleFeature {
+	return refreshStale(stale, func(id string) error {
+		_, err := RecordRun(tree, id)
+		return err
+	})
+}
+
+// refreshStale is RefreshStale with record as the writer, so a test drives it
+// without a toolchain.
+func refreshStale(stale []StaleFeature, record func(id string) error) []StaleFeature {
+	refreshed := make([]StaleFeature, 0, len(stale))
+	for _, feature := range stale {
+		feature.Refreshed = true
+		if err := record(feature.Feature); err != nil {
+			feature.Refreshed = false
+			feature.Refusal = err.Error()
+		}
+		refreshed = append(refreshed, feature)
+	}
+	return refreshed
 }

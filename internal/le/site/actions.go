@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/feature"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	reporewrite "github.com/ze-software/ze/internal/le/repo/rewrite"
@@ -19,9 +20,13 @@ const area = "site"
 // of them do, so it is named once.
 const valueDirectory = "directory"
 
+// keywordRefresh asks `site build` to re-record every supported feature
+// published on a stale run before it builds (freshness.go).
+const keywordRefresh = "refresh"
+
 var actions = leaction.New(area,
 	leaction.Action{Verb: "build", Why: "stage website sources and refresh the Pages artifact with native renderers", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory, Requirement: leaction.Optional}, {Keyword: "partial"}}, AnswerArgs: runBuild},
+		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory, Requirement: leaction.Optional}, {Keyword: "partial"}, {Keyword: keywordRefresh}}, AnswerArgs: runBuild},
 	leaction.Action{Verb: "check", Why: "verify that the Pages artifact contains no source-only website inputs",
 		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory, Requirement: leaction.Optional}}, AnswerArgs: runCheck},
 	leaction.Action{Verb: "bundle", Why: "turn one presentation deck into a self-contained HTML file", Writes: true,
@@ -52,11 +57,21 @@ func runBuild(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	// The warning, and a refresh when asked, come before the build publishes.
+	stale, refreshed, err := freshness(os.Stderr, arguments.Has(keywordRefresh),
+		func() ([]feature.StaleFeature, error) { return feature.StaleSupported(root) },
+		func(due []feature.StaleFeature) []feature.StaleFeature { return feature.RefreshStale(root, due) })
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
 	report, err := Build(BuildOptions{Repository: root, Output: arguments.One(keywordOutput), Partial: arguments.Has("partial")})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	report.StaleSupported = stale
+	report.Refreshed = refreshed
 	return report, 0
 }
 

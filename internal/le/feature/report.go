@@ -26,6 +26,9 @@ type ReportEntry struct {
 	Promotion bool     `json:"promotion-candidate"`
 	Refusals  []string `json:"refusals,omitempty"`
 	Bounds    []string `json:"bounds,omitempty"`
+	// Warnings name the stale recorded runs of a Supported level HEAD holds:
+	// the level stands, and the runs want re-recording.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // CheckReport is the answer of `./le feature check`.
@@ -40,6 +43,7 @@ func entryOf(verdict *Verdict) ReportEntry {
 	entry := ReportEntry{
 		ID: d.ID, Name: d.Name, Kind: d.Kind.String(), Scope: d.Scope.String(),
 		Status: StatusLabel(d.Scope, d.Level), Refusals: verdict.Refusals, Bounds: verdict.Bounds,
+		Warnings: verdict.Warnings,
 	}
 	if !d.Scope.Implemented() {
 		return entry

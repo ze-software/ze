@@ -43,6 +43,15 @@ options.
 `../gh-pages`, so a session verifying its own work builds into its scratch
 directory and checks there rather than writing over the published tree.
 
+Before it builds, `./le site build` warns on stderr, and lists under
+`stale-supported` in its report, every feature held at Supported whose recorded
+test or interop run is stale. The level stands and the page is unchanged; the
+warning says the evidence wants re-recording. `./le site build refresh`
+re-records those features through `./le feature record-run` first, which runs
+real tests and can need Docker or a QEMU guest, so it is never the default and
+never a prompt. The rule is `feature-maturity.md`, "Recorded runs".
+<!-- source: internal/le/site/freshness.go -- freshness -->
+
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
 ## Rendering tests

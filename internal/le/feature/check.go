@@ -41,6 +41,9 @@ type Verdict struct {
 	Refusals []string
 	// Bounds name what the ceiling does not cover (D-3: an unenrolled stem).
 	Bounds []string
+	// Warnings name the stale recorded runs of a Supported level HEAD already
+	// holds: listed, never refused, and never a lowered ceiling (held.go).
+	Warnings []string
 }
 
 // evidence is everything outside the declarations the check reads, loaded once
@@ -56,6 +59,8 @@ type evidence struct {
 	// not list them.
 	scenarios     map[string]map[string]string
 	catalogErrors map[string]string
+	// held caches, per declaration id, whether HEAD holds it at Supported.
+	held map[string]bool
 }
 
 // Check judges every declaration of the tree. The error is for a tree that
@@ -89,7 +94,7 @@ func checkOn(tree string, today time.Time) ([]Verdict, []error, error) {
 		return nil, nil, err
 	}
 	in := &evidence{tree: tree, rfc: collected, immediate: immediate, journal: rows, dates: dates,
-		scenarios: map[string]map[string]string{}, catalogErrors: map[string]string{}}
+		scenarios: map[string]map[string]string{}, catalogErrors: map[string]string{}, held: map[string]bool{}}
 	byID := make(map[string]*Declaration, len(declarations))
 	for i := range declarations {
 		byID[declarations[i].ID] = &declarations[i]
@@ -277,8 +282,9 @@ func declaresFunction(file, function string) bool {
 }
 
 // criterionRealPath is S1 with D-6: Supported needs at least one real-path
-// test, and every listed one needs a recorded green run of its present content
-// no older than runAgeDaysMax days.
+// test, and every listed one needs a recorded green run. A promotion needs that
+// run current (its present content, no older than runAgeDaysMax days); a
+// Supported level HEAD already holds keeps a stale one as a warning (held.go).
 func (in *evidence) criterionRealPath(d *Declaration, verdict *Verdict) {
 	if len(d.RealPathTests) == 0 {
 		verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S1: no real-path test is listed")
@@ -296,9 +302,14 @@ func (in *evidence) criterionRealPath(d *Declaration, verdict *Verdict) {
 			continue // checkPaths already refused a missing file.
 		}
 		answer := record.stateOf(item, blob, in.dates.today)
-		if problem := answer.problem(item, "test", runRecordRel(d.ID)); problem != "" {
-			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S1: "+problem)
+		problem := answer.problem(item, "test", runRecordRel(d.ID))
+		if problem == "" {
+			continue
 		}
+		if in.warnStale(d, verdict, answer, "S1: "+problem) {
+			continue
+		}
+		verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S1: "+problem)
 	}
 }
 

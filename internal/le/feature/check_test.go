@@ -242,7 +242,9 @@ func TestCheckRefusesSupportedWithImmediateSpec(t *testing.T) {
 }
 
 // TestCheckRefusesSupportedWithoutGreenRun is owner decision D-6: a test that
-// exists and was never run, or changed since its run, never reaches Supported.
+// exists and was never run never reaches Supported, held or not, and one that
+// changed since its run is never promoted to it (owner decision 2026-10-08: a
+// Supported level HEAD holds is only warned, TestCheckKeepsAHeldSupportedLevelOverAChangedRun).
 func TestCheckRefusesSupportedWithoutGreenRun(t *testing.T) {
 	tree := fixtureTree(t, same)
 	if err := os.Remove(filepath.Join(tree, runRecordRel("widget"))); err != nil {
@@ -251,7 +253,7 @@ func TestCheckRefusesSupportedWithoutGreenRun(t *testing.T) {
 	verdict := judgeOne(t, tree)
 	requireRefused(t, &verdict, "test/plugin/widget.ci exists, not run")
 
-	tree = fixtureTree(t, same)
+	tree = promotedFixture(t, same, fixtureToday)
 	writeFile(t, tree, "test/plugin/widget.ci", "cmd=foreground:seq=1:exec=ze changed\n")
 	verdict = judgeOne(t, tree)
 	requireRefused(t, &verdict, "test/plugin/widget.ci stale: test changed since its recorded green run")
@@ -390,12 +392,14 @@ func TestCheckRefusesInteropWithoutCurrentRun(t *testing.T) {
 	verdict = judgeOne(t, tree)
 	requireRefused(t, &verdict, "S2: "+fixtureScenario+" exists, not run")
 
-	tree = fixtureTree(t, protocolWith(fixtureScenario))
+	// A changed scenario refuses a promotion; a Supported level HEAD holds is
+	// only warned (TestCheckKeepsAHeldSupportedLevelOverAChangedRun).
+	tree = promotedFixture(t, protocolWith(fixtureScenario), fixtureToday)
 	writeFile(t, tree, fixtureScenarioDir+"/README", "an edited scenario directory\n")
 	verdict = judgeOne(t, tree)
 	requireRefused(t, &verdict, "S2: "+fixtureScenario+" stale: scenario changed since its recorded green run")
 
-	tree = fixtureTree(t, protocolWith(fixtureScenario))
+	tree = promotedFixture(t, protocolWith(fixtureScenario), fixtureToday)
 	writeFile(t, tree, fixtureScenarioDir+"/frr.conf", "an untracked file the runner would read\n")
 	verdict = judgeOne(t, tree)
 	requireRefused(t, &verdict, "S2: "+fixtureScenario+" stale: scenario changed since its recorded green run")

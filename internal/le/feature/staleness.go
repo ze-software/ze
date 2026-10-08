@@ -191,22 +191,25 @@ func (in *evidence) isInteropPointer(pointer string) bool {
 
 // interopRun answers why the Interop entry item of feature id has no current
 // recorded green run, or "" (D-6 as the owner reads it: interop scenarios
-// too). An entry that does not resolve answers "": interopItem refused it.
-func (in *evidence) interopRun(id, item string) string {
+// too), with the run answer it read. An entry that does not resolve answers "":
+// interopItem refused it. A problem the record could not answer carries a run
+// answer of runStateUnspecified, which is never stale.
+func (in *evidence) interopRun(id, item string) (string, runAnswer) {
 	if in.interopItem(item) != "" {
-		return ""
+		return "", runAnswer{}
 	}
 	suite, scenario, _ := strings.Cut(item, "/")
 	names, _ := in.catalog(suite)
 	tree, err := scenarioTreeID(in.tree, names[scenario])
 	if err != nil {
-		return item + ": " + err.Error()
+		return item + ": " + err.Error(), runAnswer{}
 	}
 	record, err := loadRunRecord(in.tree, id, in.dates.today)
 	if err != nil {
-		return err.Error()
+		return err.Error(), runAnswer{}
 	}
-	return record.scenarioStateOf(item, tree, in.dates.today).problem(item, "scenario", runRecordRel(id))
+	answer := record.scenarioStateOf(item, tree, in.dates.today)
+	return answer.problem(item, "scenario", runRecordRel(id)), answer
 }
 
 // countedInterop answers the Interop entries that count toward a level: every
@@ -237,8 +240,13 @@ func (in *evidence) criterionInterop(d *Declaration, verdict *Verdict) {
 		return
 	}
 	for _, item := range counted {
-		if problem := in.interopRun(d.ID, item); problem != "" {
-			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S2: "+problem)
+		problem, answer := in.interopRun(d.ID, item)
+		if problem == "" {
+			continue
 		}
+		if in.warnStale(d, verdict, answer, "S2: "+problem) {
+			continue
+		}
+		verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], "S2: "+problem)
 	}
 }

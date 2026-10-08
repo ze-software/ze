@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/derived"
 	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
+	"github.com/ze-software/ze/internal/le/feature"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
@@ -48,6 +49,11 @@ type BuildReport struct {
 	Carried      int      `json:"carried-stamps"`
 	Unstamped    []string `json:"unstamped,omitempty"`
 	Coverage     Coverage `json:"coverage"`
+	// StaleSupported names each supported feature published on a stale
+	// recorded run, and Refreshed each re-record `refresh` attempted
+	// (freshness.go). Neither changes what is published.
+	StaleSupported []feature.StaleFeature `json:"stale-supported,omitempty"`
+	Refreshed      []feature.StaleFeature `json:"refreshed,omitempty"`
 }
 
 // Build renders every derived artifact the checkout does not hold, stages the

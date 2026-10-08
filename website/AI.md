@@ -98,6 +98,9 @@ The repository command is `./le site build`. `./le site build partial` keeps an
 existing full artifact and refreshes the staged sources, while `./le site build
 output <directory>` names another artifact root. A full build recreates the
 artifact boundary and can seed it from the current complete Pages checkout.
+Before it builds, it warns on stderr about every supported feature published on
+a stale recorded run; `./le site build refresh` re-records those first
+(`docs/contributing/feature-maturity.md`, "Recorded runs").
 
 ### Website architecture
 

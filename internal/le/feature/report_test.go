@@ -75,3 +75,21 @@ func TestJudgeRefusesAnEmptyPopulation(t *testing.T) {
 		t.Fatal("an empty declaration directory passed")
 	}
 }
+
+// TestReportListsAStaleRunAsAWarning: a held Supported feature whose test
+// changed after its recorded run is reported with the stale run as a warning,
+// and its level is not refused (owner decision 2026-10-08).
+func TestReportListsAStaleRunAsAWarning(t *testing.T) {
+	tree := fixtureTree(t, same)
+	writeFile(t, tree, "test/plugin/widget.ci", "cmd=foreground:seq=1:exec=ze changed\n")
+	entries, err := Report(tree, "widget")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries[0].Refusals) != 0 {
+		t.Fatalf("a held Supported level was refused: %v", entries[0].Refusals)
+	}
+	if !strings.Contains(strings.Join(entries[0].Warnings, "\n"), "test/plugin/widget.ci stale: test changed") {
+		t.Fatalf("warnings %v do not name the changed test", entries[0].Warnings)
+	}
+}

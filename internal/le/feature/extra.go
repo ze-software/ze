@@ -107,11 +107,14 @@ func (in *evidence) criterionExtra(d *Declaration, verdict *Verdict) {
 		if extra.Pointer == "" {
 			continue // a dated attestation is the evidence; staleness is the reviewer's.
 		}
-		problem := in.extraPointer(d.ID, extra.Pointer)
+		problem, answer := in.extraPointer(d.ID, extra.Pointer)
 		if problem == "" {
 			continue
 		}
 		reason := "extra criterion '" + extra.Criterion + "': " + problem
+		if in.warnStale(d, verdict, answer, reason) {
+			continue
+		}
 		for _, entry := range levelNames {
 			if entry.value >= extra.Gates {
 				verdict.Unmet[entry.value] = append(verdict.Unmet[entry.value], reason)
@@ -123,19 +126,20 @@ func (in *evidence) criterionExtra(d *Declaration, verdict *Verdict) {
 // extraPointer resolves a pointer as its own field would: an interop entry
 // through the suite catalog and, as it counts toward a level, its recorded
 // green run (D-6); a test item through testItem; anything else as a
-// repository path.
-func (in *evidence) extraPointer(id, pointer string) string {
+// repository path. The run answer is the interop entry's, and
+// runStateUnspecified for every other pointer: only a recorded run goes stale.
+func (in *evidence) extraPointer(id, pointer string) (string, runAnswer) {
 	if in.isInteropPointer(pointer) {
 		if problem := in.interopItem(pointer); problem != "" {
-			return problem
+			return problem, runAnswer{}
 		}
 		return in.interopRun(id, pointer)
 	}
 	if strings.Contains(pointer, goTestSeparator) {
-		return in.testItem(pointer)
+		return in.testItem(pointer), runAnswer{}
 	}
 	if strings.HasSuffix(pointer, ".ci") {
-		return in.testItem(pointer)
+		return in.testItem(pointer), runAnswer{}
 	}
-	return in.repoPath(pointer)
+	return in.repoPath(pointer), runAnswer{}
 }

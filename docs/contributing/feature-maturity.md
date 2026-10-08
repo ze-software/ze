@@ -48,13 +48,26 @@ Supported requires, among the criteria the report names:
 
 | Criterion | Evidence the check reads |
 |-----------|--------------------------|
-| S1 real path | at least one real-path test, and a recorded green run of each one's present content, no more than 30 days old |
-| S2 interop | for a protocol feature, at least one Interop scenario not listed in Stub evidence, and a recorded green run of each such scenario's present directory, no more than 30 days old |
+| S1 real path | at least one real-path test, and a recorded green run of each one; a promotion needs each run current |
+| S2 interop | for a protocol feature, at least one Interop scenario not listed in Stub evidence, and a recorded green run of each such scenario; a promotion needs each run current |
 | S3 RFC | each listed enrolled stem published as supported by the RFC ledger, with no gated requirement marked `{gap}`; an unenrolled stem is reported as a bound |
 | S4 docs | a Docs page and a Doc review |
 | S5 defects | no `plan/immediate/` spec naming a Components path in its Files to Modify, and a Defect review no older than the newest journal row naming one ("re-review owed") |
 | S6 not stub-only | at least one real-path or interop item not listed in Stub evidence |
 | Extra criteria | every extra criterion gating Supported resolves |
+
+A level once Supported stays Supported (owner decision 2026-10-08). A
+promotion, a declaration raised to Supported where `HEAD` holds it below
+Supported or not at all, needs every counted run current, as "Recorded runs"
+defines it. Once `HEAD` holds the level, a counted run that goes stale never
+lowers the ceiling: the check accepts it and `./le feature report` lists it
+under `warnings`, each naming why it is stale. A test or scenario never run
+still leaves Supported unmet, held or not, because a stale run was green once
+and a missing run never was. The check before a commit judges the working tree
+against `HEAD`, so the commit that raises the level is the one judged as a
+promotion.
+
+<!-- source: internal/le/feature/held.go -- warnStale, holdsSupported -->
 
 A real-path test file counts only when a runner of the repository runs it, and
 each runner's own declaration answers, never a list kept by the check
@@ -78,8 +91,8 @@ An `Extra criteria` cell holds items separated by `; `, each
 `<level>: <criterion> = <evidence>`. The evidence is a pointer, resolved as an
 Interop entry, a real-path test item or a repository path, or a dated
 attestation. A pointer that does not resolve leaves the gated level and every
-level above it unmet, and so does an Interop entry pointer with no current
-recorded green run.
+level above it unmet, and so does an Interop entry pointer with no recorded
+green run, or with a stale one on a promotion.
 
 A path that does not exist, escapes the repository, or names a Go test function
 its file does not declare is refused at every level.
@@ -94,7 +107,8 @@ level (every one not listed in Stub evidence, and every extra criterion pointer
 naming one) with the git tree id of its scenario directory when it passed. A run
 is current while that id is unchanged AND it is no more than 30 days old
 (`runAgeDaysMax` in `internal/le/feature/runrecord.go`): recorded on day 0, it
-counts on day 30 and is stale on day 31. Editing the test or anything in the
+is current on day 30 and stale on day 31. A stale run blocks a promotion and
+only warns on a level `HEAD` already holds ("The ceiling"). Editing the test or anything in the
 scenario directory makes the run stale at once, and the check says which:
 `stale: test changed since its recorded green run` (or `scenario changed`)
 against `stale: older than 30 days (recorded <date>)`. The age bound exists
@@ -148,15 +162,24 @@ run writes nothing.
 feature holding a recorded run older than `<days>` days, and reports each with
 its oldest run's date and whether it recorded; one refused feature does not
 stop the others, and any refusal exits 1. `<days>` is at most 30, since a bound
-above it would skip runs that already stopped counting; a feature with no
-record is not due, because a first record is a decision, not a refresh. **A
-maintainer runs it before a release**, with a margin (`due 23` re-records
-everything that would age out within a week), and commits the records it
-writes. No workflow does this: `.github/workflows/evidence-nightly.yml` holds
-`contents: read` and no workflow in the repository writes back to it, so a
-nightly re-record would need a CI write path the owner has not granted. Until
-one exists, a run nobody re-records ages out and the feature drops below
-Supported on the page, which is the truthful answer.
+above it would skip runs that are already stale; a feature with no record is
+not due, because a first record is a decision, not a refresh.
+
+`./le site build` warns before it publishes. It names, on stderr and under
+`stale-supported` in its report, every feature `HEAD` holds at Supported that
+carries a stale run, one line per run, and says how to re-record them.
+`./le site build refresh` re-records each of those features through
+`record-run` first, reports under `refreshed` which ones recorded, and warns
+only for what is still stale. The refresh is a keyword and never a prompt,
+because the build runs in scripts and agents; it is never the default, because
+`record-run` runs real tests, some of which need Docker or a QEMU guest. A
+refresh that records nothing leaves the level standing and the warning in
+place. The records it writes are committed like any other. No workflow
+re-records: `.github/workflows/evidence-nightly.yml` holds `contents: read`
+and no workflow in the repository writes back to it.
+
+<!-- source: internal/le/site/freshness.go -- freshness, writeStaleWarning -->
+<!-- source: internal/le/feature/due.go -- StaleSupported, RefreshStale -->
 
 ## Attestations
 

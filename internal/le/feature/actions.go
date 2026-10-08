@@ -33,7 +33,7 @@ var actions = leaction.New(area,
 		"through the repository's own runners and record a green run in features/runs/<id>.json only when " +
 		"each one was observed passing; a failure, a run that selected nothing, or a file or scenario " +
 		"directory that changed mid-run records nothing. `due <days>` does the same for every feature " +
-		"holding a recorded run older than <days> days (at most 30, the age a run stops counting)",
+		"holding a recorded run older than <days> days (at most 30, the age a run goes stale)",
 		Parameters: []leaction.Parameter{
 			{Keyword: keyFeature, Value: "id", Requirement: leaction.Optional},
 			{Keyword: keyDue, Value: "days", Requirement: leaction.Optional},

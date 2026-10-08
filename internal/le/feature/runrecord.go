@@ -15,10 +15,12 @@
 // CI checkout does not hold, and would call a reverted edit stale.
 //
 // Owner decision 2026-10-07, run staleness option (c): a run matching its
-// content still counts for runAgeDaysMax days only. The blob id covers the test
+// content is current for runAgeDaysMax days only. The blob id covers the test
 // file and nothing it reads, so a run outlived the fixture change of
 // f02d58da88; keying on every package the test imports would stale most runs on
-// every commit. The age bound re-proves on a schedule what the id cannot see.
+// every commit. The age bound names, on a schedule, what the id cannot see.
+// Owner decision 2026-10-08: a promotion to Supported needs current runs, and a
+// run that goes stale later never lowers the level HEAD holds (held.go).
 //
 // The owner's reading of D-6 covers interop scenarios too: an Interop entry
 // counted toward a level needs a recorded green run of the scenario as it is
@@ -98,9 +100,9 @@ const (
 	runStateAged
 )
 
-// runAgeDaysMax is how many days a recorded green run counts for: a run is
+// runAgeDaysMax is how many days a recorded green run stays current: a run is
 // current on the day it was recorded and for the runAgeDaysMax days after, so
-// day 30 counts and day 31 does not.
+// it is current on day 30 and stale on day 31.
 const runAgeDaysMax = 30
 
 // runAnswer is one item's run state, with the date of the run it was read from
