@@ -1,0 +1,12 @@
+{
+  "feature": "archive-pruning",
+  "runs": [
+    {
+      "test": "test/ui/config-archive-prune.ci",
+      "test-blob": "a9995190959bc09c1d33cf54805272f6de16163c",
+      "commit": "e2a189183167222168b0c00020773f7ebee38b2f",
+      "date": "2026-10-08",
+      "result": "pass"
+    }
+  ]
+}
