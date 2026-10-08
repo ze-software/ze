@@ -1493,8 +1493,10 @@ time'. Ze checks that both timestamps parse as RFC 3339 and refuses the configur
 one does not. On receive Ze tries only the keys whose window covers the current time, so a
 packet made with a key outside its window is dropped and counted under the accept-lifetime
 reason. A key with no accept-lifetime is accepted at every time. When no key of the chain is
-in its window, every packet on the interface is dropped. Use `send-lifetime` to control
-which key signs.";
+in its window, every packet on the interface is dropped, except once every window has
+closed: then RFC 5709 section 3.2 keeps the chain's last key (the latest-starting send key)
+accepted as if its lifetime were infinite, and Ze logs a last-key-expiration warning. Use
+`send-lifetime` to control which key signs.";
                     ze:help "When this key is accepted on receive.";
                     leaf start {
                         type string { length "1..64"; }

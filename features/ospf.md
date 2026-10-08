@@ -8,7 +8,7 @@
 | Page | docs/guide/ospf.md |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | RFC 3101 NSSA single ABR default producer and its interop scenarios (plan/immediate/spec-ospf-nssa-single-abr-producer.md), key-chain accept-lifetime receive window (plan/immediate/spec-ospf-accept-lifetime-receive-window.md), RFC 2328 and RFC 5340 obligations the ledger marks Partial |
+| Scope gaps | RFC 3101 NSSA single ABR default producer and its interop scenarios (plan/immediate/spec-ospf-nssa-single-abr-producer.md), RFC 2328 and RFC 5340 obligations the ledger marks Partial |
 | Level | experimental |
 | Components | internal/plugins/ospf |
 | Real-path tests | test/ospf/ospf-config.ci, test/ospf/ospf-neighbor.ci, test/ospf/ospf-flooding.ci, test/ospf/ospf-inter-area.ci, test/ospf/ospf-nssa.ci, test/ospf/ospf-stub.ci, test/ospf/ospf-route-install.ci, test/ospf/ospf-gr-helper.ci, test/ospf/ospf-sr-config.ci, test/ospf/ospf-lfa-compute.ci, test/ospf/ospf-virtual-link-config.ci, test/ospfv3/ospfv3-vlink.ci, test/ospfv3/ospfv3-sr-originate.ci, test/ospfv3/ospfv3-nssa-abr-default.ci |
@@ -16,7 +16,7 @@
 | RFCs | rfc2328, rfc5340, rfc3101 |
 | Docs | docs/guide/ospf.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; NSSA border default origination is described as the anchors name it |
-| Defect review | 2026-10-07: spec-ospf-rfc3101-nssa-defaults (closed 2026-10-08) and plan/immediate/spec-ospf-accept-lifetime-receive-window.md open; journal declared-format-contradicts-payload row taken as open |
+| Defect review | 2026-10-07: spec-ospf-rfc3101-nssa-defaults (closed 2026-10-08) and spec-ospf-accept-lifetime-receive-window (closed 2026-10-08); journal declared-format-contradicts-payload row taken as open |
 
 ## Description
 

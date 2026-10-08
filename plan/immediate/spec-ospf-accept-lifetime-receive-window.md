@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -95,7 +95,7 @@ resolved in the current tree; see Known Limitations.
 ### Architecture Docs
 - [ ] `docs/architecture/ospf/ospf-12-auth.md` - the OSPFv2 sign/verify path this spec gates
   → Decision: the receive gate runs BEFORE the digest and before the replay bookkeeping, so an out-of-window key can neither accept a packet nor advance the sequence high-water mark
-  → Constraint: the send side and the receive side point the same way and do the opposite thing: `selectSendKey` keeps signing with an expired key, `verify` refuses one
+  → Constraint: the send side and the receive side point the same way and do the opposite thing: `selectSendKey` keeps signing with an expired key, `verify` refuses one, except the chain's expired last key, which RFC 5709 Section 3.2 keeps accepting (owner decision 2026-10-08, under Acceptance Criteria)
 - [ ] `docs/guide/ospf.md` - the operator-facing description of key chains and rotation
   → Constraint: the guide states the drop is counted under the `accept-lifetime` reason of `ze_ospf_auth_failures_total`, so the reason string is a documented interface and not a free label
 - [ ] `docs/architecture/testing/interop.md` - the interop scenario surface, declared as the design document by `internal/le/interoplab/bgp/checkers.go` and `check_extras.go`, both of which this spec edits
@@ -178,7 +178,7 @@ resolved in the current tree; see Known Limitations.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | An operator sets an accept window and locks every neighbor out | Adjacencies drop at the window edge and `ze_ospf_auth_failures_total{reason="accept-lifetime"}` climbs | The reason is specific, so the counter names the cause; the YANG `ze:help` states that a chain with no key in its window drops every packet |
+| R-1 | An operator sets an accept window and locks every neighbor out | Adjacencies drop at the window edge and `ze_ospf_auth_failures_total{reason="accept-lifetime"}` climbs | The reason is specific, so the counter names the cause; the YANG `description` states that a chain with no key in its window drops every packet, and that once every window has closed the last key stays accepted (RFC 5709 Section 3.2), so a fully expired chain does not lock neighbors out |
 | R-2 | The refusal is reported as a digest failure and sends the operator to the wrong place | An operator checks a secret that is correct | `verify` reads the Key ID the packet names and reports `accept-lifetime` for the sender's own retired key; `TestVerifyWrongSecretInsideAcceptLifetimeReportsDigestMismatch` pins the other pole |
 | R-3 | A clock skew between neighbors retires a key on one side only | One-way adjacency loss at a window edge | Out of scope for this spec: the windows are operator-authored absolute times, as RFC 7474 Section 4 defines them |
 
@@ -216,8 +216,10 @@ resolved in the current tree; see Known Limitations.
 | AC-5 | A key with no `accept-lifetime` at any clock value | Accepted |
 | AC-6 | A key inside its window signed with the wrong secret | Refused, reason `digest-mismatch`, not `accept-lifetime` |
 | AC-7 | An out-of-window key would have matched the packet | Its sequence number is NOT recorded, so it cannot block a later legitimate packet |
-| AC-8 | A peer signs correctly with a key whose window on Ze has closed | No adjacency forms, and the peer sees Ze but never reaches Full |
+| AC-8 | A peer signs correctly with a key whose window on Ze has closed, and that key is NOT the last key of Ze's chain (a later-starting key exists) | The packet is refused: no adjacency forms, and the peer sees Ze but never reaches Full |
 | AC-9 | `accept-lifetime { start yesterday }` at commit | Refused, the error names `accept-lifetime` |
+
+-> Decision (owner, 2026-10-08): AC-8 is narrowed to an expired key that is NOT the last key of its chain. RFC 5709 Section 3.2 governs the last key: "In the event that the last key associated with an interface expires, it is unacceptable to revert to an unauthenticated condition, and not advisable to disrupt routing. Therefore, the router should send a "last Authentication Key expiration" notification to the network manager and treat the key as having an infinite lifetime until the lifetime is extended, the key is deleted by network management, or a new key is configured." Ze implements that since bec87a7d44 (`lastKeyExtendedIndex` in `internal/plugins/ospf/auth_keystore.go`), so a single-key chain whose window closed keeps accepting and the original AC-8 can no longer hold. The `ospf-accept-lifetime-frr` scenario gains a key 2 whose send and accept lifetimes open in 2099: it is the chain's last key (`lastKeyIndex`, the latest-starting send key) yet neither signs nor accepts today, so key 1 (closed 2020) is a non-last expired key and is refused, while key 1 still signs because it carries no send-lifetime.
 
 ## End-to-End User Stories
 
@@ -266,7 +268,7 @@ resolved in the current tree; see Known Limitations.
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `ospf-accept-lifetime-frr` | `test/interop/scenarios/ospf-accept-lifetime-frr/` | FRR 10.3.1 | FRR signs correctly with the shared key and Ze refuses it, because Ze's copy of that key is outside its accept window. No adjacency forms | pass; RED observed with `acceptsAt` cut: "assertion 3: peer output unexpectedly contains \"Full\"" |
+| `ospf-accept-lifetime-frr` | `test/interop/scenarios/ospf-accept-lifetime-frr/` | FRR 10.3.1 | FRR signs correctly with the shared key 1 and Ze refuses it, because Ze's copy of that key is outside its accept window and is not the chain's last key (key 2 opens in 2099). No adjacency forms | pass (2026-10-08, with key 2); RED observed with `acceptsAt` cut on 2026-09-06 and again on 2026-10-08 with key 2: "assertion 3: peer output unexpectedly contains \"Full\"" |
 | `ospf-auth-frr` | `test/interop/scenarios/ospf-auth-frr/` | FRR 10.3.1 | Unchanged control: a chain with NO accept-lifetime still reaches Full, so the gate did not break rotation | pass |
 
 ## Files to Modify
@@ -281,10 +283,10 @@ resolved in the current tree; see Known Limitations.
 - `docs/guide/ospf.md` - the key-chain paragraph
 - `docs/architecture/ospf/ospf-12-auth.md` - the ordering decision, declared by `auth_keystore.go`'s `// Design:` header
 - `rfc/short/rfc7474.md`, `rfc/requirements/rfc7474.md` - the RFC7474-4-1 row
-- `internal/le/interoplab/bgp/checkers.go`, `internal/le/interoplab/bgp/check_extras.go` - the scenario's assertions (NOT COMMITTED, see Known Limitations)
+- `internal/le/interoplab/bgp/checkers.go`, `internal/le/interoplab/bgp/check_extras.go` - the scenario's assertions
 
 ## Files to Create
-- `test/interop/scenarios/ospf-accept-lifetime-frr/ze.conf`, `frr.conf` - the interop scenario (NOT COMMITTED, see Known Limitations)
+- `test/interop/scenarios/ospf-accept-lifetime-frr/ze.conf`, `frr.conf` - the interop scenario; `ze.conf` gains key 2 (2026-10-08) so key 1 is a non-last expired key
 - `rfc/discrimination/rfc7474.json` - the recorded reds for RFC7474-4-1, both polarities
 
 ### Integration Checklist
@@ -387,7 +389,7 @@ resolved in the current tree; see Known Limitations.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | The two timestamps are operator-authored and already parsed by `validateConfig`; nothing from the wire reaches `lifetimeBounds` |
-| Fail closed | A chain whose keys are all out of window refuses every packet rather than falling through to a digest comparison. The zero value of `acceptStart`/`acceptStop` means unbounded, which is a documented guard and not an accidental default (`ai/rules/principles.md`) |
+| Fail closed | A key out of its window is skipped before the digest. When no key is in window the chain refuses every packet, except that an expired last key verifies as RFC 5709 Section 3.2 requires (`lastKeyExtendedIndex`); a chain whose windows have not opened yet is not an expiry and refuses. The zero value of `acceptStart`/`acceptStop` means unbounded, which is a documented guard and not an accidental default (`ai/rules/principles.md`) |
 | Error leakage | The reason string names the class of failure and never the key material |
 | Replay interaction | An out-of-window key is skipped before `packet.Verify`, so it cannot advance `recvSeq` and block a legitimate packet (AC-7) |
 
@@ -415,7 +417,7 @@ resolved in the current tree; see Known Limitations.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Skip an out-of-window key BEFORE computing its digest | Compare the digest first and then check the window | A gate after the digest lets an out-of-window key record its sequence number, and the packet the operator meant to refuse then blocks the legitimate one behind it |
-| A chain with no key in window refuses every packet | Fall back to accepting any key when the chain has expired entirely | Falling back would make the window advisory. The operator who closed the last window meant to stop accepting |
+| A chain with no key in window refuses every packet, except that an expired LAST key keeps verifying (RFC 5709 Section 3.2, since bec87a7d44; owner decision 2026-10-08) | Fall back to accepting any key when the chain has expired entirely | Falling back to any key would make the window advisory. Only the last key is extended, so an operator retires a key by closing its window while a successor exists, and RFC 5709 Section 3.2 rules out disrupting routing when the last one expires |
 | Report `accept-lifetime` when the SENDER's own key is out of window | Report it only when no key of the chain is in window | The chain-level rule reports `digest-mismatch` for a key whose secret is correct, which is a wrong answer that costs the operator the search |
 | A zero bound means unbounded | Require both timestamps whenever the container is present | Every existing chain configures no window, and `lifetimeBounds` already gave the send side that meaning |
 
@@ -427,8 +429,7 @@ resolved in the current tree; see Known Limitations.
   `internal/le/interoplab/bgp/checkers.go` and `check_extras.go` register
   `ospf-accept-lifetime-frr`, and those files and its scenario directory have
   no uncommitted changes at reconciliation. The earlier BMP overlap is history.
-  The recorded FRR result has not been rerun here, and final review and all
-  closure gates remain required.
+  The FRR scenario was rerun on 2026-10-08 with key 2 added, green and red.
 - Clock skew between neighbors is not addressed. RFC 7474 Section 4 defines the
   windows as absolute times and says nothing about synchronizing them.
 - A simple-password chain (AuType 1) carries no Key ID on the wire, so its
@@ -490,3 +491,125 @@ and RFC 7474 Section 3 for the 32-bit AuType 3 field.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- The receive window (2026-09-06, already committed): `resolvedKey.acceptsAt` and the skip inside `authStore.verify` (`internal/plugins/ospf/auth_keystore.go`), the `accept-lifetime` reason, `packet.AuthKeyID`.
+- 2026-10-08 closure: AC-8 narrowed by the owner (decision under Acceptance Criteria). `test/interop/scenarios/ospf-accept-lifetime-frr/ze.conf` gains key 2, whose send and accept lifetimes open in 2099, so key 1 (accept window closed 2020) is a non-last expired key, which `lastKeyExtendedIndex` does not extend.
+
+### Bugs Found/Fixed
+- The scenario as committed could no longer hold after bec87a7d44: with key 1 alone, key 1 is the chain's last key and RFC 5709 Section 3.2 keeps it accepted, so FRR would reach Full. Covered now by the scenario itself (green with key 2, red with `acceptsAt` cut).
+- The `accept-lifetime` YANG `description` in `internal/plugins/ospf/yang/ze-ospf-conf.yang` still said every packet is dropped when no key is in window, which bec87a7d44 made false for an expired last key. Corrected.
+
+### Documentation Updates
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` `accept-lifetime` description: states the RFC 5709 Section 3.2 last-key exception.
+- `features/ospf.md`: the accept-lifetime gap removed from `Scope gaps`, `Defect review` records the closure.
+- `docs/guide/ospf.md` and `docs/architecture/ospf/ospf-12-auth.md` already describe the last-key rule (bec87a7d44); no edit needed.
+
+### Deviations from Plan
+- AC-8 narrowed by owner decision 2026-10-08 (see the Decision under Acceptance Criteria).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The interop scenario assumed a single expired key is always refused | RFC 5709 Section 3.2 keeps the LAST key accepted after expiry, which bec87a7d44 implemented | Handoff analysis of `lastKeyExtendedIndex` | Scenario gains a later-starting key 2; AC-8 narrowed by the owner |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Carry the accept bounds into `resolvedKey` | Done | `internal/plugins/ospf/auth_keystore.go` `resolveChainKeys` | |
+| Filter in `authStore.verify` | Done | `internal/plugins/ospf/auth_keystore.go` `authStore.verify`, `resolvedKey.acceptsAt` | |
+| Decide what an empty accepted set does | Done | `lastKeyExtendedIndex` | Refuse, except an expired last key (RFC 5709 Section 3.2) |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-2, AC-3 | Done | `TestVerifyRejectsOutsideAcceptLifetime` | |
+| AC-4 | Done | `TestVerifyAcceptLifetimePerKey` | |
+| AC-5 | Done | `TestVerifyUnsetAcceptLifetimeAlwaysVerifies` | |
+| AC-6 | Done | `TestVerifyWrongSecretInsideAcceptLifetimeReportsDigestMismatch` | |
+| AC-7 | Done | gate before `packet.Verify` in `authStore.verify` | |
+| AC-8 | Changed | `ospf-accept-lifetime-frr` interop, `TestRFC5709ExpiredKeyRefusedOnceNotLast` | Narrowed by owner 2026-10-08 |
+| AC-9 | Done | `test/ospf/ospf-auth.ci` seq 4 | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| unit tests listed in the TDD plan | Done | `internal/plugins/ospf/auth_keystore_test.go`, `packet/auth_verify_test.go` | rerun 2026-10-08: ok |
+| `ospf-accept-lifetime-frr` | Done | `test/interop/scenarios/ospf-accept-lifetime-frr/` | green and red 2026-10-08 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `test/interop/scenarios/ospf-accept-lifetime-frr/ze.conf` | Changed | key 2 added |
+| all other planned files | Done | committed 2026-09-06 and later |
+
+### Audit Summary
+- **Total items:** 9 AC
+- **Done:** 8
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-8, owner decision)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A key whose accept window closed no longer authenticates a neighbor, while a successor exists | interop | `INTEROP_SCENARIO=ospf-accept-lifetime-frr ./le test integration interop`: "interop: 1 passed, 0 failed" (2026-10-08). RED with `resolvedKey.acceptsAt` cut to return true and the image rebuilt by the same command: "scenario ospf-accept-lifetime-frr assertion 3: ... peer output unexpectedly contains \"Full\"", "interop: 0 passed, 1 failed". Green again after the restore |
+| Rotation without a window still works | interop | `ospf-auth-frr` unchanged control (2026-09-06 run) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is met, AC-8 as narrowed by the owner | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ospf-accept-lifetime-receive-window-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` |
+| `./le spec review check` | clean: "review_gate: OK (1 code files, clean, hashes match ...)" |
+| Rounds | 1 |
+| Reviewer lenses used | logic (lastKeyIndex/lastKeyExtendedIndex against the new key 2), interop vacuity, stale prose (YANG, spec, features) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | YANG description claimed a chain with no key in window drops every packet, false for an expired last key | `internal/plugins/ospf/yang/ze-ospf-conf.yang` `accept-lifetime` | description rewritten |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/interop/scenarios/ospf-accept-lifetime-frr/ze.conf`, `frr.conf` | yes | `ls` 2026-10-08 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-7 | unit tests | `go test -run 'TestVerify\|TestAcceptLifetime\|TestRFC5709\|TestSignKey\|TestAuthKeyID'` on `./internal/plugins/ospf/` and `/packet/`: ok, ok (2026-10-08) |
+| AC-8 | non-last expired key refused against FRR | interop green, and red with `acceptsAt` cut (above) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `accept-lifetime` in the config | `test/ospf/ospf-auth.ci`, `TestAcceptLifetimeReachesVerifyFromConfig` | yes |
+| An authenticated packet on the wire | `ospf-accept-lifetime-frr` interop | yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestVerifyUnsetAcceptLifetimeAlwaysVerifies` ok |
+| A-2 | confirmed | `TestAuthKeyID` ok |
+| A-3 | confirmed | interop red with the gate cut reaches Full |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| YANG `accept-lifetime` description, last-key exception | `lastKeyExtendedIndex`, `lastKeyIndex` in `auth_keystore.go` | yes |
+| `docs/guide/ospf.md` key-chain paragraph | already states the RFC 5709 Section 3.2 last-key rule | yes |
