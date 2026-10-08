@@ -66,9 +66,10 @@ The remaining evidence is a pre-release obligation for the existing EAP-TLS
 surface. The `plan/` location must not be read as permission to publish RFC 9190
 support before the goal gates pass. This spec remains the owner of that proof;
 bucket reconciliation does not change the owner's implement-and-prove ruling.
-`plan/immediate/spec-eap-tls-certificate-revocation.md` retains the earlier
-deferral history and consumes this spec's Section 5.4 evidence, rather than
-owning another implementation.
+The earlier capture, spec-eap-tls-certificate-revocation, held the 2026-08-12
+deferral history and closed on 2026-10-08 as superseded: this spec owns all
+five Section 5.4 MUSTs (5.4-1 to 5.4-5), their proof, and the two SHOULD NOTs
+(5.4-6, 5.4-7) that govern distrusting the network.
 
 ### What is missing, grouped
 
