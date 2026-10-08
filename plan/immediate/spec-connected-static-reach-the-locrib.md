@@ -380,10 +380,10 @@ requires it to be measured RED.
 | `rib { distance { connected 0 } }` config | → | `ribdistance.OrDefault("connected", 0)` at the connected stamp site | `TestConnectedStampsTheDeclaredDistance` |
 | `rib { distance { static 250 } }` config | → | `ribdistance.OrDefault("static", 10)` at the static stamp site, then `selectBest` | `test/static/static-distance-loses-to-ebgp.ci` |
 | `static { route ... }` config section | → | `(*routeManager).applyRouteLocked` → `insertPath` → `(*RIB).InsertForward` | `TestStaticApplyInsertsAPathPerRoute` |
-| A connected prefix winning `selectBest` | → | `(*sysRIB).recomputeBest` → withdraw branch for an OS-installed winner | `TestConnectedWinnerWithdrawsTheZeRoute` |
-| A forked connected plugin's insert | → | `(*Sink).InsertForward` → `applyRouteInstall` → the engine's `locrib.RIB` | `TestForkedConnectedInsertReachesTheEngineRIB` |
-| An operator's `ip addr add` on a booted appliance | → | the whole chain, ending at netlink | `TestQEMUConnectedBeatsBGPForTheSamePrefix` |
-| An operator's `static` config on a booted appliance | → | the whole chain, ending at netlink `RTPROT_ZE` | `TestQEMUStaticDistanceDecidesAgainstBGP` |
+| A connected prefix winning `selectBest` | → | `(*sysRIB).recomputeBest` → withdraw branch for an OS-installed winner | `TestOSInstalledWinnerWithdrawsTheZeRoute` (`internal/component/sysrib/sysrib_osinstalled_test.go`) |
+| A forked connected plugin's insert | → | `(*Sink).InsertForward` → `applyRouteInstall` → the engine's `locrib.RIB` | `TestSinkInsertForwardMarshalsEntry` (`internal/core/rib/routeinstall/sink_test.go`) and `TestForkedProducerDistanceIsRestampedByTheEngine` (`applyRouteInstall` then a Lookup in the engine Loc-RIB) |
+| An operator's `ip addr add` on a booted appliance | → | the whole chain, ending at netlink | `test/plugin/connected-distance-arbitration.ci` (reads the kernel table: "won by connected, ze-programmed=no"); the QEMU-guest run of it is OWED |
+| An operator's `static` config on a booted appliance | → | the whole chain, ending at netlink `RTPROT_ZE` | `test/static/static-distance-loses-to-ebgp.ci` reads the system RIB winner only; a test reading the kernel entry (`proto 250`, the winner's next-hop) is OWED |
 
 ## Acceptance Criteria
 
@@ -413,11 +413,11 @@ requires it to be measured RED.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Assigns 10.0.0.0/24 to an interface while a peer announces 10.0.0.0/24 | iface event -> connected -> Loc-RIB -> selectBest -> sysrib withdraw -> fib-kernel delete | `TestQEMUConnectedBeatsBGPForTheSamePrefix` |
-| 2 | Writes `rib { distance { static 250 } }` and expects BGP to win a prefix both offer | config -> sysrib -> distance seam -> static stamp -> selectBest -> fib-kernel | `test/static/static-distance-loses-to-ebgp.ci` and `TestQEMUStaticDistanceDecidesAgainstBGP` |
-| 3 | Configures a weighted two-next-hop static route and reads `ip route` | config -> static -> Loc-RIB path with weights -> sysrib -> rich route -> netlink multipath | `TestQEMUStaticWeightedMultipath` |
-| 4 | Configures a static route in table blue for policy routing | config -> static -> direct backend, unchanged | `test/static/static-table-interface.ci` extended by `TestQEMUNamedTableStaticUnchanged` |
-| 5 | Runs `show rib` after an interface address is configured | connected path -> Loc-RIB -> sysrib `(*sysRIB).showRIB` | `TestShowRIBListsAConnectedWinner` |
+| 1 | Assigns 10.0.0.0/24 to an interface while a peer announces 10.0.0.0/24 | iface event -> connected -> Loc-RIB -> selectBest -> sysrib withdraw -> fib-kernel delete | `test/plugin/connected-distance-arbitration.ci` |
+| 2 | Writes `rib { distance { static 250 } }` and expects BGP to win a prefix both offer | config -> sysrib -> distance seam -> static stamp -> selectBest -> fib-kernel | `test/static/static-distance-loses-to-ebgp.ci` (system RIB winner); the kernel-entry read is OWED |
+| 3 | Configures a weighted two-next-hop static route and reads `ip route` | config -> static -> Loc-RIB path with weights -> sysrib -> rich route -> netlink multipath | OWED: no test reads the kernel multipath weights. Unit coverage only: `TestStaticPathCarriesWeightedNextHops`, `TestBestChangeCarriesTheDeclaredWeights` |
+| 4 | Configures a static route in table blue for policy routing | config -> static -> direct backend, unchanged | `test/static/static-named-table-unchanged.ci` (table 171, proto 251, absent from main and `show rib`) and `test/static/static-table-interface.ci` |
+| 5 | Runs `show rib` after an interface address is configured | connected path -> Loc-RIB -> sysrib `(*sysRIB).showRIB` | `TestOSInstalledWinnerStaysInTheSystemRIB` (calls `showRIB`) |
 | 6 | Runs the doctor after configuring a static route with an unresolvable interface | static resolution failure -> `rm.skipped` -> `static-route-skipped` | `test/static/static-per-route-isolation.ci` |
 
 ## 🧪 TDD Test Plan
@@ -425,34 +425,34 @@ requires it to be measured RED.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAddrAddedInsertsAConnectedPath` | `internal/plugins/connected/connected_test.go` | AC-1: source, invalid next-hop, distance | |
-| `TestAddrRemovedWithdrawsTheConnectedPath` | `internal/plugins/connected/connected_test.go` | AC-2 | |
-| `TestConnectedStampsTheDeclaredDistance` | `internal/plugins/connected/connected_test.go` | the seam is read at the stamp site, so a reload takes effect | |
-| `TestConnectedRefcountInsertsOnce` | `internal/plugins/connected/connected_test.go` | two addresses in one prefix produce one path and one withdraw | |
-| `TestConnectedPathCarriesTheRegisteredSource` | `internal/plugins/connected/connected_test.go` | A-1 | |
-| `TestOSInstalledIsDeclaredNotDerived` | `internal/core/redistevents/registry_test.go` | the property is registered, and an unregistered ID is reported as unknown rather than false | |
-| `TestConnectedWinnerWithdrawsTheZeRoute` | `internal/component/sysrib/sysrib_test.go` | AC-5 | |
-| `TestConnectedWinnerEmitsNothingWhenNothingWasProgrammed` | `internal/component/sysrib/sysrib_test.go` | AC-6 | |
-| `TestConnectedLoserLeavesTheZeRouteProgrammed` | `internal/component/sysrib/sysrib_test.go` | AC-3 | |
-| `TestNextHopResolvesThroughAConnectedPrefix` | `internal/component/sysrib/nhresolver_test.go` | AC-4, A-2 | |
-| `TestSRv6SIDResolvesThroughAConnectedPrefix` | `internal/component/sysrib/sysrib_test.go` | R-1: the withdraw that used to fire no longer does | |
-| `TestSysRIBEmitsNoTableID` | `internal/component/sysrib/sysrib_test.go` | A-3, the main-table boundary | |
-| `TestStaticApplyInsertsAPathPerRoute` | `internal/plugins/static/inject_test.go` | AC-7 | |
-| `TestStaticPathCarriesTheRegisteredSource` | `internal/plugins/static/inject_test.go` | A-1 | |
-| `TestStaticStampsTheDeclaredDistance` | `internal/plugins/static/inject_test.go` | AC-8, AC-9 at the producer | |
-| `TestNamedTableStaticRouteNeverReachesTheLocRIB` | `internal/plugins/static/inject_test.go` | AC-10, R-5 | |
-| `TestStaticRefusesAnUnresolvableNextHopBeforeInsert` | `internal/plugins/static/inject_test.go` | AC-15, A-6 | |
-| `TestStaticRollbackRestoresThePreviousPathSet` | `internal/plugins/static/register_test.go` | AC-16, A-7 | |
-| `TestStaticBFDDownReinsertsTheSurvivingNextHop` | `internal/plugins/static/inject_test.go` | AC-18 | |
-| `TestStaticBlackholeCarriesTheRouteType` | `internal/plugins/static/inject_test.go` | AC-14 | |
-| `TestPathCarriesWeightedNextHops` | `internal/core/rib/locrib/candidate_test.go` | the next-hop list is carry-through: excluded from `key()`, compared by `Equal` | |
-| `TestEqualCostGroupKeepsWeightOneForProducersThatStateNone` | `internal/component/sysrib/ecmp_test.go` | R-7 | |
-| `TestECMPPathCarriesTheInterface` | `internal/component/sysrib/ecmp_test.go` | AC-13 through the event contract | |
-| `TestForkedProducerDistanceIsRestampedByTheEngine` | `internal/component/plugin/server/dispatch_route_test.go` | AC-17, A-5 | |
-| `TestRouteInstallEntryCarriesRouteTypeAndECMP` | `internal/component/plugin/server/dispatch_route_test.go` | A-8, the forked static blackhole and multipath | |
-| `TestForkedConnectedInsertReachesTheEngineRIB` | `internal/plugins/connected/connected_test.go` | the sink wiring | |
-| `TestShowRIBListsAConnectedWinner` | `internal/component/sysrib/sysrib_test.go` | user story 5 | |
-| `TestStartupSweepKeepsARefreshedStaticRoute` | `internal/plugins/fib/kernel/fibkernel_test.go` | R-9 | |
+| `TestAddrAddedInsertsAConnectedPath` | `internal/plugins/connected/locrib_test.go` | AC-1: source, invalid next-hop, distance | exists |
+| `TestAddrRemovedWithdrawsTheConnectedPath` | `internal/plugins/connected/locrib_test.go` | AC-2 | exists |
+| `TestConnectedStampsTheDeclaredDistance` | `internal/plugins/connected/locrib_test.go` | the seam is read at the stamp site, so a reload takes effect | exists |
+| `TestConnectedRefcountInsertsOnce` | `internal/plugins/connected/locrib_test.go` | two addresses in one prefix produce one path and one withdraw | exists |
+| `TestConnectedPathCarriesTheRegisteredSource` | `internal/plugins/connected/locrib_test.go` | A-1 | exists |
+| `TestOSInstalledIsDeclaredNotDerived` | `internal/core/redistevents/registry_test.go` | the property is registered, and an unregistered ID is reported as unknown rather than false | exists |
+| `TestOSInstalledWinnerWithdrawsTheZeRoute` | `internal/component/sysrib/sysrib_osinstalled_test.go` | AC-5 | exists (planned as `TestConnectedWinnerWithdrawsTheZeRoute`) |
+| `TestOSInstalledWinnerEmitsNothingWhenNothingWasProgrammed` | `internal/component/sysrib/sysrib_osinstalled_test.go` | AC-6 | exists (planned as `TestConnectedWinnerEmitsNothingWhenNothingWasProgrammed`) |
+| `TestOSInstalledLoserLeavesTheZeRouteProgrammed` | `internal/component/sysrib/sysrib_osinstalled_test.go` | AC-3 | exists (planned as `TestConnectedLoserLeavesTheZeRouteProgrammed`) |
+| `TestConnectedPrefixIsWhatTheResolverTerminatesOn` with `TestRecursiveNHResolve_DirectlyConnected` | `internal/plugins/connected/locrib_test.go`, `internal/component/sysrib/nhresolver_test.go` | AC-4, A-2 | exists (planned as `TestNextHopResolvesThroughAConnectedPrefix`) |
+| `TestResolvableSRv6SIDIsProgrammed` | `internal/component/sysrib/sysrib_srv6_test.go` | R-1: a SID whose locator is covered by a connected path resolves and is programmed | exists (planned as `TestSRv6SIDResolvesThroughAConnectedPrefix`) |
+| `TestSysRIBEmitsNoTableID` | `internal/component/sysrib/sysrib_nexthop_detail_test.go` | A-3, the main-table boundary | exists |
+| `TestStaticApplyInsertsAPathPerRoute` | `internal/plugins/static/locrib_test.go` | AC-7 | exists |
+| `TestStaticPathCarriesTheRegisteredSource` | `internal/plugins/static/locrib_test.go` | A-1 | exists |
+| `TestStaticStampsTheDeclaredDistance` | `internal/plugins/static/locrib_test.go` | AC-8, AC-9 at the producer | exists |
+| `TestNamedTableStaticRouteNeverReachesTheLocRIB` | `internal/plugins/static/locrib_test.go` | AC-10, R-5 | exists |
+| `TestStaticRefusesAnUnresolvableNextHopBeforeInsert` | `internal/plugins/static/locrib_test.go` | AC-15, A-6 | exists |
+| `TestStaticRollbackRestoresThePreviousPathSet` | `internal/plugins/static/register_test.go` | AC-16, A-7 | OWED: does not exist. `TestPendingSectionResetDropsAnAbortedTransaction` covers the pending-section reset, not the Loc-RIB holding the previous set |
+| `TestStaticBFDDownReinsertsTheSurvivingNextHop` | `internal/plugins/static/locrib_test.go` | AC-18 | exists |
+| `TestStaticBlackholeCarriesTheRouteType` | `internal/plugins/static/locrib_test.go` | AC-14 | exists |
+| `TestOnChangeCarriesBestPathECMP` with `TestBestChangeCarriesTheDeclaredWeights` | `internal/core/rib/locrib/locrib_test.go`, `internal/component/sysrib/sysrib_nexthop_detail_test.go` | the next-hop list is carry-through, and the weights reach the best-change | exists (planned as `TestPathCarriesWeightedNextHops`; no test asserts the weighted list is excluded from `key()`) |
+| `TestEqualCostGroupKeepsWeightOneForProducersThatStateNone` | `internal/component/sysrib/sysrib_nexthop_detail_test.go` | R-7 | exists |
+| `TestECMPPathCarriesTheInterface` | `internal/component/sysrib/sysrib_nexthop_detail_test.go` | AC-13 through the event contract | exists |
+| `TestForkedProducerDistanceIsRestampedByTheEngine` | `internal/component/plugin/server/dispatch_route_restamp_test.go` | AC-17, A-5 | exists |
+| `TestRouteInstallEntryCarriesRouteTypeAndECMP` | `internal/component/plugin/server/dispatch_route_restamp_test.go` | A-8, the forked static blackhole and multipath | exists |
+| `TestSinkInsertForwardMarshalsEntry` with the `applyRouteInstall` helper of `dispatch_route_restamp_test.go` | `internal/core/rib/routeinstall/sink_test.go` | the sink wiring | exists (planned as `TestForkedConnectedInsertReachesTheEngineRIB`; neither uses the connected source) |
+| `TestOSInstalledWinnerStaysInTheSystemRIB` | `internal/component/sysrib/sysrib_osinstalled_test.go` | user story 5 (`showRIB` lists the connected winner) | exists (planned as `TestShowRIBListsAConnectedWinner`) |
+| `TestFIBKernelSweepStale` | `internal/plugins/fib/kernel/fibkernel_test.go` | R-9: a refreshed proto-250 route survives the sweep, whichever producer it came from | exists, protocol-agnostic (planned as `TestStartupSweepKeepsARefreshedStaticRoute`) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -471,16 +471,28 @@ requires it to be measured RED.
 | `static-named-table-unchanged` | `test/static/static-named-table-unchanged.ci` | a policy-routing route still lands in its table | |
 | `connected-distance-arbitration` | `test/plugin/connected-distance-arbitration.ci` | a connected prefix outranks a BGP path and Ze programs nothing for it | |
 | `connected-distance-raised-loses` | `test/plugin/connected-distance-raised-loses.ci` | `rib { distance { connected 250 } }` hands the prefix back to BGP | |
-| `static-per-route-isolation` | `test/static/static-per-route-isolation.ci` | existing test, updated for the narrowed skip classes (AC-15) | |
+| `static-per-route-isolation` | `test/static/static-per-route-isolation.ci` | existing test, updated for the narrowed skip classes (AC-15) | updated in `1e3328ef53`: asserts fib-kernel's refused add for the kernel-unreachable gateway, rejects static's "route skipped" |
 
 ### QEMU Integration Tests (Linux-only paths, `ai/rules/platform-linux.md`)
 | Test | Location | What it reads from the kernel | Status |
 |------|----------|-------------------------------|--------|
-| `TestQEMUStaticDistanceDecidesAgainstBGP` | `internal/plugins/fib/kernel/integration_linux_test.go` | one entry for the prefix, `proto 250`, next-hop matching the winner the distance selects | |
-| `TestQEMUConnectedBeatsBGPForTheSamePrefix` | `internal/plugins/fib/kernel/integration_linux_test.go` | no `proto 250` entry for the prefix, and the kernel's own connected route present | |
-| `TestQEMUStaticWeightedMultipath` | `internal/plugins/fib/kernel/integration_linux_test.go` | a multipath route whose hop weights match the config | |
-| `TestQEMUStaticInterfaceNextHop` | `internal/plugins/fib/kernel/integration_linux_test.go` | the route's oif is the configured interface's index | |
-| `TestQEMUNamedTableStaticUnchanged` | `internal/plugins/static/resolve_integration_linux_test.go` | the route is in table blue, unchanged in protocol and shape | |
+None of the five Go tests planned here exists under any name (checked 2026-10-08:
+no `func TestQEMU` in the static, connected, sysrib or fib-kernel packages). Two
+behaviors are covered by `.ci` tests that read the kernel under CAP_NET_ADMIN and
+run in the QEMU guest through `./le test qemu`; three are OWED.
+
+| Planned test | Covered by | What it reads from the kernel | Status |
+|------|----------|-------------------------------|--------|
+| `TestQEMUStaticDistanceDecidesAgainstBGP` | nothing at kernel level; `test/static/static-distance-{beats,loses}-ebgp.ci` read the system RIB winner only | one entry for the prefix, `proto 250`, next-hop matching the winner the distance selects | OWED |
+| `TestQEMUConnectedBeatsBGPForTheSamePrefix` | `test/plugin/connected-distance-arbitration.ci` | the prefix is won by connected and Ze programmed nothing for it (`ze-programmed=no`) | covered |
+| `TestQEMUStaticWeightedMultipath` | nothing at kernel level; unit `TestStaticPathCarriesWeightedNextHops`, `TestBestChangeCarriesTheDeclaredWeights` | a multipath route whose hop weights match the config | OWED |
+| `TestQEMUStaticInterfaceNextHop` | nothing at kernel level for a main-table interface-only route; unit `TestECMPPathCarriesTheInterface`; `test/static/static-table-interface.ci` reads `show static`, not the oif | the route's oif is the configured interface's index | OWED |
+| `TestQEMUNamedTableStaticUnchanged` | `test/static/static-named-table-unchanged.ci` | table 171 holds the route as proto 251 via the gateway; the main table and `show rib` do not | covered |
+
+AC-11 (the distance-selection test red on the pre-change tree) is not recorded:
+it needs the kernel-level `TestQEMUStaticDistanceDecidesAgainstBGP`, which does
+not exist, run against a build of the tree before `125979ea99` (static main-table
+routes reach the FIB through the Loc-RIB). OWED with it.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -812,6 +824,25 @@ or accepts differs after this change.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Goal Validation (BLOCKING)
+
+Written 2026-10-08. Goals from the Task section; evidence named per row, and
+what is missing is said in the row rather than left to a later pass.
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| `static` decides a route-install outcome: one number changes and the prefix changes hands | functional | `test/static/static-distance-beats-ebgp.ci` and `static-distance-loses-to-ebgp.ci` differ only in the declared distance and expect opposite winners in `show rib`; both green under `unshare -rn` on 2026-10-08. MISSING: the kernel half (one `proto 250` entry whose next-hop is the winner's) has no test, and AC-11's pre-change red is not recorded |
+| `connected` decides a route-install outcome: a connected prefix at distance 0 wins and Ze programs nothing the kernel already holds | functional + unit | `test/plugin/connected-distance-arbitration.ci` ("won by connected, ze-programmed=no", read from the kernel), `test/plugin/connected-distance-raised-loses.ci` (distance 250 hands it back to BGP); `TestOSInstalledWinnerWithdrawsTheZeRoute`, `TestOSInstalledWinnerEmitsNothingWhenNothingWasProgrammed`, `TestOSInstalledLoserLeavesTheZeRouteProgrammed` |
+| One writer programs the kernel for main-table static routes | functional | `test/static/static-named-table-unchanged.ci` waits for the main-table static route as `proto 250` (fib-kernel's stamp, not static's 251) before its assertions; `test/static/static-per-route-isolation.ci` (`1e3328ef53`) shows a kernel-refused main-table route surfacing as fib-kernel's "add route failed", not as static's skip |
+| Named tables keep the direct write and stay out of the Loc-RIB (main-table scope boundary) | functional, red proven | `test/static/static-named-table-unchanged.ci` (`5828b35d10`): table 171 holds the route as proto 251, main table and `show rib` do not. Red 1: `inMainTable()` forced true gives "never reached table 171". Red 2: named route inserted into the Loc-RIB gives "leaked into the main table ... proto 250" |
+| Weighted multipath and interface-only next-hops survive the relocation (AC-12, AC-13) | unit only | `TestStaticPathCarriesWeightedNextHops`, `TestBestChangeCarriesTheDeclaredWeights`, `TestECMPPathCarriesTheInterface`. MISSING: no test reads the kernel multipath weights or the oif |
+| A failed transaction leaves the Loc-RIB on the previous set (AC-16, A-7) | none | MISSING: `TestStaticRollbackRestoresThePreviousPathSet` does not exist |
+
+Ready for independent closure: NO. Owed before `/ze-close`: the kernel-level
+static-distance test with its AC-11 red on the tree before `125979ea99`, the
+weighted-multipath and interface-oif kernel reads (AC-12, AC-13), and the AC-16
+rollback test.
 
 ## Review Gate
 
