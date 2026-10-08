@@ -7,7 +7,7 @@
 | Depends | `spec-rfc-requirement-quote-hand-backfill` (closed 2026-09-27, `f265152e15`) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-07 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -105,18 +105,27 @@ The child retains the checkpoint evidence and owns the resumed acceptance;
 shared-image execution and canonical RFC writes stay serialized. No push is
 authorized, and neither spec's closure criteria are reduced.
 
-Progress, 2026-10-08: continuation remains Docker-free. The coupled BGP source
-landed as `d3e5b4a770`; completed MRT, unknown-sub-TLV, FlowSpec advertisement,
-present-empty AS_PATH and mapped-self-oracle chunks have since landed separately.
-All five committed build flavors pass at `411d8136e142`. Wiki retirement and its
-main-site input are committed; final publication remains open. The child's
-"Acceptance evidence, 2026-10-08" distinguishes completed clauses from the
-shared-subnet repair's remaining independent-receiver and load proof. Its real
-four-case topology matrix and replacement replay pass once; earlier replay
-eighty-run evidence does not qualify that replacement. Actual recorder and FRR
-runs exposed guest shared-filesystem ownership prerequisites, corrected only in
-disposable recipes. Final streamed race20, replay bindings, remaining judgments
-and publication remain pending. Neither spec is closed; no push ran.
+Progress, 2026-10-08: BGP source landed as `d3e5b4a770`, followed by
+`a0c1e93bf5`, `0ce4fccd27`, `1e2a0f25c9` and `411d8136e1`.
+Plan checkpoint `f3b2eb3c65` landed; subsequent historical-transfer and SR owner
+reconciliation remains uncommitted. Both specs remain open.
+
+The owner selected "Use Docker" on 2026-10-08. Earlier Docker-free limits are
+history, not a current blocker. The authorized ADD-PATH collision job
+`03279611` stopped at `docker info` setup with a deadline error. It ran no
+scenario assertions. Main is diagnosing endpoint/service setup; no push is
+authorized.
+
+The child's "Acceptance evidence, 2026-10-08" and "Remaining closure obligations,
+2026-10-08" retain the exact proof boundaries. Four shared-subnet writer bindings
+are recorded, but producer halts do not prove whole-clause semantics. Replay
+RFC2545-3-1 is recorded;3-2 remains unfinished after the SSH deadline.
+Both FRR JSON cases pass, but Main found no test UPDATEs in the complete PCAP.
+The repaired capture fence still owes execution and wire/history proof.
+Replacement replay and the joint matrix each owe fresh eighty-run qualification.
+The streamed race job bg199, final freshness checks, independent shared-subnet
+judgments, evidence retention and retirement publication remain open.
+No current conformance totals or full-spec closure are claimed.
 
 | Stays in the parent | Why |
 |---------------------|-----|
@@ -907,10 +916,10 @@ The children's functional and interop tests are per D-8 fix and are planned in e
 
 ## Known Limitations
 
-- `./le rfc check` stays red from the 18 `producer-changed` records other sessions staled, journaled in `plan/journal/concurrent-rfc-gate-stale.md`; this pass neither owns nor fixes them
+- The earlier `./le rfc check` report recorded18 `producer-changed` records attributed to concurrent work in `plan/journal/concurrent-rfc-gate-stale.md`. That historical result is not the current stale population. The final serialized check must establish current freshness and route actual refusals.
 - The R-7 rows of un-enrolled stems (8210bis, rfc1035, rfc9190) are recorded in this spec's table, not in an audit file, because `audit-stamp` refuses an un-enrolled stem; enrolment is `spec-rfc-evidence-strength-3`'s
 - Verdicts blocked by another spec's producer fix leave this pass in that spec's acceptance criteria (P-3), so the whole-corpus listing reaches empty only when those specs close
-- Owner decision, 2026-10-08: `plan/spec-bgp-tunnel-encapsulation-consumption.md` owns the absent RFC 9012 attribute-driven consumer. The BGP child's weak RFC9012-13-16 is explicitly Blocked by AC-2/AC-6; gap RFC9012-13-17, MAC-consumption RFC9012-4.2-1, and Sections 3.7/15 consumer work are retained there without conformance credit. Existing receive RFC9012-13-10/12/13/14 and RFC 9830 ownership do not move.
+- Owner decision, 2026-10-08: `plan/spec-bgp-tunnel-encapsulation-consumption.md` owns the absent RFC 9012 attribute-driven consumer. RFC9012-13-16 is canonically unimplemented, with AC-2/AC-6 ownership, not a pending weak rejudge. Gap RFC9012-13-17, MAC-consumption RFC9012-4.2-1, Sections3.7/15 consumer work and first-occurrence consumption under13-21 remain there without conformance credit. Existing receive RFC9012-13-10/12/13/14 and RFC 9830 ownership do not move. RFC9012-13-10 is now canonical enforced for processing equivalence, not absent tunnel consumption.
 
 ## Checklist
 
