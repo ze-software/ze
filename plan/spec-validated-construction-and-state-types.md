@@ -4,10 +4,10 @@
 |-------|-------|
 | Status | design |
 | Scope | tooling, config, protocol |
-| Depends | Reconcile the completed enum migration before changing its producers; coordinate overlapping IKE plans below |
-| Phase | Research and design draft; implementation not authorized |
+| Depends | Phase 1: `plan/pre-release/spec-config-yang-loader-structural-checks.md` lands first. Later phases: reconcile the completed enum migration before changing its producers; coordinate overlapping IKE plans below |
+| Phase | Phase 1 (YANG resolved schema, validated command arguments, `ArgDef` construction) authorized by the owner on 2026-10-08; its design awaits owner approval of decisions D-1 to D-7. Later phases not authorized |
 | Handoff | - |
-| Updated | 2026-10-05 |
+| Updated | 2026-10-08 |
 
 ## Task
 
@@ -507,6 +507,214 @@ The source already contains useful boundary separation: candidate PKI validation
 ## RFC Documentation
 
 Preserve existing requirement comments and tests on enforcing behavior. When moving a guard or type changes a requirement's source anchor, update the existing summary/test reference without changing the quoted requirement or claiming new support. This draft changes no RFC metadata.
+
+## Phase 1 (owner-authorized 2026-10-08)
+
+### Owner decision, 2026-10-08
+
+> run the state-type refactor as the spec's first phase
+
+The owner authorized a first phase of three concrete migrations. Each is a type that would have made a defect fixed on 2026-10-08 impossible to write. Everything else in this spec (the full census, the IKE families, the remaining Implementation Steps) stays a later phase, unchanged and not authorized by this decision. This section is the Phase 1 design; a design agent wrote it, it is not yet reviewed, and its open decisions (below) go to the owner before implementation starts.
+
+→ Decision: Status stays `design`. `ze-spec` moves a spec to `ready` only after the owner approves the written design at its final gate, and the open decisions below are part of that design. The authorization to run Phase 1 is recorded here and in the metadata Phase row; the design approval is the next owner gate.
+
+→ Constraint: Phase 1 implementation starts only after `plan/pre-release/spec-config-yang-loader-structural-checks.md` lands. That work is editing `internal/component/config/yang/loader.go`, adding `loader_structure.go`, `loader_structure_test.go` and `loader_rfc7950_structural_test.go`, removing `loader_rfc7950_structural_red_test.go`, and names `validator.go` and `loader_rfc7950_test.go`. Phase 1 changes `loader.go` and `validator.go` throughout.
+
+### Phase 1 scope
+
+| Type | Defect that motivates it | Target |
+|------|--------------------------|--------|
+| T1 YANG resolved schema | `yang.Loader` is one type before and after `Resolve`. Nine callers kept using a loader whose `DefaultLoader` or `Resolve` had failed: nil dereferences and silently empty answers. Fixed by threading errors only (ac6c5ce12d, a5b3180063, 40db22a585). `applyPatterns` in `internal/component/config/yang/command.go` still carries a `BUG` panic for "a pattern Loader.Resolve refuses", guarding a state the type allows | `Resolve` returns a distinct resolved type. `BuildCommandTree` and every consumer that needs a checked module set accept only that type, so building from an unchecked or failed loader does not compile |
+| T2 Validated command arguments | Handlers take raw token slices. Three dispatch routes ran handlers with no argument validation; 40db22a585 added `command.ValidateArgs` on each (daemon dispatcher, `command.ServeLocal`, the plain local handler `registry.RegisterLocalData` builds) | `ValidateArgs` is the only producer of a validated-arguments type, and the dispatched handler type accepts only it, so a route that skips validation does not compile |
+| T3 `command.ArgDef` construction | Every field is exported, including `Lengths` and `Patterns`, so any package can build a definition whose ranges overlap or descend, or whose kind and payload disagree. Overlaps AC-13 | A validating constructor, private invariant-bearing fields, accessors that expose no mutable slice. The YANG lowering and every manual producer go through it |
+
+| Excluded from Phase 1 | Reason |
+|-----------------------|--------|
+| `command.Node` field encapsulation (`ArgDefs`, `Children`, ...) | The per-`ArgDef` invariant survives replacing a slice element with another constructed definition; `Node` has no cross-field invariant this phase needs. Recorded as an alias path, later phase |
+| Plugin SDK handler types in `pkg/plugin/` (`sdk.ExecuteCommandHandler`, `rpc.DispatchCommandArgsHandler`, `rpc.ExecuteCommandHandler`) | Plugin API contract external authors compile against. The engine validates before forwarding (route R9 below); the plugin side keeps raw tokens |
+| `registry.RootHandler`, `plugin/registry.Registration.CLIHandler`, the `internal/appliance` handler | Their arguments are process flags the handler parses, not YANG leaves; no `ArgDef` describes them. Step 1 re-checks each: a root handler that forwards into R1 to R9 is covered there |
+| goyang entry immutability | `GetEntry` and `GetModule` return goyang pointers shared with the module set. Copying the tree per call breaks the zero-copy constraint; Phase 1 records the read-only contract and censuses writes (A-8) |
+| IKE families, the full-population census, AC-1, AC-5, AC-8 to AC-12, AC-14, AC-15 | Later phases |
+
+### Phase 1 census
+
+Counts are from `gopls references` over the host build (scratch files `ref-*.txt` and `argref-*.txt` under `tmp/session/2026-10-08-01b175b6-ee3c-45d9-a884-71d61adff15a/scratch/`) and, where marked, from a grep that includes declaration lines. Step 1 reconciles them across build tags and platforms before any edit (A-2).
+
+#### T1 `yang.Loader` (`internal/component/config/yang/loader.go`)
+
+| Census field | Content |
+|--------------|---------|
+| Invariant | A module set whose extension statements are all declared (`checkExtensions`), whose patterns all compile through `compilePattern` (`checkPatterns`), and whose structures pass `checkStructure` (`loader_structure.go`, in flight). Import resolution (`process`) is strict in `Resolve` and best-effort in `DefaultLoader` |
+| Producers | `NewLoader` (126 references: 12 production, 114 test); `DefaultLoader` (63: 22 production, 41 test); `(*Loader).Resolve` (122: 11 production, 111 test). 36 production loader-producing call sites in 25 files (grep). Three resolution policies exist: `Resolve` (strict `process` plus the checks), `DefaultLoader` (discards the `LoadRegistered` and `process` errors, then the checks), and `internal/le/doc/yangcontract/usage.go`, which refuses only `ErrUndeclaredExtension` and then builds a command tree from a loader whose pattern or structure check may have failed |
+| Mutation and alias paths | `AddModuleFromText`, `AddModuleFromFile`, `LoadEmbedded` and `LoadRegistered` stay callable after `Resolve`, on the same goyang module set a resolved consumer reads. `GetModule` and `GetEntry` hand out shared goyang pointers. `Validator` (`validator.go`) and the CLI completer (`internal/component/cli/completer.go`) store a loader; the help-shape input in `internal/le/doc/yangcontract/helpshape.go` carries a `Loader` field |
+| Consumers | Type `Loader`: 78 references (50 production, 28 test) in 28 packages. In package yang: `BuildCommandTree` (56 calls, 17 production), `WireMethodToPaths`, `WireMethodToPath`, `PathToDescription`, `PathToHelp`, `PathToTaskSupport`, `PathToArgDefs`, `PathToUIResource`, `PublishedRPCs`, `ExtractRPCs`, `ExtractNotifications`, `NewValidator`, `CheckAllValidatorsRegistered`, the private `moduleNames`, `GetEntry` (76 references, 23 production), `GetModule`, `ModuleNames`, `ConfModuleNames`, `APIModuleNames`. Outside: `internal/component/config/yang_schema.go` (`loadYANGModules`, `PluginOnlySchema`), `internal/component/aihelp/aihelp.go`, `internal/le/doc/yangcontract/` (`usage.go`, `helpshape.go`, `helpshape_schema.go`, `contract.go`), `internal/le/cli/dispatch/resolver.go`, `internal/le/cli/grammar/cligrammar.go`, `internal/le/cli/list/commandlist.go`, `internal/le/config/claims/configclaims.go`, `internal/le/arch/enumeration/corpus.go`, `internal/exabgp/migration/schema.go`, `internal/component/config/schema/cli/main.go`, `internal/component/config/cli/cmd_edit.go`, `internal/component/config/infra/authz.go`, `internal/component/config/yang/cli/tree.go`, `internal/component/cli/` (`client/main.go`, `completer.go`, `validator.go`, `testing/headless.go`), `internal/component/iface/validate.go`, `internal/component/plugin/server/server.go`, `cmd/ze/hub/` (`command_meta.go`, `service_web.go`, `session_factory.go`), and the plugin YANG self-tests that call `GetEntry` |
+| Tests | 28 test references to the type, 111 to `Resolve`, 114 to `NewLoader`, 41 to `DefaultLoader`, across about 35 packages, including the extension tests ac6c5ce12d and a5b3180063 added |
+| Docs | `docs/architecture/config/yang-config-design.md` (loader, `DefaultLoader`, command tree); `docs/contributing/ze-go-style.md`, "One type per lifecycle state", uses this case as its example |
+
+#### T2 handler argument types
+
+| Handler type | Declared in | Implementations (production) | Route that invokes it | Validated today |
+|--------------|-------------|------------------------------|-----------------------|-----------------|
+| `pluginserver.Handler` | `internal/component/plugin/server/command.go` | 167 named functions with the signature in 38 packages, plus closures; 369 `RPCRegistration` literal sites (grep) | R1 `Dispatcher.Dispatch` | Yes, `ValidateArgs` when the matched command declares definitions; the error is held and reported after authorization and the flag check |
+| `pluginserver.Handler` | same | same | R4 `Server.wrapHandler` (`server.go`) | No. Its comment says nothing dispatches through the RPC dispatcher today, so the route is dormant and unvalidated |
+| `pluginserver.Handler` as `EnsureStep.Handler` and `RollbackHandler` | `ensure.go` | ensure-chain steps | R5 `wrapWithEnsureChain`, which passes nil tokens | No tokens (A-9) |
+| `registry.LocalDataHandler` | `internal/component/command/registry/registry.go` | about 30 `RegisterLocalData` sites (grep, declarations included) | R2 `command.ServeLocal` (`local_data.go`); R3 the plain handler `RegisterLocalData` builds | Yes, both, through `checkLocalArgs` and `checkLocalDataArgs`; both skip when the path declares no definitions |
+| `registry.LocalHandler` | `registry.go` | about 50 `RegisterLocal`, `RegisterLocalMeta` and `RegisterOfflineFallback` sites (grep); 119 production functions shaped as a local or local-data handler | R6 `registry.LookupLocal` (`cmd/ze/ze_core_dispatch.go`, `cmd/ze/internal/cmdutil/cmdutil.go`); R7 `LookupOfflineFallback` (`cmdutil.go`, `internal/component/cli/client/main.go`) | No, except the handlers R3 wraps |
+| `pluginserver.StreamingHandler` | `plugin/server/handler.go` | 5 (`monitor vpn ipsec`, `monitor event`, `monitor traffic stat`, `monitor interface rate`, `monitor system netlink`) | R8 SSH streaming (`cmd/ze/hub/service_ssh.go`) | No |
+| Plugin-process commands | `RegisteredCommand` (`command_registry.go`) | external and internal plugins | R9 `dispatchPlugin`, `routeToProcess`, `ForwardToPlugin`, `dispatchSubsystem` | No engine-side validation; whether the merged model declares definitions for each is A-10 |
+| `rib.CommandHandler` | `internal/component/bgp/plugins/rib/rib_commands.go` | rib sub-dispatch | Inside a plugin, after R1 or R9 | Inherits its caller's validation; recorded, not migrated |
+
+| Census field | Content |
+|--------------|---------|
+| Invariant | Every token a handler receives was judged by `ValidateArgs` against the definitions the merged model declares for the matched path, including the empty set, and the lone positional binding it returned is the one the route acts on |
+| Producer | `command.ValidateArgs` (`internal/component/command/argbind.go`), production callers `local_data.go` and `plugin/server/command.go`; 4 test calls. With no definitions it consumes nothing, refuses nothing and returns no binding: read in its positional phase, where the open-definition count is zero |
+| Mutation and alias paths | The token slice is shared between route and handler; a handler may modify it; the route may read it after the handler for audit and selector reporting (census in step 1) |
+| Tests | About 560 test lines in 68 test files call a handler directly with a literal token slice or nil (grep); `command_flag_test.go`, `argbind_test.go`, `local_data_test.go`, `registry/local_data_args_test.go`, `test/ui/cli-argument-length-refused.ci` |
+| Docs | `docs/architecture/api/commands.md` (typed argument validation, the routes) |
+
+#### T3 `command.ArgDef` (`internal/component/command/node.go`)
+
+| Census field | Content |
+|--------------|---------|
+| Invariant | `Name` non-empty. `Kind` selects exactly one payload: `ArgString` may carry `Lengths` and `Patterns`; `ArgUint` carries `UintBits` in {8, 16, 32, 64} and `Ranges` within that width; `ArgEnum` carries `EnumValues`; `ArgUnion` carries `UnionDefs`, each itself valid, and the flattened `EnumValues` of its enum members; `ArgFlag` carries none. `Ranges` and `Lengths` parts each have Min at most Max and are disjoint and ascending. RFC 7950 Section 9.2.4: "If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order." Section 9.4.4 states the same for length, after "Length-restricting values MUST NOT be negative." |
+| Producers | Production: `yangTypeToArgDef` (`config/yang/command.go`: the literal, then writes of `Mandatory`, `ShortHelp`, `Description`, `Kind`, `EnumValues`, `UintBits`, `UnionDefs`, and `applyRange`, `applyLength`, `applyPatterns`); `appendAnchored` in the same file, which copies inherited definitions and writes `Anchor`; `argDefs` in `internal/component/mcp/tools.go`, which projects only `Name`, `Anchor` and `Mandatory` into a zero-kind definition for `command.WriteInvocation`. Test: 123 literal lines in 16 test files |
+| Mutation and alias paths | Every field is assignable. The slices are shared across value copies (`PathToArgDefs` map values, `Node.ArgDefs`, `inheritArgDefs` in `plugin/server/rpc_register.go`), so a write through one copy's slice element changes all of them |
+| Consumers | Type: 208 references (72 production in 16 files, 136 test). Fields, tests included: `Name` 239, `Kind` 204, `Mandatory` 102, `EnumValues` 46, `UintBits` 36, `Anchor` 31, `UnionDefs` 22, `Patterns` 14, `Ranges` 13, `Lengths` 9. Production readers: `command/` (`argvalidate.go`, `argbind.go`, `usage.go`, `arguments.go`, `completer.go`, `local_data.go`), `plugin/server/` (`command.go`, `rpc_register.go`), `mcp/tools.go`, `web/handler_admin.go`, `cli/client/` (`main.go`, `verb_tree.go`), `le/doc/yangcontract/helpshape.go`, `le/cli/dispatch/resolver.go`, `cmd/ze/hub/command_meta.go` |
+| Zero | `ArgDef{}` is today an unnamed, unrestricted `ArgString` (the kind zero), which `ValidateArgString` accepts as any string |
+| Docs | `docs/architecture/api/commands.md`; `docs/architecture/config/yang-config-design.md` (CLI Help from YANG, command metadata) |
+
+### Phase 1 design
+
+| Type | Representation | Compile-time guarantee | Go limits and residual runtime checks |
+|------|----------------|------------------------|---------------------------------------|
+| T1 | `Loader` keeps only the loading operations and one transition, `Resolve`, which returns the resolved type or an error. `DefaultLoader` returns the resolved type. Every read operation (`GetEntry`, `GetModule`, the name lists) and every consumer in the census moves to the resolved type. The resolved type holds the module set privately, plus the patterns `checkPatterns` compiled, keyed by pattern text, so `applyPatterns` reads a compiled pattern instead of compiling again | `BuildCommandTree`, the `PathTo*` and `WireMethodTo*` maps, `PublishedRPCs`, `ExtractRPCs`, `ExtractNotifications`, `NewValidator` and `CheckAllValidatorsRegistered` cannot be called with a loader, so a caller that ignored a `Resolve` or `DefaultLoader` error has no value to pass. The `applyPatterns` compile-error branch disappears, because the resolved type holds only checked patterns | The zero value and `new()` of the exported resolved type compile in any package. Contract: safe-invalid zero; each accessor on a zero or nil resolved value ends in a `BUG` panic naming the zero, because only Ze code can construct one and no input reaches it. Code inside `config/yang` can still build one by literal: audited in step 1, covered by AC-19. A pattern lowering reads that `checkPatterns` did not compile is a lowering-versus-check coverage defect, kept as a named BUG and proved absent by AC-20. `Resolve` does not revoke the loader: shared state on the module set refuses every load after resolution (AC-7) |
+| T2 | A validated-arguments value type in package `command`, with private tokens and the lone positional binding, returned only by `ValidateArgs`. Every route calls `ValidateArgs`, including for a path with no definitions, and invokes a handler only with the value a successful call returned. The dispatched handler types take that value (D-2 chooses between changing every handler signature and changing the stored, dispatched type) | A route outside `command` cannot fabricate a non-zero validated value and cannot invoke a dispatched handler with raw tokens, so R4, R6, R7, R8 and R9 cannot stay unvalidated and a new route cannot skip the call | The zero value compiles anywhere and means no tokens and no binding. A route could pass a zero value instead of calling `ValidateArgs`; that bypass is visible as an empty literal and is caught by review and by the per-route discrimination tests (AC-22), not by the compiler. Code inside `command` can build one by literal. The token slice belongs to the handler for the call; the value does not re-expose it to the route afterwards (AC-6) |
+| T3 | `ArgDef` stays a value type, with private fields. One constructor per kind (string, unsigned with width, enum, union, flag) validates name, payload and part order and returns an error; options carry `Mandatory`, `ShortHelp`, `Description` and `Anchor`. A copy-returning method sets the anchor for `appendAnchored`. Read accessors return scalars and iterate slices without exposing them | No package outside `command` can name a payload field, so a definition with overlapping or descending parts, a width outside {8, 16, 32, 64}, or a payload of the wrong kind cannot be written, and no accessor result can be written through | `ArgDef{}` still compiles anywhere. Contract (D-4): `ValidateArgs` refuses a zero definition with an error instead of accepting an unrestricted string. Code and tests inside `command` can still write fields: audited, and tests use constructors (AC-16). Lowering must not fail on input that resolution admitted, so a constructor error inside `BuildCommandTree` is a BUG only if resolution already refuses every restriction the constructor refuses (A-11) |
+
+### Open decisions for the owner
+
+| # | Decision | Options | Recommendation |
+|---|----------|---------|----------------|
+| D-1 | Name of the resolved type | `yang.Schema` (the style-guide example); `yang.Resolved`; `yang.ModuleSet` | `yang.Resolved`. `internal/component/config` already declares `Schema`, built from the loader, and imports this package as `yang`, so `yang.Schema` beside `Schema` in one file names two different things |
+| D-2 | Which handler types take validated arguments | A: every author-facing handler type (`pluginserver.Handler`, `registry.LocalHandler`, `LocalDataHandler`, `StreamingHandler`): about 290 production handler functions in about 40 packages and about 560 test call lines in 68 files. B: the stored and dispatched handler type only. Registration still accepts the author's function; the registry and dispatcher store it behind an invoker that requires the validated value, and routes are its only callers. Cost: registry and dispatcher internals, the nine routes, and the tests that invoke through them | B in Phase 1. It gives the stated guarantee, that a route which skips validation does not compile, at about a tenth of the cost. Handler bodies read the same tokens either way, because `ValidateArgs` passes unmatched tokens through. Residual: calling a handler function by name bypasses the registry; step 1 censuses production cross-calls. If the owner wants A, split it out as Phase 1b after B lands, deleting B's invoker rather than keeping both |
+| D-3 | Routes that validate nothing today (R6 local handlers, R7 offline fallback, R8 streaming, R9 plugin forwarding) | Validate on every route; or only on the three routes 40db22a585 fixed | Every route. The type makes skipping impossible to write, and a route left out keeps the defect class open. It adds refusals only for tokens the model already declares invalid; each route gets a discrimination test |
+| D-4 | Zero `ArgDef` contract | Keep it a valid unrestricted string (today); refuse it at `ValidateArgs`; change the zero of `ArgKind` to an unspecified kind | Refuse at `ValidateArgs` with an error, through a private constructed marker, without changing the `ArgKind` zero. A zero definition is a Ze defect, and an unrestricted fallback is fail-open |
+| D-5 | Kind and payload representation for `ArgDef` | One struct with private fields and per-kind constructors; or a sealed interface with one variant per kind | One struct with per-kind constructors. The consumers already switch on `Kind` (a closed switch in `argvalidate.go`), definitions travel in value slices, and variants would box each definition. The public API still cannot express a mismatched combination, which is what AC-3 asks |
+| D-6 | `DefaultLoader`'s best-effort `LoadRegistered` and `process` | Preserve; make both strict; keep best-effort and report the discarded errors | Preserve in Phase 1, documented on the resolved type as "imports resolved where they resolve"; changing it is a behavior change outside this phase. The `usage.go` policy, which builds a tree after a pattern or structure failure, does not survive: it becomes a call to the shared transition |
+| D-7 | The MCP `argDefs` projection | Construct full definitions from the lister; or give `command.WriteInvocation` a name-and-anchor input | Give `WriteInvocation` the narrower input it reads. A definition built with no restrictions is a value that lies about what the argument accepts |
+
+### Phase 1 Assumptions
+
+| ID | Assumption | Basis | If wrong | Validated by | Status |
+|----|------------|-------|----------|--------------|--------|
+| A-5 | `spec-config-yang-loader-structural-checks` lands before Phase 1 starts and leaves `checkStructure` inside `Resolve` and `DefaultLoader` | Uncommitted `loader.go` diff and untracked `loader_structure.go` in the working tree on 2026-10-08 | T1's invariant row changes, and the edits collide | Re-read `loader.go` at HEAD before step 1 | Open |
+| A-6 | Every consumer of a loader reads it only after `Resolve` or `DefaultLoader` | Census above; the nine callers fixed in ac6c5ce12d and a5b3180063 | A consumer that reads mid-load cannot take the resolved type | Step 1 reference walk, each production call site classified | Open |
+| A-7 | Calling `ValidateArgs` on a path with no definitions changes nothing | Read in `argbind.go`: keyword and mandatory phases iterate definitions, and the positional phase refuses only when open definitions remain | Routes that skip today would start refusing | `TestValidateArgsEmptyDefinitionsPassTokens` | Verified by reading, test owed |
+| A-8 | No consumer writes into a goyang entry or module obtained through the loader | Not yet checked | The resolved type's read-only contract is false | Step 1: uses of `GetEntry` and `GetModule` results checked for writes | Open |
+| A-9 | Ensure-chain creation handlers declare no mandatory argument | Not yet checked; R5 passes nil tokens today | Validating R5 with no tokens would refuse a working ensure step | Step 1: definitions of each ensure-step command | Open |
+| A-10 | Plugin-process commands that declare definitions in the merged model can be validated in the engine before forwarding | `inheritArgDefs` in `rpc_register.go` merges model definitions | R9 validation needs definitions the engine does not hold | Step 1: `RegisteredCommand` paths against `PathToArgDefs` | Open |
+| A-11 | Resolution refuses every restriction the `ArgDef` constructor refuses, for the types lowering reads | `checkStructure` refuses length parts that overlap or descend (`ErrLengthOrder`); Ze checks no range order, and goyang's range parsing is unread | A module loaded from a file (`AddModuleFromFile`, used by `le` tooling) could reach a constructor error inside lowering, making a BUG input-reachable | Read goyang's range parsing; if it checks nothing, add the range-order check to resolution in coordination with the structural-checks spec, or make lowering return the error | Open |
+
+### Phase 1 Risks
+
+| ID | Risk | Early signal | Mitigation |
+|----|------|--------------|------------|
+| R-13 | The concurrent loader work and Phase 1 edit `loader.go` together | Dirty `loader.go` or untracked `loader_structure*.go` at step 1 | Start only after A-5 holds; re-read the landed source |
+| R-14 | Route validation changes an operator-visible answer (text or order) | `cli-argument-length-refused.ci` or a dispatcher test changes output | Keep the held-error order in `Dispatch`; assert each route's existing refusal text |
+| R-15 | A constructor refuses a definition the lowering produces today | `BuildCommandTree` over the registered module set reports a constructor error | AC-20 builds the tree from every registered module; a refusal is a model defect, fixed in the model, never by weakening the constructor |
+| R-16 | A zero resolved value or zero validated-arguments value slips through | A test or route builds an empty literal | Positive-control probes record that it compiles; AC-4 contract tests; review of every empty literal |
+| R-17 | Census counts miss build-tagged or platform files | A Linux-only or tagged file fails to build after the migration | Step 1 reconciles with the build-tag populations; the final build covers them |
+
+### Phase 1 Acceptance Criteria
+
+Existing criteria reused, scoped to T1, T2 and T3:
+
+| AC ID | Phase 1 reading |
+|-------|-----------------|
+| AC-2 | Outside its package, no code can give the resolved type, the validated-arguments type or an `ArgDef` a nonzero state except through `Resolve` or `DefaultLoader`, `ValidateArgs`, and the `ArgDef` constructors. Each constructor accepts every definition the registered modules lower today and refuses an invalid one without returning a value |
+| AC-3 | A loader cannot be passed where the resolved type is required; a dispatched handler cannot be invoked with raw tokens; an `ArgDef` whose kind and payload disagree cannot be written outside `command` |
+| AC-4 | A zero or nil resolved value ends in a named BUG panic at the first accessor; a zero validated-arguments value carries no tokens; `ValidateArgs` refuses a zero `ArgDef` with an error. Tests record each, and the compile-positive controls show Go admits the zero |
+| AC-6 | No accessor of the three types returns a slice or map whose writes change the stored value; a write to a constructor's input slice after construction changes nothing |
+| AC-7 | After `Resolve` succeeds or fails, every load operation on the loader returns an error, and the resolved value's answers are unchanged |
+| AC-13 | Every `ArgDef` the YANG lowering, `appendAnchored` and the census's manual producers publish comes from a constructor; usage, completion, help and MCP output for valid definitions are unchanged |
+| AC-16 | Every Phase 1 census row and caller is migrated, the `applyPatterns` compile-error panic is gone, tests use the real constructors, and the build-tag populations compile |
+| AC-17 | `docs/architecture/config/yang-config-design.md` and `docs/architecture/api/commands.md` describe the resolved type, the validated-arguments value and the constructors, with source anchors |
+| AC-18 | Compile-negative probes fail with the expected type error beside a positive control that compiles; runtime tests reach the real routes |
+
+Phase-specific criteria:
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-19 | Every production producer of the resolved type, of the validated-arguments value and of `ArgDef`, after migration | Each is the transition or a constructor; same-package literal construction appears only in that package's zero-contract tests |
+| AC-20 | `BuildCommandTree` over the full registered module set, and over a module whose pattern or length restriction resolution refuses | The full set builds with no constructor error and no BUG; the refused module yields a `Resolve` error and no resolved value |
+| AC-21 | A module set where resolution fails, through `ze` startup, the CLI tree, API and MCP metadata, and the `le` tooling paths | Each reports the resolution error and none reaches a command tree. The `usage.go` HEAD baseline refuses on a pattern or structure failure as well as on an undeclared extension |
+| AC-22 | A token that breaks a declared length, pattern or range, on each route R1 to R9 that carries a declared argument | Each route refuses before the handler runs, with the existing refusal text, and a token at the bound reaches the handler. Removing one route's validation call turns that route's test red |
+| AC-23 | A command path with no declared definitions, on each route | Arbitrary tokens reach the handler unchanged |
+
+### Phase 1 Wiring Test
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| `ze` daemon startup | → | `DefaultLoader` returns the resolved type; `cmd/ze/hub/session_factory.go` and `plugin/server/server.go` build the tree from it | Existing `test/ui/cli-argument-length-refused.ci`, which boots the daemon, and the tests in `cmd/ze/hub/session_factory_extension_test.go`, migrated to the resolved type |
+| `ze cli -c` with `show env get` and a 129-character key | → | R2 `ServeLocal`, invoking through the validated value | `test/ui/cli-argument-length-refused.ci`, in-process sequence |
+| `ze show env get` with a 129-character key | → | R3 and R6 local routes | `test/ui/cli-argument-length-refused.ci`, verb sequence |
+| Daemon command `show metrics name` with a 129-character name, over SSH | → | R1 `Dispatch` | `test/ui/cli-argument-length-refused.ci`, daemon sequence |
+| A plugin command with a declared argument, chosen in step 1 from R9's census | → | R9 engine-side validation before forwarding | New `test/ui/cli-argument-refused-plugin-route.ci` |
+| A `monitor` command with a declared argument, over SSH | → | R8 streaming route | The same new `.ci`, second sequence, if a streaming command declares an argument (step 1); otherwise AC-23's empty-definition test covers R8 |
+| YANG lowering of every registered module | → | `ArgDef` constructors through `BuildCommandTree` | `TestYANGArgumentAdmissionPreservesValidation` (planned above), extended to every kind, plus `TestCommandTreeBuildsFromEveryRegisteredModule` |
+
+### Phase 1 TDD plan
+
+| Test | File / carrier | Validates |
+|------|----------------|-----------|
+| `TestResolveRefusesLoadAfterResolution` | `internal/component/config/yang/loader_test.go` | AC-7 |
+| `TestResolvedZeroValueIsABug` | same package, external test file | AC-4 for T1 |
+| `TestCommandTreeBuildsFromEveryRegisteredModule` | `config/yang/command_test.go` | AC-20, AC-13 |
+| `TestYANGContractBaselineRefusesFailedResolution` | `internal/le/doc/yangcontract/usage_test.go` | AC-21, the `usage.go` policy |
+| `TestValidateArgsEmptyDefinitionsPassTokens` | `internal/component/command/argbind_test.go` | AC-23, A-7 |
+| `TestEveryRouteInvokesWithValidatedArguments` | One test per route: `plugin/server/command_flag_test.go` (R1), `server_test.go` (R4), `ensure_test.go` (R5), `command/local_data_test.go` (R2), `command/registry/local_data_args_test.go` (R3, R6, R7), a `cmd/ze/hub` SSH streaming test (R8), a `plugin/server` forwarding test (R9) | AC-22, with a red observed by removing the route's validation call |
+| `TestArgDefConstructorRefuses` | `internal/component/command/node_test.go` | AC-2, AC-3: empty name; width outside {8, 16, 32, 64}; a range above the width; overlapping parts; descending parts; empty enum; union with an invalid member. Each case changes one fact of a valid definition |
+| `TestArgDefAccessorsDoNotAlias` | same | AC-6: mutate the constructor's input slices; the iterated payload is unchanged |
+| `TestZeroArgDefRefused` | `command/argvalidate_test.go` | AC-4, D-4 |
+| `TestWriteInvocationPlacesAnchoredValues` | `mcp/tools_anchor_test.go` | D-7, unchanged output |
+
+Compile-negative probes follow the procedure in the TDD plan above: one forbidden operation per case, the positive control compiled first under the same module and tags, the error text recorded in this spec, the probe files deleted at step 5.
+
+| Probe | Forbidden operation (expected type error) | Positive control (compiles) |
+|-------|--------------------------------------------|-----------------------------|
+| P-1 | Passing a loader to `BuildCommandTree` | Passing the value `Resolve` returned |
+| P-2 | A literal of the resolved type naming a field, from another package | The empty literal and `new()` of the resolved type |
+| P-3 | Invoking a dispatched handler with a token slice, from `plugin/server` | Invoking it with the value `ValidateArgs` returned |
+| P-4 | A literal of the validated-arguments type naming a field, from another package | Its empty literal |
+| P-5 | An `ArgDef` literal naming `Lengths`, `Patterns` or `Kind`, from `config/yang` | The constructor call; the empty literal |
+| P-6 | Assigning into an element of what an `ArgDef` accessor returns | Ranging over it |
+
+### Phase 1 files
+
+| File | Change |
+|------|--------|
+| `internal/component/config/yang/loader.go` | Resolved type, transition, refusal of loads after resolution, accessors moved. Shared with the structural-checks spec |
+| `internal/component/config/yang/loader_structure.go` | Range-order check if A-11 requires it. Shared, in flight |
+| `internal/component/config/yang/command.go` | Consumers take the resolved type; lowering through constructors; `applyPatterns` reads compiled patterns |
+| `internal/component/config/yang/` `validator.go`, `validator_registry.go`, `rpc.go`, `rpc_publish.go`, `enum.go` | Take the resolved type. `validator.go` is shared with the structural-checks spec; `rpc_publish.go` and `rpc_test.go` carry another session's uncommitted hunks on 2026-10-08 |
+| Every T1 consumer file in the census | Take the resolved type |
+| `internal/component/command/` `node.go`, `argbind.go`, `argvalidate.go`, `usage.go`, `arguments.go`, `completer.go`, `local_data.go` | `ArgDef` constructors and accessors; validated-arguments value |
+| `internal/component/command/registry/registry.go` | Stored handlers behind the validated invoker; R3, R6, R7 |
+| `internal/component/plugin/server/` `command.go`, `server.go`, `ensure.go`, `handler.go`, `rpc_register.go`, `command_registry.go` | R1, R4, R5, R8 lookup, R9; `ArgDef` inheritance through the copy method. `handler.go`, `rpc_register.go` and `owner_prefix_test.go` carry another session's uncommitted hunks on 2026-10-08 |
+| `cmd/ze/hub/` `service_ssh.go`, `command_meta.go`, `session_factory.go`, `service_web.go`; `cmd/ze/ze_core_dispatch.go`; `cmd/ze/internal/cmdutil/cmdutil.go`; `internal/component/cli/client/main.go` | Routes and resolved-type consumers |
+| `internal/component/mcp/tools.go`, `internal/component/web/handler_admin.go`, `internal/le/doc/yangcontract/`, `internal/le/cli/dispatch/`, `internal/le/cli/grammar/`, `internal/le/cli/list/` | `ArgDef` accessors, D-7, resolved type |
+| The 16 test files with `ArgDef` literals, and every test file the T1 and T2 counts name | Constructors, resolved type, validated invocation |
+| `test/ui/cli-argument-refused-plugin-route.ci` | New |
+| `docs/architecture/config/yang-config-design.md`, `docs/architecture/api/commands.md` | Updated in the step that changes the behavior each describes |
+| `docs/contributing/ze-go-style.md` | Only if D-1 picks a name other than the guide's illustrative `Schema` and the owner wants the example to match |
+
+### Phase 1 implementation steps
+
+1. **Precondition and census.** Confirm `spec-config-yang-loader-structural-checks` has landed (A-5), and re-read at HEAD `loader.go`, `loader_structure.go`, `validator.go`, `plugin/server/handler.go`, `rpc_register.go` and `config/yang/rpc_publish.go`. Reconcile every count above with `gopls references` across build tags, classify each production call site, and resolve A-6 and A-8 to A-11. Append the reconciled census to this section before any source edit.
+2. **T3 first.** It is the leaf, and the other two read definitions. Write `TestArgDefConstructorRefuses`, `TestArgDefAccessorsDoNotAlias`, `TestZeroArgDefRefused` and probes P-5 and P-6, and watch them fail. Add the constructors and accessors, make the fields private, and migrate the lowering, `appendAnchored`, the MCP projection (D-7), every reader and every test literal in one batch. Run `TestCommandTreeBuildsFromEveryRegisteredModule`.
+3. **T1.** Write `TestResolveRefusesLoadAfterResolution`, `TestResolvedZeroValueIsABug`, `TestYANGContractBaselineRefusesFailedResolution` and probes P-1 and P-2. Introduce the resolved type, move the read operations, migrate every census consumer and its tests, fold the `usage.go` policy into the shared transition, and remove the `applyPatterns` compile-error branch. Update `yang-config-design.md` in this step.
+4. **T2.** Write `TestValidateArgsEmptyDefinitionsPassTokens`, the per-route tests and probes P-3 and P-4. Introduce the validated-arguments value, put the stored handlers behind it (D-2), make every route R1 to R9 call `ValidateArgs`, and add `cli-argument-refused-plugin-route.ci`. For each route, remove its validation call, record the red, and restore it. Update `commands.md` in this step.
+5. **Reconcile.** Re-run the census for added or removed producers, delete the probe files after recording their errors here, and hand the long gates to the main thread: `./le go lint run`, `./le test unit all`, the `ui` functional suite and `./le verify worktree`. An independent review follows under `/ze-review`.
 
 ## Review Gate
 
