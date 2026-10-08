@@ -62,6 +62,11 @@ kernel entry, `proto 250`, via the winner's next-hop.
 `static-kernel-distance-reload.ci` starts at `static 5`, reloads to `static 250`
 with no other change, and expects the kernel entry to move to the BGP next-hop
 with one entry left, because the Loc-RIB re-ranks the installed route.
+`static-kernel-distance-route-override.ci` gives one route its own `distance 3`
+and a witness route none, under `static 5`, and reloads to `static 250`: the
+witness moves to the BGP next-hop, and the route with its own distance keeps its
+one kernel entry via the static next-hop, because the override wins over the
+declared static distance before and after the reload.
 `static-kernel-weighted-multipath.ci` expects the configured weights on the
 kernel's multipath hops, and `static-kernel-interface-nexthop.ci` expects an
 interface-only route to leave by that device with no gateway. A reload that

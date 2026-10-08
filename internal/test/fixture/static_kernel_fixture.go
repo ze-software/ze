@@ -195,3 +195,89 @@ func staticKernelDistanceReload(ctx context.Context, plugin *sdk.Plugin) error {
 	fmt.Fprintln(os.Stderr, "OK: reload re-ranked "+arbitratedPrefix+", kernel now via "+kernelBGPGateway)
 	return nil
 }
+
+// overrideWitnessPrefix is the second contested prefix of the route-override
+// scenario. Its static route carries no distance of its own, so it ranks at the
+// declared static distance and shows when a reload of that distance took effect.
+const overrideWitnessPrefix = "10.1.0.0/16"
+
+// staticKernelDistanceRouteOverride proves AC-21 at the kernel: a static
+// route's own `distance` leaf wins over `rib { distance { static } }`, and a
+// reload of that declaration leaves the route at its own value.
+//
+// The config gives 10.0.0.0/8 its own `distance 3` and leaves 10.1.0.0/16
+// without one, under `static 5`; eBGP offers both prefixes at 20. Before the
+// reload the static next-hop forwards both. The reload raises the declaration
+// to `static 250`. The witness 10.1.0.0/16 then moves to the BGP next-hop,
+// which proves sysrib published the new declaration and the Loc-RIB re-ranked.
+// 10.0.0.0/8 must stay on the static next-hop: its own 3 still beats eBGP 20,
+// where the declared 250 would lose. An override the Loc-RIB ignored, or one
+// the static plugin never sent, therefore moves 10.0.0.0/8 to BGP with the
+// witness.
+func staticKernelDistanceRouteOverride(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := apiRIBReady02(ctx, plugin); err != nil {
+		return err
+	}
+	for _, prefix := range []string{arbitratedPrefix, overrideWitnessPrefix} {
+		var inject textbuf.Buffer
+		inject.Str("request bgp rib inject 10.0.0.99 ipv4/unicast ").Str(prefix)
+		inject.Str(" origin igp aspath 64500 nexthop ").Str(kernelBGPGateway)
+		if _, err := requireDone02(ctx, plugin, inject.String()); err != nil {
+			return err
+		}
+	}
+	for _, prefix := range []string{arbitratedPrefix, overrideWitnessPrefix} {
+		if err := kernelForwardsVia(ctx, prefix, kernelStaticGateway); err != nil {
+			return fmt.Errorf("before the reload: %w", err)
+		}
+	}
+
+	pid, err := waitDaemon(ctx, 200)
+	if err != nil {
+		return err
+	}
+	config, err := os.ReadFile("ze-bgp.conf")
+	if err != nil {
+		return fmt.Errorf("reading the daemon config to rewrite it: %w", err)
+	}
+	raised := strings.Replace(string(config), "static 5", "static 250", 1)
+	if raised == string(config) {
+		return fmt.Errorf("the daemon config holds no `static 5` to raise: %q", config)
+	}
+	if err := os.WriteFile("ze-bgp.conf", []byte(raised), 0o600); err != nil {
+		return err
+	}
+	if err := signalProcess(pid, syscall.SIGHUP); err != nil {
+		return err
+	}
+
+	if err := kernelForwardsVia(ctx, overrideWitnessPrefix, kernelBGPGateway); err != nil {
+		return fmt.Errorf("after the reload to static 250, the witness: %w", err)
+	}
+	if err := kernelForwardsVia(ctx, arbitratedPrefix, kernelStaticGateway); err != nil {
+		return fmt.Errorf("after the reload to static 250, the route with its own distance 3: %w", err)
+	}
+	if winner, seen := ribWinner02(ctx, plugin, arbitratedPrefix); winner != protocolStatic {
+		return fmt.Errorf("after the reload to static 250: %s system RIB winner is %q, want %q; show rib: %s",
+			arbitratedPrefix, winner, protocolStatic, seen)
+	}
+	fmt.Fprintln(os.Stderr, "OK: "+arbitratedPrefix+" kept its own distance 3 across the reload, kernel via "+kernelStaticGateway)
+	return nil
+}
+
+// kernelForwardsVia waits for the kernel to hold exactly one entry for prefix,
+// programmed by the FIB plugin (proto 250) via gateway, and reports what it
+// held when the wait runs out.
+func kernelForwardsVia(ctx context.Context, prefix, gateway string) error {
+	var entries []string
+	if !Poll(ctx, kernelPolls, 100*time.Millisecond, func() bool {
+		entries = kernelEntries(ctx, prefix)
+		return len(entries) == 1 &&
+			strings.Contains(entries[0], "proto 250") &&
+			strings.Contains(entries[0], "via "+gateway+" ")
+	}) {
+		return fmt.Errorf("%s: want exactly one kernel entry, proto 250 via %s; ip route show table all: %q",
+			prefix, gateway, entries)
+	}
+	return nil
+}
