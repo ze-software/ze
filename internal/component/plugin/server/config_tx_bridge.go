@@ -94,8 +94,8 @@ func newConfigTxBridge(s *Server, gw *ConfigEventGateway, participantNames []str
 }
 
 // Subscribe registers engine-side handlers for every per-plugin verify/apply
-// event the orchestrator will publish, plus a single handler for the broadcast
-// rollback event. Must be called exactly once before TxCoordinator.Execute.
+// event the orchestrator will publish, plus a single handler for each of the
+// broadcast rollback and committed events. Must be called exactly once before TxCoordinator.Execute.
 // Returns an error if any per-plugin event type fails to register in the
 // plugin event registry (which the stream system validates on emit).
 func (b *configTxBridge) Subscribe(ctx context.Context) error {
@@ -137,6 +137,7 @@ func (b *configTxBridge) Subscribe(ctx context.Context) error {
 		b.subscribeOperationCommit(ctx, name)
 	}
 	b.subscribeRollback(ctx)
+	b.subscribeCommitted(ctx)
 	return nil
 }
 
@@ -701,6 +702,61 @@ func (b *configTxBridge) subscribeRollback(parentCtx context.Context) {
 		}
 	})
 	b.addUnsub(unsub)
+}
+
+// configCommittedTimeout bounds one config-committed RPC. The callback only
+// closes the SDK's rollback gate, so a healthy plugin answers at once.
+const configCommittedTimeout = 5 * time.Second
+
+// subscribeCommitted wires a single handler for the broadcast committed event.
+// The bridge fans a config-committed RPC out to every participant so each SDK
+// closes its rollback gate: the undo set a plugin kept from this transaction's
+// apply belongs to this transaction alone, and the rollback of a later one that
+// never reached the plugin's apply must not replay it.
+//
+// The orchestrator collects no ack for committed, so a failed RPC is logged.
+// The plugin then keeps its gate open until its next rollback or commit.
+//
+// The orchestrator publishes committed synchronously before the reload
+// finishes, so each RPC is bounded by configCommittedTimeout: a plugin whose
+// event loop is stuck delays the reload by that much, never indefinitely.
+func (b *configTxBridge) subscribeCommitted(parentCtx context.Context) {
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, transaction.EventCommitted, func(p any) {
+		event, ok := p.(string)
+		if !ok {
+			logger().Error("config tx bridge: non-string committed payload",
+				"got", reflect.TypeOf(p))
+			return
+		}
+		var ev transaction.CommittedEvent
+		if err := json.Unmarshal([]byte(event), &ev); err != nil {
+			logger().Error("config tx bridge: unmarshal committed event", "error", err)
+			return
+		}
+		for _, name := range b.participantNames {
+			b.dispatchCommitted(parentCtx, ev.TransactionID, name)
+		}
+	})
+	b.addUnsub(unsub)
+}
+
+// dispatchCommitted calls config-committed on one plugin. A plugin that has
+// gone away has no gate left to close, so a missing process is not an error.
+func (b *configTxBridge) dispatchCommitted(ctx context.Context, txID, name string) {
+	proc := b.lookupProcess(name)
+	if proc == nil {
+		return
+	}
+	conn := proc.Conn()
+	if conn == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, configCommittedTimeout)
+	defer cancel()
+	if err := conn.SendConfigCommitted(ctx, txID); err != nil {
+		logger().Error("config tx bridge: config-committed",
+			"plugin", name, "transaction-id", txID, "error", err)
+	}
 }
 
 // dispatchRollback calls config-rollback on one plugin and emits the ack.

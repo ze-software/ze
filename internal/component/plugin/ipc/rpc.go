@@ -533,6 +533,18 @@ func (pc *PluginConn) SendConfigRollback(ctx context.Context, txID string) error
 	return err
 }
 
+// SendConfigCommitted tells the plugin that the transaction committed, so the
+// config-apply it accepted in it is permanent. The SDK closes its rollback gate
+// on it: a later transaction's config-rollback then reaches the plugin's
+// rollback handler only if the plugin applied in that later transaction.
+func (pc *PluginConn) SendConfigCommitted(ctx context.Context, txID string) error {
+	input := struct {
+		TransactionID string `json:"transaction-id"`
+	}{TransactionID: txID}
+	_, err := pc.CallRPC(ctx, "ze-plugin-callback:config-committed", input)
+	return err
+}
+
 // SendConfigOperationDecompose sends one operation decomposition request.
 func (pc *PluginConn) SendConfigOperationDecompose(ctx context.Context, input *rpc.ConfigOperationDecomposeInput) (*rpc.ConfigOperationDecomposeOutput, error) {
 	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-operation-decompose", input)

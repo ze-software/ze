@@ -225,8 +225,10 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 
 	p.OnConfigRollback(func(_ string) error {
 		// A rollback ends the transaction, so the candidate this plugin verified
-		// is unstaged rather than left for an apply that will never ask for it
-		// (pendingPolicies.clear).
+		// is unstaged (pendingPolicies.clear). The SDK runs this handler
+		// only after an apply this plugin accepted (pkg/plugin/sdk/config_tx_gate.go). A
+		// candidate verified in a transaction that failed before this plugin's
+		// apply stays staged, as after an abort, until the next verify replaces it.
 		mu.Lock()
 		pending.clear()
 		mu.Unlock()

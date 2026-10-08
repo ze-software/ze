@@ -115,9 +115,20 @@ func (p *Plugin) initCallbackDefaults() {
 			return nil, p.handleConfigure(params)
 		},
 		// Config: accept when no handler registered.
-		callbackConfigVerify:   marshalStatusOK,
-		callbackConfigApply:    marshalStatusOK,
-		callbackConfigRollback: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
+		callbackConfigVerify: marshalStatusOK,
+		// A plugin with no apply handler still accepts an apply, and the gate
+		// records it so a rollback handler registered alone is still reached.
+		callbackConfigApply: p.configApplyCallback(nil),
+		callbackConfigRollback: func(json.RawMessage) (json.RawMessage, error) {
+			p.configTx.rollbackOwed()
+			return nil, nil
+		},
+		// Commit closes the open apply, so a later transaction's rollback
+		// does not replay an undo that belongs to this committed one.
+		callbackConfigCommitted: func(json.RawMessage) (json.RawMessage, error) {
+			p.configTx.committed()
+			return nil, nil
+		},
 		// Validate-open: accept when no handler registered.
 		callbackValidateOpen: func(json.RawMessage) (json.RawMessage, error) {
 			return json.Marshal(&rpc.ValidateOpenOutput{Accept: true})
@@ -453,17 +464,33 @@ func (p *Plugin) OnConfigVerify(fn ConfigVerifyHandler) {
 // OnConfigApply sets the handler for config apply requests (reload pipeline).
 // The handler receives diff sections describing what changed and returns nil to accept
 // or an error to reject. If no handler is registered, config-apply returns OK (no-op).
+//
+// A handler that returns an error MUST first undo whatever it partly applied:
+// the transaction's rollback does not reach a plugin whose own apply failed
+// (config_tx_gate.go). A handler that accepts an apply without changing
+// anything MUST drop the undo set it kept from an earlier apply: the rollback
+// handler runs after every accepted apply, and that set belongs to a
+// transaction that already committed.
 func (p *Plugin) OnConfigApply(fn ConfigApplyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.callbacks[callbackConfigApply] = func(params json.RawMessage) (json.RawMessage, error) {
+	p.callbacks[callbackConfigApply] = p.configApplyCallback(fn)
+}
+
+// configApplyCallback wraps a section apply handler, nil for none, and opens
+// the rollback gate when the apply is accepted.
+func (p *Plugin) configApplyCallback(fn ConfigApplyHandler) callbackHandler {
+	return func(params json.RawMessage) (json.RawMessage, error) {
 		var input rpc.ConfigApplyInput
 		if err := json.Unmarshal(params, &input); err != nil {
 			return marshalStatusError(fmt.Sprintf("unmarshal config-apply: %v", err))
 		}
-		if err := fn(input.Sections); err != nil {
-			return marshalStatusError(err.Error())
+		if fn != nil {
+			if err := fn(input.Sections); err != nil {
+				return marshalStatusError(err.Error())
+			}
 		}
+		p.configTx.applied()
 		return marshalStatusOK(nil)
 	}
 }
@@ -472,6 +499,12 @@ func (p *Plugin) OnConfigApply(fn ConfigApplyHandler) {
 // The handler receives the transaction ID and should undo changes applied during this
 // transaction (typically by calling journal.Rollback()). If no handler is registered,
 // rollback is a no-op.
+//
+// The handler runs only when this plugin accepted a config-apply that is neither
+// committed nor rolled back. The engine broadcasts a rollback to every
+// participant, and for one that never applied in the failed transaction the
+// rollback is a no-op, so a journal kept from an earlier, committed apply is
+// never replayed (config_tx_gate.go).
 func (p *Plugin) OnConfigRollback(fn ConfigRollbackHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -483,6 +516,9 @@ func (p *Plugin) OnConfigRollback(fn ConfigRollbackHandler) {
 			if err := json.Unmarshal(params, &input); err != nil {
 				return nil, fmt.Errorf("unmarshal config-rollback: %w", err)
 			}
+		}
+		if !p.configTx.rollbackOwed() {
+			return nil, nil
 		}
 		return nil, fn(input.TransactionID)
 	}

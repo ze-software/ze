@@ -2467,6 +2467,13 @@ func TestOnConfigRollbackCallback(t *testing.T) {
 
 	completeStartup(t, ctx, engine)
 
+	// A rollback undoes an accepted apply, so the transaction applies first:
+	// a rollback with no open apply is a no-op that never reaches the handler
+	// (TestConfigRollbackOwedOnlyForUncommittedApply).
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:config-apply", struct {
+		Sections []ConfigDiffSection `json:"sections"`
+	}{}))
+
 	// Send config-rollback callback
 	rollbackInput := struct {
 		TransactionID string `json:"transaction-id"`

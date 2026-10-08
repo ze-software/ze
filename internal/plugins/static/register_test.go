@@ -279,6 +279,47 @@ func TestStaticRollbackRestoresThePreviousPathSet(t *testing.T) {
 	}
 }
 
+// VALIDATES: an apply that receives no static section owns an empty undo set,
+// so the rollback the SDK runs after it leaves the committed routes in place.
+// PREVENTS: a transaction that changed only another root of static (the
+// interface root) and failed elsewhere replaying the undo set static kept from
+// the previous, committed apply, which returned the Loc-RIB to the routes from
+// two commits back (journal row rollback-forgets-partial-apply).
+func TestStaticApplyWithoutSectionOwnsNoUndo(t *testing.T) {
+	loc := locrib.NewRIB()
+	rm := newRouteManager(&mockStaticBackend{})
+	rm.setLocRIB(loc, nil)
+
+	var mu sync.Mutex
+	var current []staticRoute
+	var pending pendingSection
+
+	boot := []staticRoute{fwd("10.0.0.0/8", "192.0.2.1"), fwd("172.16.0.0/12", "192.0.2.1")}
+	if err := rm.applyRoutes(boot); err != nil {
+		t.Fatalf("boot routes: %v", err)
+	}
+	current = boot
+
+	// T1 removes 172.16.0.0/12 and commits.
+	pending.set([]staticRoute{fwd("10.0.0.0/8", "192.0.2.1")})
+	if _, err := applyStaticSection(&pending, rm, &mu, &current); err != nil {
+		t.Fatalf("T1 apply: %v", err)
+	}
+	committed := staticLocRIBSnapshot(loc)
+
+	// T2 delivers no static section, is accepted, and is rolled back.
+	j, err := applyStaticSection(&pending, rm, &mu, &current)
+	if err != nil {
+		t.Fatalf("T2 apply: %v", err)
+	}
+	if errs := j.Rollback(); len(errs) > 0 {
+		t.Fatalf("T2 rollback: %v", errs)
+	}
+	if after := staticLocRIBSnapshot(loc); !maps.Equal(after, committed) {
+		t.Errorf("after rolling back an apply with no section the Loc-RIB holds %v, want the committed %v", after, committed)
+	}
+}
+
 // staticLocRIBSnapshot maps every IPv4 prefix the Loc-RIB holds to its best
 // path's next-hop, so two snapshots compare the whole installed set. The
 // prefixes are collected first and looked up after Iterate returns, because

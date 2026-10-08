@@ -192,6 +192,20 @@ expires without all plugins completing.
 | 3 | Plugins that applied | Undo changes via journal, emit `(config, rollback-ok)`. |
 | 4 | Plugins that had not started | Skip apply, emit `(config, rollback-ok)` with code `ok`. |
 
+The bridge sends `config-rollback` to every participant, so the SDK decides
+which of them owes an undo. It runs the plugin's `OnConfigRollback` handler only
+while an apply that plugin accepted is still open: `config-apply` success opens
+it, and `config-committed` or `config-rollback` closes it. A participant that
+never applied in the failed transaction, or whose own apply failed, gets a
+no-op. Without that gate the handler replayed the journal it kept from the
+last apply, which belonged to the previous, committed transaction, and
+restored the state from two commits back. A handler whose apply fails MUST
+therefore undo its own partial work before it returns the error, and a handler
+that accepts an apply without changing anything MUST drop the undo set it kept
+from an earlier apply, because the gate opens on every accepted apply.
+<!-- source: pkg/plugin/sdk/config_tx_gate.go -- configTxGate -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply, OnConfigRollback, configApplyCallback -->
+
 Only the engine emits `(config, rollback)`. A failing plugin emits
 `(config, apply-failed)`; the engine reacts by emitting `rollback`. This ensures
 a single source of truth -- no duplicate rollback events from multiple sources.
@@ -213,7 +227,7 @@ finalization events:
 
 | Outcome | Action | Event |
 |---------|--------|-------|
-| All plugins applied | Engine emits `(config, committed)` to discard transaction journals. The hub promotes the staged candidate after the full subsystem reload succeeds, then emits `(config, accepted)`. | Acceptance permits irreversible retirement. |
+| All plugins applied | Engine emits `(config, committed)` to discard transaction journals. The bridge turns it into one `config-committed` RPC per participant, which closes each SDK's rollback gate. The hub promotes the staged candidate after the full subsystem reload succeeds, then emits `(config, accepted)`. | Acceptance permits irreversible retirement. |
 | Runtime applied, pointer promotion fails | The hub attempts to restore the previous runtime and returns the publication error. | A durable explicit-file intent preserves unfinished publication for recovery. |
 | Rollback occurred | Config file untouched, engine emits `(config, rolled-back)`. | File still matches pre-transaction runtime. |
 
@@ -378,7 +392,7 @@ leaf-list. Both views retain the complete token.
 | `apply-failed` | Plugin -> engine | Apply failed, triggers rollback. |
 | `rollback` | Engine -> plugins | Undo applied changes. |
 | `rollback-ok` | Plugin -> engine | Rollback complete with status code. |
-| `committed` | Engine -> plugins | Transaction finalized, discard journals. |
+| `committed` | Engine -> plugins | Transaction finalized, discard journals. The bridge delivers it to each participant as the `config-committed` callback. |
 | `accepted` | Engine -> plugins | Whole reload accepted. Carries the committed transaction ID and permits irreversible cleanup. |
 | `applied` | Engine -> observers | Transaction committed (emitted after `committed`). Includes `saved` flag. |
 | `rolled-back` | Engine -> observers | Transaction rolled back. |
@@ -611,6 +625,14 @@ journal is discarded -- the changes are permanent.
 | `(config, apply-ok)` emitted | Journal stays open, waiting for finalization |
 | `(config, committed)` received | Journal discarded -- changes are permanent |
 | `(config, rollback)` received | Journal replayed in reverse, then discarded |
+
+A plugin keeps its journal in its own closure, and the SDK cannot reach it to
+discard it. The SDK instead decides whether the plugin's rollback handler runs
+at all: only for an apply it accepted that `config-committed` has not closed
+(Phase 3). The journal kept from a committed apply is therefore never replayed,
+and the next accepted apply replaces it, or drops it when that apply changes
+nothing.
+<!-- source: pkg/plugin/sdk/config_tx_gate.go -- configTxGate -->
 
 ### SDK Interface
 

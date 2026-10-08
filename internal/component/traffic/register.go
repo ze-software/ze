@@ -294,6 +294,10 @@ func runEngine(conn net.Conn) int {
 		pendingCfg = nil
 		if cfg == nil {
 			log.Warn("traffic-control config apply: no pending config (verify not called?)")
+			// Nothing of this transaction to undo. The SDK runs the rollback
+			// handler after any accepted apply, so an undo set kept from an
+			// earlier, committed apply would otherwise be replayed.
+			activeJournal = nil
 			return nil
 		}
 

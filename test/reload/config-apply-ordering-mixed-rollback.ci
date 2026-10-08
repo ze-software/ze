@@ -5,27 +5,33 @@
 # the same commit. The bgp root is decomposed, so it contributes a remove-peer
 # operation. No component decomposes rsvp-te, so each observer declaring that
 # root is represented by one coarse node. Coarse nodes are synthesized in sorted
-# participant order, so the failer sorts before the observer and refuses its
-# section apply after the remove-peer has already run.
+# participant order: the applied observer applies first, then the failer refuses
+# its section apply after the remove-peer has already run, and the unapplied
+# observer never reaches its apply.
 #
 # The executor then replays the applied operations' inverses, which re-adds the
 # peer, and the orchestrator publishes the transaction-wide rollback, which the
 # bridge turns into one config-rollback per participant. The coarse node's
 # participant is reached by the second of those and never by the first:
 # rollbackApplied skips a coarse node on purpose, because config-operation-rollback
-# has no SDK default handler.
+# has no SDK default handler. The SDK runs a rollback handler only for an apply
+# its plugin accepted and that no commit has closed, so the unapplied observer's
+# handler never runs (pkg/plugin/sdk/config_tx_gate.go).
 #
 # VALIDATES: AC-7 -- the decomposed operation replays its inverse, the coarse
-#            node's participant receives the section rollback, and the
-#            transaction reports rolled back.
+#            node's participant that applied receives the section rollback, and
+#            the transaction reports rolled back.
 # PREVENTS: R-4. A coarse node whose rollback was emitted as a per-operation
 #           rollback would answer "unknown method", and a coarse node left out
 #           of the rollback entirely would leave one participant applied while
-#           every other one was undone.
+#           every other one was undone. Also prevents the rollback handler of a
+#           participant that never applied replaying an undo kept from an
+#           earlier, committed apply, which restored the state from two commits
+#           back (journal row rollback-forgets-partial-apply).
 #
 # The assertions are each positive. The second TCP connection is the re-added
 # peer dialing again and announcing its route again, which only the inverse of
-# the remove-peer can produce. The observer's line is printed from its own
+# the remove-peer can produce. The applied observer's line is printed from its own
 # OnConfigRollback. The daemon's "config apply partial failure" is what
 # reload_tx.go writes for StateRolledBack.
 #
@@ -37,8 +43,11 @@
 # DISCRIMINATION: skip the section rollback for a coarse node, by making
 # TxCoordinator.runOperationPath return StateRolledBack without calling
 # publishRollback (internal/component/config/transaction/orchestrator.go). The
-# observer then receives nothing and its line is never printed, while the
-# decomposed inverse still runs and the peer still reconnects. The rejected
+# applied observer then receives nothing and its line is never printed, while the
+# decomposed inverse still runs and the peer still reconnects. Removing the
+# rollbackOwed check from OnConfigRollback (pkg/plugin/sdk/sdk_callbacks.go)
+# prints the unapplied observer's BUG line, which the reject below refuses. The
+# rejected
 # reading is that the daemon surviving the failed reload proves the rollback:
 # it survives an apply failure with no rollback at all.
 
@@ -78,12 +87,16 @@ EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+	external config-apply-ordering-mixed-rollback-applied {
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-applied"
+		encoder json
+	}
 	external config-apply-ordering-mixed-rollback-failer {
 		run "le test fixture reload/config-apply-ordering-mixed-rollback-failer"
 		encoder json
 	}
-	external config-apply-ordering-mixed-rollback-observer {
-		run "le test fixture reload/config-apply-ordering-mixed-rollback-observer"
+	external config-apply-ordering-mixed-rollback-unapplied {
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-unapplied"
 		encoder json
 	}
 }
@@ -144,12 +157,16 @@ EOF_CONF
 # transaction carries one decomposed bgp operation and two coarse rsvp-te nodes.
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
+	external config-apply-ordering-mixed-rollback-applied {
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-applied"
+		encoder json
+	}
 	external config-apply-ordering-mixed-rollback-failer {
 		run "le test fixture reload/config-apply-ordering-mixed-rollback-failer"
 		encoder json
 	}
-	external config-apply-ordering-mixed-rollback-observer {
-		run "le test fixture reload/config-apply-ordering-mixed-rollback-observer"
+	external config-apply-ordering-mixed-rollback-unapplied {
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-unapplied"
 		encoder json
 	}
 }
@@ -185,4 +202,5 @@ expect=stderr:contains=OK: mixed rollback: the failing participant refused its s
 expect=stderr:contains=OK: mixed rollback: the coarse node received the section rollback
 expect=stderr:contains=config apply partial failure
 reject=stderr:contains=unknown method
+reject=stderr:contains=BUG: mixed rollback: a participant that never applied ran its rollback handler
 reject=stderr:contains=operation dependency cycle

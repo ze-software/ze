@@ -60,7 +60,7 @@ func (p *pendingSection) set(routes []staticRoute) {
 // Clearing at apply time alone is not enough, because an apply is not reached
 // when another plugin fails the same transaction: the coordinator publishes an
 // abort, and no plugin-facing callback runs (config_tx_bridge.go subscribes to
-// EventRollback only). A deletion verified in that transaction would otherwise
+// no abort event). A deletion verified in that transaction would otherwise
 // stay delivered, and static is a participant in every reload carrying the
 // "interface" root as well as its own, so the next interface-only reload would
 // reach apply, take a delivered empty section, and withdraw every route the
@@ -305,24 +305,10 @@ func runStaticPlugin(conn net.Conn) int {
 	var activeJournal *sdk.Journal
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		newRoutes, delivered := pending.take()
-		mu.Lock()
-		oldRoutes := currentRoutes
-		mu.Unlock()
-
-		// No static section in this reload: another plugin's config changed and
-		// this one keeps what it programmed. A section that arrived empty IS
-		// delivered, and falls through so applyRoutes withdraws the routes it
-		// no longer finds in the config.
-		if !delivered {
-			return nil
-		}
-
-		j, err := applyRouteSet(rm, &mu, &currentRoutes, oldRoutes, newRoutes)
+		j, err := applyStaticSection(&pending, rm, &mu, &currentRoutes)
 		if err != nil {
 			return err
 		}
-
 		activeJournal = j
 		return nil
 	})
@@ -387,6 +373,27 @@ func runStaticPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// applyStaticSection applies the section this transaction's verify delivered
+// and returns the undo set the apply owns, which the rollback handler replays.
+//
+// No static section in this reload means another plugin's config changed and
+// static keeps what it programmed. The answer is then an empty undo set, never
+// the one kept from an earlier apply: the SDK runs the rollback handler after
+// every accepted apply (pkg/plugin/sdk/config_tx_gate.go), and an undo set
+// from a committed transaction would restore the state from before it. A
+// section that arrived empty IS delivered, and falls through so applyRoutes
+// withdraws the routes it no longer finds in the config.
+func applyStaticSection(pending *pendingSection, rm *routeManager, mu *sync.Mutex, current *[]staticRoute) (*sdk.Journal, error) {
+	newRoutes, delivered := pending.take()
+	if !delivered {
+		return sdk.NewJournal(), nil
+	}
+	mu.Lock()
+	oldRoutes := *current
+	mu.Unlock()
+	return applyRouteSet(rm, mu, current, oldRoutes, newRoutes)
 }
 
 // applyRouteSet applies newRoutes and returns the journal whose undo re-applies

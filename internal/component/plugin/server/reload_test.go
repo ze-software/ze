@@ -88,6 +88,7 @@ type mockPluginResponder struct {
 	pluginName       string // label recorded by orderRecorder on apply
 	verifyResp       *rpc.ConfigVerifyOutput
 	applyResp        *rpc.ConfigApplyOutput
+	ignoreCommitted  bool // never answer config-committed, as a stuck event loop
 	opDecomposeResp  *rpc.ConfigOperationDecomposeOutput
 	opVerifyResp     *rpc.ConfigOperationVerifyOutput
 	opApplyResp      *rpc.ConfigOperationApplyOutput
@@ -103,6 +104,7 @@ type mockPluginResponder struct {
 	opRollbackCalls  int
 	opCommitCalls    int
 	rollbackCalls    int
+	committedCalls   int
 	verifySections   []rpc.ConfigSection     // last verify payload
 	applySections    []rpc.ConfigDiffSection // last apply payload
 	opDecomposeInput rpc.ConfigOperationDecomposeInput
@@ -255,6 +257,12 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 					_ = m.pluginConn.SendResult(ctx, req.ID, nil)
 				}
 
+			case "ze-plugin-callback:config-committed":
+				m.committedCalls++
+				if !m.ignoreCommitted {
+					_ = m.pluginConn.SendResult(ctx, req.ID, nil)
+				}
+
 			default:
 				_ = m.pluginConn.SendResult(ctx, req.ID, nil)
 			}
@@ -305,6 +313,12 @@ func (m *mockPluginResponder) getOperationCommitCalls() int {
 	return m.opCommitCalls
 }
 
+func (m *mockPluginResponder) getCommittedCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.committedCalls
+}
+
 func (m *mockPluginResponder) getRollbackCalls() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -320,8 +334,10 @@ type pluginDef struct {
 	configOps  []rpc.ConfigOperationDecl
 	verifyResp *rpc.ConfigVerifyOutput
 	applyResp  *rpc.ConfigApplyOutput
-	order      *orderRecorder // optional: shared across plugins to capture cross-plugin apply order
-	responder  *mockPluginResponder
+	// ignoreCommitted makes the plugin leave config-committed unanswered.
+	ignoreCommitted bool
+	order           *orderRecorder // optional: shared across plugins to capture cross-plugin apply order
+	responder       *mockPluginResponder
 }
 
 func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []pluginDef) *Server {
@@ -366,11 +382,12 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 
 		// Start mock plugin responder
 		resp := &mockPluginResponder{
-			pluginConn: pluginConn,
-			pluginName: pd.name,
-			verifyResp: pd.verifyResp,
-			applyResp:  pd.applyResp,
-			order:      pd.order,
+			pluginConn:      pluginConn,
+			pluginName:      pd.name,
+			verifyResp:      pd.verifyResp,
+			applyResp:       pd.applyResp,
+			ignoreCommitted: pd.ignoreCommitted,
+			order:           pd.order,
 		}
 		resp.start(s.ctx)
 		pd.responder = resp
@@ -1287,9 +1304,9 @@ func TestReloadTxCoordinatorRollback(t *testing.T) {
 
 	// Every participant gets a config-rollback RPC via the bridge because
 	// the orchestrator broadcasts rollback to all participants when any
-	// single apply fails. Even the plugin that never applied (gr failed
-	// before succeeding) is invited to rollback so its journal stays
-	// consistent.
+	// single apply fails. Even the plugin whose apply failed receives it;
+	// its SDK runs no rollback handler for an apply it did not accept
+	// (pkg/plugin/sdk/config_tx_gate.go).
 	require.Eventually(t, func() bool { return plugins[0].responder.getRollbackCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "bgp rib should receive rollback RPC")
 	require.Eventually(t, func() bool { return plugins[1].responder.getRollbackCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "gr should receive rollback RPC")
 
@@ -1299,6 +1316,42 @@ func TestReloadTxCoordinatorRollback(t *testing.T) {
 	reactor.mu.Lock()
 	assert.Nil(t, reactor.setTree, "reactor config tree should not be updated after rollback")
 	reactor.mu.Unlock()
+
+	// A transaction that rolled back never commits.
+	assert.Equal(t, 0, plugins[0].responder.getCommittedCalls(), "a rolled-back transaction must not send config-committed")
+	assert.Equal(t, 0, plugins[1].responder.getCommittedCalls(), "a rolled-back transaction must not send config-committed")
+}
+
+// TestReloadTxCoordinatorCommitted verifies that a transaction which commits
+// tells every participant so, through the bridge's config-committed RPC.
+//
+// VALIDATES: all applies succeed -> (config, committed) -> each participant
+// receives config-committed once, before ReloadConfig returns.
+// PREVENTS: a plugin never learning that its apply is permanent, so a later
+// transaction's broadcast rollback replays the committed apply's undo and
+// restores the state from two commits back (journal row
+// rollback-forgets-partial-apply).
+func TestReloadTxCoordinatorCommitted(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	plugins := []pluginDef{
+		{name: "rib", roots: []string{"bgp"}},
+		{name: "gr", roots: []string{"bgp"}},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	require.NoError(t, s.ReloadConfig(context.Background(), newTree))
+
+	// The committed event is dispatched synchronously inside the
+	// transaction, so the RPCs have completed by the time ReloadConfig
+	// returns: no wait is needed, and a later arrival would be a defect.
+	assert.Equal(t, 1, plugins[0].responder.getCommittedCalls(), "rib should receive config-committed")
+	assert.Equal(t, 1, plugins[1].responder.getCommittedCalls(), "gr should receive config-committed")
+	assert.Equal(t, 0, plugins[0].responder.getRollbackCalls(), "a committed transaction must not roll back")
 }
 
 // TestReloadTxVerifyReceivesFullSubtree verifies that plugins see the
@@ -1888,4 +1941,30 @@ func TestReloadRefusesAPluginOperationDeclaringAResourceWithNoIdentity(t *testin
 	assert.ErrorIs(t, err, transaction.ErrOperationBlankResource)
 	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "the refused operation must reach no section apply")
 	assert.Equal(t, 0, plugins[0].responder.getOperationApplyCalls(), "the refused operation must reach no operation apply")
+}
+
+// TestReloadTxCoordinatorCommittedBounded verifies that a plugin which never
+// answers config-committed delays the reload by configCommittedTimeout and no
+// more.
+//
+// VALIDATES: the committed RPC runs under its own deadline, so ReloadConfig
+// returns while the plugin is still silent.
+// PREVENTS: the reload blocking forever inside the synchronous committed
+// publication on a plugin whose event loop is stuck.
+func TestReloadTxCoordinatorCommittedBounded(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+	s := newTestReloadServer(t, reactor, []pluginDef{{name: "rib", roots: []string{"bgp"}, ignoreCommitted: true}})
+
+	done := make(chan error, 1)
+	go func() { done <- s.ReloadConfig(context.Background(), newTree) }()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(3 * configCommittedTimeout):
+		t.Fatal("ReloadConfig still blocked on an unanswered config-committed")
+	}
 }

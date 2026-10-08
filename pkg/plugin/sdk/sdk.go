@@ -66,6 +66,11 @@ type Plugin struct {
 	// Adding a new callback = adding one On* method. Zero dispatch changes.
 	callbacks map[string]callbackHandler
 
+	// configTx decides whether a section config-rollback reaches the
+	// rollback handler: only when an apply this plugin accepted is neither
+	// committed nor rolled back (config_tx_gate.go).
+	configTx configTxGate
+
 	// Startup-only callbacks (stages 2, 4, post-startup). Not in the map
 	// because they run during the sequential startup protocol, not the event loop.
 	onConfigure     ConfigureHandler

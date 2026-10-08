@@ -735,7 +735,8 @@ site.
 | `execute-command` | `ExecuteCommandInput` | a record answer, read as one value into `ExecuteCommandOutput` | Command execution |
 | `config-verify` | `ConfigVerifyInput` | `ConfigVerifyOutput` | Validate candidate config |
 | `config-apply` | `ConfigApplyInput` | `ConfigApplyOutput` | Apply config changes |
-| `config-rollback` | `{"transaction-id":"..."}` | `ok` | Undo changes for a config transaction |
+| `config-rollback` | `{"transaction-id":"..."}` | `ok` | Undo changes for a config transaction. The SDK runs the handler only for an accepted apply not yet committed |
+| `config-committed` | `{"transaction-id":"..."}` | `ok` | The transaction committed: its applies are permanent, and a later rollback must not undo them. A plugin built on an SDK older than this callback answers "unknown method": the engine logs it and the plugin keeps running its rollback handler on every rollback, as before |
 | `config-operation-decompose` | `ConfigOperationDecomposeInput` | `ConfigOperationDecomposeOutput` | Decompose a config diff into operations |
 | `config-operation-verify` | `ConfigOperationVerifyInput` | `ConfigOperationVerifyOutput` | Validate one config operation |
 | `config-operation-apply` | `ConfigOperationApplyInput` | `ConfigOperationApplyOutput` | Apply one config operation |
