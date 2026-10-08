@@ -30,7 +30,7 @@ Enter
 Sleep 4s
 Type "ze cli -c 'show bgp rib best prefix 198.51.100.0/24 | no-more'"
 Enter
-Wait+Screen /198.51.100.0\/24/
+Wait+Screen /best-peer/
 Sleep 6s
 Type "ip -details route show exact 198.51.100.0/24"
 Enter

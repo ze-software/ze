@@ -43,7 +43,7 @@ Enter
 Sleep 4s
 Type "ze config list"
 Enter
-Wait+Screen /ze.conf/
+Wait+Screen /\[data\] .*ze\.conf/
 Sleep 4s
 Type "ze data check"
 Enter
@@ -102,12 +102,12 @@ Enter
 # The operator names the fields they want, in the order they want them.
 Type "ze cli -c 'show bgp | display router-id local-as peers-established'"
 Enter
-Wait+Screen /router-id/
+Wait+Screen /(?m)^[^$\n]*peers-established/
 Sleep 7s
 # fill brings the fields display did not name back, in field-name order.
 Type "ze cli -c 'show bgp | display router-id | fill alpha'"
 Enter
-Wait+Screen /router-id/
+Wait+Screen /peers-configured/
 Sleep 7s
 Type "clear"
 Enter

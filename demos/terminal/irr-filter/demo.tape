@@ -27,33 +27,33 @@ Enter
 Show
 Type "ze config cat ze.conf | grep -q bgp-filter-irr || echo 'IRR filtering is not configured'"
 Enter
-Wait+Screen /not configured/
+Wait+Screen /(?m)^IRR filtering is not configured/
 Sleep 4s
-Type "ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr"
+# An offline `ze config set` edits the file path it is given, never a stored
+# name, so the stored ze.conf goes through stdin: read it, apply each setting,
+# store the result. A line ending in a pipe continues on the next prompt.
+Type "ze config cat ze.conf |"
 Enter
-Wait+Screen /set plugin internal bgp-filter-irr use bgp-filter-irr/
-Sleep 3s
-Type "ze config set ze.conf bgp policy irr server 127.0.0.1:4343"
+Type "ze config set - plugin internal bgp-filter-irr use bgp-filter-irr |"
 Enter
-Wait+Screen /set bgp policy irr server 127.0.0.1:4343/
-Sleep 3s
-Type "ze config set ze.conf bgp policy irr refresh-interval 3600"
+Type "ze config set - bgp policy irr server 127.0.0.1:4343 |"
 Enter
-Wait+Screen /set bgp policy irr refresh-interval 3600/
-Sleep 3s
-Type "ze config set ze.conf bgp peer customer-a session irr as-set AS-TEST"
+Type "ze config set - bgp policy irr refresh-interval 3600 |"
 Enter
-Wait+Screen /set bgp peer customer-a session irr as-set AS-TEST/
-Sleep 3s
-Type "ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001"
+Type "ze config set - bgp peer customer-a session irr as-set AS-TEST |"
 Enter
-Wait+Screen /set bgp peer customer-a filter import bgp-filter-irr:65001/
-Sleep 5s
+Type "ze config set - bgp peer customer-a filter import bgp-filter-irr:65001 |"
+Enter
+Type "ze config import --yes --name ze.conf -"
+Enter
+Wait+Screen /(?m)^1 file\(s\) imported/
+Sleep 8s
 Type "clear"
 Enter
 Type "ze config cat ze.conf | grep -E 'bgp-filter-irr|AS-TEST|127.0.0.1:4343'"
 Enter
-Wait+Screen /AS-TEST/
+# An output line of the stored config: indented, and holding the leaf name.
+Wait+Screen /(?m)^\s+as-set AS-TEST/
 Sleep 7s
 
 Hide

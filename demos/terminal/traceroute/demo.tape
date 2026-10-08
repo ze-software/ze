@@ -24,7 +24,7 @@ Wait+Screen /ze#/
 Sleep 3s
 Type "run show traceroute 192.0.2.53"
 Enter
-Wait+Screen /192.0.2.53/
+Wait+Screen /192\.0\.2\.53\s+\d+\.\d+/
 Sleep 7s
 Type "run monitor traceroute 192.0.2.53"
 Enter

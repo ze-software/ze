@@ -391,11 +391,13 @@ func validateIRR() error {
 		return err
 	}
 	sets := [][]string{{"plugin", "internal", "bgp-filter-irr", "use", "bgp-filter-irr"}, {commandBGP, "policy", demoIRR, "server", "127.0.0.1:4343"}, {commandBGP, "policy", demoIRR, "refresh-interval", "3600"}, {commandBGP, ipPeer, "customer-a", "session", demoIRR, "as-set", "AS-TEST"}, {commandBGP, ipPeer, "customer-a", "filter", "import", "bgp-filter-irr:65001"}}
-	for _, tail := range sets {
-		args := append([]string{commandConfig, ipSet, zeConfigFile}, tail...)
-		if _, err := runZe(args, env, nil); err != nil {
-			return err
-		}
+	edited, err := editStoredConfig(env, sets)
+	if err != nil {
+		return err
+	}
+	// The tape waits for the import's closing line, so the run proves it is printed.
+	if err := requireAll(edited, "set bgp peer customer-a filter import bgp-filter-irr:65001", "replaced "+zeConfigFile, "1 file(s) imported"); err != nil {
+		return err
 	}
 	configured, _ := runZe([]string{commandConfig, commandCat, zeConfigFile}, env, nil)
 	if err := requireAll(configured, "bgp-filter-irr", "AS-TEST", "127.0.0.1:4343"); err != nil {
@@ -433,7 +435,37 @@ func validateIRR() error {
 	if err := contains(routes, "10.0.0.0/24"); err != nil {
 		return err
 	}
+	// An import filter that rejects a route drops it at ingress, before any
+	// plugin sees it (Reactor.notifyMessageReceiver, reactor_notify.go). That
+	// differs from an RPKI-Invalid route under `invalid reject`, which
+	// Adj-RIB-In retains marked ineligible, so absence is the right claim here.
 	return notContains(routes, "192.168.0.0/24")
+}
+
+// editStoredConfig runs the pipeline the irr-filter tape types: `ze config cat`
+// reads the stored ze.conf, one `ze config set -` stage applies each setting,
+// and `ze config import --yes --name ze.conf -` stores the result. An offline
+// `ze config set` writes the file path it is given and never resolves a stored
+// name (docs/guide/config-editor.md), so a stored config is edited through
+// stdin. Each stage reads only the previous stage's stdout, because stderr
+// carries the "set ..." acknowledgement, which is not configuration. It returns
+// every acknowledgement followed by the import's report.
+func editStoredConfig(environ []string, settings [][]string) (string, error) {
+	var messages bytes.Buffer
+	config := &bytes.Buffer{}
+	if _, err := runCommand("ze", []string{commandConfig, commandCat, zeConfigFile}, commandOptions{stdout: config, stderr: &messages, env: environ}); err != nil {
+		return messages.String(), err
+	}
+	for _, setting := range settings {
+		edited := &bytes.Buffer{}
+		args := append([]string{commandConfig, ipSet, "-"}, setting...)
+		if _, err := runCommand("ze", args, commandOptions{stdin: config, stdout: edited, stderr: &messages, env: environ}); err != nil {
+			return messages.String(), err
+		}
+		config = edited
+	}
+	report, err := runZe(importScenarioConfigArgs("-"), environ, config)
+	return messages.String() + report, err
 }
 
 func validateRIBFIB() error {

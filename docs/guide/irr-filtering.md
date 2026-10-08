@@ -88,19 +88,23 @@ No `attach process bgp-filter-irr` block is needed. A filter reference invokes t
 
 ## Add it to an existing stored configuration
 
-If `ze.conf` already contains the BGP peer but no IRR filter, stop Ze and add the five required settings directly to the stored configuration:
+If the stored `ze.conf` already contains the BGP peer but no IRR filter, stop Ze and add the five required settings to the stored configuration. An offline `ze config set` writes the file path it is given and never resolves a stored name, so the stored configuration travels through stdin: `ze config cat` reads it, one `ze config set -` stage applies each setting, and `ze config import` stores the result as a new version.
 
 ```console
 $ sudo systemctl stop ze.service
-$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
-$ ze config set ze.conf bgp policy irr server whois.radb.net
-$ ze config set ze.conf bgp policy irr refresh-interval 3600
-$ ze config set ze.conf bgp peer customer-a session irr as-set AS-CUSTOMER
-$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
+$ ze config cat ze.conf |
+> ze config set - plugin internal bgp-filter-irr use bgp-filter-irr |
+> ze config set - bgp policy irr server whois.radb.net |
+> ze config set - bgp policy irr refresh-interval 3600 |
+> ze config set - bgp peer customer-a session irr as-set AS-CUSTOMER |
+> ze config set - bgp peer customer-a filter import bgp-filter-irr:65001 |
+> ze config import --yes --name ze.conf -
 $ sudo systemctl start ze.service
 ```
 
-`ze config set` updates ZeFS without contacting the daemon: it does not reload by default (add `--reload` to notify a running daemon), and here the daemon is stopped anyway. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace `ze.conf`, `customer-a`, `AS-CUSTOMER`, and `65001` with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.
+The import replaces the stored `ze.conf` only because `--yes` confirms it; the previous version stays available to `ze config rollback`. Nothing here contacts the daemon, which is stopped anyway. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace `ze.conf`, `customer-a`, `AS-CUSTOMER`, and `65001` with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.
+<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 
 Run `ze config cat ze.conf` before and after these commands when you want to review the exact stored changes. The terminal demonstration below starts from a configuration without any IRR settings and executes this workflow.
 
@@ -179,7 +183,7 @@ At first enrollment, do not place the session into service until `show bgp irr` 
 
 ## Local demonstration
 
-The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings with `ze config set`, then starts Ze against `le test irr`, a deterministic local whois server. Its `AS-TEST` object contains `10.0.0.0/24` but not `192.168.0.0/24`. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.
+The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings through a `ze config set -` pipeline that it imports back into ZeFS, then starts Ze against `le test irr`, a deterministic local whois server. Its `AS-TEST` object contains `10.0.0.0/24` but not `192.168.0.0/24`. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.
 
 <!-- source: internal/test/mock/irr/irr.go -- deterministic AS-TEST responses -->
 <!-- source: demos/terminal/irr-filter/ze.conf -- baseline BGP configuration without IRR filtering -->

@@ -48,7 +48,7 @@ Wait+Screen /count\s+1/
 Sleep 6s
 Type "sshpass -e ssh ze-demo 'request peer 127.0.0.2 teardown 4'"
 Enter
-Wait+Screen /peer\s+127\.0\.0\.2/
+Wait+Screen /(?m)^peer\s+127\.0\.0\.2/
 Wait+Screen /subcode\s+4/
 Sleep 4s
 Type "sshpass -e ssh ze-demo 'show errors source bgp'"

@@ -57,7 +57,7 @@ Enter
 Wait+Screen /zv4-2-10/
 Type "ip -n vrrp-ze -o link show zv4-2-10 | grep -o '00:00:5e:00:01:0a'"
 Enter
-Wait+Screen /00:00:5e:00:01:0a/
+Wait+Screen /(?m)^00:00:5e:00:01:0a/
 Sleep 6s
 
 Type "clear"

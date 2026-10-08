@@ -32,7 +32,7 @@ Enter
 Sleep 3s
 Type "show | compare"
 Enter
-Wait+Screen /edge-trial/
+Wait+Screen /\+\s+host edge-trial/
 Sleep 5s
 Type "commit confirmed 8"
 Enter
