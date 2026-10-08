@@ -377,6 +377,31 @@ its 4 leftmost bits, which RFC 9085 Section 2.1.1 requires to be 0, so a label
 outside the 20-bit label space never reaches a collector.
 <!-- source: internal/plugins/isis/bgpls_export.go -- srBlock -->
 
+RFC 9085 Link and Prefix attribute placement is tested across two boundaries.
+Native IS-IS and OSPF LSDB fixtures distinguish several originating routers,
+parallel links sharing endpoints and topology, and several prefixes at each
+router, then check complete link descriptors and exact attribute values. Separate
+exporter tests drive source replacement and reconciliation and check that each
+emitted NLRI is paired with its own attributes, including link interface
+identifiers/addresses and competing OSPF route classes for the same prefix.
+Together these tests cover native derivation and final wire association; a
+snapshot supplied to the exporter alone does not prove IGP placement.
+<!-- source: internal/plugins/isis/rfc9085_bgpls_object_placement_test.go -- TestRFC9085ISISLinkPlacement, TestRFC9085ISISPrefixPlacement -->
+<!-- source: internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go -- TestRFC9085OSPFLinkPlacement, TestRFC9085OSPFPrefixPlacement -->
+<!-- source: internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go -- TestRFC9085NativeExportAttributePlacement -->
+
+The implemented placement paths originate Adjacency SID (1099), LAN Adjacency
+SID (1100), Prefix-SID (1158), Range (1159), and Prefix Attribute Flags (1170)
+from IS-IS and OSPF, plus Source Router Identifier (1171) from IS-IS. Native
+origination does not implement L2 Bundle Member Attributes (1172), OSPF Source
+Router Identifier (1171), or Source OSPF Router-ID (1174). RFC 9085 defines 1172
+from IS-IS only and 1174 for OSPF only. These missing producers remain feature
+gaps. The placement duties apply when attributes are originated; they do not
+require implementing absent attributes. Those gaps therefore do not by themselves
+prevent proof of the conditional placement duties in Sections 2.2 and 2.3.
+<!-- source: internal/plugins/isis/bgpls_export.go -- linkAttribute, prefixAttributes, narrowPrefixes, binding -->
+<!-- source: internal/plugins/ospf/bgpls_export.go -- extendedV2Link, extendedV2Prefix, extendedV3, v3Prefix, prefixRange -->
+
 The exporter is the package `internal/component/bgp/plugins/ls_export`, and
 `bgp-epe` is the package `internal/component/bgp/plugins/epe`. Each package
 registers one plugin and owns its YANG module. Both encode through the BGP-LS

@@ -66,7 +66,11 @@
     {
       "id": "2.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9085-2.2-1"
+      ],
+      "reason": "The lowercase placement recommendation covers all Link Attribute TLVs in Table 2: 1099, 1100 and 1172, associated with the originating node's specific Link NLRI. Recording it does not establish exporter proof."
     },
     {
       "id": "2.2.1",
@@ -90,7 +94,11 @@
     {
       "id": "2.3",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9085-2.3-1"
+      ],
+      "reason": "The lowercase placement recommendation covers all Prefix Attribute TLVs in Table 4: 1158, 1159, 1170, 1171 and 1174, associated with the originating node's specific Prefix NLRI. Recording it does not establish exporter proof."
     },
     {
       "id": "2.3.1",

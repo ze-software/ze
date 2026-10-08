@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-08",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -111,6 +111,27 @@
       },
       "verdict": "enforced"
     },
+    "RFC9085-2.2-1": {
+      "note": "RFC 9085 \u00a72.2 says, \u201cThese TLVs should only be added to the BGP-LS Attribute associated with the Link NLRI that describes the link of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below.\u201d Native IS-IS LSP and OSPFv2/v3 LSDB tests establish association of emitted 1099/1100 with the advertising router and correct link, including parallel links and tested topology identities, while populated Node/Prefix controls exclude link attributes. Separate replace/reconcile/export tests preserve that association into Link NLRIs, assert complete expected interface-ID/address descriptors, exact SID values and multiplicity, and reject cross-object placement. This proves the conditional placement duty for the current native producers, not implementation of all \u00a72.2 features: native IS-IS 1172 remains absent, and RFC 9085 defines no corresponding OSPF bundle feature. It is composed native-derivation and exporter-association evidence, not a single integrated IGP-daemon-to-peer run. Independent source judgment: BGPLSPlacementWholeReview. Current five-root race-enabled observation: job-bgpls-complete-object-identity-after-9a6e8f72.log.",
+      "requirement_sha": "810bc3229000560f",
+      "tests": {
+        "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement": "41ad287cd312195c",
+        "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2": "41ad287cd312195c",
+        "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement": "a91e66326c29a1a9",
+        "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement#2": "a91e66326c29a1a9",
+        "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement": "af62a34f7ae11043",
+        "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement#2": "af62a34f7ae11043"
+      },
+      "units": {
+        "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement": "b925aebdca1cb46b",
+        "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2": "b925aebdca1cb46b",
+        "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement": "a9eeba75e90a0a0d",
+        "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement#2": "a9eeba75e90a0a0d",
+        "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement": "2d0b4d0e2545984c",
+        "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement#2": "2d0b4d0e2545984c"
+      },
+      "verdict": "enforced"
+    },
     "RFC9085-2.2.1-1": {
       "note": "rejudge 2026-09-30 (independent): owed OSPF half delivered. Set-0: isis TestRFC9085ISISOriginatedSIDReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved (-); ospf TestRFC9085OSPFOriginatedSIDReservedZero (+, exact 1099 = 60 05 0000 005dc1) / TestRFC9085OSPFSourceReservedNeverReachesSIDReserved (-, native Adj-SID Reserved ff -> 0000, byte-exact); producer bgplsAdjAttribute zero-fills value[2:4]. Receipt: nlri/ls TestRFC9085SIDReceiptIgnoresReserved (Reserved ffff decodes). Records observed red for every unit.",
       "requirement_sha": "f88e23b533efe593",
@@ -146,6 +167,27 @@
         "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
         "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "16454f3f3065891c",
         "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "ecb19f384cabfb87"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9085-2.3-1": {
+      "note": "RFC 9085 \u00a72.3 says, \u201cThese TLVs should only be added to the BGP-LS Attribute associated with the Prefix NLRI that describes the prefix of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below.\u201d Native IS-IS tests establish placement of 1158/1159/1170/1171 from IPv4/IPv6 reachability, bindings and narrow-external input; native OSPFv2/v3 tests establish placement of 1158/1159/1170, including extended prefix classes and base-v3 flags. Exact values, object counts and populated Node/Link exclusions discriminate incorrect association. Separate replace/reconcile/export tests preserve origin, prefix address/length, IPv4/IPv6 NLRI type and tested topology identities; competing same-prefix OSPF classes 1/2/3/5 now retain exact descriptor 264 and their distinct SID values. This proves the conditional placement duty for current native producers, not absent OSPF 1171/1174 support; 1174 is OSPF-only, not an IS-IS gap. No integrated daemon run or received-attribute semantic validation is claimed. Independent source judgment: BGPLSPlacementWholeReview. Current five-root race-enabled observation: job-bgpls-complete-object-identity-after-9a6e8f72.log.",
+      "requirement_sha": "767e554dc4368c61",
+      "tests": {
+        "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement": "41ad287cd312195c",
+        "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2": "41ad287cd312195c",
+        "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISPrefixPlacement": "a91e66326c29a1a9",
+        "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISPrefixPlacement#2": "a91e66326c29a1a9",
+        "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFPrefixPlacement": "af62a34f7ae11043",
+        "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFPrefixPlacement#2": "af62a34f7ae11043"
+      },
+      "units": {
+        "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement": "b925aebdca1cb46b",
+        "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2": "b925aebdca1cb46b",
+        "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISPrefixPlacement": "44b61557f1821696",
+        "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISPrefixPlacement#2": "44b61557f1821696",
+        "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFPrefixPlacement": "f53fb3c5230c26cc",
+        "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFPrefixPlacement#2": "f53fb3c5230c26cc"
       },
       "verdict": "enforced"
     },
