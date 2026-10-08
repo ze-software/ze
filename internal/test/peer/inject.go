@@ -31,7 +31,18 @@ const (
 	bgpEORLen    = 23    // empty UPDATE: marker(16)+len(2)+type(1)+wdr(2)+attr(2)
 	// Path attribute flag bytes used here.
 	flagWKTrans       = 0x40 // well-known, transitive
+	flagOptNonTrans   = 0x80 // optional, non-transitive
+	flagOptTrans      = 0xC0 // optional, transitive
 	flagOptNonTransEx = 0x90 // optional, non-transitive, extended length
+
+	// varyAttrsLen is what InjectSpec.VaryAttrs adds to every UPDATE:
+	// MULTI_EXIT_DISC (3+4) and COMMUNITIES carrying two values (3+8).
+	varyAttrsLen = 7 + 11
+	// varyCommunityHigh and varyCommunityLow are the private-use ASNs
+	// (RFC 6996) the varied COMMUNITIES are keyed under: the low 16 bits of
+	// the message index go under the first, the high 16 bits under the second.
+	varyCommunityHigh = 64512
+	varyCommunityLow  = 64513
 
 	keepaliveInterval = 30 * time.Second
 )
@@ -63,6 +74,51 @@ type InjectSpec struct {
 	// standard messages produces a different input, because the daemon decides
 	// per message.
 	MaxMsgLen int
+	// PerUpdate caps how many prefixes one UPDATE carries. 0 packs every
+	// message up to MaxMsgLen. A profile of per-UPDATE work (policy filtering,
+	// payload rebuilding, forwarding) sets it low: packed, 20000 prefixes
+	// travel in 21 UPDATEs and that work runs 21 times.
+	PerUpdate int
+	// VaryAttrs adds a MULTI_EXIT_DISC and a COMMUNITIES attribute whose values
+	// derive from the message index, so no two UPDATEs carry the same
+	// attribute set and nothing downstream can share the work of one with
+	// another. The AS_PATH stays the single injector ASN, because an eBGP
+	// receiver checks that the first AS is the peer's.
+	VaryAttrs bool
+}
+
+// nlriPerMsg answers how many prefixes one UPDATE carries, given the octets
+// left for NLRI in a message and the octets one prefix takes.
+func (s InjectSpec) nlriPerMsg(budget, stride int) int {
+	fit := budget / stride // rounds down: a prefix never straddles a message
+	if s.PerUpdate > 0 {
+		return min(fit, s.PerUpdate)
+	}
+	return fit
+}
+
+// varyLen is the octets VaryAttrs adds to each UPDATE's path attributes.
+func (s InjectSpec) varyLen() int {
+	if s.VaryAttrs {
+		return varyAttrsLen
+	}
+	return 0
+}
+
+// writeVaryAttrs writes the VaryAttrs attributes for message msgIndex into
+// dst, which MUST hold varyAttrsLen octets.
+//
+// RFC 4271 Section 4.3: "MULTI_EXIT_DISC is an optional non-transitive
+// attribute that is a four-octet unsigned integer."
+// RFC 1997: "The COMMUNITIES path attribute is an optional transitive
+// attribute of variable length. The attribute consists of a set of four
+// octet values".
+func writeVaryAttrs(dst []byte, msgIndex uint32) {
+	dst[0], dst[1], dst[2] = flagOptNonTrans, 0x04, 0x04
+	binary.BigEndian.PutUint32(dst[3:7], msgIndex)
+	dst[7], dst[8], dst[9] = flagOptTrans, 0x08, 0x08
+	binary.BigEndian.PutUint32(dst[10:14], varyCommunityHigh<<16|msgIndex&0xffff)
+	binary.BigEndian.PutUint32(dst[14:18], varyCommunityLow<<16|msgIndex>>16)
 }
 
 // msgLen returns the per-message ceiling, defaulting to the RFC 4271 limit.
@@ -83,6 +139,9 @@ func (s InjectSpec) msgLen() int {
 func buildUpdates(spec InjectSpec) ([]byte, int, error) {
 	if spec.Count < 0 {
 		return nil, 0, errors.New("count must be >= 0")
+	}
+	if spec.PerUpdate < 0 {
+		return nil, 0, errors.New("prefixes per update must be >= 0")
 	}
 	if !spec.Prefix.IsValid() {
 		return nil, 0, errors.New("invalid prefix")
@@ -107,11 +166,12 @@ func buildV4Unicast(spec InjectSpec) ([]byte, int, error) {
 	}
 	plBytes := (plen + 7) / 8
 	stride := 1 + plBytes
-	// Path attrs: ORIGIN(4) + AS_PATH(5+4) + NEXT_HOP(3+4) = 20 bytes.
-	const attrsLen = 4 + 9 + 7
+	// Path attrs: ORIGIN(4) + AS_PATH(5+4) + NEXT_HOP(3+4) = 20 bytes, then
+	// the VaryAttrs attributes when asked for.
+	attrsLen := 4 + 9 + 7 + spec.varyLen()
 	maxMsg := spec.msgLen()
 	budget := maxMsg - HeaderLen - 2 - 2 - attrsLen
-	nlriPer := budget / stride
+	nlriPer := spec.nlriPerMsg(budget, stride)
 	if nlriPer <= 0 {
 		return nil, 0, errors.New("attrs exceed BGP max message size")
 	}
@@ -143,13 +203,15 @@ func buildV4Unicast(spec InjectSpec) ([]byte, int, error) {
 
 	off := 0
 	written := 0
+	msgIndex := uint32(0)
 	writePrefix := func(at, msgLen int) int {
 		copy(buf[at:at+16], Marker)
 		//nolint:gosec // msgLen bounded by spec.msgLen() (<= 65535)
 		binary.BigEndian.PutUint16(buf[at+16:at+18], uint16(msgLen))
 		buf[at+18] = MsgUPDATE
 		buf[at+19], buf[at+20] = 0, 0 // withdrawn routes length
-		binary.BigEndian.PutUint16(buf[at+21:at+23], attrsLen)
+		//nolint:gosec // attrsLen is under 64 octets
+		binary.BigEndian.PutUint16(buf[at+21:at+23], uint16(attrsLen))
 		// ORIGIN IGP
 		buf[at+23], buf[at+24], buf[at+25], buf[at+26] = flagWKTrans, 0x01, 0x01, 0x00
 		// AS_PATH: AS_SEQUENCE, one 4-byte ASN
@@ -159,7 +221,11 @@ func buildV4Unicast(spec InjectSpec) ([]byte, int, error) {
 		// NEXT_HOP
 		buf[at+36], buf[at+37], buf[at+38] = flagWKTrans, 0x03, 0x04
 		copy(buf[at+39:at+43], nh[:])
-		return at + 43 // NLRI starts here
+		if spec.VaryAttrs {
+			writeVaryAttrs(buf[at+43:at+43+varyAttrsLen], msgIndex)
+		}
+		msgIndex++
+		return at + 43 + spec.varyLen() // NLRI starts here
 	}
 	writeNLRI := func(at, n int) {
 		var tmp [4]byte
@@ -203,12 +269,13 @@ func buildV6Unicast(spec InjectSpec) ([]byte, int, error) {
 	}
 	plBytes := (plen + 7) / 8
 	stride := 1 + plBytes
-	// Base attrs (ORIGIN + AS_PATH) = 4 + 9 = 13.
-	const baseAttrsLen = 4 + 9
+	// Base attrs (ORIGIN + AS_PATH) = 4 + 9 = 13, then the VaryAttrs
+	// attributes when asked for, which sit before MP_REACH_NLRI.
+	baseAttrsLen := 4 + 9 + spec.varyLen()
 	// MP_REACH fixed part: attr flags(1)+type(1)+extlen(2)+AFI(2)+SAFI(1)+nh_len(1)+nh(16)+reserved(1) = 25.
 	const mpFixed = 25
 	budget := spec.msgLen() - HeaderLen - 2 - 2 - baseAttrsLen - mpFixed
-	nlriPer := budget / stride
+	nlriPer := spec.nlriPerMsg(budget, stride)
 	if nlriPer <= 0 {
 		return nil, 0, errors.New("attrs exceed BGP max message size")
 	}
@@ -236,6 +303,7 @@ func buildV6Unicast(spec InjectSpec) ([]byte, int, error) {
 	stepShift := 128 - plen
 	off := 0
 	written := 0
+	msgIndex := uint32(0)
 
 	writeMsg := func(at, msgLen, count int) int {
 		copy(buf[at:at+16], Marker)
@@ -252,19 +320,24 @@ func buildV6Unicast(spec InjectSpec) ([]byte, int, error) {
 		buf[at+27], buf[at+28], buf[at+29] = flagWKTrans, 0x02, 0x06
 		buf[at+30], buf[at+31] = 0x02, 0x01
 		binary.BigEndian.PutUint32(buf[at+32:at+36], spec.ASN)
+		if spec.VaryAttrs {
+			writeVaryAttrs(buf[at+36:at+36+varyAttrsLen], msgIndex)
+		}
+		msgIndex++
+		mp := at + 36 + spec.varyLen()
 		// MP_REACH_NLRI: flags(0x90) type(14) extlen(2)
 		mpValueLen := 4 + 16 + 1 + count*stride // AFI(2)+SAFI(1)+nhlen(1)+nh(16)+reserved(1)+NLRI
-		buf[at+36], buf[at+37] = flagOptNonTransEx, 14
+		buf[mp], buf[mp+1] = flagOptNonTransEx, 14
 		//nolint:gosec // mpValueLen bounded by bgpMaxMsgLen (4096)
-		binary.BigEndian.PutUint16(buf[at+38:at+40], uint16(mpValueLen))
+		binary.BigEndian.PutUint16(buf[mp+2:mp+4], uint16(mpValueLen))
 		// AFI=2 SAFI=1
-		buf[at+40], buf[at+41] = 0x00, 0x02
-		buf[at+42] = 0x01
+		buf[mp+4], buf[mp+5] = 0x00, 0x02
+		buf[mp+6] = 0x01
 		// NH length + NH
-		buf[at+43] = 0x10
-		copy(buf[at+44:at+60], nh[:])
-		buf[at+60] = 0x00 // reserved / SNPA count
-		return at + 61    // NLRI start
+		buf[mp+7] = 0x10
+		copy(buf[mp+8:mp+24], nh[:])
+		buf[mp+24] = 0x00 // reserved / SNPA count
+		return mp + 25    // NLRI start
 	}
 	writeNLRI := func(at, n int) {
 		// Each NLRI: plen byte + plBytes of the 16-byte address (big-endian top).

@@ -18,7 +18,9 @@ injector fed a DUT that forwarded nothing, filtered nothing and rendered
 nothing, and the runner started whatever `bin/ze` it found rather than the tree
 under test. The scenario now adds import and export modify policies, an eBGP
 receiver the DUT forwards to, and a looking-glass best-table query, and every
-run builds the DUT from the checkout. `docs/functional-tests.md` describes it.
+run builds the DUT from the checkout. Its injector sends one prefix per UPDATE,
+each with its own MED and COMMUNITIES, because the filter and rebuild paths run
+once per UPDATE: packed, 20,000 prefixes made 21 UPDATEs and no CPU sample. `docs/functional-tests.md` describes it.
 <!-- source: internal/le/test/integration/stress.go -- stressProfileReach, buildZe -->
 
 ## 1. Lock-Free EBGP Variant Cache Hits (deleted 2026-08-17)

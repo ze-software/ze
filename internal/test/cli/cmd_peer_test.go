@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/test/peer"
@@ -135,5 +136,41 @@ func setNonZero(t *testing.T, f reflect.Value, name string) {
 	default:
 		t.Fatalf("field %s has kind %s, which setNonZero cannot populate; extend it so this "+
 			"test keeps covering every field", name, f.Kind())
+	}
+}
+
+// TestPeerInjectPerUpdateAndVaryReachSpec checks that --inject-per-update and
+// --inject-vary-attrs reach the running peer's InjectSpec, and that a negative
+// cap is refused. Method: parse the flag lists a stress scenario passes.
+// VALIDATES: the profile scenario's per-UPDATE input reaches the injector.
+// PREVENTS: a flag parsed and dropped, which packs the stream into a few
+// UPDATEs and leaves the per-UPDATE paths out of the profile.
+func TestPeerInjectPerUpdateAndVaryReachSpec(t *testing.T) {
+	base := []string{
+		"--mode", "inject", "--dial", "172.31.0.2:179",
+		"--inject-prefix", "10.0.0.0/24", "--inject-count", "10",
+		"--inject-nexthop", "172.31.0.3", "--inject-asn", "65100",
+	}
+	config, ok := zeTestParsePeerFlags(append(slices.Clone(base), "--inject-per-update", "1", "--inject-vary-attrs"))
+	if config == nil || !ok {
+		t.Fatal("zeTestParsePeerFlags rejected a valid inject flag list")
+	}
+	if config.Inject.PerUpdate != 1 {
+		t.Errorf("PerUpdate: got %d, want 1", config.Inject.PerUpdate)
+	}
+	if !config.Inject.VaryAttrs {
+		t.Error("VaryAttrs: got false, want true")
+	}
+
+	config, _ = zeTestParsePeerFlags(slices.Clone(base))
+	if config == nil {
+		t.Fatal("zeTestParsePeerFlags rejected the flag list without the optional flags")
+	}
+	if config.Inject.PerUpdate != 0 || config.Inject.VaryAttrs {
+		t.Errorf("defaults: got PerUpdate=%d VaryAttrs=%v, want 0 and false", config.Inject.PerUpdate, config.Inject.VaryAttrs)
+	}
+
+	if config, _ := zeTestParsePeerFlags(append(slices.Clone(base), "--inject-per-update", "-1")); config != nil {
+		t.Error("a negative --inject-per-update was accepted")
 	}
 }

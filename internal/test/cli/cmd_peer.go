@@ -107,6 +107,8 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 	var injectASN uint
 	var openASN uint64
 	var injectDwell time.Duration
+	var injectPerUpdate int
+	var injectVaryAttrs bool
 
 	fs := flag.NewFlagSet("peer", flag.ExitOnError)
 	fs.IntVar(&config.Port, "port", port, "port to bind to")
@@ -123,6 +125,8 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 	fs.StringVar(&injectNextHop, "inject-nexthop", "", "inject: next-hop address (family must match --inject-prefix)")
 	fs.UintVar(&injectASN, "inject-asn", 0, "inject: origin ASN for single-segment AS_SEQUENCE")
 	fs.DurationVar(&injectDwell, "inject-dwell", 0, "inject: hold session this long after last byte (0 = until SIGTERM)")
+	fs.IntVar(&injectPerUpdate, "inject-per-update", 0, "inject: most prefixes one UPDATE carries (0 = fill each message)")
+	fs.BoolVar(&injectVaryAttrs, "inject-vary-attrs", false, "inject: give every UPDATE its own MED and COMMUNITIES")
 
 	fs.Usage = zeTestPrintPeerUsage
 
@@ -161,6 +165,14 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return nil, false
 		}
+		// Refused rather than read as 0: a negative cap would silently pack
+		// every message, the input a per-UPDATE profile exists to avoid.
+		if injectPerUpdate < 0 {
+			fmt.Fprintln(os.Stderr, "error: --inject-per-update", injectPerUpdate, "must be >= 0")
+			return nil, false
+		}
+		spec.PerUpdate = injectPerUpdate
+		spec.VaryAttrs = injectVaryAttrs
 		config.Inject = spec
 	}
 
@@ -315,13 +327,20 @@ Options:
   --decode           Decode messages to human-readable format
   --view             Show expected packets and exit
 
-Inject options (all required when --mode inject):
+Inject options (required when --mode inject, unless marked optional):
   --inject-prefix P  Base prefix, e.g. 10.0.0.0/24 or 2001:db8::/48
   --inject-count N   Number of sequential prefixes to emit
   --inject-nexthop A Next-hop address (family must match --inject-prefix)
   --inject-asn N     Origin ASN (single-segment AS_SEQUENCE, 4-byte)
   --inject-dwell D   Hold the session open this long after the last byte
                      is written (default: until SIGTERM).
+  --inject-per-update N
+                     Most prefixes one UPDATE carries (default 0: fill
+                     each message to the size limit). Optional.
+  --inject-vary-attrs
+                     Give every UPDATE a MED and a COMMUNITIES attribute
+                     derived from its message index, so no two UPDATEs
+                     share an attribute set. Optional.
   --dial H:P         Act as the active BGP role: dial H:P instead of
                      listening, for a daemon that only ACCEPTS (a dynamic
                      peer group, or any passive peer). With --mode inject,

@@ -157,6 +157,140 @@ func TestBuildUpdatesFamilyMismatch(t *testing.T) {
 	}
 }
 
+// TestBuildUpdatesV4PerUpdateVaryExact pins the byte image a profile scenario
+// sends: one prefix per UPDATE, each UPDATE carrying a MULTI_EXIT_DISC and a
+// COMMUNITIES attribute derived from its message index. Method: two prefixes,
+// compared byte for byte, so both the cap and the per-message values show.
+func TestBuildUpdatesV4PerUpdateVaryExact(t *testing.T) {
+	// VALIDATES: PerUpdate splits the stream; VaryAttrs writes MED = message
+	// index and COMMUNITIES 64512:<index low 16> 64513:<index high 16>.
+	// PREVENTS: a profile stream whose UPDATEs share one attribute set, or
+	// pack every prefix into a few messages.
+	spec := InjectSpec{
+		Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
+		Count:     2,
+		NextHop:   netip.MustParseAddr("172.31.0.3"),
+		ASN:       65100,
+		EndOfRIB:  true,
+		PerUpdate: 1,
+		VaryAttrs: true,
+	}
+	got, nMsgs, err := buildUpdates(spec)
+	if err != nil {
+		t.Fatalf("BuildUpdates: %v", err)
+	}
+	if nMsgs != 3 { // 2 UPDATEs with 1 NLRI each + 1 EOR
+		t.Errorf("msg count: got %d, want 3", nMsgs)
+	}
+	const head = "ffffffffffffffffffffffffffffffff" + // marker
+		"0041" + "02" + // len=65, type=UPDATE
+		"0000" + // withdrawn routes length
+		"0026" + // total path attrs length = 38
+		"40010100" + // ORIGIN IGP
+		"4002060201" + "0000fe4c" + // AS_PATH AS_SEQUENCE 1x 65100
+		"400304" + "ac1f0003" // NEXT_HOP 172.31.0.3
+	const wantHex = head +
+		"800404" + "00000000" + // MED 0
+		"c00808" + "fc000000" + "fc010000" + // COMMUNITIES 64512:0 64513:0
+		"180a0000" + // NLRI 10.0.0.0/24
+		head +
+		"800404" + "00000001" + // MED 1
+		"c00808" + "fc000001" + "fc010000" + // COMMUNITIES 64512:1 64513:0
+		"180a0001" + // NLRI 10.0.1.0/24
+		"ffffffffffffffffffffffffffffffff" + "001702" + "00000000" // EOR
+	want, err := hex.DecodeString(wantHex)
+	if err != nil {
+		t.Fatalf("decode want: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("byte image mismatch\n got: %s\nwant: %s", hex.EncodeToString(got), wantHex)
+	}
+}
+
+// TestBuildUpdatesV6PerUpdateVaryExact is the IPv6 form: the varied
+// attributes sit between AS_PATH and MP_REACH_NLRI, so every MP_REACH offset
+// moves by their length. Method: two prefixes, byte for byte.
+func TestBuildUpdatesV6PerUpdateVaryExact(t *testing.T) {
+	// VALIDATES: VaryAttrs on the MP_REACH_NLRI layout (RFC 4760 Section 3).
+	// PREVENTS: an MP_REACH written over the varied attributes.
+	spec := InjectSpec{
+		Prefix:    netip.MustParsePrefix("2001:db8::/48"),
+		Count:     2,
+		NextHop:   netip.MustParseAddr("2001:db8::3"),
+		ASN:       65100,
+		EndOfRIB:  true,
+		PerUpdate: 1,
+		VaryAttrs: true,
+	}
+	got, nMsgs, err := buildUpdates(spec)
+	if err != nil {
+		t.Fatalf("BuildUpdates: %v", err)
+	}
+	if nMsgs != 3 {
+		t.Errorf("msg count: got %d, want 3", nMsgs)
+	}
+	const head = "ffffffffffffffffffffffffffffffff" + // marker
+		"0056" + "02" + // len=86, type=UPDATE
+		"0000" + // withdrawn
+		"003f" + // attr_len=63
+		"40010100" + // ORIGIN IGP
+		"4002060201" + "0000fe4c" // AS_PATH
+	const mpReach = "900e" + "001c" + // MP_REACH flags=0x90 type=14 ext-len=28
+		"0002" + "01" + // AFI=2 SAFI=1
+		"10" + "20010db8000000000000000000000003" + // NH 2001:db8::3
+		"00" // reserved
+	const wantHex = head +
+		"800404" + "00000000" + "c00808" + "fc000000" + "fc010000" +
+		mpReach + "30" + "20010db80000" +
+		head +
+		"800404" + "00000001" + "c00808" + "fc000001" + "fc010000" +
+		mpReach + "30" + "20010db80001" +
+		"ffffffffffffffffffffffffffffffff" + "001702" + "00000000" // EOR
+	want, err := hex.DecodeString(wantHex)
+	if err != nil {
+		t.Fatalf("decode want: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("byte image mismatch\n got: %s\nwant: %s", hex.EncodeToString(got), wantHex)
+	}
+}
+
+// TestBuildUpdatesPerUpdateCount checks the cap's message accounting when the
+// count is not a multiple of it, and that a negative cap is refused. Method:
+// re-parse the image and count messages and NLRI.
+func TestBuildUpdatesPerUpdateCount(t *testing.T) {
+	// VALIDATES: 5 prefixes at 2 per UPDATE make 3 UPDATEs + EOR, all 5 NLRI.
+	// PREVENTS: a partial last message dropped or a negative cap read as 0.
+	spec := InjectSpec{
+		Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
+		Count:     5,
+		NextHop:   netip.MustParseAddr("172.31.0.3"),
+		ASN:       65100,
+		EndOfRIB:  true,
+		PerUpdate: 2,
+		VaryAttrs: true,
+	}
+	buf, nMsgs, err := buildUpdates(spec)
+	if err != nil {
+		t.Fatalf("BuildUpdates: %v", err)
+	}
+	if nMsgs != 4 {
+		t.Errorf("msg count: got %d, want 4", nMsgs)
+	}
+	msgs, nlri := countNLRI(t, buf)
+	if msgs != nMsgs {
+		t.Errorf("parsed msg count: got %d, want %d", msgs, nMsgs)
+	}
+	if nlri != spec.Count {
+		t.Errorf("NLRI count: got %d, want %d", nlri, spec.Count)
+	}
+
+	spec.PerUpdate = -1
+	if _, _, err := buildUpdates(spec); err == nil {
+		t.Fatal("expected error for a negative prefixes-per-update cap, got nil")
+	}
+}
+
 // TestInjectEndToEnd pairs a ModeInject peer with a minimal BGP client that
 // does the OPEN handshake and reads the injected stream, verifying every
 // byte arrives in order.

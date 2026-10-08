@@ -52,7 +52,8 @@ func TestStressScenarioRegistryIsExact(t *testing.T) {
 	}
 	profile := mustStressScenario(t, "05-profile-1m")
 	if len(profile.rounds) != 1 || profile.rounds[0].prefixes != 1_000_000 ||
-		profile.rounds[0].dwell != "60s" || profile.rounds[0].timeout != 600*time.Second {
+		profile.rounds[0].dwell != "60s" || profile.rounds[0].timeout != 600*time.Second ||
+		profile.rounds[0].perUpdate != 1 || !profile.rounds[0].varyAttrs {
 		t.Fatalf("profile scenario drifted: %#v", profile.rounds)
 	}
 }
@@ -176,6 +177,11 @@ func TestStressProfileScenarioReachesRoundThreePaths(t *testing.T) {
 			sink = i
 		case strings.Contains(event, "--mode inject"):
 			inject = i
+			// The paths under profile run once per UPDATE, so the injector
+			// sends one prefix per UPDATE, each with its own attribute set.
+			if !strings.Contains(event, " --inject-per-update 1 --inject-vary-attrs") {
+				t.Fatalf("profile injector packs its UPDATEs: %s", event)
+			}
 		case strings.Contains(event, "curl") && strings.Contains(event, reach.queryURL):
 			query = i
 		case strings.Contains(event, " start "+stressConfigDir("fixture")+"/"):

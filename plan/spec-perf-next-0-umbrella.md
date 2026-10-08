@@ -106,6 +106,38 @@ answered by the AC-1 profile on the Mac (1M prefixes, populated-table query),
 whose `-focus` command is below; if any is absent there, that is the
 Methodology scope gate, not a pass.
 
+**Scenario fix and smoke 6, 2026-10-08: REACH EVIDENCE ONLY.** The paths run
+once per UPDATE, so the injector gained `--inject-per-update N` and
+`--inject-vary-attrs` (`InjectSpec.PerUpdate`, `InjectSpec.VaryAttrs`: one MED
+and two COMMUNITIES per UPDATE derived from the message index) and the profile
+round passes `1` and the vary flag: 1,000,000 UPDATEs plus End-of-RIB, 65
+octets each, about 65 MB. Tests: `TestBuildUpdatesV4PerUpdateVaryExact`,
+`TestBuildUpdatesV6PerUpdateVaryExact`, `TestBuildUpdatesPerUpdateCount`,
+`TestPeerInjectPerUpdateAndVaryReachSpec`, and the profile reach test now
+refuses a packed injector (red with the vary flag dropped, green restored).
+
+Guest smoke 6 (`prefixes 100000 pprof`, `<scratch>/stress-smoke-6`) FAILED:
+`the looking glass best table stayed empty for the whole round` (600 s), so no
+profile came back. A loopback reproduction without root (`<scratch>/repro/`,
+the guest-built `ze`, `ze.test.bgp.port`) shows the empty table is not this
+change: the packed stream and a config without the import policy answer
+`total_results: 0` too, on `routes/table/ipv4%2Funicast` and on
+`routes/protocol/<injector>`, while the CPU profile shows
+`rib.(*RIBManager).handleReceivedStructured` running. The same loopback run's
+30 s CPU profile over 100,000 varied single-prefix UPDATEs (about 9,000
+UPDATE/s, 296% CPU):
+
+| Frame | CPU `-focus` |
+|-------|--------------|
+| `textDeltaToModOps` | 0.88 s of 88.93 s |
+| `parseFilterAttrsInto` | 0.73 s |
+| `buildModifiedPayload` | 0.18 s |
+| `Community..AppendText` | absent: no route is ever rendered while the looking glass answers an empty table |
+
+Open: why the looking glass answers no routes while bgp-rib handles every
+received UPDATE. Until that is fixed the guest run cannot pass and
+`Community.AppendText` cannot appear.
+
 **Measurement route (AC-1 then AC-3), run by the owner on the Mac.** Both runs
 use the same guest size: set `ZE_QEMU_CPUS` and `ZE_QEMU_MEMORY` once (default
 8 CPUs, 16384 MiB) and keep them for both, because the report's

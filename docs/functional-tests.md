@@ -597,9 +597,18 @@ that keeps its routes never reaches:
 
 | Path | What the scenario does |
 |------|------------------------|
+| Every per-UPDATE path below | the injector sends one prefix per UPDATE (`--inject-per-update 1`), and each UPDATE carries its own MED and COMMUNITIES, both derived from the message index (`--inject-vary-attrs`), so no two UPDATEs share an attribute set |
 | Filter delta, import and export | `STRESS-IMPORT` and `STRESS-EXPORT` modify policies rewrite every UPDATE |
 | eBGP forwarding with the local AS prepended | `bgp-rs` relays every route to `receiver`, an eBGP `le test peer --mode sink` at 172.31.0.4, AS 65200 |
 | `Community.AppendText` | once the injector has sent its last byte, the runner probes the best table through the looking glass (`/api/looking-glass/routes/table/ipv4%2Funicast?limit=1`) once a second until it holds a route, then fetches the whole table, which renders the communities the import policy added |
+
+The filter, the payload rebuild and the forwarding run once per UPDATE, not
+once per prefix. Packed to the 4096-octet limit, 20,000 prefixes travel in 21
+UPDATEs and those paths never show in a CPU profile, which is why the scenario
+sends one prefix per message. The full run is 1,000,000 UPDATEs plus the
+End-of-RIB, 65 octets each (19 of header, 4 of length fields, 38 of
+attributes, 4 of NLRI), about 65 MB on the wire; a `prefixes 20000` smoke is
+20,000 UPDATEs. The report's `rounds[].metrics.messages` counts them, the End-of-RIB included.
 
 The probe exists because the last byte reaches the DUT's socket before the RIB
 has stored a route: a fetch made at that moment renders an empty table. The
@@ -610,6 +619,7 @@ count, for a smoke run that proves the wiring without the full load. It does
 not change the BIRD baseline, and a measurement leaves it unset.
 <!-- source: internal/le/test/integration/stress.go -- native scenario registry and runner -->
 <!-- source: internal/le/test/integration/stress.go -- buildZe, stressReach, queryRIB, awaitBestRoutes -->
+<!-- source: internal/test/peer/inject.go -- InjectSpec.PerUpdate, InjectSpec.VaryAttrs, writeVaryAttrs -->
 <!-- source: test/stress/scenarios/05-profile-1m/ze.conf -- profile scenario policies and receiver -->
 <!-- source: internal/le/test/integration/stressbird.go -- BIRD baseline runner -->
 <!-- source: internal/le/test/integration/stress.go -- stressBuildFailureMessage -->

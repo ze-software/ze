@@ -189,6 +189,12 @@ type stressRound struct {
 	dwell      string
 	timeout    time.Duration
 	pause      time.Duration
+	// perUpdate caps the prefixes one UPDATE carries (0 packs each message)
+	// and varyAttrs gives every UPDATE its own MED and COMMUNITIES. The
+	// profile scenario sets both: the paths it profiles run once per UPDATE,
+	// so a packed stream (20000 prefixes in 21 UPDATEs) never reaches them.
+	perUpdate int
+	varyAttrs bool
 }
 
 var stressScenarioRegistry = [...]stressScenario{
@@ -216,7 +222,10 @@ var stressScenarioRegistry = [...]stressScenario{
 	{
 		name: scenarioProfile1M, config: zeConfigFile, reach: &stressProfileReach,
 		rounds: []stressRound{
-			{prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 1_000_000, dwell: "60s", timeout: 600 * time.Second},
+			{
+				prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 1_000_000, dwell: "60s", timeout: 600 * time.Second,
+				perUpdate: 1, varyAttrs: true,
+			},
 		},
 	},
 }
@@ -791,6 +800,12 @@ func (r *stressRunner) startPeer(
 		"--inject-asn", strconv.Itoa(stressZeASN),
 		"--inject-dwell", round.dwell,
 	)
+	if round.perUpdate > 0 {
+		argv = append(argv, "--inject-per-update", strconv.Itoa(round.perUpdate))
+	}
+	if round.varyAttrs {
+		argv = append(argv, "--inject-vary-attrs")
+	}
 	process, err := r.system.Start(ctx, stressBirdCommand{
 		argv: argv, environ: r.base.environ, outputPath: r.base.paths.peerLog,
 	})
