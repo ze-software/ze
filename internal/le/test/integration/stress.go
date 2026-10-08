@@ -2,6 +2,7 @@ package testintegration
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -47,6 +48,18 @@ func stressReceiverLogPath(suffix string) string {
 	return filepath.Join(stressProfileRoot, "ze-stress-receiver-"+suffix+".log")
 }
 
+// stressConfigDir answers the directory one stress run copies the DUT's config
+// into, and so the directory its config store opens in.
+//
+// Ze keeps its config store beside the config it starts on, and refuses a store
+// whose files another user owns. The scenario directory is in the checkout,
+// which a VM guest reads over 9p with the host user's uid while the DUT runs as
+// root, so started there the DUT refuses to start. A directory this run creates
+// is owned by the user the DUT runs as, on a host run and in a guest alike.
+func stressConfigDir(suffix string) string {
+	return filepath.Join(stressProfileRoot, "ze-stress-config-"+suffix)
+}
+
 // stressOptions selects one exact scenario. An empty selection runs the complete registry.
 // Prefixes, when above zero, replaces every Ze round's prefix count: a smoke run
 // that proves a scenario's wiring without its full load. Zero keeps the registry's
@@ -81,6 +94,9 @@ type StressProfileReport struct {
 	Name  string `json:"name"`
 	Path  string `json:"path"`
 	Bytes int64  `json:"bytes"`
+	// Routes is the best table's route total when a query rendered it; a
+	// profile file carries none.
+	Routes int64 `json:"routes,omitempty"`
 }
 
 // StressScenarioReport is the verdict for one exact former checker.
@@ -161,6 +177,10 @@ var stressProfileReach = stressReach{
 	receiverASN:  65200,
 	queryURL:     "http://127.0.0.1:8443/api/looking-glass/routes/table/ipv4%2Funicast",
 }
+
+// probeURL answers the query asking for one route, whose pagination still
+// carries the whole table's route total.
+func (reach *stressReach) probeURL() string { return reach.queryURL + "?limit=1" }
 
 type stressRound struct {
 	prefixBase string
@@ -302,6 +322,8 @@ type stressSystem interface {
 	ReadFile(path string) ([]byte, error)
 	fileSize(path string) (int64, error)
 	MkdirAll(path string, mode os.FileMode) error
+	WriteFile(path string, content []byte, mode os.FileMode) error
+	RemoveAll(path string) error
 	// daemonBuildTags answers the -tags value that builds the DUT from root.
 	daemonBuildTags(root string) (string, error)
 }
@@ -328,6 +350,9 @@ func runZeStressScenario(
 		report.CleanupErrors = runner.base.cleanup(ctx, true)
 		_ = system.Remove(stressProfilePath(runner.base.suffix))
 		_ = system.Remove(stressReceiverLogPath(runner.base.suffix))
+		if err := system.RemoveAll(stressConfigDir(runner.base.suffix)); err != nil {
+			report.Warnings = append(report.Warnings, "remove DUT config copy: "+err.Error())
+		}
 		report.Warnings = append(report.Warnings, runner.base.warnings...)
 		if report.Failure == "" && len(report.CleanupErrors) > 0 {
 			report.Failure = "cleanup failed: " + strings.Join(report.CleanupErrors, "; ")
@@ -537,6 +562,11 @@ func (r *stressRunner) queryRIB(
 			return report, stressBirdFailure("query", stressBirdTimeoutCode, "wait for the injector canceled")
 		}
 	}
+	routes, failure := r.awaitBestRoutes(ctx, reach, deadline)
+	if failure != nil {
+		return report, failure
+	}
+	report.Routes = routes
 	result, err := r.system.Run(ctx, stressBirdCommand{
 		argv: r.base.namespaceArgv(
 			r.base.zeNS, "curl", "-sS", "-f", "-o", "/dev/null", "-w", "%{size_download}", reach.queryURL,
@@ -560,8 +590,58 @@ func (r *stressRunner) queryRIB(
 	return report, nil
 }
 
+// awaitBestRoutes probes the best table once a second until it holds a route,
+// and answers the route total of the probe that found one.
+//
+// The injector's last byte reaches the DUT's socket before the RIB plugin has
+// stored anything, so a query made at that moment renders an empty table and
+// proves no route was rendered: a 2026-10-08 guest smoke answered 122 bytes for
+// 20000 prefixes. The probe asks for one route, so its answer stays small at a
+// million, and it reads the total the looking glass counts before paginating.
+func (r *stressRunner) awaitBestRoutes(
+	ctx context.Context,
+	reach *stressReach,
+	deadline time.Time,
+) (int64, *StressBirdFailure) {
+	for {
+		result, err := r.system.Run(ctx, stressBirdCommand{
+			argv:    r.base.namespaceArgv(r.base.zeNS, "curl", "-sS", "-f", reach.probeURL()),
+			environ: r.base.environ, timeout: stressProfileWait,
+		})
+		if err != nil {
+			return 0, stressBirdFailure("query", commandErrorCode(err), "probe the looking glass: "+err.Error())
+		}
+		if result.code != 0 {
+			return 0, stressBirdFailure("query", result.code, "probe the looking glass: "+strings.TrimSpace(result.stderr))
+		}
+		var answer struct {
+			Pagination *struct {
+				TotalResults int64 `json:"total_results"`
+			} `json:"pagination"`
+		}
+		if err := json.Unmarshal([]byte(result.stdout), &answer); err != nil {
+			return 0, stressBirdFailure("query", 1, "read the looking glass probe: "+err.Error())
+		}
+		if answer.Pagination == nil {
+			return 0, stressBirdFailure("query", 1, "the looking glass probe answered no pagination, so no route total")
+		}
+		if answer.Pagination.TotalResults > 0 {
+			return answer.Pagination.TotalResults, nil
+		}
+		if r.system.Now().After(deadline) {
+			return 0, stressBirdFailure("query", stressBirdTimeoutCode, "the looking glass best table stayed empty for the whole round")
+		}
+		if err := r.system.Sleep(ctx, time.Second); err != nil {
+			return 0, stressBirdFailure("query", stressBirdTimeoutCode, "wait for the best table canceled")
+		}
+	}
+}
+
 func (r *stressRunner) startZe(ctx context.Context) *StressBirdFailure {
-	config := filepath.Join(r.base.root, "test", "stress", "scenarios", r.scenario.name, r.scenario.config)
+	config, failure := r.stageConfig()
+	if failure != nil {
+		return failure
+	}
 	argv := r.base.namespaceArgv(r.base.zeNS, r.zeBinary)
 	if r.system.Getenv("ZE_PPROF") != "" {
 		argv = append(argv, "--pprof", "127.0.0.1:6060")
@@ -608,6 +688,30 @@ func (r *stressRunner) startZe(ctx context.Context) *StressBirdFailure {
 	}
 	r.base.processes = append(r.base.processes, capture)
 	return nil
+}
+
+// stageConfig copies the scenario's config into this run's own directory and
+// answers the copy's path, which is what the DUT starts on (stressConfigDir
+// says why). A directory left by an earlier run with the same suffix is removed
+// first, so the DUT never opens a store some other run wrote.
+func (r *stressRunner) stageConfig() (string, *StressBirdFailure) {
+	source := filepath.Join(r.base.root, "test", "stress", "scenarios", r.scenario.name, r.scenario.config)
+	content, err := r.system.ReadFile(source)
+	if err != nil {
+		return "", stressBirdFailure("ze-config", gaterun.CannotStart, "read DUT configuration: "+err.Error())
+	}
+	dir := stressConfigDir(r.base.suffix)
+	if err := r.system.RemoveAll(dir); err != nil {
+		return "", stressBirdFailure("ze-config", gaterun.CannotStart, "clear DUT config directory: "+err.Error())
+	}
+	if err := r.system.MkdirAll(dir, 0o700); err != nil {
+		return "", stressBirdFailure("ze-config", gaterun.CannotStart, "create DUT config directory: "+err.Error())
+	}
+	config := filepath.Join(dir, r.scenario.config)
+	if err := r.system.WriteFile(config, content, 0o600); err != nil {
+		return "", stressBirdFailure("ze-config", gaterun.CannotStart, "copy DUT configuration: "+err.Error())
+	}
+	return config, nil
 }
 
 func (r *stressRunner) runRound(
@@ -818,6 +922,12 @@ func (realStressSystem) fileSize(path string) (int64, error) {
 func (realStressSystem) MkdirAll(path string, mode os.FileMode) error {
 	return os.MkdirAll(path, mode)
 }
+
+func (realStressSystem) WriteFile(path string, content []byte, mode os.FileMode) error {
+	return os.WriteFile(path, content, mode)
+}
+
+func (realStressSystem) RemoveAll(path string) error { return os.RemoveAll(path) }
 
 func (realStressSystem) daemonBuildTags(root string) (string, error) {
 	return repofeaturetags.DaemonBuildTags(root, repofeaturetags.DaemonBase)

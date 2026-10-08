@@ -155,8 +155,12 @@ hardware is known, so the harness runs there in the guest:
 The host cross-builds the guest `le`, boots the guest with `packages "iproute2
 ethtool"`, and runs `STRESS_SCENARIO=<name> <guest le> test integration stress
 '|' json` from `/workspace` as root. The harness builds its DUT inside the
-guest from the shared checkout, so the profile measures that tree. The guest
-writes the report to `tmp/qemu/stress-report.json`, a file the host removes
+guest from the shared checkout, so the profile measures that tree. It starts
+the DUT on a copy of the scenario config in `/tmp/ze-stress-config-<suffix>`,
+never in the checkout: Ze opens its config store beside its config and refuses
+a store another user owns, and over 9p the checkout carries the host user's uid
+while the DUT runs as root. The harness removes the copy when the run ends. The
+guest writes the report to `tmp/qemu/stress-report.json`, a file the host removes
 before the boot. The host then writes `report.json` into the output directory
 and copies every file the report names: each profile under `profiles`, and the
 DUT under `binary`. The paths come from the report, and a path outside
@@ -192,6 +196,7 @@ them on a Mac. On the first run, check in this order:
 `go tool pprof` reads a Linux profile on macOS; pass the copied `ze` as the
 binary for source listings.
 <!-- source: internal/le/test/qemu/stress.go -- stressAction, runStressGuest, copyStressEvidence -->
+<!-- source: internal/le/test/integration/stress.go -- stressConfigDir, stageConfig -->
 <!-- source: internal/le/test/qemu/run.go -- RunOptions.HardwareOnly, acceleration, qemuArgs -->
 <!-- source: internal/le/test/qemu/hugepages.go -- accelerator, Hardware -->
 

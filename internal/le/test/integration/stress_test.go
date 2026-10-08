@@ -178,7 +178,7 @@ func TestStressProfileScenarioReachesRoundThreePaths(t *testing.T) {
 			inject = i
 		case strings.Contains(event, "curl") && strings.Contains(event, reach.queryURL):
 			query = i
-		case strings.Contains(event, " start /repo/test/stress/scenarios/"):
+		case strings.Contains(event, " start "+stressConfigDir("fixture")+"/"):
 			zeStart = i
 		}
 	}
@@ -196,6 +196,61 @@ func TestStressProfileScenarioReachesRoundThreePaths(t *testing.T) {
 	}
 }
 
+// TestStressDUTRunsOnARunPrivateConfigCopy pins that the DUT never opens its
+// config store in the checkout. Ze keeps the store beside its config and
+// refuses one another user owns, and a VM guest sees the checkout over 9p with
+// the host user's uid while the DUT runs as root. Method: record a run and read
+// where the config was written, with what mode, what Ze was started on, and
+// that the copy is removed before and after the run.
+func TestStressDUTRunsOnARunPrivateConfigCopy(t *testing.T) {
+	recorder := newStressRecorder()
+	source := "/repo/test/stress/scenarios/" + scenarioProfile1M + "/" + zeConfigFile
+	recorder.sources[source] = []byte("bgp { }\n")
+	report, code := runStressAt(
+		context.Background(), "/repo", stressOptions{Scenario: scenarioProfile1M}, recorder,
+	)
+	if code != 0 || len(report.Scenarios) != 1 {
+		t.Fatalf("profile run = code %d report %#v", code, report)
+	}
+	dir := stressConfigDir("fixture")
+	if strings.HasPrefix(dir, "/repo") {
+		t.Fatalf("config copy %q sits in the checkout", dir)
+	}
+	copied := dir + "/" + zeConfigFile
+	write, ok := recorder.written[copied]
+	if !ok {
+		t.Fatalf("no config copy written at %q\n%s", copied, strings.Join(recorder.events, "\n"))
+	}
+	if string(write.content) != "bgp { }\n" || write.mode != 0o600 {
+		t.Fatalf("copy = %q mode %v, want the scenario config at 0600", write.content, write.mode)
+	}
+	clear, mkdir, wrote, start, removed := -1, -1, -1, -1, -1
+	for i, event := range recorder.events {
+		switch {
+		case event == "remove-all "+dir && clear < 0:
+			clear = i
+		case event == "remove-all "+dir:
+			removed = i
+		case event == "mkdir "+dir+" "+os.FileMode(0o700).String():
+			mkdir = i
+		case event == "write "+copied:
+			wrote = i
+		case strings.Contains(event, " start "+copied):
+			start = i
+		case strings.Contains(event, " start "+source):
+			t.Fatalf("the DUT started on the checkout's config: %s", event)
+		}
+	}
+	if clear < 0 || mkdir < 0 || wrote < 0 || start < 0 || removed < 0 {
+		t.Fatalf("missing step: clear %d mkdir %d write %d start %d remove %d\n%s",
+			clear, mkdir, wrote, start, removed, strings.Join(recorder.events, "\n"))
+	}
+	if clear > mkdir || mkdir > wrote || wrote > start || start > removed {
+		t.Fatalf("steps out of order: clear %d mkdir %d write %d start %d remove %d",
+			clear, mkdir, wrote, start, removed)
+	}
+}
+
 // TestStressProfileQueryRefusesAnEmptyTable pins that a best table the looking
 // glass answers with no bytes fails the run rather than reading as reach.
 func TestStressProfileQueryRefusesAnEmptyTable(t *testing.T) {
@@ -206,6 +261,56 @@ func TestStressProfileQueryRefusesAnEmptyTable(t *testing.T) {
 	)
 	if code == 0 || report.Scenarios[0].Passed || !strings.Contains(report.Scenarios[0].Failure, "empty best table") {
 		t.Fatalf("empty query = code %d report %#v", code, report)
+	}
+}
+
+// TestStressProfileQueryWaitsForAPopulatedTable pins that the best-table query
+// waits until the RIB holds a route. The injector's last byte reaches the DUT's
+// socket before the RIB has stored anything, and a query made then measured an
+// empty table: a 2026-10-08 guest smoke answered 122 bytes for 20000 prefixes.
+// Method: answer two empty probes, then a populated one, and read the order.
+func TestStressProfileQueryWaitsForAPopulatedTable(t *testing.T) {
+	recorder := newStressRecorder()
+	recorder.probeTotals = []int{0, 0, 5}
+	report, code := runStressAt(
+		context.Background(), "/repo", stressOptions{Scenario: scenarioProfile1M}, recorder,
+	)
+	if code != 0 || len(report.Scenarios) != 1 {
+		t.Fatalf("profile run = code %d report %#v", code, report)
+	}
+	if recorder.probes != 3 {
+		t.Fatalf("probes = %d, want 3 (two empty, one populated)", recorder.probes)
+	}
+	lastProbe, query := -1, -1
+	for i, event := range recorder.events {
+		if strings.Contains(event, stressProfileReach.probeURL()) {
+			lastProbe = i
+		}
+		if strings.Contains(event, "%{size_download}") {
+			query = i
+		}
+	}
+	if query < lastProbe {
+		t.Fatalf("full query %d ran before the populated probe %d", query, lastProbe)
+	}
+	queries := report.Scenarios[0].Queries
+	if len(queries) != 1 || queries[0].Routes != 5 {
+		t.Fatalf("queries = %#v, want 5 routes recorded", queries)
+	}
+}
+
+// TestStressProfileQueryRefusesATableThatStaysEmpty pins that a best table with
+// no route for the whole round fails the run, rather than reading as reach.
+func TestStressProfileQueryRefusesATableThatStaysEmpty(t *testing.T) {
+	recorder := newStressRecorder()
+	recorder.probeTotals = []int{0}
+	report, code := runStressAt(
+		context.Background(), "/repo", stressOptions{Scenario: scenarioProfile1M}, recorder,
+	)
+	scenario := report.Scenarios[0]
+	if code == 0 || scenario.Passed || scenario.ExitCode != stressBirdTimeoutCode ||
+		!strings.Contains(scenario.Failure, "best table stayed empty") {
+		t.Fatalf("empty table = code %d report %#v", code, report)
 	}
 }
 
@@ -430,6 +535,19 @@ type stressRecorder struct {
 	queryBytes string
 	// build, when set, answers the DUT's compile in place of a success.
 	build *stressBirdCommandResult
+	// sources answers ReadFile for the paths it holds; written records each
+	// WriteFile by path, with its content and mode.
+	sources map[string][]byte
+	written map[string]stressRecordedWrite
+	// probeTotals answers each successive best-table probe with this route
+	// total; the last entry repeats. probes counts the probes made.
+	probeTotals []int
+	probes      int
+}
+
+type stressRecordedWrite struct {
+	content []byte
+	mode    os.FileMode
 }
 
 // stressRecorderTags stands in for the manifest's gate tags, and
@@ -449,6 +567,11 @@ func (r *stressRecorder) Run(ctx context.Context, command stressBirdCommand) (st
 	if slices.Contains(command.argv, "curl") && slices.Contains(command.argv, "%{size_download}") {
 		result.stdout = r.queryBytes
 	}
+	if slices.Contains(command.argv, "curl") && slices.Contains(command.argv, stressProfileReach.probeURL()) {
+		total := r.probeTotals[min(r.probes, len(r.probeTotals)-1)]
+		r.probes++
+		result.stdout = `{"routes":[],"pagination":{"total_results":` + strconv.Itoa(total) + `}}`
+	}
 	return result, err
 }
 
@@ -459,7 +582,11 @@ func newStressRecorder() *stressRecorder {
 	for _, scenario := range stressScenarioRegistry {
 		base.files["/repo/test/stress/scenarios/"+scenario.name+"/"+scenario.config] = true
 	}
-	return &stressRecorder{stressBirdRecorder: base, queryBytes: "4096"}
+	return &stressRecorder{
+		stressBirdRecorder: base, queryBytes: "4096",
+		sources: map[string][]byte{}, written: map[string]stressRecordedWrite{},
+		probeTotals: []int{5},
+	}
 }
 
 func (r *stressRecorder) Getenv(key string) string {
@@ -488,7 +615,10 @@ func (r *stressRecorder) Start(_ context.Context, command stressBirdCommand) (st
 	return &stressBirdRecordedProcess{name: name, exited: exited, recorder: r.stressBirdRecorder}, nil
 }
 
-func (r *stressRecorder) ReadFile(string) ([]byte, error) {
+func (r *stressRecorder) ReadFile(path string) ([]byte, error) {
+	if content, ok := r.sources[path]; ok {
+		return content, nil
+	}
 	return []byte(
 		"inject built: 4096 messages, 8388608 bytes in 1.25s\n" +
 			"inject sent: 8388608 bytes in 250ms (32.0 MB/s)\n",
@@ -497,6 +627,20 @@ func (r *stressRecorder) ReadFile(string) ([]byte, error) {
 
 func (r *stressRecorder) fileSize(string) (int64, error) { return 1024, nil }
 
-func (r *stressRecorder) MkdirAll(string, os.FileMode) error { return nil }
+func (r *stressRecorder) MkdirAll(path string, mode os.FileMode) error {
+	r.events = append(r.events, "mkdir "+path+" "+mode.String())
+	return nil
+}
+
+func (r *stressRecorder) WriteFile(path string, content []byte, mode os.FileMode) error {
+	r.events = append(r.events, "write "+path)
+	r.written[path] = stressRecordedWrite{content: slices.Clone(content), mode: mode}
+	return nil
+}
+
+func (r *stressRecorder) RemoveAll(path string) error {
+	r.events = append(r.events, "remove-all "+path)
+	return nil
+}
 
 var _ stressSystem = (*stressRecorder)(nil)

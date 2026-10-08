@@ -599,14 +599,17 @@ that keeps its routes never reaches:
 |------|------------------------|
 | Filter delta, import and export | `STRESS-IMPORT` and `STRESS-EXPORT` modify policies rewrite every UPDATE |
 | eBGP forwarding with the local AS prepended | `bgp-rs` relays every route to `receiver`, an eBGP `le test peer --mode sink` at 172.31.0.4, AS 65200 |
-| `Community.AppendText` | once the injector has sent its last byte, the runner fetches the best table through the looking glass (`/api/looking-glass/routes/table/ipv4%2Funicast`), which renders the communities the import policy added |
+| `Community.AppendText` | once the injector has sent its last byte, the runner probes the best table through the looking glass (`/api/looking-glass/routes/table/ipv4%2Funicast?limit=1`) once a second until it holds a route, then fetches the whole table, which renders the communities the import policy added |
 
-The report lists that fetch under `queries`, and a fetch that fails or answers
-an empty table fails the run. `STRESS_PREFIXES` replaces every Ze round's prefix
+The probe exists because the last byte reaches the DUT's socket before the RIB
+has stored a route: a fetch made at that moment renders an empty table. The
+report lists the fetch under `queries`, with the bytes it answered and the
+route total under `routes`. A table still empty when the round's timeout runs
+out fails the run, and so does a fetch that fails or answers no bytes. `STRESS_PREFIXES` replaces every Ze round's prefix
 count, for a smoke run that proves the wiring without the full load. It does
 not change the BIRD baseline, and a measurement leaves it unset.
 <!-- source: internal/le/test/integration/stress.go -- native scenario registry and runner -->
-<!-- source: internal/le/test/integration/stress.go -- buildZe, stressReach, queryRIB -->
+<!-- source: internal/le/test/integration/stress.go -- buildZe, stressReach, queryRIB, awaitBestRoutes -->
 <!-- source: test/stress/scenarios/05-profile-1m/ze.conf -- profile scenario policies and receiver -->
 <!-- source: internal/le/test/integration/stressbird.go -- BIRD baseline runner -->
 <!-- source: internal/le/test/integration/stress.go -- stressBuildFailureMessage -->
