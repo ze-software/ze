@@ -356,18 +356,21 @@ func validateRPKI() error {
 	if err := requireAll(status, "sessions-synced: 1", "synced: true", fmt.Sprintf("vrp-count-ipv4: %d", expectedDemoVRPIPv4)); err != nil {
 		return err
 	}
-	var routes string
+	// The peer's three UPDATEs and their validation land after the RTR sync,
+	// so the check is retried until it holds or the attempts run out.
+	var verdict error
 	for range 100 {
-		routes, _ = cli(env, "show bgp adj-rib-in | no-more | yaml")
-		if strings.Contains(routes, "9.43.0.0/24") && strings.Contains(routes, "11.43.0.0/24") && !strings.Contains(routes, "10.43.0.0/24") {
-			break
+		routes, err := cli(env, "show bgp adj-rib-in | no-more | json")
+		verdict = err
+		if err == nil {
+			verdict = checkRPKIDemoAdjRIBIn(routes)
+		}
+		if verdict == nil {
+			return nil
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	if err := requireAll(routes, "9.43.0.0/24", "11.43.0.0/24", "validation-state"); err != nil {
-		return err
-	}
-	return notContains(routes, "10.43.0.0/24")
+	return verdict
 }
 
 func validateIRR() error {

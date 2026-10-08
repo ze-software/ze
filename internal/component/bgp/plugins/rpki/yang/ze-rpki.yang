@@ -19,7 +19,7 @@ module ze-rpki {
   // choices stays identical everywhere. Order is display-only.
   typedef validation-action {
     type enumeration {
-      enum reject { ze:help "Exclude the route from the Adj-RIB-In and the decision process."; }
+      enum reject { ze:help "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."; }
       enum log-only { ze:help "Keep the route, marked with its state, and write a log line."; }
       enum accept { ze:help "Keep the route and write no log line."; }
     }
