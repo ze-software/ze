@@ -337,6 +337,12 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 			continue
 		}
 		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, entry)
+		// A consumer replay is what the newly registered consumer holds. A peer
+		// replay feeds one BGP peer a route the consumer already holds from the
+		// incremental path, so it changes nothing the held set records.
+		if target.kind == replayKindConsumer {
+			recordDispatched(heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix}, entry.Action)
+		}
 		if m := getMetrics(); m != nil && m.replayTotal != nil {
 			m.replayTotal.With(name).Inc()
 		}

@@ -124,17 +124,27 @@ func (b *testBus) Subscribe(ns, et string, handler func(any)) func() {
 	}
 }
 
+// reset drops every held record. The orchestrator never calls it; tests do,
+// because the held set is package state shared across them.
+func (h *heldRoutes) reset() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	clear(h.set)
+}
+
 func resetState(t *testing.T) {
 	t.Helper()
 	redistevents.ResetForTest()
 	configredist.SetGlobal(nil)
 	configredist.ResetConsumersForTest()
 	eventBusPtr.Store(nil)
+	consumerHeld.reset()
 	t.Cleanup(func() {
 		redistevents.ResetForTest()
 		configredist.SetGlobal(nil)
 		configredist.ResetConsumersForTest()
 		eventBusPtr.Store(nil)
+		consumerHeld.reset()
 	})
 }
 

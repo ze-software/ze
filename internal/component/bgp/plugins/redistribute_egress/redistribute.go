@@ -92,7 +92,7 @@ func setMetricsRegistry(reg metrics.Registry) {
 	m := &pluginMetrics{
 		eventsReceived:        reg.Counter("ze_bgp_redistribute_events_received", "Route-change batches received from the EventBus."),
 		announcements:         reg.Counter("ze_bgp_redistribute_announcements", "Accepted add entries dispatched to consumers as announcements."),
-		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Accepted remove entries dispatched to consumers as withdrawals."),
+		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Withdrawals dispatched to consumers: accepted remove entries, and held routes a rejected entry retires."),
 		filteredProtocolTotal: reg.Counter("ze_bgp_redistribute_filtered_protocol_total", "Batches filtered by the consumer-protocol skip."),
 		filteredRuleTotal:     reg.Counter("ze_bgp_redistribute_filtered_rule_total", "Entries rejected by the redistribute evaluator."),
 		replayTotal:           reg.CounterVec("ze_bgp_redistribute_replay_total", "Redistribute routes replayed to a newly-established peer, by source.", []string{"source"}),
@@ -160,6 +160,9 @@ func run(ctx context.Context) {
 // treats it as the add it already applied.
 func watchConsumers(bus ze.EventBus, coord *replayCoordinator) func() {
 	configredist.SetConsumerObserver(func(name string) {
+		// A consumer registering here, first time or again, holds nothing yet:
+		// the replay below is what it will hold.
+		consumerHeld.forgetConsumer(name)
 		coord.onConsumerRegistered(bus, name)
 	})
 	for _, name := range configredist.ConsumerNames() {
@@ -258,15 +261,18 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			// input to the decision (origin, source, family) is the same for the
 			// whole batch, so the rule set is walked with only the tag varying.
 			route.Tag = entry.Tag
+			key := heldKey{consumer: cname, source: name, family: famVal, prefix: entry.Prefix}
 			if !ev.Accept(route, cname) {
 				logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
 				if m := getMetrics(); m != nil {
 					m.filteredRuleTotal.Inc()
 				}
+				removeReplacedRoute(ctx, consumer, key, entry.Action)
 				continue
 			}
 			// Empty peer selector: the incremental path fans out to all peers.
 			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry)
+			recordDispatched(key, entry.Action)
 		}
 	}
 }

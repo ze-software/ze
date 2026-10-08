@@ -85,6 +85,7 @@ Ze therefore owes the field a value, and the RFC does not say which value.
 ### D-2: the reading this spec implements, confirmed by the owner
 
 -> Decision (owner, 2026-10-08): a route's own nonzero tag wins over `ospf redistribute ... tag N`, which stays the fallback for routes that carry none. This is the reading the code and `docs/guide/ospf.md` already implement. D-2 is resolved, and the spec is ready for independent closure.
+-> Decision (owner, 2026-10-08): a re-tagged static route is announced once (implicit replace), never withdrawn first. A consumer whose filter rejects a replacement Add for a prefix it currently holds removes the route it holds, as BGP import policy does. The uncommitted withdraw-first change in internal/plugins/static/inject.go (`announcementRetired`) is reverted; the fix lives in the consumer filter path.
 
 **The route's own tag WINS when it is nonzero. The per-source `tag N` under
 `ospf { redistribute { source <src> } }` is the fallback for routes that carry
@@ -363,9 +364,22 @@ indistinguishable, which is the defect this spec exists to remove.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestStaticEmitCarriesRouteTag` | `internal/plugins/static/redist_tag_test.go` | AC-1 | red then green |
+| `TestStaticTagChangeReplacesAnnouncement` | same | AC-6 across a reload: a re-tagged route is announced once with the new tag, no Remove first (implicit replace) | added at closure; red under withdraw-first, green after |
 | `TestHandleBatchCarriesEntryTag` | `internal/component/bgp/plugins/redistribute_egress/redistribute_tag_test.go` | AC-2 | red then green |
 | `TestHandleBatchUntaggedEntryCarriesZero` | same | AC-2 negative | green with AC-2 |
 | `TestHandleBatchFiltersEntriesByTag` | same | AC-6, AC-8 | red then green |
+| `TestHandleBatchRetagAcceptedReplacesWithoutWithdraw` | same | AC-6: a re-tag the rule accepts replaces in place, nothing withdrawn | added at closure; green |
+| `TestHandleBatchRetagRejectedRemovesHeldRoute` | same | AC-6: a rejected replacement Add for a held route withdraws it, once | added at closure; red before `removeReplacedRoute` |
+| `TestHandleBatchRejectedAddNeverHeldDoesNothing` | same | a rejected Add for a route never held sends nothing | added at closure; red when the held check is cut |
+| `TestHandleBatchReregisteredConsumerHoldsNothing` | same | a re-registered consumer holds nothing its predecessor held | added at closure; red when `forgetConsumer` is cut in `watchConsumers` |
+| `TestHandleBatchReplayedRouteIsHeld` | same | a route delivered by the consumer replay is held | added at closure; red when the replay record is cut |
+| `TestHandleBatchRejectedRemoveOfHeldRouteWithdraws` | same | a Remove the filter rejects still reaches a consumer holding the route, once | added at closure; red when `removeReplacedRoute` ignores Remove |
+| `TestHandleBatchRejectedRemoveNeverHeldDoesNothing` | same | a rejected Remove for a route never held sends nothing (behavior unchanged) | added at closure; green |
+| `TestHandleBatchRejectedRemoveOfReplayedRouteWithdraws` | same | the same for a route held through the consumer replay (a replay batch carries Adds only, so the Remove arrives incrementally) | added at closure; red when `removeReplacedRoute` ignores Remove |
+| `TestHandleBatchHeldRouteWithdrawCounted` | same | the held-route withdraw is counted in `ze_bgp_redistribute_withdrawals` | added at closure; red when the withdraw bypasses `dispatchEntryToConsumer` |
+| `TestHandleBatchHeldRouteIsPerConsumerAndSource` | same | the held set is keyed per consumer and per source: a rejection at one consumer never withdraws at another, and a rejected Add from a source the consumer never held the prefix from withdraws nothing | added by the closure review; red when `heldKey` drops `consumer`, red when it drops `source` |
+| `TestHandleReplayBatchCarriesEntryTag` | same | AC-2 on the replay path | added at closure; red then green |
+| `TestHandleReplayBatchFiltersEntriesByTag` | same | AC-6, AC-8 on the replay path | added at closure; red then green |
 | `TestImportRuleMatchesTag` | `internal/component/config/redistribute/route_tag_test.go` | AC-6, AC-7, AC-9 | red then green |
 | `TestEvaluatorRulesCopiesTag` | same | the diagnostic copy keeps the filter | red then green |
 | `TestExtractRedistributeRulesTagFilter` | `internal/component/config/loader_redistribute_tag_test.go` | AC-10 at the loader | red then green |
@@ -469,7 +483,7 @@ indistinguishable, which is the defect this spec exists to remove.
 | 11 | Affects daemon comparison? | No | `docs/comparison.md` does not enumerate route tags |
 | 12 | Internal architecture changed? | No | `docs/architecture/ospf/ospf-10-as-external-asbr.md` describes the injector seam and the Type 5 origination, neither of which changed shape. The parameter it gained is documented at the interface |
 | 13 | Route metadata keys added/changed? | No | No `meta` key changed |
-| 14 | Prometheus counters added/changed? | No | No new series |
+| 14 | Prometheus counters added/changed? | Yes, meaning only | No new series. `ze_bgp_redistribute_withdrawals` now also counts the withdraw a rejected entry sends for a held route: its help text (`setMetricsRegistry`) and the metric row in `docs/guide/redistribution.md` say so. `docs/plugin-development/metrics.md` lists the name with no description, so it stays true |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | Nothing registered or unregistered |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes, and each is named | `ai/CODE-TO-DOCS.md` maps `internal/core/redistevents/events.go` and `redistribute_egress/redistribute.go` to `docs/architecture/core-design.md`, `docs/comparison.md`, `docs/features.md`, `docs/guide/configuration.md`, `docs/guide/plugins.md`, `docs/guide/redistribution.md` and `docs/plugin-development/metrics.md`; and `ospf/redistribute/consumer.go` to `docs/architecture/ospf/ospf-10-as-external-asbr.md`, `ospf-ext-15-multi-af.md`, `docs/guide/ospf.md` and `docs/guide/configuration.md`. `docs/guide/redistribution.md`, `docs/guide/configuration.md` and `docs/guide/ospf.md` are updated. The rest are unaffected: none states what a `RouteChangeEntry` carries, what an import rule matches on, or what the external route tag is set from |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/configuration.md` and `docs/guide/static-routes.md` show the `tag` leaf; both were read against the parser and both remain valid |
@@ -635,3 +649,154 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Implementation landed in 2bc0594b08: `RouteChangeEntry.Tag` set by `routeManager.emitRouteChangeID` (`internal/plugins/static/inject.go`); `RouteEntry.Tag` filled by `dispatchEntryToConsumer`; per-entry `Evaluator.Accept` in `handleBatch` (`redistribute.go`) and `handleReplayBatch` (`replay.go`); `ImportRule.Tag`/`MatchTag` judged in `ImportRule.Accept` (`route.go`) and read by `importTag` (`loader_redistribute.go`); the OSPF consumer passes `entry.Tag` to the injector and `externalRouteTag` (`internal/plugins/ospf/redist_wiring.go`) prefers it over the per-source tag.
+- Closure added the replay-path proof (`TestHandleReplayBatchCarriesEntryTag`, `TestHandleReplayBatchFiltersEntriesByTag`) and fixed the re-tag defect below.
+
+### Bugs Found/Fixed
+- A static route re-tagged out of an import rule's tag set stayed redistributed. A forward-to-forward replace emits one Add carrying the new tag (an implicit replace, kept per the owner Decision above); the per-entry filter rejected that Add, and nothing withdrew the route the consumer held under the old tag. Fixed in the filter path, `internal/component/bgp/plugins/redistribute_egress/held.go`: the orchestrator records which routes each consumer holds (`recordDispatched`, from `handleBatch` and from the consumer replay in `handleReplayBatch`; `forgetConsumer` clears a consumer on (re)registration in `watchConsumers`), and `removeReplacedRoute` withdraws the held route when the filter rejects a replacement Add, as BGP import policy does. Covered by `TestHandleBatchRetagRejectedRemovesHeldRoute`, `TestHandleBatchRetagAcceptedReplacesWithoutWithdraw`, `TestHandleBatchRejectedAddNeverHeldDoesNothing`, `TestHandleBatchReregisteredConsumerHoldsNothing`, `TestHandleBatchReplayedRouteIsHeld`, and at the producer `TestStaticTagChangeReplacesAnnouncement`.
+- A Remove the filter rejected never reached a consumer holding the route, so the consumer kept a route its source withdrew (for instance a Remove carrying a tag the rule does not import). Fixed in `removeReplacedRoute`: a rejected Remove for a held route is delivered; a rejected Remove for a route not held still sends nothing, as before. Covered by `TestHandleBatchRejectedRemoveOfHeldRouteWithdraws`, `TestHandleBatchRejectedRemoveNeverHeldDoesNothing`, `TestHandleBatchRejectedRemoveOfReplayedRouteWithdraws`.
+- The held-route withdraw goes through `dispatchEntryToConsumer`, so `ze_bgp_redistribute_withdrawals` counts it like an accepted Remove (`TestHandleBatchHeldRouteWithdrawCounted`).
+
+### Documentation Updates
+- `docs/guide/redistribution.md`: after the tag-filter example, one paragraph states that re-tagging a static route announces it once (implicit replace) and that a destination whose rule rejects the new tag removes the route it held, and one states that a withdrawal reaches a destination holding the route even when its rule would reject it; anchored `held.go -- removeReplacedRoute` and `inject.go -- applyRouteLocked`. The `ze_bgp_redistribute_withdrawals` metric row now counts the held-route withdraws.
+- The four guide pages of 2bc0594b08 re-read against `importTag`, `ImportRule.Accept` and `externalRouteTag`: still accurate.
+
+### Deviations from Plan
+- None in design. A re-tag replaces in place at a consumer that accepts the new tag (no flap); a consumer that rejects it withdraws the route it held.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The filter moved per entry, and nothing retracted a route whose replacement the filter rejected | A per-route input to acceptance makes a changed value a change of membership, which an Add alone cannot retract | closure review traced a 42 to 43 reload through `applyRouteLocked` | a withdraw-first producer change was tried and reverted by the owner Decision of 2026-10-08; fixed in the consumer filter path (`removeReplacedRoute`, `held.go`), tests added |
+| claim | `heldKey`'s comment said a rejected Add from one source MUST NOT remove the route another source announced | `RedistConsumer.WithdrawRoute` carries no source, so where a consumer holds the prefix from both sources the withdraw removes it, as an accepted Remove from either already does. The key protects only the prefix a consumer never held from that source | independent closure review, round 1 | comment corrected; `TestHandleBatchHeldRouteIsPerConsumerAndSource` pins what the key does guarantee |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The static tag reaches a consumer | Done | `internal/plugins/static/inject.go` `emitRouteChangeID` | |
+| Route tag wins over the per-source OSPF tag (D-2) | Done | `internal/plugins/ospf/redist_wiring.go` `externalRouteTag` | owner confirmed 2026-10-08 |
+| An import rule filters on the tag | Done | `internal/component/config/redistribute/route.go` `ImportRule.Accept` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestStaticEmitCarriesRouteTag` | |
+| AC-2 | Done | `TestHandleBatchCarriesEntryTag`, `TestHandleBatchUntaggedEntryCarriesZero`, `TestHandleReplayBatchCarriesEntryTag` | replay half added at closure |
+| AC-3 | Done | `TestOSPFRedistConsumerPassesRouteTag`, `TestOSPFRedistConsumerPassesRouteTagIPv6` | |
+| AC-4 | Done | `TestEngineInjectExternalRouteTagWins`, interop `ospf-redist-static-tag-frr` | |
+| AC-5 | Done | `TestEngineInjectExternalUntaggedRouteTakesConfiguredTag`, interop | |
+| AC-6 | Done | `TestImportRuleMatchesTag`, `TestHandleBatchFiltersEntriesByTag`, `TestHandleReplayBatchFiltersEntriesByTag`, `TestHandleBatchRetagRejectedRemovesHeldRoute`, `TestStaticTagChangeReplacesAnnouncement` | |
+| AC-7 | Done | `TestImportRuleMatchesTag` | |
+| AC-8 | Done | `TestHandleBatchFiltersEntriesByTag`, `TestHandleReplayBatchFiltersEntriesByTag` | |
+| AC-9 | Done | `TestImportRuleMatchesTag` | |
+| AC-10 | Done | `TestExtractRedistributeRulesTagFilter`, `test/parse/redistribute-tag-filter.ci` | |
+| AC-11 | Done | `TestExtractRedistributeRulesTagOutOfRange`, `.ci` seq 3 | |
+| AC-12 | Done | interop `ospf-redist-static-tag-frr` | re-run 2026-10-08: 1 passed |
+| AC-13 | Done | `TestEngineInjectExternalNSSARouteTag` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 14 planned unit tests | Done | TDD table | all pass, 2026-10-08 |
+| 14 closure tests (the "added at closure" and "added by the closure review" rows) | Done | `redistribute_tag_test.go`, `static/redist_tag_test.go` | red proven per row |
+| `redistribute-tag-filter.ci` | Done | `test/parse/` | not re-run at closure: no parse-path change since 2bc0594b08 |
+| `ospf-redist-static-tag-frr` | Done | `test/interop/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every Files to Modify / Create row | Done | in 2bc0594b08 |
+| `internal/component/bgp/plugins/redistribute_egress/held.go` | Created | closure fix: held set, `removeReplacedRoute` |
+| `internal/component/bgp/plugins/redistribute_egress/redistribute.go`, `replay.go` | Changed | record held routes, withdraw on rejection, clear on (re)registration |
+
+### Audit Summary
+- **Total items:** 13 AC, 3 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the re-tag withdraw, in Bugs Found/Fixed)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A static route tag reaches OSPF as the External Route Tag, ahead of the per-source tag | interop | `INTEROP_SCENARIO=ospf-redist-static-tag-frr ./le test integration interop` on 2026-10-08: `interop: 1 passed, 0 failed`, run again by the independent closure review over the final tree: `interop: 1 passed, 0 failed`; red recorded at 2bc0594b08 with the image rebuilt |
+| An import rule selects routes by tag, on both dispatch paths and across a re-tag | unit over the dispatch entry point | `TestHandleBatchFiltersEntriesByTag`, `TestHandleReplayBatchFiltersEntriesByTag` (red when `route.Tag = entry.Tag` is cut in `handleReplayBatch`), `TestHandleBatchRetagRejectedRemovesHeldRoute`, `TestHandleBatchRejectedRemoveOfHeldRouteWithdraws`, `TestStaticTagChangeReplacesAnnouncement` |
+| The operator can write it | functional | `test/parse/redistribute-tag-filter.ci` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/static-route-tag-reaches-no-consumer-450bc92b-6ac1-4190-bd40-b427ecba17bf.md`, written by `./le spec review record`, verdict CLEAN, 10 files |
+| `./le spec review check` | clean |
+| Rounds | 2 (independent closure review: round 1 found two ISSUEs, round 2 found none) |
+| Reviewer lenses used | AC-to-producer trace, replay-path parity, producer lifecycle across reload, security of config input; held-set memory bound, goroutine ownership of held state, consumer re-registration mid-replay, one prefix from two sources, families, rule change at reload, metric correctness, go-style six questions |
+
+### Run 1 (independent closure review, 2026-10-08)
+- ISSUE: `heldKey` comment over-claimed (finding 3 below). ISSUE: the key's `consumer` and `source` dimensions had no test (finding 4).
+- NOTE: memory is one entry per (consumer, source, family, prefix) a consumer holds, about 100 bytes each; it is bounded by what consumers hold, released on every dispatched Remove and every held-route withdraw, and cleared per consumer on (re)registration. The registry has no unregister path, so a consumer cannot die and leave entries behind except by re-registering, which clears them.
+- NOTE: held state has no owning goroutine: `handleBatch` runs on each producer's bus handler, `handleReplayBatch` inside `fire`, `forgetConsumer` on the registering goroutine; one mutex serializes them and `release` reports and deletes atomically, so a route is withdrawn once. A re-registration racing an in-flight dispatch to the old instance can record a hold for the successor; the cost is at most one withdraw of a prefix the successor does not hold, and the successor's own replay re-delivers the live set. No goroutine was added.
+- NOTE: a rule change at reload does not re-evaluate held routes. Pre-existing orchestrator behavior (`SetGlobal` only stores); recorded in `plan/journal/policy-change-never-re-evaluates-what-it-admitted.md`. Whether a rule change retracts at once is an owner decision.
+- Go style: no panic, no goroutine, no discarded error; the `recordDispatched` switch is class O (producer-supplied action) with every named member and a commented default; concurrency stated on `heldRoutes`; the bound stated in its comment.
+
+### Run 2 (2026-10-08)
+- 0 BLOCKER, 0 ISSUE over the complete diff including the round-1 fixes. Scoped `go test -race` and scoped lint green.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `handleReplayBatch` carried the tag and filtered per entry with no test | `redistribute_egress/replay.go` | `TestHandleReplayBatchCarriesEntryTag` (red when `dispatchEntryToConsumer` drops the tag), `TestHandleReplayBatchFiltersEntriesByTag` (red when `handleReplayBatch` drops `route.Tag`) |
+| 2 | ISSUE | a static route re-tagged out of a tag filter stayed redistributed | `redistribute_egress` filter path (`handleBatch`) | `removeReplacedRoute` (`held.go`), `TestHandleBatchRetagRejectedRemovesHeldRoute` |
+| 3 | ISSUE | `heldKey`'s comment claimed a rejected Add from one source never removes the prefix another source announced; `WithdrawRoute` carries no source, so it does where the consumer holds both | `held.go`, `heldKey` | comment rewritten to state what the key guarantees and what it cannot |
+| 4 | ISSUE | the `consumer` and `source` fields of `heldKey` carried an unstated-by-test guarantee: cutting either left every test green | `held.go`, `heldKey`; `redistribute.go`, `handleBatch` | `TestHandleBatchHeldRouteIsPerConsumerAndSource`, observed red with `consumer: ""` and with `source: ""` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/redistribute_egress/redistribute_tag_test.go` | yes | holds the five tag tests |
+| `test/interop/scenarios/ospf-redist-static-tag-frr/ze.conf` | yes | used by the 2026-10-08 interop run |
+
+### AC Verified (grep/test)
+| AC | Command | Result |
+|----|---------|--------|
+| AC-1..AC-13 | `./le job run label tag-units command go test -count=1 -run Tag` over the six packages | all six `ok`, 2026-10-08 |
+| AC-2, AC-6, AC-8, the held set | `./le job run label redist-held command go test -race -count=1 ./internal/component/bgp/plugins/redistribute_egress/ ./internal/plugins/static/` | both `ok`, 2026-10-08, after the round-1 fixes |
+| lint | `./le go lint run scope "./internal/component/bgp/plugins/redistribute_egress/... ./internal/plugins/static/..."` | 0 issues in all four flavors |
+
+### Wiring Verified (end-to-end)
+| Path | Evidence |
+|------|----------|
+| static config to FRR LSDB | interop `ospf-redist-static-tag-frr`, 1 passed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | row above |
+| A-2 | confirmed | row above |
+| A-3 | confirmed | package tests pass with per-entry evaluation |
+| A-4 | confirmed | scenario carries a bgp block and passes |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| re-tag announces once; a rejecting destination removes the held route; a withdrawal reaches a holding destination | `removeReplacedRoute`, `applyRouteLocked` | yes |
+| tag filter semantics, tag 0 | `importTag`, `ImportRule.Accept` | yes |
+| route tag ahead of the per-source tag | `externalRouteTag` | yes |

@@ -232,6 +232,20 @@ The value 0 is a tag like any other. A route with no tag carries 0, so `tag 0`
 imports the untagged routes alone. The filter runs for each route, not for each
 batch, so one source can feed two destinations with two different tag sets.
 
+Changing a static route's tag announces the route again with the new tag, and
+nothing is withdrawn first. Each destination then treats the new announcement as
+a replacement, the way a BGP import policy does. A destination whose rule
+accepts the new tag updates the route in place, so it does not flap. A
+destination whose rule rejects the new tag removes the route it held. A
+destination that never held the route sees nothing.
+
+The rule only decides what may enter a destination, never what must leave it.
+When a source withdraws a route a destination holds, the withdrawal reaches
+that destination even if its rule would reject the withdrawal itself, for
+instance because the rules changed since the route was announced.
+<!-- source: internal/component/bgp/plugins/redistribute_egress/held.go -- removeReplacedRoute -->
+<!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
+
 That block is the whole configuration. It needs no `plugin` block and no
 `attach process` block. The orchestrator that dispatches the routes auto-loads
 because the `redistribute` root is present. The two peer bindings the rules
@@ -340,7 +354,7 @@ ze doctor
 |---------|----------------|
 | `ze_bgp_redistribute_events_received` | route-change batches the orchestrator received |
 | `ze_bgp_redistribute_announcements` | accepted add entries dispatched to a consumer |
-| `ze_bgp_redistribute_withdrawals` | accepted remove entries dispatched to a consumer |
+| `ze_bgp_redistribute_withdrawals` | withdrawals dispatched to a consumer: accepted remove entries, and held routes a rejected entry removes |
 | `ze_bgp_redistribute_filtered_protocol_total` | batches skipped by the loop guard |
 | `ze_bgp_redistribute_filtered_rule_total` | entries the evaluator rejected |
 | `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer or to a consumer that registered late |
