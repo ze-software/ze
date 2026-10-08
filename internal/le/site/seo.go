@@ -1,5 +1,4 @@
 // Design: website/AI.md -- a crawler is told what the site publishes, once, from the artifact
-// Detail: redirect.go states which directories are stubs rather than pages.
 package site
 
 import (
@@ -28,11 +27,7 @@ const (
 // renderSEO publishes the sitemap and the robots file. Neither is a route, so
 // this producer answers none.
 func renderSEO(paths Paths) ([]string, error) {
-	routes, err := legacyRoutes(paths.Source)
-	if err != nil {
-		return nil, err
-	}
-	urls, err := sitemapURLs(paths.Output, routes)
+	urls, err := sitemapURLs(paths.Output)
 	if err != nil {
 		return nil, err
 	}
@@ -45,14 +40,9 @@ func renderSEO(paths Paths) ([]string, error) {
 // sitemapURLs answers the absolute URL of every page a crawler should index, in
 // ascending order and with no repeats.
 //
-// A redirect stub is left out. It answers at a retired address and its own
-// canonical link names the page it moved to, so listing it would ask a crawler
-// to index a page that says it is not the page.
-func sitemapURLs(output string, routes []legacyRoute) ([]string, error) {
-	retired := make(map[string]bool, len(routes))
-	for _, route := range routes {
-		retired[route.From] = true
-	}
+// No address is left out for having moved: the site publishes no redirect
+// stub, so every index.html in the artifact is a page a reader reaches.
+func sitemapURLs(output string) ([]string, error) {
 	seen := make(map[string]bool, 1024)
 	var urls []string
 	err := filepath.WalkDir(output, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -74,9 +64,6 @@ func sitemapURLs(output string, routes []legacyRoute) ([]string, error) {
 			return nil
 		}
 		directory := strings.TrimSuffix(strings.TrimSuffix(name, pageIndexFile), "/")
-		if retired[directory] {
-			return nil
-		}
 		url := siteBase
 		if directory != "" {
 			url += directory + "/"

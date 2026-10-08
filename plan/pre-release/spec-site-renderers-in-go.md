@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 10/10 |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -25,11 +25,12 @@ second-build proof, published-content review and final review/closure evidence
 remain incomplete. The empty AC-14/full-build evidence rows remain obligations,
 not passes. Status is `in-progress`, not a verification handoff.
 
-The owner paused redirect stubs and legacy-URL rewriting on 2026-08-30.
-`redirect.go` leaves the producer unregistered, and `renderProducers` in
-`producer.go` omits the rewrite. AC-12 remains recorded for an explicit owner
-disposition before closure; do not restore paused behavior or count it as
-delivered. The original phase-10 wiring record below is historical.
+The owner paused redirect stubs and legacy-URL rewriting on 2026-08-30, and
+withdrew them on 2026-10-08 (Decision below): `redirect.go`, its tests and the
+legacy table are deleted. The original phase-10 wiring record below is
+historical.
+
+-> Decision (owner, 2026-10-08): AC-12 disposition: let all 177 legacy URLs 404. No redirect stubs and no legacy-URL rewriting. AC-12 is withdrawn by owner decision, not delivered; the paused redirect producer and rewrite code, and the tests that exercise them (TestRedirectsApplyInTheRecordedOrder, TestTheLegacyTableCarriesTheAddressesTheSourcesStillLink, TestTheLegacyRewriteReachesEveryPageAndMirror), are to be deleted with the legacy table rather than kept unregistered (no-layering), with a test/weakened row citing this decision.
 
 The goal is that every published page is generated again from its source in this
 repository, by `./le site build`, with no page surviving on the strength of the
@@ -51,7 +52,7 @@ Four things are NOT reader-invisible and stay binding.
 | Binding | Why it is not cosmetic |
 |---------|------------------------|
 | Routes, and the Markdown mirror beside each one | a moved or missing route is a 404 |
-| The redirect table and its application ORDER | the 177 stubs are applied each over the last one's output, so order decides which target a legacy URL reaches |
+| ~~The redirect table and its application ORDER~~ | withdrawn by the 2026-10-08 owner decision: the 177 legacy URLs 404, so no table and no order exist |
 | Visible text, structure, and link targets | this is what "reads the same" means |
 
 Heading anchor slugs are NOT binding, and neither is any other place goldmark
@@ -436,7 +437,7 @@ and its carry-over are untouched.
 | AC-9 | the plugin catalog | it renders from `inventory.Collect`, extended to carry the optional dependencies, source directory and YANG files the page shows |
 | AC-10 | the test-health and RFC-compliance pages | they render from `internal/le/testhealth` and `internal/le/rfc` rather than from the retired Python inputs |
 | AC-11 | the facts snapshot | every published number is re-derived from the current tree, and a build with no network keeps the previously published star count and says so |
-| AC-12 | the 177 legacy URLs | each resolves to the target the recovered table names, with replacements applied in recorded order. Coverage excludes redirect pages and cannot prove this row. The owner paused both stubs and rewriting on 2026-08-30; retain this obligation for explicit disposition before closure, not automatic restoration or a completed verdict |
+| AC-12 | the 177 legacy URLs | WITHDRAWN by owner decision 2026-10-08, not delivered: every legacy URL 404s. No redirect stub and no legacy-URL rewrite exists; `redirect.go`, its tests and the legacy table are deleted, and the tracked links to retired addresses (`docs/history.md`) point at current routes |
 | AC-13 | the search index, sitemap and robots file | each is regenerated from the built artifact rather than carried forward |
 | AC-14 | a second build over an unchanged tree | the artifact is byte-identical to the first, network access aside |
 | AC-15 | the built artifact | `llms-full.txt` is published beside `llms.txt`, carrying the full Markdown mirror of every published page, each preceded by its title and canonical URL. Frozen talk decks are excluded, as they are from every other mirror pass. The ORDER is the reading order stated below, never route order: what the software is and why it is worth evaluating comes first, how to use it comes second |
@@ -662,10 +663,11 @@ and its carry-over are untouched.
 | `TestTheSharedHeaderRefusesACountItCannotAnswer` | `internal/le/site/nav_test.go` | a placeholder never reaches a reader | pass |
 | `TestTheSharedHeaderReadsAsThePublishedHeader` | `internal/le/site/nav_test.go` | AC-4, parity with the published fragment | pass |
 | `TestTheHeaderProducerWritesTheNamedArtifact` | `internal/le/site/nav_test.go` | AC-16, the fragment gains a producer | pass |
-| `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12, the order decides the answer | pass |
-| `TestTheLegacyTableCarriesTheAddressesTheSourcesStillLink` | `internal/le/site/redirect_test.go` | AC-12, the five absolute URLs `docs/history.md` carries | pass |
-| `TestTheLegacyRewriteReachesEveryPageAndMirror` | `internal/le/site/redirect_test.go` | AC-12, the pass reaches the artifact and skips a frozen deck | pass |
-| `TestTheLegacyRewriteRunsBeforeTheDerivedProducers` | `internal/le/site/redirect_test.go` | AC-12, the former rewrite ordering | historical pass; the test and wiring were removed under the 2026-08-30 owner pause, recorded in `c630cf08b6`; not current evidence |
+| `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 (withdrawn) | deleted with `redirect.go` under the 2026-10-08 owner decision; row in `test/weakened/cf36fbca.md` |
+| `TestTheLegacyTableCarriesTheAddressesTheSourcesStillLink` | `internal/le/site/redirect_test.go` | AC-12 (withdrawn) | deleted under the 2026-10-08 owner decision; the five `docs/history.md` URLs it named were repointed to their current routes instead |
+| `TestTheLegacyRewriteReachesEveryPageAndMirror` | `internal/le/site/redirect_test.go` | AC-12 (withdrawn) | deleted under the 2026-10-08 owner decision |
+| `TestTheLegacyRewriteRunsBeforeTheDerivedProducers` | `internal/le/site/redirect_test.go` | AC-12 (withdrawn) | removed under the 2026-08-30 owner pause, recorded in `c630cf08b6` |
+| `TestTheSitemapListsEveryPublishedPage` | `internal/le/site/seo_test.go` | AC-13; formerly `...AndNoRetiredAddress`, whose stub fixture went with the legacy table on 2026-10-08 | pass |
 | `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/llmsfull_test.go` | AC-15 | pass |
 | `TestLLMSFullPutsEvaluationBeforeUsage` | `internal/le/site/llmsfull_test.go` | AC-15a, AC-15d | pass |
 | `TestLLMSFullRefusesAnUnsectionedPage` | `internal/le/site/llmsfull_test.go` | AC-15b | pass |

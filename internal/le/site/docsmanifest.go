@@ -1,5 +1,5 @@
 // Design: website/AI.md -- the public URL of a page is an information-architecture decision
-// Detail: docs.go renders these rows; redirect.go will publish the routes they moved from.
+// Detail: docs.go renders these rows.
 package site
 
 import "fmt"
@@ -70,29 +70,22 @@ func docsLinkManifest() (map[string]string, error) {
 	return manifest, nil
 }
 
-// The five docs sources that two tables name. This registry states the category
-// of each one, and redirect.go states the retired public URL each one moved
-// from. Every other source moved from docs/<stem>, so no other row needs a name.
-const (
-	docsSourceContributeTesting = "contributing/testing.md"
-	docsSourceDeprecatedOptions = "architecture/config/deprecated-options.md"
-	docsSourceGlossary          = "glossary.md"
-	docsSourceHistory           = "history.md"
-	docsSourceRFCStatus         = "features/rfc-status.md"
-)
+// docsSourceRFCStatus is the one docs source another file names: docs.go
+// renders the RFC status page from it.
+const docsSourceRFCStatus = "features/rfc-status.md"
 
 // docsManifest names every Markdown source under docs/ that the site
 // publishes, in the order the retired registry declared them.
 //
-// The order is kept because the redirect table derives from it: the legacy
-// route of each row is replaced over the output of the row before it, so a set
-// with no order would publish a different redirect map. The retired registry
+// The order is kept because the docs producer renders the pages in it and
+// llms.txt's documentation index lists them in it, so a reordered row reorders
+// a published file. The retired registry
 // named architecture/config/deprecated-options.md twice with one value and
 // Python deduped it silently; the row appears once here, at its first position.
 var docsManifest = []docsManifestRow{
 	{Source: "architecture.md", Category: ""},
 	{Source: "architecture/api/commands.md", Category: categoryAutomate},
-	{Source: docsSourceDeprecatedOptions, Category: categoryOperate},
+	{Source: "architecture/config/deprecated-options.md", Category: categoryOperate},
 	{Source: "architecture/testing/interop.md", Category: categoryRouting},
 	{Source: "features.md", Category: ""},
 	{Source: "features/ai-first.md", Category: categoryAutomate},
@@ -162,9 +155,9 @@ var docsManifest = []docsManifestRow{
 	{Source: "architecture/testing/ci-format.md", Category: categoryObserve},
 	{Source: "contributing/documentation-testing.md", Category: categoryObserve},
 	{Source: "contributing/rfc-implementation-guide.md", Category: categoryRouting},
-	{Source: docsSourceContributeTesting, Category: categoryObserve},
+	{Source: "contributing/testing.md", Category: categoryObserve},
 	{Source: "features/srv6.md", Category: categoryRouting},
-	{Source: docsSourceGlossary, Category: ""},
+	{Source: "glossary.md", Category: ""},
 	{Source: "guide/add-path.md", Category: categoryRouting},
 	{Source: "guide/api.md", Category: categoryAutomate},
 	{Source: "guide/bgp-peering.md", Category: categoryRouting},
@@ -196,7 +189,7 @@ var docsManifest = []docsManifestRow{
 	{Source: "guide/self-update.md", Category: categoryPlatform},
 	{Source: "guide/traffic-control.md", Category: categoryServices},
 	{Source: "guide/web-interface.md", Category: categoryOperate},
-	{Source: docsSourceHistory, Category: ""},
+	{Source: "history.md", Category: ""},
 	{Source: "plugin-development.md", Category: categoryAutomate},
 	{Source: "plugin-development/commands.md", Category: categoryAutomate},
 	{Source: "plugin-development/handlers.md", Category: categoryAutomate},

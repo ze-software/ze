@@ -1,9 +1,13 @@
-# Stress-repro builds its daemon from the tree
+# Site: the 177 legacy URLs 404, owner decision 2026-10-08
 
-The run no longer falls back to the shared bin/ze, so the race-only build hook
-became a build hook for both personalities. No assertion left the suite.
+The owner withdrew AC-12 of plan/pre-release/spec-site-renderers-in-go.md on
+2026-10-08: no redirect stubs and no legacy-URL rewriting, and the paused code
+is deleted with the legacy table rather than kept unregistered (no-layering).
+The behavior these tests proved no longer exists.
 
 | Test | Reason |
 |------|--------|
-| stressrepro.buildRace | Renamed, not removed: the test doubles' buildRace became build(ctx, root, output, tags, race) because run now builds a plain ze too; the race test asserts the race flag, and TestDefaultDaemonIsBuiltFromTheTree asserts the plain build. |
-| TestRaceBuildFailureAndMissingBinariesAreSetupErrors | The "missing" case removed bin/ze with an os.Remove guarded by t.Fatal; bin/ze is no longer read, so the case now pins ZE_BIN at an absent path and asserts the same setup error and zero invocations. |
+| TestRedirectsApplyInTheRecordedOrder | Removed with rewriteLegacyPublicURLs: owner decision 2026-10-08 lets all 177 legacy URLs 404, so no legacy-URL replacement runs and there is no order to prove. |
+| TestTheLegacyTableCarriesTheAddressesTheSourcesStillLink | Removed with legacyRoutes and the legacy table: owner decision 2026-10-08, no redirect table exists to carry a retired address. |
+| TestTheLegacyRewriteReachesEveryPageAndMirror | Removed with rewriteArtifactLegacyURLs: owner decision 2026-10-08, the build rewrites no retired address inside a page or mirror. |
+| TestTheSitemapListsEveryPublishedPageAndNoRetiredAddress | Renamed TestTheSitemapListsEveryPublishedPage and its redirect-stub fixture dropped: the sitemap's retired-address exclusion read the deleted legacy table, and under owner decision 2026-10-08 the site publishes no stub to exclude. Every other assertion (order, no repeat, unpublished directories, mirrors) stays. |

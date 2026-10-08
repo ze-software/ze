@@ -24,8 +24,7 @@ type Producer struct {
 	// Render writes this producer's pages under paths.Output and answers the
 	// route of every page it wrote, spelled as pageRegistry spells one: a
 	// leading slash, a trailing slash, and "/" for the site root. A file that
-	// is not a public route, a redirect stub or a feed for example, is written
-	// and not answered.
+	// is not a public route, a feed for example, is written and not answered.
 	Render func(Paths) ([]string, error)
 }
 
@@ -37,10 +36,9 @@ var registeredProducers []Producer
 // derivedProducers holds the producers that read the FINISHED artifact, and
 // every one of them runs after every page producer.
 //
-// Four producers need that: the search index and llms-full.txt read the Markdown
-// mirror of every published page, the sitemap walks every published page, and
-// the redirect stubs replace the index.html of a retired route and remove the
-// mirror beside it. Init order is file-name order, which no producer can state
+// Three producers need that: the search index and llms-full.txt read the
+// Markdown mirror of every published page, and the sitemap walks every published
+// page. Init order is file-name order, which no producer can state
 // its dependency in, so the two lists say which pass a producer belongs to.
 var derivedProducers []Producer
 
@@ -195,12 +193,11 @@ func (coverage Coverage) Red() bool {
 // renderProducers runs every registered producer against one artifact and
 // answers what they wrote, one entry for each route.
 //
-// The three passes are ordered here, because the order is a property of the
+// The two passes are ordered here, because the order is a property of the
 // build rather than of any one producer. The page producers write the pages and
-// their Markdown mirrors. The legacy-URL rewrite then replaces every retired
-// absolute address those pages carry. Only then do the producers that READ the
-// finished artifact run, so the search index, llms-full.txt and the sitemap
-// carry the addresses a reader reaches rather than the ones that moved.
+// their Markdown mirrors. Only then do the producers that READ the finished
+// artifact run, so the search index, llms-full.txt and the sitemap describe the
+// pages this build wrote rather than the ones it was seeded with.
 //
 // A producer that fails stops the build. A site published with one family of
 // pages missing is the failure this registry exists to expose, and a warning on
@@ -210,12 +207,6 @@ func renderProducers(paths Paths) ([]Claim, error) {
 	if err := renderInto(byRoute, registeredProducers, paths); err != nil {
 		return nil, err
 	}
-	// The legacy-URL rewrite ran here until 2026-08-30 and does not run now.
-	// Owner decision: the site maps nothing to an old page before the first
-	// release, so neither the redirect stubs nor this rewrite of addresses
-	// inside published pages happens. `rewriteArtifactLegacyURLs` in
-	// redirect.go is what returns, together with the producer that file
-	// registers, when redirects are reconsidered after release.
 	if err := renderInto(byRoute, derivedProducers, paths); err != nil {
 		return nil, err
 	}

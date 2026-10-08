@@ -7,9 +7,8 @@ import (
 	"testing"
 )
 
-// seoArtifact is the artifact the SEO tests walk: three published pages, one
-// retired address answering with a stub, and one page under each directory a
-// crawler has no route to.
+// seoArtifact is the artifact the SEO tests walk: three published pages and one
+// page under each directory a crawler has no route to.
 var seoArtifact = []string{
 	pageIndexFile,
 	"docs/" + pageIndexFile,
@@ -19,19 +18,13 @@ var seoArtifact = []string{
 	"tmp/" + pageIndexFile,
 }
 
-// seoPaths lays out an artifact carrying seoArtifact plus the stub at the one
-// retired address the sitemap must leave out.
+// seoPaths lays out an artifact carrying seoArtifact plus one Markdown mirror.
 func seoPaths(t *testing.T) Paths {
 	t.Helper()
 	output := t.TempDir()
 	for _, name := range seoArtifact {
 		writeArtifactFile(t, output, name, "<!doctype html><html><body>page</body></html>\n")
 	}
-	// A stub written out here rather than rendered: no test drives the redirect
-	// renderer, and the sitemap decides by the address rather than by the bytes.
-	writeArtifactFile(t, output, "roadmap/"+pageIndexFile,
-		"<!doctype html><html><head><meta name=\"robots\" content=\"noindex\">"+
-			"<meta http-equiv=\"refresh\" content=\"0; url=/project/roadmap/\"></head></html>\n")
 	// A file that is not a page: a crawler reaches it through no route.
 	writeArtifactFile(t, output, "docs/"+pageMirrorFile, "# Documentation\n")
 	return Paths{Repository: t.TempDir(), Source: t.TempDir(), Output: output}
@@ -59,13 +52,12 @@ func publishedSitemapURLs(t *testing.T, output string) []string {
 }
 
 // VALIDATES: AC-13 -- the sitemap is a walk over the ARTIFACT: every published
-// page, in ascending order, with no repeat, no directory a crawler has no route
-// to, and no retired address.
+// page, in ascending order, with no repeat and no directory a crawler has no
+// route to.
 //
-// A stub answers at an address that moved and its own canonical link names the
-// page it moved to, so listing one would ask a crawler to index a page that
-// says it is not the page.
-func TestTheSitemapListsEveryPublishedPageAndNoRetiredAddress(t *testing.T) {
+// The method walks an artifact holding three pages, a Markdown mirror, and a
+// page under each unpublished directory, and requires exactly the three pages.
+func TestTheSitemapListsEveryPublishedPage(t *testing.T) {
 	paths := seoPaths(t)
 
 	routes, err := renderSEO(paths)
