@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | 1/7 |
+| Phase | 2/7 |
 | Handoff | - |
 | Updated | 2026-10-08 |
 
@@ -70,7 +70,7 @@ serves the two help surfaces. `findRPC`, `findRPCByCommand` and
 `internal/component/plugin/server/schema_test.go`, so `SchemaRegistry.commands`
 is empty in a running daemon and `RegisteredRPC.CLICommand` is always empty. A
 wrong published name therefore breaks documentation and never breaks a command,
-and no gate reads it. `Validate` (`internal/le/docvalid/contract.go`) keeps only
+and no gate reads it. `Validate` (`internal/le/doc/yangcontract/contract.go`) keeps only
 modules whose name ends in `-cmd`, so it never opens an `-api` module, and it
 computes `orphanLocalHandlers` and then leaves that set out of
 `contractSatisfied`. A run on 2026-09-06 printed 394 YANG commands, 365 handlers,
@@ -253,8 +253,8 @@ removes after moving its two unique facts.
 - [ ] `cmd/ze/help_ai.go` - `printAPICommands` prints the derived name with an empty dispatch column
 - [ ] `internal/component/config/schema/cli/main.go` - `cmdMethods` prints the derived name
 - [ ] `internal/component/config/yang/cli/tree.go` - `AllRPCDocs` joins parameters through a map keyed by the derived name
-- [ ] `internal/le/docvalid/contract.go` - `Validate` reads `-cmd` modules only; `contractSatisfied` ignores orphan local handlers
-- [ ] `internal/le/cidispatch/resolver.go` - `newSurface` registers command PATHS, so the gate checks no wire method
+- [ ] `internal/le/doc/yangcontract/contract.go` - `Validate` reads `-cmd` modules only; `contractSatisfied` ignores orphan local handlers
+- [ ] `internal/le/cli/dispatch/resolver.go` - `newSurface` registers command PATHS, so the gate checks no wire method
 - [ ] `internal/core/ipc/yang/ze-plugin-engine.yang` - 13 rpcs whose wire prefix is the full module name
 - [ ] `internal/core/ipc/yang/ze-plugin-callback.yang` - 9 rpcs of the same shape
 - [ ] `internal/core/ipc/method.go` - `ParseMethod` and `FormatMethod` define the `module:rpc` form
@@ -292,8 +292,8 @@ removes after moving its two unique facts.
 | Daemon ↔ operator | `ze schema methods` and `ze help ai` text output | No |
 
 ### Integration Points
-- `internal/le/docvalid/contract.go` - the gate that gains the second comparison.
-- `internal/le/cidispatch/resolver.go` - the neighboring gate that checks command paths and not methods.
+- `internal/le/doc/yangcontract/contract.go` - the gate that gains the second comparison.
+- `internal/le/cli/dispatch/resolver.go` - the neighboring gate that checks command paths and not methods.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -316,7 +316,7 @@ removes after moving its two unique facts.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No operator-facing wire method travels over a socket as a method word | `LoadBuiltins` keys the dispatcher on the CLI path, and `Hub.RouteCommand` routes on the handler path | A rename breaks a live sender | Grep every `Method:` assignment in `pkg/plugin` and `internal/component/plugin` | unvalidated |
+| A-1 | No operator-facing wire method travels over a socket as a method word | `LoadBuiltins` keys the dispatcher on the CLI path, and `Hub.RouteCommand` routes on the handler path | A rename breaks a live sender | Grep every `Method:` assignment in `pkg/plugin` and `internal/component/plugin` | confirmed 2026-10-08 with two exceptions, S-4 and S-5 in "Phase 2 Result" |
 | A-2 | The 22 plugin IPC methods keep their spelling under the new design | `startup_driver.go` and `sdk_dispatch.go` both hold the literal | An external plugin stops registering | The plugin functional suite under `test/plugin/` | unvalidated |
 | A-3 | The runtime comparison sees every handler the daemon registers | `AllBuiltinRPCs` returns the process registry, so a package nobody imports is invisible | The gate passes on a partial population | An emitter floor in the gate, as `cidispatch` uses | unvalidated |
 
@@ -347,7 +347,7 @@ removes after moving its two unique facts.
      by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le doc yang-contract command-contract` | → | `Validate` in `internal/le/docvalid/contract.go` | `TestPublishedMethodHasAHandler` |
+| `./le doc yang-contract command-contract` | → | `Validate` in `internal/le/doc/yangcontract/contract.go` | `TestPublishedMethodHasAHandler` |
 | `ze schema methods <module>` | → | `cmdMethods` in `internal/component/config/schema/cli/main.go` | `test/parse/cli-schema-methods.ci` |
 | `ze yang doc "<command>"` | → | `AllRPCDocs` in `internal/component/config/yang/cli/tree.go` | `TestRPCDocsCarryParameters` |
 | Daemon startup with every component linked | → | the collision check over the registered set | `TestNoOwnerHoldsAnotherOwnersName` |
@@ -391,15 +391,15 @@ removes after moving its two unique facts.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPublishedMethodHasAHandler` | `internal/le/docvalid/contract_test.go` | Every published method answers | |
-| `TestHandlerMethodIsPublished` | `internal/le/docvalid/contract_test.go` | Every registered handler is published | |
-| `TestOrphanLocalHandlerFailsTheGate` | `internal/le/docvalid/contract_test.go` | `contractSatisfied` reads all three sets | |
+| `TestPublishedMethodHasAHandler` | `internal/le/doc/yangcontract/contract_test.go` | Every published method answers | |
+| `TestHandlerMethodIsPublished` | `internal/le/doc/yangcontract/contract_test.go` | Every registered handler is published | |
+| `TestOrphanLocalHandlerFailsTheGate` | `internal/le/doc/yangcontract/contract_test.go` | `contractSatisfied` reads all three sets | |
 | `TestRPCDocsCarryParameters` | `internal/component/config/yang/cli/tree_test.go` | The parameter join finds the metadata | |
 | `TestPluginIPCMethodsKeepTheirSpelling` | `internal/core/ipc/yang/method_test.go` | The 22 IPC methods are unchanged | |
 | `TestDispatcherRefusesADuplicateName` | `internal/component/plugin/server/command_test.go` | A second builtin is refused rather than overwriting | |
 | `TestCommandRegistryRefusesOnEachGround` | `internal/component/plugin/server/command_registry_test.go` | The three existing refusals cannot regress | |
 | `TestNoOwnerHoldsAnotherOwnersName` | `internal/component/plugin/server/all_import_test.go` | No collision across the whole linked set | |
-| `TestEverySubsystemDeclaresUnderItsOwnPrefix` | `internal/le/docvalid/published_test.go` | A prefix cannot be spelled by a subsystem that does not own it | |
+| `TestEverySubsystemDeclaresUnderItsOwnPrefix` | `internal/le/doc/yangcontract/published_test.go` | A prefix cannot be spelled by a subsystem that does not own it | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -434,7 +434,7 @@ removes after moving its two unique facts.
 - `internal/component/aihelp/aihelp.go` - one method name for each command
 - `cmd/ze/help_ai.go` - one list instead of two
 - `internal/component/config/schema/cli/main.go` - print the declared method
-- `internal/le/docvalid/contract.go` - the two new comparisons and the verdict
+- `internal/le/doc/yangcontract/contract.go` - the two new comparisons and the verdict
 - `internal/component/plugin/server/command.go` - `Dispatcher.Register` and `RegisterWithOptions` refuse a duplicate and name the holder; `loadBuiltinsWithAliases` stops overwriting `wireToHandler`
 - `internal/component/plugin/server/command_registry.go` - unchanged behavior, gains the test that keeps its three refusals
 - `internal/core/ipc/yang/ze-plugin-engine.yang` - explicit method declaration
@@ -444,7 +444,7 @@ removes after moving its two unique facts.
 - `docs/architecture/api/commands.md` - the declaration half of "Dispatch keys are YANG paths"
 
 ## Files to Create
-- `internal/le/docvalid/published_test.go` - the gate's own tests
+- `internal/le/doc/yangcontract/published_test.go` - the gate's own tests
 
 ### Integration Checklist
 <!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
@@ -485,7 +485,7 @@ removes after moving its two unique facts.
 | 13 | Route metadata keys added/changed? | N-A | No route metadata |
 | 14 | Prometheus counters added/changed? | N-A | No counters |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Declared by this spec's files (`./le spec citation anchors`, 2026-10-08), each read and corrected in the phase that changes its declaring file: `docs/architecture/api/process-protocol.md` (`schema.go`, `command.go`, `command_registry.go`; phases 4 and 5), `docs/architecture/config/yang-config-design.md` (`rpc.go`, `command.go`, `tree.go`, `schema/cli/main.go`; phases 4 and 7), `docs/features/ai-first.md` (`aihelp.go`; phase 7), `docs/guide/mcp/overview.md` (`aihelp.go`; phase 7) |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Declared by this spec's files (`./le spec citation anchors`, 2026-10-08), each read and corrected in the phase that changes its declaring file: `docs/architecture/api/process-protocol.md` (`schema.go`, `command.go`, `command_registry.go`; phases 4 and 5), `docs/architecture/config/yang-config-design.md` (`rpc.go`, `command.go`, `tree.go`, `schema/cli/main.go`; phases 4 and 7), `docs/features/ai-first.md` (`aihelp.go`; phase 7), `docs/guide/mcp/overview.md` (`aihelp.go`; phase 7). Also declared once the stale `docvalid`/`cidispatch` paths were corrected (2026-10-08): `docs/architecture/core-design.md` (`internal/le/doc/yangcontract/contract.go`, read only: the gate's behavior section lives in `docs/contributing/documentation-testing.md`, row 10) and `docs/architecture/cli/command-namespacing.md` (`internal/le/cli/dispatch/resolver.go`, read only: this spec does not change that gate) |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | The `ze-rib:show` row in `docs/architecture/api/wire-format.md` is wrong today |
 
 ## Implementation Steps
@@ -498,12 +498,12 @@ removes after moving its two unique facts.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- write the gate against the tree as it stands, and let it be red
    - Tests: `TestPublishedMethodHasAHandler`, `TestHandlerMethodIsPublished`, `TestOrphanLocalHandlerFailsTheGate`
-   - Files: `internal/le/docvalid/contract.go`, `internal/le/docvalid/published_test.go`
+   - Files: `internal/le/doc/yangcontract/contract.go`, `internal/le/doc/yangcontract/published_test.go`
    - Verify: the run names the mismatched methods, and the count it prints is the measurement this spec could only bracket at 129 to 132
 2. **Phase: Find every programmatic sender** -- before any rename
    - Tests: none; this phase produces the sender list the next phase works from
    - Files: `pkg/plugin/rpc/message.go` (`AppendRequest` puts the method word on the line), `pkg/plugin/sdk/sdk_dispatch.go`, `internal/component/plugin/server/startup_driver.go`, `test/parse/cli-schema-methods.ci`
-   - Verify: `./le cli dispatch check` does NOT cover this. `newSurface` (`internal/le/cidispatch/resolver.go`) builds its surface from `WireMethodToPaths` and registers the PATHS, so the gate resolves command strings and never a wire method. The sender list is produced by hand and recorded here
+   - Verify: `./le cli dispatch check` does NOT cover this. `newSurface` (`internal/le/cli/dispatch/resolver.go`) builds its surface from `WireMethodToPaths` and registers the PATHS, so the gate resolves command strings and never a wire method. The sender list is produced by hand and recorded here
 3. **Phase: Declare the plugin IPC methods explicitly** -- the 22 rpcs with no node
    - Tests: `TestPluginIPCMethodsKeepTheirSpelling`
    - Files: `internal/core/ipc/yang/ze-plugin-engine.yang`, `internal/core/ipc/yang/ze-plugin-callback.yang`
@@ -514,7 +514,7 @@ removes after moving its two unique facts.
    - Verify: `WireModule` is deleted, and the gate from phase 1 turns green for every command that has a node and a handler
 5. **Phase: Make a clash impossible** -- the refusals and the derivation
    - Tests: `TestDispatcherRefusesADuplicateName`, `TestCommandRegistryRefusesOnEachGround`, `TestNoOwnerHoldsAnotherOwnersName`, `TestEverySubsystemDeclaresUnderItsOwnPrefix`
-   - Files: `internal/component/plugin/server/command.go`, `internal/component/plugin/server/command_registry.go`, `internal/le/docvalid/contract.go`
+   - Files: `internal/component/plugin/server/command.go`, `internal/component/plugin/server/command_registry.go`, `internal/le/doc/yangcontract/contract.go`
    - Verify: the collision check runs first as a test and reports zero, which is what the tree holds today; then `Dispatcher.Register` gains its refusal, and the startup check refuses to serve on a collision
 6. **Phase: Move each subsystem to its own prefix** -- one subsystem for each commit
    - Tests: the gate from phase 1 stays green after each commit
@@ -524,6 +524,34 @@ removes after moving its two unique facts.
    - Tests: `test/parse/cli-schema-methods.ci`, `test/mcp/reference-methods-answer.ci`
    - Files: `internal/component/aihelp/aihelp.go`, `cmd/ze/help_ai.go`, `internal/component/config/schema/cli/main.go`, `internal/component/config/yang/cli/tree.go`, the three `docs/architecture/api/` pages
    - Verify: `ze help ai` prints one list, and every method it names resolves
+
+### Phase 2 Result: Programmatic Sender Inventory (2026-10-08)
+
+Produced by hand, as step 2 requires, from every `"<prefix>:<name>"` string literal in non-test Go under
+`internal/`, `cmd/` and `pkg/` that is not a `WireMethod:` field, every `CallRPC`, `AppendRequest`,
+`callEngine` and `rpc.Request` method argument, every consumer of `AllBuiltinRPCs` or `ListRPCs`, and
+every live `.ci` and `docs/` mention. The scratch lists are under the session scratch directory
+(`p2-go-lines.txt`, `p2-ci.txt`).
+
+| # | Class | Sender (file, symbol) | Method spelling it sends or prints | Receiver | What a rename of an operator method owes here |
+|---|-------|----------------------|------------------------------------|----------|-----------------------------------------------|
+| S-1 | Plugin IPC, engine side | `startup_driver.go` (`methodDeclareCapabilities`, `methodReady`), `codec.go` (`internal/component/bgp/server/`, 5 codec RPCs), `internal/component/plugin/ipc/rpc.go` (24 literals), `dispatch_registry.go` (`engineOps`, through the `rpc.Method*` constants) | `ze-plugin-engine:*`, `ze-plugin-callback:*` | the external plugin and the engine | Nothing. AC-7 keeps all 22 IPC names byte-identical |
+| S-2 | Plugin IPC, SDK side | `pkg/plugin/sdk/sdk.go`, `sdk_engine.go`, `sdk_dispatch.go` (21), `pkg/plugin/rpc/types.go` (16) and `state.go` (5) | `ze-plugin-engine:*`, `ze-plugin-callback:*` | the engine | Nothing, same reason. 89 of the 103 non-registration literals are IPC |
+| S-3 | Plugin IPC, test fixture | `internal/test/fixture/plugin_fixture_11.go` | `ze-plugin-callback:configure`, `share-registry`; reads `ze-plugin-engine:declare-capabilities`, `ready` | the engine | Nothing |
+| S-4 | Plugin to engine, operator method | `formatFlushRequest` (`internal/exabgp/bridge/bridge_muxconn.go`) | `ze-bgp:peer-flush` | `dispatchPluginRPC` holds no such method (journal `unwired-feature.md`, 2026-10-08) | The only live sender of an operator method word. Rename it with `peer.go`, and settle the receiver first |
+| S-5 | API socket client, operator method | `newSocketReloadNotifier` (`internal/component/cli/reload.go`) | `ze-system:daemon-reload` | no reader: no non-test caller, and `server.go` says nothing dispatches through `rpcDispatcher` (same journal row) | Rename with `system.go`; it reaches no daemon today |
+| S-6 | Plugin bridge callback match | `internal/exabgp/bridge/bridge.go` (case arms) | `ze-plugin-callback:deliver-batch`, `deliver-event` | the bridge itself | Nothing (IPC) |
+| S-7 | Handler-side constants (registrations, not senders) | `internal/plugins/vrrp/cmd_show.go` (4), `internal/component/mtu/cmd/register.go`, `internal/component/bgp/plugins/cmd/monitor/monitor.go` (`WireMethod` const) | `ze-show:vrrp*`, `ze-clear:vrrp-statistics`, `ze-show:mtu`, `ze-bgp:monitor` | the dispatcher, through `WireMethodToPaths` | Rename beside the YANG node, like every `WireMethod:` literal |
+| S-8 | Name lists that hold a method | `internal/component/command/grammar/checker.go` (`ze-bgp:help`, the `ze-bgp:plugin-` prefix), `internal/le/doc/yangcontract/contract.go` (`ze-editor:mode-command`, `ze-editor:mode-edit`) | as listed | the grammar checker and the contract gate | Each is a second declaration of a method; renaming the method owes the same edit here |
+| S-9 | Published surfaces (print, never send) | `cmdMethods` and `schema_data.go` (`internal/component/config/schema/cli/`), `Build` (`internal/component/aihelp/aihelp.go`) feeding MCP `ze_reference`, `printAPICommands` (`cmd/ze/help_ai.go`), `cmd/ze/help_command.go`, `cmd/ze/ze_core_dispatch.go`, `AllRPCDocs` and `doc.go` (`internal/component/config/yang/cli/`), `internal/component/cli/client/main.go` and `verb_tree.go`, `internal/component/command/usage.go`, `ensure.go` (`internal/component/plugin/server/`), `internal/le/cli/catalog`, `internal/le/cli/list`, `internal/le/cli/grammar/cligrammar.go`, `internal/le/doc/yangcontract` (`command_render.go`, `command_surfaces.go`, `helpshape.go`, `report.go`, `usage.go`), `internal/le/site` (`derived.go`, `equivalents.go`, `equivalentdetail.go`) | whatever `WireMethod` or `ListRPCs` holds | an operator, an MCP client, a generated page | Nothing by hand: each reads the registry, so a rename reaches it, and phase 7 makes each print one name |
+| S-10 | Functional tests | 920 live `.ci` files carry a `prefix:name` string, of which the `ze-bgp:`, `ze-conf:`, `ze-fw:`, `ze-bfd:`, `ze-sysctl:`, `ze-image:`, `ze-dns:`, `ze-tftp:` `terminator` and `timeout` keys are runner options, not methods. The method mentions left are 92 in 66 files, mostly `test/plugin/*-show.ci` naming the `ze-show:` handler, plus `test/parse/cli-schema-methods.ci` and `cli-schema-events.ci` (published spellings: `ze-system:help`, `ze-rib:show`, `ze-plugin:session-ping`, `ze-bgp:peer-list`, `ze-system-api:exit`), `test/ui/help-ai-json-rpc-leaf-texts.ci` and `test/plugin/mcp-tools-list-argument-texts.ci` (`ze-system:command-help`) | as listed | the runner's expectations | Each is test data: a rename that changes it needs the owner's approval per `ai/rules/testing.md` |
+| S-11 | Go unit tests | 157 `_test.go` files carry a method literal | as listed | assertions | Moves with the rename in the same commit; any that pins a published spelling is R-3 |
+| S-12 | Documentation | 24 `docs/` pages carry an operator method: `docs/architecture/api/architecture.md`, `docs/architecture/hub-api-commands.md`, `docs/architecture/command-ownership.md`, `docs/architecture/cli/command-verbs.md`, `docs/architecture/exabgp-bridge.md`, `docs/architecture/resolve.md`, `docs/architecture/testing/ci-format.md`, `docs/functional-tests.md`, `docs/contributing/documentation-testing.md`, `docs/guide/command-reference.md`, `docs/guide/command-catalogue.md`, `docs/guide/config-reload.md`, `docs/guide/configuration.md`, and the ospf, isis, traffic, anomaly, storage, dns, peeringdb and flow-export pages; 17 more carry only IPC names | as listed | a reader | Each page edit lands with the rename that makes it wrong (`ai/rules/documentation.md`) |
+
+-> Decision: A-1 is CONFIRMED for this tree with two exceptions, S-4 and S-5. No other code path puts an operator
+method word on a socket: `ze cli`, the web UI, MCP and SSH dispatch by command PATH (through
+`ze-plugin-engine:dispatch-command` for a plugin), so renaming a `ze-show:`/`ze-bgp:` method moves no operator's
+command. The only external contract is S-1 to S-3, which AC-7 freezes.
 
 ### Critical Review Checklist
 
