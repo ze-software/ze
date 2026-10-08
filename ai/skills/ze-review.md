@@ -240,6 +240,7 @@ phase itself.
     | Does this name say what the value IS? | The name carries the concept, not the Go type. `famStr` is the failure, `family` is the fix. A qualifier goes last, by descending significance |
     | Does this new lifecycle, resource, or paired call state its obligation? | The doc comment says MUST on BOTH sides. `Stop` names `Wait`, and `Wait` names `Stop` |
     | Does the diff duplicate a value that already exists, or alias one? | The copy matches a trigger in `docs/architecture/buffer-architecture.md`, "When a copy is deliberate". Two names for one fact will disagree |
+    | Can this operation be called with data that is not yet initialized or validated? | The operation is a method of, or takes as its parameter, the type that only a successful constructor or transition returns ("One type per lifecycle state"). A new state field checked by an `if`, a new exported field that holds an invariant, and a `BUG` panic that guards a state the type allows are each this finding, in code written from 2026-10-04 |
     | Is this return type wider than it needs to be? | The extra dimension is used. Prefer nothing over `bool`, `bool` over a value, a value over `(value, ok)`, and `(value, ok)` over `(value, error)` |
 
     Report each as an ISSUE naming the section, except the `panic()` trace, which is a BLOCKER.
