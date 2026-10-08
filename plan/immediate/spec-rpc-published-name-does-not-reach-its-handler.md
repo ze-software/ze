@@ -320,8 +320,8 @@ removes after moving its two unique facts.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No operator-facing wire method travels over a socket as a method word | `LoadBuiltins` keys the dispatcher on the CLI path, and `Hub.RouteCommand` routes on the handler path | A rename breaks a live sender | Grep every `Method:` assignment in `pkg/plugin` and `internal/component/plugin` | confirmed 2026-10-08 with two exceptions, S-4 and S-5 in "Phase 2 Result" |
-| A-2 | The 22 plugin IPC methods keep their spelling under the new design | `startup_driver.go` and `sdk_dispatch.go` both hold the literal | An external plugin stops registering | The plugin functional suite under `test/plugin/` | unvalidated |
-| A-3 | The runtime comparison sees every handler the daemon registers | `AllBuiltinRPCs` returns the process registry, so a package nobody imports is invisible | The gate passes on a partial population | An emitter floor in the gate, as `cidispatch` uses | unvalidated |
+| A-2 | The 22 plugin IPC methods keep their spelling under the new design | `startup_driver.go` and `sdk_dispatch.go` both hold the literal | An external plugin stops registering | The plugin functional suite under `test/plugin/` | validated 2026-10-08: none of this spec's code commits (c8574d4911, 03f75f251a, e62c16d72e, 949091e15a, 55e1d3bd4c, 756e85f100, 89497c80e4, 07431bb80e, a699ee08a1) touches `pkg/plugin`; the only `"ze-plugin` literal changes in `pkg/plugin` over that range are additions by other work (35a332e5c3, 5ede86fd04), none renamed; `TestPluginIPCMethodsKeepTheirSpelling` green at 55e1d3bd4c (not re-run at closure: `internal/component/command` holds another session's uncommitted edits that do not build) |
+| A-3 | The runtime comparison sees every handler the daemon registers | `AllBuiltinRPCs` returns the process registry, so a package nobody imports is invisible | The gate passes on a partial population | An emitter floor in the gate, as `cidispatch` uses | validated 2026-10-08: `internal/le/doc/yangcontract/contract.go` blank-imports `internal/component/plugin/all`; `./le doc yang-contract command-contract` reports 372 registered handlers plus 2 skipped editor-internal ones, 374, which is every line of `internal/component/plugin/all/testdata/wire-methods.snapshot` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -352,7 +352,7 @@ removes after moving its two unique facts.
 |-------------|---|--------------|------|
 | `./le doc yang-contract command-contract` | → | `Validate` in `internal/le/doc/yangcontract/contract.go` | `TestPublishedMethodHasAHandler` |
 | `ze schema methods <module>` | → | `cmdMethods` in `internal/component/config/schema/cli/main.go` | `test/parse/cli-schema-methods.ci` |
-| `ze yang doc "<command>"` | → | `AllRPCDocs` in `internal/component/config/yang/cli/tree.go` | `TestRPCDocsCarryParameters` |
+| `ze yang doc "<command>"` | → | `AllRPCDocs` in `internal/component/config/yang/cli/tree.go` | `TestAllRPCDocsHaveParams` (`internal/component/config/yang/cli/tree_test.go`, needs `-tags ze_bgp`) |
 | Daemon startup with every component linked | → | the collision check over the registered set | `TestNoOwnerHoldsAnotherOwnersName` |
 | A second builtin registering one name | → | `Dispatcher.Register` in `internal/component/plugin/server/command.go` | `TestDispatcherRefusesADuplicateName` |
 | An external plugin declaring a held name | → | `CommandRegistry.Register` in `internal/component/plugin/server/command_registry.go` | `TestCommandRegistryRefusesOnEachGround` |
@@ -368,7 +368,7 @@ removes after moving its two unique facts.
 | AC-3 | A local handler path that no YANG command node declares | The same run names it and the verdict is FAIL, which 15 rows do not do today |
 | AC-4 | The gate reads its two sets | Both come from the live process, one from the command tree and one from `AllBuiltinRPCs`, and neither from a text scan |
 | AC-5 | `ze schema methods` and `ze help ai --json` on any module | Each command appears under one method name, and that name is the one the daemon answers |
-| AC-6 | `ze yang doc "show bgp peer pause"` | The output carries the input and output parameters the rpc declares |
+| AC-6 | `ze yang doc "show bgp peer list"` | The output carries the parameters the rpc declares: `selector` (`peer-selector`) under "Parameters (input)", and output parameters wherever an rpc declares them. Restated 2026-10-08: the AC first named `show bgp peer pause`, now `request peer pause`, whose rpc declared no leaves and was deleted in 03f75f251a, so it can no longer demonstrate parameters. `show bgp peer list` is the command `TestAllRPCDocsHaveParams` asserts, and a ze_core,ze_distro,ze_bgp build prints its `selector` input |
 | AC-7 | An external plugin completing stage 1 | It sends `ze-plugin-engine:declare-registration` and the engine accepts it, unchanged |
 | AC-8 | A grep for a method derived from a module file name | `WireModule` does not exist, and no surface builds a method from a file name |
 | AC-9 | A new `rpc` statement added with no `ze:command` node and no explicit declaration | The gate refuses it, so the count cannot grow again |
@@ -385,9 +385,9 @@ removes after moving its two unique facts.
      before proceeding. Delete this section when Scope is tooling or docs. -->
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | An AI agent reads `ze_reference` and calls a method it names | MCP `ze_reference` -> `Build` -> the daemon dispatcher | `test/mcp/reference-methods-answer.ci` |
+| 1 | An AI agent reads `ze_reference` and calls a method it names | MCP `ze_reference` -> `Build` -> the daemon dispatcher | `test/ui/help-ai-json-methods-answer.ci` (no `test/mcp/` suite exists; `ze help ai --json` runs the same `Build`) |
 | 2 | An operator reads `ze schema methods ze-l2tp-api` and calls the name printed | `cmdMethods` -> `ListRPCs` -> the daemon dispatcher | `test/parse/cli-schema-methods.ci` |
-| 3 | An operator runs `ze yang doc` for a command and reads its parameters | `AllRPCDocs` -> `loadRPCParams` -> the rpc metadata | `TestRPCDocsCarryParameters` |
+| 3 | An operator runs `ze yang doc` for a command and reads its parameters | `AllRPCDocs` -> `loadRPCParams` -> the rpc metadata | `TestAllRPCDocsHaveParams` |
 
 ## 🧪 TDD Test Plan
 
@@ -397,7 +397,8 @@ removes after moving its two unique facts.
 | `TestPublishedMethodHasAHandler` | `internal/le/doc/yangcontract/contract_test.go` | Every published method answers | |
 | `TestHandlerMethodIsPublished` | `internal/le/doc/yangcontract/contract_test.go` | Every registered handler is published | |
 | `TestOrphanLocalHandlerFailsTheGate` | `internal/le/doc/yangcontract/contract_test.go` | `contractSatisfied` reads all three sets | |
-| `TestRPCDocsCarryParameters` | `internal/component/config/yang/cli/tree_test.go` | The parameter join finds the metadata | |
+| `TestAllRPCDocsHaveParams` | `internal/component/config/yang/cli/tree_test.go` | The parameter join finds the metadata | green 2026-10-08 with `-tags ze_core,ze_distro,ze_bgp` (without `ze_bgp` the peer handlers are not linked and it fails on "not found"); planned as `TestRPCDocsCarryParameters`, the existing test stands in |
+| `TestBuildPublishesEachRPCOnce` | `internal/component/aihelp/aihelp_test.go` | `ze help ai --json` publishes each method once | red on 21 duplicated methods before a47daeb8d0, green after |
 | `TestPluginIPCMethodsKeepTheirSpelling` | `internal/core/ipc/yang/method_test.go` | The 22 IPC methods are unchanged | |
 | `TestDispatcherRefusesADuplicateName` | `internal/component/plugin/server/command_test.go` | A second builtin is refused rather than overwriting | green (phase 5); red with the refusal removed |
 | `TestCommandRegistryRefusesOnEachGround` | `internal/component/plugin/server/command_registry_test.go` | The three existing refusals cannot regress | green (phase 5); builtin and held subtests red with those two checks removed |
@@ -405,7 +406,7 @@ removes after moving its two unique facts.
 | `TestEverySubsystemDeclaresUnderItsOwnPrefix` | `internal/le/doc/yangcontract/published_test.go` | A prefix cannot be spelled by a subsystem that does not own it | red with 302 violations before the renames, green after (phase 6) |
 | `TestForeignPrefixesNamesEachGround`, `TestAForeignPrefixFailsTheVerdict` | `internal/le/doc/yangcontract/published_test.go` | The gate names a foreign prefix and a package with no subsystem root, and fails on either | phase 6 |
 | `TestOwnerPrefixFollowsThePackage`, `TestRegisterRPCsStampsTheRegistrar` | `internal/component/plugin/server/owner_prefix_test.go` | The derivation, and a registrar stamped from the caller rather than the struct | red (undefined) at write, green (phase 6) |
-| (status of the rows above) | | `TestPublishedMethodHasAHandler` landed as `TestEveryPublishedMethodHasAHandler` (phase 4); `TestOrphanLocalHandlerFailsTheGate` as `TestAnOrphanLocalHandlerFailsTheVerdict` (949091e15a); `TestPluginIPCMethodsKeepTheirSpelling` green (55e1d3bd4c); `TestHandlerMethodIsPublished` and `TestRPCDocsCarryParameters` not confirmed by this agent | |
+| (status of the rows above) | | `TestPublishedMethodHasAHandler` landed as `TestEveryPublishedMethodHasAHandler` (phase 4); `TestOrphanLocalHandlerFailsTheGate` as `TestAnOrphanLocalHandlerFailsTheVerdict` (949091e15a); `TestPluginIPCMethodsKeepTheirSpelling` green (55e1d3bd4c); `TestRPCDocsCarryParameters` stood in for by `TestAllRPCDocsHaveParams` (see its row); `TestHandlerMethodIsPublished` not confirmed by this agent | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -419,7 +420,7 @@ removes after moving its two unique facts.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `cli-schema-methods` | `test/parse/cli-schema-methods.ci` | The printed method is the one the daemon answers | phase 7: the stale `ze-rib:show`/`ze-rib:best` expectations (the defect this spec names) replaced by `ze-bgp:rib-routes`/`ze-bgp:rib-best`, plus a `ze-l2tp-api` case rejecting the module spelling |
-| `help-ai-json-methods-answer` | `test/ui/help-ai-json-methods-answer.ci` | The `ze help ai --json` RPCs array, which `ze_reference` hands an MCP client, carries handler methods only. No `test/mcp/` suite exists, so it sits beside the other `help ai --json` tests | phase 7 |
+| `help-ai-json-methods-answer` | `test/ui/help-ai-json-methods-answer.ci` | The `ze help ai --json` RPCs array, which `ze_reference` hands an MCP client, carries handler methods only. No `test/mcp/` suite exists, so it sits beside the other `help ai --json` tests | phase 7; a47daeb8d0 adds a reject on `ze-plugin:session-ready` published twice, the duplicate the closure review found |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -515,7 +516,7 @@ removes after moving its two unique facts.
    - Files: `internal/core/ipc/yang/ze-plugin-engine.yang`, `internal/core/ipc/yang/ze-plugin-callback.yang`
    - Verify: the spelling on the wire is byte-identical, and the plugin suite under `test/plugin/` stays green
 4. **Phase: Move the declaration to the node** -- retire the derivation
-   - Tests: the unit tests above, plus `TestRPCDocsCarryParameters`
+   - Tests: the unit tests above, plus `TestAllRPCDocsHaveParams`
    - Files: `internal/component/config/yang/rpc.go`, `internal/component/plugin/server/schema.go`, `internal/component/config/yang/command.go`
    - Verify: `WireModule` is deleted, and the gate from phase 1 turns green for every command that has a node and a handler
    - Status (2026-10-08): the declarations that are dead under the Q3 design are deleted, because each duplicates an rpc a node will point at and holds no leaf the survivor lacks. Modules deleted: `ze-bgp-cmd-peer-api` (after moving peer-save into `ze-bgp-api` and the session input leaf into `ze-plugin-api` session-peer-ready), `ze-bgp-cmd-commit-api`, `ze-bgp-cmd-meta-api`, `ze-bgp-cmd-raw-api`, `ze-bgp-cmd-subscribe-api`, `ze-bgp-cmd-update-api`, `ze-cli-update-api`, `ze-command-meta-api`. Rpcs deleted: `ze-cli-show-api` bgp-peer and system-update-history, `ze-rib-api` help, command-list and event-list, `ze-route-refresh-api` peer-borr, peer-eorr and peer-clear-soft. Gate under the le feature tags: 117 to 70 published methods with no handler.
@@ -535,7 +536,7 @@ removes after moving its two unique facts.
    - Open: 52 `ze:command` methods with no builtin handler keep their old prefix: local CLI handlers in `internal/plugins/{env,config-cli,config-schema,config-storage,config-yang,debug,diag,explain,skills,support}` and `internal/component/{plugin,bgp/cli}`, and the external fake plugins under `internal/test/plugins/`. No registrar exists for them, so their owner needs a second derivation source (the package that declares the `-cmd` module), and the gate does not judge them yet.
 -> Decision: the verb or foreign-owner qualifier keeps every renamed method unique; the prefix is derived and checked, the name after it is a convention.
 7. **Phase: Correct the surfaces and the pages** -- one name for each command
-   - Tests: `test/parse/cli-schema-methods.ci`, `test/mcp/reference-methods-answer.ci`
+   - Tests: `test/parse/cli-schema-methods.ci`, `test/ui/help-ai-json-methods-answer.ci`
    - Files: `internal/component/aihelp/aihelp.go`, `cmd/ze/help_ai.go`, `internal/component/config/schema/cli/main.go`, `internal/component/config/yang/cli/tree.go`, the three `docs/architecture/api/` pages
    - Verify: `ze help ai` prints one list, and every method it names resolves
 
