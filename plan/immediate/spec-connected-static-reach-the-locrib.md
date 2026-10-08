@@ -861,6 +861,89 @@ or accepts differs after this change.
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
 
+## Implementation Summary
+
+### What Was Implemented
+- connected and static insert their main-table routes into the Loc-RIB (`internal/plugins/connected/locrib.go`, `internal/plugins/static/locrib.go`); fib-kernel is the one writer of main-table static routes (`proto 250`); named tables keep static's direct write (`proto 251`).
+- The Loc-RIB owns administrative distance (owner decision 2026-10-08): `resolvedDistance` and `DistanceProtocol` (`internal/core/rib/locrib/distance.go`) rank every path at its protocol's declared distance; no producer stamps one. A static route's own `distance` leaf travels as `Path.DistanceOverride`.
+- A reload re-ranks installed routes: every table sysrib takes on goes through `(*sysRIB).declareDistances` (`internal/component/sysrib/register.go`), which publishes it and calls `(*RIB).Reselect`.
+- sysrib's Loc-RIB feed (`internal/component/sysrib/locrib_feed.go`) loses no change under a Reselect burst: an overflowed change records its prefix, and the worker re-reads it from the Loc-RIB once the queue is drained.
+
+### Bugs Found/Fixed
+- Round 1 BLOCKER (a distance-only reload did not re-rank installed routes): fixed by the RIB-owns-distance change; `TestReloadReranksStaticAgainstBGP`, `TestEachProtocolDistanceChangeReranks`, `test/static/static-kernel-distance-reload.ci`.
+- Round 2 ISSUE 1 (stage-2 configure published a table without re-ranking): `TestDeclareDistancesReranksInstalledPaths`.
+- Round 2 ISSUE 2 (sysrib dropped Loc-RIB changes on a full channel, which a Reselect burst reaches): `TestFeedOverflowIsReReadNotDropped`, `TestFeedOverflowWaitsForTheQueue`.
+- Round 3 ISSUE 3 (an overflow recorded after the worker drained the queue waited for an unrelated change): `TestFeedOverflowWakesTheWorker`.
+
+### Documentation Updates
+- `docs/architecture/core-design.md` System RIB section: `declareDistances` as the one publish path, and the feed's overflow re-read, anchored on `internal/component/sysrib/locrib_feed.go -- locRIBFeed, takeOverflow, resyncOverflow`.
+- Earlier commits: `8bc1a22350` (core-design, IS-IS/OSPF pages, `ze-rib-conf.yang`), `5ede86fd04` (unified-locrib, static-routes arch and guide, forked-route-install, process-protocol), `5828b35d10` (comparison, static-routes).
+
+### Deviations from Plan
+- The five QEMU tests the plan named were replaced by `.ci` tests that read the real kernel table under `unshare -rn` with `CAP_NET_ADMIN` (`static-kernel-*`, `connected-distance-*`). They drive the netlink path the appliance uses; no QEMU guest run was made.
+- Producer-side distance stamping, and its engine re-stamp (A-5, R-8), was removed by the owner decision of 2026-10-08; the tests that pinned it were replaced (`plan/verification-debt/b1a5c0de.md`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Distance was stamped by each producer when the Path was built | A distance-only reload then re-ranked nothing until the route itself changed | Review Gate round 1 | Owner decision: the Loc-RIB resolves distance when it ranks and re-runs selection on reload |
+| approach | `Reselect` was wired to the apply and rollback publishes only | Stage-2 configure publishes too, and connected starts with no dependency on `rib` | Review Gate round 2 | Every publish goes through `declareDistances` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| connected and static reach the Loc-RIB, main table | Done | `internal/plugins/connected/locrib.go`, `internal/plugins/static/locrib.go` | |
+| the RIB owns distance, re-ranks on reload, static per-route override | Done | `internal/core/rib/locrib/distance.go`, `internal/component/sysrib/register.go` `declareDistances` | owner decision 2026-10-08 |
+| named tables stay out of the Loc-RIB | Done | `internal/plugins/static/locrib.go` `inMainTable` | TableID owner is spec-fib-nexthop-objects-vpp-metric |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAddrAddedInsertsAConnectedPath` | |
+| AC-2 | Done | `TestAddrRemovedWithdrawsTheConnectedPath` | |
+| AC-3 | Done | `TestOSInstalledLoserLeavesTheZeRouteProgrammed`, `test/plugin/connected-distance-raised-loses.ci` | |
+| AC-4 | Done | `TestConnectedPrefixIsWhatTheResolverTerminatesOn`, `TestRecursiveNHResolve_DirectlyConnected` | |
+| AC-5 | Done | `TestOSInstalledWinnerWithdrawsTheZeRoute` | |
+| AC-6 | Done | `TestOSInstalledWinnerEmitsNothingWhenNothingWasProgrammed`, `test/plugin/connected-distance-arbitration.ci` | |
+| AC-7 | Done | `TestStaticApplyInsertsAPathPerRoute`, `static-kernel-distance-static-wins.ci` (proto 250) | |
+| AC-8 | Done | `static-distance-loses-to-ebgp.ci`, `static-kernel-distance-bgp-wins.ci` | |
+| AC-9 | Done | `static-distance-beats-ebgp.ci`, `static-kernel-distance-static-wins.ci` | |
+| AC-10 | Done | `TestNamedTableStaticRouteNeverReachesTheLocRIB`, `static-named-table-unchanged.ci` | |
+| AC-11 | Done | red recorded in Goal Validation (pre-`125979ea99` producer) | kernel `.ci`, not QEMU |
+| AC-12 | Done | `static-kernel-weighted-multipath.ci` | |
+| AC-13 | Done | `static-kernel-interface-nexthop.ci`, `TestECMPPathCarriesTheInterface` | |
+| AC-14 | Done | `TestStaticBlackholeCarriesTheRouteType` | |
+| AC-15 | Done | `TestStaticRefusesAnUnresolvableNextHopBeforeInsert`, `static-per-route-isolation.ci` | |
+| AC-16 | Done | `TestStaticRollbackRestoresThePreviousPathSet` | kernel half rests on fib-kernel being the single writer |
+| AC-17 | Done | `TestForkedRouteRanksAtTheDeclaredDistance` | |
+| AC-18 | Done | `TestStaticBFDDownReinsertsTheSurvivingNextHop` | |
+| AC-19 | Done | `UndeclaredDistance` in `resolvedDistance`; `reselect_test.go` | |
+| AC-20 | Done | `TestReloadReranksStaticAgainstBGP`, `TestDeclareDistancesReranksInstalledPaths`, `static-kernel-distance-reload.ci` | |
+| AC-21 | Done | `TestStaticOwnDistanceOverridesTheDeclared`, `TestForkedRouteKeepsItsOwnOverride`, `static-kernel-distance-route-override.ci` | |
+| AC-22 | Done | `TestEachProtocolDistanceChangeReranks` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| unit tests of the TDD table | Done | as named in the TDD table (reconciled names) | `go test -race` green over sysrib, core/rib, static, connected, routeinstall, fib/kernel, ospf/isis spf and the route-install tests of plugin/server, 2026-10-08 |
+| `.ci` of the Functional table | Done | `test/static/`, `test/plugin/` | static suite 18/18 under `unshare -rn` |
+| five QEMU tests | Changed | kernel-reading `.ci` | Deviations |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Create | Done | Pre-Commit Verification, Files Exist |
+
+### Audit Summary
+- **Total items:** 22 ACs, 3 requirements
+- **Done:** 25
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (QEMU tests to kernel-reading `.ci`, recorded in Deviations)
+
 ## Goal Validation (BLOCKING)
 
 Written 2026-10-08. Goals from the Task section; evidence named per row, and
@@ -892,7 +975,17 @@ load 48 it finished in 8.9s against the 30s budget, so the fixture's startup
 budget is not wrong; the two earlier 30s timeouts are attributed to host
 contention at that moment, not to the test.
 
-Closure is STOPPED at Review Gate round 1 on an owner decision (below).
+The owner decided Round 1's BLOCKER on 2026-10-08 (Decision at the top), and
+the closure resumed. Closure run 2026-10-08, second independent reviewer:
+`./le test static -a` under `unshare -rn` (loopback up) passed 18/18 in 79.1s,
+over the tree carrying the Round 2 and 3 fixes.
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Named-table and VRF routes through the Loc-RIB (TableID) | outside this spec's main-table scope (Task) | `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` |
+| DHCP, RA and PPP route arbitration at the interface layer | owner decision 2026-10-08 | `plan/immediate/spec-iface-route-arbitration.md` |
 
 ## Review Gate
 
@@ -906,7 +999,7 @@ Closure is STOPPED at Review Gate round 1 on an owner decision (below).
 
 | # | Severity | Finding | Location | Status |
 |---|----------|---------|----------|--------|
-| 1 | BLOCKER | A commit that changes only `rib { distance { static N } }` (or `connected`) does not re-rank a route already installed. The distance is read only when a Path is built (`staticPath`, connected `insertPath`); static is not delivered the `rib` root (`ConfigRoots` static, `ConfigReads` bfd, `internal/plugins/static/register.go`), and even a delivered static section skips an unchanged route (`routesEqual` in `(*routeManager).applyRoutes`, `inject.go`). The Original defect this spec exists to remove is "write `static 250`, reload cleanly, and the kernel still prefers the static route": that remains true until the route itself changes or the daemon restarts. BGP, OSPF and IS-IS share the gap through the same seam (`internal/core/rib/distance`), so the fix is a design choice: producers re-stamp on a distance change, or `locrib` ranks on the declaration and re-runs selection when it changes | `internal/plugins/static/locrib.go` `staticPath`; `internal/plugins/connected/locrib.go`; `internal/core/rib/distance` | IMPLEMENTED per the owner decision of 2026-10-08, awaiting independent re-review: the Loc-RIB resolves every path's distance (`resolvedDistance`, `internal/core/rib/locrib/distance.go`) and sysrib calls `(*RIB).Reselect` after each publish (`reselectLocRIB`, `internal/component/sysrib/register.go`); no producer stamps a distance; AC-20 to AC-22 |
+| 1 | BLOCKER | A commit that changes only `rib { distance { static N } }` (or `connected`) does not re-rank a route already installed. The distance is read only when a Path is built (`staticPath`, connected `insertPath`); static is not delivered the `rib` root (`ConfigRoots` static, `ConfigReads` bfd, `internal/plugins/static/register.go`), and even a delivered static section skips an unchanged route (`routesEqual` in `(*routeManager).applyRoutes`, `inject.go`). The Original defect this spec exists to remove is "write `static 250`, reload cleanly, and the kernel still prefers the static route": that remains true until the route itself changes or the daemon restarts. BGP, OSPF and IS-IS share the gap through the same seam (`internal/core/rib/distance`), so the fix is a design choice: producers re-stamp on a distance change, or `locrib` ranks on the declaration and re-runs selection when it changes | `internal/plugins/static/locrib.go` `staticPath`; `internal/plugins/connected/locrib.go`; `internal/core/rib/distance` | FIXED, re-reviewed in Round 2 (two ISSUEs in the trigger and the delivery, below): the Loc-RIB resolves every path's distance (`resolvedDistance`, `internal/core/rib/locrib/distance.go`) and sysrib calls `(*RIB).Reselect` after each publish (`reselectLocRIB`, `internal/component/sysrib/register.go`); no producer stamps a distance; AC-20 to AC-22 |
 | 2 | ISSUE | `applyRouteSet` comment said "A failed apply is undone before returning", and called `j.Rollback()` on apply error. `sdk.Journal.Record` stores the undo only after apply succeeds, so that Rollback ran nothing; and `applyRoutes` returns nil by construction (per-route isolation into `rm.skipped`) | `internal/plugins/static/register.go` `applyRouteSet` | FIXED: dead call removed, comment states the real contract. No behavior change, so no regression test is possible; `go test -race ./internal/plugins/static/` green |
 | 3 | NOTE | Rollback journals are never discarded on commit for section-apply plugins, and `config-rollback` fans out to every participant, so a transaction that fails before static's apply replays the undo of the last committed one. Cross-plugin protocol gap, not specific to this spec | `(*configTxBridge).subscribeRollback`; static and fib-kernel `OnConfigRollback` | journal row in `plan/journal/rollback-forgets-partial-apply.md` |
 
@@ -921,3 +1014,90 @@ rollback serially; the defect is finding 3, not a race.
 ### Round 2
 | Scope | Lenses | BLOCKER | ISSUE | NOTE |
 |-------|--------|---------|-------|------|
+| `5ede86fd04`, `1ad4b3af7c`, `9cbf577e83`, `3a4449847e`, `8bc1a22350`, `ade3d8c460` (RIB owns distance) | Reselect correctness and locking, producer stamping (grep), override scope, reload trigger paths, go-style, docs vs code | 0 | 2 | 2 |
+
+Whole-tree pre-checks (`./le repo check`, `./le commit audit`) were not run by
+this reviewer: the brief excluded whole-tree gates, and other sessions' work
+fills the tree. Style pass over every changed Go file: no peer-reachable
+`panic`, no discarded error, locking contracts stated; no finding.
+
+Producer stamping: `grep -rn 'AdminDistance\s*[:=]\|AdminDistance:'` over
+non-test Go outside `internal/core/rib/locrib` returns nothing, and no non-test
+caller of `distance.Of`, `OrDefault` or `DefaultAdminDistance` remains.
+Reselect: every shard is held for its whole pass, as an insert holds it, and
+subscribers run under it as they do for an insert; a prefix with no valid best
+is skipped because ranking cannot change validity.
+
+### Round 3 (re-review of the Round 2 fixes)
+| Scope | Lenses | BLOCKER | ISSUE | NOTE |
+|-------|--------|---------|-------|------|
+| `internal/component/sysrib/locrib_feed.go`, `register.go` `declareDistances` | concurrency interleavings of offer, drain and resync | 0 | 1 | 0 |
+
+### Round 4
+| Scope | Lenses | BLOCKER | ISSUE | NOTE |
+|-------|--------|---------|-------|------|
+| the final feed and `declareDistances` | ordering (no queued change older than a resync read), liveness (every overflow is woken or drained), shutdown | 0 | 0 | 0 |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R1-1 | BLOCKER | A distance-only reload did not re-rank installed routes | `staticPath`, connected `insertPath`, the seam | `5ede86fd04` and the tests in Goal Validation |
+| R1-2 | ISSUE | `applyRouteSet` ran a dead `j.Rollback()` under a false comment | `internal/plugins/static/register.go` | `aba5035c85` |
+| R2-1 | ISSUE | Stage-2 `OnConfigure` published the declared table without `Reselect`. connected registers no dependency on `rib`, and a forked producer starts on its own, so a path inserted before sysrib's stage 2 stayed ranked at the schema default until it was re-sent. Root cause: `publishDistances` had four callers, and the re-rank sat beside two of them | `internal/component/sysrib/register.go` OnConfigure | `declareDistances`, the one path for the seed, configure, apply and rollback. `TestDeclareDistancesReranksInstalledPaths`, red with the `reselectLocRIB` call removed |
+| R2-2 | ISSUE | sysrib's Loc-RIB OnChange handler dropped a change when its 4096-slot channel was full. `Reselect` dispatches one change per re-ranked prefix from a tight loop while it holds the shard lock that the worker's next-hop resolution waits on, so a reload of `ebgp` over a table larger than the channel dropped winners the kernel then never followed. [workaround] a larger channel moves the threshold. [source] a dropped change records its prefix, and the worker re-reads it from the Loc-RIB | `(*sysRIB).run` OnChange handler | `locRIBFeed` (`locrib_feed.go`). `TestFeedOverflowIsReReadNotDropped` and `TestFeedOverflowWaitsForTheQueue`, red with the overflow record removed |
+| R3-1 | ISSUE | An overflow recorded after the worker drained the queue was not resynced until an unrelated later change arrived | `locRIBFeed.offer` | the one-slot `wake` channel. `TestFeedOverflowWakesTheWorker`, red with the wake send removed |
+
+### NOTEs
+- The route-install `distance` field is accepted from any forked protocol, not only static. Only static produces it today (grep above), and the docs say so (`docs/architecture/forked-route-install.md`, `process-protocol.md`). Refusing it for other protocols would name `static` in the engine.
+- `go test -race ./internal/component/plugin/server/` is red in event-monitor, RPC-registration and RFC 8907 command tests that this change does not touch (another session's in-flight RPC naming and BGP persist work); the route-install tests there (`-run 'Route|Forked|Distance|Restamp'`) are green.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/connected-static-reach-the-locrib-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` |
+| `./le spec review check` | clean |
+| Rounds | 4 |
+| Reviewer lenses used | logic+locking, wiring of every reload path, scope of the override, docs vs code, go-style |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/connected/locrib.go` | yes | `ls` 2026-10-08 |
+| `test/static/static-distance-loses-to-ebgp.ci`, `static-distance-beats-ebgp.ci`, `static-named-table-unchanged.ci`, `static-kernel-distance-reload.ci`, `static-kernel-distance-route-override.ci` | yes | `ls` 2026-10-08 |
+| `test/plugin/connected-distance-arbitration.ci`, `connected-distance-raised-loses.ci` | yes | `ls` 2026-10-08 |
+| `internal/component/sysrib/locrib_feed.go` | yes | written in Round 2 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-19 | unit and `.ci` named in the Audit | `go test -race -count=1` green over sysrib, core/rib/..., static, connected, routeinstall, fib/kernel, ospf/spf, isis/spf, 2026-10-08; `./le test static -a` 18/18 |
+| AC-20 | reload re-ranks | `TestReloadReranksStaticAgainstBGP`, `TestDeclareDistancesReranksInstalledPaths` green; `static-kernel-distance-reload` PASS in the static suite |
+| AC-21 | own distance wins | `static-kernel-distance-route-override` PASS in the static suite |
+| AC-22 | each protocol re-ranks | `TestEachProtocolDistanceChangeReranks` green |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `rib { distance { static N } }` reload (SIGHUP) | `test/static/static-kernel-distance-reload.ci` | read: drives SIGHUP and reads `ip route show table all` |
+| static `distance` leaf | `test/static/static-kernel-distance-route-override.ci` | read: asserts one kernel entry via the static next-hop across the reload |
+| `static { route }` with no table | `test/static/static-kernel-distance-static-wins.ci` | PASS, proto 250 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestConnectedPathCarriesTheRegisteredSource`, `TestStaticPathCarriesTheRegisteredSource` |
+| A-2 | confirmed | `TestConnectedPrefixIsWhatTheResolverTerminatesOn`, `TestRecursiveNHResolve_DirectlyConnected` |
+| A-3 | confirmed | `TestSysRIBEmitsNoTableID` |
+| A-4 | confirmed | AC-11 red recorded in Goal Validation |
+| A-5 | broken, superseded | the owner decision moved distance into the Loc-RIB, so no restamp exists; `TestForkedRouteRanksAtTheDeclaredDistance` |
+| A-6 | confirmed | `TestStaticRefusesAnUnresolvableNextHopBeforeInsert`, `static-per-route-isolation.ci` |
+| A-7 | confirmed | `TestStaticRollbackRestoresThePreviousPathSet` |
+| A-8 | confirmed | `TestRouteInstallEntryCarriesRouteTypeAndECMP`, forked OSPF/IS-IS spf tests green |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| core-design: every table goes through `declareDistances` | `register.go`: the seed, OnConfigure, apply and rollback each call `s.declareDistances` | yes |
+| core-design: the feed re-reads overflowed prefixes | `locrib_feed.go` `offer`, `takeOverflow`, `resyncOverflow` | yes |
+| forked-route-install, process-protocol: the `distance` field is a route's own distance | `dispatch_route.go` `applyRouteInstall` sets `HasDistanceOverride` only from `e.DistanceOverride` | yes |

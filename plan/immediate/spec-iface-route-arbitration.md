@@ -13,7 +13,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Split out of `plan/immediate/spec-connected-static-reach-the-locrib.md` by the owner
+Split out of `spec-connected-static-reach-the-locrib` (closed 2026-10-08) by the owner
 on 2026-10-08.
 
 -> Decision (owner, 2026-10-08): interface-layer route arbitration (DHCP, RA and PPP routes) gets this spec. It does not block `spec-connected-static-reach-the-locrib`.

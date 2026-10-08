@@ -67,10 +67,9 @@ func init() {
 // cross-protocol selection, however carefully it was resolved. The seam is how
 // the one declaration reaches the only layer that can act on it.
 //
-// Called from every site that assigns s.adminDist, the rollback included, so
-// the seam and the map cannot disagree. A caller that publishes a CHANGED table
-// MUST call reselectLocRIB after it releases s.mu, so the routes already in the
-// Loc-RIB are re-ranked.
+// Called only by declareDistances, which assigns s.adminDist beside it and
+// re-ranks the Loc-RIB after it, so the seam, the map and the installed winners
+// cannot disagree.
 func publishDistances(dist map[string]int) {
 	distance.Set(func(protocol string) (uint8, bool) {
 		d, ok := dist[protocol]
@@ -79,6 +78,20 @@ func publishDistances(dist map[string]int) {
 		}
 		return uint8(d), true //nolint:gosec // bounded immediately above
 	})
+}
+
+// declareDistances makes dist the declaration: sysrib's own table, the seam the
+// Loc-RIB ranks on, and a re-rank of every path the Loc-RIB already holds. It is
+// the one way a distance table takes effect, so no caller can publish a changed
+// table and leave the installed winners ranked on the old one.
+//
+// The caller MUST NOT hold s.mu.
+func (s *sysRIB) declareDistances(dist map[string]int) {
+	s.mu.Lock()
+	s.adminDist = dist
+	publishDistances(dist)
+	s.mu.Unlock()
+	reselectLocRIB()
 }
 
 // reselectLocRIB re-runs Loc-RIB best-path selection under the distances just
@@ -145,8 +158,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 		logger().Error("sysrib: cannot resolve the declared distances, refusing to start", "error", declErr)
 		return 1
 	}
-	s.adminDist = declared
-	publishDistances(declared)
+	s.declareDistances(declared)
 
 	// SEED THE PERMISSION SET FOR THE SAME REASON, and read it from the same
 	// empty config: parseFIBImportConfig("{}") names every registered protocol
@@ -217,10 +229,10 @@ func runSysRIBPlugin(conn net.Conn) int {
 				logger().Error("fib import config parse failed", "error", err)
 				return err
 			}
-			s.mu.Lock()
-			s.adminDist = dist
-			s.mu.Unlock()
-			publishDistances(dist)
+			// A producer that started before this stage-2 delivery (connected
+			// has no dependency on rib, nor does a forked plugin) ranked its
+			// paths at the schema defaults seeded above, so this re-ranks too.
+			s.declareDistances(dist)
 			previousDist = dist
 			publishFIBImport(s, withhold)
 			previousPermit = withhold
@@ -244,11 +256,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
-				s.mu.Lock()
-				s.adminDist = dist
-				publishDistances(dist)
-				s.mu.Unlock()
-				reselectLocRIB()
+				s.declareDistances(dist)
 
 				changes := s.reapplyAdminDistances()
 				for famName, ch := range changes {
@@ -269,11 +277,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 				if len(rollbackDist) == 0 {
 					rollbackDist = declared
 				}
-				s.mu.Lock()
-				s.adminDist = rollbackDist
-				publishDistances(rollbackDist)
-				s.mu.Unlock()
-				reselectLocRIB()
+				s.declareDistances(rollbackDist)
 
 				changes := s.reapplyAdminDistances()
 				for famName, ch := range changes {

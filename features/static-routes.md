@@ -13,7 +13,7 @@
 | Real-path tests | test/static/static-boot-apply.ci, test/static/static-distance-beats-ebgp.ci, test/static/static-distance-loses-to-ebgp.ci, test/static/static-interface-nexthop-no-backend.ci, test/static/static-no-fib-block-loads-the-fib-plugin.ci, test/static/static-per-route-isolation.ci, test/static/static-reload-add.ci, test/static/static-reload-empty-section-withdraws.ci, test/static/static-reload-remove.ci, test/static/static-show.ci, test/static/static-table-interface.ci |
 | Docs | docs/guide/static-routes.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the MAIN-table Loc-RIB path and FIB plugin autoload are exercised by static-distance-*.ci and static-no-fib-block-loads-the-fib-plugin.ci |
-| Defect review | 2026-10-07: plan/immediate/spec-connected-static-reach-the-locrib.md and plan/immediate/spec-fixit-redistribution-chain-drops-silently.md open; spec-static-route-tag-reaches-no-consumer closed 2026-10-08 |
+| Defect review | 2026-10-07: plan/immediate/spec-fixit-redistribution-chain-drops-silently.md open; spec-static-route-tag-reaches-no-consumer and spec-connected-static-reach-the-locrib closed 2026-10-08 |
 | Extra criteria | supported: BFD-tracked failover removes and restores an ECMP next-hop through the daemon = test/static/static-bfd-failover.ci |
 
 ## Description

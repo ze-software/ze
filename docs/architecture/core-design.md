@@ -1685,13 +1685,22 @@ override.
 <!-- source: internal/plugins/static/locrib.go -- DistanceOverride -->
 
 A reload that changes `rib { distance { } }` re-ranks the routes already
-installed, not only the ones inserted after it. After publishing a changed
-table, sysrib calls `(*RIB).Reselect`, which re-resolves every stored path's
-distance, re-runs selection per prefix, and dispatches a change for each prefix
-whose best path, its distance, or its equal-cost set moved. Those changes reach
-sysrib and the FIB as ordinary Loc-RIB changes.
-<!-- source: internal/component/sysrib/register.go -- reselectLocRIB -->
+installed, not only the ones inserted after it. Every table sysrib takes on
+(the startup seed, the stage-2 configure, a transaction's apply and its
+rollback) goes through `declareDistances`, which publishes it and then calls
+`(*RIB).Reselect`. Reselect re-resolves every stored path's distance, re-runs
+selection per prefix, and dispatches a change for each prefix whose best path,
+its distance, or its equal-cost set moved. Those changes reach sysrib and the
+FIB as ordinary Loc-RIB changes.
+<!-- source: internal/component/sysrib/register.go -- declareDistances, reselectLocRIB -->
 <!-- source: internal/core/rib/locrib/distance.go -- Reselect, reselectShard -->
+
+A reload of a large table hands sysrib one change per re-ranked prefix in a
+burst, while Reselect holds the shard lock sysrib's next-hop resolution waits
+on. sysrib's feed queues 4096 changes; a change that does not fit records its
+prefix instead, and the worker re-reads those prefixes from the Loc-RIB once
+the queue is empty, so no winner is lost to the burst.
+<!-- source: internal/component/sysrib/locrib_feed.go -- locRIBFeed, takeOverflow, resyncOverflow -->
 
 Before sysrib's first publish, `Resolve` falls back to a bootstrap table holding
 the classical values. A protocol neither the declaration nor the bootstrap names,

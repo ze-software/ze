@@ -1336,14 +1336,8 @@ func (s *sysRIB) run(ctx context.Context) {
 	if loc := getLocRIB(); loc != nil {
 		source = "locrib"
 
-		changeCh := make(chan locrib.Change, 4096)
-		unsubBest = loc.OnChange(func(c locrib.Change) {
-			select {
-			case changeCh <- c:
-			default: // channel full: bounded, overflow logged
-				logger().Warn("sysrib: change channel full, dropping event", "prefix", c.Prefix)
-			}
-		})
+		feed := newLocRIBFeed(locRIBFeedSize)
+		unsubBest = loc.OnChange(func(c locrib.Change) { feed.offer(&c) })
 
 		// Snapshot existing state so prefixes inserted before OnChange
 		// was registered are carried into sysrib. A live Change arriving
@@ -1367,8 +1361,11 @@ func (s *sysRIB) run(ctx context.Context) {
 				select {
 				case <-ctx.Done():
 					return
-				case c := <-changeCh:
+				case c := <-feed.ch:
 					s.processLocRIBChange(&c)
+					s.resyncOverflow(loc, feed)
+				case <-feed.wake:
+					s.resyncOverflow(loc, feed)
 				}
 			}
 		})

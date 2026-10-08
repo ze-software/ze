@@ -123,7 +123,7 @@ this spec's enhancement.** The current producer path is:
 | `staticPath` in the same file | Stamps `AdminDistance` from `ribdistance.OrDefault("static", DefaultAdminDistance)` | The current path carries the protocol-wide configured distance; this spec must carry the member or group override into the selection path |
 | `effectivePriority` and `processEvent` (`internal/component/sysrib/sysrib.go`) | Resolve the protocol-wide distance and consume Loc-RIB-selected changes | Design must trace the per-route override through selection and downstream consumers rather than assume an event's `Priority` overrides the configured protocol value |
 
-`plan/immediate/spec-connected-static-reach-the-locrib.md` owns the arbitration
+`spec-connected-static-reach-the-locrib` (closed 2026-10-08; design in `docs/architecture/core-design.md`, System RIB) owned the arbitration
 prerequisite and its verification. Its implementation is present in the current
 tree; this spec must use that result without claiming the prerequisite closed
 or counting its original defect as a second release justification. The new
