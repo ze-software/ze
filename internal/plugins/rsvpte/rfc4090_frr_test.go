@@ -694,7 +694,7 @@ func TestRFC4090TransitDoesNotReoptimize(t *testing.T) {
 	es := errorSpec{ErrorNode: rfc2205Egress, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired}
 	pathsBefore := ft.countByType(MsgTypePath)
 
-	e.handlePacket(Packet{Src: rfc2205Egress, Payload: buildPathErr(psb.Session, psb.SenderTemplate, FlowSpec{TokenRate: 1e8}, es)})
+	e.handlePacket(Packet{Src: rfc2205Egress, Payload: buildPathErr(psb.Session, psb.SenderTemplate, FlowSpec{TokenRate: 1e8}, nil, es)})
 
 	replacement := key
 	replacement.LSPID = key.LSPID + 1

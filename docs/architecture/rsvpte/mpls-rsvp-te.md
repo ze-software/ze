@@ -270,6 +270,19 @@ towards all matching senders." So a transit whose RSB timed out sends a ResvTear
 to each previous hop. An egress RSB is this node's own reservation, rebuilt by
 every PATH, so it expires with the PSB and never through this path.
 
+Every ResvTear Ze sends carries the FLOWSPEC of the reservation it tears down,
+and every PathErr carries the ADSPEC of the path state it reports on: the ADSPEC
+of the PATH in error when Ze refuses one, and the ADSPEC received from the
+previous hop when Ze relays a PathErr or reports a failed link. RFC 2205 makes
+both objects optional (Section 3.1.6: "FLOWSPEC objects in the flow descriptor
+list of a ResvTear message will be ignored and may be omitted"; Section 3.1.3:
+`<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC> [ <ADSPEC> ]`), but
+freeRouter's parser discards a ResvTear without a FLOWSPEC and a PathErr without
+an ADSPEC. A PATH that carried no ADSPEC still draws a PathErr without one.
+
+<!-- source: internal/plugins/rsvpte/build.go -- buildPathErr -->
+<!-- source: internal/plugins/rsvpte/reservation_build.go -- buildReservationControl -->
+
 <!-- source: internal/plugins/rsvpte/fsm.go -- expiredRSBs, receivedRSBExpired -->
 <!-- source: internal/plugins/rsvpte/register.go -- cleanupTick -->
 <!-- source: internal/plugins/rsvpte/reservation.go -- removeReservation -->

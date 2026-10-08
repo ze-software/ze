@@ -476,6 +476,7 @@ func (e *engine) removeReservation(lsp *LSP, objects [][]byte) {
 		return
 	}
 	role, label, iface, style := lsp.Role, lsp.InLabel, lsp.AdmissionIface, lsp.RSB.Style
+	flowSpec, flowSpecRaw := lsp.RSB.FlowSpec, lsp.RSB.FlowSpecRaw
 	var messages []sentReservationTear
 	if lsp.MergedPaths == nil {
 		messages = append(messages, sentReservationTear{lsp.PrevHop, lsp.PSB.Hop, lsp.PSB.SenderTemplate})
@@ -518,7 +519,9 @@ func (e *engine) removeReservation(lsp *LSP, objects [][]byte) {
 			continue
 		}
 		message.hop.NextHop = e.cfg().RouterID
-		descriptor := flowDescriptor{Filters: []reservationFilter{{Filter: message.filter}}}
+		descriptor := flowDescriptor{FlowSpec: flowSpec, FlowSpecRaw: flowSpecRaw,
+			Filters: []reservationFilter{{Filter: message.filter}}}
+		// RFC 2205 Section 3.1.6
 		raw := buildReservationControl(MsgTypeResvTear, sessionIPv4{TunnelEndpoint: lsp.Key.TunnelEndpoint,
 			TunnelID: lsp.Key.TunnelID, ExtTunnelID: lsp.Key.ExtTunnelID}, message.hop, style, &descriptor, errorSpec{}, objects)
 		if len(raw) > 0 {

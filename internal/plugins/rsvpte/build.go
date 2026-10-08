@@ -216,21 +216,41 @@ func buildPathTear(psb *pathStateBlock, hop netip.Addr) []byte {
 }
 
 // buildPathErr encodes a PathErr message reporting an error toward the head-end.
-// RFC 2205 Section 3.1.3: SESSION, ERROR_SPEC, then the sender descriptor. Like
-// buildResv/buildPathTear it uses defaultIPTTL: a PathErr is addressed to the
-// previous hop, not per-hop TTL-stepped.
-func buildPathErr(session sessionIPv4, sender senderTemplateIPv4, tspec FlowSpec, es errorSpec, forward ...[]byte) []byte {
-	encoders := make([]objEncoder, 0, 4+len(forward))
+// Like buildResv/buildPathTear it uses defaultIPTTL: a PathErr is addressed to
+// the previous hop, not per-hop TTL-stepped.
+//
+// RFC 2205 Section 3.1.7:
+//
+//	<PathErr message> ::= <Common Header> [ <INTEGRITY> ]
+//	                      <SESSION> <ERROR_SPEC>
+//	                      [ <POLICY_DATA> ...]
+//	                      [ <sender descriptor> ]
+//
+// RFC 2205 Section 3.1.3:
+//
+//	<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC> [ <ADSPEC> ]
+//
+// RFC 2205 Section 3.1.7: "The sender descriptor is copied from the message in
+// error." adspec is the complete ADSPEC object of that message, header
+// included, and is written after SENDER_TSPEC when the message carried one. The
+// RFC makes it optional, but freeRouter discards a PathErr without it, so a
+// caller passes the ADSPEC whenever the path state holds one. An empty adspec
+// omits the object.
+func buildPathErr(session sessionIPv4, sender senderTemplateIPv4, tspec FlowSpec, adspec []byte, es errorSpec, forward ...[]byte) []byte {
+	encoders := make([]objEncoder, 0, 5+len(forward))
 	encoders = append(encoders,
 		func(b []byte) int { return encodeSessionIPv4(b, session) },
 		func(b []byte) int { return encodeErrorSpec(b, es) },
 		func(b []byte) int { return encodeSenderTemplate(b, sender) },
 		func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, tspec) },
 	)
+	if len(adspec) > 0 {
+		encoders = append(encoders, func(b []byte) int { return encodeOpaqueObject(b, adspec) })
+	}
 	for _, raw := range forward {
 		encoders = append(encoders, func(b []byte) int { return encodeOpaqueObject(b, raw) })
 	}
-	return encodeMessage(MsgTypePathErr, defaultIPTTL, encoders, opaqueObjectsSize(forward))
+	return encodeMessage(MsgTypePathErr, defaultIPTTL, encoders, len(adspec)+opaqueObjectsSize(forward))
 }
 
 // opaqueObjectsSize bounds capacity for the retained object sequence.

@@ -673,7 +673,7 @@ func notifyFor(key lspKey) []byte {
 	es := errorSpec{ErrorNode: netip.MustParseAddr("10.0.0.2"), ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired}
 	session := sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID}
 	sender := senderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
-	return buildPathErr(session, sender, FlowSpec{TokenRate: 1e8}, es)
+	return buildPathErr(session, sender, FlowSpec{TokenRate: 1e8}, nil, es)
 }
 
 // TestHeadEndReoptimizesOnNotify: the head-end, on a Notify, starts a
@@ -829,7 +829,7 @@ func TestHeadEndIgnoresNonNotifyPathErr(t *testing.T) {
 	es := errorSpec{ErrorNode: netip.MustParseAddr("10.0.0.2"), ErrorCode: ErrCodeRoutingProblem, ErrorValue: ErrValueNoRouteAvailable}
 	session := sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID}
 	sender := senderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
-	raw := buildPathErr(session, sender, FlowSpec{TokenRate: 1e8}, es)
+	raw := buildPathErr(session, sender, FlowSpec{TokenRate: 1e8}, nil, es)
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.2"), Payload: raw})
 
 	newKey := key

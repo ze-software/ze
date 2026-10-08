@@ -830,7 +830,7 @@ func (e *engine) handlePathErr(src netip.Addr, msg *ParsedMessage) {
 				}
 				if !ingress {
 					raw = buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate,
-						lsp.PSB.SenderTSpec, msg.ErrorSpec)
+						lsp.PSB.SenderTSpec, lsp.PSB.ReceivedAdspec, msg.ErrorSpec)
 
 				}
 			}
@@ -855,11 +855,12 @@ func (e *engine) handlePathErr(src netip.Addr, msg *ParsedMessage) {
 			var messages []outgoingError
 			if lsp.MergedPaths == nil {
 				messages = append(messages, outgoingError{lsp.PrevHop,
-					buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec, msg.ErrorSpec)})
+					buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec,
+						lsp.PSB.ReceivedAdspec, msg.ErrorSpec)})
 			} else {
 				for filter, branch := range lsp.MergedPaths {
 					messages = append(messages, outgoingError{branch.PrevHop,
-						buildPathErr(lsp.PSB.Session, filter, lsp.PSB.SenderTSpec, msg.ErrorSpec)})
+						buildPathErr(lsp.PSB.Session, filter, lsp.PSB.SenderTSpec, branch.Adspec, msg.ErrorSpec)})
 				}
 			}
 			lsp.mu.Unlock()
@@ -1024,7 +1025,7 @@ func (e *engine) rejectUnknownObject(src netip.Addr, msg *ParsedMessage) {
 
 func (e *engine) sendPathErr(dst netip.Addr, msg *ParsedMessage, code uint8, value uint16) {
 	es := errorSpec{ErrorNode: e.cfg().RouterID, ErrorCode: code, ErrorValue: value}
-	raw := buildPathErr(msg.Session, msg.SenderTemplate, msg.SenderTSpec, es, msg.ForwardObjects...)
+	raw := buildPathErr(msg.Session, msg.SenderTemplate, msg.SenderTSpec, msg.AdspecRaw, es, msg.ForwardObjects...)
 	if len(raw) == 0 {
 		return
 	}
@@ -1084,7 +1085,7 @@ func (e *engine) handleLinkDown(ifaceName string) {
 		if role != RoleEgress && e.tryLocalRepair(lsp, key) {
 			if psb != nil && prevHop.IsValid() {
 				nes := errorSpec{ErrorNode: e.cfg().RouterID, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired}
-				raw := buildPathErr(psb.Session, psb.SenderTemplate, psb.SenderTSpec, nes)
+				raw := buildPathErr(psb.Session, psb.SenderTemplate, psb.SenderTSpec, psb.ReceivedAdspec, nes)
 				if err := e.transport.Send(prevHop, raw); err != nil {
 					e.log.Warn("rsvp-te: local-repair Notify send failed", "lsp", key.String(), "iface", ifaceName, "error", err)
 				}
@@ -1099,7 +1100,7 @@ func (e *engine) handleLinkDown(ifaceName string) {
 		switch role {
 		case RoleTransit, RoleEgress:
 			if psb != nil && prevHop.IsValid() {
-				raw := buildPathErr(psb.Session, psb.SenderTemplate, psb.SenderTSpec, es)
+				raw := buildPathErr(psb.Session, psb.SenderTemplate, psb.SenderTSpec, psb.ReceivedAdspec, es)
 				if err := e.transport.Send(prevHop, raw); err != nil {
 					e.log.Warn("rsvp-te: link-down PathErr send failed", "lsp", key.String(), "iface", ifaceName, "error", err)
 				}

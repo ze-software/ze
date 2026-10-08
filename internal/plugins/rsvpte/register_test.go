@@ -194,7 +194,7 @@ func TestReconcileTunnelsWithdrawsReoptimizedGenerations(t *testing.T) {
 			}
 
 			lsp := mustLSP(t, e, original)
-			notify := buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec,
+			notify := buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec, nil,
 				errorSpec{ErrorNode: lsp.NextHop, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired})
 
 			e.handlePacket(Packet{Src: lsp.NextHop, Payload: notify})
@@ -293,7 +293,7 @@ func TestReconcileTunnelsUpdatesCurrentGeneration(t *testing.T) {
 	// Another repair notification for the established predecessor must find
 	// generation 4, even though its immediately following generation is gone.
 	lsp := mustLSP(t, e, current)
-	notify := buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec,
+	notify := buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec, nil,
 		errorSpec{ErrorNode: lsp.NextHop, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired})
 
 	mark = ft.countByType(MsgTypePath)

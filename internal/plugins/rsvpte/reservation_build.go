@@ -6,7 +6,20 @@ import "net/netip"
 
 // buildReservationControl writes one error descriptor or a teardown filter set.
 // Byte 0: common header; then SESSION, HOP, [ERROR_SPEC], opaque objects,
-// STYLE, [FLOWSPEC], FILTER_SPEC(s). Labels belong only to RESV, not its errors.
+// STYLE, FLOWSPEC, FILTER_SPEC(s). Labels belong only to RESV, not its errors.
+//
+// RFC 2205 Section 3.1.6:
+//
+//	<ResvTear Message> ::= <Common Header> [<INTEGRITY>]
+//	                       <SESSION> <RSVP_HOP>
+//	                       [ <SCOPE> ] <STYLE>
+//	                       <flow descriptor list>
+//
+// RFC 2205 Section 3.1.6: "FLOWSPEC objects in the flow descriptor list of a
+// ResvTear message will be ignored and may be omitted." Ze writes the
+// descriptor's FLOWSPEC in a ResvTear as in a ResvErr: the RFC allows it, and
+// freeRouter discards a ResvTear without one. A caller passes the FLOWSPEC of
+// the reservation being torn down.
 func buildReservationControl(kind uint8, session sessionIPv4, hop rsvpHop, style uint32, descriptor *flowDescriptor, es errorSpec, objects [][]byte) []byte {
 	encoders := []objEncoder{
 		func(b []byte) int { return encodeSessionIPv4(b, session) },
@@ -21,12 +34,10 @@ func buildReservationControl(kind uint8, session sessionIPv4, hop rsvpHop, style
 	encoders = append(encoders, func(b []byte) int { return encodeStyle(b, style) })
 	extra := opaqueObjectsSize(objects)
 	if descriptor != nil {
-		if kind != MsgTypeResvTear {
-			encoders = append(encoders, func(b []byte) int {
-				return encodeFlowSpecWithRaw(b, ClassFlowSpec, descriptor.FlowSpec, descriptor.FlowSpecRaw)
-			})
-			extra += len(descriptor.FlowSpecRaw)
-		}
+		encoders = append(encoders, func(b []byte) int {
+			return encodeFlowSpecWithRaw(b, ClassFlowSpec, descriptor.FlowSpec, descriptor.FlowSpecRaw)
+		})
+		extra += len(descriptor.FlowSpecRaw)
 		for _, filter := range descriptor.Filters {
 			encoders = append(encoders, func(b []byte) int { return encodeFilterSpec(b, filter.Filter) })
 			extra += 12

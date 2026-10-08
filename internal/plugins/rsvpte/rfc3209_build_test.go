@@ -93,7 +93,7 @@ func TestBuildPathErrRoundTrip(t *testing.T) {
 		ErrorCode:  ErrCodeAdmissionControlFailure,
 		ErrorValue: ErrValueRequestedBandwidth,
 	}
-	raw := buildPathErr(session, sender, FlowSpec{}, es)
+	raw := buildPathErr(session, sender, FlowSpec{}, nil, es)
 	msg, err := DecodeMessage(raw)
 	require.NoError(t, err)
 

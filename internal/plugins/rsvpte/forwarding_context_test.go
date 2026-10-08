@@ -174,7 +174,7 @@ func TestBackupReplyAcceptsOnlyKnownMergePointAddresses(t *testing.T) {
 	assert.Equal(t, []uint32{5000, 18000}, fib.backups[len(fib.backups)-1].out, "a node's advertised route is not its own address")
 	reply(alias, 21000)
 	assert.Equal(t, []uint32{5000, 21000}, fib.backups[len(fib.backups)-1].out)
-	errRaw := buildPathErr(psb.Session, filter, psb.SenderTSpec,
+	errRaw := buildPathErr(psb.Session, filter, psb.SenderTSpec, nil,
 		errorSpec{ErrorNode: selected.TunnelEndpoint, ErrorCode: ErrCodeRoutingProblem})
 
 	e.handlePacket(Packet{Src: alias, Payload: errRaw})
