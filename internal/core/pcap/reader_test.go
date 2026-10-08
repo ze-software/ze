@@ -187,3 +187,49 @@ func TestReadWriteRoundTrip(t *testing.T) {
 		t.Errorf("after the last record: %v, want io.EOF", err)
 	}
 }
+
+// TestReadPcapRecordEOF distinguishes a clean record boundary from a payload
+// that has not arrived yet, including zero bytes after a full record header.
+func TestReadPcapRecordEOF(t *testing.T) {
+	for _, order := range []binary.ByteOrder{binary.LittleEndian, binary.BigEndian} {
+		file := buildFile(order, magicMicro, LinkTypeRaw, [][]byte{{1, 2}}, []time.Time{testStamp})
+		for _, tc := range []struct {
+			name string
+			end  int
+			want error
+		}{
+			{"clean-boundary", FileHeaderLen, io.EOF},
+			{"partial-header", FileHeaderLen + RecordHeaderLen - 1, io.ErrUnexpectedEOF},
+			{"header-only", FileHeaderLen + RecordHeaderLen, io.ErrUnexpectedEOF},
+			{"partial-payload", len(file) - 1, io.ErrUnexpectedEOF},
+		} {
+			t.Run(order.String()+"/"+tc.name, func(t *testing.T) {
+				reader, err := NewReader(bytes.NewReader(file[:tc.end]))
+				if err != nil {
+					t.Fatal(err)
+				}
+				var record Record
+				if err := reader.Next(&record); !errors.Is(err, tc.want) {
+					t.Fatalf("Next=%v, want %v", err, tc.want)
+				}
+			})
+		}
+		t.Run(order.String()+"/complete-zero-length", func(t *testing.T) {
+			file := buildFile(order, magicMicro, LinkTypeRaw, [][]byte{nil}, []time.Time{testStamp})
+			reader, err := NewReader(bytes.NewReader(file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var record Record
+			if err := reader.Next(&record); err != nil {
+				t.Fatalf("complete zero-length record rejected: %v", err)
+			}
+			if len(record.Data) != 0 {
+				t.Fatal("zero-length record fabricated payload")
+			}
+			if err := reader.Next(&record); !errors.Is(err, io.EOF) {
+				t.Fatalf("clean EOF after empty record: %v", err)
+			}
+		})
+	}
+}

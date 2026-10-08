@@ -86,6 +86,12 @@ The file may be one ze wrote or one from somebody else's tcpdump: the reader
 takes either byte order, either timestamp resolution, and the Ethernet, raw IP
 and Linux cooked link types.
 
+The record reader distinguishes clean end-of-file from an incomplete record.
+`io.EOF` marks a record boundary; a partial header or payload returns
+`io.ErrUnexpectedEOF`, including a complete header with no declared payload bytes
+yet available. A complete record declaring a zero-length payload remains valid.
+Reassembly therefore cannot report completion while a trailing record is partial.
+
 Reassembly is what the reader owes. It places out-of-order segments by sequence
 number, drops a retransmission that repeats bytes already held, and REPORTS a
 hole rather than reading across it. A capture started mid-session has no message

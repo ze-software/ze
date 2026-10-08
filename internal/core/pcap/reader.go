@@ -79,9 +79,10 @@ func (r *Reader) LinkType() uint32 { return r.linkType }
 // and never a bound: a record's own length field is what Next checks.
 func (r *Reader) SnapLen() uint32 { return r.snapLen }
 
-// Next reads the next record into rec and returns io.EOF at the end of the
-// file. rec.Data points into the reader's buffer and is valid until the call
-// after this one.
+// Next reads the next record into rec and returns io.EOF only at a clean record
+// boundary. An incomplete header or declared payload returns io.ErrUnexpectedEOF,
+// including a nonempty payload with no bytes yet present. rec.Data points into
+// the reader's buffer and is valid until the call after this one.
 func (r *Reader) Next(rec *Record) error {
 	var hdr [RecordHeaderLen]byte
 	if _, err := io.ReadFull(r.source, hdr[:]); err != nil {
@@ -110,6 +111,9 @@ func (r *Reader) Next(rec *Record) error {
 	}
 	data := r.buf[:captured]
 	if _, err := io.ReadFull(r.source, data); err != nil {
+		if errors.Is(err, io.EOF) {
+			err = io.ErrUnexpectedEOF
+		}
 		return fmt.Errorf("pcap: read record of %d bytes: %w", captured, err)
 	}
 
