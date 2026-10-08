@@ -73,19 +73,21 @@ func renderAIHelp(w io.Writer, args []string) int {
 	rw.Line("")
 
 	if summaryOnly {
-		printSummary(rw)
+		if err := printSummary(rw); err != nil {
+			return reportAIHelpError(err)
+		}
 		return rw.ExitCode()
 	}
 
 	if showCLI {
 		if err := printCLICommands(rw); err != nil {
-			var tb textbuf.Buffer
-			tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
-			return 1
+			return reportAIHelpError(err)
 		}
 	}
 	if showAPI {
-		printAPICommands(rw)
+		if err := printAPICommands(rw); err != nil {
+			return reportAIHelpError(err)
+		}
 		printUpdateSyntax(rw)
 		printFamilies(rw)
 		printAIPlugins(rw)
@@ -94,7 +96,9 @@ func renderAIHelp(w io.Writer, args []string) int {
 		printRIBPipeline(rw)
 	}
 	if showDispatch {
-		printDispatchKeys(rw)
+		if err := printDispatchKeys(rw); err != nil {
+			return reportAIHelpError(err)
+		}
 	}
 	if showMCP {
 		printMCPTools(rw)
@@ -102,7 +106,9 @@ func renderAIHelp(w io.Writer, args []string) int {
 
 	// Recipes and errors are useful in any detailed view.
 	if showCLI || showAPI || showMCP {
-		printServices(rw)
+		if err := printServices(rw); err != nil {
+			return reportAIHelpError(err)
+		}
 		printRecipes(rw)
 		printCommonErrors(rw)
 	}
@@ -112,7 +118,16 @@ func renderAIHelp(w io.Writer, args []string) int {
 	return rw.ExitCode()
 }
 
-func printSummary(rw *helpfmt.RenderWriter) {
+// reportAIHelpError writes a reference that could not be assembled to stderr
+// and returns the exit code: a partial reference printed as if whole would
+// read as the binary's real surface.
+func reportAIHelpError(err error) int {
+	var tb textbuf.Buffer
+	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+	return 1
+}
+
+func printSummary(rw *helpfmt.RenderWriter) error {
 	rw.Line("## Sections (use 'ze help ai <section>' for details)")
 	rw.Line("")
 	rw.Line("  cli       CLI subcommands: ze bgp, ze config, ze show, ze signal, ...")
@@ -134,7 +149,10 @@ func printSummary(rw *helpfmt.RenderWriter) {
 		}
 	}
 
-	schemaReg := aihelp.SchemaRegistry()
+	schemaReg, err := aihelp.SchemaRegistry()
+	if err != nil {
+		return err
+	}
 	rpcCount := len(schemaReg.ListRPCs(""))
 	builtinCount := len(pluginserver.AllBuiltinRPCs())
 
@@ -150,6 +168,7 @@ func printSummary(rw *helpfmt.RenderWriter) {
 	rw.Line("  CLI:     ze cli")
 	rw.Line("  Show:    ze show <command>")
 	rw.Line("  Help:    ze help ai all")
+	return nil
 }
 
 func printCLICommands(rw *helpfmt.RenderWriter) error {
@@ -191,14 +210,20 @@ func printCLICommands(rw *helpfmt.RenderWriter) error {
 	return nil
 }
 
-func printAPICommands(rw *helpfmt.RenderWriter) {
+func printAPICommands(rw *helpfmt.RenderWriter) error {
 	rw.Line("## Daemon API Commands (YANG RPCs)")
 	rw.Line("")
 	rw.Line("Format: wire-method (dispatch-key) description")
 	rw.Line("")
 
-	wireToPath := cli.WireToPath()
-	schemaReg := aihelp.SchemaRegistry()
+	wireToPath, err := cli.WireToPath()
+	if err != nil {
+		return err
+	}
+	schemaReg, err := aihelp.SchemaRegistry()
+	if err != nil {
+		return err
+	}
 
 	rpcs := schemaReg.ListRPCs("")
 	sort.Slice(rpcs, func(i, j int) bool {
@@ -265,16 +290,20 @@ func printAPICommands(rw *helpfmt.RenderWriter) {
 		}
 	}
 	rw.Line("")
+	return nil
 }
 
-func printDispatchKeys(rw *helpfmt.RenderWriter) {
+func printDispatchKeys(rw *helpfmt.RenderWriter) error {
 	rw.Line("## Dispatch Keys (what you type)")
 	rw.Line("")
 	rw.Line("These are the strings accepted by the daemon dispatcher.")
 	rw.Line("Use with: ze cli -c \"<dispatch-key>\"")
 	rw.Line("")
 
-	wireToPath := cli.WireToPath()
+	wireToPath, err := cli.WireToPath()
+	if err != nil {
+		return err
+	}
 	builtins := pluginserver.AllBuiltinRPCs()
 
 	type entry struct {
@@ -301,6 +330,7 @@ func printDispatchKeys(rw *helpfmt.RenderWriter) {
 		rw.Line(tb.Reset().Str("  ").PadRight(e.dispatch, 40).Byte(' ').Str(e.wireMethod).String())
 	}
 	rw.Line("")
+	return nil
 }
 
 func printUpdateSyntax(rw *helpfmt.RenderWriter) {
@@ -486,18 +516,21 @@ func printRIBPipeline(rw *helpfmt.RenderWriter) {
 // printServices generates the Services section from YANG conf modules.
 // It walks all registered YANG modules looking for environment containers,
 // extracts leaves with their types and defaults, and matches env vars.
-func printServices(rw *helpfmt.RenderWriter) {
+func printServices(rw *helpfmt.RenderWriter) error {
 	rw.Line("## Services (from YANG environment containers)")
 	rw.Line("")
 	rw.Line("  Optional services started alongside the BGP daemon.")
 	rw.Line("  Enable via config block or CLI flag. Web UI requires ze init (blob storage).")
 	rw.Line("")
 
-	services := aihelp.Services()
+	services, err := aihelp.Services()
+	if err != nil {
+		return err
+	}
 	if len(services) == 0 {
 		rw.Line("  (no services found)")
 		rw.Line("")
-		return
+		return nil
 	}
 
 	// CLI flag mapping: service name -> flag syntax.
@@ -557,6 +590,7 @@ func printServices(rw *helpfmt.RenderWriter) {
 
 		rw.Line("")
 	}
+	return nil
 }
 
 func printRecipes(rw *helpfmt.RenderWriter) {
@@ -647,9 +681,7 @@ func printAIHelpJSON(w io.Writer) int {
 	enc.SetIndent("", "  ")
 	ref, err := aihelp.Build()
 	if err != nil {
-		var tb textbuf.Buffer
-		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
-		return 1
+		return reportAIHelpError(err)
 	}
 	if err := enc.Encode(ref); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // one-shot error to stderr

@@ -154,8 +154,10 @@ func TestBuildCarriesEveryRegisteredRPCHelpText(t *testing.T) {
 		published[rpc.WireMethod] = rpc
 	}
 
+	schemaReg, err := SchemaRegistry()
+	require.NoError(t, err)
 	longForms := 0
-	for _, registered := range SchemaRegistry().ListRPCs("") {
+	for _, registered := range schemaReg.ListRPCs("") {
 		got, ok := published[registered.WireMethod]
 		if !ok {
 			t.Errorf("the reference omits the registered RPC %q", registered.WireMethod)
@@ -229,8 +231,10 @@ func TestCLISubcommandModeMatchesTheVerbRegistry(t *testing.T) {
 // twice, once with its help text and once bare, so an agent sees two
 // contradictory descriptions of one method.
 func TestBuildPublishesEachRPCOnce(t *testing.T) {
+	schemaReg, err := SchemaRegistry()
+	require.NoError(t, err)
 	documented := make(map[string]bool)
-	for _, rpc := range SchemaRegistry().ListRPCs("") {
+	for _, rpc := range schemaReg.ListRPCs("") {
 		documented[rpc.WireMethod] = true
 	}
 	overlap := 0
@@ -252,4 +256,32 @@ func TestBuildPublishesEachRPCOnce(t *testing.T) {
 	for method, n := range count {
 		assert.Equal(t, 1, n, "the reference publishes %q %d times", method, n)
 	}
+}
+
+// TestSchemaRegistryRefusesABrokenRPCPointer proves a ze:rpc pointer the schema
+// cannot honour reaches the caller as an error.
+//
+// VALIDATES: schemaRegistryFrom, the step SchemaRegistry and Build publish
+// through, returns yang.ErrRPCPointer for a ze:command node whose ze:rpc names
+// an rpc its loaded module does not declare.
+// PREVENTS: `ze help ai` and the MCP ze_reference tool publishing no documented
+// RPC, with no error, because one pointer is mistyped.
+func TestSchemaRegistryRefusesABrokenRPCPointer(t *testing.T) {
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	const module = `module ze-fixture-cmd {
+    namespace "urn:ze:fixture:cmd";
+    prefix zefc;
+    import ze-extensions { prefix ze; }
+    container show {
+        config false;
+        container gone { config false; ze:command "ze-fixture:show-gone"; ze:rpc "ze-extensions:no-such-rpc"; }
+    }
+}`
+	require.NoError(t, loader.AddModuleFromText("ze-fixture-cmd.yang", module))
+	require.NoError(t, loader.Resolve())
+
+	schemaReg, err := schemaRegistryFrom(loader)
+	require.ErrorIs(t, err, yang.ErrRPCPointer)
+	assert.Nil(t, schemaReg)
 }

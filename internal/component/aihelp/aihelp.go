@@ -204,39 +204,57 @@ func sortedChildren(node *command.Node) []string {
 }
 
 // SchemaRegistry builds a schema registry with YANG RPC metadata.
-func SchemaRegistry() *pluginserver.SchemaRegistry {
-	schemaReg := pluginserver.NewSchemaRegistry()
+//
+// A loader error or a ze:rpc pointer the schema cannot honour is returned:
+// the registry would otherwise publish no documented RPC, and `ze help ai`
+// and the MCP ze_reference tool would answer with a shorter list and no
+// reason.
+func SchemaRegistry() (*pluginserver.SchemaRegistry, error) {
+	loader, err := loadSchema()
+	if err != nil {
+		return nil, err
+	}
+	return schemaRegistryFrom(loader)
+}
 
+// schemaRegistryFrom registers the rpcs the loader publishes. Each rpc is
+// published under the method of the command node that points at it; the
+// plugin IPC protocol is not an operator method and stays out.
+func schemaRegistryFrom(loader *yang.Loader) (*pluginserver.SchemaRegistry, error) {
+	pub, err := yang.PublishedRPCs(loader)
+	if err != nil {
+		return nil, fmt.Errorf("YANG rpc publication: %w", err)
+	}
+	schemaReg := pluginserver.NewSchemaRegistry()
+	if err := schemaReg.RegisterRPCs(pub.Commands); err != nil {
+		return nil, fmt.Errorf("YANG rpc registration: %w", err)
+	}
+	return schemaReg, nil
+}
+
+// loadSchema loads and resolves every embedded and registered YANG module.
+// Each step's failure is returned with the step named, because a partial
+// schema publishes a partial reference.
+func loadSchema() (*yang.Loader, error) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
-		return schemaReg
+		return nil, fmt.Errorf("YANG LoadEmbedded: %w", err)
 	}
 	if err := loader.LoadRegistered(); err != nil {
-		return schemaReg
+		return nil, fmt.Errorf("YANG LoadRegistered: %w", err)
 	}
 	if err := loader.Resolve(); err != nil {
-		return schemaReg
+		return nil, fmt.Errorf("YANG Resolve: %w", err)
 	}
-
-	// Each rpc is published under the method of the command node that points
-	// at it; the plugin IPC protocol is not an operator method and stays out.
-	pub, _ := yang.PublishedRPCs(loader)
-	_ = schemaReg.RegisterRPCs(pub.Commands)
-
-	return schemaReg
+	return loader, nil
 }
 
 // Services walks registered YANG conf modules for environment containers.
-func Services() []Service {
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return nil
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return nil
-	}
-	if err := loader.Resolve(); err != nil {
-		return nil
+// A loader error is returned rather than answered with no service.
+func Services() ([]Service, error) {
+	loader, err := loadSchema()
+	if err != nil {
+		return nil, err
 	}
 
 	// Build env var groups keyed by second segment: "ze.web.listen" -> "web".
@@ -339,13 +357,14 @@ func Services() []Service {
 		return services[i].Name < services[j].Name
 	})
 
-	return services
+	return services, nil
 }
 
 // Build assembles the full machine-readable reference from the live registries
 // and YANG schemas. The result is identical to `ze help ai --json`.
-// A YANG loader failure is returned with its cause: the reference would
-// otherwise publish no YANG verb and an empty dispatch-key map.
+// A YANG loader failure or a broken ze:rpc pointer is returned with its
+// cause: the reference would otherwise publish no YANG verb, no documented
+// RPC, no service, and an empty dispatch-key map.
 func Build() (Reference, error) {
 	commands, err := CLISubcommands()
 	if err != nil {
@@ -353,7 +372,10 @@ func Build() (Reference, error) {
 	}
 	ref := Reference{Commands: commands}
 
-	schemaReg := SchemaRegistry()
+	schemaReg, err := SchemaRegistry()
+	if err != nil {
+		return Reference{}, err
+	}
 	for _, rpc := range schemaReg.ListRPCs("") {
 		ref.RPCs = append(ref.RPCs, RPC{
 			WireMethod:  rpc.WireMethod,
@@ -405,7 +427,11 @@ func Build() (Reference, error) {
 	}
 	slices.Sort(ref.Families)
 
-	for _, svc := range Services() {
+	services, err := Services()
+	if err != nil {
+		return Reference{}, err
+	}
+	for _, svc := range services {
 		leafNames := make([]string, len(svc.Leaves))
 		for i, l := range svc.Leaves {
 			leafNames[i] = l.Name

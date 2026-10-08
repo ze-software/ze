@@ -355,7 +355,8 @@ func TestADeliberatelyOrphanedDeclarationIsNamed(t *testing.T) {
 
 // VALIDATES: a loader that publishes no rpc stops the gate.
 // PREVENTS: a run that judged no declaration answering that none is orphaned,
-// the silent zero aihelp.SchemaRegistry answers after a loader error.
+// the silent zero aihelp.SchemaRegistry answered after a loader error before
+// it returned that error.
 func TestPublishedRPCsRefuseALoaderThatPublishesNoRPC(t *testing.T) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
@@ -381,7 +382,11 @@ func TestEveryPublishedMethodHasAHandler(t *testing.T) {
 	for _, rpc := range pluginserver.AllBuiltinRPCs() {
 		served[rpc.WireMethod] = true
 	}
-	published := aihelp.SchemaRegistry().ListRPCs("")
+	schemaReg, err := aihelp.SchemaRegistry()
+	if err != nil {
+		t.Fatalf("the help reference's schema registry: %v", err)
+	}
+	published := schemaReg.ListRPCs("")
 	if len(published) == 0 {
 		t.Fatal("the help reference publishes no YANG method, so this test proves nothing")
 	}
