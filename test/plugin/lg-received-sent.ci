@@ -1,0 +1,132 @@
+# Test: Looking glass tells the routes a peer sent Ze from the routes Ze sent it
+# VALIDATES: for one session that both sends and receives routes, against the
+#            real bgp-rib: routes/protocol/{name} (serveRoutesForPeer,
+#            internal/component/lg/handler_api.go), routes/peer/{peer} and the
+#            count (handleAPIRoutesCount) answer only the routes the peer sent
+#            Ze, bgp-rib's `received` scope; routes/export/{name}
+#            (handleAPIRoutesExport) answers the route Ze sent it, the `sent`
+#            scope; protocols/bgp carries routes_received and routes_exported
+#            apart; the UI peer page (handleUIPeerRoutes) shows the received and
+#            the sent count side by side.
+# PREVENTS: a per-peer query naming no scope, which bgp-rib answers with its
+#           default `sent-received` (parsePipelineArgs), so the routes Ze sent
+#           the session were listed and counted as learned from it: 3 here,
+#           where the peer sent 2.
+#
+# The peer sends 2 routes; Ze sends the peer 1, from the static update below.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+option=linger:value=true
+# UPDATE: origin=IGP, as-path=[65001], next-hop=1.1.1.1,
+# nlri=10.0.0.0/24 and 10.0.1.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE940030401010101180A0000180A0001
+
+# Ze sends its static route, then EOR.
+# UPDATE: origin=IGP, as-path=[], next-hop=10.0.0.1, local-pref=100, nlri=192.168.1.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration with LG enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	looking-glass {
+		enabled true
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented TLS opt-out (spec-fixit-mgmt-listener-auth-guard AC-5).
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration -- both in background, HTTP checks are the assertions
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+
+# The peer lingers, so it holds its routes in Ze's Adj-RIB-In while the checks
+# read them, and never exits by itself. The runner reads this fence after the
+# HTTP checks, then stops the daemon itself: `lg server listening` is the
+# looking glass's own start line (LGServer, internal/component/lg/server.go),
+# logged at INFO under the lg.server subsystem.
+option=env:var=ze.log.lg.server:value=info
+await=stderr:contains=lg server listening:then=stop
+
+# Readiness: wait until bgp-rib holds the route Ze sent and the 2 the peer sent,
+# read through the export list and the protocol object, neither of which is the
+# per-peer list under test.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/export/127.0.0.1:status=200:contains="routes_count": 1:timeout=15s
+http=wait:seq=2:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains="routes_received": 2:timeout=15s
+
+# --- learned from the peer: the 2 it sent, not the 1 Ze sent it ---
+http=get:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/127.0.0.1:status=200:contains="routes_count": 2
+http=get:seq=2:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/127.0.0.1:status=200:contains="routes_count": 2
+http=get:seq=3:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/count/protocol/127.0.0.1:status=200:contains="routes": 2
+
+# --- exported to the peer: the 1 Ze sent ---
+http=get:seq=4:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/export/127.0.0.1:status=200:contains="network": "192.168.1.0/24"
+
+# --- the protocol object carries both, apart ---
+http=get:seq=5:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains="routes_exported": 1
+
+# --- the UI peer page counts 2 received beside 1 sent ---
+http=get:seq=6:url=http://127.0.0.1:$PORT2/lg/peer/127.0.0.1:status=200:contains=<tr><td>2</td><td>1</td></tr>

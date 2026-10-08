@@ -10,9 +10,10 @@ templ peerRoutesPage(v peerRoutesView) {
 	@peerRoutesContent(v)
 }
 
-// peerRoutesContent is the peer header, the prefix-length summary and the
-// route rows. A peer with more routes than maxDisplayRoutes gets the summary
-// and no rows.
+// peerRoutesContent is the peer header, the received and sent route counts
+// side by side, the prefix-length summary of the received routes and their
+// rows. A peer with more routes than maxDisplayRoutes gets the summary and no
+// rows. A count the engine could not answer renders as an empty cell.
 templ peerRoutesContent(v peerRoutesView) {
 	if v.Peer != nil {
 		<div class="peer-info">
@@ -30,6 +31,14 @@ templ peerRoutesContent(v peerRoutesView) {
 			<a href={ "/lg/peer/" + v.Address + "/download" } class="btn-download" title="Download all routes as compressed CSV">Download CSV</a>
 		</div>
 	}
+	<table class="route-table route-counts">
+		<thead>
+			<tr><th>Routes received</th><th>Routes sent</th></tr>
+		</thead>
+		<tbody>
+			<tr><td>{ formatNum(v.RoutesReceived) }</td><td>{ formatNum(v.RoutesSent) }</td></tr>
+		</tbody>
+	</table>
 	if len(v.Histogram) > 0 {
 		<table class="route-table">
 			<thead>

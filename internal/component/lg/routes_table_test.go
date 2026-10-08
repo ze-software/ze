@@ -74,8 +74,13 @@ func TestAPIRoutesTableRefusesAnEngineError(t *testing.T) {
 // The endpoint asked for `show bgp rib count peer <name>`. The plugin refuses a
 // filter after a terminal, and the endpoint read the refusal as a count of 0.
 //
-// VALIDATES: the count the plugin answers reaches the client.
-// PREVENTS: a count of 0 over a peer whose routes are stored.
+// The fake answers 100 for the `received` scope and 150 with no scope keyword,
+// the plugin's default `sent-received`, so the endpoint that counted the routes
+// Ze sent the peer as learned from it answers 150 here.
+//
+// VALIDATES: the received count the plugin answers reaches the client.
+// PREVENTS: a count of 0 over a peer whose routes are stored, and a count that
+// adds the routes Ze sent the peer.
 func TestAPIRoutesCountAnswersTheStoredCount(t *testing.T) {
 	base, client := startPagServer(t, mockDispatch())
 	env := getRoutes(t, client, base+"/api/looking-glass/routes/count/protocol/peer1")

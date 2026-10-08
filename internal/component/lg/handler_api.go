@@ -152,10 +152,15 @@ func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Reques
 	writeJSON(w, bw)
 }
 
-// serveRoutesForPeer runs "show bgp rib peer <peer>" and writes the birdwatcher
-// routes envelope, applying pagination when the client requested it. Shared by
-// the protocol/{name} and peer/{peer} endpoints, which differ only in their path
-// parameter name and validation message.
+// serveRoutesForPeer runs "show bgp rib received peer <peer>" and writes the
+// birdwatcher routes envelope, applying pagination when the client requested
+// it. Shared by the protocol/{name} and peer/{peer} endpoints, which differ only
+// in their path parameter name and validation message.
+//
+// Both endpoints answer the routes learned from the session, so the query names
+// bgp-rib's `received` scope. With no scope keyword the plugin answers
+// `sent-received` (parsePipelineArgs), and the routes Ze sent the peer were
+// listed as learned from it. routes/export/{name} answers the `sent` scope.
 func (s *LGServer) serveRoutesForPeer(w http.ResponseWriter, r *http.Request, peer string) {
 	limit, offset, present, ok := parsePagination(w, r)
 	if !ok {
@@ -163,7 +168,7 @@ func (s *LGServer) serveRoutesForPeer(w http.ResponseWriter, r *http.Request, pe
 	}
 
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib peer ").Str(peer).String())
+	result := s.query(tb.Str("show bgp rib received peer ").Str(peer).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -347,7 +352,8 @@ func (s *LGServer) handleAPIRoutesFiltered(w http.ResponseWriter, _ *http.Reques
 	writeJSON(w, result)
 }
 
-// handleAPIRoutesExport returns exported routes per peer.
+// handleAPIRoutesExport returns the routes Ze sent a peer: bgp-rib's `sent`
+// scope, its Adj-RIB-Out for that peer.
 func (s *LGServer) handleAPIRoutesExport(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if name == "" {
@@ -387,7 +393,8 @@ func (s *LGServer) handleAPIRoutesNoExport(w http.ResponseWriter, _ *http.Reques
 	writeJSON(w, result)
 }
 
-// handleAPIRoutesCount returns the route count for a protocol.
+// handleAPIRoutesCount returns the count of routes learned from a protocol,
+// the same `received` scope routes/protocol/{name} lists (serveRoutesForPeer).
 func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if name == "" {
@@ -401,9 +408,9 @@ func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// `count` is a terminal, and bgp-rib refuses anything after a terminal
-	// (parsePipelineArgs), so the peer selector comes first.
+	// (parsePipelineArgs), so the scope and the peer selector come first.
 	var tb textbuf.Buffer
-	command := tb.Str("show bgp rib peer ").Str(name).Str(" count").String()
+	command := tb.Str("show bgp rib received peer ").Str(name).Str(" count").String()
 	zeData, ok := s.engineAnswer(w, command)
 	if !ok {
 		return
@@ -436,8 +443,11 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// The routes learned from peers: bgp-rib's `received` scope. With no scope
+	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
+	// route Ze sent a peer reads as learned from that peer.
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib prefix ").Str(prefix).String())
+	result := s.query(tb.Str("show bgp rib received prefix ").Str(prefix).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {

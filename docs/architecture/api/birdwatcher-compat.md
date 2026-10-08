@@ -52,15 +52,15 @@ The server MUST expose the following. All are relative to
 | `protocols/bgp` | `protocols` | Every BGP session as a protocol object |
 | `protocols/short` | `protocols` | The same set, reduced |
 | `protocols/bmp` | `protocols` | BMP-monitored peers as protocol objects |
-| `routes/protocol/{name}` | `routes` | Routes learned from one session |
-| `routes/peer/{peer}` | `routes` | Routes learned from one peer address |
+| `routes/protocol/{name}` | `routes` | Routes the session sent Ze (Section 3.2) |
+| `routes/peer/{peer}` | `routes` | Routes one peer address sent Ze (Section 3.2) |
 | `routes/table/{family}` | `routes` | Routes in one address family |
 | `routes/filtered/{name}` | `routes` | Routes an import policy rejected |
-| `routes/export/{name}` | `routes` | Routes exported to a session |
+| `routes/export/{name}` | `routes` | Routes Ze sent a session (Section 3.2) |
 | `routes/noexport/{name}` | `routes` | Routes withheld from a session |
-| `routes/count/protocol/{name}` | `routes` | A count only: `routes` is a number, not a list |
-| `routes/prefix` | `routes` | Routes matching a prefix query |
-| `routes/search` | `routes` | Routes matching a free query |
+| `routes/count/protocol/{name}` | `routes` | A count only: `routes` is a number, not a list. It counts what `routes/protocol/{name}` lists |
+| `routes/prefix` | `routes` | Routes peers sent Ze matching a prefix query |
+| `routes/search` | `routes` | Routes peers sent Ze matching a free query |
 | `routes/bmp/{name}` | `routes` | Routes seen for a BMP-monitored peer |
 
 A `{name}` or `{peer}` path segment MUST be validated before use. The server
@@ -105,6 +105,40 @@ The other endpoints do not hold this requirement yet. `protocols/bgp`,
 each one rendering whatever its transform builds from an answer that is not one.
 <!-- source: internal/component/lg/handler_api.go -- engineAnswer -->
 <!-- source: internal/component/lg/handler_api.go -- handleAPIRoutesTable, handleAPIRoutesCount -->
+
+### 3.2 Which direction each endpoint answers
+
+`bgp-rib` stores both directions of a session: the routes the peer sent Ze
+(its Adj-RIB-In, the `received` scope) and the routes Ze sent the peer (its
+Adj-RIB-Out, the `sent` scope). A `show bgp rib` command that names no scope
+answers `sent-received`, both at once, each row carrying its `direction`.
+
+Owner decision, 2026-10-08: the looking glass shows what a peer sent Ze and
+what Ze sent it, each in its own field. So every route endpoint MUST name its
+scope and MUST NOT rely on the default.
+
+| Surface | Scope | Command |
+|---------|-------|---------|
+| `routes/protocol/{name}`, `routes/peer/{peer}` | `received` | `show bgp rib received peer <name>` |
+| `routes/count/protocol/{name}` | `received` | `show bgp rib received peer <name> count` |
+| `routes/export/{name}` | `sent` | `show bgp rib sent peer <name>` |
+| `routes/prefix`, `routes/search` | `received` | `show bgp rib received prefix <prefix>` |
+| `routes_received`, `routes_imported` (Section 5) | `received` | `route-counts.in` of `show bgp rib status` |
+| `routes_exported` (Section 5) | `sent` | `route-counts.out` of `show bgp rib status` |
+| UI peer page, its route rows, histogram and CSV download | `received` | `show bgp rib received peer <address>` |
+| UI peer page, sent count | `sent` | `show bgp rib sent peer <address> count` |
+| UI search, its route detail (`/lg/route/detail`), `/lg/graph` | `received` | `show bgp rib received ...` |
+
+The UI peer page shows the received count and the sent count side by side. A
+count the engine does not answer renders as an empty cell, never as `0`.
+
+Before 2026-10-08 the per-peer list, its count, the peer page and the prefix
+queries named no scope. A route Ze sent a session was listed under that session
+with `learnt_from` naming it, and counted as learned from it.
+<!-- source: internal/component/lg/handler_api.go -- serveRoutesForPeer, handleAPIRoutesExport, handleAPIRoutesCount -->
+<!-- source: internal/component/lg/handler_ui.go -- handleUIPeerRoutes, ribCount, handleUISearch, handleUIRouteDetail -->
+<!-- source: internal/component/lg/handler_graph.go -- handleGraph -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePipelineArgs, scopeKeywords -->
 
 ## 4. Response envelope
 
@@ -249,6 +283,9 @@ For a BMP-monitored peer the server MUST report `routes_counts_available` as
 
 ### 7.3 Known equalities and absences
 
+`routes_exported` is the Adj-RIB-Out size for the session: the routes Ze sent
+it, never added to the two counts below.
+
 `routes_imported` MUST be expected to equal `routes_received`. Both are the
 Adj-RIB-In size, because Ze drops rejected routes before storage and keeps no
 separate pre-policy count. A client MUST NOT infer a policy drop from the
@@ -297,8 +334,12 @@ answers every `show bgp rib` command with the shape `bgp-rib` produces, and it
 refuses the spellings the plugin's parser refuses. Before 2026-10-08 the fake
 answered `show bgp rib best` with `{"routes":[...]}` whatever followed it, while
 the plugin answers under `best-path`, each row naming its winner in `best-peer`
-and nesting its attributes under `attributes`. The best-routes table was empty on
+and nesting its attributes under `attributes`. The fake answers each scope
+apart, and a command naming no scope gets both directions, as the plugin's
+default does, so a caller that forgets its scope lists a route Ze sent. The best-routes table was empty on
 every router and green in every test. `test/plugin/lg-best-table.ci` drives the
 real `bgp-rib` and checks the table and the count over HTTP, so it is the check
-that the fake still matches the plugin.
+that the fake still matches the plugin. `test/plugin/lg-received-sent.ci` drives
+a session that both sends and receives routes, and checks that each endpoint in
+Section 3.2 answers its own direction.
 <!-- source: internal/component/lg/handler_ui.go -- normalizeBestPathRows -->

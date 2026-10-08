@@ -123,10 +123,16 @@ type peerRoutesView struct {
 	Address string
 	// Peer is nil when the peer is gone. handleUIPeerRoutes answers 404 in that
 	// case, so only the template capture reaches the nil branch today.
-	Peer      *peerInfoRow
-	Histogram []histogramRow
-	Routes    []routeRow
-	Error     string
+	Peer *peerInfoRow
+	// RoutesReceived counts the routes the peer sent Ze (bgp-rib's `received`
+	// scope) and RoutesSent the routes Ze sent the peer (its `sent` scope).
+	// A count the engine could not answer is the empty string, rendered as an
+	// empty cell, never as a zero.
+	RoutesReceived string
+	RoutesSent     string
+	Histogram      []histogramRow
+	Routes         []routeRow
+	Error          string
 }
 
 // routeDetailView is the expanded attribute panel for one route.

@@ -135,7 +135,7 @@ http=get:seq=4:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/table/ipv4%2
 http=get:seq=5:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/count/protocol/10.0.1.1:status=200:contains="routes": 15
 
 # --- the UI peer page renders the histogram bgp-rib answers ---
-# `show bgp rib peer <address> histogram` (handleUIPeerRoutes) is one
+# `show bgp rib received peer <address> histogram` (handleUIPeerRoutes) is one
 # of the answers ribfake_test.go copies; this row is the check that the copy still
 # matches: one /24 row counting the 15 injected prefixes.
 http=get:seq=6:url=http://127.0.0.1:$PORT2/lg/peer/10.0.1.1:status=200:contains=<tr><td>ipv4/unicast</td><td>/24</td><td>15</td></tr>

@@ -110,8 +110,11 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build pipeline command with all provided filters.
+	// The routes learned from peers: bgp-rib's `received` scope. With no scope
+	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
+	// route Ze sent a peer reads as learned from that peer.
 	var tb textbuf.Buffer
-	tb.Str("show bgp rib")
+	tb.Str("show bgp rib received")
 	if prefix != "" {
 		tb.Str(" prefix ").Str(prefix)
 	}
@@ -184,8 +187,13 @@ func (s *LGServer) renderSearch(w http.ResponseWriter, r *http.Request, v search
 // Larger route tables show a prefix-length summary instead.
 const maxDisplayRoutes = 1024
 
-// handleUIPeerRoutes renders a prefix-length summary for a peer's routes.
-// Individual routes are only shown when the total count is <= maxDisplayRoutes.
+// handleUIPeerRoutes renders a prefix-length summary for the routes a peer sent
+// Ze, beside the count of routes it sent and the count Ze sent it. Individual
+// routes are only shown when the received count is <= maxDisplayRoutes.
+//
+// Every query names bgp-rib's `received` scope. With no scope keyword the
+// plugin answers `sent-received`, its Adj-RIB-In and Adj-RIB-Out together
+// (parsePipelineArgs), and the routes Ze sent the peer read as learned from it.
 func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	address := r.PathValue("address")
 	if address == "" {
@@ -217,7 +225,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	var tb textbuf.Buffer
 	// `histogram` is a terminal, and bgp-rib refuses anything after a terminal
 	// (parsePipelineArgs), so the peer selector comes first.
-	result := s.query(tb.Str("show bgp rib peer ").Str(address).Str(" histogram").String())
+	result := s.query(tb.Str("show bgp rib received peer ").Str(address).Str(" histogram").String())
 	zeData := parseJSON(result)
 
 	totalCount := 0
@@ -230,19 +238,24 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The routes Ze sent the peer, counted beside the routes it sent Ze.
+	sentData := parseJSON(s.query(tb.Reset().Str("show bgp rib sent peer ").Str(address).Str(" count").String()))
+
 	v := peerRoutesView{
-		Title:     tb.Reset().Str("Routes from ").Str(address).String(),
-		ActiveTab: fieldPeers,
-		Page:      pgPeerRoutesPage,
-		Address:   address,
-		Peer:      peerInfoFrom(peerInfo),
-		Histogram: histogram,
-		Error:     engineError(zeData),
+		Title:          tb.Reset().Str("Routes from ").Str(address).String(),
+		ActiveTab:      fieldPeers,
+		Page:           pgPeerRoutesPage,
+		Address:        address,
+		Peer:           peerInfoFrom(peerInfo),
+		RoutesReceived: ribCount(zeData),
+		RoutesSent:     ribCount(sentData),
+		Histogram:      histogram,
+		Error:          engineError(zeData),
 	}
 
 	// For small route tables, also fetch individual routes.
 	if totalCount > 0 && totalCount <= maxDisplayRoutes {
-		routeResult := s.query(tb.Reset().Str("show bgp rib peer ").Str(address).String())
+		routeResult := s.query(tb.Reset().Str("show bgp rib received peer ").Str(address).String())
 		routeData := parseJSON(routeResult)
 		if routeData != nil {
 			if _, isErr := routeData["error"].(string); !isErr {
@@ -258,7 +271,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	s.renderPage(w, v.layoutView, peerRoutesPage(v))
 }
 
-// handleUIPeerDownload streams all routes for a peer as gzip-compressed text.
+// handleUIPeerDownload streams the routes a peer sent Ze as gzip-compressed text.
 func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) {
 	address := r.PathValue("address")
 	if address == "" {
@@ -272,7 +285,8 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var tb2 textbuf.Buffer
-	result := s.query(tb2.Str("show bgp rib peer ").Str(address).String())
+	// The routes the peer sent Ze, as the page lists them: `received` scope.
+	result := s.query(tb2.Str("show bgp rib received peer ").Str(address).String())
 	zeData := parseJSON(result)
 
 	if zeData == nil {
@@ -350,6 +364,24 @@ func flattenHistogram(ze map[string]any) []histogramRow {
 	})
 
 	return rows
+}
+
+// ribCount reads the count a bgp-rib `count` or `histogram` terminal answers,
+// as the string the page renders. An answer that is missing, an error, or
+// carries no number is the empty string, so the page shows an empty cell and
+// never a zero the engine did not send.
+func ribCount(zeData map[string]any) string {
+	if zeData == nil {
+		return ""
+	}
+	if _, isErr := zeData["error"].(string); isErr {
+		return ""
+	}
+	n, ok := numValue(zeData, "count")
+	if !ok {
+		return ""
+	}
+	return strconv.FormatFloat(n, 'f', -1, 64)
 }
 
 // peerInfoFrom types the peer header above a peer's routes. It returns nil for
@@ -499,8 +531,11 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The routes learned from peers: bgp-rib's `received` scope. With no scope
+	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
+	// route Ze sent a peer reads as learned from that peer.
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib prefix ").Str(prefix).String())
+	result := s.query(tb.Str("show bgp rib received prefix ").Str(prefix).String())
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 

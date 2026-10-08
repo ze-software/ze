@@ -241,7 +241,9 @@ func lgPeerRoutesVariants(render func(peerRoutesView) templ.Component) []golden.
 				State: "established", RemoteAS: "64500",
 				RemoteASName: "Example Transit", Description: "transit",
 			},
-			Routes: lgRouteRows(),
+			RoutesReceived: "2",
+			RoutesSent:     "5",
+			Routes:         lgRouteRows(),
 		})},
 		{Name: "summary", Data: render(peerRoutesView{
 			layoutView: base,
@@ -249,6 +251,8 @@ func lgPeerRoutesVariants(render func(peerRoutesView) templ.Component) []golden.
 			Peer: &peerInfoRow{
 				State: "idle", RemoteAS: "64501",
 			},
+			// The sent count the engine could not answer: an empty cell.
+			RoutesReceived: "1230",
 			Histogram: []histogramRow{
 				{Family: "ipv4 unicast", Length: "24", Count: "1200"},
 				{Family: "ipv6 unicast", Length: "48", Count: "30"},

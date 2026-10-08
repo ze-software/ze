@@ -60,8 +60,11 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The routes learned from peers: bgp-rib's `received` scope. With no scope
+	// keyword the plugin answers `sent-received` (parsePipelineArgs), and a
+	// route Ze sent a peer reads as learned from that peer.
 	var tb textbuf.Buffer
-	result := s.query(tb.Str("show bgp rib prefix ").Str(prefix).String())
+	result := s.query(tb.Str("show bgp rib received prefix ").Str(prefix).String())
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 

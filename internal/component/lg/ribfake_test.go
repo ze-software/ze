@@ -26,20 +26,53 @@ const fakeBestPathAnswer = `{"best-path":[{"family":"ipv4/unicast","prefix":"10.
 	`"best-peer":"10.0.0.1","attributes":{"next-hop":"10.0.0.1","origin":"igp",` +
 	`"as-path":[65001],"local-preference":100}}]}`
 
-// fakeRouteRowsAnswer is what `show bgp rib` answers with no terminal: rows under
-// showRowsEnvelopeKey, each one serializeRouteItem
-// (internal/component/bgp/plugins/rib/rib_pipeline.go), naming its own peer and
-// direction as fields.
-const fakeRouteRowsAnswer = `{"routes":[{"peer":"10.0.0.1","direction":"received",` +
-	`"family":"ipv4/unicast","prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp",` +
-	`"as-path":[65001,65002],"local-preference":100,"med":0,` +
-	`"community":["65000:100","65001:200"],"large-community":["65000:0:100"]}]}`
+// fakeReceivedRow and fakeSentRow are one row each of what `show bgp rib`
+// answers with no terminal: rows under showRowsEnvelopeKey, each one
+// serializeRouteItem (internal/component/bgp/plugins/rib/rib_pipeline.go),
+// naming its own peer and direction as fields. The received row is a route
+// 10.0.0.1 sent Ze; the sent row is a route Ze sent 10.0.0.1, under a prefix
+// the received side does not hold, so an answer that mixes the two scopes
+// shows.
+const (
+	fakeReceivedRow = `{"peer":"10.0.0.1","direction":"received",` +
+		`"family":"ipv4/unicast","prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp",` +
+		`"as-path":[65001,65002],"local-preference":100,"med":0,` +
+		`"community":["65000:100","65001:200"],"large-community":["65000:0:100"]}`
+	fakeSentRow = `{"peer":"10.0.0.1","direction":"sent",` +
+		`"family":"ipv4/unicast","prefix":"192.0.2.0/24","next-hop":"10.0.0.254","origin":"igp",` +
+		`"as-path":[],"local-preference":100}`
+)
 
-// fakeCountAnswer is the `count` terminal: showPipeline answers jsonKeyCount.
-const fakeCountAnswer = `{"count":100}`
+// fakeRouteRowsAnswer is the `received` scope: the rows 10.0.0.1 sent Ze.
+const fakeRouteRowsAnswer = `{"routes":[` + fakeReceivedRow + `]}`
 
-// fakeHistogramAnswer is the `histogram` terminal (histogramTerminal.drain).
-const fakeHistogramAnswer = `{"histogram":{"ipv4/unicast":{"24":100}},"count":100}`
+// fakeSentRowsAnswer is the `sent` scope: the rows Ze sent 10.0.0.1.
+const fakeSentRowsAnswer = `{"routes":[` + fakeSentRow + `]}`
+
+// fakeBothRowsAnswer is the default scope, `sent-received`, which
+// parsePipelineArgs applies when no scope keyword leads: both directions.
+const fakeBothRowsAnswer = `{"routes":[` + fakeReceivedRow + `,` + fakeSentRow + `]}`
+
+// The `count` terminal per scope: showPipeline answers jsonKeyCount, counting
+// the rows the scope selected. The default scope counts both directions.
+const (
+	fakeCountAnswer         = `{"count":100}`
+	fakeSentCountAnswer     = `{"count":50}`
+	fakeBothCountAnswer     = `{"count":150}`
+	fakeHistogramAnswer     = `{"histogram":{"ipv4/unicast":{"24":100}},"count":100}`
+	fakeSentHistogramAnswer = `{"histogram":{"ipv4/unicast":{"24":50}},"count":50}`
+	fakeBothHistogramAnswer = `{"histogram":{"ipv4/unicast":{"24":150}},"count":150}`
+)
+
+// fakeScopeAnswers maps the scope a command selects to its answer for each
+// terminal, "" being the route rows. Scope "" is the default, sent-received.
+var fakeScopeAnswers = map[string]map[string]string{
+	"received":      {"": fakeRouteRowsAnswer, "count": fakeCountAnswer, "histogram": fakeHistogramAnswer},
+	"sent":          {"": fakeSentRowsAnswer, "count": fakeSentCountAnswer, "histogram": fakeSentHistogramAnswer},
+	"advertised":    {"": fakeSentRowsAnswer, "count": fakeSentCountAnswer, "histogram": fakeSentHistogramAnswer},
+	"sent-received": {"": fakeBothRowsAnswer, "count": fakeBothCountAnswer, "histogram": fakeBothHistogramAnswer},
+	"":              {"": fakeBothRowsAnswer, "count": fakeBothCountAnswer, "histogram": fakeBothHistogramAnswer},
+}
 
 // The pipeline vocabulary parsePipelineArgs and parseBestPipelineArgs accept
 // (rib_pipeline.go: scopeKeywords, filterKeywords, terminalKeywords, and
@@ -63,44 +96,57 @@ func fakeRIBAnswer(cmd string) string {
 		args = args[1:]
 	}
 
-	terminal, refusal := fakeRIBPipeline(args, best)
+	scope, terminal, refusal := fakeRIBPipeline(args, best)
 	if refusal != "" {
 		return `{"error":` + strconv.Quote(refusal) + `}`
 	}
 
-	switch terminal {
-	case "count":
-		return fakeCountAnswer
-	case "histogram":
-		return fakeHistogramAnswer
-	}
 	if best {
+		switch terminal {
+		case "count":
+			return fakeCountAnswer
+		case "histogram":
+			return fakeHistogramAnswer
+		}
 		return fakeBestPathAnswer
 	}
-	return fakeRouteRowsAnswer
+	switch terminal {
+	case "count", "histogram":
+	default:
+		// The fake has no shape of its own for `json` or `graph`, so they
+		// answer the route rows, as they did before scopes were told apart.
+		terminal = ""
+	}
+	return fakeScopeAnswers[scope][terminal]
 }
 
 // fakeRIBPipeline walks args the way the plugin's parser does and answers the
-// terminal it ends in, or the reason it refuses them. The best-path walk takes
-// no scope keyword and accepts the `reason` terminal.
-func fakeRIBPipeline(args []string, best bool) (terminal, refusal string) {
+// scope and the terminal it ends in, or the reason it refuses them. The
+// best-path walk takes no scope keyword and accepts the `reason` terminal. The
+// plugin accepts one scope keyword anywhere before the terminal and refuses a
+// second.
+func fakeRIBPipeline(args []string, best bool) (scope, terminal, refusal string) {
 	for i := 0; i < len(args); i++ {
 		keyword := args[i]
 		if terminal != "" {
-			return "", "filter after terminal: " + keyword
+			return "", "", "filter after terminal: " + keyword
 		}
 		switch {
 		case !best && fakeRIBScopes[keyword]:
+			if scope != "" {
+				return "", "", "multiple route direction filters: " + scope + " and " + keyword
+			}
+			scope = keyword
 		case fakeRIBFilters[keyword]:
 			i++
 			if i >= len(args) {
-				return "", keyword + " requires a value"
+				return "", "", keyword + " requires a value"
 			}
 		case fakeRIBTerminals[keyword], best && keyword == "reason":
 			terminal = keyword
 		default:
-			return "", "unknown keyword: " + keyword
+			return "", "", "unknown keyword: " + keyword
 		}
 	}
-	return terminal, ""
+	return scope, terminal, ""
 }

@@ -15,39 +15,21 @@ header: X-Ze-Version: <VERSION>
     {
       "age": 0,
       "bgp": {
-        "as_path": [
-          65001,
-          65002
-        ],
-        "communities": [
-          [
-            65000,
-            100
-          ],
-          [
-            65001,
-            200
-          ]
-        ],
+        "as_path": [],
+        "communities": null,
         "ext_communities": null,
-        "large_communities": [
-          [
-            65000,
-            0,
-            100
-          ]
-        ],
+        "large_communities": null,
         "local_pref": 100,
         "med": 0,
-        "next_hop": "10.0.0.1",
+        "next_hop": "10.0.0.254",
         "origin": "igp"
       },
       "from_protocol": "10.0.0.1",
-      "gateway": "10.0.0.1",
+      "gateway": "10.0.0.254",
       "interface": "",
       "learnt_from": "10.0.0.1",
       "metric": 0,
-      "network": "10.0.0.0/24",
+      "network": "192.0.2.0/24",
       "primary": false
     }
   ],

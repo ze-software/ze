@@ -296,14 +296,15 @@ case-sensitive.
 ```
 /api/looking-glass/status              Router status (JSON, birdwatcher format)
 /api/looking-glass/protocols/bgp       Peer list (JSON)
-/api/looking-glass/routes/protocol/X   Routes from peer X (JSON)
+/api/looking-glass/routes/protocol/X   Routes peer X sent Ze (JSON)
+/api/looking-glass/routes/export/X     Routes Ze sent peer X (JSON)
 /api/looking-glass/routes/table/X      Best routes by family (JSON)
 /api/looking-glass/routes/filtered/X   Filtered routes per peer (JSON)
 /api/looking-glass/routes/search?prefix=X  Prefix lookup (JSON)
 /lg/peers                              Peer dashboard (HTML)
 /lg/lookup                             Route lookup form (HTML)
 /lg/search                             Unified search: prefix, AS path, community (HTML)
-/lg/peer/{address}                     Per-peer routes (HTML)
+/lg/peer/{address}                     Routes the peer sent Ze, with the received and sent counts side by side (HTML)
 /lg/route/detail                       Route detail fragment (HTMX)
 /lg/graph?prefix=X                     AS path topology (SVG)
 /lg/events                             SSE peer state stream

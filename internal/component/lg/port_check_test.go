@@ -78,6 +78,22 @@ const lgPortCountsReadable = "routes_counts_available answers on a readable coun
 // (plan/journal/zero-value-as-valid-answer.md, 2026-09-17).
 const lgPortStatusCommands = "the status endpoint reads four commands the daemon serves, in place of one it does not"
 
+// The two below are one owner decision, 2026-10-08: the looking glass shows
+// what a peer sent Ze and what Ze sent it, each in its own field. Every per-peer
+// query named no bgp-rib scope, so the plugin answered its default,
+// `sent-received`, and the routes Ze sent a peer were listed and counted as
+// learned from it (plan/journal/counter-counts-the-wrong-packets.md). The peer
+// page now reads the `received` scope and counts the `sent` one beside it, and
+// the fake answers each scope apart (ribfake_test.go), so routes/export/{name}
+// answers the rows Ze sent where it used to echo the received ones.
+const (
+	// lgPortPeerCounts covers the peer page: a received and a sent count, side
+	// by side.
+	lgPortPeerCounts = "the peer page counts the routes the peer sent Ze beside the routes Ze sent it"
+	// lgPortExportScope covers routes/export/{name}.
+	lgPortExportScope = "routes/export answers the sent scope, which the fake now tells apart from the received"
+)
+
 var lgPortTemplates = map[string]string{
 	"layout--peers.html":  lgPortGraphScript + ", " + lgPortSSEAsset,
 	"layout--search.html": lgPortGraphScript + ", " + lgPortPageAssets,
@@ -87,12 +103,20 @@ var lgPortTemplates = map[string]string{
 	"peers_content--empty.html": lgPortSSEAttribute,
 	"peers_content--full.html":  lgPortSSEAttribute,
 
+	"peer_routes--empty.html":           lgPortPeerCounts,
+	"peer_routes--routes.html":          lgPortPeerCounts,
+	"peer_routes--summary.html":         lgPortPeerCounts,
+	"peer_routes_content--empty.html":   lgPortPeerCounts,
+	"peer_routes_content--routes.html":  lgPortPeerCounts,
+	"peer_routes_content--summary.html": lgPortPeerCounts,
+
 	"route_results--routes.html": lgPortGraphHandler,
 	"search--filled.html":        lgPortGraphHandler,
 }
 
 var lgPortHandlers = map[string]string{
 	"api-protocols-bgp.txt": lgPortCountsReadable,
+	"api-routes-export.txt": lgPortExportScope,
 	"api-status.txt":        lgPortStatusCommands,
 
 	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
@@ -101,7 +125,7 @@ var lgPortHandlers = map[string]string{
 
 	"gated-peers-authorized.txt": lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute,
 	"ui-help.txt":                lgPortGraphScript + ", " + lgPortPageAssets,
-	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets,
+	"ui-peer-routes.txt":         lgPortGraphScript + ", " + lgPortPageAssets + ", " + lgPortPeerCounts,
 	"ui-peers.txt":               lgPortGraphScript + ", " + lgPortSSEAsset + ", " + lgPortSSEAttribute,
 	"ui-search-form.txt":         lgPortGraphScript + ", " + lgPortPageAssets,
 }
