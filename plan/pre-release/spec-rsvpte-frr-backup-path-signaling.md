@@ -38,3 +38,38 @@ The inherited implementation repaired only the data plane. The current working t
 | RFC4090-6.4-3 | "the PLR MUST: - remove all the sub-objects proceeding the first address belonging to the MP, and - replace this first MP address with an IP address of the MP." (S6.4.4) | `frr.go::backupPath` trims through the first MP subobject and installs the MP host address; validation owed |
 | RFC4090-7.1-1 | "If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP." (S7.1.1) | `frr.go::mergeBackupPath` retains the protected downstream PSB when a backup sender joins it; validation owed |
 | RFC4090-7.1-2 | "Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically." (S7.1.1) | `register.go::refreshPaths` refreshes the MP's merged PATH while incoming branches retain independent expiry; validation owed |
+
+## Acceptance Criteria
+
+Written at closure (2026-10-08) from the requirement rows above. The completion
+boundary is Main's validation: each row's producer, its tagged tests in both
+polarities, and a discrimination record per polarity.
+
+| AC ID | Requirement | Evidence owed |
+|-------|-------------|---------------|
+| AC-1 | RFC4090-6.1-1 | `TestRFC4090HeadEndUsesDistinctSender` (positive) and `TestRFC4090HeadEndRequiresAlternateSender` (negative) pass; both recorded in `rfc/discrimination/rfc4090.json` |
+| AC-2 | RFC4090-6.4-1 | `TestRFC4090ProtectedPathSurvivesRepair` (positive) and `TestRFC4090NoBackupPathBeforeRepair` (negative) pass; both recorded |
+| AC-3 | RFC4090-6.4-2 | same two units; both recorded |
+| AC-4 | RFC4090-6.4-3 | same two units; both recorded |
+| AC-5 | RFC4090-7.1-1 | `TestRFC4090ProtectedPathSurvivesRepair` (positive) and `TestRFC4090DifferentPathsDoNotMerge` (negative) pass; both recorded |
+| AC-6 | RFC4090-7.1-2 | same two units; both recorded |
+| AC-7 | interop (`ai/rules/interop-and-goal-validation.md`) | a scenario against another RSVP-TE implementation in which Ze's PLR signals the backup PATH to a merge point |
+
+### Validation status (2026-10-08)
+
+AC-1 to AC-6 are met. The six positive and six negative units pass
+(`go test -run 'TestRFC4090(HeadEndUsesDistinctSender|HeadEndRequiresAlternateSender|ProtectedPathSurvivesRepair|NoBackupPathBeforeRepair|DifferentPathsDoNotMerge)$' ./internal/plugins/rsvpte/`).
+The positive 6.4-1 to 7.1-2 records already existed. On 2026-10-08
+`./le rfc discriminate-record` added the two RFC4090-6.1-1 records, with
+`frr.go::repairSender` as the producer. It also added the five negative records
+that were missing for 6.4-1, 6.4-2 (`frr.go::tryLocalRepair`), 6.4-3
+(`routing.go::resolveExplicitPath`), 7.1-1 (`frr.go::mergeBackupPath`) and
+7.1-2 (`register.go::refreshPaths`). After these additions,
+`./le rfc discriminate stem rfc4090` lists none of these rows as unproven or
+stale.
+
+AC-7 blocks closure. No interop scenario exercises RFC 4090 backup-path
+signaling. `TestRSVPFreeRouterInterop` runs against freeRtr but configures no
+bypass. `TestEngineZeToZeFRRLocalRepair` is ze-to-ze, so it is not another
+implementation. Building one needs the freeRtr lab, which needs Docker. The
+owner decides how the scenario is built or homed.
