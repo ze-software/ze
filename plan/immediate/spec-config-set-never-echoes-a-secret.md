@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 <!-- Backfilled after implementation began. The acknowledgement mask landed in
      ef20b9d56e on 2026-09-06; the functional and fail-closed proof below remains
@@ -183,6 +183,7 @@ that value is a secret, and one predicate answers for every such command.
 | `TestSSHCLISetNeverEchoesASecret`, `TestSSHCLISetStillEchoesAValueTheSchemaDoesNotMark`, `TestCommitConflictNeverEchoesASecret`, `TestPendingChangeSummaryNeverEchoesASecret` | `internal/component/cli/model_commands_edit_secret_test.go` | AC-4, AC-6, AC-7 | recorded red during implementation |
 | `TestWebTerminalSetNeverEchoesASecret`, `TestWebTerminalSetStillEchoesAValueTheSchemaDoesNotMark` | `internal/component/web/cli_terminal_secret_test.go` | AC-5 | recorded red during implementation |
 | `TestAWriteOnlyPasswordLeafIsMarkedSensitive` | existing | AC-9, A-1 | passes |
+| `TestDisplayValueAtPathFailsClosed` | `internal/component/config/mask_test.go` | AC-8: nil schema, empty path and unresolved path answer the placeholder; a resolved plain leaf echoes and an empty value stays empty (opposite polarity) | 2026-10-08: RED with `secretAtPath` mutated to `return false` on a nil node (4 subtests fail: nil schema x2, empty path, unresolved path); GREEN restored, `-race -count=1` |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -192,7 +193,7 @@ that value is a secret, and one predicate answers for every such command.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| a `.ci` driving `ze config set` on a marked leaf and reading stderr | not written | the operator sets a password and reads the acknowledgement | MISSING. See "What Remains" |
+| `cli-config-set-secret-never-echoed` | `test/parse/cli-config-set-secret-never-echoed.ci` | the operator sets `plaintext-password` with `--dry-run` and then for real: both acknowledgements carry `/* SECRET-DATA */`, the cleartext is in neither stream of either command; a plain leaf (`bgp peer peer1 session asn local 65000`) is echoed in full (AC-1, AC-3) | 2026-10-08: RED via `./le test bgp parse --draft` with `cmdSetImpl` mutated to `displayValue := value` (seq 1 stderr carried `plaintext-password Zq7kestrelORCHID91x`); GREEN restored, promoted, passes beside `cli-config-set` and `user-plaintext-password`. Stress-repro could not discriminate (it drove a stale ze; journal row 2026-10-08 in `plan/journal/stale-artifact-reused.md`) |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -222,7 +223,7 @@ that value is a secret, and one predicate answers for every such command.
 | YANG validation constraints | No | no constraint changed |
 | CLI commands/flags | No | `ze config set` keeps its grammar; only its output changed |
 | Editor autocomplete | No | unchanged |
-| Functional test for new RPC/API | Yes, MISSING | no `.ci` drives the echo path |
+| Functional test for new RPC/API | Yes | `test/parse/cli-config-set-secret-never-echoed.ci` drives the echo path |
 | Pipe completeness | No | the acknowledgement is stderr, outside the pipe surface |
 | Doctor check for runtime dependencies | N-A | no new runtime dependency |
 | Prometheus counters | N-A | none |
@@ -336,5 +337,6 @@ that value is a secret, and one predicate answers for every such command.
 | Product code | The acknowledgement mask landed in `ef20b9d56e` on 2026-09-06. `cmdSetImpl` still routes the refusal through `DisplayMessageAtPath` and both acknowledgements through `DisplayValueAtPath` |
 | Journal row | Written in `plan/journal/secret-echoed-to-the-client.md`; its 2026-09-06 FIXED entry records the implementation, not completion of this spec's proof |
 | PROVEN | AC-1 through AC-7 for every producer except `cmdInsert`. Each fix was observed RED against the unfixed producer, and each carries the opposite polarity, so a fail-closed mask cannot satisfy it alone. AC-9 by the YANG walk |
-| ASSERTED, not proven | AC-8 in the nil-schema arm. `TestDisplayTreeAtPathFailsClosed` covers the sibling function; no test named here drives `DisplayValueAtPath` with a nil schema. A-3 is unvalidated. `cmdInsert`'s polarity is unreachable by construction, stated in Known Limitations |
-| Remains | The functional `.ci` over `ze config set`; a nil-schema proof for `DisplayValueAtPath` (AC-8); documentation and closure review. The transcript sink remains separately recorded in `plan/journal/secret-echoed-to-the-client.md`; this acknowledgement fix does not establish that every secret-output path is closed |
+| PROVEN 2026-10-08 | AC-8 by `TestDisplayValueAtPathFailsClosed`, and AC-1/AC-3 through the real entry point by `test/parse/cli-config-set-secret-never-echoed.ci`; each observed RED against a mutated producer and GREEN restored (TDD and Functional Tests tables) |
+| ASSERTED, not proven | A-3 is unvalidated. `cmdInsert`'s polarity is unreachable by construction, stated in Known Limitations |
+| Remains | Documentation and closure review (`/ze-close`), independent of the author of these tests. The transcript sink remains separately recorded in `plan/journal/secret-echoed-to-the-client.md`; this acknowledgement fix does not establish that every secret-output path is closed |

@@ -271,3 +271,42 @@ func TestLeafHoldsSecretReadsTheTwoSecretExtensions(t *testing.T) {
 	assert.False(t, LeafHoldsSecret(Leaf(TypeString)))
 	assert.False(t, LeafHoldsSecret(nil), "an unresolved node holds no secret")
 }
+
+// VALIDATES: AC-8 of spec-config-set-never-echoes-a-secret. DisplayValueAtPath
+// answers the placeholder when it cannot tell whether the path names a secret:
+// a nil schema, an empty path, or a token path the schema does not resolve.
+// The method drives the function itself, because TestDisplayTreeAtPathFailsClosed
+// covers only the tree-shaped sibling.
+// PREVENTS: the acknowledgement mask failing open, the way
+// Editor.DisplayTreeAtPath once did, and echoing the operator's raw value when
+// the schema is absent. The opposite polarity rows (a resolved plain leaf
+// echoes, an empty value stays empty) stop a mask that hides everything from
+// satisfying the test alone.
+func TestDisplayValueAtPathFailsClosed(t *testing.T) {
+	const cleartext = "hunter2-cleartext"
+	schema := maskTestSchema()
+	secretPath := []string{"system", "authentication", "user", "alice", "api-secret"}
+	plainPath := []string{"system", "authentication", "user", "alice", "shell"}
+
+	cases := []struct {
+		name   string
+		schema *Schema
+		path   []string
+		value  string
+		want   string
+	}{
+		{"nil schema", nil, secretPath, cleartext, SecretDataPlaceholder},
+		{"nil schema over a path that would be plain", nil, plainPath, cleartext, SecretDataPlaceholder},
+		{"empty path", schema, nil, cleartext, SecretDataPlaceholder},
+		{"unresolved path", schema, []string{"system", "no-such-leaf"}, cleartext, SecretDataPlaceholder},
+		{"resolved secret leaf", schema, secretPath, cleartext, SecretDataPlaceholder},
+		{"resolved plain leaf echoes", schema, plainPath, cleartext, cleartext},
+		{"empty value stays empty under a nil schema", nil, secretPath, "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := DisplayValueAtPath(tc.schema, tc.path, tc.value)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
