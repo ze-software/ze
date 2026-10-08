@@ -942,3 +942,44 @@ func TestRegistrationRejectsBadGrammar(t *testing.T) {
 		assert.NotNil(t, fresh.Lookup("show grammar-audit status"))
 	})
 }
+
+// TestCommandRegistryRefusesOnEachGround keeps the three refusals an external
+// plugin meets when it declares a command.
+//
+// VALIDATES: AC-13. Register refuses a malformed name with the validator's
+// reason, a builtin name with "conflicts with builtin", and a name another
+// process holds with "already registered by process: <holder>". Each refused
+// name leaves the registry as it was.
+// PREVENTS: a plugin taking a builtin's or another plugin's command.
+func TestCommandRegistryRefusesOnEachGround(t *testing.T) {
+	registry := newCommandRegistry()
+	registry.AddBuiltin("show status")
+	holder := process.NewProcess(plugin.PluginConfig{Name: "holder-proc"})
+	intruder := process.NewProcess(plugin.PluginConfig{Name: "intruder-proc"})
+
+	first := registry.Register(holder, []CommandDef{{Name: "show holder"}})
+	require.True(t, first[0].OK, "holder registration: %s", first[0].Error)
+
+	cases := []struct {
+		ground string
+		name   string
+		want   string
+	}{
+		{"malformed name", "Show holder", "invalid character"},
+		{"builtin", "show status", "conflicts with builtin: show status"},
+		{"held by a process", "show holder", "already registered by process: holder-proc"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.ground, func(t *testing.T) {
+			results := registry.Register(intruder, []CommandDef{{Name: tc.name}})
+			require.Len(t, results, 1)
+			assert.False(t, results[0].OK, "%q was accepted", tc.name)
+			assert.Contains(t, results[0].Error, tc.want)
+		})
+	}
+
+	held := registry.Lookup("show holder")
+	require.NotNil(t, held)
+	assert.Same(t, holder, held.Process, "the holder lost its command")
+	assert.Nil(t, registry.Lookup("show status"), "a plugin entry now shadows the builtin")
+}

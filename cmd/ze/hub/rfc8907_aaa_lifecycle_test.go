@@ -241,11 +241,13 @@ func TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap(t *testing.T) {
 	dispatcher := pluginserver.NewDispatcher()
 	installNoBGPAAADispatch(dispatcher)
 	const command = "test live accounting"
-	dispatcher.Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := dispatcher.Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		swapAAABundle(&aaa.Bundle{Accountant: second}, nil)
 		assert.False(t, firstClosed, "reload closed the accountant before the command's STOP")
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, command)
+	}, command); err != nil {
+		t.Fatal(err)
+	}
 
 	response, err := dispatcher.Dispatch(&pluginserver.CommandContext{
 		Username:   "alice",

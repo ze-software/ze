@@ -76,36 +76,56 @@ func AllBuiltinRPCs() []RPCRegistration {
 // the YANG command tree (WireMethod -> CLI path). pathToDesc provides the
 // one-line summary each command's ze:help extension declares, and pathToHelp
 // the long explanation its YANG description declares. Handlers without a YANG
-// entry are skipped.
-func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) {
+// entry are skipped. The first name another registration already holds stops
+// the load and is returned (ErrCommandHeld).
+func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) error {
 	for _, reg := range AllBuiltinRPCs() {
 		name := wireToPath[reg.WireMethod]
 		if name == "" {
 			continue // No YANG tree entry (editor-internal)
 		}
-		d.RegisterWithOptions(name, reg.Handler, pathToDesc[name], RegisterOptions{
+		if err := d.RegisterWithOptions(name, reg.Handler, pathToDesc[name], RegisterOptions{
 			ReadOnly:         IsReadOnlyPath(name),
 			RequiresSelector: reg.RequiresSelector,
 			PluginProxy:      reg.PluginCommand != "",
 			ArgDefs:          pathToArgDefs[name],
 			Description:      pathToHelp[name],
-		})
+			Owner:            reg.WireMethod,
+		}); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-// loadBuiltinsWithAliases registers all builtin handlers with the dispatcher,
-// including all YANG command aliases for each wire method. When cmdTree is
-// non-nil, commands whose YANG path passes through a ze:ensure-exists node
-// are wrapped to auto-ensure the parent resource and rollback on failure.
-func loadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) {
-	wireToHandler := make(map[string]Handler, len(AllBuiltinRPCs()))
-	for _, reg := range AllBuiltinRPCs() {
+// ErrWireMethodHeld is the refusal for a builtin RPC whose wire method another
+// linked builtin already registered.
+var ErrWireMethodHeld = errors.New("wire method registered by two builtins")
+
+// loadBuiltinsWithAliases registers the builtin handlers regs with the
+// dispatcher, including all YANG command aliases for each wire method. When
+// cmdTree is non-nil, commands whose YANG path passes through a
+// ze:ensure-exists node are wrapped to auto-ensure the parent resource and
+// rollback on failure.
+//
+// It refuses a wire method two registrations carry (ErrWireMethodHeld) and a
+// command name two registrations reach (ErrCommandHeld), so neither owner can
+// take the other's command by registering later. The server MUST NOT serve
+// after a refusal.
+func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) error {
+	wireToHandler := make(map[string]Handler, len(regs))
+	wireSeen := make(map[string]bool, len(regs))
+	for _, reg := range regs {
+		if wireSeen[reg.WireMethod] {
+			return fmt.Errorf("%w: %s", ErrWireMethodHeld, reg.WireMethod)
+		}
+		wireSeen[reg.WireMethod] = true
 		if reg.Handler != nil {
 			wireToHandler[reg.WireMethod] = reg.Handler
 		}
 	}
 
-	for _, reg := range AllBuiltinRPCs() {
+	for _, reg := range regs {
 		paths := wireToPaths[reg.WireMethod]
 		if len(paths) == 0 {
 			continue
@@ -115,15 +135,19 @@ func loadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pat
 			if chain := buildEnsureChain(cmdTree, name, wireToHandler); len(chain) > 0 {
 				handler = wrapWithEnsureChain(handler, chain)
 			}
-			d.RegisterWithOptions(name, handler, pathToDesc[name], RegisterOptions{
+			if err := d.RegisterWithOptions(name, handler, pathToDesc[name], RegisterOptions{
 				ReadOnly:         IsReadOnlyPath(name),
 				RequiresSelector: reg.RequiresSelector,
 				PluginProxy:      reg.PluginCommand != "",
 				ArgDefs:          pathToArgDefs[name],
 				Description:      pathToHelp[name],
-			})
+				Owner:            reg.WireMethod,
+			}); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 // legacyReadRoots are the noun-first tree roots that answer a read and are not
@@ -155,8 +179,8 @@ func IsReadOnlyPath(path string) bool {
 }
 
 // registerDefaultHandlers registers all builtin handlers with the dispatcher.
-func registerDefaultHandlers(d *Dispatcher, wireToPath map[string]string) {
-	LoadBuiltins(d, wireToPath, nil, nil, nil)
+func registerDefaultHandlers(d *Dispatcher, wireToPath map[string]string) error {
+	return LoadBuiltins(d, wireToPath, nil, nil, nil)
 }
 
 // Handler processes a command and returns a response.
@@ -466,12 +490,17 @@ func (c *CommandContext) ArgsOrSelector(args []string, leaf string) []string {
 
 // Command represents a registered command with metadata.
 //
-// A Command is 168 bytes, past the 160-byte rangeValCopy bound .golangci.yml
+// A Command is 184 bytes, past the 160-byte rangeValCopy bound .golangci.yml
 // sets. A loop over a []Command therefore ranges by index and takes the address
 // of the element, rather than copying it.
 type Command struct {
 	Name    string
 	Handler Handler
+	// Owner names the registration that holds this command: the wire method of
+	// the builtin RPC that serves it. A second registration of the same name is
+	// refused, and the refusal names this owner. Empty means the caller declared
+	// no owner, which only a test or a tool surface does.
+	Owner string
 	// ShortHelp is the one-line SUMMARY of the command, from its YANG ze:help
 	// extension. Every surface that shows the command on one line reads it.
 	ShortHelp string
@@ -518,7 +547,12 @@ type RegisterOptions struct {
 	PluginProxy      bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves
 	Description      string           // The long explanation the command's own help page prints (empty = none declared)
+	Owner            string           // The wire method of the builtin RPC registering the command (empty = none declared)
 }
+
+// ErrCommandHeld is the refusal Dispatcher.RegisterWithOptions returns for a
+// command name another registration already holds.
+var ErrCommandHeld = errors.New("command name already registered")
 
 // Dispatcher routes commands to handlers.
 type Dispatcher struct {
@@ -580,28 +614,29 @@ func (d *Dispatcher) Pending() *PendingRequests {
 	return d.pending
 }
 
-// Register adds a builtin command handler.
-// Also marks the command as builtin in the registry to prevent shadowing.
-func (d *Dispatcher) Register(name string, handler Handler, help string) {
-	// Store with lowercase key for case-insensitive matching
-	key := strings.ToLower(name)
-	d.commands[key] = &Command{
-		Name:      name,
-		Handler:   handler,
-		ShortHelp: help,
-	}
-	d.updateSortedKeys()
-
-	// Mark as builtin to prevent plugin shadowing
-	d.registry.AddBuiltin(name)
+// Register adds a builtin command handler with no options and no declared
+// owner. It refuses a name already held, as RegisterWithOptions does.
+func (d *Dispatcher) Register(name string, handler Handler, help string) error {
+	return d.RegisterWithOptions(name, handler, help, RegisterOptions{})
 }
 
-// RegisterWithOptions adds a builtin command handler with additional options.
-func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help string, opts RegisterOptions) {
+// RegisterWithOptions adds a builtin command handler with additional options,
+// and marks the name builtin in the plugin registry so no plugin shadows it.
+//
+// A name another registration already holds is refused with ErrCommandHeld,
+// naming the holder, and the holder keeps the name. The order init() runs in
+// across packages is not controlled, so a silent overwrite would let whichever
+// owner registered last take the other's command.
+func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help string, opts RegisterOptions) error {
+	// Store with lowercase key for case-insensitive matching.
 	key := strings.ToLower(name)
+	if holder, held := d.commands[key]; held {
+		return heldCommandError(name, holder.Owner)
+	}
 	d.commands[key] = &Command{
 		Name:             name,
 		Handler:          handler,
+		Owner:            opts.Owner,
 		ShortHelp:        help,
 		Description:      opts.Description,
 		ReadOnly:         opts.ReadOnly,
@@ -616,6 +651,16 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 	if !opts.PluginProxy {
 		d.registry.AddBuiltin(name)
 	}
+	return nil
+}
+
+// heldCommandError is the refusal for a name the holder already registered.
+// A holder with no declared owner is named as such, never as an empty string.
+func heldCommandError(name, holder string) error {
+	if holder == "" {
+		return fmt.Errorf("%w: %q is held by a registration that declared no owner", ErrCommandHeld, name)
+	}
+	return fmt.Errorf("%w: %q is held by %s", ErrCommandHeld, name, holder)
 }
 
 // updateSortedKeys rebuilds the sorted key list for longest-match lookup.

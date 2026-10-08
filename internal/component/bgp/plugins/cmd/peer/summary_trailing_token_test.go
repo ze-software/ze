@@ -31,7 +31,9 @@ func showBgpDispatcher(t *testing.T) (*pluginserver.Dispatcher, *pluginserver.Co
 		stats: plugin.ReactorStats{PeerCount: 1},
 	}
 	d := pluginserver.NewDispatcher()
-	d.Register("show bgp", handleBgpOverview, "BGP overview")
+	if err := d.Register("show bgp", handleBgpOverview, "BGP overview"); err != nil {
+		t.Fatal(err)
+	}
 	return d, newTestContext(reactor)
 }
 

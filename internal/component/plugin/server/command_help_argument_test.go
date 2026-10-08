@@ -57,8 +57,10 @@ func TestCommandHelpAnswersTheKeywordForm(t *testing.T) {
 	require.NoError(t, err, "load YANG")
 
 	d := NewDispatcher()
-	loadBuiltinsWithAliases(d, yang.WireMethodToPaths(loader), yang.PathToDescription(loader),
-		yang.PathToHelp(loader), yang.PathToArgDefs(loader), yang.BuildCommandTree(loader))
+	if err := loadBuiltinsWithAliases(d, AllBuiltinRPCs(), yang.WireMethodToPaths(loader), yang.PathToDescription(loader),
+		yang.PathToHelp(loader), yang.PathToArgDefs(loader), yang.BuildCommandTree(loader)); err != nil {
+		t.Fatal(err)
+	}
 	ctx := &CommandContext{Server: &Server{dispatcher: d}}
 
 	t.Run("help keyword", func(t *testing.T) {

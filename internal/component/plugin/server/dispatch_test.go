@@ -216,12 +216,14 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	d := NewDispatcher()
-	d.Register("test command", func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("test command", func(_ *CommandContext, args []string) (*plugin.Response, error) {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data:   plugin.Map{"last-index": float64(42)},
 		}, nil
-	}, "test command")
+	}, "test command"); err != nil {
+		t.Fatal(err)
+	}
 
 	s := &Server{
 		subscriptions: newSubscriptionManager(),
@@ -281,11 +283,13 @@ func TestHandleDispatchCommandRPCPreservesPluginIdentity(t *testing.T) {
 	)
 
 	d := NewDispatcher()
-	d.Register("test command", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("test command", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 		gotUsername = ctx.Username
 		gotContext = ctx.Context()
 		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "test command")
+	}, "test command"); err != nil {
+		t.Fatal(err)
+	}
 
 	s := &Server{
 		subscriptions: newSubscriptionManager(),
@@ -384,12 +388,14 @@ func TestDispatchCommandPluginError(t *testing.T) {
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	d := NewDispatcher()
-	d.Register("failing command", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("failing command", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  "something went wrong",
 		}, nil
-	}, "failing command")
+	}, "failing command"); err != nil {
+		t.Fatal(err)
+	}
 
 	s := &Server{
 		subscriptions: newSubscriptionManager(),
@@ -486,7 +492,7 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	d := NewDispatcher()
 	handlerReturned := false
 	completed := false
-	d.Register("bridge test", func(_ *CommandContext, _ []string) (resp *plugin.Response, err error) {
+	if err := d.Register("bridge test", func(_ *CommandContext, _ []string) (resp *plugin.Response, err error) {
 		defer func() { handlerReturned = true }()
 		resp = &plugin.Response{
 			Status: plugin.StatusDone,
@@ -497,7 +503,9 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 			completed = true
 		})
 		return resp, nil
-	}, "bridge test")
+	}, "bridge test"); err != nil {
+		t.Fatal(err)
+	}
 
 	s := &Server{
 		subscriptions: newSubscriptionManager(),

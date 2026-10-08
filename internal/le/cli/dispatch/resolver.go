@@ -58,12 +58,17 @@ func newSurface(tree string) (Surface, error) {
 
 	dispatcher := pluginserver.NewDispatcher()
 	seen := make(map[string]bool)
+	// registerErr keeps the first refusal: seen dedupes exact paths, and the
+	// dispatcher still refuses two spellings that differ only in case.
+	var registerErr error
 	register := func(path string, defs []command.ArgDef) {
 		if path == "" || seen[path] {
 			return
 		}
 		seen[path] = true
-		dispatcher.RegisterWithOptions(path, nil, "", pluginserver.RegisterOptions{ArgDefs: defs})
+		if err := dispatcher.RegisterWithOptions(path, nil, "", pluginserver.RegisterOptions{ArgDefs: defs}); err != nil && registerErr == nil {
+			registerErr = err
+		}
 	}
 
 	for _, paths := range wireToPaths {
@@ -101,6 +106,9 @@ func newSurface(tree string) (Surface, error) {
 	}
 	for _, name := range decls {
 		register(name, nil)
+	}
+	if registerErr != nil {
+		return Surface{}, fmt.Errorf("command surface: %w", registerErr)
 	}
 	if len(unreadable) > 0 {
 		return Surface{}, fmt.Errorf("plugin CommandDecl names not statically readable: %s",

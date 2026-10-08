@@ -32,7 +32,9 @@ func TestHandleSystemDispatch(t *testing.T) {
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}
-	d.Register("watchdog announce", handler, "Announce watchdog")
+	if err := d.Register("watchdog announce", handler, "Announce watchdog"); err != nil {
+		t.Fatal(err)
+	}
 
 	srv := &Server{dispatcher: d}
 	ctx := &CommandContext{Server: srv, Peer: "*"}
@@ -156,7 +158,9 @@ func TestHandleSystemDispatchJoinsArgs(t *testing.T) {
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	d.Register("watchdog withdraw", handler, "Withdraw watchdog")
+	if err := d.Register("watchdog withdraw", handler, "Withdraw watchdog"); err != nil {
+		t.Fatal(err)
+	}
 
 	srv := &Server{dispatcher: d}
 	ctx := &CommandContext{Server: srv, Peer: "*"}
@@ -314,9 +318,13 @@ func TestCommandRowsCarryDescription(t *testing.T) {
 	handler := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	d.RegisterWithOptions("show explained", handler, "Show the explained thing",
-		RegisterOptions{Description: "The explanation a builtin declares."})
-	d.Register("show bare", handler, "Show the bare thing")
+	if err := d.RegisterWithOptions("show explained", handler, "Show the explained thing",
+		RegisterOptions{Description: "The explanation a builtin declares."}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Register("show bare", handler, "Show the bare thing"); err != nil {
+		t.Fatal(err)
+	}
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	for _, result := range d.Registry().Register(proc, []CommandDef{

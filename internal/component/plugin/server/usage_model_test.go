@@ -486,10 +486,12 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 			}
 
 			d := pluginserver.NewDispatcher()
-			d.RegisterWithOptions(c.path, handler, "under test", pluginserver.RegisterOptions{
+			if err := d.RegisterWithOptions(c.path, handler, "under test", pluginserver.RegisterOptions{
 				RequiresSelector: c.requiresSelector,
 				ArgDefs:          defs,
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 
 			ctx := &pluginserver.CommandContext{Peer: c.peer}
 			resp, dispatchErr := d.Dispatch(ctx, c.input)
@@ -601,7 +603,9 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 			}
 
 			d := pluginserver.NewDispatcher()
-			d.RegisterWithOptions(c.path, handler, "under test", pluginserver.RegisterOptions{ArgDefs: defs})
+			if err := d.RegisterWithOptions(c.path, handler, "under test", pluginserver.RegisterOptions{ArgDefs: defs}); err != nil {
+				t.Fatal(err)
+			}
 
 			resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, c.input)
 			require.NoError(t, dispatchErr)
@@ -767,7 +771,9 @@ func TestCommandsThatTakeNoInheritedValueKeepTheirBareForm(t *testing.T) {
 			}
 
 			d := pluginserver.NewDispatcher()
-			d.RegisterWithOptions(path, handler, "under test", pluginserver.RegisterOptions{ArgDefs: argDefs[path]})
+			if err := d.RegisterWithOptions(path, handler, "under test", pluginserver.RegisterOptions{ArgDefs: argDefs[path]}); err != nil {
+				t.Fatal(err)
+			}
 
 			resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, path)
 			require.NoError(t, dispatchErr)
@@ -803,10 +809,12 @@ func TestInheritedSelectorReachesThePeerBridge(t *testing.T) {
 	}
 
 	d := pluginserver.NewDispatcher()
-	d.RegisterWithOptions("request peer flush", handler, "under test", pluginserver.RegisterOptions{
+	if err := d.RegisterWithOptions("request peer flush", handler, "under test", pluginserver.RegisterOptions{
 		RequiresSelector: true,
 		ArgDefs:          defs,
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	_, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, "request peer edge1 flush")
 	require.NoError(t, dispatchErr)

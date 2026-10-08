@@ -180,10 +180,12 @@ func TestRFC8907TrustedDispatchIdentitiesReachWire(t *testing.T) {
 	d.SetAccountingHook(accountant)
 	d.SetAuthorizer(newTacacsAuthorizer(client, authz.StoreAuthorizer{Store: authz.NewStore()}))
 	var handled []string
-	d.Register("show", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("show", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 		handled = append(handled, args...)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, "")
+	}, ""); err != nil {
+		t.Fatal(err)
+	}
 	// These are the trusted contexts injected by plugin dispatch and by the
 	// validated shared-token API boundary. The local names must stay untouched.
 	identities := []string{aaa.ReservedInternalPrefix + "plugin:wire-caller", aaa.ReservedSharedAPIUsername}
@@ -242,10 +244,12 @@ func TestTACACSWireIdentityCannotForgeLocalTrust(t *testing.T) {
 	d.SetAccountingHook(accountant)
 	d.SetAuthorizer(newTacacsAuthorizer(dispatchWireClient(t, unreachableAddress), authz.StoreAuthorizer{Store: authz.NewStore()}))
 	called := 0
-	d.Register("show", func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("show", func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		called++
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, "")
+	}, ""); err != nil {
+		t.Fatal(err)
+	}
 	for _, raw := range []string{aaa.ReservedInternalPrefix + "plugin:wire-caller", aaa.ReservedSharedAPIUsername} {
 		lookalike := "~ze~r:" + base64.RawURLEncoding.EncodeToString([]byte(raw))
 		for _, identity := range []string{raw, lookalike} {
@@ -303,10 +307,12 @@ func TestRFC8907OversizedCommandAccountingStillReachesWire(t *testing.T) {
 	d := pluginserver.NewDispatcher()
 	d.SetAccountingHook(accountant)
 	var handled []string
-	d.Register("show", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("show", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 		handled = append([]string(nil), args...)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, "")
+	}, ""); err != nil {
+		t.Fatal(err)
+	}
 	for _, args := range [][]string{{strings.Repeat("é", 100)}, strings.Fields(strings.Repeat("x ", 300))} {
 		if _, err := d.Dispatch(&pluginserver.CommandContext{Username: "alice"}, "show "+strings.Join(args, " ")); err != nil {
 			t.Fatal(err)
@@ -356,10 +362,12 @@ func TestTACACSDisplayDigestOnlyUsesRedactedArguments(t *testing.T) {
 	d := pluginserver.NewDispatcher()
 	d.SetAccountingHook(accountant)
 	var handled string
-	d.Register("set", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("set", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 		handled = args[len(args)-1]
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, "")
+	}, ""); err != nil {
+		t.Fatal(err)
+	}
 	longAddress := strings.Repeat("a", 260)
 	var digests []string
 	for _, secret := range []string{"first private value", "second private value"} {

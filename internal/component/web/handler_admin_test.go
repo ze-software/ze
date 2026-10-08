@@ -651,13 +651,15 @@ func TestAdminExecuteBindsAnAnchoredValueThroughTheDispatcher(t *testing.T) {
 
 	d := pluginserver.NewDispatcher()
 	var gotSelector, gotInput string
-	d.RegisterWithOptions("send bgp withdraw all", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("send bgp withdraw all", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		gotSelector = ctx.PeerSelector()
 		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"withdrawn": "all"}), nil
 	}, "Withdraw every announcement", pluginserver.RegisterOptions{
 		RequiresSelector: true,
 		ArgDefs:          []command.ArgDef{selector},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	dispatch := func(_ context.Context, _ plugin.CallerIdentity, input string) (*plugin.Response, error) {
 		gotInput = input
 		return d.Dispatch(&pluginserver.CommandContext{}, input)

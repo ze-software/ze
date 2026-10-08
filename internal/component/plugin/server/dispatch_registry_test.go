@@ -50,9 +50,11 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	t.Parallel()
 
 	d := NewDispatcher()
-	d.Register("parity test", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("parity test", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"ok": true}}, nil
-	}, "parity test")
+	}, "parity test"); err != nil {
+		t.Fatal(err)
+	}
 
 	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -99,10 +101,12 @@ func TestUpdateRouteRPCWithAuthorization(t *testing.T) {
 			d := NewDispatcher()
 			d.SetAuthorizer(authz.StoreAuthorizer{Store: authz.NewStore()})
 			executed := 0
-			d.Register("send bgp", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+			if err := d.Register("send bgp", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 				executed++
 				return &plugin.Response{Status: plugin.StatusDone}, nil
-			}, "send bgp")
+			}, "send bgp"); err != nil {
+				t.Fatal(err)
+			}
 			s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 			s.ctx, s.cancel = context.WithCancel(context.Background())
 			defer s.cancel()
@@ -332,11 +336,13 @@ func TestUpdateRouteDirectCancellation(t *testing.T) {
 			s.ctx, s.cancel = context.WithCancel(t.Context())
 			defer s.cancel()
 			entered := make(chan struct{})
-			s.dispatcher.Register("send bgp", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+			if err := s.dispatcher.Register("send bgp", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 				close(entered)
 				<-ctx.Context().Done()
 				return nil, ctx.Context().Err()
-			}, "wait for route operation cancellation")
+			}, "wait for route operation cancellation"); err != nil {
+				t.Fatal(err)
+			}
 			proc := process.NewProcess(plugin.PluginConfig{Name: "cancel-route"})
 			bridge := rpc.NewDirectBridge()
 			bridge.SetDispatchRPC(func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {

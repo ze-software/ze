@@ -478,11 +478,13 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	dispatcher := NewDispatcher()
-	dispatcher.Register(gatedCommand, func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := dispatcher.Register(gatedCommand, func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		close(entered)
 		<-release
 		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, gatedCommand)
+	}, gatedCommand); err != nil {
+		t.Fatal(err)
+	}
 
 	s, pm := newAutoloadTeardownTestServer()
 	s.dispatcher = dispatcher
@@ -604,7 +606,9 @@ func TestSocketReloadRefusesToStopCallingProcess(t *testing.T) {
 	s.subscriptions = newSubscriptionManager()
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	t.Cleanup(s.cancel)
-	s.dispatcher.Register("request reload", handleDaemonReload, "reload")
+	if err := s.dispatcher.Register("request reload", handleDaemonReload, "reload"); err != nil {
+		t.Fatal(err)
+	}
 	s.SetFullReloadFunc(func(ctx context.Context) error {
 		return s.ReloadConfig(ctx, map[string]any{})
 	})
@@ -834,7 +838,9 @@ func TestBridgeReloadRefusesToStopCallingProcess(t *testing.T) {
 	s.subscriptions = newSubscriptionManager()
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	t.Cleanup(s.cancel)
-	s.dispatcher.Register("request reload", handleDaemonReload, "reload")
+	if err := s.dispatcher.Register("request reload", handleDaemonReload, "reload"); err != nil {
+		t.Fatal(err)
+	}
 	s.SetFullReloadFunc(func(ctx context.Context) error {
 		return s.ReloadConfig(ctx, map[string]any{})
 	})

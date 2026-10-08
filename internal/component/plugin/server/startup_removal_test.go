@@ -58,9 +58,11 @@ func TestPluginRemovalCallbackKeepsEngineConnection(t *testing.T) {
 				return 0
 			})
 			s, spawner := newLifecycleStartupServer(t)
-			s.dispatcher.Register(commandName, func(*CommandContext, []string) (*plugin.Response, error) {
+			if err := s.dispatcher.Register(commandName, func(*CommandContext, []string) (*plugin.Response, error) {
 				return &plugin.Response{Status: plugin.StatusDone}, nil
-			}, "Read removal probe")
+			}, "Read removal probe"); err != nil {
+				t.Fatal(err)
+			}
 			unexpectedShutdown := make(chan struct{}, 1)
 			s.SetShutdownFunc(func() { unexpectedShutdown <- struct{}{} })
 			require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON}}))

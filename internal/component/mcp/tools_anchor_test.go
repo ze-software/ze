@@ -35,14 +35,16 @@ func TestDispatchGeneratedBindsAnAnchoredValueThroughTheDispatcher(t *testing.T)
 	d := pluginserver.NewDispatcher()
 	var gotSelector string
 	var gotArgs []string
-	d.RegisterWithOptions(name, func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions(name, func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 		gotSelector = ctx.PeerSelector()
 		gotArgs = args
 		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"announced": "1"}), nil
 	}, "Announce a unicast prefix", pluginserver.RegisterOptions{
 		RequiresSelector: true,
 		ArgDefs:          []command.ArgDef{selector, prefix},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	var gotInput string
 	s := &server{

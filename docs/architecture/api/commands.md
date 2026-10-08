@@ -99,7 +99,17 @@ path. Operator commands are safe to migrate; commands a plugin sends by their ba
 path (over `dispatch-command` or an interactive plugin CLI session) are a wire break.
 Before a verb-first migration of a noun-first built-in, grep for senders. See
 `ai/rules/cli.md` "Migrating a Built-in Command's Path".
-<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath -->
+
+A dispatch key has one holder. `Dispatcher.RegisterWithOptions` refuses a name
+already registered, compared case-insensitively, with `ErrCommandHeld` naming the
+holder (a builtin's holder is its wire method), and the holder keeps the name.
+The builtin loader also refuses a wire method that two linked builtins carry
+(`ErrWireMethodHeld`). `NewServer` returns either refusal, and a refused
+registration in the socket wire-method dispatcher, so a collision stops the
+daemon at startup. The order in which `init()` runs across packages is not
+controlled, so a later registration never replaces an earlier one.
+<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath, ErrCommandHeld, ErrWireMethodHeld, loadBuiltinsWithAliases, RegisterWithOptions -->
+<!-- source: internal/component/plugin/server/server.go -- NewServer -->
 
 ### A parent command never swallows a registered child
 

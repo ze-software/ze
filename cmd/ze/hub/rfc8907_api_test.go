@@ -59,9 +59,11 @@ func TestAPIRequestCarriesAuthenticatedAuthorizationGeneration(t *testing.T) {
 	newAuthorizer := &apiStreamTestAuthorizer{allow: false}
 	server.Dispatcher().SetAuthorizer(newAuthorizer)
 	const command = "test generation command"
-	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
-	}, command)
+	}, command); err != nil {
+		t.Fatal(err)
+	}
 
 	response, err := serverDispatcher(server, "")(t.Context(), caller, command)
 	require.NoError(t, err)
@@ -92,10 +94,12 @@ func TestAPIRequestTACACSDenialOverridesAcceptedLocalAllow(t *testing.T) {
 	require.NoError(t, err)
 	const command = "test tacacs denied api command"
 	ran := false
-	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		ran = true
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"unexpected"`)), nil
-	}, command)
+	}, command); err != nil {
+		t.Fatal(err)
+	}
 
 	result, err := buildAPIEngine(server).Execute(t.Context(), &api.ExecuteRequest{
 		Caller:  caller,
@@ -122,9 +126,11 @@ func TestServerDispatcherUsesContextAuthorizer(t *testing.T) {
 	newAuthorizer := &apiStreamTestAuthorizer{allow: false}
 	server.Dispatcher().SetAuthorizer(newAuthorizer)
 	const command = "test web session generation"
-	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
-	}, command)
+	}, command); err != nil {
+		t.Fatal(err)
+	}
 
 	sessionAuthorizer := &apiStreamTestAuthorizer{allow: true}
 	ctx := plugin.WithCallerAuthorizer(t.Context(), sessionAuthorizer)
@@ -145,10 +151,12 @@ func TestBuildAPIEngineTranslatesDispatcherAuthorizationDenial(t *testing.T) {
 
 	const command = "test api denied"
 	ran := false
-	server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		ran = true
 		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "should not run"}), nil
-	}, command)
+	}, command); err != nil {
+		t.Fatal(err)
+	}
 	authorizer := &apiStreamTestAuthorizer{allow: false}
 	server.Dispatcher().SetAuthorizer(authorizer)
 
@@ -204,10 +212,12 @@ func TestAPIExecutorPropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	type ctxKey struct{}
 
 	var seen *pluginserver.CommandContext
-	server.Dispatcher().Register("test api", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register("test api", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		seen = ctx
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
-	}, "test api")
+	}, "test api"); err != nil {
+		t.Fatal(err)
+	}
 
 	exec := serverDispatcher(server, "")
 	requestCtx := context.WithValue(context.Background(), ctxKey{}, "trace-id")
@@ -240,10 +250,12 @@ func TestServerDispatcherContextThreading(t *testing.T) {
 	require.NoError(t, err)
 
 	var seen *pluginserver.CommandContext
-	server.Dispatcher().Register("test ctx", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register("test ctx", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		seen = ctx
 		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "test ctx")
+	}, "test ctx"); err != nil {
+		t.Fatal(err)
+	}
 
 	d := serverDispatcher(server, "web")
 

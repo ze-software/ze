@@ -77,7 +77,9 @@ func TestUnitVIDBoundIsTheModels(t *testing.T) {
 			require.NotEmpty(t, defs, "the model declares no argument for %q", c.path)
 
 			d := pluginserver.NewDispatcher()
-			d.RegisterWithOptions(c.path, c.handler, "under test", pluginserver.RegisterOptions{ArgDefs: defs})
+			if err := d.RegisterWithOptions(c.path, c.handler, "under test", pluginserver.RegisterOptions{ArgDefs: defs}); err != nil {
+				t.Fatal(err)
+			}
 
 			resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, c.input)
 			require.NotNil(t, resp)

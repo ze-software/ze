@@ -315,9 +315,11 @@ func TestInfraSetupReentryReusesNoBGPBootBundle(t *testing.T) {
 		"an in-flight STOP must reach the still-open accountant that emitted START")
 
 	const command = "test boot owned aaa"
-	dispatcher.Register(command, func(*pluginserver.CommandContext, []string) (*plugin.Response, error) {
+	if err := dispatcher.Register(command, func(*pluginserver.CommandContext, []string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, command)
+	}, command); err != nil {
+		t.Fatal(err)
+	}
 	response, err := dispatcher.Dispatch(&pluginserver.CommandContext{
 		Username:   "alice",
 		RemoteAddr: "198.51.100.8:2200",
@@ -493,10 +495,11 @@ func postStartDispatcherForTest(t *testing.T, boot *aaa.Bundle) *pluginserver.Di
 }
 
 // registerPostStartCommand registers one always-succeeding command.
-func registerPostStartCommand(d *pluginserver.Dispatcher, name string) {
-	d.Register(name, func(*pluginserver.CommandContext, []string) (*plugin.Response, error) {
+func registerPostStartCommand(t *testing.T, d *pluginserver.Dispatcher, name string) {
+	t.Helper()
+	require.NoError(t, d.Register(name, func(*pluginserver.CommandContext, []string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, name)
+	}, name))
 }
 
 // VALIDATES: the post-start dispatcher authorizes against the AAA bundle
@@ -523,7 +526,7 @@ func TestPostStartDispatcherAuthorizesAgainstTheInstalledBundle(t *testing.T) {
 	dispatcher := postStartDispatcherForTest(t, boot)
 
 	const command = "test dispatcher authorization"
-	registerPostStartCommand(dispatcher, command)
+	registerPostStartCommand(t, dispatcher, command)
 	ctx := &pluginserver.CommandContext{Username: "alice", RemoteAddr: "198.51.100.8:2200"}
 
 	allowed, err := dispatcher.Dispatch(ctx, command)
@@ -572,7 +575,7 @@ func TestPostStartDispatcherAccountsToTheInstalledBundle(t *testing.T) {
 	dispatcher := postStartDispatcherForTest(t, boot)
 
 	const command = "test dispatcher accounting"
-	registerPostStartCommand(dispatcher, command)
+	registerPostStartCommand(t, dispatcher, command)
 	ctx := &pluginserver.CommandContext{Username: "alice", RemoteAddr: "198.51.100.8:2200"}
 
 	first, err := dispatcher.Dispatch(ctx, command)
@@ -664,7 +667,7 @@ func TestPostStartDispatcherDeniesWhenTheAAABootBuildFailed(t *testing.T) {
 	r.postStart()
 
 	const command = "test denied without aaa"
-	registerPostStartCommand(dispatcher, command)
+	registerPostStartCommand(t, dispatcher, command)
 	refused, err := dispatcher.Dispatch(&pluginserver.CommandContext{
 		Username:   "alice",
 		RemoteAddr: "198.51.100.8:2200",
@@ -693,7 +696,7 @@ func TestPostStartDispatcherAccountsAfterAReloadAddsAnAccountant(t *testing.T) {
 	dispatcher := postStartDispatcherForTest(t, boot)
 
 	const command = "test accounting added by reload"
-	registerPostStartCommand(dispatcher, command)
+	registerPostStartCommand(t, dispatcher, command)
 	ctx := &pluginserver.CommandContext{Username: "alice", RemoteAddr: "198.51.100.8:2200"}
 
 	first, err := dispatcher.Dispatch(ctx, command)

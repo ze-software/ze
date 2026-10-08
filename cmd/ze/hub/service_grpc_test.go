@@ -118,9 +118,11 @@ system {
 	originalBuild := grpcBuild
 	t.Cleanup(func() { grpcBuild = originalBuild })
 	grpcBuild = func(in *apiBuildInputs, shared *apiShared) (apiServerHandle, error) {
-		in.Server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		if err := in.Server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
-		}, command)
+		}, command); err != nil {
+			t.Fatal(err)
+		}
 		handle, buildErr := grpcBuildImpl(in, shared)
 		started <- bootServer{
 			handle:   handle,

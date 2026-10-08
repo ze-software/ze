@@ -54,3 +54,28 @@ func TestYANGPathsAreUnique(t *testing.T) {
 		pathToWire[path] = reg.WireMethod
 	}
 }
+
+// TestNoOwnerHoldsAnotherOwnersName runs the startup collision check over the
+// whole linked set, builtins included, and expects it to find nothing.
+//
+// VALIDATES: AC-12 over the real population. No wire method is carried by two
+// linked builtins, and NewServer, which refuses a duplicated wire method or a
+// command name two owners reach, builds a server with every component linked.
+// PREVENTS: a collision introduced by a new component reaching a daemon that
+// would then refuse to start; this test names it first.
+func TestNoOwnerHoldsAnotherOwnersName(t *testing.T) {
+	seen := make(map[string]bool)
+	for _, reg := range pluginserver.AllBuiltinRPCs() {
+		if seen[reg.WireMethod] {
+			t.Errorf("wire method %s is registered by two linked builtins", reg.WireMethod)
+		}
+		seen[reg.WireMethod] = true
+	}
+	if len(seen) == 0 {
+		t.Fatal("no builtin RPC is linked: the check would pass vacuously")
+	}
+
+	if _, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil); err != nil {
+		t.Fatalf("NewServer with every component linked: %v", err)
+	}
+}

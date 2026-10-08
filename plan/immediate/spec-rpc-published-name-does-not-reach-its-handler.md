@@ -210,6 +210,9 @@ spec edits the other's files" is `ze-bgp-cmd-peer-api.yang`, which this spec
 removes after moving its two unique facts.
 
 -> Decision (owner, 2026-10-08): this spec runs next. It absorbs the 117 published methods with no handler found by the command-contract gate (949091e15a), and removes ze-bgp-cmd-peer-api.yang after moving its two unique facts (peer-save's rpc declaration under ze-bgp, and the session input leaf of session-peer-ready) into their final form under this spec's design.
+-> Decision (owner, 2026-10-08), Q3: the `ze:command` node carries an explicit pointer to its rpc in the `-api` module, and the rpc names no method. `WireModule` is deleted, and an `-api` module whose rpcs are all dead is deleted.
+-> Decision (owner, 2026-10-08), Q4: the owner of a wire prefix is derived from where the registering handler's package lives. There is no central table.
+-> Decision (owner, 2026-10-08), Q5: each of the 15 unmatched published methods is repointed to the method that already answers it, and deleted only if none does.
 
 ## Required Reading
 
@@ -396,10 +399,10 @@ removes after moving its two unique facts.
 | `TestOrphanLocalHandlerFailsTheGate` | `internal/le/doc/yangcontract/contract_test.go` | `contractSatisfied` reads all three sets | |
 | `TestRPCDocsCarryParameters` | `internal/component/config/yang/cli/tree_test.go` | The parameter join finds the metadata | |
 | `TestPluginIPCMethodsKeepTheirSpelling` | `internal/core/ipc/yang/method_test.go` | The 22 IPC methods are unchanged | |
-| `TestDispatcherRefusesADuplicateName` | `internal/component/plugin/server/command_test.go` | A second builtin is refused rather than overwriting | |
-| `TestCommandRegistryRefusesOnEachGround` | `internal/component/plugin/server/command_registry_test.go` | The three existing refusals cannot regress | |
-| `TestNoOwnerHoldsAnotherOwnersName` | `internal/component/plugin/server/all_import_test.go` | No collision across the whole linked set | |
-| `TestEverySubsystemDeclaresUnderItsOwnPrefix` | `internal/le/doc/yangcontract/published_test.go` | A prefix cannot be spelled by a subsystem that does not own it | |
+| `TestDispatcherRefusesADuplicateName` | `internal/component/plugin/server/command_test.go` | A second builtin is refused rather than overwriting | green (phase 5); red with the refusal removed |
+| `TestCommandRegistryRefusesOnEachGround` | `internal/component/plugin/server/command_registry_test.go` | The three existing refusals cannot regress | green (phase 5); builtin and held subtests red with those two checks removed |
+| `TestNoOwnerHoldsAnotherOwnersName` | `internal/component/plugin/server/all_import_test.go` | No collision across the whole linked set | green (phase 5): zero collisions in the linked set |
+| `TestEverySubsystemDeclaresUnderItsOwnPrefix` | `internal/le/doc/yangcontract/published_test.go` | A prefix cannot be spelled by a subsystem that does not own it | not written: needs the Q4 derivation (prefix owner from the handler's package) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -516,6 +519,7 @@ removes after moving its two unique facts.
    - Tests: `TestDispatcherRefusesADuplicateName`, `TestCommandRegistryRefusesOnEachGround`, `TestNoOwnerHoldsAnotherOwnersName`, `TestEverySubsystemDeclaresUnderItsOwnPrefix`
    - Files: `internal/component/plugin/server/command.go`, `internal/component/plugin/server/command_registry.go`, `internal/le/doc/yangcontract/contract.go`
    - Verify: the collision check runs first as a test and reports zero, which is what the tree holds today; then `Dispatcher.Register` gains its refusal, and the startup check refuses to serve on a collision
+   - Status (2026-10-08): the refusals landed. `Dispatcher.Register` and `RegisterWithOptions` return `ErrCommandHeld` naming the holder (a builtin's holder is its wire method). `loadBuiltinsWithAliases` refuses a wire method two builtins carry (`ErrWireMethodHeld`) and a name two owners reach. `NewServer` returns either refusal, and a refused wire-method registration, instead of logging. `newSurface` in `internal/le/cli/dispatch/resolver.go` returns the first refusal. Tests added: `TestDispatcherRefusesADuplicateName`, `TestLoadBuiltinsRefusesADuplicateWireMethod`, `TestLoadBuiltinsRefusesTwoOwnersOnOnePath`, `TestNewServerRefusesABuiltinCollision` (`command_test.go`), `TestCommandRegistryRefusesOnEachGround`, `TestNoOwnerHoldsAnotherOwnersName`. Open: the prefix derivation in `internal/le/doc/yangcontract/contract.go` and `TestEverySubsystemDeclaresUnderItsOwnPrefix`, which follow the Q4 decision
 6. **Phase: Move each subsystem to its own prefix** -- one subsystem for each commit
    - Tests: the gate from phase 1 stays green after each commit
    - Files: the `-cmd` modules of one subsystem, and the handler literals beside them

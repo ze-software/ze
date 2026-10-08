@@ -64,10 +64,12 @@ func TestDispatcherQuotedArgumentsReachPolicyAndAccounting(t *testing.T) {
 	authorizer := &captureCommandArgsAuthorizer{allow: true}
 	d.SetAuthorizer(authorizer)
 	var handled []string
-	d.Register("request target echo", func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("request target echo", func(_ *CommandContext, args []string) (*plugin.Response, error) {
 		handled = slices.Clone(args)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, "")
+	}, ""); err != nil {
+		t.Fatal(err)
+	}
 	_, err := d.Dispatch(&CommandContext{Username: "alice"}, `request target echo "two words"`)
 	if err != nil {
 		t.Fatal(err)
@@ -87,10 +89,12 @@ func TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution(t *testing
 	accountant := &typedAccountingCapture{}
 	d.SetAccountingHook(accountant)
 	var handled []string
-	d.Register("set", func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("set", func(_ *CommandContext, args []string) (*plugin.Response, error) {
 		handled = slices.Clone(args)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, "")
+	}, ""); err != nil {
+		t.Fatal(err)
+	}
 	_, err := d.Dispatch(&CommandContext{Username: "alice"}, `set system authentication tacacs server 192.0.2.1 key "private value"`)
 	if err != nil {
 		t.Fatal(err)

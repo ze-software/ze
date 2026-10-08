@@ -237,7 +237,9 @@ func TestMigrateCommandReachesTheDaemonHandler(t *testing.T) {
 	// extractArgDefs (internal/component/config/yang) finds no leaf on the
 	// command node and the tokens pass through to the handler.
 	d := pluginserver.NewDispatcher()
-	d.RegisterWithOptions("request interface migrate", handler, "under test", pluginserver.RegisterOptions{})
+	if err := d.RegisterWithOptions("request interface migrate", handler, "under test", pluginserver.RegisterOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	resp, err := d.Dispatch(&pluginserver.CommandContext{}, "request interface migrate "+req.arguments())
 	require.NoError(t, err)

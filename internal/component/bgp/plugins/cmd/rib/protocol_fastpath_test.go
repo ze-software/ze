@@ -118,7 +118,9 @@ func TestProtocolAndFastpathDispatchTheDeclaredValues(t *testing.T) {
 			}
 
 			d := pluginserver.NewDispatcher()
-			d.RegisterWithOptions(c.path, handler, "under test", pluginserver.RegisterOptions{ArgDefs: defs})
+			if err := d.RegisterWithOptions(c.path, handler, "under test", pluginserver.RegisterOptions{ArgDefs: defs}); err != nil {
+				t.Fatal(err)
+			}
 
 			resp, err := d.Dispatch(&pluginserver.CommandContext{}, c.input)
 			if c.wantErr != "" {

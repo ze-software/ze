@@ -102,8 +102,10 @@ func TestSessionPingAnswersTheDeclaredOutputLeaves(t *testing.T) {
 	require.NotEmpty(t, leaves, "session-ping declares no output leaf")
 
 	dispatcher := pluginserver.NewDispatcher()
-	pluginserver.LoadBuiltins(dispatcher, yang.WireMethodToPath(loader),
-		yang.PathToDescription(loader), yang.PathToHelp(loader), yang.PathToArgDefs(loader))
+	if err := pluginserver.LoadBuiltins(dispatcher, yang.WireMethodToPath(loader),
+		yang.PathToDescription(loader), yang.PathToHelp(loader), yang.PathToArgDefs(loader)); err != nil {
+		t.Fatal(err)
+	}
 
 	resp, err := dispatcher.Dispatch(&pluginserver.CommandContext{}, "plugin session ping")
 	require.NoError(t, err)

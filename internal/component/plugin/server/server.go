@@ -260,9 +260,13 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 	pathToArgDefs := yang.PathToArgDefs(loader)
 
 	// Register core handlers (text dispatcher for plugin protocol),
-	// including all YANG command aliases.
+	// including all YANG command aliases. Two builtins holding one command
+	// name or one wire method is a collision, and the server refuses to serve
+	// rather than let the later init() win in silence.
 	cmdTree := yang.BuildCommandTree(loader)
-	loadBuiltinsWithAliases(s.dispatcher, wireToPaths, pathToDesc, pathToHelp, pathToArgDefs, cmdTree)
+	if err := loadBuiltinsWithAliases(s.dispatcher, AllBuiltinRPCs(), wireToPaths, pathToDesc, pathToHelp, pathToArgDefs, cmdTree); err != nil {
+		return nil, fmt.Errorf("builtin commands: %w", err)
+	}
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {
@@ -274,7 +278,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 			continue // Skip RPCs without YANG path (no authz possible)
 		}
 		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, cliPath, IsReadOnlyPath(cliPath))); err != nil {
-			logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
+			return nil, fmt.Errorf("builtin wire methods: %w", err)
 		}
 	}
 
