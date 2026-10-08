@@ -2,6 +2,20 @@
 
 52 shipped or experimental feature cards. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
+## Built for demanding operators.
+
+Ze starts with a configuration and protocol engine. The shipped network operating system adds BGP, interface management, FIB programming, plugins, operator tools, a minimal appliance runtime, and diagnostics as one product.
+
+### Policy Routing
+
+*services* -- `nftables` `PBR`
+
+- **L3/L4 match** criteria
+- Table steering, **next-hop** actions
+- TCP-MSS clamping, **interface** wildcards
+
+[Learn more](https://ze-software.net/guides/policy-routing/)
+
 ## Experimental and growing.
 
 Implemented and tested, still waiting for production evidence.
@@ -388,16 +402,6 @@ Implemented and tested, still waiting for production evidence.
 - FlowSpec-to-firewall **bridge**
 
 [Learn more](https://ze-software.net/guides/firewall/)
-
-### Policy Routing
-
-*services / Experimental* -- `nftables` `PBR`
-
-- **L3/L4 match** criteria
-- Table steering, **next-hop** actions
-- TCP-MSS clamping, **interface** wildcards
-
-[Learn more](https://ze-software.net/guides/policy-routing/)
 
 ### VPP Data Plane
 
