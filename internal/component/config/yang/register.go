@@ -6,8 +6,15 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/callsite"
 )
+
+// The local-data route (command.ServeLocal) judges a command's arguments
+// against the leaves this model declares, and reads them from here.
+func init() {
+	command.RegisterArgDefSource(commandArgDefs)
+}
 
 // Module holds a YANG module registered via init().
 type Module struct {

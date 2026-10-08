@@ -188,7 +188,7 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 			input: "show policy test peer receiver-peer export filter STRIP update 0xffff",
 			// The whole tail reaches the handler, selector included, because
 			// parsePolicyTestArgs reads it itself. The declared leaves exist so
-			// validateCommandArgs can PLACE each token, not so it can consume
+			// command.ValidateArgs can PLACE each token, not so it can consume
 			// them: what matters is that `export` is placed on the direction
 			// enum rather than offered to the filter string.
 			args: []string{"receiver-peer", "export", "filter", "STRIP", "update", "0xffff"},
@@ -509,10 +509,10 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 //
 // VALIDATES: R-5 for the four rendering rules. A modifier group's leaves live
 // on a CHILD node, so the command node's own argument definitions do not grow
-// and validateCommandArgs (command.go) neither consumes nor refuses a token it
+// and command.ValidateArgs (command.go) neither consumes nor refuses a token it
 // used to pass through.
 // PREVENTS: the failure a LEAF would have caused instead. Phase 1 of
-// validateCommandArgs demands a value after every declared leaf name it meets,
+// command.ValidateArgs demands a value after every declared leaf name it meets,
 // so a `withdraw` leaf turns the shipped `debug ip ospf inject opaque ...
 // withdraw` into "withdraw requires a value"; and an optional `type` leaf
 // leaves unmatchedDefCount above zero, so the first token no definition accepts
@@ -750,7 +750,7 @@ func TestDeclaredASNLeafTakesTheFullWidth(t *testing.T) {
 // VALIDATES: ze:inherit "none" keeps the container's leaf out of the command's
 // argument definitions, so the bare invocation still reaches its handler.
 // PREVENTS: the failure the inheritance causes without it. `selector` is
-// mandatory, so Phase 3 of validateCommandArgs (command.go) answers "required
+// mandatory, so Phase 3 of command.ValidateArgs (command.go) answers "required
 // argument missing: selector" for `show bgp peer list`, which every .ci under
 // test/ui runs and which cmd/ze prints as its own usage example.
 func TestCommandsThatTakeNoInheritedValueKeepTheirBareForm(t *testing.T) {

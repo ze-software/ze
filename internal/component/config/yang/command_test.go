@@ -1103,9 +1103,129 @@ module test-pattern-cmd {
 	def := ping.ArgDefs[0]
 	assert.Equal(t, "timeout", def.Name)
 	assert.Equal(t, command.ArgString, def.Kind)
-	require.NotNil(t, def.Pattern)
-	assert.True(t, def.Pattern.MatchString("30s"))
-	assert.False(t, def.Pattern.MatchString("abc"))
+	require.Len(t, def.Patterns, 1)
+	assert.True(t, def.Patterns[0].MatchString("30s"))
+	assert.False(t, def.Patterns[0].MatchString("abc"))
+}
+
+// TestArgDefCarriesLengthAndEveryPattern: a string leaf's YANG length, and
+// every pattern of its typedef chain, reach the argument definition, so the
+// command validator refuses what the module refuses. Method: a typedef with a
+// disjoint length and a pattern, a leaf deriving from it with a tighter
+// length and a second pattern, and a union member with its own length; each
+// definition is then judged by command.ValidateArgString.
+//
+// VALIDATES: RFC 7950 Sections 9.4.4 and 9.4.5 on command arguments.
+// PREVENTS: a length or an inherited pattern that constrains nothing.
+func TestArgDefCarriesLengthAndEveryPattern(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	yangText := `
+module test-length-cmd {
+    namespace "urn:test:length:cmd";
+    prefix tlc;
+    import ze-extensions { prefix ze; }
+
+    typedef label {
+        type string {
+            length "1..4 | 8..12";
+            pattern '[a-z|]+';
+        }
+    }
+
+    container show {
+        config false;
+        container probe {
+            config false;
+            ze:command "ze-probe:show-probe";
+            ze:help "Probe";
+            leaf name {
+                type label {
+                    length "2..4 | 8..10";
+                    pattern '[a-y|]+';
+                }
+                ze:help "Name";
+            }
+            leaf target {
+                type union {
+                    type uint8;
+                    type string { length "3"; }
+                }
+                ze:help "Target";
+            }
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("test-length-cmd.yang", yangText))
+	require.NoError(t, loader.Resolve())
+
+	probe := BuildCommandTree(loader).Children["show"].Children["probe"]
+	require.NotNil(t, probe)
+	require.Len(t, probe.ArgDefs, 2)
+	name, target := &probe.ArgDefs[0], &probe.ArgDefs[1]
+	require.Equal(t, "name", name.Name)
+	require.Equal(t, "target", target.Name)
+
+	for _, ok := range []string{"ab", "abcd", "abcdefgh", "abcdefghij"} {
+		assert.NoError(t, command.ValidateArgString(ok, name), "in-bounds %q", ok)
+	}
+	for _, bad := range []string{"a", "abcde", "abcdefghijk", "abz", "AB"} {
+		assert.Error(t, command.ValidateArgString(bad, name), "out-of-bounds %q", bad)
+	}
+	// The XSD pattern is the whole value, so an alternation inside it is not
+	// an anchor escape: "|" is a literal inside the class, and the value
+	// "ab|" matches both patterns.
+	assert.NoError(t, command.ValidateArgString("ab|", name))
+
+	assert.NoError(t, command.ValidateArgString("7", target))
+	assert.NoError(t, command.ValidateArgString("abc", target))
+	assert.Error(t, command.ValidateArgString("abcd", target))
+}
+
+// TestArgDefPatternAlternationIsWholeValue: a pattern whose alternation is
+// not wrapped by the author still anchors to the whole value, as XSD reads
+// it. The old translation wrote `^a|b$`, which matches any value that starts
+// with "a" or ends with "b".
+//
+// VALIDATES: RFC 7950 Section 9.4.5 pattern restricts the value as a whole.
+// PREVENTS: an alternation that admits a value either branch only touches.
+func TestArgDefPatternAlternationIsWholeValue(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	yangText := `
+module test-alt-cmd {
+    namespace "urn:test:alt:cmd";
+    prefix tac;
+    import ze-extensions { prefix ze; }
+
+    container show {
+        config false;
+        container alt {
+            config false;
+            ze:command "ze-alt:show-alt";
+            ze:help "Alt";
+            leaf mode {
+                type string { pattern 'up|down'; }
+                ze:help "Mode";
+            }
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("test-alt-cmd.yang", yangText))
+	require.NoError(t, loader.Resolve())
+
+	alt := BuildCommandTree(loader).Children["show"].Children["alt"]
+	require.NotNil(t, alt)
+	require.Len(t, alt.ArgDefs, 1)
+	def := &alt.ArgDefs[0]
+	assert.NoError(t, command.ValidateArgString("up", def))
+	assert.NoError(t, command.ValidateArgString("down", def))
+	assert.Error(t, command.ValidateArgString("upwards", def))
+	assert.Error(t, command.ValidateArgString("touchdown", def))
 }
 
 // TestArgDefsPopulated verifies that all commands with typed arguments have

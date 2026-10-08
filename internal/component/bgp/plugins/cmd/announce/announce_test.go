@@ -521,6 +521,19 @@ func TestParseTrailingOptsTagAtMaxLen(t *testing.T) {
 	assert.Equal(t, maxKey, opts.tagKey)
 }
 
+// TestParseTrailingOptsTagBoundIsTheYANGBound: the Go bound on a tag half is
+// the 64 characters ze-cli-announce-cmd.yang declares, counted as characters.
+// It once read 128 while the YANG said 64.
+//
+// VALIDATES: the handler bound agrees with the YANG length on the tag leaves.
+// PREVENTS: two declarations of one bound drifting apart.
+func TestParseTrailingOptsTagBoundIsTheYANGBound(t *testing.T) {
+	_, err := parseTrailingOpts([]string{"tag", strings.Repeat("x", 65), "v"})
+	assert.ErrorIs(t, err, errTagTooLong)
+	_, err = parseTrailingOpts([]string{"tag", strings.Repeat("\u00e9", 64), "v"})
+	assert.NoError(t, err, "64 two-byte characters are 64 characters")
+}
+
 func TestParseTrailingOptsDurationMissing(t *testing.T) {
 	_, err := parseTrailingOpts([]string{"for"})
 	assert.Error(t, err)

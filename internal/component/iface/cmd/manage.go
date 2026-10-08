@@ -123,7 +123,7 @@ func handleAddrDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 //
 // The bound, 1 to 4094, is stated ONCE, by the `vid` leaf of ze-iface-cmd.yang
 // and of the two rpcs in ze-iface-api.yang, and the dispatcher refuses a value
-// outside it before the handler runs (validateCommandArgs,
+// outside it before the handler runs (command.ValidateArgs,
 // internal/component/plugin/server/command.go). Dispatch is the one path that
 // hands a handler its args, so no second range check lives here: the parse
 // only normalizes the spelling, so that "0100" and "100" both name <name>.100.

@@ -304,7 +304,10 @@ func TestTheTranscriptRecordsWhatTheOperatorSaw(t *testing.T) {
 // VALIDATES: Command tree has expected commands and hierarchy.
 // PREVENTS: Typos in command names or broken hierarchy.
 func TestCommandTree(t *testing.T) {
-	tree := BuildCommandTree(false)
+	tree, err := BuildCommandTree(false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Check top-level commands exist. `send` joined them on 2026-09-05.
 	// announce, withdraw, raw and update left the root `peer` container for
@@ -538,7 +541,10 @@ func TestBuildRuntimeTree_FallbackToStatic(t *testing.T) {
 	// Client with invalid credentials — the transport will fail
 	client := newCLIClient(sshclient.Credentials{})
 
-	tree := buildRuntimeTree(client)
+	tree, err := buildRuntimeTree(client)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tree == nil {
 		t.Fatal("buildRuntimeTree returned nil")
 		return
@@ -734,7 +740,10 @@ func TestHistoryDedup(t *testing.T) {
 // VALIDATES: AC-9 — BuildCommandTree wires family ValueHints to show bgp rib node.
 // PREVENTS: missing family completions in both CLI and shell.
 func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
-	tree := BuildCommandTree(false)
+	tree, err := BuildCommandTree(false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	show := tree.Children["show"]
 	if show == nil || show.Children["bgp"] == nil || show.Children["bgp"].Children["rib"] == nil {
@@ -769,7 +778,10 @@ func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 // VALIDATES: log set node has level ArgDef with enum values for completion.
 // PREVENTS: missing log level completions after YANG migration.
 func TestBuildCommandTreeLogLevelArgDefs(t *testing.T) {
-	tree := BuildCommandTree(false)
+	tree, err := BuildCommandTree(false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	reqNode := tree.Children["request"]
 	if reqNode == nil {
@@ -806,7 +818,10 @@ func TestBuildCommandTreeLogLevelArgDefs(t *testing.T) {
 // VALIDATES: AC-1 — show env get and show env registered nodes get env-key ValueHints.
 // PREVENTS: env-key completion missing from operational CLI and shell show path.
 func TestBuildCommandTreeEnvValueHints(t *testing.T) {
-	tree := BuildCommandTree(false)
+	tree, err := BuildCommandTree(false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	show := tree.Children["show"]
 	if show == nil {
@@ -852,7 +867,10 @@ func TestBuildCommandTreeEnvValueHints(t *testing.T) {
 // VALIDATES: AC-7 — env ValueHints never include Private entries.
 // PREVENTS: private env vars leaking through completion.
 func TestBuildCommandTreeEnvHintsExcludePrivate(t *testing.T) {
-	tree := BuildCommandTree(false)
+	tree, err := BuildCommandTree(false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	show := tree.Children["show"]
 	if show == nil || show.Children["env"] == nil || show.Children["env"].Children["get"] == nil {
 		t.Fatal("show env get node not available in command tree")
@@ -925,7 +943,10 @@ func rawOnlyJSONClient(jsonAnswer string) (*cliClient, *[]string) {
 func TestBuildRuntimeTreeAsksForTheDispatcherJSON(t *testing.T) {
 	client, sent := rawOnlyJSONClient(`{"commands":[{"value":"zz-runtime-only","short-help":"proves the runtime answer was parsed"}]}`)
 
-	tree := buildRuntimeTree(client)
+	tree, err := buildRuntimeTree(client)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tree == nil {
 		t.Fatal("buildRuntimeTree returned nil")
 	}

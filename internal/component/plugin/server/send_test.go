@@ -186,7 +186,10 @@ var declaredArgumentPaths = []struct {
 // PREVENTS: the tail grammar living only in a handler's doc comment, where
 // completion, the generated help and the command catalog cannot reach it.
 func TestSendArgumentsAreDeclared(t *testing.T) {
-	tree := cliclient.YANGCommandTree()
+	tree, err := cliclient.YANGCommandTree()
+	if err != nil {
+		t.Fatal(err)
+	}
 	require.NotNil(t, tree)
 
 	for _, want := range declaredArgumentPaths {
@@ -212,7 +215,7 @@ func TestSendArgumentsAreDeclared(t *testing.T) {
 		// The same bad encoding with a route expression behind it. The
 		// dispatcher leaves more tokens over than it leaves definitions open.
 		// It cannot say which token was typed for which leaf, so it names the
-		// declaration instead (validateCommandArgs). The refusal is still the
+		// declaration instead (command.ValidateArgs). The refusal is still the
 		// model's, and the handler still does not run.
 		{command: "send bgp 192.0.2.1 update json nlri ipv4/unicast add 10.0.0.0/24", says: "required argument missing: encoding"},
 	}
@@ -336,7 +339,10 @@ var movedSendPaths = []struct {
 // PREVENTS: the old spelling surviving as an alias, which no gate would report
 // and which every migrated sender would then hide.
 func TestOldSendPathsMatchNothing(t *testing.T) {
-	tree := cliclient.YANGCommandTree()
+	tree, err := cliclient.YANGCommandTree()
+	if err != nil {
+		t.Fatal(err)
+	}
 	require.NotNil(t, tree)
 
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)

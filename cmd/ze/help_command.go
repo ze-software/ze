@@ -87,7 +87,10 @@ type commandAlias struct {
 // lookup reads a plugin's registration for a command this process never ran
 // (internal/component/command, DeclaredForCommand), which is what lets this
 // catalog and the wiki producer agree by derivation rather than by comparison.
-func operatorsFor(cliPath string, declared command.Declared) ([]commandOperator, string) {
+//
+// wireToPaths is cli.WireToPaths, fetched once by the caller, which reports its
+// error: it is what tells a daemon handler from a plain local shortcut.
+func operatorsFor(cliPath string, declared command.Declared, wireToPaths map[string][]string) ([]commandOperator, string) {
 	// A command the CLIENT serves in its own process reaches the pipe layer
 	// only if it answers with DATA. A plain local handler suppresses operators
 	// only when the path has no daemon handler: a daemon surface reaches that
@@ -96,7 +99,7 @@ func operatorsFor(cliPath string, declared command.Declared) ([]commandOperator,
 	// `show data cat` has no daemon handler and answers the bytes of one stored
 	// file deliberately. `show version` is the opposite case: its local
 	// shortcut prints, while its separately registered daemon handler pipes.
-	if pathHasOnlyPlainLocalHandler(cliPath) {
+	if pathHasOnlyPlainLocalHandler(cliPath, wireToPaths) {
 		return nil, ""
 	}
 
@@ -149,14 +152,14 @@ func operatorsFor(cliPath string, declared command.Declared) ([]commandOperator,
 
 // pathHasOnlyPlainLocalHandler answers whether no surface for the path reaches
 // the pipe layer.
-func pathHasOnlyPlainLocalHandler(cliPath string) bool {
+func pathHasOnlyPlainLocalHandler(cliPath string, wireToPaths map[string][]string) bool {
 	if !registry.HasLocal(cliPath) {
 		return false
 	}
 	if command.HasLocalData(cliPath) {
 		return false
 	}
-	if daemonHandlesPath(cliPath) {
+	if daemonHandlesPath(cliPath, wireToPaths) {
 		return false
 	}
 	return true
@@ -164,9 +167,9 @@ func pathHasOnlyPlainLocalHandler(cliPath string) bool {
 
 // daemonHandlesPath answers whether the daemon registers a non-nil handler for
 // this exact YANG path. The local and daemon surfaces are independent, so a
-// plain local shortcut must not hide a reachable daemon handler.
-func daemonHandlesPath(cliPath string) bool {
-	wireToPaths := cli.WireToPaths()
+// plain local shortcut must not hide a reachable daemon handler. wireToPaths
+// is cli.WireToPaths.
+func daemonHandlesPath(cliPath string, wireToPaths map[string][]string) bool {
 	for _, registration := range pluginserver.AllBuiltinRPCs() {
 		if registration.Handler == nil {
 			continue
@@ -298,7 +301,12 @@ func renderHelpCommand(w io.Writer, args []string) int {
 	verbose := slices.Contains(args, "--verbose") || slices.Contains(args, "-v")
 	filter := extractCommandFilter(args)
 
-	entries := collectCommands()
+	entries, err := collectCommands()
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+		return 1
+	}
 
 	if filter != "" {
 		entries = filterCommands(entries, filter)
@@ -329,12 +337,20 @@ func extractCommandFilter(args []string) string {
 
 // collectCommands gathers every command from both the YANG dispatch
 // registry and the offline local command registry into a flat sorted list.
-func collectCommands() []commandEntry {
+// The error is the YANG loader's refusal of the schema: a catalog built from
+// no schema would publish the offline commands alone as the whole surface.
+func collectCommands() ([]commandEntry, error) {
 	var entries []commandEntry
 	seen := make(map[string]bool)
 
-	tree := cli.YANGCommandTree()
-	wireToPaths := cli.WireToPaths()
+	tree, err := cli.YANGCommandTree()
+	if err != nil {
+		return nil, err
+	}
+	wireToPaths, err := cli.WireToPaths()
+	if err != nil {
+		return nil, err
+	}
 
 	for wireMethod, cliPaths := range wireToPaths {
 		for _, cliPath := range cliPaths {
@@ -358,7 +374,7 @@ func collectCommands() []commandEntry {
 				WireMethod:  wireMethod,
 			}
 			declared := command.DeclaredForCommand(cliPath)
-			e.Operators, e.AnswerShape = operatorsFor(cliPath, declared)
+			e.Operators, e.AnswerShape = operatorsFor(cliPath, declared, wireToPaths)
 			e.AddressFields = declared.AddressFields
 			e.ColumnOrders = command.ColumnNames(declared.Columns)
 			e.Aliases = aliasesFor(declared)
@@ -395,13 +411,13 @@ func collectCommands() []commandEntry {
 		seen[lc.Path] = true
 	}
 
-	entries = appendPluginCommands(entries, seen, tree)
+	entries = appendPluginCommands(entries, seen, tree, wireToPaths)
 
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Path < entries[j].Path
 	})
 
-	return entries
+	return entries, nil
 }
 
 // appendPluginCommands adds every command a plugin declares on its
@@ -429,7 +445,7 @@ func collectCommands() []commandEntry {
 // a token list built from that text would state kinds nobody declared; the four
 // main-package builtins and every offline local command publish neither field
 // for the same reason.
-func appendPluginCommands(entries []commandEntry, seen map[string]bool, tree *command.Node) []commandEntry {
+func appendPluginCommands(entries []commandEntry, seen map[string]bool, tree *command.Node, wireToPaths map[string][]string) []commandEntry {
 	for _, registration := range pluginregistry.All() {
 		for index := range registration.Commands {
 			decl := &registration.Commands[index]
@@ -463,7 +479,7 @@ func appendPluginCommands(entries []commandEntry, seen map[string]bool, tree *co
 				}
 			}
 			declared := command.DeclaredForCommand(decl.Name)
-			e.Operators, e.AnswerShape = operatorsFor(decl.Name, declared)
+			e.Operators, e.AnswerShape = operatorsFor(decl.Name, declared, wireToPaths)
 			e.AddressFields = declared.AddressFields
 			e.ColumnOrders = command.ColumnNames(declared.Columns)
 			e.Aliases = aliasesFor(declared)

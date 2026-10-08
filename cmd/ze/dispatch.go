@@ -44,8 +44,9 @@ var binaryDispatch func(args []string) int
 
 // binaryUsage, when non-nil, replaces the default usage printer with a
 // personality-specific one (e.g., ze's full help page with YANG verbs and
-// options sections).
-var binaryUsage func()
+// options sections). Its error is a page that could not be built, such as a
+// refused YANG command schema.
+var binaryUsage func() error
 
 func flushCrashlog() {
 	crashlog.Flush()
@@ -55,12 +56,19 @@ func isHelpArg(s string) bool {
 	return s == "help" || s == "-h" || s == "--help" //nolint:goconst // consistent pattern across cmd files
 }
 
-func printUsage() {
-	if binaryUsage != nil {
-		binaryUsage()
-		return
+// printUsage prints the usage page and answers code, the exit code the caller
+// chose. A page that cannot be built answers 1 with its error on stderr.
+func printUsage(code int) int {
+	if binaryUsage == nil {
+		defaultUsage()
+		return code
 	}
-	defaultUsage()
+	if err := binaryUsage(); err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+		return 1
+	}
+	return code
 }
 
 func defaultUsage() {
@@ -100,14 +108,12 @@ func defaultDispatch(args []string) int {
 	}
 
 	if len(args) == 0 {
-		printUsage()
-		return 1
+		return printUsage(1)
 	}
 
 	arg := args[0]
 	if isHelpArg(arg) {
-		printUsage()
-		return 0
+		return printUsage(0)
 	}
 
 	if handler := registry.LookupRoot(arg); handler != nil {
@@ -115,8 +121,7 @@ func defaultDispatch(args []string) int {
 	}
 
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
-	printUsage()
-	return 1
+	return printUsage(1)
 }
 
 func binaryName() string {

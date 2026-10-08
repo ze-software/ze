@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/openconfig/goyang/pkg/yang"
 
@@ -333,7 +334,9 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 
 	// Check length constraints
 	if len(yangType.Length) > 0 {
-		strLen := uint64(len(str))
+		// RFC 7950 Section 9.4.4: "A "length" statement restricts the number
+		// of Unicode characters in the string."
+		strLen := uint64(utf8.RuneCountInString(str))
 		if !v.checkYangRange(strLen, yangType.Length) {
 			return &ValidationError{
 				Path:     path,

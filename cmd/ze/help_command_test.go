@@ -11,13 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 func TestCollectCommands(t *testing.T) {
-	entries := collectCommands()
+	entries := collectCommandsForTest(t)
 	require.NotEmpty(t, entries, "collectCommands must return commands")
 
 	for _, e := range entries {
@@ -127,7 +126,7 @@ func mandatoryTail(usage string) string {
 // PREVENTS: an agent parsing angle and square brackets out of a rendered string,
 // and the two projections drifting apart.
 func TestHelpCommandJSONPublishesUsage(t *testing.T) {
-	entries := collectCommands()
+	entries := collectCommandsForTest(t)
 	require.NotEmpty(t, entries)
 
 	withWireMethod := 0
@@ -265,11 +264,11 @@ func TestCommandCatalogCarriesSummaryAndHelp(t *testing.T) {
 // It says nothing about whether a summary is short. That is the content the
 // shape gate covers (AC-14), over the whole tree rather than the catalog.
 func TestCommandCatalogDerivesNeitherHelpTextFromTheOther(t *testing.T) {
-	tree := cli.YANGCommandTree()
+	tree := yangTreeForTest(t)
 	require.NotNil(t, tree, "the YANG command tree is empty, so this test proves nothing")
 
 	checked := 0
-	for _, e := range collectCommands() {
+	for _, e := range collectCommandsForTest(t) {
 		node := findNode(tree, e.Path)
 		if node == nil {
 			continue
@@ -331,7 +330,7 @@ func TestHelpCommandReportsTheDeclaredColumnOrder(t *testing.T) {
 // drifts from the wiki producer, which is the drift compareWikiCatalogProducer
 // was written to catch after the fact.
 func TestHelpCommandDerivesEveryDeclarationFromOneReader(t *testing.T) {
-	entries := collectCommands()
+	entries := collectCommandsForTest(t)
 	require.NotEmpty(t, entries)
 
 	checked := 0

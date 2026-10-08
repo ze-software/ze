@@ -38,7 +38,7 @@ import (
 type checker struct {
 	root               string
 	unreadable         []Issue
-	wikiCatalogCollect func() []clicatalog.Entry
+	wikiCatalogCollect func() ([]clicatalog.Entry, error)
 }
 
 // noteUnreadable records a file whose scan stopped before the end.

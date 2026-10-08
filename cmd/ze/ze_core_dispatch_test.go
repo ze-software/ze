@@ -56,7 +56,10 @@ func TestRootsRegistered(t *testing.T) {
 func TestUpdateServeLocalRegistered(t *testing.T) {
 	ensureLocalCommandsRegistered()
 
-	handler, rest := registry.LookupLocal([]string{"update", "serve", "--listen", ":9999"}, cli.IsDeclaredCommand)
+	handler, rest, err := registry.LookupLocal([]string{"update", "serve", "--listen", ":9999"}, cli.IsDeclaredCommand)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if handler == nil {
 		t.Fatal("`update serve` must resolve as a local handler")
 	}

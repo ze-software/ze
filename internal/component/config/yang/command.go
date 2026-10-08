@@ -170,6 +170,32 @@ func PathToArgDefs(loader *Loader) map[string][]command.ArgDef {
 	return result
 }
 
+// modelArgDefs holds PathToArgDefs over the default model once it has been
+// built. Only a SUCCESS is kept: the shipped model is embedded and cannot
+// fail differently on a retry, but a test that registers a broken module for
+// its own duration (RegisterModuleForTest) must not leave every later caller
+// in the process refused. sync.OnceValues would keep that failure forever.
+var (
+	modelArgDefsMu sync.Mutex
+	modelArgDefs   map[string][]command.ArgDef
+)
+
+// commandArgDefs is the command.ArgDefSource the local-data route reads: the
+// argument definitions the default model declares at path, nil when it
+// declares none. Safe for concurrent use.
+func commandArgDefs(path string) ([]command.ArgDef, error) {
+	modelArgDefsMu.Lock()
+	defer modelArgDefsMu.Unlock()
+	if modelArgDefs == nil {
+		loader, err := DefaultLoader()
+		if err != nil {
+			return nil, err
+		}
+		modelArgDefs = PathToArgDefs(loader)
+	}
+	return modelArgDefs[path], nil
+}
+
 func collectArgDefs(node *command.Node, prefix string, result map[string][]command.ArgDef) {
 	if node == nil {
 		return
@@ -687,12 +713,10 @@ func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
 
 	case gyang.Ystring:
 		def.Kind = command.ArgString
-		if len(yt.Pattern) > 0 {
-			compiled, err := compileYANGPattern(yt.Pattern[0])
-			if err == nil {
-				def.Pattern = compiled
-			}
-		}
+		// goyang resolves the typedef chain: Length is the most restricted
+		// length along it, and Pattern holds every pattern of every type in it.
+		applyLength(&def, yt.Length)
+		applyPatterns(&def, yt.Pattern)
 
 	case gyang.Yunion:
 		def.Kind = command.ArgUnion
@@ -750,26 +774,48 @@ func enumNames(enum *gyang.EnumType) []string {
 // applyRange converts each YangRange segment into a UintRange on the ArgDef.
 // Supports disjoint ranges (e.g., "1..100 | 200..300").
 func applyRange(def *command.ArgDef, r gyang.YangRange) {
-	if len(r) == 0 {
-		return
-	}
-	def.Ranges = make([]command.UintRange, len(r))
-	for i, seg := range r {
-		def.Ranges[i] = command.UintRange{Min: seg.Min.Value, Max: seg.Max.Value}
-	}
+	def.Ranges = uintRanges(r)
 }
 
-// compileYANGPattern compiles an XSD-style pattern into a Go regexp, anchoring it.
-func compileYANGPattern(pattern string) (*regexp.Regexp, error) {
-	var tb textbuf.Buffer
-	if !strings.HasPrefix(pattern, "^") {
-		tb.Byte('^')
+// applyLength converts each YANG length segment into a character-count range
+// on the ArgDef. Supports disjoint lengths (e.g., "1..8 | 16..32").
+func applyLength(def *command.ArgDef, r gyang.YangRange) {
+	def.Lengths = uintRanges(r)
+}
+
+// uintRanges converts YANG range or length segments to UintRanges, nil for
+// none.
+func uintRanges(r gyang.YangRange) []command.UintRange {
+	if len(r) == 0 {
+		return nil
 	}
-	tb.Str(pattern)
-	if !strings.HasSuffix(pattern, "$") {
-		tb.Byte('$')
+	ranges := make([]command.UintRange, len(r))
+	for i, seg := range r {
+		ranges[i] = command.UintRange{Min: seg.Min.Value, Max: seg.Max.Value}
 	}
-	return regexp.Compile(tb.String())
+	return ranges
+}
+
+// applyPatterns compiles every pattern through compilePattern, the XSD
+// translation the config validator uses, so a command argument and a config
+// leaf of one type accept the same strings.
+//
+// Loader.Resolve and DefaultLoader refuse a module holding a pattern
+// compilePattern cannot compile, so a failure here means a command tree was
+// built from a loader whose resolution error was ignored. Dropping the pattern
+// would leave the argument accepting any string.
+func applyPatterns(def *command.ArgDef, patterns []string) {
+	if len(patterns) == 0 {
+		return
+	}
+	def.Patterns = make([]*regexp.Regexp, len(patterns))
+	for i, pattern := range patterns {
+		compiled, err := compilePattern(pattern)
+		if err != nil {
+			panic("BUG: command argument " + def.Name + " holds a pattern Loader.Resolve refuses: " + err.Error())
+		}
+		def.Patterns[i] = compiled
+	}
 }
 
 // GetCommandExtension reads the ze:command extension from a YANG entry.

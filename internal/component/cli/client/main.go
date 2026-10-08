@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"time"
@@ -174,7 +175,10 @@ func RunAttached(dispatch CommandFunc, ed *unicli.Editor) int {
 //
 // The console opens operational whichever model it is, so an editor changes
 // what `configure` reaches and nothing else about the first screen.
-func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed *unicli.Editor) unicli.Model {
+//
+// The error is the YANG loader's refusal of the schema: with no command tree
+// there is nothing to complete against, and the caller reports it.
+func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed *unicli.Editor) (unicli.Model, error) {
 	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
 	if ed != nil {
 		editorModel, err := unicli.NewModel(ed, unicli.FilesystemAuthorityOperatorLocal)
@@ -188,7 +192,10 @@ func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed 
 	m.SetCommandExecutor(executor)
 	m.SetStartMode(unicli.ModeOperational)
 
-	cmdTree := buildRuntimeTreeFromDispatch(dispatch)
+	cmdTree, err := buildRuntimeTreeFromDispatch(dispatch)
+	if err != nil {
+		return unicli.Model{}, err
+	}
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
 
 	injectViewFactories(&m, func() (func() (string, error), error) {
@@ -201,7 +208,7 @@ func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed 
 		}, nil
 	})
 
-	return m
+	return m, nil
 }
 
 func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
@@ -215,7 +222,12 @@ func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
 		executor = unicli.WrapExecutorWithTranscript(executor, tw)
 	}
 
-	m := newAttachedModel(dispatch, executor, ed)
+	m, err := newAttachedModel(dispatch, executor, ed)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+		return 1
+	}
 	if history != nil {
 		m.SetHistory(history)
 	}
@@ -621,52 +633,116 @@ func allCLIRPCs() []pluginserver.RPCRegistration {
 	return pluginserver.AllBuiltinRPCs()
 }
 
-// cliLoader is the shared YANG loader, built once at init.
-var cliLoader = func() *yang.Loader {
+// yangState is everything this package derives from the YANG command schema.
+// It is built once, on first use, by loadYANGState.
+type yangState struct {
+	// wireToPath maps a WireMethod to its shortest CLI dispatch path.
+	wireToPath map[string]string
+	// wireToPaths maps a WireMethod to every CLI path, aliases included.
+	wireToPaths map[string][]string
+	// cmdTree is the YANG command tree, with the verb containers (show, set,
+	// del, ...) at the top level and their descriptions from YANG modules.
+	cmdTree *Command
+	// descriptions maps a CLI path to its YANG description.
+	descriptions map[string]string
+	// argDefs maps a CLI path to its YANG argument definitions.
+	argDefs map[string][]cmd.ArgDef
+	// declared is the set of ABSOLUTE CLI paths some registered built-in
+	// declares: the population AbsoluteVerbPath scans, keyed for a direct
+	// question rather than an inverse one, so the two cannot disagree.
+	declared map[string]struct{}
+}
+
+// loadYANGState builds the YANG state on first use and caches it with its
+// error. Safe for concurrent use.
+//
+// It is built on first use, never at package init, for two reasons. A schema
+// yang.DefaultLoader refuses (an extension typo) answers a nil loader plus an
+// error, and building at init handed that nil loader to BuildCommandTree, whose
+// panic took down every binary importing this package, ze included. And every
+// ze:command registration happens in an init() of the owning package, whose
+// order across the binary is undefined, while no dispatch runs before init()
+// completes, so first use is always after the last registration.
+//
+// The error is cached with the state: every accessor returns it, so a caller
+// reports the refused schema rather than answering from an empty one. A test
+// that registers a refused module resets this variable.
+var loadYANGState = sync.OnceValues(buildYANGState)
+
+// buildYANGState loads the YANG schema and derives every map and tree this
+// package serves from it.
+func buildYANGState() (*yangState, error) {
 	loader, err := yang.DefaultLoader()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "cli: %v\n", err)
+		return nil, fmt.Errorf("cli: YANG command schema: %w", err)
 	}
-	return loader
-}()
-
-// cliWireToPath is the YANG-derived WireMethod -> CLI path mapping.
-// Built once at package init from the shared DefaultLoader.
-var cliWireToPath = yang.WireMethodToPath(cliLoader)
-
-var cliWireToPaths = yang.WireMethodToPaths(cliLoader)
+	state := &yangState{
+		wireToPath:   yang.WireMethodToPath(loader),
+		wireToPaths:  yang.WireMethodToPaths(loader),
+		cmdTree:      yang.BuildCommandTree(loader),
+		descriptions: yang.PathToDescription(loader),
+		argDefs:      yang.PathToArgDefs(loader),
+		declared:     make(map[string]struct{}),
+	}
+	for _, reg := range allCLIRPCs() {
+		for _, cliPath := range state.wireToPaths[reg.WireMethod] {
+			state.declared[cliPath] = struct{}{}
+		}
+	}
+	return state, nil
+}
 
 // WireToPath returns the YANG-derived WireMethod to CLI dispatch path mapping.
 // Used by help generation to show dispatch keys alongside RPC names.
 // Returns the shortest path when multiple aliases exist for a wire method.
-func WireToPath() map[string]string {
-	return cliWireToPath
+// The error is the YANG loader's refusal of the schema. The map is shared:
+// the caller MUST NOT modify it.
+func WireToPath() (map[string]string, error) {
+	state, err := loadYANGState()
+	if err != nil {
+		return nil, err
+	}
+	return state.wireToPath, nil
 }
 
 // WireToPaths returns all CLI paths for each wire method (including aliases).
-func WireToPaths() map[string][]string {
-	return cliWireToPaths
+// The error is the YANG loader's refusal of the schema. The map is shared:
+// the caller MUST NOT modify it.
+func WireToPaths() (map[string][]string, error) {
+	state, err := loadYANGState()
+	if err != nil {
+		return nil, err
+	}
+	return state.wireToPaths, nil
 }
-
-// yangCmdTree is the YANG command tree with descriptions from YANG modules.
-// Used for help text generation (verb descriptions come from YANG, not RPC registrations).
-var yangCmdTree = yang.BuildCommandTree(cliLoader)
 
 // YANGCommandTree returns the YANG-derived command tree with descriptions.
 // The returned tree has verb containers (show, set, del, etc.) at the top level
-// with descriptions from YANG modules.
-func YANGCommandTree() *Command {
-	return yangCmdTree
+// with descriptions from YANG modules. Used for help text generation (verb
+// descriptions come from YANG, not RPC registrations). The error is the YANG
+// loader's refusal of the schema. The tree is shared: the caller MUST NOT
+// modify it.
+func YANGCommandTree() (*Command, error) {
+	state, err := loadYANGState()
+	if err != nil {
+		return nil, err
+	}
+	return state.cmdTree, nil
 }
 
 // BuildCommandTree builds the command tree from registered RPCs.
 // If readOnly is true, only includes RPCs whose CLI path starts with a read-only verb (for "ze show").
 // Descriptions come from the YANG command tree, not from the RPC registration.
-func BuildCommandTree(readOnly bool) *Command {
+// The error is the YANG loader's refusal of the schema.
+func BuildCommandTree(readOnly bool) (*Command, error) {
+	state, err := loadYANGState()
+	if err != nil {
+		return nil, err
+	}
 	rpcs := allCLIRPCs()
 	infos := make([]cmd.RPCInfo, 0, len(rpcs))
 	for _, reg := range rpcs {
-		paths := cliWireToPaths[reg.WireMethod]
+		paths := state.wireToPaths[reg.WireMethod]
 		if len(paths) == 0 {
 			continue
 		}
@@ -684,19 +760,12 @@ func BuildCommandTree(readOnly bool) *Command {
 	tree := cmd.BuildTree(infos, false) // readOnly already filtered above
 	// Merge both help texts from the YANG command tree into the RPC-built tree.
 	// BuildTree creates nodes with neither. YANG modules declare them.
-	if yangCmdTree != nil {
-		mergeHelpText(tree, yangCmdTree)
-		mergeArgDefs(tree, yangCmdTree)
-	}
-	cmd.MergeYANGNodes(tree, yangCmdTree)
+	mergeHelpText(tree, state.cmdTree)
+	mergeArgDefs(tree, state.cmdTree)
+	cmd.MergeYANGNodes(tree, state.cmdTree)
 	wireValueHints(tree)
-	return tree
+	return tree, nil
 }
-
-var (
-	pathDescriptions = yang.PathToDescription(cliLoader)
-	pathArgDefs      = yang.PathToArgDefs(cliLoader)
-)
 
 func applyArgDefs(root *Command, defsByPath map[string][]cmd.ArgDef) {
 	if root == nil || len(defsByPath) == 0 {
@@ -836,24 +905,28 @@ func wireValueHints(tree *Command) {
 // Command is an alias for command.Node. Use command.Node directly in new code.
 type Command = cmd.Node
 
-// commandTree holds all available commands for completion (compile-time fallback).
-var commandTree = BuildCommandTree(false)
-
 // buildRuntimeTree queries the daemon for available commands and returns a
 // command tree filtered to exclude proxy commands whose plugin is not running.
-// Falls back to the static commandTree on any error.
-func buildRuntimeTree(client *cliClient) *Command {
+// Falls back to the static BuildCommandTree(false) when the daemon does not
+// answer the list. The error is the YANG loader's refusal of the schema, which
+// leaves no tree to fall back to.
+func buildRuntimeTree(client *cliClient) (*Command, error) {
+	wireToPaths, err := WireToPaths()
+	if err != nil {
+		return nil, err
+	}
+
 	// Query daemon for runtime command list
 	output, err := client.sendCommandRaw("system command list")
 	if err != nil {
-		return commandTree
+		return BuildCommandTree(false)
 	}
 
 	// Parse response to get available command names and descriptions
 	commands, err := decodeCommandList([]byte(output))
 	if err != nil {
 		slogutil.Logger("cli.tree").Warn("system command list refused", "error", err)
-		return commandTree
+		return BuildCommandTree(false)
 	}
 
 	available := make(map[string]bool, len(commands))
@@ -872,7 +945,7 @@ func buildRuntimeTree(client *cliClient) *Command {
 		if reg.PluginCommand != "" && !available[strings.ToLower(reg.PluginCommand)] {
 			continue // Plugin not running -- skip this proxy command
 		}
-		paths := cliWireToPaths[reg.WireMethod]
+		paths := wireToPaths[reg.WireMethod]
 		if len(paths) == 0 {
 			continue
 		}
@@ -903,15 +976,20 @@ func buildRuntimeTree(client *cliClient) *Command {
 		}
 	}
 
-	return tree
+	return tree, nil
 }
 
 // buildRuntimeTreeFromDispatch is like buildRuntimeTree but uses a direct
 // dispatch function instead of an SSH client.
-func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
+func buildRuntimeTreeFromDispatch(dispatch CommandFunc) (*Command, error) {
+	wireToPath, err := WireToPath()
+	if err != nil {
+		return nil, err
+	}
+
 	output, err := dispatch("system command list")
 	if err != nil {
-		return commandTree
+		return BuildCommandTree(false)
 	}
 	if output.TransportComplete != nil {
 		defer output.TransportComplete()
@@ -920,7 +998,7 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	commands, err := decodeCommandList([]byte(output.Text))
 	if err != nil {
 		slogutil.Logger("cli.tree").Warn("system command list refused", "error", err)
-		return commandTree
+		return BuildCommandTree(false)
 	}
 
 	available := make(map[string]bool, len(commands))
@@ -937,7 +1015,7 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 		if reg.PluginCommand != "" && !available[strings.ToLower(reg.PluginCommand)] {
 			continue
 		}
-		cliPath := cliWireToPath[reg.WireMethod]
+		cliPath := wireToPath[reg.WireMethod]
 		if cliPath == "" {
 			continue
 		}
@@ -962,7 +1040,7 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 		}
 	}
 
-	return tree
+	return tree, nil
 }
 
 func fetchPeerSelectorsFromDispatch(dispatch CommandFunc) []cmd.Suggestion {

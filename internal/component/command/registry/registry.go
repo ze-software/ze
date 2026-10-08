@@ -303,28 +303,34 @@ func LookupRoot(name string) RootHandler {
 // cli.IsDeclaredCommand. A nil declared makes every match unprovable, so none is
 // served: this is a dispatch guard, and a guard with no data must fail closed
 // rather than return the shadowing match it cannot judge (ai/rules/evidence.md).
+// For the same reason an error from declared refuses the match, and is returned
+// so the caller reports why no handler was served.
 //
 // LookupOfflineFallback keeps plain longest-prefix on purpose. A fallback is
 // consulted only after the daemon is unreachable, so covering a declared child
 // is the point rather than a collision: `show host` serves `show host cpu` with
 // no daemon running.
-func LookupLocal(words []string, declared func(path string) bool) (LocalHandler, []string) {
+func LookupLocal(words []string, declared func(path string) (bool, error)) (LocalHandler, []string, error) {
 	if declared == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	handler, matched := longestLocalPrefix(words)
 	if handler == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	// Evaluated outside the registry lock: declared is a foreign callback that
 	// reads the RPC registry, and holding one registry's lock across another's
 	// is how a lock order gets invented by accident.
 	for i := matched + 1; i <= len(words); i++ {
-		if declared(textbuf.Join(words[:i], " ")) {
-			return nil, nil
+		isDeclared, err := declared(textbuf.Join(words[:i], " "))
+		if err != nil {
+			return nil, nil, fmt.Errorf("local command %q: %w", textbuf.Join(words[:matched], " "), err)
+		}
+		if isDeclared {
+			return nil, nil, nil
 		}
 	}
-	return handler, append([]string(nil), words[matched:]...)
+	return handler, append([]string(nil), words[matched:]...), nil
 }
 
 // longestLocalPrefix returns the handler registered at the longest prefix of
@@ -343,6 +349,32 @@ func longestLocalPrefix(words []string) (LocalHandler, int) {
 
 // localDataHandlers holds the commands that answer with data in this process.
 var localDataHandlers = make(map[string]LocalDataHandler)
+
+// localDataArgCheck judges the arguments of a data command against the leaves
+// its YANG declares. The command package installs it (RegisterLocalDataArgCheck),
+// because that package imports this one. Nil means nothing can judge, and the
+// plain handler then refuses rather than running unvalidated.
+var localDataArgCheck func(path string, args []string) error
+
+// errLocalDataArgCheckMissing is the refusal of a process that installed no
+// argument check.
+var errLocalDataArgCheckMissing = errors.New("argument definitions are not loaded in this process")
+
+// RegisterLocalDataArgCheck installs the argument judgment every plain handler
+// RegisterLocalData builds runs before its data handler. Called from init();
+// not safe for concurrent use with a handler call.
+func RegisterLocalDataArgCheck(check func(path string, args []string) error) {
+	localDataArgCheck = check
+}
+
+// checkLocalDataArgs runs the installed argument check, or refuses when none is
+// installed.
+func checkLocalDataArgs(path string, args []string) error {
+	if localDataArgCheck == nil {
+		return errLocalDataArgCheckMissing
+	}
+	return localDataArgCheck(path, args)
+}
 
 // RegisterLocalData registers a command that answers with structured data in
 // this process, so its answer reaches the pipe layer.
@@ -363,6 +395,14 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta Meta, render 
 		return fmt.Errorf("registry.RegisterLocalData: nil renderer for %q", path)
 	}
 	if err := RegisterLocalMeta(path, func(args []string) int {
+		// The arguments are judged before the handler runs, as ServeLocal
+		// judges them on the `ze cli -c` route. This route once ran the
+		// handler directly, so `ze show env get` with a 129-character key
+		// reached it although the leaf declares 1..128.
+		if err := checkLocalDataArgs(path, args); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return 1
+		}
 		// A nonzero code with a payload is an ANSWER the command exits
 		// nonzero on, not an error with nothing to say: `validate config`
 		// renders the diagnostics of a config it rejects and exits 1. The

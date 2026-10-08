@@ -114,9 +114,9 @@ func TestValidateArgStringUnion(t *testing.T) {
 
 func TestValidateArgStringPattern(t *testing.T) {
 	def := &ArgDef{
-		Name:    "timeout",
-		Kind:    ArgString,
-		Pattern: regexp.MustCompile(`^\d+[smh]?$`),
+		Name:     "timeout",
+		Kind:     ArgString,
+		Patterns: []*regexp.Regexp{regexp.MustCompile(`^\d+[smh]?$`)},
 	}
 
 	if err := ValidateArgString("30s", def); err != nil {
@@ -127,6 +127,72 @@ func TestValidateArgStringPattern(t *testing.T) {
 	}
 	if err := ValidateArgString("abc", def); err == nil {
 		t.Error("non-matching pattern accepted")
+	}
+}
+
+// TestValidateArgStringLength: a string argument carrying a YANG length is
+// refused below and above its bound and accepted inside it, and the refusal
+// names the bound. Length counts characters, so a two-byte character is one.
+//
+// VALIDATES: RFC 7950 Section 9.4.4 length on a command argument.
+// PREVENTS: a value past the declared bound reaching the handler.
+func TestValidateArgStringLength(t *testing.T) {
+	def := &ArgDef{Name: "name", Kind: ArgString, Lengths: []UintRange{{Min: 2, Max: 4}}}
+
+	for _, v := range []string{"ab", "abcd", "\u00e9\u00e9\u00e9\u00e9"} {
+		if err := ValidateArgString(v, def); err != nil {
+			t.Errorf("in-bounds %q rejected: %v", v, err)
+		}
+	}
+	for _, v := range []string{"a", "abcde", ""} {
+		err := ValidateArgString(v, def)
+		if err == nil {
+			t.Errorf("out-of-bounds %q accepted", v)
+			continue
+		}
+		if !strings.Contains(err.Error(), "2..4") {
+			t.Errorf("error %q does not name the bound 2..4", err)
+		}
+	}
+}
+
+// TestValidateArgStringDisjointLengths: a length of several ranges accepts a
+// value in any range and refuses one in a gap, naming every range.
+//
+// VALIDATES: RFC 7950 Section 9.4.4 "Multiple values or ranges can be given".
+// PREVENTS: only the first range of a disjoint length being enforced.
+func TestValidateArgStringDisjointLengths(t *testing.T) {
+	def := &ArgDef{Name: "key", Kind: ArgString, Lengths: []UintRange{{Min: 1, Max: 2}, {Min: 5, Max: 6}}}
+
+	for _, v := range []string{"a", "ab", "abcde", "abcdef"} {
+		if err := ValidateArgString(v, def); err != nil {
+			t.Errorf("in-range %q rejected: %v", v, err)
+		}
+	}
+	err := ValidateArgString("abc", def)
+	if err == nil {
+		t.Fatal("value in the gap between ranges accepted")
+	}
+	if !strings.Contains(err.Error(), "1..2 | 5..6") {
+		t.Errorf("error %q does not name both ranges", err)
+	}
+}
+
+// TestValidateArgStringAllPatterns: every pattern a string argument carries
+// must match, not only the first.
+//
+// VALIDATES: RFC 7950 Section 9.4.5 "all such expressions have to match".
+// PREVENTS: a second (or inherited) pattern constraining nothing.
+func TestValidateArgStringAllPatterns(t *testing.T) {
+	def := &ArgDef{Name: "id", Kind: ArgString, Patterns: []*regexp.Regexp{
+		regexp.MustCompile(`^[a-z0-9]+$`),
+		regexp.MustCompile(`^[a-z].*$`),
+	}}
+	if err := ValidateArgString("a1", def); err != nil {
+		t.Errorf("value matching both patterns rejected: %v", err)
+	}
+	if err := ValidateArgString("1a", def); err == nil {
+		t.Error("value failing the second pattern accepted")
 	}
 }
 

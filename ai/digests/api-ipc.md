@@ -67,7 +67,7 @@ runtime request, see the gotcha below.
    Matched selectors are copied onto the context by `applyExtractedSelectors`
    (`internal/component/plugin/server/command.go`, called at `:554`).
 7. **Builtin path.** On a match: authorization (`isAuthorized`, `internal/component/plugin/server/command.go`, checked at
-   `:565`), then two-phase YANG arg validation (`validateCommandArgs`, `internal/component/plugin/server/command.go`, called
+   `:565`), then two-phase YANG arg validation (`command.ValidateArgs`, `internal/component/command/argbind.go`, called
    at `:574`), then `matchedCmd.Handler(ctx, args)` (`internal/component/plugin/server/command.go`). Example: `peer <sel>
    update text nhop set ... nlri ipv4/unicast add ...` resolves to `handleUpdate`
    (`internal/component/bgp/plugins/cmd/update/update_text.go`, registered with

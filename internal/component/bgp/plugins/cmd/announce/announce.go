@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -45,11 +46,15 @@ const (
 // keeps those answers reading the same to an operator.
 const fieldWithdrawn = "withdrawn"
 
-const maxTagLen = 128
+// maxTagLen is the character bound on a tag key and a tag value. It repeats the
+// `length "1..64"` that ze-cli-announce-cmd.yang declares on the tag leaves,
+// which the command dispatcher enforces first; this is the paired check for a
+// caller that reaches parseTrailingOpts by another path.
+const maxTagLen = 64
 
 var (
 	errMissingPrefix = errors.New("missing prefix")
-	errTagTooLong    = errors.New("tag key or value exceeds 128 characters")
+	errTagTooLong    = errors.New("tag key or value exceeds 64 characters")
 
 	// errTrailingOptUnclaimed names a word the operator typed in the options
 	// region that no option keyword claims. Every caller hands parseTrailingOpts
@@ -176,7 +181,10 @@ func parseTrailingOpts(args []string) (announceOpts, error) {
 			if i+2 >= len(args) {
 				return opts, errors.New("tag requires <key> <value>")
 			}
-			if len(args[i+1]) > maxTagLen || len(args[i+2]) > maxTagLen {
+			if utf8.RuneCountInString(args[i+1]) > maxTagLen {
+				return opts, errTagTooLong
+			}
+			if utf8.RuneCountInString(args[i+2]) > maxTagLen {
 				return opts, errTagTooLong
 			}
 			opts.tagKey = args[i+1]
@@ -630,7 +638,7 @@ func withdrawByTag(reg *Registry, peer string, args []string) (*plugin.Response,
 	// The value is optional, so the model declares it as an optional leaf and
 	// the generated line reads `send bgp <selector> withdraw tag <key> [value <value>]`. The
 	// framework binds an optional leaf from its keyword or from a bare
-	// positional and passes both through unchanged (validateCommandArgs), so
+	// positional and passes both through unchanged (command.ValidateArgs), so
 	// the keyword is dropped here rather than read as the value itself.
 	rest := args[1:]
 	if len(rest) >= 2 && strings.EqualFold(rest[0], kwValue) {

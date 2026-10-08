@@ -10,7 +10,6 @@ package client
 
 import (
 	"strings"
-	"sync"
 
 	cmd "github.com/ze-software/ze/internal/component/command"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -21,15 +20,19 @@ import (
 // (`ze show`, `ze clear`, `ze request`, ...). Commands registered under the
 // same verb are rooted under that verb and then exposed relative to it.
 // Read-only commands that are not rooted under "show" remain available under
-// `ze show` unchanged.
-func BuildVerbCommandTree(verb string) *Command {
+// `ze show` unchanged. The error is the YANG loader's refusal of the schema.
+func BuildVerbCommandTree(verb string) (*Command, error) {
+	state, err := loadYANGState()
+	if err != nil {
+		return nil, err
+	}
 	rpcs := allCLIRPCs()
 	infos := make([]cmd.RPCInfo, 0, len(rpcs))
 	descriptions := make(map[string]string)
 	argDefs := make(map[string][]cmd.ArgDef)
 
 	for _, reg := range rpcs {
-		paths := cliWireToPaths[reg.WireMethod]
+		paths := state.wireToPaths[reg.WireMethod]
 		if len(paths) == 0 {
 			continue
 		}
@@ -42,8 +45,8 @@ func BuildVerbCommandTree(verb string) *Command {
 				CLICommand: effective,
 				ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
 			})
-			recordContextDescriptions(descriptions, cliPath, effective)
-			if defs := pathArgDefs[cliPath]; len(defs) > 0 && len(argDefs[effective]) == 0 {
+			recordContextDescriptions(descriptions, state.descriptions, cliPath, effective)
+			if defs := state.argDefs[cliPath]; len(defs) > 0 && len(argDefs[effective]) == 0 {
 				argDefs[effective] = defs
 			}
 		}
@@ -52,12 +55,9 @@ func BuildVerbCommandTree(verb string) *Command {
 	tree := cmd.BuildTree(infos, false)
 	applyDescriptions(tree, descriptions)
 	applyArgDefs(tree, argDefs)
-	if yangCmdTree != nil {
-		yangVerb := yangCmdTree.Children[verb]
-		cmd.MergeYANGNodes(tree, yangVerb)
-	}
+	cmd.MergeYANGNodes(tree, state.cmdTree.Children[verb])
 	wireValueHints(tree)
-	return tree
+	return tree, nil
 }
 
 // AbsoluteVerbPath maps command words that are RELATIVE to verb -- the form
@@ -78,50 +78,40 @@ func BuildVerbCommandTree(verb string) *Command {
 // which a caller renders as a subcommand list instead of dispatching. Node
 // descriptions cannot answer that question: MergeYANGNodes gives a grouping
 // container its ze:help summary too, so an empty description marks nothing.
-func AbsoluteVerbPath(verb string, rel []string) (words []string, declared bool) {
+//
+// The error is the YANG loader's refusal of the schema. With no schema no path
+// is provably declared, so the caller MUST report the error rather than read
+// declared.
+func AbsoluteVerbPath(verb string, rel []string) (words []string, declared bool, err error) {
+	state, err := loadYANGState()
+	if err != nil {
+		return nil, false, err
+	}
 	if len(rel) == 0 {
-		return nil, false
+		return nil, false, nil
 	}
 	relPath := textbuf.Join(rel, " ")
 	carried := ""
 	for _, reg := range allCLIRPCs() {
-		for _, cliPath := range cliWireToPaths[reg.WireMethod] {
+		for _, cliPath := range state.wireToPaths[reg.WireMethod] {
 			effective, ok := verbContextPath(cliPath, verb)
 			if !ok || effective != relPath {
 				continue
 			}
 			if effective != cliPath {
 				// The verb was stripped to build the tree: put it back.
-				return strings.Fields(cliPath), true
+				return strings.Fields(cliPath), true, nil
 			}
 			carried = cliPath
 		}
 	}
 	if carried != "" {
-		return strings.Fields(carried), true
+		return strings.Fields(carried), true, nil
 	}
 	out := make([]string, 0, len(rel)+1)
 	out = append(out, verb)
-	return append(out, rel...), false
+	return append(out, rel...), false, nil
 }
-
-// declaredCommands is the set of ABSOLUTE CLI paths some registered built-in
-// declares. It is the same population AbsoluteVerbPath scans, keyed for a
-// direct question rather than an inverse one, so the two cannot disagree.
-//
-// Built on first use, not at init: every ze:command registration happens in an
-// init() of the owning package, and package init order across the binary is
-// undefined. No dispatch runs before init() completes, so first use is always
-// after the last registration.
-var declaredCommands = sync.OnceValue(func() map[string]struct{} {
-	set := make(map[string]struct{})
-	for _, reg := range allCLIRPCs() {
-		for _, cliPath := range cliWireToPaths[reg.WireMethod] {
-			set[cliPath] = struct{}{}
-		}
-	}
-	return set
-})
 
 // IsDeclaredCommand reports whether a registered built-in declares this exact
 // absolute CLI path -- the path the daemon's dispatcher is keyed on.
@@ -131,9 +121,17 @@ var declaredCommands = sync.OnceValue(func() map[string]struct{} {
 // fact AbsoluteVerbPath returns as `declared`, asked of an absolute path
 // directly, because the local-handler registry is keyed on absolute paths and
 // has no verb to be relative to.
-func IsDeclaredCommand(path string) bool {
-	_, ok := declaredCommands()[path]
-	return ok
+//
+// The error is the YANG loader's refusal of the schema. It is a guard's input,
+// so it is never folded into false: false would let LookupLocal serve the very
+// shadowing match it exists to refuse.
+func IsDeclaredCommand(path string) (bool, error) {
+	state, err := loadYANGState()
+	if err != nil {
+		return false, err
+	}
+	_, ok := state.declared[path]
+	return ok, nil
 }
 
 func verbContextPath(cliPath, verb string) (string, bool) {
@@ -155,7 +153,7 @@ func verbContextPath(cliPath, verb string) (string, bool) {
 	return rest, true
 }
 
-func recordContextDescriptions(dst map[string]string, cliPath, effective string) {
+func recordContextDescriptions(dst, pathDescriptions map[string]string, cliPath, effective string) {
 	origParts := strings.Fields(cliPath)
 	effParts := strings.Fields(effective)
 	if len(origParts) == 0 || len(effParts) == 0 {

@@ -207,7 +207,14 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 			Detail:  err.Error(),
 		}}
 	}
-	wikiEntries := c.collectWikiCatalogEntries()
+	wikiEntries, err := c.collectWikiCatalogEntries()
+	if err != nil {
+		return []Issue{{
+			File:    "internal/le/cli/catalog/catalog.go",
+			Message: "could not collect the live command catalog",
+			Detail:  err.Error(),
+		}}
+	}
 	if producerIssues := compareWikiCatalogProducer(live, wikiEntries); len(producerIssues) != 0 {
 		return producerIssues
 	}
@@ -609,7 +616,7 @@ func compareWebsiteCommandCatalog(root, path string, live []publishedCommand) []
 	}}
 }
 
-func (c *checker) collectWikiCatalogEntries() []clicatalog.Entry {
+func (c *checker) collectWikiCatalogEntries() ([]clicatalog.Entry, error) {
 	if c.wikiCatalogCollect != nil {
 		return c.wikiCatalogCollect()
 	}

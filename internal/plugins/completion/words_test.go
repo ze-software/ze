@@ -208,7 +208,10 @@ func TestWordsPipeOperatorsFiltered(t *testing.T) {
 // until somebody noticed.
 func TestRunCompletionTreeCoversEveryCanonicalVerb(t *testing.T) {
 	for verb := range command.Verbs {
-		tree, rest := runCompletionTree([]string{verb, "alpha"})
+		tree, rest, err := runCompletionTree([]string{verb, "alpha"})
+		if err != nil {
+			t.Fatalf("runCompletionTree(%q): %v", verb, err)
+		}
 		if tree == nil {
 			t.Errorf("runCompletionTree(%q) returned no tree", verb)
 			continue
@@ -224,12 +227,18 @@ func TestRunCompletionTreeCoversEveryCanonicalVerb(t *testing.T) {
 // intact, so `rib` keeps its shorthand and an unknown word is not silently
 // treated as a verb root.
 func TestRunCompletionTreeKeepsANonVerbOnThePath(t *testing.T) {
-	_, rest := runCompletionTree([]string{"not-a-verb", "alpha"})
+	_, rest, err := runCompletionTree([]string{"not-a-verb", "alpha"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(rest) != 2 || rest[0] != "not-a-verb" {
 		t.Errorf("rest = %v, want the whole path: not-a-verb is no canonical verb", rest)
 	}
 
-	_, ribRest := runCompletionTree([]string{nameRIB, "alpha"})
+	_, ribRest, err := runCompletionTree([]string{nameRIB, "alpha"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := []string{"bgp", nameRIB, "alpha"}
 	if len(ribRest) != len(want) {
 		t.Fatalf("rib rest = %v, want %v", ribRest, want)

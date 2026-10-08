@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"sort"
@@ -39,6 +40,7 @@ type menuLevel struct {
 
 type menuModel struct {
 	stack    []menuLevel
+	tree     *command.Node // the verb tree every level is built from
 	filter   string
 	cursor   int
 	offset   int
@@ -60,8 +62,9 @@ func truncateDesc(s string) string {
 	return s[:menuDescMaxLen]
 }
 
-func buildTopLevel() menuLevel {
-	verbTree := cli.BuildCommandTree(false)
+// buildTopLevel builds the launcher's first screen from verbTree, the tree
+// cli.BuildCommandTree answers.
+func buildTopLevel(verbTree *command.Node) menuLevel {
 	cmdEntries := command.HelpEntries(verbTree, nil)
 	yangItems := make([]menuItem, 0, len(cmdEntries))
 	for _, e := range cmdEntries {
@@ -103,8 +106,9 @@ func buildTopLevel() menuLevel {
 	return menuLevel{title: "ze", items: items}
 }
 
-func buildYANGLevel(path []string) menuLevel {
-	verbTree := cli.BuildCommandTree(false)
+// buildYANGLevel builds the screen for path in verbTree, the tree
+// cli.BuildCommandTree answers.
+func buildYANGLevel(verbTree *command.Node, path []string) menuLevel {
 	node := command.FindNode(verbTree, path)
 	if node == nil || len(node.Children) == 0 {
 		return menuLevel{title: textbuf.Join(path, " "), items: nil}
@@ -289,7 +293,7 @@ func (m menuModel) handleKey(km tea.KeyPressMsg) (tea.Model, tea.Cmd) { //nolint
 }
 
 func (m menuModel) drillInto(item menuItem) menuModel {
-	level := buildYANGLevel(item.path)
+	level := buildYANGLevel(m.tree, item.path)
 	m.stack = append(m.stack, level)
 	m.offset = 0
 	m.cursor = m.firstVisible()
@@ -427,10 +431,17 @@ func (m menuModel) View() tea.View {
 	return v
 }
 
-func runTUILauncher() string {
-	top := buildTopLevel()
+// runTUILauncher runs the menu and answers the chosen command line, empty when
+// none was chosen. The error is the YANG loader's refusal of the schema the
+// menu is built from, or the terminal program's failure to run.
+func runTUILauncher() (string, error) {
+	tree, err := cli.BuildCommandTree(false)
+	if err != nil {
+		return "", err
+	}
 	m := menuModel{
-		stack:  []menuLevel{top},
+		stack:  []menuLevel{buildTopLevel(tree)},
+		tree:   tree,
 		width:  80,
 		height: 24,
 	}
@@ -439,15 +450,15 @@ func runTUILauncher() string {
 	p := tea.NewProgram(m)
 	result, err := p.Run()
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("menu: %w", err)
 	}
 
 	final, ok := result.(menuModel)
 	if !ok {
-		return ""
+		return "", nil
 	}
 	if len(final.chosen) == 0 {
-		return ""
+		return "", nil
 	}
-	return strings.Join(final.chosen, " ")
+	return strings.Join(final.chosen, " "), nil
 }

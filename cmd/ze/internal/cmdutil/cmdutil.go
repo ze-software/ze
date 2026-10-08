@@ -40,13 +40,17 @@ func registerLocalCommand(path string, handler LocalHandler) error {
 // above a declared command (registry.LookupLocal, the shadow rule). The
 // registry cannot answer that itself: it is a leaf package by design and must
 // not import the CLI, so the caller that already knows both namespaces supplies
-// the answer.
-func matchLocalHandler(words, values []string) (LocalHandler, []string) {
-	handler, args := registry.LookupLocal(words, cli.IsDeclaredCommand)
-	if handler == nil {
-		return nil, nil
+// the answer. The error is the declaration source's (a refused YANG schema),
+// and no handler is served with it.
+func matchLocalHandler(words, values []string) (LocalHandler, []string, error) {
+	handler, args, err := registry.LookupLocal(words, cli.IsDeclaredCommand)
+	if err != nil {
+		return nil, nil, err
 	}
-	return handler, append(args, values...)
+	if handler == nil {
+		return nil, nil, nil
+	}
+	return handler, append(args, values...), nil
 }
 
 // Resolution is what one argv resolves to against one verb's command tree.
@@ -127,25 +131,33 @@ func (r Resolution) dispatchable() bool {
 // RunCommand is the production caller. It is exported because RunCommand ends
 // in an SSH dispatch and cannot run without a daemon, so this is the seam a
 // test drives with a real argv to prove a declared verb still resolves.
-// ok is false when the verb was typed with nothing after it.
-func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
+// ok is false when the verb was typed with nothing after it. The error is the
+// YANG loader's refusal of the schema, which leaves no tree to resolve against.
+func ResolveCommand(args []string, cmdName string) (Resolution, bool, error) {
 	if len(args) == 0 {
-		return Resolution{}, false
+		return Resolution{}, false, nil
 	}
 	verbWords := args
 	if args[0] == cmdName {
 		verbWords = args[1:]
 	}
 	if len(verbWords) == 0 {
-		return Resolution{}, false
+		return Resolution{}, false, nil
 	}
 
-	res := Resolution{Tree: cli.BuildVerbCommandTree(cmdName), InlineAt: -1}
+	tree, err := cli.BuildVerbCommandTree(cmdName)
+	if err != nil {
+		return Resolution{}, false, err
+	}
+	res := Resolution{Tree: tree, InlineAt: -1}
 
 	// Separate the command words from the positional values typed after or
 	// inside them, for example `show bgp peer edge1 detail`.
 	localRel, localValues, _ := extractLocalValues(verbWords, res.Tree)
-	res.Local, _ = cli.AbsoluteVerbPath(cmdName, localRel)
+	res.Local, _, err = cli.AbsoluteVerbPath(cmdName, localRel)
+	if err != nil {
+		return Resolution{}, false, err
+	}
 	res.LocalValues = localValues
 
 	// Extract the output format keyword (yaml/json/table) from the end of the
@@ -153,12 +165,18 @@ func ResolveCommand(args []string, cmdName string) (Resolution, bool) {
 	// from commands that do not support them.
 	verbWords, res.Format = extractOutputFormat(verbWords)
 	if len(verbWords) == 0 {
-		return res, false // every word was the format keyword
+		return res, false, nil // every word was the format keyword
 	}
-	res.Relative, res.Values, res.InlineAt = ExtractValues(verbWords, res.Tree, cmdName)
-	res.Path, res.Declared = cli.AbsoluteVerbPath(cmdName, res.Relative)
+	res.Relative, res.Values, res.InlineAt, err = ExtractValues(verbWords, res.Tree, cmdName)
+	if err != nil {
+		return Resolution{}, false, err
+	}
+	res.Path, res.Declared, err = cli.AbsoluteVerbPath(cmdName, res.Relative)
+	if err != nil {
+		return Resolution{}, false, err
+	}
 	res.Valid = IsValidCommand(res.Relative, res.Tree)
-	return res, true
+	return res, true, nil
 }
 
 // dispatchString is the command line the daemon is asked to run: the absolute
@@ -214,7 +232,12 @@ func (r Resolution) dispatchString() string {
 // so, and a path outside the tree never reaches this function with Valid set.
 // A readOnly parameter was carried here until 2026-08-08 and rejected nothing.
 func RunCommand(args []string, cmdName string) int {
-	res, ok := ResolveCommand(args, cmdName)
+	res, ok, err := ResolveCommand(args, cmdName)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+		return 1
+	}
 
 	// Check the local handler registry first (offline commands like version,
 	// completion). Longest prefix match: "show bgp decode update hex" matches
@@ -229,7 +252,13 @@ func RunCommand(args []string, cmdName string) int {
 	// lookup itself refuses a match that would swallow one (registry.LookupLocal,
 	// the shadow rule), so the order decides only what happens when nothing is
 	// declared below the handler's path.
-	if handler, handlerArgs := matchLocalHandler(res.Local, res.LocalValues); handler != nil {
+	handler, handlerArgs, err := matchLocalHandler(res.Local, res.LocalValues)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+		return 1
+	}
+	if handler != nil {
 		return handler(handlerArgs)
 	}
 	if !ok {
@@ -395,10 +424,24 @@ func commandList(tree *cli.Command) []CommandEntry {
 // the same way, so this is the two resolvers agreeing rather than a client-side
 // loss, and the alternative -- refusing a value because it could have been a
 // typo -- is the defect above.
-func ExtractValues(words []string, tree *cli.Command, verb string) (treeWords, values []string, inlineAt int) {
-	return extractValues(words, tree, func(prefix []string) bool {
-		return endsDeclaredCommand(verb, prefix)
+//
+// The error is the YANG loader's refusal of the schema, met while asking where
+// a declared command ends. The split is then unprovable and is not returned.
+func ExtractValues(words []string, tree *cli.Command, verb string) (treeWords, values []string, inlineAt int, err error) {
+	var declaredErr error
+	treeWords, values, inlineAt = extractValues(words, tree, func(prefix []string) bool {
+		declared, err := endsDeclaredCommand(verb, prefix)
+		if err != nil {
+			// The answer is discarded below: the error replaces the split.
+			declaredErr = err
+			return false
+		}
+		return declared
 	})
+	if declaredErr != nil {
+		return nil, nil, -1, declaredErr
+	}
+	return treeWords, values, inlineAt, nil
 }
 
 // extractLocalValues splits words for the LOCAL-HANDLER lookup, which is keyed
@@ -466,13 +509,14 @@ func extractValues(words []string, tree *cli.Command, endsCommand func(prefix []
 // endsDeclaredCommand reports whether rel, verb-relative, names a command some
 // registered ze:command declares. It asks cli.AbsoluteVerbPath, which reads the
 // same two registrations the daemon's dispatcher is keyed on, so the client
-// cannot decide a path ends somewhere the daemon would not.
-func endsDeclaredCommand(verb string, rel []string) bool {
+// cannot decide a path ends somewhere the daemon would not. The error is the
+// YANG loader's refusal of the schema.
+func endsDeclaredCommand(verb string, rel []string) (bool, error) {
 	if len(rel) == 0 {
-		return false
+		return false, nil
 	}
-	_, declared := cli.AbsoluteVerbPath(verb, rel)
-	return declared
+	_, declared, err := cli.AbsoluteVerbPath(verb, rel)
+	return declared, err
 }
 
 // shouldExtractSelector reports whether words[idx] is an INLINE selector: a

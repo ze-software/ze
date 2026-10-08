@@ -42,7 +42,10 @@ func (report Report) Text() string {
 // Check compares destination byte-for-byte with a catalog collected from the
 // live product registries. A missing destination is stale, not an I/O failure.
 func Check(destination string) (Report, error) {
-	entries := Collect()
+	entries, err := Collect()
+	if err != nil {
+		return Report{}, err
+	}
 	markdown, err := Render(entries)
 	if err != nil {
 		return Report{}, err
@@ -54,7 +57,10 @@ func Check(destination string) (Report, error) {
 // The parent directory must already exist; the caller chooses the destination,
 // and this package never assumes a checkout or wiki layout.
 func Update(destination string) (Report, error) {
-	entries := Collect()
+	entries, err := Collect()
+	if err != nil {
+		return Report{}, err
+	}
 	markdown, err := Render(entries)
 	if err != nil {
 		return Report{}, err

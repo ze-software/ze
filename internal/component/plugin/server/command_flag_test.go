@@ -27,13 +27,13 @@ func TestValidateCommandArgsFlag(t *testing.T) {
 		{"path", "/b.zefs", "spare", "5", "force"},
 		{"path", "/b.zefs"},
 	} {
-		_, err := validateCommandArgs(args, defs, nil)
+		_, err := command.ValidateArgs(args, defs, nil)
 		require.NoError(t, err, args)
 	}
-	_, err := validateCommandArgs([]string{"path", "/b.zefs", "force", "force"}, defs, nil)
+	_, err := command.ValidateArgs([]string{"path", "/b.zefs", "force", "force"}, defs, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `duplicate keyword "force"`)
-	_, err = validateCommandArgs([]string{"path", "/b.zefs", "force", "yes"}, defs, nil)
+	_, err = command.ValidateArgs([]string{"path", "/b.zefs", "force", "yes"}, defs, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"yes"`)
 	assert.Equal(t, "force takes no value", command.ValidateArgString("x", &defs[2]).Error())

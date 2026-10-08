@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"unicode/utf8"
 )
 
 const maxArgLength = 1024
@@ -64,11 +65,53 @@ func validateUint(arg string, def *ArgDef) error {
 	return nil
 }
 
+// validateString judges a string argument against its YANG length and every
+// pattern its type chain declares.
 func validateString(arg string, def *ArgDef) error {
-	if def.Pattern != nil && !def.Pattern.MatchString(arg) {
-		return fmt.Errorf("invalid value %q, does not match expected pattern", arg)
+	if len(def.Lengths) > 0 {
+		// RFC 7950 Section 9.4.4: "A "length" statement restricts the number
+		// of Unicode characters in the string."
+		length := uint64(utf8.RuneCountInString(arg))
+		if !inRanges(length, def.Lengths) {
+			return fmt.Errorf("invalid value %q, length %d out of range %s", arg, length, joinRanges(def.Lengths))
+		}
+	}
+	// RFC 7950 Section 9.4.5: "If the type has multiple "pattern" statements,
+	// the expressions are ANDed together, i.e., all such expressions have to
+	// match."
+	for _, pattern := range def.Patterns {
+		if !pattern.MatchString(arg) {
+			return fmt.Errorf("invalid value %q, does not match expected pattern", arg)
+		}
 	}
 	return nil
+}
+
+// inRanges reports whether v falls inside any of ranges.
+func inRanges(v uint64, ranges []UintRange) bool {
+	for _, r := range ranges {
+		if v >= r.Min && v <= r.Max {
+			return true
+		}
+	}
+	return false
+}
+
+// joinRanges renders ranges the way a YANG module writes them, "1..8 | 16..32",
+// with a single value written once.
+func joinRanges(ranges []UintRange) string {
+	buf := make([]byte, 0, 24*len(ranges))
+	for i, r := range ranges {
+		if i > 0 {
+			buf = append(buf, " | "...)
+		}
+		buf = strconv.AppendUint(buf, r.Min, 10)
+		if r.Max != r.Min {
+			buf = append(buf, ".."...)
+			buf = strconv.AppendUint(buf, r.Max, 10)
+		}
+	}
+	return string(buf)
 }
 
 func validateUnion(arg string, def *ArgDef) error {
@@ -149,7 +192,7 @@ func Constraint(def *ArgDef) ArgConstraint {
 		}
 		return ConstraintUint
 	case ArgString:
-		if def.Pattern != nil {
+		if len(def.Patterns) > 0 {
 			return ConstraintPattern
 		}
 		return ConstraintAny

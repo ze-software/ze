@@ -161,7 +161,7 @@ func TestRenderZeroSupportCommandsHaveCanonicalPipeVerdict(t *testing.T) {
 }
 
 func TestRenderCurrentCatalogAnswersPipeSupportForEveryCommand(t *testing.T) {
-	entries := Collect()
+	entries := collectForTest(t)
 	rendered, err := Render(entries)
 	if err != nil {
 		t.Fatalf("Render() error: %v", err)

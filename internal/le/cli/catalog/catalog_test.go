@@ -16,7 +16,7 @@ import (
 // PREVENTS: a second join in this package that reads the registries directly
 // and drifts from the product binary's catalog.
 func TestWikiCatalogDerivesEveryDeclarationFromOneReader(t *testing.T) {
-	entries := Collect()
+	entries := collectForTest(t)
 	if len(entries) == 0 {
 		t.Fatal("the catalog is empty, so this test proves nothing")
 	}
@@ -56,7 +56,7 @@ func TestWikiCatalogReportsTheDeclaredColumnOrder(t *testing.T) {
 	const path = "show env list"
 	want := []string{"key", "type", "default", "current", "description"}
 
-	for _, entry := range Collect() {
+	for _, entry := range collectForTest(t) {
 		if entry.Path != path {
 			continue
 		}
@@ -102,7 +102,7 @@ func assertSameNames(t *testing.T, path, subject string, want, got []string) {
 func TestWikiCatalogNamesAPluginCommand(t *testing.T) {
 	const path = "show bgp rpki roa"
 
-	for _, entry := range Collect() {
+	for _, entry := range collectForTest(t) {
 		if entry.Path != path {
 			continue
 		}
@@ -127,7 +127,7 @@ func TestWikiCatalogNamesAPluginCommand(t *testing.T) {
 func TestWikiCatalogReportsAPluginDeclaredAlias(t *testing.T) {
 	const path = "show bgp rpki"
 
-	for _, entry := range Collect() {
+	for _, entry := range collectForTest(t) {
 		if entry.Path != path {
 			continue
 		}
@@ -155,7 +155,7 @@ func TestWikiCatalogReportsAPluginDeclaredAlias(t *testing.T) {
 // (internal/plugins/log/yang/ze-log-cmd.yang), which declares both texts.
 func TestCatalogArgCarriesBothTexts(t *testing.T) {
 	var subject *Entry
-	for _, entry := range Collect() {
+	for _, entry := range collectForTest(t) {
 		if entry.Path == "show log recent" {
 			subject = &entry
 			break

@@ -1,0 +1,87 @@
+# Test: a command argument longer than its YANG length is refused, naming the
+# bound, and one at the bound reaches the handler, on every dispatch route.
+# VALIDATES: RFC 7950 Section 9.4.4 on command arguments, through the real entry
+# point, for the three routes that call command.ValidateArgs:
+#   - the daemon route: `show metrics name` declares `length "1..128"` on its
+#     name leaf (internal/component/cmd/show/yang/ze-cli-show-cmd.yang). This
+#     config enables no telemetry, so the handler answers "metrics not
+#     available", which proves the dispatcher let the value through.
+#   - the in-process route: `show env get` declares the same bound
+#     (internal/plugins/env/yang/ze-env-cmd.yang) and is served by the CLI
+#     itself (command.ServeLocal). Its handler answers that no such variable
+#     exists, which proves the value was let through.
+#   - the verb route: `ze show env get` runs the plain local handler
+#     registry.RegisterLocalData builds, which never passes through ServeLocal.
+# PREVENTS: a declared length that constrains nothing. yangTypeToArgDef once
+# copied only the pattern into the argument definition, and neither local route
+# called an argument validator, so a 129-character value reached each handler.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI dials.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=length.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start length.conf:name=daemon:ready=Ze running.
+
+# Daemon route, 129 characters: one past the bound, refused before the handler.
+cmd=foreground:seq=3:exec=ze cli -c "show metrics name mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+expect=stderr:contains=length 129 out of range 1..128
+reject=stderr:contains=metrics not available
+
+# Daemon route, 128 characters: at the bound, the value reaches the handler.
+cmd=foreground:seq=4:exec=ze cli -c "show metrics name mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+expect=stderr:contains=metrics not available
+reject=stderr:contains=out of range
+
+# In-process route, 129 characters: refused before the handler runs.
+cmd=foreground:seq=5:exec=ze cli -c "show env get mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+expect=stderr:contains=length 129 out of range 1..128
+reject=stderr:contains=no environment variable named
+
+# In-process route, 128 characters: the value reaches the handler.
+cmd=foreground:seq=6:exec=ze cli -c "show env get mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"
+expect=stderr:contains=no environment variable named
+reject=stderr:contains=out of range
+
+# Verb route, `ze show env get`, 129 characters: the plain local handler
+# registry.RegisterLocalData builds is refused before the handler runs too.
+cmd=foreground:seq=7:exec=ze show env get mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+expect=stderr:contains=length 129 out of range 1..128
+reject=stderr:contains=no environment variable named
+
+# Verb route, 128 characters: the value reaches the handler.
+cmd=foreground:seq=8:exec=ze show env get mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+expect=stderr:contains=no environment variable named
+reject=stderr:contains=out of range
+
+cmd=stop:seq=9:name=daemon:signal=term

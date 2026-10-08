@@ -23,7 +23,7 @@ import (
 // VALIDATES: the call dispatches `peer 192.0.2.9 announce unicast prefix
 // 198.51.100.0/24`, and the handler sees the selector.
 // PREVENTS: the keyword form `peer announce unicast selector 192.0.2.9 ...`,
-// which validateCommandArgs accepts and Dispatch still refuses with "requires
+// which command.ValidateArgs accepts and Dispatch still refuses with "requires
 // a selector", because only matchCommandTokens binds an anchored value and it
 // reads the bare token after the anchor (anchoredDef). A stub dispatcher
 // cannot see that refusal, so this test runs the dispatcher itself.

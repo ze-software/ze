@@ -35,8 +35,9 @@ func TestMain(m *testing.M) {
 // declares, deduplicated and skipping bare verbs. It reads the two registries
 // BuildVerbCommandTree reads, so the expected set is DERIVED rather than a
 // second hardcoded copy (ai/rules/evidence.md).
-func declaredCommandPaths() []string {
-	wireToPaths := cli.WireToPaths()
+func declaredCommandPaths(t testing.TB) []string {
+	t.Helper()
+	wireToPaths := wireToPathsForTest(t)
 	seen := make(map[string]bool)
 	var out []string
 	for _, reg := range pluginserver.AllBuiltinRPCs() {
@@ -65,7 +66,7 @@ func declaredCommandPaths() []string {
 // This drives ResolveCommand rather than IsValidCommand: a test that strips the
 // verb itself would encode the correct alignment and pass against the defect.
 func TestDeclaredCommandsResolveFromArgv(t *testing.T) {
-	paths := declaredCommandPaths()
+	paths := declaredCommandPaths(t)
 	if len(paths) < 100 {
 		t.Fatalf("declared command paths = %d, want >= 100: the registry is empty, so this test proves nothing", len(paths))
 	}
@@ -78,7 +79,7 @@ func TestDeclaredCommandsResolveFromArgv(t *testing.T) {
 		argv := strings.Fields(path)
 		verb := argv[0]
 
-		res, ok := ResolveCommand(argv, verb)
+		res, ok := resolveForTest(t, argv, verb)
 		if !ok {
 			t.Errorf("ResolveCommand(%q) refused to resolve", path)
 			continue
@@ -107,7 +108,7 @@ func TestDeclaredCommandsResolveFromArgv(t *testing.T) {
 			continue
 		}
 		underShow := append([]string{"show"}, argv...)
-		res, ok = ResolveCommand(underShow, "show")
+		res, ok = resolveForTest(t, underShow, "show")
 		if !ok || !res.Valid {
 			t.Errorf("`ze show %s` does not resolve (ok=%v valid=%v): a read-only command must stay reachable under show", path, ok, res.Valid)
 			continue
@@ -146,7 +147,7 @@ func valueTakingCommands(t *testing.T) [][]string {
 			walk(child, append(append([]string{}, rel...), name))
 		}
 	}
-	walk(cli.BuildVerbCommandTree("show"), nil)
+	walk(verbTreeForTest(t, "show"), nil)
 	sort.Slice(out, func(i, j int) bool {
 		return strings.Join(out[i], " ") < strings.Join(out[j], " ")
 	})
@@ -177,7 +178,7 @@ func TestTrailingValueCommandsResolveFromArgv(t *testing.T) {
 	covered := 0
 	for _, rel := range paths {
 		argv := append([]string{"show"}, rel...)
-		base, ok := ResolveCommand(argv, "show")
+		base, ok := resolveForTest(t, argv, "show")
 		if !ok || !base.Valid || !base.Declared {
 			// The command itself does not resolve, which is a different defect
 			// with its own test (TestDeclaredCommandsResolveFromArgv).
@@ -186,7 +187,7 @@ func TestTrailingValueCommandsResolveFromArgv(t *testing.T) {
 		covered++
 		t.Run(strings.Join(rel, " "), func(t *testing.T) {
 			withValue := append(append([]string{}, argv...), value)
-			res, ok := ResolveCommand(withValue, "show")
+			res, ok := resolveForTest(t, withValue, "show")
 			if !ok || !res.Valid || !res.Declared {
 				t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v): a trailing value must not cost the command its path", strings.Join(withValue, " "), ok, res.Valid, res.Declared)
 			}
@@ -201,7 +202,7 @@ func TestTrailingValueCommandsResolveFromArgv(t *testing.T) {
 	}
 
 	t.Run("inline selector still reorders", func(t *testing.T) {
-		res, ok := ResolveCommand([]string{"show", "bgp", "peer", "edge1", "detail"}, "show")
+		res, ok := resolveForTest(t, []string{"show", "bgp", "peer", "edge1", "detail"}, "show")
 		if !ok || !res.Valid || !res.Declared {
 			t.Fatalf("`ze show bgp peer edge1 detail` does not resolve (ok=%v valid=%v declared=%v)", ok, res.Valid, res.Declared)
 		}
@@ -229,7 +230,7 @@ func TestTrailingValueCommandsResolveFromArgv(t *testing.T) {
 func TestInlineSelectorAndATailBothResolve(t *testing.T) {
 	argv := []string{"send", "bgp", "192.0.2.1", "raw", "hex", "DEADBEEF"}
 
-	res, ok := ResolveCommand(argv, "send")
+	res, ok := resolveForTest(t, argv, "send")
 	if !ok || !res.Valid || !res.Declared {
 		t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v)", strings.Join(argv, " "), ok, res.Valid, res.Declared)
 	}
@@ -277,7 +278,7 @@ const valueCommandFloor = 90
 //
 // THE FILTER IS WHERE THIS TEST LEANS ON THE RESOLVER'S OWN KEY. The walk
 // keeps a node only when registered[node.WireMethod] holds, over
-// cli.YANGCommandTree -- the same population cliWireToPaths carries and
+// cli.YANGCommandTree -- the same population cli.WireToPaths carries and
 // cli.AbsoluteVerbPath scans. So res.Declared is true by construction for every
 // case here: this test can prove the value ARRIVES and the dispatch string is
 // rebuilt, and it cannot prove that the declaration verdict itself is right.
@@ -307,7 +308,7 @@ func declaredValueCommands(t *testing.T) []string {
 			walk(child, append(append([]string{}, path...), name))
 		}
 	}
-	walk(cli.YANGCommandTree(), nil)
+	walk(yangTreeForTest(t), nil)
 	slices.Sort(out)
 	return out
 }
@@ -348,10 +349,10 @@ func TestDeclaredValueCommandsAcceptTheirValue(t *testing.T) {
 
 	exercised := 0
 	for _, path := range paths {
-		for _, form := range verbForms(path) {
+		for _, form := range verbForms(t, path) {
 			exercised++
 			t.Run(strings.Join(form.argv, " "), func(t *testing.T) {
-				base, ok := ResolveCommand(form.argv, form.verb)
+				base, ok := resolveForTest(t, form.argv, form.verb)
 				if !ok || !base.Valid || !base.Declared {
 					t.Fatalf("`ze %s` does not resolve on its own (ok=%v valid=%v declared=%v)", strings.Join(form.argv, " "), ok, base.Valid, base.Declared)
 				}
@@ -360,7 +361,7 @@ func TestDeclaredValueCommandsAcceptTheirValue(t *testing.T) {
 				}
 
 				withValue := append(append([]string{}, form.argv...), value)
-				res, ok := ResolveCommand(withValue, form.verb)
+				res, ok := resolveForTest(t, withValue, form.verb)
 				if !ok || !res.Valid || !res.Declared {
 					t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v): the invocation form declares a value, so the value must not cost the command its path", strings.Join(withValue, " "), ok, res.Valid, res.Declared)
 				}
@@ -397,16 +398,17 @@ type verbForm struct {
 // children only. It does not ask whether anything declares the path, so a
 // resolver that wrongly forgot a declaration cannot make its own case
 // disappear from this list.
-func verbForms(path string) []verbForm {
+func verbForms(t testing.TB, path string) []verbForm {
+	t.Helper()
 	words := strings.Fields(path)
 	var out []verbForm
 	if len(words) > 1 {
-		if FindNode(words[1:], cli.BuildVerbCommandTree(words[0])) != nil {
+		if FindNode(words[1:], verbTreeForTest(t, words[0])) != nil {
 			out = append(out, verbForm{verb: words[0], argv: words})
 		}
 	}
 	if words[0] != "show" && pluginserver.IsReadOnlyPath(path) {
-		if FindNode(words, cli.BuildVerbCommandTree("show")) != nil {
+		if FindNode(words, verbTreeForTest(t, "show")) != nil {
 			out = append(out, verbForm{verb: "show", argv: append([]string{"show"}, words...)})
 		}
 	}
@@ -451,8 +453,8 @@ func TestRegisteredLocalCommandsStayReachable(t *testing.T) {
 		exercised++
 		t.Run(entry.Path, func(t *testing.T) {
 			for _, argv := range [][]string{words, append(append([]string{}, words...), "a-value")} {
-				res, _ := ResolveCommand(argv, words[0])
-				handler, _ := matchLocalHandler(res.Local, res.LocalValues)
+				res, _ := resolveForTest(t, argv, words[0])
+				handler, _ := matchLocalForTest(t, res.Local, res.LocalValues)
 				if handler == nil {
 					t.Errorf("`ze %s` reaches no local handler: Local=%q LocalValues=%q, but %q is registered", strings.Join(argv, " "), res.Local, res.LocalValues, entry.Path)
 				}
@@ -471,8 +473,8 @@ func TestRegisteredLocalCommandsStayReachable(t *testing.T) {
 		registry.MustRegisterLocal(path, func(_ []string) int { return 0 })
 
 		argv := append(append([]string{}, leaf...), "profile", "name", "default")
-		res, _ := ResolveCommand(argv, leaf[0])
-		handler, args := matchLocalHandler(res.Local, res.LocalValues)
+		res, _ := resolveForTest(t, argv, leaf[0])
+		handler, args := matchLocalForTest(t, res.Local, res.LocalValues)
 		if handler == nil {
 			t.Fatalf("`ze %s` reaches no local handler: Local=%q LocalValues=%q, but %q is registered", strings.Join(argv, " "), res.Local, res.LocalValues, path)
 		}
@@ -488,7 +490,7 @@ func TestRegisteredLocalCommandsStayReachable(t *testing.T) {
 //
 // THE SELECTION SOURCE IS THE AUTHORED YANG TREE, NOT THE RPC REGISTRY THE FIX
 // KEYS ON. cli.IsDeclaredCommand, which is what registry.LookupLocal asks, reads
-// AllCLIRPCs x cliWireToPaths. cli.YANGCommandTree is yang.BuildCommandTree over
+// AllCLIRPCs x cli.WireToPaths. cli.YANGCommandTree is yang.BuildCommandTree over
 // the module text: a node carries WireMethod because a `ze:command` statement is
 // written on its container, and no registration is consulted. A child this
 // binary's build tags left unregistered is therefore still listed here, and the
@@ -514,7 +516,7 @@ func shadowedDeclaredChildren(t *testing.T) map[string][]string {
 
 	out := make(map[string][]string)
 	for _, entry := range localAtStartup {
-		node := cli.YANGCommandTree()
+		node := yangTreeForTest(t)
 		for word := range strings.FieldsSeq(entry.Path) {
 			if node == nil {
 				break
@@ -574,8 +576,8 @@ func TestLocalHandlerDoesNotSwallowDeclaredChildren(t *testing.T) {
 			words := strings.Fields(child)
 			for _, argv := range [][]string{words, append(append([]string{}, words...), "a-value")} {
 				t.Run(strings.Join(argv, " "), func(t *testing.T) {
-					res, _ := ResolveCommand(argv, words[0])
-					handler, args := matchLocalHandler(res.Local, res.LocalValues)
+					res, _ := resolveForTest(t, argv, words[0])
+					handler, args := matchLocalForTest(t, res.Local, res.LocalValues)
 					if handler != nil {
 						t.Errorf("`ze %s` reached the handler registered at %q with args %q: a declared command was answered by the registration above it", strings.Join(argv, " "), local, args)
 					}
@@ -595,7 +597,7 @@ func TestLocalHandlerDoesNotSwallowDeclaredChildren(t *testing.T) {
 // nothing.
 func declaredChildlessNode(t *testing.T) []string {
 	t.Helper()
-	tree := cli.BuildVerbCommandTree("show")
+	tree := verbTreeForTest(t, "show")
 	names := make([]string, 0, len(tree.Children))
 	for name := range tree.Children {
 		names = append(names, name)
@@ -606,7 +608,7 @@ func declaredChildlessNode(t *testing.T) []string {
 		if len(child.Children) > 0 {
 			continue
 		}
-		if abs, declared := cli.AbsoluteVerbPath("show", []string{name}); declared {
+		if abs, declared := absoluteVerbPathForTest(t, "show", []string{name}); declared {
 			return abs
 		}
 	}
@@ -662,7 +664,7 @@ func TestSyntheticOfflineFallbackBeatsGroupingContainer(t *testing.T) {
 
 	// The fallback is longest-prefix, so it also covers a trailing argument an
 	// operator types with no daemon running.
-	sub, ok := ResolveCommand(append(append([]string{}, path...), "no-such-child"), "show")
+	sub, ok := resolveForTest(t, append(append([]string{}, path...), "no-such-child"), "show")
 	if !ok {
 		t.Fatalf("`ze %s no-such-child` does not resolve", joined)
 	}
@@ -678,7 +680,7 @@ func TestSyntheticOfflineFallbackBeatsGroupingContainer(t *testing.T) {
 // stops holding such a node fails the test rather than passing over nothing.
 func undeclaredGroupingContainer(t *testing.T) ([]string, Resolution) {
 	t.Helper()
-	tree := cli.BuildVerbCommandTree("show")
+	tree := verbTreeForTest(t, "show")
 	var walk func(node *cli.Command, rel []string) ([]string, Resolution, bool)
 	walk = func(node *cli.Command, rel []string) ([]string, Resolution, bool) {
 		names := make([]string, 0, len(node.Children))
@@ -693,7 +695,7 @@ func undeclaredGroupingContainer(t *testing.T) ([]string, Resolution) {
 			}
 			childRel := append(append([]string{}, rel...), name)
 			argv := append([]string{"show"}, childRel...)
-			if res, ok := ResolveCommand(argv, "show"); ok && res.Valid && !res.Declared {
+			if res, ok := resolveForTest(t, argv, "show"); ok && res.Valid && !res.Declared {
 				return argv, res, true
 			}
 			if p, res, ok := walk(child, childRel); ok {
@@ -754,7 +756,7 @@ func TestInteropHarnessCommandsResolve(t *testing.T) {
 		"show isis neighbor",
 	} {
 		t.Run(path, func(t *testing.T) {
-			res, ok := ResolveCommand(strings.Fields(path), "show")
+			res, ok := resolveForTest(t, strings.Fields(path), "show")
 			if !ok || !res.Valid || !res.Declared {
 				t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v)", path, ok, res.Valid, res.Declared)
 			}
@@ -772,7 +774,7 @@ func TestInteropHarnessCommandsResolve(t *testing.T) {
 // verbContextPath carries such a path into the show tree unchanged, so
 // AbsoluteVerbPath must carry it back out unchanged.
 func TestReadOnlyCommandUnderShowKeepsItsRoot(t *testing.T) {
-	res, ok := ResolveCommand([]string{"show", "monitor", "ping"}, "show")
+	res, ok := resolveForTest(t, []string{"show", "monitor", "ping"}, "show")
 	if !ok || !res.Valid {
 		t.Fatalf("`ze show monitor ping` does not resolve (ok=%v valid=%v)", ok, res.Valid)
 	}
@@ -955,7 +957,7 @@ func TestRegisterLocalCommandAndDispatch(t *testing.T) {
 	if !registry.HasLocal("test cmd") {
 		t.Fatal("handler not found in registry")
 	}
-	handler, _ := registry.LookupLocal([]string{"test", "cmd"}, cli.IsDeclaredCommand)
+	handler, _ := lookupLocalForTest(t, []string{"test", "cmd"})
 	if handler == nil {
 		t.Fatal("LookupLocal returned nil")
 	}
@@ -1010,7 +1012,7 @@ func TestRegisterLocalCommandOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler, _ := registry.LookupLocal([]string{"overwrite"}, cli.IsDeclaredCommand)
+	handler, _ := lookupLocalForTest(t, []string{"overwrite"})
 	if handler == nil {
 		t.Fatal("LookupLocal returned nil after overwrite")
 	}
@@ -1065,7 +1067,7 @@ func TestMatchLocalHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, args := matchLocalHandler(tt.words, tt.values)
+			handler, args := matchLocalForTest(t, tt.words, tt.values)
 			if tt.wantCode == -1 {
 				if handler != nil {
 					t.Error("expected nil handler, got non-nil")

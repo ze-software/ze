@@ -24,7 +24,7 @@ import (
 // name as its Anchor, and matchCommandTokens binds it from the bare token that
 // follows that keyword (anchoredDef): `send bgp <selector> withdraw all` reads
 // the selector after `bgp`, so the value is written there, with no keyword in
-// front of it. A keyword form after the command would pass validateCommandArgs
+// front of it. A keyword form after the command would pass ValidateArgs
 // and still leave the selector unbound, and every command that requires one
 // would answer "requires a selector" for the one value the client supplied.
 // Every other declared argument follows the command as the keyword the leaf is

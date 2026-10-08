@@ -174,6 +174,23 @@ their question.
 <!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
 <!-- source: internal/component/command/registry/registry.go -- LocalDataHandler -->
 
+Before the handler runs, `ServeLocal` judges the arguments against the leaves
+the command's YANG declares, with `command.ValidateArgs`, the same validator the
+daemon dispatcher calls. A refused argument is written to stderr and exits 1, and
+the handler is never called. The definitions come from the YANG package, which
+registers itself as the source (`command.RegisterArgDefSource`); a process with
+no source registered refuses every local command rather than skipping the check.
+<!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, checkLocalArgs -->
+<!-- source: internal/component/config/yang/command.go -- commandArgDefs -->
+
+`ze <verb>` does not pass through `ServeLocal`: it runs the plain local handler
+that `registry.RegisterLocalData` builds from the same data handler. That
+handler runs the same judgment first (`registry.RegisterLocalDataArgCheck`,
+which `command.RegisterArgDefSource` installs), so `ze show env get <key>` and
+`ze cli -c "show env get <key>"` refuse the same values with the same message.
+<!-- source: internal/component/command/local_data.go -- RegisterArgDefSource -->
+<!-- source: internal/component/command/registry/registry.go -- RegisterLocalData, checkLocalDataArgs -->
+
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
 local-data command has no daemon side at all, registers no RPC, and therefore
@@ -1428,19 +1445,19 @@ Operational commands declare their argument types as YANG leaves inside
    positional matching).
 
 A `type empty` leaf is a flag (`ArgFlag`): the keyword alone is the argument,
-in any position, and no value follows it. `validateCommandArgs` consumes it in
+in any position, and no value follows it. `ValidateArgs` consumes it in
 the keyword phase, and it is never an open definition, so a bare `force` never
 fills a value leaf beside it (`request data backup path <abs> force` once
 answered `invalid value "force", expected unsigned integer` against `spare`).
 Usage renders it `[force]`, the completer offers the keyword, and help and the
 catalog name its kind `flag`.
 <!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
-<!-- source: internal/component/plugin/server/command.go -- validateCommandArgs, unmatchedDefCount -->
+<!-- source: internal/component/command/argbind.go -- ValidateArgs, unmatchedDefCount -->
 
 A command carries more grammar than its ArgDefs hold. A modifier group states a
 keyword and a value the HANDLER parses, so the dispatcher meets tokens that
 belong to no definition of its own, and it MUST NOT read one of them as a bad
-value. `validateCommandArgs` counts the tokens it could not place against the
+value. `ValidateArgs` counts the tokens it could not place against the
 definitions still open. As many tokens as open definitions, or fewer: each token
 can be attributed to a definition, so the first one is refused by that
 definition's own message (`invalid value "not-an-ip", does not match expected
@@ -1471,7 +1488,8 @@ type ArgDef struct {
     EnumValues  []string       // Valid enum values
     UintBits    int            // 8, 16, 32, or 64
     Ranges      []UintRange    // Valid ranges (disjoint segments supported)
-    Pattern     *regexp.Regexp // Compiled XSD pattern for ArgString
+    Lengths     []UintRange    // Character-count ranges for ArgString
+    Patterns    []*regexp.Regexp // Compiled XSD patterns for ArgString, all must match
     UnionDefs   []ArgDef       // Member types for ArgUnion
     Mandatory   bool           // True if YANG leaf has mandatory true
     ShortHelp   string         // The leaf's ze:help summary
@@ -1490,6 +1508,26 @@ as a BUG, not successful validation or an unconstrained argument. Invalid
 operator-supplied values still return their type's existing validation errors.
 <!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef -->
 <!-- source: internal/component/command/argvalidate.go -- ValidateArgString, Constraint -->
+
+A string argument carries every restriction its YANG type chain declares.
+goyang resolves the typedef chain before `yangTypeToArgDef` reads it, so
+`Lengths` is the most restricted `length` along the chain and `Patterns` holds
+every `pattern` of every type in it. `validateString` refuses a value whose
+character count falls outside every length range (RFC 7950 Section 9.4.4
+counts Unicode characters, not bytes), naming the bound (`invalid value "x",
+length 1 out of range 2..4`, or `1..8 | 16..32` for a disjoint length), and a
+value that fails any one pattern. A union member is judged by the same
+definition, so its own length and patterns apply to it.
+
+A pattern is translated by `compilePattern` (`config/yang/pattern.go`), the
+same XSD translation the config validator uses, and anchored to the whole
+value: `up|down` matches `up` and `down` only. `Loader.Resolve` and
+`DefaultLoader` refuse a module holding a pattern that translation cannot
+compile, wrapping `ErrUncompilablePattern`, so no argument is ever built with
+its pattern missing.
+<!-- source: internal/component/config/yang/command.go -- applyLength, applyPatterns -->
+<!-- source: internal/component/command/argvalidate.go -- validateString -->
+<!-- source: internal/component/config/yang/loader.go -- checkPatterns -->
 
 A container that names an object declares the value the operator types after
 its keyword, once, and every command under it takes that value:

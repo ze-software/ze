@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8907-10-1": {
@@ -685,10 +688,10 @@
         "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestRFC8907BundleRetirementWaitsForAccountingPair": "4a70d343282f23b5",
         "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly": "d088d401c7b9ab0b",
         "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler": "d088d401c7b9ab0b",
-        "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername": "c3bc3ab9452fd87b",
-        "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands": "c3bc3ab9452fd87b",
         "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907PluginDispatchAccountsCommand": "92b8ca6f89db7098",
         "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907TypedDispatchAccountsDeniedCommand": "92b8ca6f89db7098",
+        "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername": "39a11edcfabf7481",
+        "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands": "39a11edcfabf7481",
         "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingSaturationRetainsEveryStart": "6adcca5068bdc7f8",
         "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingStopDrainsAcceptedStarts": "6adcca5068bdc7f8",
         "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire": "3bb85e6ab2672ec2",
@@ -700,10 +703,10 @@
         "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestRFC8907BundleRetirementWaitsForAccountingPair": "af0c567ada7e8a9f",
         "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly": "be83d1882794034b",
         "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler": "746e6746897220cd",
-        "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername": "50c198869aaf388b",
-        "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands": "5b7c163f84443dd2",
         "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907PluginDispatchAccountsCommand": "5e1a1d0565f79e8e",
         "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907TypedDispatchAccountsDeniedCommand": "791338f39514dfc7",
+        "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername": "50c198869aaf388b",
+        "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands": "5b7c163f84443dd2",
         "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingSaturationRetainsEveryStart": "30d35513be5065d9",
         "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingStopDrainsAcceptedStarts": "f512a11a8ab40bae",
         "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire": "f2b17b8b70883ab3",

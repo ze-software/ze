@@ -38,7 +38,12 @@ func writeWords(w io.Writer, args []string) int {
 		return 0
 	}
 
-	tree, path := completionTree(args)
+	tree, path, err := completionTree(args)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+		return 1
+	}
 	if tree == nil {
 		return 0
 	}
@@ -92,23 +97,34 @@ func writeCompletionRecord(w io.Writer, candidate, summary string) error {
 // file names more than once is command.VerbShow, the canonical spelling.
 const nameRIB = "rib"
 
-func completionTree(args []string) (*command.Node, []string) {
+// completionTree answers the tree args complete against and the path left to
+// walk in it. A nil tree with no error means args name nothing completable.
+// The error is the YANG loader's refusal of the schema.
+func completionTree(args []string) (*command.Node, []string, error) {
 	if len(args) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if args[0] == "run" {
 		return runCompletionTree(args[1:])
 	}
 	if args[0] == command.VerbShow {
-		return cli.BuildVerbCommandTree(command.VerbShow), args[1:]
+		tree, err := cli.BuildVerbCommandTree(command.VerbShow)
+		return tree, args[1:], err
 	}
-	if tree := rootCommandTree(args[0]); tree != nil {
-		return tree, args[1:]
+	tree, found, err := rootCommandTree(args[0])
+	if err != nil {
+		return nil, nil, err
 	}
-	return nil, nil
+	if found {
+		return tree, args[1:], nil
+	}
+	return nil, nil, nil
 }
 
-func rootCommandTree(name string) *command.Node {
+// rootCommandTree builds the tree of the registered root command name; found
+// is false when none is registered. The error is the YANG loader's refusal of
+// the schema, met while merging the `show` descriptions.
+func rootCommandTree(name string) (*command.Node, bool, error) {
 	for _, cmd := range registry.ListRoot() {
 		if cmd.Name != name {
 			continue
@@ -129,26 +145,28 @@ func rootCommandTree(name string) *command.Node {
 				root.Children[cmdName] = &command.Node{Name: cmdName, ShortHelp: hint}
 			}
 		}
-		mergeShowDescriptions(name, root)
+		if err := mergeShowDescriptions(name, root); err != nil {
+			return nil, false, err
+		}
 		if name == "env" {
 			wireEnvKeyHints(root)
 		}
-		return root
+		return root, true, nil
 	}
-	return nil
+	return nil, false, nil
 }
 
-func mergeShowDescriptions(name string, root *command.Node) {
+func mergeShowDescriptions(name string, root *command.Node) error {
 	if root.Children == nil {
-		return
+		return nil
 	}
-	showTree := cli.BuildVerbCommandTree(command.VerbShow)
-	if showTree == nil {
-		return
+	showTree, err := cli.BuildVerbCommandTree(command.VerbShow)
+	if err != nil {
+		return err
 	}
 	src := showTree.Children[name]
 	if src == nil || src.Children == nil {
-		return
+		return nil
 	}
 	for childName, child := range root.Children {
 		if child.ShortHelp == "" {
@@ -157,6 +175,7 @@ func mergeShowDescriptions(name string, root *command.Node) {
 			}
 		}
 	}
+	return nil
 }
 
 func wireEnvKeyHints(root *command.Node) {
@@ -170,22 +189,31 @@ func wireEnvKeyHints(root *command.Node) {
 	}
 }
 
-func runCompletionTree(path []string) (*command.Node, []string) {
+// runCompletionTree answers the daemon command tree `ze run` completes
+// against and the path left to walk in it. The error is the YANG loader's
+// refusal of the schema.
+func runCompletionTree(path []string) (*command.Node, []string, error) {
 	if len(path) == 0 {
-		return cli.BuildCommandTree(false), nil
+		tree, err := cli.BuildCommandTree(false)
+		return tree, nil, err
 	}
 	if path[0] == nameRIB {
-		tree := cli.BuildVerbCommandTree(command.VerbShow)
+		tree, err := cli.BuildVerbCommandTree(command.VerbShow)
+		if err != nil {
+			return nil, nil, err
+		}
 		addRIBRoutesAlias(tree)
-		return tree, append([]string{"bgp", nameRIB}, path[1:]...)
+		return tree, append([]string{"bgp", nameRIB}, path[1:]...), nil
 	}
 	// A canonical verb roots a tree of its own, so completion walks that tree
 	// relative to the verb. The set is command.Verbs rather than a list written
 	// here, so a verb added to the vocabulary completes without a second edit.
 	if command.IsVerb(path[0]) {
-		return cli.BuildVerbCommandTree(path[0]), path[1:]
+		tree, err := cli.BuildVerbCommandTree(path[0])
+		return tree, path[1:], err
 	}
-	return cli.BuildCommandTree(false), path
+	tree, err := cli.BuildCommandTree(false)
+	return tree, path, err
 }
 
 func addRIBRoutesAlias(tree *command.Node) {

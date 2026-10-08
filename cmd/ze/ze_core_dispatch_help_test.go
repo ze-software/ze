@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
@@ -23,7 +22,7 @@ import (
 func rootHandledCommandPaths(t *testing.T) [][]string {
 	t.Helper()
 
-	tree := cli.YANGCommandTree()
+	tree := yangTreeForTest(t)
 	if tree == nil {
 		t.Fatal("the YANG command tree must be built")
 	}

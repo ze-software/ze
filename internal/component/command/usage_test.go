@@ -469,7 +469,7 @@ func TestUsageRendersRequiredModifierGroup(t *testing.T) {
 // alone, bracketed.
 // PREVENTS: a presence-only flag being modeled as a leaf. `parseOpaqueInject`
 // (internal/plugins/ospf/inject.go) reads `withdraw` and does NOT read a value
-// after it, and validateCommandArgs
+// after it, and ValidateArgs
 // (internal/component/plugin/server/command.go) demands a value for every
 // declared leaf name it meets, so a `withdraw` LEAF would reject the shipped
 // invocation with "withdraw requires a value".

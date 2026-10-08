@@ -21,7 +21,7 @@ import (
 // a published argument nobody can pass, or an accepted argument nobody is told
 // about. The MCP tool forwards each typed parameter as `<name> <value>`
 // (dispatchGenerated, internal/component/mcp/tools.go), so the NAME has to be
-// the one validateCommandArgs binds.
+// the one command.ValidateArgs binds.
 // PREVENTS: `rpc interface-unit-del` publishing one argument, `name`, for the
 // two-argument `delete interface <name> unit <vid>` (journal row of 2026-09-15
 // in plan/journal/command-takes-an-untyped-positional-value.md).

@@ -66,7 +66,10 @@ func pressEnter(t *testing.T, m *unicli.Model, command string) unicli.Model {
 // VALIDATES: `ze start --cli` opens at the operational prompt.
 // PREVENTS: the attach console opening in the config editor.
 func TestAttachedModelOpensOperational(t *testing.T) {
-	m := newAttachedModel(attachedTestDispatch, unicli.CommandExecutor(attachedTestDispatch), attachedTestEditor(t))
+	m, err := newAttachedModel(attachedTestDispatch, unicli.CommandExecutor(attachedTestDispatch), attachedTestEditor(t))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if m.Mode() != unicli.ModeOperational {
 		t.Errorf("mode = %v, want operational", m.Mode())
@@ -80,7 +83,10 @@ func TestAttachedModelOpensOperational(t *testing.T) {
 // VALIDATES: `ze start --cli` reaches configuration mode.
 // PREVENTS: the attach console answering "config mode not available".
 func TestAttachedModelConfigureReachesConfigMode(t *testing.T) {
-	m := newAttachedModel(attachedTestDispatch, unicli.CommandExecutor(attachedTestDispatch), attachedTestEditor(t))
+	m, err := newAttachedModel(attachedTestDispatch, unicli.CommandExecutor(attachedTestDispatch), attachedTestEditor(t))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updated := pressEnter(t, &m, "configure")
 
@@ -95,7 +101,10 @@ func TestAttachedModelConfigureReachesConfigMode(t *testing.T) {
 // VALIDATES: a nil editor keeps the previous behavior.
 // PREVENTS: a nil editor reaching config mode with no config to edit.
 func TestAttachedModelWithoutEditorRefusesConfigure(t *testing.T) {
-	m := newAttachedModel(attachedTestDispatch, unicli.CommandExecutor(attachedTestDispatch), nil)
+	m, err := newAttachedModel(attachedTestDispatch, unicli.CommandExecutor(attachedTestDispatch), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updated := pressEnter(t, &m, "configure")
 

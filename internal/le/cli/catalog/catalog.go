@@ -117,13 +117,21 @@ type Entry struct {
 
 // Collect answers the same sorted product inventory as ze help command. It
 // joins exported registry and catalog APIs in-process rather than parsing a
-// child process's JSON output.
-func Collect() []Entry {
+// child process's JSON output. The error is the YANG loader's refusal of the
+// schema: an inventory built from no schema would publish the offline
+// commands alone as the whole product.
+func Collect() ([]Entry, error) {
 	var entries []Entry
 	seen := make(map[string]bool)
 
-	tree := cli.YANGCommandTree()
-	wireToPaths := cli.WireToPaths()
+	tree, err := cli.YANGCommandTree()
+	if err != nil {
+		return nil, err
+	}
+	wireToPaths, err := cli.WireToPaths()
+	if err != nil {
+		return nil, err
+	}
 	for wireMethod, cliPaths := range wireToPaths {
 		for _, cliPath := range cliPaths {
 			if seen[cliPath] {
@@ -147,7 +155,7 @@ func Collect() []Entry {
 				entry.TaskSupport = node.TaskSupport
 			}
 			declared := command.DeclaredForCommand(cliPath)
-			entry.Operators, entry.AnswerShape = operatorsFor(cliPath, declared)
+			entry.Operators, entry.AnswerShape = operatorsFor(cliPath, declared, wireToPaths)
 			entry.AddressFields = declared.AddressFields
 			entry.ColumnOrders = command.ColumnNames(declared.Columns)
 			entry.Aliases = aliasesFor(declared)
@@ -211,12 +219,12 @@ func Collect() []Entry {
 		seen[local.Path] = true
 	}
 
-	entries = appendPluginCommands(entries, seen, tree)
+	entries = appendPluginCommands(entries, seen, tree, wireToPaths)
 
 	slices.SortFunc(entries, func(left, right Entry) int {
 		return strings.Compare(left.Path, right.Path)
 	})
-	return entries
+	return entries, nil
 }
 
 // appendPluginCommands adds every command a plugin declares on its
@@ -236,7 +244,7 @@ func Collect() []Entry {
 // The YANG node wins wherever one exists. A plugin command can be modeled and
 // still carry no wire method, `show vrrp interface` among them, so it arrives
 // with an authored summary, long help and grammar already written.
-func appendPluginCommands(entries []Entry, seen map[string]bool, tree *command.Node) []Entry {
+func appendPluginCommands(entries []Entry, seen map[string]bool, tree *command.Node, wireToPaths map[string][]string) []Entry {
 	for _, registration := range pluginregistry.All() {
 		for index := range registration.Commands {
 			decl := &registration.Commands[index]
@@ -270,7 +278,7 @@ func appendPluginCommands(entries []Entry, seen map[string]bool, tree *command.N
 				}
 			}
 			declared := command.DeclaredForCommand(decl.Name)
-			entry.Operators, entry.AnswerShape = operatorsFor(decl.Name, declared)
+			entry.Operators, entry.AnswerShape = operatorsFor(decl.Name, declared, wireToPaths)
 			entry.AddressFields = declared.AddressFields
 			entry.ColumnOrders = command.ColumnNames(declared.Columns)
 			entry.Aliases = aliasesFor(declared)
@@ -365,8 +373,8 @@ func extractSubcommands(node *command.Node) []string {
 // (internal/component/command, DeclaredForCommand), and `ze help command
 // --json` reads the same function, so the two catalogs agree by derivation
 // rather than by comparison.
-func operatorsFor(path string, declared command.Declared) ([]Operator, string) {
-	if plainLocalOnly(path) {
+func operatorsFor(path string, declared command.Declared, wireToPaths map[string][]string) ([]Operator, string) {
+	if plainLocalOnly(path, wireToPaths) {
 		return nil, ""
 	}
 	shape := declared.Shape
@@ -402,11 +410,12 @@ func operatorsFor(path string, declared command.Declared) ([]Operator, string) {
 	return operators, shape.String()
 }
 
-func plainLocalOnly(path string) bool {
+// plainLocalOnly reports whether path has only a plain local handler and no
+// daemon handler. wireToPaths is cli.WireToPaths, fetched once by Collect.
+func plainLocalOnly(path string, wireToPaths map[string][]string) bool {
 	if !registry.HasLocal(path) || command.HasLocalData(path) {
 		return false
 	}
-	wireToPaths := cli.WireToPaths()
 	for _, registration := range pluginserver.AllBuiltinRPCs() {
 		if registration.Handler != nil && slices.Contains(wireToPaths[registration.WireMethod], path) {
 			return false

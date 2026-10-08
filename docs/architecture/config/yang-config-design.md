@@ -119,12 +119,19 @@ extraction fails at daemon start and on reload instead of checking match
 entries against an empty command set. The API and MCP command metadata
 (`commandMetaSource`) caches the error with the metadata and returns it on
 every call: REST and gRPC answer an internal error naming the cause, and MCP
-`tools/list` and `tools/call` answer a JSON-RPC internal error. One caller still
-discards it, recorded in `plan/journal/discarded-error-becomes-destructive.md`:
-the `ze cli` client's package-init loader.
+`tools/list` and `tools/call` answer a JSON-RPC internal error. The `ze cli`
+client builds its YANG state on first use, never at package init, and caches
+the error with it: every accessor returns it, so `ze` help, usage, the menu,
+verb dispatch, shell completion and the command catalog report the cause and
+exit 1, and `IsDeclaredCommand` returns it rather than `false`, so the
+local-handler lookup refuses the match instead of serving a handler that
+shadows a declared command.
 
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
+<!-- source: internal/component/cli/client/main.go -- loadYANGState, buildYANGState -->
+<!-- source: internal/component/cli/client/verb_tree.go -- IsDeclaredCommand -->
+<!-- source: internal/component/command/registry/registry.go -- LookupLocal -->
 <!-- source: cmd/ze/hub/session_factory.go -- buildCommandTree -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- buildEditorCommandTree -->
 <!-- source: internal/component/aihelp/aihelp.go -- CLISubcommands, Build -->

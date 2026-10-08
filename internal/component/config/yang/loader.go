@@ -23,6 +23,8 @@ import (
 // Ze's extension readers match a statement by its keyword, so a misspelled
 // `ze:comand` would load and the feature it names would be absent in silence.
 // DefaultLoader returns that error, and the errors embedded loading reports.
+// A pattern compilePattern cannot compile is not best-effort either: the
+// command tree would otherwise hold an argument whose restriction vanished.
 func DefaultLoader() (*Loader, error) {
 	l := NewLoader()
 	if err := l.LoadEmbedded(); err != nil {
@@ -30,7 +32,7 @@ func DefaultLoader() (*Loader, error) {
 	}
 	_ = l.LoadRegistered() // Best-effort: some modules may not be imported in this context
 	_ = l.process()        // Best-effort: unresolved modules are skipped by tree walker
-	if err := l.checkExtensions(); err != nil {
+	if err := errors.Join(l.checkExtensions(), l.checkPatterns()); err != nil {
 		return nil, err
 	}
 	return l, nil
@@ -104,8 +106,11 @@ func (l *Loader) AddModuleFromFile(path string) error {
 // extension statement whose prefix names no imported module, or whose keyword
 // names no extension the module behind that prefix declares. The error joins
 // every failure, and each undeclared extension wraps ErrUndeclaredExtension.
+//
+// It also refuses every `pattern` statement compilePattern cannot compile,
+// each wrapping ErrUncompilablePattern.
 func (l *Loader) Resolve() error {
-	return errors.Join(l.process(), l.checkExtensions())
+	return errors.Join(l.process(), l.checkExtensions(), l.checkPatterns())
 }
 
 // process runs goyang's import and type resolution over every loaded module.
@@ -116,6 +121,12 @@ func (l *Loader) process() error {
 	}
 	return nil
 }
+
+// ErrUncompilablePattern marks a `pattern` statement that compilePattern, the
+// XSD-to-RE2 translation every consumer of a pattern uses, cannot compile. A
+// pattern nobody can match against constrains nothing, so the module holding
+// it is refused rather than loaded with the restriction dropped.
+var ErrUncompilablePattern = errors.New("uncompilable YANG pattern")
 
 // ErrUndeclaredExtension marks an extension statement that its module cannot
 // resolve: the prefix names no imported module, or the module behind the
@@ -136,6 +147,56 @@ var ErrUndeclaredExtension = errors.New("undeclared YANG extension")
 // is derived from the `extension` statements of the module the prefix
 // resolves to, never listed here.
 func (l *Loader) checkExtensions() error {
+	mods := l.sourceModules()
+	errs := make([]error, 0, len(mods))
+	for _, mod := range mods {
+		errs = append(errs, moduleExtensionErrors(mod)...)
+	}
+	return errors.Join(errs...)
+}
+
+// checkPatterns walks the statements of every loaded module and submodule and
+// returns one error per `pattern` statement that compilePattern refuses,
+// joined. goyang keeps a pattern without compiling it (types.go: "These
+// patterns are not checked because there is no support for W3C regexes by
+// Go"), so this is the only place an uncompilable one is refused. Without it
+// the config validator reported the pattern on every value and the command
+// argument builder dropped it, leaving the argument open to any string.
+func (l *Loader) checkPatterns() error {
+	mods := l.sourceModules()
+	errs := make([]error, 0, len(mods))
+	for _, mod := range mods {
+		errs = append(errs, modulePatternErrors(mod)...)
+	}
+	return errors.Join(errs...)
+}
+
+// modulePatternErrors returns one error for each `pattern` statement in mod
+// that compilePattern cannot compile. The walk is an explicit stack, as in
+// moduleExtensionErrors.
+func modulePatternErrors(mod *yang.Module) []error {
+	if mod.Source == nil {
+		return nil
+	}
+	var errs []error
+	pending := slices.Clone(mod.Source.SubStatements())
+	for len(pending) > 0 {
+		statement := pending[len(pending)-1]
+		pending = append(pending[:len(pending)-1], statement.SubStatements()...)
+		if statement.Keyword != "pattern" {
+			continue
+		}
+		if _, err := compilePattern(statement.Argument); err != nil {
+			errs = append(errs, fmt.Errorf("%w: module %s: %s: %w",
+				ErrUncompilablePattern, mod.Name, statement.Location(), err))
+		}
+	}
+	return errs
+}
+
+// sourceModules answers every loaded module and submodule, sorted by name,
+// skipping the revision-qualified duplicate keys goyang also stores.
+func (l *Loader) sourceModules() []*yang.Module {
 	names := make([]string, 0, len(l.modules.Modules)+len(l.modules.SubModules))
 	names = append(names, l.ModuleNames()...)
 	for name := range l.modules.SubModules {
@@ -145,15 +206,15 @@ func (l *Loader) checkExtensions() error {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	var errs []error
+	mods := make([]*yang.Module, 0, len(names))
 	for _, name := range names {
 		mod := l.modules.Modules[name]
 		if mod == nil {
 			mod = l.modules.SubModules[name]
 		}
-		errs = append(errs, moduleExtensionErrors(mod)...)
+		mods = append(mods, mod)
 	}
-	return errors.Join(errs...)
+	return mods
 }
 
 // moduleExtensionErrors returns one error for each extension statement in mod

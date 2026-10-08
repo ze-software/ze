@@ -33,14 +33,15 @@ type UintRange struct {
 // YANG leaves inside ze:command containers. Drives completion, validation,
 // and documentation from a single source.
 type ArgDef struct {
-	Name       string         // YANG leaf name (kebab-case, used as keyword detector)
-	Kind       ArgKind        // Argument type category
-	EnumValues []string       // Valid enum values (for ArgEnum and ArgUnion)
-	UintBits   int            // 8, 16, 32, or 64 for ArgUint
-	Ranges     []UintRange    // Valid ranges for ArgUint (disjoint segments supported)
-	Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString (nil = accept any)
-	UnionDefs  []ArgDef       // Member types for ArgUnion (tried in order)
-	Mandatory  bool           // True if YANG leaf has mandatory true
+	Name       string           // YANG leaf name (kebab-case, used as keyword detector)
+	Kind       ArgKind          // Argument type category
+	EnumValues []string         // Valid enum values (for ArgEnum and ArgUnion)
+	UintBits   int              // 8, 16, 32, or 64 for ArgUint
+	Ranges     []UintRange      // Valid ranges for ArgUint (disjoint segments supported)
+	Lengths    []UintRange      // Character-count ranges for ArgString (nil = any length)
+	Patterns   []*regexp.Regexp // Compiled XSD patterns for ArgString, all must match (nil = accept any)
+	UnionDefs  []ArgDef         // Member types for ArgUnion (tried in order)
+	Mandatory  bool             // True if YANG leaf has mandatory true
 
 	// ShortHelp is the leaf's one-line summary, from its ze:help statement, and
 	// Description is the long explanation, from its description statement.

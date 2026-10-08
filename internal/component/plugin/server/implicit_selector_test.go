@@ -27,7 +27,7 @@ func TestImplicitSelectorPrefersThePatternlessLeaf(t *testing.T) {
 	mac := regexp.MustCompile(`^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$`)
 	defs := []command.ArgDef{
 		{Name: "name", Kind: command.ArgString, Mandatory: true},
-		{Name: "address", Kind: command.ArgString, Mandatory: true, Pattern: mac},
+		{Name: "address", Kind: command.ArgString, Mandatory: true, Patterns: []*regexp.Regexp{mac}},
 	}
 
 	def := implicitSelectorDef([]string{"request", "interface", "mac"}, defs, nil)
@@ -58,7 +58,7 @@ func TestImplicitSelectorRefusesTwoPatternlessLeaves(t *testing.T) {
 // resolves today.
 func TestImplicitSelectorTakesALonePatternedLeaf(t *testing.T) {
 	defs := []command.ArgDef{
-		{Name: "selector", Kind: command.ArgString, Mandatory: true, Pattern: regexp.MustCompile(`^\S+$`)},
+		{Name: "selector", Kind: command.ArgString, Mandatory: true, Patterns: []*regexp.Regexp{regexp.MustCompile(`^\S+$`)}},
 	}
 
 	def := implicitSelectorDef([]string{"show", "bgp", "detail"}, defs, nil)

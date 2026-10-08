@@ -11,8 +11,13 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
-func zeUsage() {
-	verbTree := cli.BuildCommandTree(false)
+// zeUsage prints the root usage page. The error is the YANG loader's refusal
+// of the schema: the verb list comes from it, and the page is not printed.
+func zeUsage() error {
+	verbTree, err := cli.BuildCommandTree(false)
+	if err != nil {
+		return err
+	}
 	cmdEntries := command.HelpEntries(verbTree, nil)
 	verbEntries := make([]helpfmt.HelpEntry, len(cmdEntries))
 	for i, e := range cmdEntries {
@@ -80,4 +85,5 @@ func zeUsage() {
 		},
 	}
 	p.WriteErr()
+	return nil
 }

@@ -204,8 +204,8 @@ func TestLookupLocalRefusesToSwallowADeclaredChild(t *testing.T) {
 	defer ResetForTest()
 
 	MustRegisterLocal("show thing", func(_ []string) int { return 7 })
-	declared := func(path string) bool {
-		return path == "show thing" || path == "show thing brief" || path == "show thing name detail"
+	declared := func(path string) (bool, error) {
+		return path == "show thing" || path == "show thing brief" || path == "show thing name detail", nil
 	}
 
 	tests := []struct {
@@ -224,7 +224,10 @@ func TestLookupLocalRefusesToSwallowADeclaredChild(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, args := LookupLocal(tt.words, declared)
+			handler, args, err := LookupLocal(tt.words, declared)
+			if err != nil {
+				t.Fatalf("LookupLocal(%q) answered error %v from a declaration source that has none", tt.words, err)
+			}
 			if tt.nil_ {
 				if handler != nil {
 					t.Fatalf("LookupLocal(%q) served the local handler with args %q: it swallowed a declared command", tt.words, args)
@@ -246,8 +249,23 @@ func TestLookupLocalRefusesToSwallowADeclaredChild(t *testing.T) {
 	}
 
 	t.Run("no declaration source serves nothing", func(t *testing.T) {
-		if handler, _ := LookupLocal([]string{"show", "thing"}, nil); handler != nil {
+		if handler, _, _ := LookupLocal([]string{"show", "thing"}, nil); handler != nil {
 			t.Error("LookupLocal served a handler with no way to check what it shadows: a dispatch guard with no data must fail closed")
+		}
+	})
+
+	// A declaration source that cannot answer (the YANG schema was refused)
+	// is a guard with no data: the match is refused, never served as if
+	// nothing were declared below it, and the cause reaches the caller.
+	t.Run("a declaration source error refuses and is returned", func(t *testing.T) {
+		errSchema := errors.New("schema refused")
+		failing := func(string) (bool, error) { return false, errSchema }
+		handler, args, err := LookupLocal([]string{"show", "thing", "eth0"}, failing)
+		if handler != nil {
+			t.Fatalf("LookupLocal served the local handler with args %q although the declaration source failed: fail-open", args)
+		}
+		if !errors.Is(err, errSchema) {
+			t.Fatalf("LookupLocal answered error %v, want the declaration source's error", err)
 		}
 	})
 }

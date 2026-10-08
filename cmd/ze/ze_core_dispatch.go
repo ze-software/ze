@@ -286,11 +286,16 @@ func zeDispatch(args []string) int {
 
 	if len(args) < 1 {
 		if !stdinIsTerminal() {
-			zeUsage()
+			if err := zeUsage(); err != nil {
+				return reportDispatchError(err)
+			}
 			return 1
 		}
 
-		chosen := runTUILauncher()
+		chosen, err := runTUILauncher()
+		if err != nil {
+			return reportDispatchError(err)
+		}
 		if chosen == "" {
 			return 0
 		}
@@ -299,9 +304,17 @@ func zeDispatch(args []string) int {
 
 	arg := args[0]
 
-	if isYANGVerb(arg) {
+	verb, err := isYANGVerb(arg)
+	if err != nil {
+		return reportDispatchError(err)
+	}
+	if verb {
 		if helpPath := extractHelpPath(args); helpPath != nil {
-			page := commandHelpPage(helpPath, command.FindNode(cli.YANGCommandTree(), helpPath))
+			tree, err := cli.YANGCommandTree()
+			if err != nil {
+				return reportDispatchError(err)
+			}
+			page := commandHelpPage(helpPath, command.FindNode(tree, helpPath))
 			page.WriteErr()
 			return 0
 		}
@@ -335,7 +348,11 @@ func zeDispatch(args []string) int {
 		return 1
 	}
 
-	if helpPath, node := declaredCommandHelp(args); node != nil {
+	helpPath, node, err := declaredCommandHelp(args)
+	if err != nil {
+		return reportDispatchError(err)
+	}
+	if node != nil {
 		page := commandHelpPage(helpPath, node)
 		page.WriteErr()
 		return 0
@@ -378,16 +395,35 @@ func zeDispatch(args []string) int {
 	// cli.IsDeclaredCommand keeps this root fallback under the same shadow rule
 	// as the verb dispatch (registry.LookupLocal): a handler registered at a
 	// short path must not answer a ze:command declared below it.
-	if handler, remaining := registry.LookupLocal(args, cli.IsDeclaredCommand); handler != nil {
+	handler, remaining, err := registry.LookupLocal(args, cli.IsDeclaredCommand)
+	if err != nil {
+		return reportDispatchError(err)
+	}
+	if handler != nil {
 		return handler(remaining)
 	}
 
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
-	known := knownCommands()
+	known, err := knownCommands()
+	if err != nil {
+		return reportDispatchError(err)
+	}
 	if suggestion := suggest.Command(arg, known); suggestion != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
 	}
-	zeUsage()
+	if err := zeUsage(); err != nil {
+		return reportDispatchError(err)
+	}
+	return 1
+}
+
+// reportDispatchError writes an error that stops dispatch to stderr and returns
+// the exit code. Most are a refused YANG command schema, which every surface
+// reading the command tree stops on: an answer built from no schema would read
+// as the binary's real surface.
+func reportDispatchError(err error) int {
+	var tb textbuf.Buffer
+	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
 	return 1
 }
 
@@ -508,8 +544,13 @@ func dispatchRegisteredRoot(arg string, rctx *registry.RuntimeContext, rest []st
 	return handler(rctx, rest), true
 }
 
-func knownCommands() []string {
-	verbs := yangVerbs()
+// knownCommands answers every top-level name `ze` dispatches, for the "did you
+// mean" hint. The error is the YANG loader's refusal of the schema.
+func knownCommands() ([]string, error) {
+	verbs, err := yangVerbs()
+	if err != nil {
+		return nil, err
+	}
 	roots := registry.ListRoot()
 	names := make([]string, 0, len(verbs)+len(roots))
 	for verb := range verbs {
@@ -518,7 +559,7 @@ func knownCommands() []string {
 	for _, rc := range roots {
 		names = append(names, rc.Name)
 	}
-	return names
+	return names, nil
 }
 
 // yangVerbs answers the top-level words cmdutil.RunCommand can resolve a
@@ -537,9 +578,12 @@ func knownCommands() []string {
 // and local command, so the answer is never a stale snapshot.
 //
 // The loops are bounded by the model this binary was built with. No operator
-// input reaches them.
-func yangVerbs() map[string]bool {
-	tree := cli.YANGCommandTree()
+// input reaches them. The error is the YANG loader's refusal of the schema.
+func yangVerbs() (map[string]bool, error) {
+	tree, err := cli.YANGCommandTree()
+	if err != nil {
+		return nil, err
+	}
 	verbs := make(map[string]bool, len(tree.Children)+len(registry.ListLocal()))
 	for name := range tree.Children {
 		verbs[name] = true
@@ -553,11 +597,17 @@ func yangVerbs() map[string]bool {
 	for _, rc := range registry.ListRoot() {
 		delete(verbs, rc.Name)
 	}
-	return verbs
+	return verbs, nil
 }
 
-func isYANGVerb(arg string) bool {
-	return yangVerbs()[arg]
+// isYANGVerb reports whether arg is one of yangVerbs. The error is the YANG
+// loader's refusal of the schema.
+func isYANGVerb(arg string) (bool, error) {
+	verbs, err := yangVerbs()
+	if err != nil {
+		return false, err
+	}
+	return verbs[arg], nil
 }
 
 func extractHelpPath(args []string) []string {
@@ -596,19 +646,25 @@ func extractHelpPath(args []string) []string {
 // The population is DERIVED from the command tree and the root registry, never
 // listed: a plugin that registers a root handler over a YANG subtree is
 // covered the day it lands (ai/rules/plugins.md).
-func declaredCommandHelp(args []string) (path []string, node *command.Node) {
+//
+// The error is the YANG loader's refusal of the schema.
+func declaredCommandHelp(args []string) (path []string, node *command.Node, err error) {
 	helpPath := extractHelpPath(args)
 	if len(helpPath) < 2 {
-		return nil, nil
+		return nil, nil, nil
 	}
-	found := command.FindNode(cli.YANGCommandTree(), helpPath)
+	tree, err := cli.YANGCommandTree()
+	if err != nil {
+		return nil, nil, err
+	}
+	found := command.FindNode(tree, helpPath)
 	if found == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if found.WireMethod == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
-	return helpPath, found
+	return helpPath, found, nil
 }
 
 func dispatchHelp(args []string) int {
@@ -629,7 +685,9 @@ func dispatchHelp(args []string) int {
 		helpUsage()
 		return 0
 	default:
-		zeUsage()
+		if err := zeUsage(); err != nil {
+			return reportDispatchError(err)
+		}
 		return 0
 	}
 }

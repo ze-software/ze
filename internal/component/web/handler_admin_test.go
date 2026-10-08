@@ -630,7 +630,7 @@ func TestAdminExecuteAppendsPostedArguments(t *testing.T) {
 // command below `bgp` shares: the handler dispatches
 // `send bgp 10.0.0.1 withdraw all` and the handler sees the selector.
 // PREVENTS: the keyword form `send bgp withdraw all selector 10.0.0.1`, which
-// validateCommandArgs accepts and Dispatch still refuses with "requires a
+// command.ValidateArgs accepts and Dispatch still refuses with "requires a
 // selector", because only matchCommandTokens binds an anchored value and it
 // reads the bare token after the anchor (anchoredDef). A stub dispatcher
 // cannot see that refusal, so this test runs the dispatcher itself.

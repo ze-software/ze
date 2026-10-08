@@ -426,7 +426,7 @@ func TestBuildTopLevel(t *testing.T) {
 		return 0
 	}, registry.Meta{ShortHelp: desc, Section: registry.SectionOperations})
 
-	level := buildTopLevel()
+	level := buildTopLevel(commandTreeForTest(t))
 	if len(level.items) == 0 {
 		t.Fatal("buildTopLevel returned no items")
 	}

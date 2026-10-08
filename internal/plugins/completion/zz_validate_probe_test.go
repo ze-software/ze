@@ -24,7 +24,10 @@ func TestRunCompletionTreeKeepsValidateOnThePath(t *testing.T) {
 	if command.IsVerb("validate") {
 		t.Fatal("validate is not a canonical verb; the registry must not hold it")
 	}
-	_, rest := runCompletionTree([]string{"validate", "config"})
+	_, rest, err := runCompletionTree([]string{"validate", "config"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(rest) != 2 || rest[0] != "validate" || rest[1] != "config" {
 		t.Errorf("rest = %v, want [validate config]: a non-verb keeps its whole path", rest)
 	}

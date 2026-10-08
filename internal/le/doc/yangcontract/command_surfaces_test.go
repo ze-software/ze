@@ -37,8 +37,8 @@ func runRenderedCommandDriftFixture(t *testing.T, root, livePath string) (string
 	entries := renderedWikiCatalogEntries(t)
 	report := DriftReport{Issues: (&checker{
 		root: root,
-		wikiCatalogCollect: func() []clicatalog.Entry {
-			return entries
+		wikiCatalogCollect: func() ([]clicatalog.Entry, error) {
+			return entries, nil
 		},
 	}).checkPublishedCommandSurfaces(livePath)}
 	if len(report.Issues) == 0 {
@@ -357,9 +357,9 @@ func TestDocDriftRejectsWikiCatalogProducerFieldLossBeforeRendering(t *testing.T
 			calls := 0
 			issues := (&checker{
 				root: root,
-				wikiCatalogCollect: func() []clicatalog.Entry {
+				wikiCatalogCollect: func() ([]clicatalog.Entry, error) {
 					calls++
-					return entries
+					return entries, nil
 				},
 			}).checkPublishedCommandSurfaces(livePath)
 

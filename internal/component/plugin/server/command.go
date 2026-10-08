@@ -469,7 +469,7 @@ func (c *CommandContext) Selector(name string) string {
 // Three forms reach a handler. `<value>` alone is answered as it is. `<leaf>
 // <value>`, keyword before value (ai/rules/cli.md), is what the web admin form
 // posts (commandArguments, internal/component/web/handler_admin.go): the
-// dispatcher validates the pair (validateCommandArgs) and still hands both
+// dispatcher validates the pair (command.ValidateArgs) and still hands both
 // tokens over, so the keyword is dropped here and the value leads. A value the
 // dispatcher bound as a typed selector, because the leaf shares its name with
 // a key token of the command (matchCommandTokens), reaches the handler as no
@@ -774,11 +774,12 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 		// flag takes no value, so it never selects.
 		if def, ok := defByName[strings.ToLower(keyTok)]; ok && def.Kind != command.ArgFlag && inIdx+1 < len(tokens) {
 			if keyIdx+1 >= len(keyTokens) || !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
-				value := tokens[inIdx+1]
-				if err := command.ValidateArgString(value, def); err != nil {
-					return nil, nil, false
-				}
-				selectors[def.Name] = value
+				// The keyword names the slot, so the value is bound without
+				// judging it: command.ValidateArgs judges it with the other
+				// arguments and names the bound it breaks. Refusing the match
+				// here answered "unknown command" for a 129-character
+				// `show metrics name`.
+				selectors[def.Name] = tokens[inIdx+1]
 				inIdx += 2
 				continue
 			}
@@ -789,11 +790,16 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 		// MODEL anchored to this key token is preferred, because the anchor is
 		// the model's own answer to the question implicitSelectorDef guesses at.
 		if keyIdx+1 < len(keyTokens) && inIdx+1 < len(tokens) && !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
-			def := anchoredDef(keyTok, defs, selectors)
-			if def == nil {
-				def = implicitSelectorDef(keyTokens, defs, selectors)
+			// An anchored leaf is the model's own answer, as strong as a
+			// keyword, so its value is bound and judged later by
+			// command.ValidateArgs. The implicit leaf is a guess, and a value
+			// that fails it means the guess was wrong, so the match fails.
+			if def := anchoredDef(keyTok, defs, selectors); def != nil {
+				selectors[def.Name] = tokens[inIdx+1]
+				inIdx += 2
+				continue
 			}
-			if def != nil {
+			if def := implicitSelectorDef(keyTokens, defs, selectors); def != nil {
 				value := tokens[inIdx+1]
 				if err := command.ValidateArgString(value, def); err != nil {
 					return nil, nil, false
@@ -877,7 +883,7 @@ func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[
 		if keyTokenPresent(keyTokens, def.Name) {
 			continue
 		}
-		if def.Pattern != nil {
+		if len(def.Patterns) > 0 {
 			patterned, patternedCount = def, patternedCount+1
 			continue
 		}
@@ -1065,7 +1071,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// INTERIOR selector slots (it stops at a later key token), so a command
 		// whose own noun is the TERMINAL key token -- `delete bgp peer
 		// <selector>` -- yields no selector at all and the guard below would
-		// reject the documented form. validateCommandArgs is the one place that
+		// reject the documented form. command.ValidateArgs is the one place that
 		// binds a positional token to a leaf, so the guard consults ITS answer
 		// rather than re-deriving a second one (ai/rules/evidence.md).
 		//
@@ -1077,14 +1083,14 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		var argErr error
 		var positional map[string]string
 		if len(matchedCmd.ArgDefs) > 0 {
-			positional, argErr = validateCommandArgs(args, matchedCmd.ArgDefs, selectors)
+			positional, argErr = command.ValidateArgs(args, matchedCmd.ArgDefs, selectors)
 		}
 
 		// Adopt the trailing positional as the peer selector, under three fences
 		// that together mean no command which resolves today changes meaning:
 		// the command must REQUIRE a selector (so the only path altered is one
 		// that returns an error), none may have arrived out of band, and
-		// validateCommandArgs must have bound the value from a LONE spare token.
+		// command.ValidateArgs must have bound the value from a LONE spare token.
 		// The last fence is what keeps `send bgp unicast 10.0.0.0/24 ...` --
 		// a command that also carries `leaf selector mandatory` -- from taking
 		// the prefix as the destination.
@@ -1206,187 +1212,6 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 // than spelling the literal twice.
 const selectorLeaf = "selector"
 
-// validateCommandArgs implements two-phase validation of command arguments
-// against YANG-declared ArgDefs.
-//
-// Phase 1 (keyword extraction): scan args for tokens matching ArgDef leaf names;
-// when found, the next token is validated as that leaf's typed value.
-// Phase 2 (positional matching): remaining args are offered to the unmatched
-// ArgDefs. Unmatched args pass through to the handler.
-// Phase 3 (mandatory check): ArgDefs with Mandatory=true must have been matched.
-//
-// Phase 3 answers BEFORE phase 2's refusal whenever the call left more tokens
-// over than it left definitions open. The refusals are ordered, not the phases:
-// a missing mandatory argument is what the model itself says is wrong with the
-// call, while a token no definition accepts is a bad value only if the
-// dispatcher can say which definition it was typed for.
-//
-// It returns the leaf a LONE spare positional token filled, keyed by leaf name,
-// or nil. Dispatch needs that answer for the terminal-noun selector shape (see
-// the fences there), and this is the only place a positional token is bound to a
-// leaf, so reporting it is cheaper and safer than a second matcher that would
-// drift. "Lone" is the point: when a command leaves several tokens unconsumed,
-// which of them is the value is a guess, and the caller must not make it.
-func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[string]string) (map[string]string, error) {
-	consumed := make([]bool, len(args))
-	matched := make(map[string]bool, len(preMatched))
-	defByName := make(map[string]*command.ArgDef, len(defs))
-	for i := range defs {
-		defByName[defs[i].Name] = &defs[i]
-	}
-	for name := range preMatched {
-		matched[name] = true
-	}
-
-	// Phase 1: keyword-value extraction.
-	for i := 0; i < len(args); i++ {
-		def, ok := defByName[args[i]]
-		if !ok {
-			continue
-		}
-		if matched[def.Name] {
-			return nil, fmt.Errorf("duplicate keyword %q", args[i])
-		}
-		consumed[i] = true
-		if def.Kind == command.ArgFlag {
-			// A flag is the keyword alone; the next token is its own argument.
-			matched[def.Name] = true
-			continue
-		}
-		if i+1 >= len(args) {
-			return nil, fmt.Errorf("%s requires a value", args[i])
-		}
-		i++
-		consumed[i] = true
-		if err := command.ValidateArgString(args[i], def); err != nil {
-			return nil, err
-		}
-		matched[def.Name] = true
-	}
-
-	spare := 0
-	for i := range consumed {
-		if !consumed[i] {
-			spare++
-		}
-	}
-
-	// Phase 2: positional matching for unconsumed args. A token no open
-	// definition accepts is kept rather than refused here, because whether it is
-	// a bad value or a keyword the handler reads is a question the definitions
-	// alone cannot answer, and a later token can still fill a definition this
-	// one could not.
-	var lone map[string]string
-	unplaced := make([]string, 0, len(args))
-	for i, arg := range args {
-		if consumed[i] {
-			continue
-		}
-		def := positionalDef(arg, defs, matched)
-		if def == nil {
-			unplaced = append(unplaced, arg)
-			continue
-		}
-		matched[def.Name] = true
-		if spare == 1 {
-			lone = map[string]string{def.Name: arg}
-		}
-	}
-
-	// A token that filled no definition is a bad VALUE only when every such
-	// token can be attributed to a definition of its own: as many tokens left
-	// over as definitions still open, or fewer. More tokens than open
-	// definitions means at least one of them is a value for nothing, so it is
-	// the keyword half of a group the command's own grammar declares and this
-	// validator does not hold (`update <hex>` on `show policy test peer`). The
-	// dispatcher then has no ground to name any token as the fault, and the
-	// missing mandatory argument below is what is certainly wrong with the call.
-	open := unmatchedDefCount(defs, matched)
-	if len(unplaced) > 0 && open > 0 && len(unplaced) <= open {
-		return nil, positionalError(unplaced[0], defs, matched)
-	}
-
-	// Phase 3: mandatory check.
-	for i := range defs {
-		if defs[i].Mandatory && !matched[defs[i].Name] {
-			return lone, fmt.Errorf("required argument missing: %s", defs[i].Name)
-		}
-	}
-
-	// Every mandatory definition is filled, so a token left over is the only
-	// fault the call has, and naming it is the whole answer.
-	if len(unplaced) > 0 && open > 0 {
-		return nil, positionalError(unplaced[0], defs, matched)
-	}
-
-	return lone, nil
-}
-
-// positionalDef picks the ArgDef a positional token fills, or nil when none
-// accepts it.
-//
-// EVERY ArgKind is offered the token. The shipped loop tested only ArgEnum,
-// ArgUnion and ArgString, which made a mandatory non-string leaf impossible to
-// fill positionally: `show tcp-check <host> <port>` skipped the uint16 `port`,
-// bound the numeric token to the next STRING leaf, and Phase 3 then rejected a
-// fully-formed command with "required argument missing: port".
-//
-// Mandatory defs are offered the token FIRST. An optional leaf that merely
-// accepts the same lexical shape (a pattern-less string accepts anything) would
-// otherwise swallow the value a required leaf needed, turning a complete
-// command into "required argument missing". Preferring the required leaf can
-// only ever fill more of them, never fewer, so this direction cannot invent a
-// new failure.
-//
-// WITHIN a tier the token goes to the definition that constrains it most, and
-// a tie goes to the lower name. Slice order decides nothing, which is what lets
-// the definitions be reordered for display: `show system sockets 8080` reached
-// the port leaf only because the alphabet put "port" before "state", and
-// "state" is a pattern-less string that would have accepted it silently.
-func positionalDef(arg string, defs []command.ArgDef, matched map[string]bool) *command.ArgDef {
-	for _, wantMandatory := range [...]bool{true, false} {
-		var best *command.ArgDef
-		bestRank := command.ConstraintUnspecified
-		for i := range defs {
-			def := &defs[i]
-			if matched[def.Name] || def.Mandatory != wantMandatory {
-				continue
-			}
-			if command.ValidateArgString(arg, def) != nil {
-				continue
-			}
-			rank := command.Constraint(def)
-			if best == nil {
-				best, bestRank = def, rank
-				continue
-			}
-			if rank < bestRank {
-				best, bestRank = def, rank
-				continue
-			}
-			if rank == bestRank && def.Name < best.Name {
-				best = def
-			}
-		}
-		if best != nil {
-			return best
-		}
-	}
-	return nil
-}
-
-// unmatchedDefCount reports how many ArgDefs are still waiting for a value. A
-// flag never waits for one.
-func unmatchedDefCount(defs []command.ArgDef, matched map[string]bool) int {
-	n := 0
-	for i := range defs {
-		if !matched[defs[i].Name] && defs[i].Kind != command.ArgFlag {
-			n++
-		}
-	}
-	return n
-}
-
 // firstFlagToken returns the first flag-shaped token in args, or "" if there is
 // none. Flag-shaped means a leading dash followed by a letter ("-u", "-user",
 // "--user"), which no producer of a daemon command emits.
@@ -1403,43 +1228,6 @@ func firstFlagToken(args []string) string {
 		}
 	}
 	return ""
-}
-
-// positionalError builds an error for a token no OPEN definition accepts. Its
-// caller has already found at least one definition still waiting for a value,
-// so the list below is never empty, and it has already established that the
-// token can be attributed to one: the caller counts the tokens it could not
-// place against the definitions still open (validateCommandArgs).
-//
-// A definition that is still open is the one the operator's token was meant
-// for, so when exactly one is open the error is that definition's own refusal.
-// `show route lookup <ip>` publishes a bare value and no keyword, and the
-// keyword list answered "valid keywords: ip" for a value that simply was not an
-// address: it named a word the grammar never asks anybody to type and dropped
-// the reason the value was refused (plan/journal/guard-addition-drops-what-it-refuses.md).
-//
-// A definition already filled is named by neither branch. It cannot take this
-// token, so offering it as a keyword is an answer the dispatcher would reject.
-func positionalError(arg string, defs []command.ArgDef, matched map[string]bool) error {
-	open := make([]*command.ArgDef, 0, len(defs))
-	for i := range defs {
-		if !matched[defs[i].Name] && defs[i].Kind != command.ArgFlag {
-			open = append(open, &defs[i])
-		}
-	}
-	if len(open) == 1 {
-		return command.ValidateArgString(arg, open[0])
-	}
-	for _, def := range open {
-		if def.Kind == command.ArgEnum || def.Kind == command.ArgUnion {
-			return command.ValidateArgString(arg, def)
-		}
-	}
-	names := make([]string, 0, len(open))
-	for _, def := range open {
-		names = append(names, def.Name)
-	}
-	return fmt.Errorf("unexpected argument %q, valid keywords: %s", arg, textbuf.Join(names, ", "))
 }
 
 func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp *plugin.Response, err error) {

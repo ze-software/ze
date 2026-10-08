@@ -51,7 +51,7 @@ to in-process registry handlers.
    `executor(cmdStr)` which reaches the daemon dispatcher.
 6. **Daemon dispatch (online).** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go`)
    tokenizes, `matchBuiltinTokens` finds the longest builtin **YANG-path** prefix (inline typed
-   selectors extracted), runs authz + `validateCommandArgs`, then `matchedCmd.Handler(ctx, args)`.
+   selectors extracted), runs authz + `command.ValidateArgs`, then `matchedCmd.Handler(ctx, args)`.
    Builtins are registered under their YANG path by `LoadBuiltins`/`LoadBuiltinsWithAliases`
    (`server/command.go,72`): `name := wireToPath[reg.WireMethod]`; read-only class from
    `IsReadOnlyPath` (`server/command.go`).

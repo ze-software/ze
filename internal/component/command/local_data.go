@@ -26,6 +26,8 @@ package command
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -44,7 +46,8 @@ import (
 // own process writing as the operator.
 func ServeLocal(input, sessionFormat string) (answer string, code int, served bool) {
 	path, _ := parsePipeChain(input)
-	handler, args := registry.LookupLocalData(strings.Fields(path))
+	words := strings.Fields(path)
+	handler, args := registry.LookupLocalData(words)
 	if handler == nil {
 		return "", 0, false
 	}
@@ -55,6 +58,16 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	_, format, errMsg := ProcessPipesDefaultFormatLocal(input, sessionFormat)
 	if errMsg != "" {
 		return pipeError(errMsg), 1, true
+	}
+
+	// The arguments are judged against the leaves the command's YANG declares,
+	// by the validator the daemon dispatcher calls, before the handler runs.
+	// This route once called no validator at all, so a declared length,
+	// pattern or range constrained nothing here: `show env get` with a
+	// 129-character name reached the handler although the leaf says 1..128.
+	if argErr := validateLocalArgs(words, args); argErr != nil {
+		writeLocalRefusal(argErr)
+		return "", 1, true
 	}
 
 	// The PAYLOAD decides whether there is an answer to render, and the CODE
@@ -79,6 +92,65 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 		return rendered, 1, true
 	}
 	return rendered, code, true
+}
+
+// ArgDefSource answers the argument definitions the YANG model declares for a
+// command path, nil when the path declares none, or an error naming why the
+// model could not answer.
+type ArgDefSource func(path string) ([]ArgDef, error)
+
+// argDefSource is the model's answer for the local route. The YANG package
+// registers it (config/yang register.go), because that package already imports
+// this one and so this one cannot import it.
+var argDefSource ArgDefSource
+
+// RegisterArgDefSource installs the source ServeLocal reads argument
+// definitions from, and installs the same judgment on the plain local handler
+// registry.RegisterLocalData builds, which `ze <verb>` runs without passing
+// through ServeLocal. One call covers both routes, so neither can be left
+// unvalidated. Called from init(); not safe for concurrent use with either
+// route.
+func RegisterArgDefSource(source ArgDefSource) {
+	argDefSource = source
+	registry.RegisterLocalDataArgCheck(checkLocalArgs)
+}
+
+// validateLocalArgs judges the arguments of a local-data command.
+//
+// words is the command as typed and args the tail LookupLocalData left after
+// the registered path, so the path is the words before that tail.
+func validateLocalArgs(words, args []string) error {
+	return checkLocalArgs(strings.Join(words[:len(words)-len(args)], " "), args)
+}
+
+// checkLocalArgs judges args against the leaves the model declares for the
+// registered path. A process with no source registered refuses rather than
+// skipping the check, because a skipped check and a passed one look the same
+// to the operator.
+func checkLocalArgs(path string, args []string) error {
+	if argDefSource == nil {
+		return errNoArgDefSource
+	}
+	defs, err := argDefSource(path)
+	if err != nil {
+		return fmt.Errorf("argument definitions of %q: %w", path, err)
+	}
+	if len(defs) == 0 {
+		return nil
+	}
+	_, err = ValidateArgs(args, defs, nil)
+	return err
+}
+
+// errNoArgDefSource is the refusal of a process that registered no argument
+// definition source.
+var errNoArgDefSource = errors.New("argument definitions are not loaded in this process")
+
+// writeLocalRefusal writes an argument refusal to stderr, where a local-data
+// handler writes its own refusals, so the operator reads both on one channel.
+func writeLocalRefusal(err error) {
+	var tb textbuf.Buffer
+	os.Stderr.WriteString(tb.Str("error: ").Str(err.Error()).Byte('\n').String()) //nolint:errcheck // CLI diagnostic
 }
 
 // HasLocalData reports whether a command is served in this process, which is

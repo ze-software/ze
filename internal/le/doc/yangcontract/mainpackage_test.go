@@ -37,7 +37,11 @@ func TestBuiltinsAgreeWithTheMainPackage(t *testing.T) {
 	}
 
 	published := map[string]bool{}
-	for _, entry := range clicatalog.Collect() {
+	entries, err := clicatalog.Collect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
 		want, ok := registered[entry.Path]
 		if !ok {
 			continue

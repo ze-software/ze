@@ -38,7 +38,10 @@ func TestRuntimeTreeCarriesDescription(t *testing.T) {
 		{"value":"zz-plugin-bare","short-help":"A plugin command that declares no explanation"}
 	]}`
 
-	tree := buildRuntimeTreeFromDispatch(commandListDispatch(list))
+	tree, err := buildRuntimeTreeFromDispatch(commandListDispatch(list))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tree == nil {
 		t.Fatal("buildRuntimeTreeFromDispatch returned nil")
 	}
