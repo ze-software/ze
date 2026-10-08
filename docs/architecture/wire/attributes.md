@@ -361,6 +361,18 @@ RFC 1997 - Community values for policy.
 Communities displayed as AS:Value (e.g., 65001:100)
 <!-- source: internal/core/bgp/attribute/community.go -- CommunityNoExport, CommunityNoAdvertise, CommunityNoExportSubconfed -->
 
+Registered community names retain their display spelling in both `String` and
+`AppendText`. Both community parsers match names without regard to case and accept
+the underscore spelling of a hyphenated name. `RegisterCommunityName` supplies
+the display name and the parse keys together.
+<!-- source: internal/core/bgp/attribute/community.go -- RegisterCommunityName, addCommunityText, communityValue -->
+
+Tests that register synthetic attributes or communities run serially and restore
+their registry state with `t.Cleanup`. Community tests restore both the display
+and parse maps; attribute tests restore names, recognition bits and flags
+declarations together. Selecting an unused code alone does not isolate repeated
+runs in one process.
+
 ---
 
 ## 9. ORIGINATOR_ID (Code 9)

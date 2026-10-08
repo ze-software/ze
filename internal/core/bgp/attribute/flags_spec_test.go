@@ -63,6 +63,7 @@ func TestEveryRecognizedAttributeDeclaresItsFlags(t *testing.T) {
 // the socket (ai/rules/principles.md, a value that is silently wrong must not be
 // reachable).
 func TestRegisterNameRefusesAnUndeclaredSpec(t *testing.T) {
+	preserveAttributeRegistration(t)
 	defer func() {
 		if recover() == nil {
 			t.Error("RegisterName accepted a specification that fixes neither bit, which " +

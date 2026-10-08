@@ -2,7 +2,7 @@
 
 | Test | Reason |
 |------|--------|
-| TestForwardConfiguredIPv4MPNextHopFamily | Removed the obsolete IPv6-unicast rejection/withdrawal branch: the existing producer maps configured IPv4 self into the sixteen-octet AFI2 next-hop field. All three families now check exact MP_REACH next-hop bytes, unchanged NLRI and no MP_UNREACH on both forwarding rails. This does not relax received native-four-octet AFI2 rejection, which remains covered by `TestMappedPlainNextHopForwarding`. |
+| TestRegisterJSONFormatter | Retire the literal callback registration/getter echo, not real formatter behavior. Prefix-SID payload-to-JSON assertions and IPv6 community rendering/wrong-shape refusals remain. Independent AttributeIsolationReview accepted removal; the full attribute package and real filter-community formatter roots passed twenty race iterations with a deletion overlay matching the native removal. |
 
 ## Reviewed fixture corrections
 
@@ -23,8 +23,10 @@ detector reports no structural weakening for these carriers.
 - `test/encode/extended-nexthop-encode.ci`: Preserved both prefixes and next-hop endpoints, with the reverse IPv4 endpoint explicitly encoded as `::ffff:170.170.170.170` in the defined sixteen-octet AFI2 field. Removed only its misleading reverse capability5 tuple and the malformed four-octet expectation; all EOR obligations remain. Independent review rejected replacing the endpoint or dropping the reverse case. Native `c5051c0d` exposed the invalid old field.
 
 Pending, outside this commit: `test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci`
-supplies the connected-prefix precondition inside the per-test namespace. The
-complete live and replay UPDATEs remain byte-exact; this proves preservation and
-length, not remote-entity adjacency. Its draft completed 80 physical namespace
-runs; a separate run proved unchanged root namespace rules apart from counters.
-Its two native discrimination records remain pending.
+now uses distinct speaker, recipient and next-hop-entity namespaces. Complete
+live and replay UPDATEs remain byte-exact. The replacement carrier passed once
+on kernel7.2 with unchanged guest-root stateless nft rules and tables
+(`job-joint-subnet-native-command-scoped-oracles-cccf06c2.log`); the older
+eighty-run evidence predates that replacement and does not qualify it. Its
+RFC2545-3-1 native record is present; the RFC2545-3-2 record and fresh eighty-run
+qualification remain pending.

@@ -13,9 +13,22 @@
 package attribute
 
 import (
+	"maps"
 	"strings"
 	"testing"
 )
+
+// preserveCommunityRegistry restores both registration directions after a serial test.
+// Tests that mutate these init-time registries MUST NOT run in parallel.
+func preserveCommunityRegistry(t *testing.T) {
+	t.Helper()
+	names := maps.Clone(communityNames)
+	values := maps.Clone(communityValues)
+	t.Cleanup(func() {
+		communityNames = names
+		communityValues = values
+	})
+}
 
 // TestCommunityParsersShareOneVocabulary pins the property that made this
 // registry necessary: every accepted spelling must resolve identically through
@@ -123,6 +136,7 @@ func TestCommunityAliasesParseButNeverRender(t *testing.T) {
 // to String() and invisible to AppendText() and to every parser. The render
 // path was a hardcoded switch, and the parse tables were separate.
 func TestRegisterCommunityNameReachesBothDirections(t *testing.T) {
+	preserveCommunityRegistry(t)
 	const (
 		value = Community(0x0BAD0001)
 		name  = "registry-probe"
@@ -133,11 +147,6 @@ func TestRegisterCommunityNameReachesBothDirections(t *testing.T) {
 	if err := RegisterCommunityName(value, name); err != nil {
 		t.Fatalf("RegisterCommunityName: %v", err)
 	}
-	t.Cleanup(func() {
-		delete(communityNames, value)
-		delete(communityValues, name)
-		delete(communityValues, "registry_probe")
-	})
 
 	if got := value.String(); got != name {
 		t.Errorf("String() = %q, want %q", got, name)
@@ -156,10 +165,53 @@ func TestRegisterCommunityNameReachesBothDirections(t *testing.T) {
 	}
 }
 
+// TestRegisteredCommunityMixedCaseRoundTrip checks that a plugin's display spelling
+// survives rendering while both parsers accept it and its case/underscore variants.
+func TestRegisteredCommunityMixedCaseRoundTrip(t *testing.T) {
+	preserveCommunityRegistry(t)
+	const value = Community(0x0BAD0003)
+	const name = "Mixed-Case-Probe"
+	if err := RegisterCommunityName(value, name); err != nil {
+		t.Fatal(err)
+	}
+	if got := value.String(); got != name {
+		t.Errorf("String() = %q, want %q", got, name)
+	}
+	if got := string(value.AppendText(nil)); got != name {
+		t.Errorf("AppendText() = %q, want %q", got, name)
+	}
+	for _, spelling := range []string{
+		name, "mixed-case-probe", "MIXED-CASE-PROBE",
+		"Mixed_Case_Probe", "mixed_case_probe", "MIXED_CASE_PROBE",
+	} {
+		got, err := ParseCommunity(spelling)
+		if err != nil {
+			t.Errorf("ParseCommunity(%q): %v", spelling, err)
+		} else if got != uint32(value) {
+			t.Errorf("ParseCommunity(%q) = %#x, want %#x", spelling, got, value)
+		}
+		got, err = parseSingleCommunity(spelling)
+		if err != nil {
+			t.Errorf("parseSingleCommunity(%q): %v", spelling, err)
+		} else if got != uint32(value) {
+			t.Errorf("parseSingleCommunity(%q) = %#x, want %#x", spelling, got, value)
+		}
+	}
+	for _, spelling := range []string{"mixed-case-probe-unknown", "mixed_case_probe_unknown"} {
+		if _, err := ParseCommunity(spelling); err == nil {
+			t.Errorf("ParseCommunity(%q) accepted an unregistered name", spelling)
+		}
+		if _, err := parseSingleCommunity(spelling); err == nil {
+			t.Errorf("parseSingleCommunity(%q) accepted an unregistered name", spelling)
+		}
+	}
+}
+
 // TestRegisterCommunityAliasRejectsConflicts checks the guard fails closed.
 // An alias MUST NOT be repointed at a different value. It MUST NOT attach to
 // a community that carries no canonical name.
 func TestRegisterCommunityAliasRejectsConflicts(t *testing.T) {
+	preserveCommunityRegistry(t)
 	if err := registerCommunityAlias(Community(0x0BAD0002), "orphan-alias"); err == nil {
 		t.Error("alias for an unnamed community was accepted; the guard must fail closed")
 	}

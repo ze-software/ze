@@ -154,8 +154,9 @@ var communityValues = func() map[string]Community {
 	return m
 }()
 
-// addCommunityText records a canonical name and its underscore spelling.
+// addCommunityText records case-insensitive parse keys without changing the display name.
 func addCommunityText(m map[string]Community, value Community, name string) {
+	name = strings.ToLower(name)
 	m[name] = value
 	if underscored := strings.ReplaceAll(name, "-", "_"); underscored != name {
 		m[underscored] = value

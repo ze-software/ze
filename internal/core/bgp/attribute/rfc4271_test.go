@@ -220,6 +220,7 @@ func TestRFC4271PartialFromPreviousASNotCleared(t *testing.T) {
 // PREVENTS: deriving "unrecognized" from the parser table, which holds no entry for
 // ATTR_TOMBSTONE and would have ze stamp attributes it does understand.
 func TestAttributeRecognizedTracksTheNamesRegistry(t *testing.T) {
+	preserveAttributeRegistration(t)
 	assert.True(t, AttrCommunity.Recognized(), "a core attribute is recognized")
 	assert.True(t, AttrPrefixSID.Recognized())
 	assert.True(t, AttrTombstone.Recognized(),

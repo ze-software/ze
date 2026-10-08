@@ -81,6 +81,7 @@ func TestCommunityNoLLGR(t *testing.T) {
 // PREVENTS: Plugin-registered community names not appearing in String() output.
 // Not parallel: writes to package-level communityNames map (init-time-only in production).
 func TestCommunityRegistryLookup(t *testing.T) {
+	preserveCommunityRegistry(t)
 	testComm := Community(0xFFFE0001)
 	err := RegisterCommunityName(testComm, "TEST_COMMUNITY")
 	require.NoError(t, err)
@@ -90,6 +91,7 @@ func TestCommunityRegistryLookup(t *testing.T) {
 // VALIDATES: RegisterCommunityName rejects duplicate with different name.
 // PREVENTS: Conflicting community name registrations.
 func TestCommunityRegistryDuplicate(t *testing.T) {
+	preserveCommunityRegistry(t)
 	testComm := Community(0xFFFE0002)
 	err := RegisterCommunityName(testComm, "FIRST_NAME")
 	require.NoError(t, err)
@@ -104,6 +106,7 @@ func TestCommunityRegistryDuplicate(t *testing.T) {
 // VALIDATES: Built-in community names cannot be overridden.
 // PREVENTS: Plugins hijacking NO_EXPORT, NO_ADVERTISE, etc.
 func TestCommunityRegistryBuiltinProtected(t *testing.T) {
+	preserveCommunityRegistry(t)
 	err := RegisterCommunityName(CommunityNoExport, "HIJACKED")
 	assert.Error(t, err)
 }

@@ -7,12 +7,30 @@
 // optional transitive attribute.
 package attribute
 
-import "testing"
+import (
+	"maps"
+	"testing"
+)
+
+// preserveAttributeRegistration restores the name, recognition and flags together.
+// Tests that mutate these init-time registries MUST NOT run in parallel.
+func preserveAttributeRegistration(t *testing.T) {
+	t.Helper()
+	names := maps.Clone(attrCodeNames)
+	recognized := recognizedCodes
+	flags := flagsSpecs
+	t.Cleanup(func() {
+		attrCodeNames = names
+		recognizedCodes = recognized
+		flagsSpecs = flags
+	})
+}
 
 // TestRegisterNameOnlyDoesNotClaimRecognition is the discrimination case: the
 // two registration functions must differ in exactly this respect, or the split
 // buys nothing.
 func TestRegisterNameOnlyDoesNotClaimRecognition(t *testing.T) {
+	preserveAttributeRegistration(t)
 	// Codes chosen from the unassigned range so the test cannot disturb a real
 	// attribute's registration, which is process-wide and init-time.
 	const named = AttributeCode(240)

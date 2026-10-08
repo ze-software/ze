@@ -66,7 +66,7 @@ func (c Community) AppendText(buf []byte) []byte {
 }
 
 // appendCommunityText appends a standard community (32-bit value) using
-// its well-known lowercase name if known, otherwise "<asn>:<val>".
+// its registered display name if known, otherwise "<asn>:<val>".
 func appendCommunityText(buf []byte, c uint32) []byte {
 	// Dispatch on the numeric value against the name registry. A hardcoded
 	// switch here was a second copy of communityNames. A name registered by a
