@@ -404,7 +404,7 @@ then its children are listed, which is new output where today there is none.
 | `test-help-usage-generated.ci` | `test/ui/` | an operator asks for help on a nested command and reads a correct invocation form | |
 | `test-help-usage-node-with-children.ci` | `test/ui/` | an operator asks for help on a command that also has subcommands and gets both | |
 | `test-help-usage-modifiers.ci` | `test/ui/` | an operator discovers the optional trailing groups of `announce` and `resolve ping` | |
-| `test-show-system-sockets-keyword-filters.ci` | `test/ui/` | an operator filters sockets by port and by state, each behind its keyword. Linux only, because the handler is | |
+| `test-show-system-sockets-keyword-filters.ci` | `test/ui/` | an operator filters sockets by port and by state, each behind its keyword. Linux only, because the handler is | 2026-10-08: written. Two SSH listeners ($PORT, $PORT2) and the CLI's own ESTABLISHED session; `port $PORT` answers count 1 and no ESTABLISHED, `state LISTEN` drops the session, `state ESTABLISHED` drops the listeners. RED with both filter branches of `handleShowSystemSockets` disabled (seq 3 listed ESTABLISHED); GREEN restored and promoted. Not yet stress-run; `ready=` fires on the first listener's log line |
 | `test-withdraw-forms-are-separate-commands.ci` | `test/ui/` | an operator withdraws by tag, by id, and all, each as its own command | written 2026-08-29; asserts the help page of each form, not a live withdraw, because a withdraw needs a peer session and the grammar is what the split changed |
 | `test-help-command-json-usage.ci` | `test/ui/` | an agent reads `usage` and `grammar` from the catalog | |
 

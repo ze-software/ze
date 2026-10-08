@@ -1,0 +1,75 @@
+# Test: show system sockets filters by port and by state, each behind its keyword
+# VALIDATES: spec-generated-command-usage AC-4 through the real entry point. An
+# operator on the SSH CLI types `show system sockets port <n>` and gets only the
+# sockets on that port, and `show system sockets state <s>` and gets only the
+# sockets in that state. handleShowSystemSockets
+# (internal/component/cmd/show/sockets_linux.go) matches the literal keywords,
+# so the keyword form is the filtering form ai/rules/cli.md requires.
+# PREVENTS: a filter keyword that is accepted by validation and then ignored by
+# the handler, which answers every socket on the host and reads as success.
+#
+# Method: the daemon runs two SSH servers on 127.0.0.1, $PORT2 (the one the CLI
+# dials) and $PORT. Both are LISTEN sockets; the CLI's own session is the one
+# ESTABLISHED socket on $PORT2. So filtering by $PORT must drop every $PORT2
+# socket, filtering by LISTEN must drop the ESTABLISHED session, and filtering by
+# ESTABLISHED must drop both listeners. Linux only, because the handler reads
+# /proc/net and the other platforms carry a stub.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=sockets.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+		server second {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start sockets.conf:name=daemon:ready=SSH server listening
+
+# By port: only the second listener answers. Unfiltered, the host's other
+# sockets and the CLI's own ESTABLISHED session would be listed too.
+cmd=foreground:seq=3:exec=ze cli -c "show system sockets port $PORT":exit=0
+expect=stdout:pattern=(?m)^count +1$
+expect=stdout:contains=LISTEN
+reject=stdout:contains=ESTABLISHED
+
+# By state LISTEN: the CLI session asking the question is not listed.
+cmd=foreground:seq=4:exec=ze cli -c "show system sockets state LISTEN":exit=0
+expect=stdout:contains=LISTEN
+reject=stdout:contains=ESTABLISHED
+
+# By state ESTABLISHED: the session asking is listed, the two listeners are not.
+cmd=foreground:seq=5:exec=ze cli -c "show system sockets state ESTABLISHED":exit=0
+expect=stdout:contains=ESTABLISHED
+reject=stdout:contains=LISTEN
+
+cmd=stop:seq=6:name=daemon:signal=term
