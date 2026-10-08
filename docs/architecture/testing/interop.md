@@ -930,15 +930,18 @@ prints in parentheses, because tcpdump names no code for every value: it prints
 Admission Control failure as `unknown (1)`.
 
 The pinned freeRouter originates only PATH, PathTear and RESV. It relays
-PathErr, ResvErr and ResvTear but never originates them, encodes every ERO
-subobject it originates as loose (`clntMplsTeP2p.workDoer`,
-`ipFwdTab.fillRsvpPack`), signals one fixed bandwidth for the life of an LSP,
-and sends only shared-explicit RESVs naming its own sender. In every scenario
+PathErr, ResvErr and ResvTear but never originates them. It encodes its
+configured ERO hops as loose (`clntMplsTeP2p.workDoer`,
+`ipFwdTab.fillRsvpPack`) and prepends one strict subobject for its own next
+hop unless the first hop is already strict (`ipFwdTab.fillRsvpFrst`), and it
+routes each hop without reading the strict bit (`rtrRsvpIface.getHop`), so it
+does not enforce strict hops. It signals one fixed bandwidth for the life of
+an LSP, and sends only shared-explicit RESVs naming its own sender. In every scenario
 where Ze originates a message, freeRouter is the independent implementation
 that parses it, keeps the state it needs to relay it, and re-encodes it toward
 the next Ze node: the evidence is that freeRouter accepts and relays what Ze
-originates, not that freeRouter originates strict hops, ResvErr, ResvTear or
-PathErr itself.
+originates, not that freeRouter enforces strict hops or originates ResvErr,
+ResvTear or PathErr itself.
 
 The image is built with one patch, `test/interop-rsvpte/freertr/ze-interop-resv.patch`,
 because the pinned jar can neither raise a reservation in place nor name a

@@ -7,14 +7,16 @@ requires `CAP_NET_RAW`.
 > **Status: experimental.** The engine emits push/swap/pop entries on the
 > `mpls-fib` event bus. `fib-kernel` installs IP routes with labels for push and
 > AF_MPLS routes for swap/pop. The native Linux carrier exercises these paths
-> with three Ze daemons. Independent-peer coverage is freeRouter only: the
-> Linux carrier below (freeRouter ingress, Ze egress) and the Docker suite
-> `./le test integration interop-rsvpte`, where a Ze transit expands a loose
-> hop, forwards a strict hop and refuses an outside strict hop with PathErr
-> 24/2, and freeRouter parses and relays the PATH, PathErr, ResvErr and
-> ResvTear Ze originates to another Ze node. freeRouter originates only loose
-> hops and never enforces strict hops itself, so the strict-hop scenarios prove
-> it accepts and relays what Ze sends, not that it agrees on strict-hop
+> with three Ze daemons. Independent-peer coverage is freeRouter only, in the
+> Docker suite `./le test integration interop-rsvpte`, where a Ze transit
+> expands a loose hop, forwards a strict hop and refuses an outside strict hop
+> with PathErr 24/2, and freeRouter parses and relays the PATH, PathErr,
+> ResvErr and ResvTear Ze originates to another Ze node. The Linux carrier
+> below (freeRouter ingress, Ze egress) is a manual check with no recorded
+> pass. freeRouter names its configured hops loose and prepends one strict hop
+> for its own next hop, but it routes each hop without reading the strict bit,
+> so it does not enforce strict hops itself. The strict-hop scenarios prove it
+> accepts and relays what Ze sends, not that it agrees on strict-hop
 > validation. Two scenarios turn on a knob of a test-only freeRouter patch
 > (`test/interop-rsvpte/freertr/ze-interop-resv.patch`). These checks do not
 > establish complete RFC conformance. Use for evaluation, not production
