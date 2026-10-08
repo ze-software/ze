@@ -1,0 +1,33 @@
+# Test: an operator discovers the optional trailing groups of a command from its help
+# VALIDATES: AC-10 -- `send bgp <selector> unicast` and `blackhole` end with
+#            `[tag <key> <value>] [for <duration>]`, rendered from the child
+#            containers carrying ze:modifier "once", and `ze help command --json`
+#            publishes both as optional groups (kind "group")
+# VALIDATES: AC-15 -- `resolve ping` states each optional value behind its keyword,
+#            rendered from optional leaves with no extension, and the enumerated
+#            do-not-fragment leaf states its whole value set
+# PREVENTS: a modifier group losing its brackets, its keyword or one of its
+#           values, which would tell an operator the group is required, or let
+#           them type half of the tag pair
+#
+# The two-value tag group is the case a single optional leaf cannot state: the
+# bracket MUST close after the second value, so a reader knows key and value are
+# supplied together or not at all.
+
+# Every stream assertion is scoped to the cmd= line above it, and a command's
+# span covers both of its streams, so the stdout: key reads the help ze writes
+
+# to stderr (docs/architecture/testing/ci-format.md).
+cmd=foreground:seq=1:exec=ze send bgp unicast help:exit=0
+expect=stdout:pattern=(?m)\[tag <key> <value>\] \[for <duration>\]$
+reject=stdout:pattern=\[tag <key>\] \[<value>\]
+
+cmd=foreground:seq=2:exec=ze send bgp blackhole help:exit=0
+expect=stdout:pattern=(?m)blackhole <prefix> \[tag <key> <value>\] \[for <duration>\]$
+
+cmd=foreground:seq=3:exec=ze help command blackhole --json:exit=0
+expect=stdout:pattern="text": "tag",\s*"group": \[\s*\{\s*"text": "key",\s*"kind": "value"\s*\},\s*\{\s*"text": "value",\s*"kind": "value"\s*\}\s*\],\s*"kind": "group"
+expect=stdout:pattern="text": "for",\s*"group": \[\s*\{\s*"text": "duration",\s*"kind": "value"\s*\}\s*\],\s*"kind": "group"
+
+cmd=foreground:seq=4:exec=ze resolve ping help:exit=0
+expect=stdout:pattern=(?m)^  ze resolve ping <target> \[source <source>\] \[count <count>\] \[size <size>\] \[do-not-fragment <honor-cache\|bypass-cache>\]$

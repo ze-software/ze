@@ -53,7 +53,12 @@ environment {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
-cmd=background:seq=2:exec=ze start sockets.conf:name=daemon:ready=SSH server listening
+# Ready on the banner, not on "SSH server listening": each listener logs that
+# line from its own serve goroutine, so the first one can print before the
+# second is bound. The banner prints after buildServices returns, and the SSH
+# service binds every configured address synchronously inside Start
+# (internal/component/ssh/ssh.go), so both LISTEN sockets exist by then.
+cmd=background:seq=2:exec=ze start sockets.conf:name=daemon:ready=Ze running.
 
 # By port: only the second listener answers. Unfiltered, the host's other
 # sockets and the CLI's own ESTABLISHED session would be listed too.

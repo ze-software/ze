@@ -352,12 +352,12 @@ then its children are listed, which is new output where today there is none.
 | AC-6 | Any YANG `description` reached by the command tree | No description prescribes a CLI spelling under any of `Usage:`, `Syntax:` or `Filters:`. `./le doc yang-contract usage-contract` exits non-zero when one does. `Example:` is NOT a marker: `ze-fib-p4-conf.yang` writes `Example: 127.0.0.1:9559` to say what a listener address looks like, which prescribes no CLI spelling |
 | AC-7 | A commit that removes an authored `Usage:` sentence whose generated usage differed from it at HEAD, without changing the model | `./le doc yang-contract usage-contract` exits non-zero and names the command, the authored line and the generated line. One difference is exempt, by owner ruling of 2026-08-29: placeholder wording alone. `usageShape` (`internal/le/docvalid/usage.go`) folds every `<...>` group to `<>` and the two lines are compared folded, so `[count <n>]` against `[count <count>]` is a deletion the gate allows and `request interface <name> down` against `request interface down <name>` is one it still refuses |
 | AC-8 | A commit that adds a `ze:command` container whose description contains `Usage:` | The gate exits non-zero and names the container |
-| AC-10 | `ze announce help` | The line ends with `[tag <key> <value>] [for <duration>]`, rendered from a child container carrying `ze:modifier` for the two-value `tag` group and from an optional leaf for `for`, and `ze help command --json` marks those tokens optional |
+| AC-10 | `ze send bgp unicast help` and `ze send bgp blackhole help` (the announce forms moved under `send bgp <selector>` on 2026-09-05, `ze-cli-announce-cmd.yang`) | The line ends with `[tag <key> <value>] [for <duration>]`, rendered from the child containers `tag` and `for`, each carrying `ze:modifier "once"` (the two-value `tag` group, and `for` with its one `duration` leaf), and `ze help command --json` marks those tokens optional: each is a grammar token of kind `group` |
 | AC-11 | `ze withdraw help`, and `ze help command withdraw` | `withdraw tag`, `withdraw id` and `withdraw all` each appear as their own command with their own usage line, and `withdraw` alone lists them as subcommands |
 | AC-12 | `ze help command --json` for any entry | The entry carries an ordered `grammar` token list, and rendering that list produces the entry's `usage` string byte for byte |
 | AC-13 | Tab completion after `create interface dummy name eth0 ` | `unit` and `address` are still offered. The modelling changes remove no completion that exists today |
 | AC-14 | `ze help command` listing output, before and after the prose is removed | Every listing line is byte-identical. `helpfmt.Summary` already stops at the first sentence |
-| AC-15 | `ze resolve ping help` | The line reads `resolve ping <target> [source <source>] [count <count>] [size <size>]`. Each optional value is a modelled optional LEAF, so the renderer's `[leaf-name <leaf-name>]` rule produces it and no extension is needed: a group needs `ze:modifier` only when it carries more than one value or repeats. The prose placeholders `<ip>`, `<n>` and `<bytes>` name a type, and the renderer reads leaf names |
+| AC-15 | `ze resolve ping help` | The line reads `resolve ping <target> [source <source>] [count <count>] [size <size>] [do-not-fragment <honor-cache\|bypass-cache>]` (the enumerated `do-not-fragment` leaf was added on 2026-09-15, `ze-ping-cmd.yang`). Each optional value is a modelled optional LEAF, so the renderer's `[leaf-name <leaf-name>]` rule produces it and no extension is needed: a group needs `ze:modifier` only when it carries more than one value or repeats. The prose placeholders `<ip>`, `<n>` and `<bytes>` name a type, and the renderer reads leaf names |
 
 ## End-to-End User Stories
 
@@ -367,7 +367,7 @@ then its children are listed, which is new output where today there is none.
 | 2 | builds a valid invocation from the catalog without parsing a string: reads `grammar` from `ze help command --json` | YANG → command tree → renderer → `commandEntry` JSON | `TestHelpCommandJSONPublishesUsage` |
 | 3 | filters open sockets by port: `show system sockets port 8080` | CLI → command socket → `validateCommandArgs` → handler | `test-show-system-sockets-keyword-filters.ci` |
 | 4 | withdraws one on-demand announcement by id: `withdraw id 3` | CLI → command tree path `withdraw/id` → announce handler | `test-withdraw-forms-are-separate-commands.ci` |
-| 5 | discovers a modifier without reading source: `ze help announce` | YANG modifier containers → renderer → stderr | `test-help-usage-modifiers.ci` |
+| 5 | discovers a modifier without reading source: `ze send bgp unicast help` | YANG modifier containers → renderer → stderr | `test-help-usage-modifiers.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -403,8 +403,8 @@ then its children are listed, which is new output where today there is none.
 |------|----------|-------------------|--------|
 | `test-help-usage-generated.ci` | `test/ui/` | an operator asks for help on a nested command and reads a correct invocation form | |
 | `test-help-usage-node-with-children.ci` | `test/ui/` | an operator asks for help on a command that also has subcommands and gets both | |
-| `test-help-usage-modifiers.ci` | `test/ui/` | an operator discovers the optional trailing groups of `announce` and `resolve ping` | |
-| `test-show-system-sockets-keyword-filters.ci` | `test/ui/` | an operator filters sockets by port and by state, each behind its keyword. Linux only, because the handler is | 2026-10-08: written. Two SSH listeners ($PORT, $PORT2) and the CLI's own ESTABLISHED session; `port $PORT` answers count 1 and no ESTABLISHED, `state LISTEN` drops the session, `state ESTABLISHED` drops the listeners. RED with both filter branches of `handleShowSystemSockets` disabled (seq 3 listed ESTABLISHED); GREEN restored and promoted. Not yet stress-run; `ready=` fires on the first listener's log line |
+| `test-help-usage-modifiers.ci` | `test/ui/` | an operator discovers the optional trailing groups of `send bgp unicast`, `send bgp blackhole` and `resolve ping` | 2026-10-08: written (AC-10, AC-15). Asserts the end of the unicast and blackhole lines, both JSON `group` tokens for `tag` and `for` from `ze help command blackhole --json`, and the whole `resolve ping` line. RED: with `usageGroupToken` (`internal/component/command/usage.go`) mutated to mark every once group `group-repeat`, seq 1 failed (`[tag <key> <value> ...]`); with that mutation plus the `UsageOption` arm of `writeUsageToken` dropping the keyword, single-command probes of the JSON step and the ping step each failed. Producer restored from a pristine copy (`git diff` empty), GREEN in draft and after promotion (`./le test ui -v test-help-usage-modifiers`) |
+| `test-show-system-sockets-keyword-filters.ci` | `test/ui/` | an operator filters sockets by port and by state, each behind its keyword. Linux only, because the handler is | 2026-10-08: written. Two SSH listeners ($PORT, $PORT2) and the CLI's own ESTABLISHED session; `port $PORT` answers count 1 and no ESTABLISHED, `state LISTEN` drops the session, `state ESTABLISHED` drops the listeners. RED with both filter branches of `handleShowSystemSockets` disabled (seq 3 listed ESTABLISHED); GREEN restored and promoted. 2026-10-08 stress: `ready=SSH server listening` fired on the first listener's line, logged from its serve goroutine before the second address was bound, so the daemon now readies on the `Ze running.` banner, printed after `buildServices` returns and the SSH service has bound every address synchronously. Five sequential `./le test ui -v` runs after the change: 5/5 PASS, 3.0s to 5.9s. Five runs before it, at load 14 to 18, failed 2/5 with `ze init` or `ze start` stalled past the 60s budget before any assertion, a storage fsync stall journalled in `plan/journal/gate-verdict-depends-on-the-machine.md`, not this test's race |
 | `test-withdraw-forms-are-separate-commands.ci` | `test/ui/` | an operator withdraws by tag, by id, and all, each as its own command | written 2026-08-29; asserts the help page of each form, not a live withdraw, because a withdraw needs a peer session and the grammar is what the split changed |
 | `test-help-command-json-usage.ci` | `test/ui/` | an agent reads `usage` and `grammar` from the catalog | |
 
@@ -810,6 +810,7 @@ Each row says what the spec claimed, what the code says, and why the change.
 |--------------|-----|
 | **A verb dispatch gate was added ahead of every phase.** `isYANGVerb` (`cmd/ze/ze_core_dispatch.go`) gated on a hardcoded eight-entry map while the command tree declared sixteen top-level verbs. `announce`, `withdraw`, `create`, `debug`, `system` and `peer` reached no dispatcher, so four of this spec's acceptance criteria named invocations the binary could not run. The set is now derived from the tree, the local registry and the root registry | Splitting `withdraw` into three siblings without this produces three unreachable commands instead of one. `ai/rules/plugins.md` refuses a per-feature list in a core package where registration can discover it |
 | AC-2, AC-3, AC-5, AC-10, AC-11, AC-15 spelled the invocation `ze help <path>` | No such form exists. `extractHelpPath` (`cmd/ze/ze_core_dispatch.go`) takes the help word from the END of the argument list, so the real form is `ze <path> help` |
+| 2026-10-08: AC-10 named `ze announce help` and an optional leaf for `for`; AC-15 ended at `[size <size>]` | The commands moved, the requirement did not. `ze-cli-announce-cmd.yang` (revision 2026-09-05) puts the announce forms at `send bgp <selector> unicast\|blackhole\|flowspec` and declares `for` as a `ze:modifier "once"` container holding one `duration` leaf, which renders the same `[for <duration>]`. `ze-ping-cmd.yang` (revision 2026-09-15) added the optional enumerated `do-not-fragment` leaf to `resolve ping`. Both ACs now name the current command and line; the obligation (optional trailing groups rendered from the model and published as optional) is unchanged |
 | AC-3 and AC-15 quoted the PROSE placeholders `<name>`, `<number>`, `<ip>`, `<n>`, `<bytes>` | The renderer reads leaf NAMES and never a description (`internal/component/command/usage.go`, `usageToken`), so it cannot produce a word the model does not carry. The l2tp leaves are `remote` and `called`, and the ping leaves will be `target`, `source`, `count` and `size` |
 | AC-4 asserted that a bare `show system sockets 8080` filters by port | It does not, and never did. `handleShowSystemSockets` (`internal/component/cmd/show/sockets_linux.go`) matches the literal keywords `tcp`, `udp`, `state` and `port`, and `validateCommandArgs` (`internal/component/plugin/server/command.go`) passes an unconsumed positional through to the handler unchanged rather than rewriting it into a keyword pair. So the binding decides validation, not filtering. AC-4 now asserts the keyword form, which is what `ai/rules/cli.md` requires anyway, and names `TestPositionalBindingIsOrderIndependent` for the binding half |
 | AC-6 keyed the gate on `Usage:` alone | The word in front of a grammar is the cheapest thing to change, so one keyword is not a gate. `show system sockets` writes `Filters: [tcp\|udp] [state <STATE>] [port <N>]` and `show capture` writes another, both prescribing a CLI spelling. `usageMarkers` is now `Usage:`, `Syntax:`, `Filters:`, and the authored count rose from 80 to 82 with the differences from 51 to 53. `Example:` is deliberately not a marker: `ze-fib-p4-conf.yang` uses it for a value, not a grammar. The four `Syntax:`/`Filters:` prescriptions in `ze-rib-api.yang` are outside the gate's population, because `BuildCommandTree` reads `-cmd` modules only and those live on `rpc` statements in an `-api` module. That is a real hole and it is NOT this spec's: widening the population from the command tree to every YANG module is a different change |
@@ -1110,10 +1111,23 @@ compares any authored usage against generated grammar, checks hidden deletions
 against HEAD and derives `Valid` from those results. The documentation
 verification pipeline already runs `docUsageStage` and fails on an invalid
 report (`internal/le/doc/wiring/docverify.go`, `docVerifyStages` and
-`answerDocVerify`). The integration is present. This spec still owes refusal
-proof for a new authored sentence or hidden disagreement, a current corpus
-result, and closure evidence. No current command or disagreement count is
-asserted here.
+`answerDocVerify`). The integration is present.
+
+Current corpus result, 2026-10-08, `./le --name gcu doc yang-contract
+usage-contract`, exit 0: 404 command nodes, 0 authored usage sentences, 0
+authored-and-generated disagreements, 0 deletions while the model still
+differs ("Every command states its grammar in the model"). Refusal of a new
+authored sentence and of a hidden disagreement is proven by
+`TestUsageContractRefusesAuthoredProse` and `TestUsageContractRefusesHiddenGap`
+(`internal/le/doc/yangcontract/usage_test.go`, green 2026-10-08 under
+`./le job run label unit-pkg`).
+
+2026-10-08 functional proof: `test-show-system-sockets-keyword-filters.ci`
+(AC-4, story 3, stress-run 5/5) and `test-help-usage-modifiers.ci` (AC-10,
+AC-15, story 5, red/green recorded in the Functional Tests table). The spec is
+ready for independent closure: `/ze-review` by a reader who did not author it,
+then `/ze-close`. Gates owed by the main thread and not run here:
+`./le go lint run`, `./le test functional gating`.
 
 `plan/immediate/spec-declared-commands-without-leaves.md` owns residual missing
 argument declarations and their completion, validation and web-form effects.
