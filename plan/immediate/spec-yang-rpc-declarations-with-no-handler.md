@@ -510,6 +510,25 @@ deleting duplicate declarations.
   (`internal/component/config/cli/register.go`).
   → Constraint: `go test` without the le feature tags links no BGP handler, so the live-tree tests
   must run with `ze_le` plus `feature_tags feature-gates.txt`, as `./le` itself is built.
+  -> Decision (owner, 2026-10-08): the 117 unserved published RPCs are fixed by running spec-rpc-published-name-does-not-reach-its-handler next (its 2026-09-06 design removes the module-name derivation); they are not renamed here.
+  -> Decision (owner, 2026-10-08): every local command gets a YANG node (one declaration per command, the registration rule); explain, skills, support and validate become top-level operational verbs.
+  -> AC-17 (where `ze-bgp-cmd-peer-api` belongs, and with it `peer-save`) is being investigated separately, outside this phase.
+- 2026-10-08, decision 2a implemented: the 14 local handlers each have a `ze:command` node at
+  the path they register. Debug profile commands in `ze-debug-cmd.yang`; `generate wireguard
+  keypair` in `ze-diag-cmd.yang`; `show config graph` and top-level `validate config` in
+  `ze-config-cli-cmd.yang`; new modules `ze-explain-cmd`, `ze-skills-cmd`, `ze-support-cmd` under
+  `internal/plugins/<name>/yang/` (glue by `./le yang glue write`, composition root by
+  `./le plugin imports write`). Gate: 14 -> 0 local orphans, YANG commands 404 -> 418.
+  -> Constraint: a node is declared only at the registered path, never below it.
+  `registry.LookupLocal` refuses a local match when the argv reaches a declared command further
+  down, so `show debug profile name <n>` keeps `name` as a leaf, and `skills list|get` is a
+  `one-of` modifier group rather than two commands.
+  -> Constraint: `support` declares no leaf. Its grammar is Go flags plus an optional bare
+  positional, which the model cannot state (a bare optional positional is refused by the CLI
+  grammar), so the node carries the summary and the root's own help keeps the options.
+  Walked into, journalled: `doctor` is not scanned by the gate (gate-excludes-part-of-its-population);
+  `ze help` lists a root-won verb twice (help-lists-a-root-verb-twice); `set debug module` drops
+  every option after the first (silent-fall-through).
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->

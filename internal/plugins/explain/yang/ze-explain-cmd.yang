@@ -1,0 +1,22 @@
+module ze-explain-cmd {
+    namespace "urn:ze:explain:cmd";
+    prefix explaincmd;
+    import ze-extensions { prefix ze; }
+    description "The explain command, owned by the explain plugin, which registers its handler. See the plugin self-containment rule.";
+    revision 2026-10-08 { description "Initial: declare the explain command the explain plugin already served."; }
+
+    container explain {
+        config false;
+        ze:command "ze-explain:explain";
+        description "The answer gives the meaning of the code, its likely cause and the recommended
+fix. It is read from the diagnostic catalog this binary carries and asks no daemon.";
+        ze:help "Explain one diagnostic code Ze printed.";
+        leaf code {
+            type string { length "1..64"; }
+            mandatory true;
+            description "A diagnostic code as a log line or an error message printed it. An unknown
+code is refused.";
+            ze:help "Diagnostic code.";
+        }
+    }
+}

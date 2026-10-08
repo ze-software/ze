@@ -4,7 +4,8 @@ module ze-config-cli-cmd {
     import ze-extensions { prefix ze; }
     // These handlers inspect, compare, and format configuration files through
     // the config backend. See ai/rules/plugin-self-containment.md.
-    description "The show config command tree, owned by the config CLI.";
+    description "The show config and validate config command trees, owned by the config CLI.";
+    revision 2026-10-08 { description "Declare show config graph and validate config, which the config CLI already served."; }
     // Every command that enumerates a set now spells the verb the same way.
     revision 2026-08-31 { description "Renamed show config ls to show config list."; }
     // The model now states the grammar, and the generated usage line reads it.
@@ -73,6 +74,42 @@ the configuration store and writes its bytes unchanged.";
                 description "Normalizes indentation and ordering. Output goes to stdout (read-only). To
 rewrite the file in place, use 'ze config fmt -w' from the CLI.";
                 ze:help "Pretty-print the configuration with consistent formatting.";
+            }
+
+            container graph {
+                config false;
+                ze:command "ze-show:config-graph";
+                description "Prints the dependency graph of a config file as JSON. Inactive blocks
+are left out, so the graph is the one the daemon would build.";
+                ze:help "Show how components and peers depend on each other, as JSON.";
+                leaf file {
+                    type string { length "1..4096"; }
+                    mandatory true;
+                    description "The config file to read, or - to read it on stdin.";
+                    ze:help "Config file path, or - for stdin.";
+                }
+            }
+        }
+    }
+
+    container validate {
+        config false;
+        description "Each command checks something without applying it, so it is safe against a
+production router.";
+        ze:help "Check without applying.";
+
+        container config {
+            config false;
+            ze:command "ze-validate:config";
+            description "Both the grammar of the file and the meaning of its values are checked,
+and each problem is reported with the diagnostic code that explains it. Nothing is
+applied.";
+            ze:help "Check a config for errors without applying it.";
+            leaf file {
+                type string { length "1..4096"; }
+                mandatory true;
+                description "The config file to check, or - to read it on stdin.";
+                ze:help "Config file path, or - for stdin.";
             }
         }
     }

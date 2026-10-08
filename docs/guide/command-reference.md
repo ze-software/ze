@@ -2156,6 +2156,13 @@ ze set debug timeout <duration>                  # Auto-disable timer (e.g. 30m,
 Hierarchical prefixes work: `ze set debug module bgp` covers all bgp.* subsystems.
 Not auto-applied on reboot (safety). Use `ze set debug active name <name>` after restart.
 Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.
+Each of these commands is a node in the YANG command tree (`ze-debug-cmd`), so
+`ze help`, `ze <command> help` and completion offer it. The same holds for
+`explain`, `skills`, `support`, `validate config`, `show config graph` and
+`generate wireguard keypair`, and `./le doc yang-contract command-contract`
+fails on a local command it finds with no node.
+<!-- source: internal/plugins/debug/yang/ze-debug-cmd.yang -- set/delete/clear debug, show debug profile -->
+<!-- source: internal/le/doc/yangcontract/contract.go -- Validate, OrphanLocalHandlers -->
 
 `show debug profile name <name>` reads a stored profile (offline). To see the daemon's
 actual live state, use `show debug` (YANG-dispatched RPC, requires a running daemon).

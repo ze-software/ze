@@ -95,6 +95,27 @@ func TestEveryYANGCommandHasAHandler(t *testing.T) {
 	}
 }
 
+// VALIDATES: every local command handler in this checkout is declared by a
+// YANG ze:command node at the path it registers, one declaration per command.
+// PREVENTS: a command `ze <verb>` runs that help, completion and the command
+// tree never offer. On 2026-10-08 fourteen such commands existed (the debug
+// profile commands, explain, skills, support, generate wireguard keypair,
+// show config graph, validate config). The verdict is read on its own, apart
+// from TestEveryYANGCommandHasAHandler, so a red RPC set elsewhere cannot hide it.
+func TestEveryLocalHandlerHasAYANGCommand(t *testing.T) {
+	result, err := Validate(repoRoot(t))
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if result.TotalLocal == 0 {
+		t.Fatal("no local handler was found, so this test proves nothing about them")
+	}
+	if len(result.OrphanLocalHandlers) > 0 {
+		t.Errorf("%d local handlers have no YANG command: %v",
+			len(result.OrphanLocalHandlers), result.OrphanLocalHandlers)
+	}
+}
+
 // VALIDATES: a command registered with RegisterLocalData is counted as a local
 // handler, and so is every other spelling of the registration.
 // PREVENTS: a new registration API blinding this checker silently. Adding

@@ -1,0 +1,121 @@
+# Test: every command a local handler serves is offered by help and completion
+# VALIDATES: spec-yang-rpc-declarations-with-no-handler, owner decision 2a --
+#            each of the fourteen local handlers that had no YANG node is now
+#            declared, so `ze help`, `ze <path> help` and completion reach it
+# PREVENTS: a command that runs when typed but that no help page, completion
+#           list or command catalog names, as the debug profile commands,
+#           explain, skills, support, generate wireguard keypair, show config
+#           graph and validate config were until 2026-10-08
+#
+# The top-level help and completion read the YANG command tree, so a verb only
+# a handler knew about was absent from both. Help pages are written to stderr
+# (helpfmt.Page.WriteErr); completion words go to stdout.
+
+# The four new top-level verbs, in the verb list `ze help` prints.
+cmd=foreground:seq=1:exec=ze help
+expect=exit:code=0
+expect=stderr:pattern=(?m)^  explain +Explain one diagnostic code Ze printed\.$
+expect=stderr:pattern=(?m)^  skills +List the agent skills this binary carries, or fetch one by name\.$
+expect=stderr:pattern=(?m)^  support +Collect logs, config, state and diagnostics into one archive\.$
+expect=stderr:pattern=(?m)^  validate +Check without applying\.$
+expect=stderr:pattern=(?m)^  generate +Generate keys and other material on this host\.$
+
+# Completion at the root offers the same verbs.
+cmd=foreground:seq=2:exec=ze completion words run
+expect=exit:code=0
+expect=stdout:pattern=(?m)^explain\t
+expect=stdout:pattern=(?m)^skills\t
+expect=stdout:pattern=(?m)^support\t
+expect=stdout:pattern=(?m)^validate\t
+expect=stdout:pattern=(?m)^generate\t
+
+# The debug profile commands under set, delete, clear and show.
+cmd=foreground:seq=3:exec=ze completion words run set debug
+expect=exit:code=0
+expect=stdout:pattern=(?m)^module\t
+expect=stdout:pattern=(?m)^timeout\t
+expect=stdout:pattern=(?m)^profile\t
+expect=stdout:pattern=(?m)^active\t
+
+cmd=foreground:seq=4:exec=ze completion words run set debug profile
+expect=exit:code=0
+expect=stdout:pattern=(?m)^name\t
+
+cmd=foreground:seq=5:exec=ze completion words run set debug active
+expect=exit:code=0
+expect=stdout:pattern=(?m)^name\t
+
+cmd=foreground:seq=6:exec=ze completion words run delete debug
+expect=exit:code=0
+expect=stdout:pattern=(?m)^module\t
+expect=stdout:pattern=(?m)^profile\t
+
+cmd=foreground:seq=7:exec=ze completion words run delete debug profile
+expect=exit:code=0
+expect=stdout:pattern=(?m)^name\t
+
+cmd=foreground:seq=8:exec=ze completion words run clear
+expect=exit:code=0
+expect=stdout:pattern=(?m)^debug\tClear the default debug profile\.$
+
+cmd=foreground:seq=9:exec=ze completion words run show debug
+expect=exit:code=0
+expect=stdout:pattern=(?m)^profile\t
+
+# The commands under generate, show config and validate.
+cmd=foreground:seq=10:exec=ze completion words run generate wireguard
+expect=exit:code=0
+expect=stdout:pattern=(?m)^keypair\t
+
+cmd=foreground:seq=11:exec=ze completion words run show config
+expect=exit:code=0
+expect=stdout:pattern=(?m)^graph\t
+
+cmd=foreground:seq=12:exec=ze completion words run validate
+expect=exit:code=0
+expect=stdout:pattern=(?m)^config\t
+
+# A declared command answers its own generated help page and usage line.
+cmd=foreground:seq=13:exec=ze set debug module help
+expect=exit:code=0
+expect=stderr:contains=ze set debug module <module-name> [level <level>] [flag <flag>] [scope <kind> <value>]
+
+cmd=foreground:seq=14:exec=ze set debug timeout help
+expect=exit:code=0
+expect=stderr:contains=ze set debug timeout <duration>
+
+cmd=foreground:seq=15:exec=ze set debug profile name help
+expect=exit:code=0
+expect=stderr:contains=ze set debug profile name <profile-name>
+
+cmd=foreground:seq=16:exec=ze set debug active name help
+expect=exit:code=0
+expect=stderr:contains=ze set debug active name <profile-name>
+
+cmd=foreground:seq=17:exec=ze delete debug module help
+expect=exit:code=0
+expect=stderr:contains=ze delete debug module <module-name> [flag <flag>] [scope <kind> <value>]
+
+cmd=foreground:seq=18:exec=ze delete debug profile name help
+expect=exit:code=0
+expect=stderr:contains=ze delete debug profile name <profile-name>
+
+cmd=foreground:seq=19:exec=ze clear debug help
+expect=exit:code=0
+expect=stderr:contains=ze clear debug - Clear the default debug profile.
+
+cmd=foreground:seq=20:exec=ze show debug profile help
+expect=exit:code=0
+expect=stderr:contains=ze show debug profile [name <name>] [module <module>]
+
+cmd=foreground:seq=21:exec=ze generate wireguard keypair help
+expect=exit:code=0
+expect=stderr:contains=ze generate wireguard keypair - Generate a WireGuard keypair with the system wg binary.
+
+cmd=foreground:seq=22:exec=ze show config graph help
+expect=exit:code=0
+expect=stderr:contains=ze show config graph <file>
+
+cmd=foreground:seq=23:exec=ze validate config help
+expect=exit:code=0
+expect=stderr:contains=ze validate config <file>

@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-08 | spec-yang-rpc-declarations-with-no-handler (decision 2a) | `zeUsage` (`cmd/ze/ze_core_usage.go`) | A name that is both a registered root (`registry.RegisterRoot`) and a top-level YANG verb is printed twice by `ze help`, under Operations and under System. `plugin` and `resolve` did so before; `explain`, `skills`, `support` and `generate` now do too. `yangVerbs` (`cmd/ze/ze_core_dispatch.go`) lets the root win the name for dispatch; help does not. | Open: one declaration per top-level name; the owner decides whether the root meta or the YANG verb is the one help lists. |

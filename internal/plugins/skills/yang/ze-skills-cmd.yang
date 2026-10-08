@@ -1,0 +1,42 @@
+module ze-skills-cmd {
+    namespace "urn:ze:skills:cmd";
+    prefix skillscmd;
+    import ze-extensions { prefix ze; }
+    description "The skills command, owned by the skills plugin, which registers its handler. See the plugin self-containment rule.";
+    revision 2026-10-08 { description "Initial: declare the skills command the skills plugin already served."; }
+
+    container skills {
+        config false;
+        ze:command "ze-skills:skills";
+        description "Each skill is a Markdown document bundled with the binary, so it always
+matches the running version. list names them, and get prints one by name.";
+        ze:help "List the agent skills this binary carries, or fetch one by name.";
+
+        container action {
+            config false;
+            ze:modifier "one-of";
+            description "The operator types list or get, and never this container's name.";
+            ze:help "What to do with the bundled skills.";
+
+            container list {
+                config false;
+                ze:modifier "once";
+                description "Prints each bundled skill with its one-line description.";
+                ze:help "List the bundled skills.";
+            }
+
+            container get {
+                config false;
+                ze:modifier "once";
+                description "Prints the named skill's Markdown document.";
+                ze:help "Fetch one bundled skill.";
+                leaf name {
+                    type string { length "1..64"; }
+                    mandatory true;
+                    description "A skill name as list prints it. An unknown name is refused.";
+                    ze:help "Skill name.";
+                }
+            }
+        }
+    }
+}

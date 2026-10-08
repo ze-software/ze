@@ -2,7 +2,8 @@ module ze-diag-cmd {
     namespace "urn:ze:diag:cmd";
     prefix diagcmd;
     import ze-extensions { prefix ze; }
-    description "Diagnostic command tree: capture (control-plane, raw, interface) and tcp-check. Owned by the diag component. See ai/rules/plugin-self-containment.md.";
+    description "Diagnostic command tree: capture (control-plane, raw, interface), tcp-check, and generate wireguard keypair. Owned by the diag component. See ai/rules/plugin-self-containment.md.";
+    revision 2026-10-08 { description "Declare generate wireguard keypair, which the diag plugin already served."; }
     revision 2026-06-06 { description "Relocated capture and tcp-check out of the central show schema (plugin self-containment)."; }
 
     container show {
@@ -180,6 +181,27 @@ after the interface name and compiles the whole expression to a BPF program on t
 socket.";
                     ze:help "Protocol filter.";
                 }
+            }
+        }
+    }
+
+    container generate {
+        config false;
+        description "Each command writes newly made material, such as a key pair, to the terminal.
+Nothing is stored and the router's state is not changed.";
+        ze:help "Generate keys and other material on this host.";
+
+        container wireguard {
+            config false;
+            description "WireGuard material, made by the system wg binary.";
+            ze:help "Generate WireGuard material.";
+
+            container keypair {
+                config false;
+                ze:command "ze-generate:wireguard-keypair";
+                description "The private key is written on the first line and the public key on the
+second. The wg binary must be installed on this host.";
+                ze:help "Generate a WireGuard keypair with the system wg binary.";
             }
         }
     }
