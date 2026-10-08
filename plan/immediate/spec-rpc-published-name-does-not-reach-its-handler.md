@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -110,8 +110,9 @@ publishes none of them. Their methods carry the FULL module name on the wire:
 (`pkg/plugin/sdk/`) matches an inbound one by the same spelling. Those 22 names
 are the external plugin contract, no node declares them, and no derivation
 reaches them, so the design owes them an explicit statement on the rpc itself. A
-further 19 rpcs sit in `-api` modules with no `ze:command` node naming them, and
-those belong to the sibling spec named below.
+further 19 rpcs sit in `-api` modules with no `ze:command` node naming them;
+they were the sibling spec's, and since the owner decision of 2026-10-08 they are
+settled here, among the 117 the gate names.
 
 The SECOND is an rpc reached by more than one node, which happens today. Five
 wire methods are declared by more than one `ze:command` statement, and the widest
@@ -201,9 +202,14 @@ it adds no capability. That spec owns the missing peer capability, which is
 peer-add, peer-delete and peer-save, and it decides whether each dead declaration
 should exist at all. Where a declaration has a node and a handler that disagree in
 spelling, this spec repairs it. Where a declaration has neither, that spec decides
-its fate and this spec's gate reports it without deciding. The gate lands after
-that spec closes, or it starts red on the 19 declarations that spec owns. Neither
-spec edits the other's files.
+its fate and this spec's gate reports it without deciding. The ordering knot is
+resolved (owner, 2026-10-08): the gate no longer waits for that spec to close.
+The strengthened gate already landed red in 949091e15a, and it turns green as
+this spec repairs the published methods it names. The one exception to "neither
+spec edits the other's files" is `ze-bgp-cmd-peer-api.yang`, which this spec
+removes after moving its two unique facts.
+
+-> Decision (owner, 2026-10-08): this spec runs next. It absorbs the 117 published methods with no handler found by the command-contract gate (949091e15a), and removes ze-bgp-cmd-peer-api.yang after moving its two unique facts (peer-save's rpc declaration under ze-bgp, and the session input leaf of session-peer-ready) into their final form under this spec's design.
 
 ## Required Reading
 
@@ -317,7 +323,7 @@ spec edits the other's files.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The gate goes red on the 19 declarations the sibling spec owns | The first gate run lists them | Land the gate after that spec closes |
+| R-1 | The gate is red on the 117 published methods with no handler | The gate run of 949091e15a lists them | Resolved (owner, 2026-10-08): this spec absorbs the 117, and the gate goes green as this spec lands, without waiting for the sibling spec |
 | R-2 | Moving the rpc metadata into the command modules churns 34 YANG files at once | A review that cannot be read | Land the join first, then the file moves, one module group per commit |
 | R-3 | A test pins the old published spelling | `test/parse/cli-schema-methods.ci` asserts `ze schema methods` prints `ze-system:help` | Correct the expectation in the same commit as the rename |
 | R-4 | The owner-derived prefix moves 249 of 397 declarations, which is a large diff to review | A commit that no reviewer can hold | One subsystem for each commit, with the gate green after each |
@@ -588,7 +594,7 @@ spec edits the other's files.
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
-- The 19 `-api` rpcs that no `ze:command` node names are not settled here. `plan/immediate/spec-yang-rpc-declarations-with-no-handler.md` owns them, and it owns the peer-add, peer-delete and peer-save capability.
+- `plan/immediate/spec-yang-rpc-declarations-with-no-handler.md` keeps the peer-add, peer-delete and peer-save capability (its RIB-effect proofs and the peer-create/peer-delete rename). The 117 published methods with no handler, the nodeless `-api` rpcs among them, are this spec's since the owner decision of 2026-10-08.
 - `SchemaRegistry` returning an empty registry after a discarded loader error is a separate defect and is not fixed here.
 - `findRPC`, `findRPCByCommand` and `registerCLICommand` have no non-test caller. Deleting them is not in this spec.
 

@@ -22,11 +22,13 @@ peer-table proof; the broader lifecycle and persistence criteria below remain
 the completion contract.
 The original schema inventory published two copies of `peer-add` and
 `peer-save`, among other RPC declarations. Six duplicate or obsolete
-declarations were removed on September 13, as recorded below. The surviving
-`ze-bgp-cmd-peer-api:peer-save` declaration and its module remain in the tree.
-`cmdMethods` and the AI help builder publish RPC declarations independently of
-the served command registration, so that retained declaration still needs the
-command-contract reconciliation this spec requires.
+declarations were removed on September 13, as recorded below. The
+`ze-bgp-cmd-peer-api:peer-save` declaration and its module were simply not
+deleted that day; no owner ruled them retained. `peer-save` is served and must
+be declared exactly once, under its served name (`ze-bgp:peer-save`).
+`ze-bgp-cmd-peer-api.yang` is removed by
+`spec-rpc-published-name-does-not-reach-its-handler` after its two unique facts
+move there.
 
 **The model this spec builds.** Three RPCs act on one runtime working set, and
 the configuration file is reconciled to that set on demand.
@@ -51,9 +53,10 @@ sets and saves through an editor whose commit writer calls
 
 Those entry points are implemented. They do not by themselves demonstrate
 AC-1 through AC-13, nor implement this spec's required `peer-create` and
-`peer-delete` wire naming. The retained `ze-bgp-cmd-peer-api:peer-save`
-declaration publishes a different module prefix from the served save handler.
-The declaration/handler agreement remains part of AC-14/AC-15.
+`peer-delete` wire naming. The `ze-bgp-cmd-peer-api:peer-save` declaration
+publishes a different module prefix from the served save handler; it is
+replaced by one declaration under the served name `ze-bgp:peer-save`, moved by
+`spec-rpc-published-name-does-not-reach-its-handler`.
 
 **Runtime origin and reload survival remain requirements.** The original design
 required a distinction between configured, listen-range and command-created
@@ -119,7 +122,7 @@ published methods are therefore `ze-bgp:peer-create`, `ze-bgp:peer-delete` and
 | Site | What changes |
 |---|---|
 | `internal/component/bgp/yang/ze-bgp-api.yang` | `rpc peer-add` becomes `peer-create`, `rpc peer-remove` becomes `peer-delete` |
-| `internal/component/bgp/plugins/cmd/peer/yang/ze-bgp-cmd-peer-api.yang` | Retain the module and `peer-save` under the September 13 ruling; resolve its declaration-to-wire-method agreement without an unconditional module deletion |
+| `internal/component/bgp/plugins/cmd/peer/yang/ze-bgp-cmd-peer-api.yang` | Removed by `spec-rpc-published-name-does-not-reach-its-handler`, after `peer-save` is declared once under its served name `ze-bgp:peer-save` and the `session` input leaf of `session-peer-ready` moves |
 | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` | `ze:command "ze-bgp:peer-add"` and `ze:command "ze-delete:bgp-peer"` |
 | `internal/component/bgp/plugins/cmd/peer/peer.go` | the two `RPCRegistration` wire methods |
 | `internal/component/bgp/plugins/cmd/peer/yang/cmd_schema_test.go` | asserts the `ze:command` string |
@@ -130,13 +133,12 @@ published methods are therefore `ze-bgp:peer-create`, `ze-bgp:peer-delete` and
 | `docs/architecture/exabgp-bridge.md` | states which command `create neighbor` reaches |
 
 **The other declarations, judged under the same model.**
-The earlier proposal to delete `ze-bgp-cmd-peer-api.yang` wholesale is
-superseded by the September 13 retention of `peer-save`. This spec must still
-make every published method agree with a served handler. The retained module
-currently has the `ze-bgp-cmd-peer` wire prefix, while save is served under
-`ze-bgp`; the design must resolve that mismatch while preserving the retained
-capability and the single-prefix requirement above. Any migration or removal
-of the retained declaration needs an explicit disposition before implementation.
+`ze-bgp-cmd-peer-api.yang` publishes under the `ze-bgp-cmd-peer` wire prefix,
+while save is served under `ze-bgp`. The disposition is recorded: the module is
+removed by `spec-rpc-published-name-does-not-reach-its-handler`, after
+`peer-save` is declared exactly once under its served name `ze-bgp:peer-save`
+and the `session` input leaf of `session-peer-ready` moves into its final form.
+No owner ever ruled the module retained (Design Insights, 2026-10-08).
 The two `ze-cli-set-api.yang` names were deletion candidates because their
 own sibling records the removal: `ze-cli-set-cmd.yang` carries `revision
 2026-06-03` reading "Removed set bgp peer with/save.", above a comment reading
@@ -184,7 +186,7 @@ report, while `contractSatisfied` reads `orphanYANG` and `orphanHandlers` alone,
 so the rows the run prints under "Local handlers with no YANG command" change no
 verdict. Both holes remain owned here. Before the September 13 deletion,
 `TestEveryCommandNodeHasASummary` recorded six refusals, including the
-`peer-save` declaration that was later retained. That historical result must
+`peer-save` declaration that was not deleted that day. That historical result must
 not be used as the current gate result. Two tests in the original investigation
 asserted dead declarations existed, without checking whether a handler answered:
 `TestYANGBGPAPIRPCs` asserts each
@@ -202,16 +204,16 @@ duplicate of a live declaration or the residue of a removal, so deleting it
 removed a published method and no capability. `ze-cli-set-api.yang` now declares
 no rpc at all, and whether the module file goes is still open.
 
-**Of the seven declarations selected for removal, `peer-save` is retained.**
-That is the boundary of the September 13 cleanup, not a reduction of the
-runtime-peer feature to one node. The handler and help text now exist, so the
+**Of the seven declarations selected for removal, `peer-save` was not deleted
+on September 13.** That was the boundary of that day's cleanup, not an owner
+ruling and not a reduction of the runtime-peer feature to one node. The handler and help text now exist, so the
 earlier claim that help-shape must remain red until they are written is stale.
 No current help-shape result is claimed here.
 
 This spec still owns the create/delete lifecycle and RIB effects in AC-1
 through AC-9, whole-set persistence in AC-10 through AC-13, and the published
 method/handler gates in AC-14 through AC-16. AC-17 records the six removals and
-retention separately. None of those broader requirements was discharged by
+the single served declaration of `peer-save` separately. None of those broader requirements was discharged by
 deleting duplicate declarations.
 
 ## Required Reading
@@ -336,7 +338,7 @@ deleting duplicate declarations.
 | AC-14 | `ze schema methods` and `ze help ai --json` are read on a built daemon | Every method they publish has a registered handler |
 | AC-15 | A YANG `-api` module declares an rpc whose published wire method no handler serves | `./le doc yang-contract command-contract` fails and names the module, the rpc and the wire method |
 | AC-16 | A registered handler has no YANG command node and no rpc declaration | `./le doc yang-contract command-contract` fails, rather than printing the row under a passing verdict |
-| AC-17 | The six removed declarations (`ze-bgp-cmd-peer-api:peer-add`, `ze-bgp-cmd-update-api:peer-update-hex`, `ze-cli-set-api:bgp-peer-with`, `ze-cli-set-api:bgp-peer-save`, `ze-rib-api:command-help`, `ze-rib-api:command-complete`) remain absent; `ze-bgp-cmd-peer-api:peer-save` and its module remain subject to the retention ruling | The removed methods are no longer published, the retained save capability has a served declaration consistent with AC-14/AC-15, and `TestEveryCommandNodeHasASummary` reports no refusal for an RPC declaration. Module deletion alone cannot satisfy this criterion |
+| AC-17 | The six removed declarations (`ze-bgp-cmd-peer-api:peer-add`, `ze-bgp-cmd-update-api:peer-update-hex`, `ze-cli-set-api:bgp-peer-with`, `ze-cli-set-api:bgp-peer-save`, `ze-rib-api:command-help`, `ze-rib-api:command-complete`) remain absent, and `peer-save` is served | The removed methods are no longer published; `peer-save` is declared exactly once, under its served name `ze-bgp:peer-save`, consistent with AC-14/AC-15; no `ze-bgp-cmd-peer:peer-save` method is published; and `TestEveryCommandNodeHasASummary` reports no refusal for an RPC declaration |
 
 ## End-to-End User Stories
 
@@ -500,8 +502,8 @@ deleting duplicate declarations.
   117 published rpc methods with no handler (journal: `plan/journal/gate-excludes-part-of-its-population.md`,
   two 2026-10-08 rows). The 117 belong to `spec-rpc-published-name-does-not-reach-its-handler.md`,
   whose owner design (2026-09-06) removes `WireModule`. That set includes this spec's own
-  `ze-bgp-cmd-peer:peer-save` and `ze-bgp:peer-remove`, which AC-17's retention ruling and the
-  peer-create/peer-delete rename resolve.
+  `ze-bgp-cmd-peer:peer-save` and `ze-bgp:peer-remove`, which AC-17 (one declaration under
+  `ze-bgp:peer-save`) and the peer-create/peer-delete rename resolve.
   The 14 local handlers: `clear debug`, `delete debug module`, `delete debug profile name`,
   `set debug active name`, `set debug module`, `set debug profile name`, `set debug timeout`,
   `show debug profile` (`internal/plugins/debug/register.go`); `explain`, `skills`, `support`
@@ -512,7 +514,13 @@ deleting duplicate declarations.
   must run with `ze_le` plus `feature_tags feature-gates.txt`, as `./le` itself is built.
   -> Decision (owner, 2026-10-08): the 117 unserved published RPCs are fixed by running spec-rpc-published-name-does-not-reach-its-handler next (its 2026-09-06 design removes the module-name derivation); they are not renamed here.
   -> Decision (owner, 2026-10-08): every local command gets a YANG node (one declaration per command, the registration rule); explain, skills, support and validate become top-level operational verbs.
-  -> AC-17 (where `ze-bgp-cmd-peer-api` belongs, and with it `peer-save`) is being investigated separately, outside this phase.
+  -> Decision (owner, 2026-10-08): the peer-save "retention ruling" is dropped; it was an agent label, not an owner ruling. ze-bgp-cmd-peer-api.yang is removed by spec-rpc-published-name-does-not-reach-its-handler after its two unique facts move (the peer-save rpc declaration under its served name, and the session input leaf of session-peer-ready).
+  -> Decision (owner, 2026-10-08): the 117 published methods with no handler, found by the
+  command-contract gate (949091e15a), are handed to `spec-rpc-published-name-does-not-reach-its-handler`,
+  which runs next; AC-15's gate turns green there.
+  -> Closure status (2026-10-08): this spec CANNOT close yet. Still owed here: the RIB-effect and
+  persistence proofs AC-1 through AC-13, and the `peer-add`/`peer-remove` to
+  `peer-create`/`peer-delete` rename. AC-14, AC-15 and AC-17 also wait on the other spec landing.
 - 2026-10-08, decision 2a implemented: the 14 local handlers each have a `ze:command` node at
   the path they register. Debug profile commands in `ze-debug-cmd.yang`; `generate wireguard
   keypair` in `ze-diag-cmd.yang`; `show config graph` and top-level `validate config` in
