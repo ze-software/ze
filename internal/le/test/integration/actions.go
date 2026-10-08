@@ -82,7 +82,9 @@ func runStressBirdGate(_ context.Context, _ string) (any, int) {
 }
 
 func runStressGate(ctx context.Context, root string) (any, int) {
-	report, code := runStressAction(ctx, root, stressOptions{Scenario: env.Get("stress.scenario")})
+	report, code := runStressAction(ctx, root, stressOptions{
+		Scenario: env.Get("stress.scenario"), Prefixes: env.GetInt("stress.prefixes", 0),
+	})
 	return report, code
 }
 

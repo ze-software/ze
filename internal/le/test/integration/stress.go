@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 const StressAction = "stress"
@@ -24,6 +25,13 @@ const (
 	stressFlapPause      = 2 * time.Second
 	stressProfileStartup = time.Second
 	stressProfileWait    = 120 * time.Second
+	// stressZeBuildTimeout bounds the per-run DUT build. A warm build cache
+	// finishes in seconds; a cold one (first run as root) compiles every gate.
+	stressZeBuildTimeout = 15 * time.Minute
+	// stressZeBinaryRel is where the per-run DUT build lands, under the
+	// checkout's tmp/. It is never bin/ze, which other tools build with their
+	// own tags and which the runner must not mistake for the tree under test.
+	stressZeBinaryRel = "tmp/stress/ze"
 	// stressProfileRoot is the directory the profile log is written to, inside
 	// the network namespace the scenario runs in.
 	stressProfileRoot = "/tmp"
@@ -34,9 +42,18 @@ func stressProfilePath(suffix string) string {
 	return filepath.Join(stressProfileRoot, "ze-stress-profile-"+suffix+".log")
 }
 
+// stressReceiverLogPath answers the receiver sink's log of one stress run.
+func stressReceiverLogPath(suffix string) string {
+	return filepath.Join(stressProfileRoot, "ze-stress-receiver-"+suffix+".log")
+}
+
 // stressOptions selects one exact scenario. An empty selection runs the complete registry.
+// Prefixes, when above zero, replaces every Ze round's prefix count: a smoke run
+// that proves a scenario's wiring without its full load. Zero keeps the registry's
+// counts, which are the only ones a measurement records.
 type stressOptions struct {
 	Scenario string
+	Prefixes int
 }
 
 // StressPeerMetrics preserves the injector's message, byte, build, and wire-rate result.
@@ -72,6 +89,8 @@ type StressScenarioReport struct {
 	Passed        bool                  `json:"passed"`
 	Rounds        []StressRoundReport   `json:"rounds,omitempty"`
 	Profiles      []StressProfileReport `json:"profiles,omitempty"`
+	Queries       []StressProfileReport `json:"queries,omitempty"`
+	Binary        string                `json:"binary,omitempty"`
 	Bird          *StressBirdReport     `json:"bird,omitempty"`
 	Warnings      []string              `json:"warnings,omitempty"`
 	CleanupErrors []string              `json:"cleanup-errors,omitempty"`
@@ -100,9 +119,9 @@ func (r stressReport) Text() string {
 		return fmt.Sprintf("PASS  %d scenario(s)", r.Passed)
 	}
 	failed := make([]string, 0, r.Failed)
-	for _, scenario := range r.Scenarios {
-		if !scenario.Passed {
-			failed = append(failed, scenario.Name)
+	for i := range r.Scenarios {
+		if !r.Scenarios[i].Passed {
+			failed = append(failed, r.Scenarios[i].Name)
 		}
 	}
 	return fmt.Sprintf("FAIL  %d passed, %d failed: %s", r.Passed, r.Failed, strings.Join(failed, " "))
@@ -112,6 +131,35 @@ type stressScenario struct {
 	name   string
 	config string
 	rounds []stressRound
+	// reach is nil for a scenario that measures the injector-to-DUT path
+	// alone. The profile scenario sets it, see stressProfileReach.
+	reach *stressReach
+}
+
+// stressReach is what a scenario adds around the injector so that its profile
+// carries the paths perf round 3 changed (docs/architecture/perf-round-3.md).
+// A single injector and a DUT that keeps the routes reach none of them: no
+// UPDATE is forwarded, no filter rewrites one, and no route is ever rendered.
+type stressReach struct {
+	// receiverCIDR and receiverIP are the eBGP sink's address on the peer
+	// namespace's link; receiverASN is the AS it opens with. The scenario's
+	// ze.conf names the same address and AS for its "receiver" peer.
+	receiverCIDR string
+	receiverIP   string
+	receiverASN  int
+	// queryURL is fetched in the DUT namespace while the routes are held. The
+	// looking glass serves it from `show bgp rib best`, which renders each
+	// route's communities through Community.AppendText.
+	queryURL string
+}
+
+// stressProfileReach is the profile scenario's reach: one eBGP receiver the
+// DUT forwards to through an export modify policy, and one best-table query.
+var stressProfileReach = stressReach{
+	receiverCIDR: "172.31.0.4/24",
+	receiverIP:   "172.31.0.4",
+	receiverASN:  65200,
+	queryURL:     "http://127.0.0.1:8443/api/looking-glass/routes/table/ipv4%2Funicast",
 }
 
 type stressRound struct {
@@ -146,11 +194,21 @@ var stressScenarioRegistry = [...]stressScenario{
 	},
 	{name: stressBirdScenario, config: "bird.conf"},
 	{
-		name: scenarioProfile1M, config: zeConfigFile,
+		name: scenarioProfile1M, config: zeConfigFile, reach: &stressProfileReach,
 		rounds: []stressRound{
 			{prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 1_000_000, dwell: "60s", timeout: 600 * time.Second},
 		},
 	},
+}
+
+// stressRoundsWithPrefixes answers a copy of rounds with every prefix count
+// replaced, leaving the registry itself untouched.
+func stressRoundsWithPrefixes(rounds []stressRound, prefixes int) []stressRound {
+	smoke := slices.Clone(rounds)
+	for i := range smoke {
+		smoke[i].prefixes = prefixes
+	}
+	return smoke
 }
 
 func stressFlapRounds() []stressRound {
@@ -199,6 +257,16 @@ func runStressAt(
 		report.Code = 1
 		return report, report.Code
 	}
+	if options.Prefixes < 0 {
+		report.Failure = fmt.Sprintf("stress.prefixes %d is negative; use 0 for the registry counts", options.Prefixes)
+		report.Code = 1
+		return report, report.Code
+	}
+	if options.Prefixes > 0 {
+		for i := range selected {
+			selected[i].rounds = stressRoundsWithPrefixes(selected[i].rounds, options.Prefixes)
+		}
+	}
 
 	for _, scenario := range selected {
 		var result StressScenarioReport
@@ -234,6 +302,8 @@ type stressSystem interface {
 	ReadFile(path string) ([]byte, error)
 	fileSize(path string) (int64, error)
 	MkdirAll(path string, mode os.FileMode) error
+	// daemonBuildTags answers the -tags value that builds the DUT from root.
+	daemonBuildTags(root string) (string, error)
 }
 
 type stressRunner struct {
@@ -257,6 +327,7 @@ func runZeStressScenario(
 	defer func() {
 		report.CleanupErrors = runner.base.cleanup(ctx, true)
 		_ = system.Remove(stressProfilePath(runner.base.suffix))
+		_ = system.Remove(stressReceiverLogPath(runner.base.suffix))
 		report.Warnings = append(report.Warnings, runner.base.warnings...)
 		if report.Failure == "" && len(report.CleanupErrors) > 0 {
 			report.Failure = "cleanup failed: " + strings.Join(report.CleanupErrors, "; ")
@@ -274,6 +345,13 @@ func runZeStressScenario(
 		report.Failure, report.ExitCode = failure.Message, failure.ExitCode
 		return report
 	}
+	report.Binary = runner.zeBinary
+	if scenario.reach != nil {
+		if failure := runner.startReceiver(ctx, scenario.reach); failure != nil {
+			report.Failure, report.ExitCode = failure.Message, failure.ExitCode
+			return report
+		}
+	}
 	if failure := runner.startZe(ctx); failure != nil {
 		report.Failure, report.ExitCode = failure.Message, failure.ExitCode
 		return report
@@ -285,8 +363,11 @@ func runZeStressScenario(
 		}
 	}
 	for _, round := range scenario.rounds {
-		roundReport, failure := runner.runRound(ctx, round)
+		roundReport, query, failure := runner.runRound(ctx, round)
 		report.Rounds = append(report.Rounds, roundReport)
+		if query != nil {
+			report.Queries = append(report.Queries, *query)
+		}
 		if failure != nil {
 			report.Failure, report.ExitCode = failure.Message, failure.ExitCode
 			return report
@@ -326,32 +407,157 @@ func (r *stressRunner) preflight(ctx context.Context) *StressBirdFailure {
 	if _, err := r.system.Executable(); err != nil {
 		return stressBirdFailure("preflight", gaterun.CannotStart, "the BGP peer is this le (le test peer), and it cannot name its own file: "+err.Error())
 	}
-	r.zeBinary = r.system.Getenv("ZE_BINARY")
-	if r.zeBinary == "" || !r.system.FileExists(r.zeBinary) {
-		r.zeBinary = filepath.Join(r.base.root, "bin", "ze")
-	}
-	if !r.system.FileExists(r.zeBinary) {
-		if _, err := r.system.LookPath("go"); err != nil {
-			return stressBirdFailure("preflight", gaterun.CannotStart, "bin/ze not found and go is not in PATH")
-		}
-		environ := slices.Clone(r.base.environ)
-		environ = append(environ, "CGO_ENABLED=0")
-		result, err := r.system.Run(ctx, stressBirdCommand{
-			argv: []string{"go", "build", "-tags", "ze_core,ze_distro", "-o", r.zeBinary, "./cmd/ze"},
-			dir:  r.base.root, environ: environ, timeout: 120 * time.Second,
-		})
-		if err != nil {
-			return stressBirdFailure("preflight", commandErrorCode(err), "build Ze: "+err.Error())
-		}
-		if result.code != 0 {
-			return stressBirdFailure("preflight", result.code, "build Ze: "+strings.TrimSpace(result.stderr))
-		}
+	if failure := r.buildZe(ctx); failure != nil {
+		return failure
 	}
 	config := filepath.Join(r.base.root, "test", "stress", "scenarios", r.scenario.name, r.scenario.config)
 	if !r.system.FileExists(config) {
 		return stressBirdFailure("preflight", gaterun.CannotStart, "DUT configuration not found at "+config)
 	}
 	return nil
+}
+
+// buildZe compiles the DUT from the checkout under test, on every run.
+//
+// It never reuses a binary it finds. The runner used to start bin/ze whenever
+// one existed, so a profile could measure a daemon weeks older than the tree
+// it was recorded against, with nothing in the report to say so. Its fallback
+// build was no better: `-tags ze_core,ze_distro` alone compiles every feature
+// gate out, BGP included. The tags come from feature-gates.txt, as every other
+// daemon build in le derives them, and the go build cache keeps a rebuild of
+// an unchanged tree cheap.
+func (r *stressRunner) buildZe(ctx context.Context) *StressBirdFailure {
+	if _, err := r.system.LookPath("go"); err != nil {
+		return stressBirdFailure("preflight", gaterun.CannotStart, "go is not in PATH, and the DUT is built from the checkout on every run")
+	}
+	tags, err := r.system.daemonBuildTags(r.base.root)
+	if err != nil {
+		return stressBirdFailure("preflight", gaterun.CannotStart, "derive the DUT build tags: "+err.Error())
+	}
+	r.zeBinary = filepath.Join(r.base.root, stressZeBinaryRel)
+	environ := slices.Clone(r.base.environ)
+	environ = append(environ, "CGO_ENABLED=0")
+	result, err := r.system.Run(ctx, stressBirdCommand{
+		argv: []string{"go", "build", "-tags", tags, "-o", r.zeBinary, "./cmd/ze"},
+		dir:  r.base.root, environ: environ, timeout: stressZeBuildTimeout,
+	})
+	if err != nil {
+		return stressBirdFailure("preflight", commandErrorCode(err), "build Ze: "+err.Error())
+	}
+	if result.code != 0 {
+		return stressBirdFailure("preflight", result.code, stressBuildFailureMessage(result))
+	}
+	return nil
+}
+
+// stressBuildOutputLines bounds the compiler output a failed DUT build carries
+// into the report. The compiler stops after ten errors and a cold build prints
+// its downloads first, so the tail is where the errors are.
+const stressBuildOutputLines = 20
+
+// stressBuildFailureMessage answers why the DUT build failed: its exit status,
+// then the tail of stderr, or of stdout when stderr is empty. It never answers
+// the bare prefix: a smoke run once reported `build Ze: ` and nothing else,
+// because the message was stderr alone and stderr was empty.
+func stressBuildFailureMessage(result stressBirdCommandResult) string {
+	var message textbuf.Buffer
+	message.Str("build Ze: go build exited ").Int(int64(result.code))
+	output := strings.TrimSpace(result.stderr)
+	if output == "" {
+		output = strings.TrimSpace(result.stdout)
+	}
+	if output == "" {
+		return message.Str(" and printed nothing on stderr or stdout").String()
+	}
+	return message.Str(": ").Str(stressOutputTail(output, stressBuildOutputLines)).String()
+}
+
+// stressOutputTail answers the last lines of output, or all of it when it is
+// shorter.
+func stressOutputTail(output string, lines int) string {
+	at := len(output)
+	for range lines {
+		at = strings.LastIndexByte(output[:at], '\n')
+		if at < 0 {
+			return output
+		}
+	}
+	return output[at+1:]
+}
+
+// startReceiver brings up the eBGP sink the profile scenario forwards to: a
+// second address on the peer namespace's link, and `le test peer --mode sink`
+// listening on it. The DUT dials it (connect true in the scenario config), so
+// it is up before the DUT starts.
+func (r *stressRunner) startReceiver(ctx context.Context, reach *stressReach) *StressBirdFailure {
+	argv := r.base.namespaceArgv(r.base.peerNS, "ip", "addr", ipAdd, reach.receiverCIDR, "dev", r.base.peerVeth)
+	if failure := r.base.runRequired(ctx, "receiver", argv); failure != nil {
+		return failure
+	}
+	peerBinary, err := r.system.Executable()
+	if err != nil {
+		return stressBirdFailure("receiver", gaterun.CannotStart, err.Error())
+	}
+	process, err := r.system.Start(ctx, stressBirdCommand{
+		argv: r.base.namespaceArgv(
+			r.base.peerNS,
+			peerBinary, "test", "peer", "--mode", "sink",
+			"--bind", reach.receiverIP, "--port", "179",
+			"--asn", strconv.Itoa(reach.receiverASN),
+		),
+		environ: r.base.environ, outputPath: stressReceiverLogPath(r.base.suffix),
+	})
+	if err != nil {
+		return stressBirdFailure("receiver", gaterun.CannotStart, "start receiver sink: "+err.Error())
+	}
+	r.base.processes = append(r.base.processes, process)
+	return nil
+}
+
+// queryRIB waits for the injector to report its last byte sent, then fetches
+// the best table through the looking glass while the routes are still held.
+// The injector's dwell is the only window: once its session closes the routes
+// are withdrawn and the table is empty.
+func (r *stressRunner) queryRIB(
+	ctx context.Context,
+	reach *stressReach,
+	round stressRound,
+) (StressProfileReport, *StressBirdFailure) {
+	report := StressProfileReport{Name: "looking-glass-best", Path: reach.queryURL}
+	deadline := r.system.Now().Add(round.timeout)
+	for {
+		content, err := r.system.ReadFile(r.base.paths.peerLog)
+		if err == nil && stressSentMetrics.Match(content) {
+			break
+		}
+		if r.system.Now().After(deadline) {
+			return report, stressBirdFailure("query", stressBirdTimeoutCode, "the injector never reported its last byte sent")
+		}
+		if err := r.system.Sleep(ctx, time.Second); err != nil {
+			return report, stressBirdFailure("query", stressBirdTimeoutCode, "wait for the injector canceled")
+		}
+	}
+	result, err := r.system.Run(ctx, stressBirdCommand{
+		argv: r.base.namespaceArgv(
+			r.base.zeNS, "curl", "-sS", "-f", "-o", "/dev/null", "-w", "%{size_download}", reach.queryURL,
+		),
+		environ: r.base.environ, timeout: stressProfileWait,
+	})
+	if err != nil {
+		return report, stressBirdFailure("query", commandErrorCode(err), "query the looking glass: "+err.Error())
+	}
+	if result.code != 0 {
+		return report, stressBirdFailure("query", result.code, "query the looking glass: "+strings.TrimSpace(result.stderr))
+	}
+	size, err := strconv.ParseInt(strings.TrimSpace(result.stdout), 10, 64)
+	if err != nil {
+		return report, stressBirdFailure("query", 1, "read the looking glass reply size: "+err.Error())
+	}
+	if size == 0 {
+		return report, stressBirdFailure("query", 1, "the looking glass answered an empty best table")
+	}
+	report.Bytes = size
+	return report, nil
 }
 
 func (r *stressRunner) startZe(ctx context.Context) *StressBirdFailure {
@@ -407,15 +613,24 @@ func (r *stressRunner) startZe(ctx context.Context) *StressBirdFailure {
 func (r *stressRunner) runRound(
 	ctx context.Context,
 	round stressRound,
-) (StressRoundReport, *StressBirdFailure) {
+) (StressRoundReport, *StressProfileReport, *StressBirdFailure) {
 	report := StressRoundReport{
 		PrefixBase: round.prefixBase, Prefixes: round.prefixes, Dwell: round.dwell,
 		TimeoutSeconds: int(round.timeout / time.Second),
 	}
 	started := r.system.Now()
+	var query *StressProfileReport
 	peer, failure := r.startPeer(ctx, round)
 	if failure != nil {
-		return report, failure
+		return report, query, failure
+	}
+	if r.scenario.reach != nil {
+		// The peer stays in r.base.processes, so cleanup stops it on failure.
+		result, failure := r.queryRIB(ctx, r.scenario.reach, round)
+		query = &result
+		if failure != nil {
+			return report, query, failure
+		}
 	}
 	code, err := peer.Wait(round.timeout)
 	report.ElapsedSeconds = r.system.Now().Sub(started).Seconds()
@@ -429,17 +644,17 @@ func (r *stressRunner) runRound(
 		if content, readErr := r.system.ReadFile(r.base.paths.peerLog); readErr == nil {
 			message += stressPeerLogTail(content)
 		}
-		return report, stressBirdFailure("peer", stressBirdTimeoutCode, message)
+		return report, query, stressBirdFailure("peer", stressBirdTimeoutCode, message)
 	}
 	if err != nil {
-		return report, stressBirdFailure("peer", 1, "wait for peer inject: "+err.Error())
+		return report, query, stressBirdFailure("peer", 1, "wait for peer inject: "+err.Error())
 	}
 	if code != 0 {
 		message := fmt.Sprintf("peer inject failed with code %d", code)
 		if content, readErr := r.system.ReadFile(r.base.paths.peerLog); readErr == nil {
 			message += stressPeerLogTail(content)
 		}
-		return report, stressBirdFailure("peer", code, message)
+		return report, query, stressBirdFailure("peer", code, message)
 	}
 	content, readErr := r.system.ReadFile(r.base.paths.peerLog)
 	if readErr != nil {
@@ -449,10 +664,10 @@ func (r *stressRunner) runRound(
 	}
 	if round.pause > 0 {
 		if err := r.system.Sleep(ctx, round.pause); err != nil {
-			return report, stressBirdFailure("flap-pause", stressBirdTimeoutCode, "flap pause canceled")
+			return report, query, stressBirdFailure("flap-pause", stressBirdTimeoutCode, "flap pause canceled")
 		}
 	}
-	return report, nil
+	return report, query, nil
 }
 
 func (r *stressRunner) startPeer(
@@ -602,6 +817,10 @@ func (realStressSystem) fileSize(path string) (int64, error) {
 
 func (realStressSystem) MkdirAll(path string, mode os.FileMode) error {
 	return os.MkdirAll(path, mode)
+}
+
+func (realStressSystem) daemonBuildTags(root string) (string, error) {
+	return repofeaturetags.DaemonBuildTags(root, repofeaturetags.DaemonBase)
 }
 
 var _ stressSystem = realStressSystem{}

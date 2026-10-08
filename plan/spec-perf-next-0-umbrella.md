@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | 5/5 |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 ## Remaining measurement and historical block
 
@@ -34,6 +34,77 @@ when the round closed.
 R-1 accepts per-child Go benchmarks as evidence for each optimisation. It does
 not waive the umbrella's AC-1 or AC-3. Those obligations remain until the owner
 explicitly accepts substitute evidence or the harness is repaired and run.
+
+-> Decision (owner, 2026-10-08): substitute evidence is NOT accepted. Repair the stress harness so it exercises the three paths this round touched, then run AC-1 and AC-3 for real. The measurement runs only on a quiet machine over committed BGP code (another session was editing the reactor on 2026-10-08); a profile taken under foreign load or over uncommitted code is not evidence.
+
+### Harness repair (2026-10-08, done) and the measurement still owed
+
+Diagnosis, read at the producer (`internal/le/test/integration/stress.go`):
+
+| # | Defect | Effect |
+|---|--------|--------|
+| 1 | `preflight` started `bin/ze` whenever it existed and built only when it was missing | On 2026-10-08 `bin/ze` was `vcs.revision=8615151ee` of 2026-09-24: a profile would have measured a two-week-old daemon, and the report did not name the binary |
+| 2 | Its fallback build used `-tags ze_core,ze_distro` alone | Every feature gate compiled out, BGP included (`internal/component/plugin/all/all_ze_bgp.go` is `//go:build ze_bgp`): the fallback DUT could not load the scenario |
+| 3 | `05-profile-1m` was one injector into a DUT with `bgp-rib` and no second peer, no policy, no query | No UPDATE forwarded (former `ebgpWireSlot` path, now the eBGP prepend in the rebuild), no filter delta, no route rendered (`Community.AppendText`). Its `bgp-rib` was not even attached to the peer |
+| 4 | `test/perf/configs-filter/ze.conf` (the `le perf` filter overlay) used `//` comments | `ze config validate` refused line 1, so the overlay that was meant to reach the filter delta through `le perf` never started |
+
+`Dockerfile.ze` is not on this path: the stress harness runs in network
+namespaces on the host, and the interop images' staleness is
+`spec-interop-image-copies-a-prebuilt-ze`.
+
+Repair: every run builds the DUT from the checkout into `tmp/stress/ze` with
+`repofeaturetags.DaemonBuildTags` (report field `binary`); the profile scenario
+carries `stressProfileReach` (eBGP sink 172.31.0.4 AS 65200 via `le test peer
+--mode sink`, a best-table looking-glass fetch once the injector reports its
+last byte, report field `queries`, empty table fails the run); its `ze.conf`
+adds `STRESS-IMPORT`/`STRESS-EXPORT` modify policies, `bgp-rs`, attached
+`bgp-rib`, and a plaintext looking glass on 127.0.0.1:8443;
+`STRESS_PREFIXES` shortens a smoke run. Tests:
+`TestStressHarnessBuildsZeFromCheckoutEveryRun`,
+`TestStressProfileScenarioReachesRoundThreePaths`,
+`TestStressProfileQueryRefusesAnEmptyTable`,
+`TestStressProfileConfigMatchesTheHarness`,
+`TestStressPrefixesShortensEveryRound`, `TestStressPrefixesRefusesANegativeCount`
+(red against the pre-repair runner and config, green after).
+`TestStressBuildFailureCarriesTheBuildOutput` and
+`TestStressCleanupReportsOnlyANamespaceLeftBehind` cover the two defects the
+first smoke attempt exposed: a failed DUT build reported `build Ze: ` with no
+cause (now: exit status plus the last 20 lines of stderr, or of stdout), and
+cleanup reported `delete namespace ...: exit 1` for namespaces the failed run
+never created (now: an error only when `/run/netns/<name>` remains, naming it).
+Both red before, green after.
+
+**Owed, not done: the smoke run.** No smoke run has completed against the
+repaired harness. Its only attempt failed in preflight at the DUT build, with
+a report that carried no cause, so the receiver, the looking-glass query and
+the three profiles are proven by the unit tests alone. The smoke run needs root
+and runs before AC-1:
+
+```bash
+sudo env "PATH=$PATH" STRESS_SCENARIO=05-profile-1m STRESS_PREFIXES=20000 ZE_PPROF=1 ./le test integration stress '|' json > tmp/stress/smoke.json
+go tool pprof -top -focus='Community..AppendText|textDeltaToModOps|parseFilterAttrsInto|buildModifiedPayload' tmp/stress/ze tmp/stress-profile-cpu.pb.gz
+```
+
+It passes when `binary` is `tmp/stress/ze`, `queries[0].bytes` is above zero,
+the CPU, heap and goroutine profiles are listed, and the focused profile shows
+those frames. Its result replaces this paragraph.
+
+**Remaining phase (AC-1 then AC-3), on a quiet machine with the BGP tree
+committed (`git status --short internal/component/bgp internal/core` empty,
+no other lab in `ip netns list`):**
+
+```bash
+sudo env "PATH=$PATH" STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress '|' json > tmp/perf-ac1.json
+go tool pprof -top -nodecount=60 tmp/stress/ze tmp/stress-profile-cpu.pb.gz
+go tool pprof -sample_index=alloc_space -top -nodecount=60 tmp/stress/ze tmp/stress-profile-heap.pb.gz
+go tool pprof -top -focus='Community..AppendText|textDeltaToModOps|parseFilterAttrsInto|buildModifiedPayload|ReceivedUpdate' tmp/stress/ze tmp/stress-profile-cpu.pb.gz
+# AC-3: the same run without ZE_PPROF, numbers (rounds[].elapsed-seconds, routes-per-second) recorded here
+sudo env "PATH=$PATH" STRESS_SCENARIO=05-profile-1m ./le test integration stress '|' json > tmp/perf-ac3.json
+```
+
+AC-1 pastes the baseline numbers and the frames each child targets; AC-3
+records the re-run here and in `docs/performance.md` only if `le perf` numbers
+change (that page is generated by `le perf report --doc`).
 
 Historical position on 2026-07-22, superseded by the September child closures:
 the review recorded all three children as shipped and the round's design record as
@@ -186,7 +257,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The 2026-06-05 le perf baseline is reproducible on this machine | `test/perf/results/` JSON files | Before/after deltas are noise | re-run `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress` before child 1 | broken (Docker build infra was stale; the existing June 5 baseline was used, and per-child Go benchmarks are the proof per R-1) |
+| A-1 | The 2026-06-05 le perf baseline is reproducible on this machine | `test/perf/results/` JSON files | Before/after deltas are noise | re-run `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress` before child 1 | broken until 2026-10-08 (the stress runner reused a stale `bin/ze` and its profile scenario reached none of the round's paths); harness repaired 2026-10-08, the run itself is the remaining phase |
 | A-2 | No other session lands conflicting reactor changes mid-round, and the round starts from a clean committed base | git status at spec time | Rebase/benchmark churn; before/after deltas and `ze-unit-reactor-test-race` muddied by unrelated in-flight edits | Check `tmp/session/selected-spec` + git log before each child. NOTE at spec time the working tree had ~48 uncommitted files (cos/iface/l2tp/plugin-registry, none in reactor) — run this round on a branch off a committed base so benchmark deltas and the race gate are attributable to the child only | unvalidated |
 | A-3 | The negative findings hold (no new callers appeared) | Dossiers dated 2026-06-11 | A "cold" path may have become hot | Fresh grep for callers during each child's audit step | unvalidated |
 

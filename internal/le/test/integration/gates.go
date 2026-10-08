@@ -81,6 +81,13 @@ var (
 		Private:     true,
 	})
 	_ = env.MustRegister(env.EnvEntry{
+		Key:         "stress.prefixes",
+		Type:        "int",
+		Default:     "0",
+		Description: "smoke runs only: replaces every Ze stress round's prefix count; 0 keeps the registry's counts",
+		Private:     true,
+	})
+	_ = env.MustRegister(env.EnvEntry{
 		Key:         "ipsec.interop.scenario",
 		Type:        envString,
 		Default:     "",

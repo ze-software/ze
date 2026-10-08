@@ -747,19 +747,31 @@ func (r *stressBirdRunner) cleanup(ctx context.Context, reportErrors bool) []str
 			argv:    []string{"ip", ipNetns, "del", namespace},
 			environ: r.environ, timeout: stressBirdCommandTimeout,
 		})
-		if reportErrors && err != nil {
+		if !reportErrors {
+			continue
+		}
+		if err != nil {
 			problems = append(
 				problems,
 				message.Reset().Str("delete namespace ").Str(namespace).Str(": ").Err(err).String(),
 			)
+			continue
 		}
-		if reportErrors && err == nil && result.code != 0 {
-			problems = append(
-				problems,
-				message.Reset().Str("delete namespace ").Str(namespace).
-					Str(": exit ").Int(int64(result.code)).String(),
-			)
+		if result.code == 0 {
+			continue
 		}
+		// `ip netns del` also exits 1 for a namespace that does not exist, and
+		// every run that fails before createNamespaces still cleans up. The
+		// namespace file decides: once it is gone, nothing was left behind.
+		if !r.system.FileExists(stressNamespacePath(namespace)) {
+			continue
+		}
+		message.Reset().Str("namespace ").Str(namespace).Str(" left behind: ip netns del exited ").
+			Int(int64(result.code))
+		if reason := strings.TrimSpace(result.stderr); reason != "" {
+			message.Str(": ").Str(reason)
+		}
+		problems = append(problems, message.String())
 	}
 	for _, path := range [...]string{
 		r.paths.zeLog,
@@ -777,6 +789,16 @@ func (r *stressBirdRunner) cleanup(ctx context.Context, reportErrors bool) []str
 		}
 	}
 	return problems
+}
+
+// stressNamespaceDir is where iproute2 keeps one file for each named network
+// namespace. `ip netns del` removes it, so its presence after a deletion is
+// the evidence that the namespace was left behind.
+const stressNamespaceDir = "/run/netns"
+
+// stressNamespacePath answers the file iproute2 holds for a named namespace.
+func stressNamespacePath(namespace string) string {
+	return filepath.Join(stressNamespaceDir, namespace)
 }
 
 func stressBirdFailure(phase string, code int, message string) *StressBirdFailure {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -84,7 +85,7 @@ func TestStressRegistryRunsEveryScenarioNonVacuously(t *testing.T) {
 		switch {
 		case strings.Contains(event, "/bin/le test peer --mode inject"):
 			peerStarts++
-		case strings.Contains(event, "/bin/ze start "):
+		case strings.Contains(event, "/"+stressZeBinaryRel+" start "):
 			zeStarts++
 		case strings.Contains(event, " bird -f "):
 			birdStarts++
@@ -112,25 +113,131 @@ func TestStressRegistryRunsEveryScenarioNonVacuously(t *testing.T) {
 	}
 }
 
-func TestStressHarnessBuildsZeFromCheckoutWhenMissing(t *testing.T) {
+// TestStressHarnessBuildsZeFromCheckoutEveryRun pins that a run measures the
+// tree it was started from. Method: leave a bin/ze in the fixture, run one
+// scenario, and require a build with the manifest's gate tags into the
+// runner's own path, and that the DUT started is that build.
+func TestStressHarnessBuildsZeFromCheckoutEveryRun(t *testing.T) {
 	recorder := newStressRecorder()
-	delete(recorder.files, "/repo/bin/ze")
 	report, code := runStressAt(
 		context.Background(), "/repo", stressOptions{Scenario: "01-bulk-ipv4"}, recorder,
 	)
 	if code != 0 || report.Passed != 1 {
-		t.Fatalf("run after native build = code %d report %#v", code, report)
+		t.Fatalf("run = code %d report %#v", code, report)
 	}
-	for _, command := range recorder.commands {
-		if len(command.argv) == 0 || command.argv[0] != "go" {
-			continue
-		}
-		if command.dir != "/repo" || !slices.Contains(command.environ, "CGO_ENABLED=0") {
-			t.Fatalf("build command = dir %q env %q argv %q", command.dir, command.environ, command.argv)
-		}
-		return
+	built := "/repo/" + stressZeBinaryRel
+	if got := report.Scenarios[0].Binary; got != built {
+		t.Fatalf("report binary = %q, want %q", got, built)
 	}
-	t.Fatal("missing bin/ze did not invoke the native Go build")
+	var build *stressBirdCommand
+	for i := range recorder.commands {
+		if len(recorder.commands[i].argv) > 0 && recorder.commands[i].argv[0] == "go" {
+			build = &recorder.commands[i]
+			break
+		}
+	}
+	if build == nil {
+		t.Fatal("a present bin/ze was reused: the run never built the DUT from the checkout")
+	}
+	want := []string{"go", "build", "-tags", stressRecorderTags, "-o", built, "./cmd/ze"}
+	if !slices.Equal(build.argv, want) {
+		t.Fatalf("build argv = %q, want %q", build.argv, want)
+	}
+	if build.dir != "/repo" || !slices.Contains(build.environ, "CGO_ENABLED=0") {
+		t.Fatalf("build command = dir %q env %q", build.dir, build.environ)
+	}
+	for _, event := range recorder.events {
+		if strings.Contains(event, "/repo/bin/ze") && strings.Contains(event, " start ") {
+			t.Fatalf("the DUT started from bin/ze: %s", event)
+		}
+	}
+}
+
+// TestStressProfileScenarioReachesRoundThreePaths pins the three things the
+// profile scenario adds so its profile carries the paths perf round 3 changed:
+// an eBGP receiver the DUT forwards to, and a best-table query made while the
+// injector still holds its routes. Method: record the run and read the order of
+// its commands.
+func TestStressProfileScenarioReachesRoundThreePaths(t *testing.T) {
+	recorder := newStressRecorder()
+	report, code := runStressAt(
+		context.Background(), "/repo", stressOptions{Scenario: scenarioProfile1M}, recorder,
+	)
+	if code != 0 || len(report.Scenarios) != 1 {
+		t.Fatalf("profile run = code %d report %#v", code, report)
+	}
+	reach := stressProfileReach
+	address, sink, inject, query, zeStart := -1, -1, -1, -1, -1
+	for i, event := range recorder.events {
+		switch {
+		case strings.Contains(event, "ip addr add "+reach.receiverCIDR+" dev "):
+			address = i
+		case strings.Contains(event, "--mode sink --bind "+reach.receiverIP+" --port 179 --asn 65200"):
+			sink = i
+		case strings.Contains(event, "--mode inject"):
+			inject = i
+		case strings.Contains(event, "curl") && strings.Contains(event, reach.queryURL):
+			query = i
+		case strings.Contains(event, " start /repo/test/stress/scenarios/"):
+			zeStart = i
+		}
+	}
+	if address < 0 || sink < 0 || query < 0 || inject < 0 || zeStart < 0 {
+		t.Fatalf("missing step: address %d sink %d inject %d query %d ze %d\n%s",
+			address, sink, inject, query, zeStart, strings.Join(recorder.events, "\n"))
+	}
+	if address > sink || sink > zeStart || zeStart > inject || inject > query {
+		t.Fatalf("steps out of order: address %d sink %d ze %d inject %d query %d",
+			address, sink, zeStart, inject, query)
+	}
+	queries := report.Scenarios[0].Queries
+	if len(queries) != 1 || queries[0].Bytes != stressRecorderQueryBytes || queries[0].Path != reach.queryURL {
+		t.Fatalf("queries = %#v", queries)
+	}
+}
+
+// TestStressProfileQueryRefusesAnEmptyTable pins that a best table the looking
+// glass answers with no bytes fails the run rather than reading as reach.
+func TestStressProfileQueryRefusesAnEmptyTable(t *testing.T) {
+	recorder := newStressRecorder()
+	recorder.queryBytes = "0"
+	report, code := runStressAt(
+		context.Background(), "/repo", stressOptions{Scenario: scenarioProfile1M}, recorder,
+	)
+	if code == 0 || report.Scenarios[0].Passed || !strings.Contains(report.Scenarios[0].Failure, "empty best table") {
+		t.Fatalf("empty query = code %d report %#v", code, report)
+	}
+}
+
+// TestStressProfileConfigMatchesTheHarness pins the profile scenario's ze.conf
+// to the addresses, AS and listener the harness drives, and to the policies
+// that make the filter delta run on both sides. Method: read the real file.
+func TestStressProfileConfigMatchesTheHarness(t *testing.T) {
+	content, err := os.ReadFile("../../../../test/stress/scenarios/" + scenarioProfile1M + "/" + zeConfigFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := string(content)
+	for _, want := range []string{
+		"ip " + stressProfileReach.receiverIP + ";",
+		"remote 65200;",
+		"import [ modify:STRESS-IMPORT ];",
+		"export [ modify:STRESS-EXPORT ];",
+		"community-add [",
+		"use bgp-rs;",
+		"use bgp-rib;",
+		"use bgp-filter-modify;",
+		"tls false;",
+		"ip 127.0.0.1;",
+		"port 8443;",
+	} {
+		if !strings.Contains(config, want) {
+			t.Fatalf("%s/%s lacks %q", scenarioProfile1M, zeConfigFile, want)
+		}
+	}
+	if !strings.HasPrefix(stressProfileReach.queryURL, "http://127.0.0.1:8443/") {
+		t.Fatalf("query URL %q does not name the configured looking glass", stressProfileReach.queryURL)
+	}
 }
 
 func TestStressProfileScenarioCapturesAllProfiles(t *testing.T) {
@@ -167,6 +274,136 @@ func TestStressProfileScenarioCapturesAllProfiles(t *testing.T) {
 	}
 }
 
+// TestStressPrefixesShortensEveryRound pins the smoke knob: a positive count
+// replaces each round's count for the run, and the registry keeps its own.
+func TestStressPrefixesShortensEveryRound(t *testing.T) {
+	recorder := newStressRecorder()
+	report, code := runStressAt(
+		context.Background(), "/repo", stressOptions{Scenario: "01-bulk-ipv4", Prefixes: 1}, recorder,
+	)
+	if code != 0 || len(report.Scenarios) != 1 || len(report.Scenarios[0].Rounds) != 4 {
+		t.Fatalf("smoke run = code %d report %#v", code, report)
+	}
+	for _, round := range report.Scenarios[0].Rounds {
+		if round.Prefixes != 1 {
+			t.Fatalf("round prefixes = %d, want 1", round.Prefixes)
+		}
+	}
+	if mustStressScenario(t, "01-bulk-ipv4").rounds[0].prefixes != 100_000 {
+		t.Fatal("the smoke count leaked into the registry")
+	}
+}
+
+// TestStressPrefixesRefusesANegativeCount pins the boundary below the knob's
+// valid range: -1 is refused before any scenario runs, 0 keeps the registry.
+func TestStressPrefixesRefusesANegativeCount(t *testing.T) {
+	report, code := runStressAt(
+		context.Background(), "/repo", stressOptions{Scenario: "01-bulk-ipv4", Prefixes: -1}, newStressRecorder(),
+	)
+	if code != 1 || len(report.Scenarios) != 0 || !strings.Contains(report.Failure, "negative") {
+		t.Fatalf("negative prefixes = code %d report %#v", code, report)
+	}
+}
+
+// TestStressBuildFailureCarriesTheBuildOutput pins that a DUT build which
+// fails says why. A smoke run once reported `build Ze: ` and nothing else,
+// because the compiler exited non-zero with an empty stderr and the message
+// was stderr alone. Method: fail the recorded build four ways and read the
+// scenario's failure.
+func TestStressBuildFailureCarriesTheBuildOutput(t *testing.T) {
+	var long strings.Builder
+	for line := 1; line <= 30; line++ {
+		long.WriteString("build line ")
+		if line < 10 {
+			long.WriteString("0")
+		}
+		long.WriteString(strconv.Itoa(line))
+		long.WriteString("\n")
+	}
+	cases := []struct {
+		name    string
+		result  stressBirdCommandResult
+		want    []string
+		wantNot []string
+	}{
+		{
+			name:   "stderr",
+			result: stressBirdCommandResult{stderr: "cmd/ze/main.go:3:2: undefined: zeMain\n", code: 1},
+			want:   []string{"exited 1", "undefined: zeMain"},
+		},
+		{
+			name:   "stdout only",
+			result: stressBirdCommandResult{stdout: "go: downloading go1.26.0\n", code: 1},
+			want:   []string{"exited 1", "go: downloading go1.26.0"},
+		},
+		{
+			name:   "silent",
+			result: stressBirdCommandResult{code: 2},
+			want:   []string{"exited 2", "printed nothing"},
+		},
+		{
+			name:    "long stderr keeps its tail",
+			result:  stressBirdCommandResult{stderr: long.String(), code: 1},
+			want:    []string{"build line 30", "build line 11"},
+			wantNot: []string{"build line 10"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := newStressRecorder()
+			recorder.build = &tc.result
+			report, code := runStressAt(
+				context.Background(), "/repo", stressOptions{Scenario: "01-bulk-ipv4"}, recorder,
+			)
+			if code == 0 || len(report.Scenarios) != 1 {
+				t.Fatalf("failed build = code %d report %#v", code, report)
+			}
+			failure := report.Scenarios[0].Failure
+			for _, want := range tc.want {
+				if !strings.Contains(failure, want) {
+					t.Fatalf("failure %q does not carry %q", failure, want)
+				}
+			}
+			for _, unwanted := range tc.wantNot {
+				if strings.Contains(failure, unwanted) {
+					t.Fatalf("failure %q carries %q, which is past the tail", failure, unwanted)
+				}
+			}
+		})
+	}
+}
+
+// TestStressCleanupReportsOnlyANamespaceLeftBehind pins what cleanup calls a
+// problem. `ip netns del` exits 1 for a namespace that does not exist, and a
+// run that fails before it creates its namespaces still cleans them up, so the
+// smoke run reported two deletions that had nothing to delete. Method: fail the
+// build so no namespace is created, fail both deletions, and read the report
+// with and without a namespace file still present.
+func TestStressCleanupReportsOnlyANamespaceLeftBehind(t *testing.T) {
+	for _, leftBehind := range []bool{false, true} {
+		recorder := newStressRecorder()
+		recorder.build = &stressBirdCommandResult{stderr: "boom\n", code: 1}
+		recorder.runCodes["run ip netns del ze-stress-ze-fixture"] = 1
+		recorder.runCodes["run ip netns del ze-stress-bb-fixture"] = 1
+		if leftBehind {
+			recorder.files[stressNamespacePath("ze-stress-bb-fixture")] = true
+		}
+		report, _ := runStressAt(
+			context.Background(), "/repo", stressOptions{Scenario: "01-bulk-ipv4"}, recorder,
+		)
+		problems := report.Scenarios[0].CleanupErrors
+		if !leftBehind {
+			if len(problems) != 0 {
+				t.Fatalf("absent namespaces reported as cleanup errors: %q", problems)
+			}
+			continue
+		}
+		if len(problems) != 1 || !strings.Contains(problems[0], "namespace ze-stress-bb-fixture left behind") {
+			t.Fatalf("left-behind namespace = %q, want one problem naming ze-stress-bb-fixture", problems)
+		}
+	}
+}
+
 func TestStressSelectionRejectsUnknownScenario(t *testing.T) {
 	report, code := runStressAt(
 		context.Background(), "/repo", stressOptions{Scenario: "missing"}, newStressRecorder(),
@@ -189,7 +426,30 @@ func TestParseStressPeerMetricsPreservesResultBytes(t *testing.T) {
 
 type stressRecorder struct {
 	*stressBirdRecorder
-	pprof bool
+	pprof      bool
+	queryBytes string
+	// build, when set, answers the DUT's compile in place of a success.
+	build *stressBirdCommandResult
+}
+
+// stressRecorderTags stands in for the manifest's gate tags, and
+// stressRecorderQueryBytes for the size of the looking glass's best table.
+const (
+	stressRecorderTags       = "ze_core ze_distro ze_bgp ze_lg"
+	stressRecorderQueryBytes = 4096
+)
+
+func (r *stressRecorder) daemonBuildTags(string) (string, error) { return stressRecorderTags, nil }
+
+func (r *stressRecorder) Run(ctx context.Context, command stressBirdCommand) (stressBirdCommandResult, error) {
+	result, err := r.stressBirdRecorder.Run(ctx, command)
+	if r.build != nil && command.argv[0] == "go" {
+		return *r.build, nil
+	}
+	if slices.Contains(command.argv, "curl") && slices.Contains(command.argv, "%{size_download}") {
+		result.stdout = r.queryBytes
+	}
+	return result, err
 }
 
 func newStressRecorder() *stressRecorder {
@@ -199,7 +459,7 @@ func newStressRecorder() *stressRecorder {
 	for _, scenario := range stressScenarioRegistry {
 		base.files["/repo/test/stress/scenarios/"+scenario.name+"/"+scenario.config] = true
 	}
-	return &stressRecorder{stressBirdRecorder: base}
+	return &stressRecorder{stressBirdRecorder: base, queryBytes: "4096"}
 }
 
 func (r *stressRecorder) Getenv(key string) string {

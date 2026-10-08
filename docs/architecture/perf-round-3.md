@@ -12,6 +12,15 @@ CLI behavior byte-for-byte. The proof for each is its own Go benchmark, not
 the end-to-end `le perf send` convergence number (none of these paths are exercised
 by the single-DUT 100K-route benchmark).
 
+The end-to-end profile of the round is the stress harness's `05-profile-1m`
+scenario. Until 2026-10-08 it reached none of the three paths either: one
+injector fed a DUT that forwarded nothing, filtered nothing and rendered
+nothing, and the runner started whatever `bin/ze` it found rather than the tree
+under test. The scenario now adds import and export modify policies, an eBGP
+receiver the DUT forwards to, and a looking-glass best-table query, and every
+run builds the DUT from the checkout. `docs/functional-tests.md` describes it.
+<!-- source: internal/le/test/integration/stress.go -- stressProfileReach, buildZe -->
+
 ## 1. Lock-Free EBGP Variant Cache Hits (deleted 2026-08-17)
 
 The reactor cached the EBGP variant of a received UPDATE (local ASN prepended

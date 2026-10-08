@@ -6,5 +6,4 @@ the suite only because it takes its original name back.
 
 | Test | Reason |
 |------|--------|
-| TestArchivePrefix | ArchivePrefix is deleted: its prefix never matched a dated archive name, so commit-revisions pruned nothing. ArchiveMatcher replaces it, and TestArchiveMatcher checks the default format's own names, including that a shared prefix with the wrong host or a leading word does not match |
-| TestArchivePrefix_NoTimeTokens | Same deletion. TestArchiveMatcher_NoTimeTokens keeps the case: a format with no {date} or {time} matches exactly ze-r1.conf, and pruning leaves both that file and a foreign .conf |
+| TestStressHarnessBuildsZeFromCheckoutWhenMissing | It pinned the defect: the stress runner built the DUT only when bin/ze was missing, so a stale bin/ze was profiled as the tree under test. TestStressHarnessBuildsZeFromCheckoutEveryRun replaces it with bin/ze present and asserts the exact build argv with the feature-gates.txt tags, the directory, CGO_ENABLED=0, the reported binary, and that bin/ze is never started |

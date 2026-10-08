@@ -563,13 +563,46 @@ registry with `le test peer --mode inject`. It needs root, `ip`, `ethtool`,
 ./le test integration stress
 STRESS_SCENARIO=03-session-flap ./le test integration stress
 STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress
+STRESS_SCENARIO=05-profile-1m STRESS_PREFIXES=20000 ZE_PPROF=1 ./le test integration stress
 ```
 
 The registry covers four bulk route counts from 100,000 to 1,000,000, sequential
 IPv4 and IPv6 peers, ten flap cycles followed by a final injection, the BIRD
 baseline, and the 1,000,000-route CPU, heap, and goroutine profile run.
+
+Every Ze scenario runs a daemon built from the checkout at the start of the run,
+into `tmp/stress/ze`, with the gate tags `feature-gates.txt` declares. The runner
+never starts `bin/ze`, so a result always belongs to the tree it was run from,
+and the report's `binary` field names the build. The first run as root compiles
+with a cold build cache and takes minutes. A build that fails reports its exit
+status and the last 20 lines it printed, from stderr, or from stdout when stderr
+is empty.
+
+Cleanup deletes both namespaces after every run, including a run that failed
+before it created them. A deletion that fails counts as a cleanup error only
+when the namespace's file under `/run/netns` is still there, and the report's
+`cleanup-errors` then names the namespace left behind.
+
+The profile scenario, `05-profile-1m`, drives the three paths perf round 3
+changed (`docs/architecture/perf-round-3.md`), which a lone injector into a DUT
+that keeps its routes never reaches:
+
+| Path | What the scenario does |
+|------|------------------------|
+| Filter delta, import and export | `STRESS-IMPORT` and `STRESS-EXPORT` modify policies rewrite every UPDATE |
+| eBGP forwarding with the local AS prepended | `bgp-rs` relays every route to `receiver`, an eBGP `le test peer --mode sink` at 172.31.0.4, AS 65200 |
+| `Community.AppendText` | once the injector has sent its last byte, the runner fetches the best table through the looking glass (`/api/looking-glass/routes/table/ipv4%2Funicast`), which renders the communities the import policy added |
+
+The report lists that fetch under `queries`, and a fetch that fails or answers
+an empty table fails the run. `STRESS_PREFIXES` replaces every Ze round's prefix
+count, for a smoke run that proves the wiring without the full load. It does
+not change the BIRD baseline, and a measurement leaves it unset.
 <!-- source: internal/le/test/integration/stress.go -- native scenario registry and runner -->
+<!-- source: internal/le/test/integration/stress.go -- buildZe, stressReach, queryRIB -->
+<!-- source: test/stress/scenarios/05-profile-1m/ze.conf -- profile scenario policies and receiver -->
 <!-- source: internal/le/test/integration/stressbird.go -- BIRD baseline runner -->
+<!-- source: internal/le/test/integration/stress.go -- stressBuildFailureMessage -->
+<!-- source: internal/le/test/integration/stressbird.go -- cleanup, stressNamespacePath -->
 
 ### netlab template render check (`./le test netlab render-check`, out of `./le verify current mode full`)
 
