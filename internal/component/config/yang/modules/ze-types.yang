@@ -1,6 +1,7 @@
 module ze-types {
     namespace "urn:ze:types";
     prefix zt;
+    import ze-extensions { prefix ze; }
 
     description "Common types for ZeBGP configuration";
 

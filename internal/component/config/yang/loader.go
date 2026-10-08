@@ -1,10 +1,12 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
+// RFC: rfc/short/rfc7950.md -- Sections 5.1 and 6.3.1, extension prefix resolution
 //
 // Package yang provides YANG schema loading and validation for ze.
 package yang
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -13,17 +15,24 @@ import (
 )
 
 // DefaultLoader creates a Loader with all embedded and registered modules
-// loaded and resolved. Returns an error only if embedded loading fails
-// (corrupted binary). Registered module and resolution errors are logged
-// but non-fatal -- the command tree only needs -cmd.yang modules which
-// import ze-extensions (embedded), not the full conf/api module set.
+// loaded and resolved. Registered module and import resolution errors are
+// discarded as best-effort: the command tree only needs the -cmd.yang modules,
+// which import ze-extensions (embedded), not the full conf/api module set.
+//
+// An extension statement that no loaded module declares is NOT best-effort.
+// Ze's extension readers match a statement by its keyword, so a misspelled
+// `ze:comand` would load and the feature it names would be absent in silence.
+// DefaultLoader returns that error, and the errors embedded loading reports.
 func DefaultLoader() (*Loader, error) {
 	l := NewLoader()
 	if err := l.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("YANG LoadEmbedded: %w", err)
 	}
 	_ = l.LoadRegistered() // Best-effort: some modules may not be imported in this context
-	_ = l.Resolve()        // Best-effort: unresolved modules are skipped by tree walker
+	_ = l.process()        // Best-effort: unresolved modules are skipped by tree walker
+	if err := l.checkExtensions(); err != nil {
+		return nil, err
+	}
 	return l, nil
 }
 
@@ -91,14 +100,131 @@ func (l *Loader) AddModuleFromFile(path string) error {
 	return nil
 }
 
-// Resolve resolves all module dependencies and imports.
+// Resolve resolves all module dependencies and imports, then refuses every
+// extension statement whose prefix names no imported module, or whose keyword
+// names no extension the module behind that prefix declares. The error joins
+// every failure, and each undeclared extension wraps ErrUndeclaredExtension.
 func (l *Loader) Resolve() error {
-	// Process all modules to resolve imports
+	return errors.Join(l.process(), l.checkExtensions())
+}
+
+// process runs goyang's import and type resolution over every loaded module.
+func (l *Loader) process() error {
 	errs := l.modules.Process()
 	if len(errs) > 0 {
 		return fmt.Errorf("resolve YANG modules: %v", errs)
 	}
 	return nil
+}
+
+// ErrUndeclaredExtension marks an extension statement that its module cannot
+// resolve: the prefix names no imported module, or the module behind the
+// prefix declares no extension of that keyword.
+//
+// RFC 7950 Section 6.3.1: "When an imported extension is used, the
+// extension's keyword MUST be qualified using the prefix with which the
+// extension's module was imported."
+var ErrUndeclaredExtension = errors.New("undeclared YANG extension")
+
+// checkExtensions walks the statements of every loaded module and submodule
+// and returns one error per undeclared extension statement, joined.
+//
+// goyang keeps any `prefix:keyword` substatement in Exts without asking
+// whether the prefix's module declares it (ast.go, build: "Keyword is not
+// known but it has a prefix so it might be an extension"), so this is the
+// only place a misspelled Ze extension is refused. The set of allowed keywords
+// is derived from the `extension` statements of the module the prefix
+// resolves to, never listed here.
+func (l *Loader) checkExtensions() error {
+	names := make([]string, 0, len(l.modules.Modules)+len(l.modules.SubModules))
+	names = append(names, l.ModuleNames()...)
+	for name := range l.modules.SubModules {
+		if strings.Contains(name, "@") {
+			continue
+		}
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	var errs []error
+	for _, name := range names {
+		mod := l.modules.Modules[name]
+		if mod == nil {
+			mod = l.modules.SubModules[name]
+		}
+		errs = append(errs, moduleExtensionErrors(mod)...)
+	}
+	return errors.Join(errs...)
+}
+
+// moduleExtensionErrors returns one error for each extension statement in mod
+// that resolves to no declared extension. The walk is an explicit stack rather
+// than recursion, so a deep statement tree costs heap slots, not goroutine
+// stack. The prefix resolves through mod's own `prefix` (or `belongs-to`) and
+// `import` statements; an import whose module is not loaded resolves to none.
+func moduleExtensionErrors(mod *yang.Module) []error {
+	if mod.Source == nil {
+		return nil
+	}
+	var errs []error
+	pending := slices.Clone(mod.Source.SubStatements())
+	for len(pending) > 0 {
+		statement := pending[len(pending)-1]
+		pending = append(pending[:len(pending)-1], statement.SubStatements()...)
+		prefix, keyword, isExtension := strings.Cut(statement.Keyword, ":")
+		if !isExtension {
+			continue
+		}
+		declaring := yang.FindModuleByPrefix(mod, prefix)
+		if declaring == nil {
+			errs = append(errs, fmt.Errorf("%w: module %s: %s: %s: prefix %q resolves to no loaded module",
+				ErrUndeclaredExtension, mod.Name, statement.Location(), statement.Keyword, prefix))
+			continue
+		}
+		if !declaresExtension(declaring, keyword) {
+			errs = append(errs, fmt.Errorf("%w: module %s: %s: %s: module %s declares no extension %q",
+				ErrUndeclaredExtension, mod.Name, statement.Location(), statement.Keyword, declaring.Name, keyword))
+		}
+	}
+	return errs
+}
+
+// declaresExtension reports whether the module that owns mod's prefix carries
+// an `extension keyword` statement, in its own body or in a submodule it
+// includes. When mod is a submodule, the owner is the module it belongs to.
+//
+// RFC 7950 Section 5.1: "A submodule can reference any definition in the
+// module it belongs to and in all submodules included by the module."
+func declaresExtension(mod *yang.Module, keyword string) bool {
+	owner := mod
+	if mod.BelongsTo != nil {
+		if parent := mod.Modules.Modules[mod.BelongsTo.Name]; parent != nil {
+			owner = parent
+		}
+	}
+	if moduleDeclaresExtension(owner, keyword) {
+		return true
+	}
+	for _, include := range owner.Include {
+		submodule := owner.Modules.FindModule(include)
+		if submodule == nil {
+			continue
+		}
+		if moduleDeclaresExtension(submodule, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// moduleDeclaresExtension reports whether mod's own body carries an
+// `extension keyword` statement.
+func moduleDeclaresExtension(mod *yang.Module, keyword string) bool {
+	for _, extension := range mod.Extension {
+		if extension.Name == keyword {
+			return true
+		}
+	}
+	return false
 }
 
 // GetModule returns a loaded module by name.

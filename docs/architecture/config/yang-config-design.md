@@ -94,6 +94,24 @@ standard YANG tools ignore but ze interprets at runtime.
 The table is complete: it holds every extension the module declares, in name
 order. An extension that is absent here is a defect of this page.
 
+The loader refuses an extension statement that nothing declares. goyang keeps
+any `prefix:keyword` statement it does not know, and Ze's readers match an
+extension by its keyword, so a misspelled `ze:comand` or `ze:hepl` would load
+and the feature it names would be absent with no error. `Loader.Resolve`
+therefore walks every statement of every loaded module and resolves each
+prefix through the module's own `prefix` (a submodule's `belongs-to`) and
+`import` statements. A prefix that resolves to no loaded module is refused,
+and so is a keyword that the module behind the prefix, or a submodule it
+includes, does not declare with an `extension` statement. The allowed set is
+those declarations, so a module that declares its own extension, as
+`ze-traffic-control-conf` does, needs no change here. Each refusal wraps
+`ErrUndeclaredExtension` and names the module, the file location and the
+statement. `DefaultLoader`, which discards the other registered-module and
+import errors as best-effort, returns this one, so the daemon, the CLI and the
+`./le` tools all refuse the same schema.
+
+<!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
+
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- all extension definitions -->
 
 ### Config Schemas: `ze-bgp-conf.yang` and siblings
