@@ -7,7 +7,7 @@
 | Name | MPLS / LDP / RSVP-TE |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | RSVP message validation (plan/immediate/spec-rsvp-message-validation.md), RFC 4090 one-to-one backup (plan/immediate/spec-mpls-9-rsvp-te-one-to-one-backup.md), RFC 2205 gap rows in rfc/short/rfc2205.md, cross-vendor RSVP-TE interop outside the interop suites |
+| Scope gaps | RSVP message validation (plan/immediate/spec-rsvp-message-validation.md), RFC 4090 one-to-one backup (plan/immediate/spec-mpls-9-rsvp-te-one-to-one-backup.md), RFC 2205 gap rows in rfc/short/rfc2205.md, interop with RSVP-TE implementations other than freeRouter |
 | Level | experimental |
 | Components | internal/plugins/ldp, internal/plugins/rsvpte, internal/plugins/fib/kernel, internal/core/mplsfib, internal/component/mpls |
 | Real-path tests | test/ldp/ldp-session.ci, test/ldp/ldp-convergence.ci, test/ldp/ldp-keepalive-time.ci, test/ldp/ldp-reload.ci, test/rsvpte/rsvpte-lsp-setup.ci, test/rsvpte/rsvpte-lsp-teardown.ci, test/rsvpte/rsvpte-bandwidth.ci, test/rsvpte/rsvpte-frr.ci, test/rsvpte/rsvpte-reroute.ci, test/plugin/fib-mpls-kernel.ci, test/plugin/mpls-push.ci, test/plugin/mpls-withdraw.ci, test/plugin/mpls-forwarding-show.ci, test/plugin/mpls-doctor.ci |
