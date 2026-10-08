@@ -115,7 +115,7 @@ func runBFD(action string, args []string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
-		zePID, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", commandStart, zeConfigFile}, environ, filepath.Join(state, "ze.log"))
+		zePID, err := startCommand("ip", append([]string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze"}, daemonArgs()...), environ, filepath.Join(state, "ze.log"))
 		if err != nil {
 			return err
 		}
@@ -282,7 +282,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
-		pid, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", commandStart, zeConfigFile}, environ, filepath.Join(state, "ze.log"))
+		pid, err := startCommand("ip", append([]string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze"}, daemonArgs()...), environ, filepath.Join(state, "ze.log"))
 		if err != nil {
 			return err
 		}
@@ -398,7 +398,7 @@ func runTraffic(action string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
-		zePID, err := startCommand("ze", []string{commandStart, zeConfigFile}, env, filepath.Join(state, "ze.log"))
+		zePID, err := startCommand("ze", daemonArgs(), env, filepath.Join(state, "ze.log"))
 		if err != nil {
 			return err
 		}
@@ -536,7 +536,7 @@ func runVRRP(action string, output io.Writer) error {
 		}
 	case commandStart:
 		env := scenarioEnv(id, demoPassword)
-		pid, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(env, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", commandStart, zeConfigFile}, env, filepath.Join(state, "ze.log"))
+		pid, err := startCommand("ip", append([]string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(env, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze"}, daemonArgs()...), env, filepath.Join(state, "ze.log"))
 		if err != nil {
 			return err
 		}

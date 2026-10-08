@@ -42,7 +42,7 @@ func runRPKI(action string) error {
 		if err := waitPort("127.0.0.2:1179", "bgp peer", 30); err != nil {
 			return err
 		}
-		daemonPID, err := startCommand("ze", []string{commandStart, zeConfigFile}, environ, filepath.Join(state, "daemon.log"))
+		daemonPID, err := startCommand("ze", daemonArgs(), environ, filepath.Join(state, "daemon.log"))
 		if err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ func runIRR(action string) error {
 		if err := waitPort("127.0.0.1:4343", "irr server", 30); err != nil {
 			return err
 		}
-		daemonPID, err := startCommand("ze", []string{commandStart, zeConfigFile}, environ, filepath.Join(state, "daemon.log"))
+		daemonPID, err := startCommand("ze", daemonArgs(), environ, filepath.Join(state, "daemon.log"))
 		if err != nil {
 			return err
 		}

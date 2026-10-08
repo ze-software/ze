@@ -67,10 +67,22 @@ func scenarioEnv(id, password string) []string {
 }
 
 // initText answers the `ze init` stdin script. Every demo initializes the same
-// operator account.
+// operator account. The instance name is the stem of the config bare `ze start`
+// reads (`<name>.conf`), so it is the stem of zeConfigFile: `ze init` writes its
+// discovered config to ze.conf and importScenarioConfig replaces ze.conf.
 func initText(password string) string {
 	const user = "admin"
-	return strings.Join([]string{user, password, "127.0.0.1", "2222", "ze-demo", ""}, "\n")
+	name := strings.TrimSuffix(zeConfigFile, ".conf")
+	return strings.Join([]string{user, password, "127.0.0.1", "2222", name, ""}, "\n")
+}
+
+// daemonArgs is the ze argv every scenario starts its daemon with. It names no
+// config file, so ze runs the way an installed Ze runs: from the store under
+// ZE_CONFIG_DIR, reading the stored config the instance name selects. A file
+// argument would put ze in explicit-file mode, which opens a store beside the
+// file in the working directory and ignores ZE_CONFIG_DIR.
+func daemonArgs() []string {
+	return []string{commandStart}
 }
 
 func stopScenario(id, pidName string) {
@@ -138,7 +150,16 @@ func importScenarioConfig(id string, sources ...string) error {
 			return closeErr
 		}
 	}
-	return runForegroundLog([]string{commandConfig, "import", "--name", zeConfigFile, activePath}, environ, filepath.Join(state, "import.log"), nil)
+	return runForegroundLog(scenarioConfigArgs(activePath), environ, filepath.Join(state, "import.log"), nil)
+}
+
+// scenarioConfigArgs is the ze argv that installs the merged scenario config
+// at path as the stored ze.conf. `ze init` already wrote ze.conf from interface
+// discovery, so the import replaces an existing config, which `config import`
+// does only when confirmed. The harness has no terminal to answer on, so it
+// confirms with --yes.
+func scenarioConfigArgs(path string) []string {
+	return []string{commandConfig, "import", "--yes", "--name", zeConfigFile, path}
 }
 
 // runForegroundLog runs one ze invocation to completion, with its transcript in
@@ -164,7 +185,7 @@ func runForegroundLog(args, environ []string, path string, input io.Reader) erro
 func startDaemon(id, pidName, ready string, attempts int, password string) error {
 	const logName = "daemon.log"
 	state := demoState(id)
-	pid, err := startCommand("ze", []string{commandStart, zeConfigFile}, scenarioEnv(id, password), filepath.Join(state, logName))
+	pid, err := startCommand("ze", daemonArgs(), scenarioEnv(id, password), filepath.Join(state, logName))
 	if err != nil {
 		return err
 	}
@@ -185,7 +206,7 @@ func startPeersAndDaemon(id string, peers [][]string, logName string, attempts i
 		}
 		pids = append(pids, pid)
 	}
-	pid, err := startCommand("ze", []string{commandStart, zeConfigFile}, environ, filepath.Join(state, logName))
+	pid, err := startCommand("ze", daemonArgs(), environ, filepath.Join(state, logName))
 	if err != nil {
 		return err
 	}
