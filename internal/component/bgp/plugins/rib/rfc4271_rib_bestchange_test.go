@@ -1884,6 +1884,6 @@ func TestBgpFallsBackToItsBootstrapBeforeConfigure(t *testing.T) {
 
 	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
 	require.True(t, found)
-	assert.Equal(t, DefaultAdminDistanceEBGP, best.AdminDistance,
+	assert.Equal(t, uint8(20), best.AdminDistance,
 		"an unset seam must give the classical 20, never 0")
 }
