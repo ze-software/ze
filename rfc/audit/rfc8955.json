@@ -25,6 +25,35 @@
       },
       "verdict": "enforced"
     },
+    "RFC8955-4-3": {
+      "note": "Independent source judgment of every current tagged carrier against RFC 8955 Section 4 in its full dissemination context: 'When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.' Agree with the saved flow-vpn-final-rfc8955.pending.json for this advertisement clause only, not the distinct ignored-receipt requirement RFC8955-4-4. TestFlowSpecOriginationOmitsConfiguredNextHop drives actual config initial sync, established API batch and both queued drains to a TCP recipient; literal complete UPDATEs pin zero length, exact native NLRI, VPN RD and traffic-rate action for all four AFI 1/2 SAFI 133/134 families with absent, explicit IPv4 and explicit IPv6 configured addresses. Empty-address controls and required packet equality rule out suppression as a passing implementation. TestFlowSpecForwardingOmitsNextHop covers cached forwarding across unchanged/self/explicit-v4/explicit-v6 destination settings and empty/recipient-address/IPv6 received fields, requiring exactly one delivered rule and exact MP_REACH bytes plus action, with no legacy NLRI or MP_UNREACH. TestFlowSpecRouteServerOmitsNextHop uses negotiated TCP, registered daemon RIB and route-server ownership, real covering-route authorization and exact received native rule/RD/action for the same four families, rather than a supplied authorization callback. The mixed-UPDATE carrier additionally requires both output sections, preserves observer bytes, and retains the independent legacy NEXT_HOP announcement or peer-own-address withdrawal gate. The dedicated builder carrier pins zero length and unchanged NLRI; the full daemon flow-encode.ci frames supplement the four-family unit matrix (that fixture itself advertises only three families). These are meaningful advertised-byte assertions, not decoder-only or bare-count evidence. Read producers Family.NeedsNextHop, buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop, applyNextHopFamily and mpReachNextHopHandler plus normalization placement on both forwarding rails. Origination omits the address by family; received FlowSpec addresses cannot become a forwarding gate; normalization clears MP rewrite operations or requests removal of a received nonempty field while retaining genuine legacy operations; the handler retains NLRI and emits length zero. The saved proposal's causal argument remains supported by current source. This does not certify every FlowSpec requirement, external FRR/GoBGP interoperability, or every future rail. Existing approved native observations are not rerun or newly claimed; stored producer-panic records establish only the breaks they name, and are not substituted for these semantic assertions. No build, test, mutation, stamp or freshness check was run. The row currently has no audit entry: first stamp, without mode rejudge or upgrade_reason.",
+      "requirement_sha": "40d8aaf28c3c7063",
+      "tests": {
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "fd0429028bee0447",
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "fd0429028bee0447",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "ed7a220acf5e4000",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "ed7a220acf5e4000",
+        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "d1febe7855cdb093",
+        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "d1febe7855cdb093",
+        "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "3cddaf419ff97267",
+        "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "3cddaf419ff97267",
+        "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "46d98f79040a5c70",
+        "test/encode/flow-encode.ci": "687a7097500e43df"
+      },
+      "units": {
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "db3b5bc9d8fbe384",
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "db3b5bc9d8fbe384",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop": "adfeec4586666b55",
+        "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "adfeec4586666b55",
+        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "1a11d065630eb718",
+        "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "1a11d065630eb718",
+        "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "af3f647998b5033c",
+        "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "af3f647998b5033c",
+        "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "9822aaa21d208c9e",
+        "test/encode/flow-encode.ci": "687a7097500e43df"
+      },
+      "verdict": "enforced"
+    },
     "RFC8955-4.2-2": {
       "note": "positive re-parses an out-of-order build and pins the exact emitted order 1,3,5,12; negative feeds a descending 5-then-3 NLRI and asserts ErrFlowSpecTypeOrder, with the same components ascending accepted, so the refusal is isolated to order",
       "requirement_sha": "6ead3d1f0aeb1502",
