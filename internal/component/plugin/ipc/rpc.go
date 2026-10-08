@@ -94,19 +94,20 @@ func (pc *PluginConn) CallRPC(ctx context.Context, method string, params any) (j
 	return pc.Conn.CallRPC(ctx, method, params)
 }
 
-// CallBatchRPC sends a batch delivery frame. In single-conn mode, converts
-// [][]byte events to []json.RawMessage to preserve raw JSON embedding.
+// CallBatchRPC sends a batch over the negotiated callback transport. Bridge
+// publication commits the cutover even before the SDK activates its handlers.
+// Raw JSON events MUST remain embedded values, not base64-encoded byte slices.
 func (pc *PluginConn) CallBatchRPC(ctx context.Context, events [][]byte) (json.RawMessage, error) {
-	if pc.mux != nil {
-		// Convert [][]byte to []json.RawMessage so json.Marshal embeds
-		// them as raw JSON values instead of base64-encoding byte slices.
-		rawEvents := make([]json.RawMessage, len(events))
-		for i, e := range events {
-			rawEvents[i] = json.RawMessage(e)
+	if pc.bridge.Load() == nil {
+		if pc.mux == nil {
+			return pc.Conn.CallBatchRPC(ctx, events)
 		}
-		return pc.mux.CallRPC(ctx, "ze-plugin-callback:deliver-batch", map[string]any{"events": rawEvents})
 	}
-	return pc.Conn.CallBatchRPC(ctx, events)
+	rawEvents := make([]json.RawMessage, len(events))
+	for i, e := range events {
+		rawEvents[i] = json.RawMessage(e)
+	}
+	return pc.CallRPC(ctx, "ze-plugin-callback:deliver-batch", map[string]any{"events": rawEvents})
 }
 
 // SendResult sends a successful RPC response.
