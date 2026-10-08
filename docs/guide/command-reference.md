@@ -2692,11 +2692,6 @@ declares that `delete bgp peer` removed is taken out of it.
 |---------|--------|---------|
 | `delete bgp peer <sel>` | write | Remove peer <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler --> |
 
-### Update Commands
-
-| Command | Access | Purpose |
-|---------|--------|--------- <!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/yang/ze-cli-update-cmd.yang --> |
-
 ### Route Injection
 
 ```

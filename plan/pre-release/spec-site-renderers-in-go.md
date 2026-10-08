@@ -292,11 +292,11 @@ Every deleted renderer is recoverable from `eae282592^`.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | `Build` (`internal/le/site/build.go`) is the one path: `derived.EnsureAll`, seed, stage, `refreshNativeSurfaces`, `renderProducers`, trim, stamp, carry, `coverageOf`. `TestBuildRendersEveryPublishedRoute` (2026-10-08, 225s, green) runs it over the real checkout: every published page was written by a producer in that build, zero unclaimed |
+| No unintended coupling (components stay isolated) | Yes, one known coupling | Live inputs reach `internal/le/rfc`, `internal/le/testhealth` and `internal/le/repo/inventory` through the `live*` function variables in the site package, so tests state them. R-12 stands: `inventory` blank-imports `internal/component/plugin/all`, so site tests compile the product composition root |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The command surfaces are rendered once, by the docvalid-backed producer: the full real-checkout build reports 0 doubly-claimed routes (`TestBuildRendersEveryPublishedRoute`, build A and B reports). Facts reuse `internal/le/site/facts`; the ledger pages reuse `internal/le/rfc` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Developer tooling on a workstation, no wire path (Triple Challenge, Performance row) |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Each producer registers itself from its own file's `init()` through `registerProducer` (21 call sites across 20 files); `Build` iterates the registry and names none (`TestBuildRunsEveryRegisteredProducer`). Coverage counts `len(allProducers())`, never a list |
 
 ## Risks & Assumptions
 
@@ -688,12 +688,12 @@ and its carry-over are untouched.
 | `TestTheCommittedIndexRoundTrips` | `internal/le/site/wiki/index_test.go` | AC-17a | pass |
 | `TestTheCommittedIndexStatesTheLiveWiki` | `internal/le/site/wiki/index_test.go` | AC-17a, the committed file is not stale | pass |
 | `TestCheckRefusesAMissingNamedArtifact` | `internal/le/site/producer_test.go` | AC-16 | pass |
-| `TestASecondBuildChangesNothing` | `internal/le/site/site_test.go` | AC-14 | Evidence outstanding |
+| `TestASecondBuildChangesNothing` | `internal/le/site/site_test.go` | AC-14 | pass (2026-10-08): green; RED with the `data/site-facts.json` carry in `publishSiteFacts` disabled (the facts file rewritten with a fresh `published_at`), RED with `carryPublicationStamps` disabled (a page lost its first stamp), green after restore |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestBuildRendersEveryPublishedRoute` | `internal/le/site/site_test.go` | a full build over the real checkout leaves no route unclaimed | Evidence outstanding |
+| `TestBuildRendersEveryPublishedRoute` | `internal/le/site/site_test.go` | a full build over the real checkout leaves no route unclaimed | pass (2026-10-08): green in 225s over the real checkout; RED with `registeredProducers[1:]` (first producer dropped): `1 published routes no producer wrote: [/project/activity/]`, `producers wrote 918 routes and the artifact publishes 919`; green after restore |
 
 ## Files to Modify
 - `internal/le/site/build.go` - iterate the producer registry
@@ -1220,6 +1220,14 @@ and its carry-over are untouched.
   for 32 of 379 commands, because the YANG descriptions carrying the authored
   "Usage:" sentence are another spec's cleanup and it has not run. `usage` is
   authoritative; the prose is rendered as the catalog states it.
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every published page is generated again from its source by `./le site build`, none surviving on the seed alone | functional, real checkout | `TestBuildRendersEveryPublishedRoute` (8cb45c9756): a full build over the real checkout, green in 225s; RED with the first registered producer dropped (`1 published routes no producer wrote: [/project/activity/]`). Real build A over the checkout: rc=0, 994 routes published, 994 written, 22 producers |
+| Rendered parity with the page published in `../gh-pages` | functional, parity fixtures plus content review | The per-family parity tests (`TestTheFeaturesPageReadsAsThePublishedPage` and its siblings) compare visible text against fixtures captured from the published pages; the features fixture now carries Policy Routing shipped, which c9e5b8b340 made correct (330e017757). Content review of real build B (992 pages, talk decks excluded as frozen) found and fixed: a broken feature-status href (2ee3a59bae, `TestEvidenceCleanupKeepsALinkAddressWhole` red/green), the command-reference Update Commands table rendering as literal pipes with no rows (section removed, its commands are documented in the IRR, resolve and firmware sections), authoring HTML comments and literal `**` on RFC pages (e490688d7c, `TestAnAuthoringNoteIsNotPublished`, `TestTheAuthorsEmphasisRendersAsEmphasis` red/green). `assets/header.html` `__ZE_SITE_ROOT__` placeholders are its template, not a defect |
+| A build over an unchanged tree is reproducible (AC-14) | functional plus real-checkout pair | `TestASecondBuildChangesNothing` (8cb45c9756): green; RED with the facts carry disabled, RED with `carryPublicationStamps` disabled. Real pair A/B: 38 files differ, all traced to the tree moving between builds (HEAD 03d466c58d to a424629b50) except `data/site-facts.json` `published_at`, the defect 8cb45c9756 fixed. Real pair C/D after the fix: OWED. The first attempt (2026-10-08 05:13, HEAD c976fab95a) stopped in build C, because another session's uncommitted edit to the draft-ietf-idr-bgp-bfd-strict-mode summary does not parse and no derived artifact can build until it does. The pair is scripted in the session scratch as `ac14.sh`: C seeded from build B, D seeded from C, HEAD and `git status` hashed before C, after C and after D, then `diff -rq` C D |
 
 ## Checklist
 
