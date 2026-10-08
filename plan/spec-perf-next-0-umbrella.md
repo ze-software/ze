@@ -36,6 +36,8 @@ not waive the umbrella's AC-1 or AC-3. Those obligations remain until the owner
 explicitly accepts substitute evidence or the harness is repaired and run.
 
 -> Decision (owner, 2026-10-08): substitute evidence is NOT accepted. Repair the stress harness so it exercises the three paths this round touched, then run AC-1 and AC-3 for real. The measurement runs only on a quiet machine over committed BGP code (another session was editing the reactor on 2026-10-08); a profile taken under foreign load or over uncommitted code is not evidence.
+-> Constraint (owner, 2026-10-08): BGP perf measurements are made on the owner's Mac, not on the Linux development machine. The AC-1/AC-3 numbers therefore come from a run the owner makes on the Mac; agents prepare the harness and prove it reaches the three paths. The Linux netns stress harness (`./le test integration stress`, root) cannot run on macOS, so how AC-1/AC-3 are measured on the Mac is open (see the next decision).
+-> Decision (owner, 2026-10-08): "we can only test perf on my mac as the hardware is known (vs here a VM which perf varies) even if we have to use qemu". AC-1/AC-3 run on the owner's Mac. The netns stress harness runs inside a Linux QEMU guest on the Mac through the repository's existing VM runner; one command boots the guest, runs the scenario, and copies back the report and the CPU profile. Agents prepare and prove the guest route on the Linux box (a smoke run proves completion and reach only; it is never a measurement); the owner runs the measurement.
 
 ### Harness repair (2026-10-08, done) and the measurement still owed
 
@@ -74,37 +76,74 @@ cleanup reported `delete namespace ...: exit 1` for namespaces the failed run
 never created (now: an error only when `/run/netns/<name>` remains, naming it).
 Both red before, green after.
 
-**Owed, not done: the smoke run.** No smoke run has completed against the
-repaired harness. Its only attempt failed in preflight at the DUT build, with
-a report that carried no cause, so the receiver, the looking-glass query and
-the three profiles are proven by the unit tests alone. The smoke run needs root
-and runs before AC-1:
+**Guest smoke, 2026-10-08: REACH EVIDENCE ONLY, never a measurement.** Linux
+amd64 development VM under KVM, `./le test qemu stress scenario 05-profile-1m
+prefixes 20000 pprof output <scratch>/stress-smoke-5`. Two harness defects the
+earlier attempts exposed are fixed first:
+
+| Defect | Fix | Test (red before, green after) |
+|--------|-----|--------------------------------|
+| Ze (root) refused its config store: it opens the store beside its config, the scenario directory over 9p carries the host uid (1000 here, 501 on the Mac), and Ze refuses a store another user owns | `stageConfig` starts the DUT on a copy in `/tmp/ze-stress-config-<suffix>` (0700, removed before and after the run) | `TestStressDUTRunsOnARunPrivateConfigCopy` |
+| The best-table query fired the moment the injector reported its last byte, before the RIB stored a route, and its guard refused only a zero-byte body: the smoke's query answered 122 bytes, an empty `routes` list, and passed | `awaitBestRoutes` probes `?limit=1` once a second until `pagination.total_results` is above zero (bounded by the round timeout), records it as `queries[].routes`, then fetches the whole table | `TestStressProfileQueryWaitsForAPopulatedTable`, `TestStressProfileQueryRefusesATableThatStaysEmpty` |
+
+The smoke ran with the first fix and before the second. It completed: report
+`passed: 1`, `binary` `/workspace/tmp/stress/ze`, the CPU, heap and goroutine
+profiles and the DUT copied back, one round of 20000 prefixes in 21 UPDATEs.
+Reach found in the profiles:
+
+| Path | CPU profile (`-focus` on the four frames) | Heap profile (`alloc_space`) |
+|------|------------------------------------------|------------------------------|
+| eBGP forward with modify (`buildModifiedPayload`) | no samples | present: `forwardUpdateSelected` -> `buildForwardPayload` -> `buildModifiedPayload`, under `rs.flushWorkerBatch` |
+| Filter delta (`textDeltaToModOps`, `parseFilterAttrsInto`) | no samples; `runIngressPolicyChain` and `rs.processForward` present | `runIngressPolicyChain`, `runEgressPolicyChainASN4`, `PolicyFilterChain` -> `applyFilterDelta`, `formatFilterAttrs` present; the two named frames absent |
+| `Community.AppendText` | no samples | absent: the table it renders was empty (the second defect) |
+
+The focused CPU profile matched no samples (90 s, 5.60 s sampled): 21 UPDATEs
+put too little per-UPDATE work under the 100 Hz sampler. So the smoke proves the
+guest route end to end and the forward-with-modify and policy-chain reach; it
+does not show the three named frames in the CPU profile. Whether
+`textDeltaToModOps`, `parseFilterAttrsInto` and `Community.AppendText` appear is
+answered by the AC-1 profile on the Mac (1M prefixes, populated-table query),
+whose `-focus` command is below; if any is absent there, that is the
+Methodology scope gate, not a pass.
+
+**Measurement route (AC-1 then AC-3), run by the owner on the Mac.** Both runs
+use the same guest size: set `ZE_QEMU_CPUS` and `ZE_QEMU_MEMORY` once (default
+8 CPUs, 16384 MiB) and keep them for both, because the report's
+`plan.qemu-argv` is what makes the two comparable. Run on a quiet Mac over a
+committed BGP tree (`git status --short internal/component/bgp internal/core`
+empty). The guest builds the DUT from the shared checkout, so the profile
+measures that tree.
 
 ```bash
-sudo env "PATH=$PATH" STRESS_SCENARIO=05-profile-1m STRESS_PREFIXES=20000 ZE_PPROF=1 ./le test integration stress '|' json > tmp/stress/smoke.json
-go tool pprof -top -focus='Community..AppendText|textDeltaToModOps|parseFilterAttrsInto|buildModifiedPayload' tmp/stress/ze tmp/stress-profile-cpu.pb.gz
-```
-
-It passes when `binary` is `tmp/stress/ze`, `queries[0].bytes` is above zero,
-the CPU, heap and goroutine profiles are listed, and the focused profile shows
-those frames. Its result replaces this paragraph.
-
-**Remaining phase (AC-1 then AC-3), on a quiet machine with the BGP tree
-committed (`git status --short internal/component/bgp internal/core` empty,
-no other lab in `ip netns list`):**
-
-```bash
-sudo env "PATH=$PATH" STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress '|' json > tmp/perf-ac1.json
-go tool pprof -top -nodecount=60 tmp/stress/ze tmp/stress-profile-cpu.pb.gz
-go tool pprof -sample_index=alloc_space -top -nodecount=60 tmp/stress/ze tmp/stress-profile-heap.pb.gz
-go tool pprof -top -focus='Community..AppendText|textDeltaToModOps|parseFilterAttrsInto|buildModifiedPayload|ReceivedUpdate' tmp/stress/ze tmp/stress-profile-cpu.pb.gz
-# AC-3: the same run without ZE_PPROF, numbers (rounds[].elapsed-seconds, routes-per-second) recorded here
-sudo env "PATH=$PATH" STRESS_SCENARIO=05-profile-1m ./le test integration stress '|' json > tmp/perf-ac3.json
+# AC-1: profile run; the output directory must be absent or empty
+./le test qemu stress scenario 05-profile-1m pprof output tmp/perf-ac1
+go tool pprof -top -nodecount=60 tmp/perf-ac1/ze tmp/perf-ac1/stress-profile-cpu.pb.gz
+go tool pprof -sample_index=alloc_space -top -nodecount=60 tmp/perf-ac1/ze tmp/perf-ac1/stress-profile-heap.pb.gz
+go tool pprof -top -focus='Community..AppendText|textDeltaToModOps|parseFilterAttrsInto|buildModifiedPayload|ReceivedUpdate' tmp/perf-ac1/ze tmp/perf-ac1/stress-profile-cpu.pb.gz
+# AC-3: the same scenario without pprof; rounds[].elapsed-seconds and
+# routes-per-second from tmp/perf-ac3/report.json are recorded here
+./le test qemu stress scenario 05-profile-1m output tmp/perf-ac3
 ```
 
 AC-1 pastes the baseline numbers and the frames each child targets; AC-3
 records the re-run here and in `docs/performance.md` only if `le perf` numbers
 change (that page is generated by `le perf report --doc`).
+
+**Unverified on macOS, check on the first run.** The runner's darwin branch is
+written and unit-tested but has never booted on a Mac. The order to check in
+and each failure's signature are the table in
+`docs/architecture/testing/qemu-integration.md`, "Running the BGP stress
+harness in the guest".
+
+| Check | Why it is open |
+|-------|----------------|
+| Homebrew QEMU carries 9p (`qemu-system-aarch64 -device help` lists `virtio-9p-pci`) | The checkout reaches the guest only over 9p |
+| HVF accepts `-machine virt,highmem=on,accel=hvf` (highmem, IPA size) | Never booted under HVF |
+| A 16 GiB guest fits (`ZE_QEMU_MEMORY`; 8192 on a 16 GB Mac) | The default guest memory is 16384 MiB |
+| The guest `le` cross-builds for linux/arm64 | Only a linux/amd64 guest has been built and booted |
+
+The Linux `sudo env ... ./le test integration stress` route stays a reach proof
+on the development VM, never a measurement.
 
 Historical position on 2026-07-22, superseded by the September child closures:
 the review recorded all three children as shipped and the round's design record as
@@ -277,9 +316,9 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Before child 1 starts | Fresh `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress` run captured; baseline numbers pasted into this spec; each child's target frames located in the profile (or their absence noted and the child's scope reconsidered with the user per the Methodology scope gate) |
+| AC-1 | Before child 1 starts | Fresh `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress` run captured, on the owner's Mac through `./le test qemu stress scenario 05-profile-1m pprof output tmp/perf-ac1` (owner decision 2026-10-08, "Measurement route"); baseline numbers pasted into this spec; each child's target frames located in the profile (or their absence noted and the child's scope reconsidered with the user per the Methodology scope gate) |
 | AC-2 | Each child completes | Child's Go benchmark shows the asserted improvement; child's Review Gate clean |
-| AC-3 | All children complete | `STRESS_SCENARIO=05-profile-1m ./le test integration stress` re-run; final numbers recorded here and in `docs/performance.md` if changed |
+| AC-3 | All children complete | `STRESS_SCENARIO=05-profile-1m ./le test integration stress` re-run, on the owner's Mac through `./le test qemu stress scenario 05-profile-1m output tmp/perf-ac3` with the AC-1 run's `ZE_QEMU_CPUS`/`ZE_QEMU_MEMORY`; final numbers recorded here and in `docs/performance.md` if changed |
 | AC-4 | Umbrella closure | Negative-findings table copied into the learned summary so future sessions inherit it |
 
 ## 🧪 TDD Test Plan
