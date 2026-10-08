@@ -22,7 +22,8 @@ func TestShowSchemaHasNoBGPPluginCommands(t *testing.T) {
 	// Command tokens owned by removable BGP packages; none may appear in the
 	// central show schema.
 	banned := map[string]string{
-		"ze-rib-api:":          "BGP RIB queries -> internal/component/bgp/plugins/cmd/rib/yang",
+		`"ze-bgp:rib-`:         "BGP RIB queries -> internal/component/bgp/plugins/cmd/rib/yang",
+		`"ze-rib-api:`:         "BGP RIB rpc pointers -> internal/component/bgp/plugins/cmd/rib/yang",
 		`"ze-bgp:peer-`:        "BGP peer state -> internal/component/bgp/plugins/cmd/peer/yang",
 		`"ze-bgp:show-decode"`: "offline BGP decode -> internal/component/bgp/cli/yang",
 		`"ze-bgp:show-encode"`: "offline BGP encode -> internal/component/bgp/cli/yang",
@@ -114,4 +115,43 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 			t.Errorf("central show schema declares owner command %q; move it to %s (see ai/rules/plugins.md)", token, owner)
 		}
 	}
+}
+
+// TestShowSchemaNamesNoOwnerCommand derives the owner check rather than
+// listing owners.
+//
+// VALIDATES: every ze:command in the central show schemas carries the
+// ze-cmd: prefix and every ze:rpc names this package's own API module, so a
+// node an owner (BGP, OSPF, L2TP, ...) declares under its own prefix cannot
+// sit here, whichever owner it is.
+//
+// PREVENTS: a show command drifting back into the central schema under an
+// owner prefix that the hand-listed tokens above do not name.
+func TestShowSchemaNamesNoOwnerCommand(t *testing.T) {
+	for name, text := range map[string]string{"ze-cli-show-cmd": ZeCliShowCmdYANG, "ze-cli-show-api": ZeCliShowAPIYANG} {
+		for _, bad := range foreignPrefixes(text, "ze:command", "ze-cmd") {
+			t.Errorf("%s declares owner command %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, bad)
+		}
+		for _, bad := range foreignPrefixes(text, "ze:rpc", "ze-cli-show-api") {
+			t.Errorf("%s points at owner rpc %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, bad)
+		}
+	}
+}
+
+// foreignPrefixes returns each `<extension> "<prefix>:..."` argument whose
+// prefix is not own.
+func foreignPrefixes(text, extension, own string) []string {
+	var foreign []string
+	for line := range strings.Lines(text) {
+		_, arg, found := strings.Cut(line, extension+` "`)
+		if !found {
+			continue
+		}
+		value, _, _ := strings.Cut(arg, `"`)
+		prefix, _, _ := strings.Cut(value, ":")
+		if prefix != own {
+			foreign = append(foreign, value)
+		}
+	}
+	return foreign
 }
