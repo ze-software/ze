@@ -25,6 +25,7 @@ import (
 // DefaultLoader returns that error, and the errors embedded loading reports.
 // A pattern compilePattern cannot compile is not best-effort either: the
 // command tree would otherwise hold an argument whose restriction vanished.
+// Nor is a structure checkStructure refuses.
 func DefaultLoader() (*Loader, error) {
 	l := NewLoader()
 	if err := l.LoadEmbedded(); err != nil {
@@ -32,7 +33,7 @@ func DefaultLoader() (*Loader, error) {
 	}
 	_ = l.LoadRegistered() // Best-effort: some modules may not be imported in this context
 	_ = l.process()        // Best-effort: unresolved modules are skipped by tree walker
-	if err := errors.Join(l.checkExtensions(), l.checkPatterns()); err != nil {
+	if err := errors.Join(l.checkExtensions(), l.checkPatterns(), l.checkStructure()); err != nil {
 		return nil, err
 	}
 	return l, nil
@@ -108,9 +109,13 @@ func (l *Loader) AddModuleFromFile(path string) error {
 // every failure, and each undeclared extension wraps ErrUndeclaredExtension.
 //
 // It also refuses every `pattern` statement compilePattern cannot compile,
-// each wrapping ErrUncompilablePattern.
+// each wrapping ErrUncompilablePattern, and every structure goyang accepts
+// and RFC 7950 forbids (checkStructure): length parts that overlap or descend
+// (ErrLengthOrder), an enum restriction that departs from its base type
+// (ErrEnumRestriction), and a non-YANG statement under an extension
+// (ErrExtensionSubstatement).
 func (l *Loader) Resolve() error {
-	return errors.Join(l.process(), l.checkExtensions(), l.checkPatterns())
+	return errors.Join(l.process(), l.checkExtensions(), l.checkPatterns(), l.checkStructure())
 }
 
 // process runs goyang's import and type resolution over every loaded module.

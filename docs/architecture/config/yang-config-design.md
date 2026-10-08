@@ -127,7 +127,24 @@ exit 1, and `IsDeclaredCommand` returns it rather than `false`, so the
 local-handler lookup refuses the match instead of serving a handler that
 shadows a declared command.
 
+The same two callers refuse three structures RFC 7950 forbids and goyang
+accepts. Each refusal names the module, the file location and the fault.
+
+| Structure refused | RFC 7950 | Why goyang misses it | Error |
+|-------------------|----------|----------------------|-------|
+| A `length` whose parts, in the order written, overlap or descend | 9.4.4 | it sorts and coalesces the parts before it checks them | `ErrLengthOrder` |
+| An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
+| A statement under an extension statement that is not a YANG keyword, or that breaks its argument rule (only `input` and `output` take none) | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
+
+The YANG keyword set comes from the struct tags of goyang's AST, the grammar
+goyang applies to every other statement. `TestYANGKeywordsMatchTheRFC7950Grammar`
+compares that set, and the two argument-less statements, with the Section 14
+grammar in `rfc/full/rfc7950.txt`. A restricted type that sits in a grouping
+no schema node uses is never resolved by goyang, restricts nothing, and is not
+checked.
+
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
+<!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, yangKeywords, argumentlessKeywords -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
 <!-- source: internal/component/cli/client/main.go -- loadYANGState, buildYANGState -->
 <!-- source: internal/component/cli/client/verb_tree.go -- IsDeclaredCommand -->

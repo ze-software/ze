@@ -48,6 +48,11 @@ The schema build error accumulator `recordSchemaBuildError` and the `ValidationE
 - AC-1: every requirement id in the Task table carries a positive and a negative tagged test with a discrimination record, and its `{gap}` annotation leaves `rfc/short/rfc7950.md`.
 - AC-2: the weak verdicts RFC7950-7.19-1 (extension substatement syntax), RFC7950-9.4.4-1 (length values non-negative, disjoint, ascending) and RFC7950-9.6.4.2-1 (enum value range and uniqueness; the last sentence of §9.6.4.2) are re-judged `enforced` once the loader performs these structural checks. The untracked red `internal/component/config/yang/loader_rfc7950_structural_red_test.go` is replaced by tagged proofs. Moved here from spec-rfc-verdict-fix-services under P-3 (ruling R4), 2026-09-30.
 
+Progress 2026-10-08 (owner order "fix the three tests"):
+- AC-2, code and proofs: met. `loader_structure.go::checkStructure`, joined by `Resolve` and `DefaultLoader`, refuses length parts that overlap or descend (9.4.4), an enum restriction that adds a name or changes a value (9.6.4, 9.6.4.2), and a non-YANG statement or a missing argument under an extension statement (7.19). The red file is now `rfc7950_loader_structural_test.go`, tagged RFC7950-9.4.4-1, RFC7950-9.6.4.2-1, RFC7950-9.6.4-2 and RFC7950-7.19-1, positive and negative, each with a revert discrimination record.
+- AC-2, verdicts: NOT met. The audit verdicts of 7.19-1, 9.4.4-1 and 9.6.4.2-1 are stale and owe an independent `ze-rfc-audit` re-judgement; 9.6.4-2 has no verdict yet.
+- AC-1: met for RFC7950-9.6.4-2 only (its `{gap}` left the summary). Every other Task row stays open.
+
 ## Risks & Assumptions
 
 To be written at design.
