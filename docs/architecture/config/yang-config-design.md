@@ -132,19 +132,34 @@ accepts. Each refusal names the module, the file location and the fault.
 
 | Structure refused | RFC 7950 | Why goyang misses it | Error |
 |-------------------|----------|----------------------|-------|
-| A `length` whose parts, in the order written, overlap or descend | 9.4.4 | it sorts and coalesces the parts before it checks them | `ErrLengthOrder` |
+| A `length` whose parts, in the order written, overlap or descend, with `min` and `max` read as the bounds of the type being restricted | 9.4.4 | it sorts and coalesces the parts before it checks them | `ErrLengthOrder` |
 | An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
-| A statement under an extension statement that is not a YANG keyword, or that breaks its argument rule (only `input` and `output` take none) | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
+| A statement under an extension statement that is not a YANG keyword, that the block holding it does not admit, or whose argument breaks its Section 14 argument rule | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
 
-The YANG keyword set comes from the struct tags of goyang's AST, the grammar
-goyang applies to every other statement. `TestYANGKeywordsMatchTheRFC7950Grammar`
-compares that set, and the two argument-less statements, with the Section 14
-grammar in `rfc/full/rfc7950.txt`. A restricted type that sits in a grouping
-no schema node uses is never resolved by goyang, restricts nothing, and is not
-checked.
+The grammar under an extension is the RFC's own: `rfc7950.abnf`, embedded in
+the package, is the Section 14 code component of `rfc/full/rfc7950.txt`, and
+`TestEmbeddedGrammarIsTheRFC7950Grammar` turns red if the two differ.
+`parseStatementGrammar` reads from it, for each statement keyword, the argument
+rules and the statements its block admits. Each argument rule has a checker
+written from its ABNF rule, except `uri-str` and `path-arg-str`, which
+`uncheckedArgumentRules` names and which accept any argument. Neither the
+number of times a substatement may occur, nor the substatements a block
+requires (a `leaf` without a `type`), nor the narrower blocks of one `deviate`
+form or one base type, is checked under an extension.
+
+`min` and `max` in a `length` are the first and last bounds of the effective
+length of the type being restricted, which goyang resolves through the whole
+typedef chain, or 0 and 18446744073709551615 when no type in the chain carries
+a length. A restricted enumeration that sits in a grouping no schema node uses
+is never resolved by goyang, restricts nothing, and is not checked. goyang
+does resolve the type a `length` restricts in such a grouping, so its `min`
+and `max` read the typedef's bounds there too; a `length` over a typedef that
+goyang left unresolved and that names `min` or `max` is refused as unresolved
+rather than checked against a guessed span.
 
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
-<!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, yangKeywords, argumentlessKeywords -->
+<!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, restrictedLengthSpan, extensionSubstatementError -->
+<!-- source: internal/component/config/yang/loader_grammar.go -- parseStatementGrammar, argumentCheckers, uncheckedArgumentRules -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
 <!-- source: internal/component/cli/client/main.go -- loadYANGState, buildYANGState -->
 <!-- source: internal/component/cli/client/verb_tree.go -- IsDeclaredCommand -->

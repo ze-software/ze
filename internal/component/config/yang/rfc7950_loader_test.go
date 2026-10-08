@@ -82,12 +82,13 @@ func TestRFC7950ModuleLoadRefused(t *testing.T) {
 		{name: "extension with non-YANG substatement", texts: []string{`module m { namespace "urn:m"; prefix m; extension e { bogus "x"; } leaf a { type string; } }`}, wantErr: "bogus"},
 		{name: "range descending", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type uint8 { range "10..5"; } } }`}, wantErr: "range"},
 		{name: "range bound not a number", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type uint8 { range "a..b"; } } }`}, wantErr: "range"},
+		{name: "length range written upper bound first", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type string { length "5..1"; } } }`}, wantErr: "length"},
 		// RFC requirement: RFC7950-9.3.4-1 negative — a decimal64 type without fraction-digits is refused, and one with fraction-digits outside 1..18 is refused.
 		{name: "decimal64 without fraction-digits", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type decimal64; } }`}, wantErr: "[1..18]"},
 		{name: "decimal64 fraction-digits 19", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type decimal64 { fraction-digits 19; } } }`}, wantErr: "out of range [1..18]"},
-		// RFC requirement: RFC7950-9.4.4-1 negative — a negative length bound, and length parts that are not ascending, are each refused.
+		// RFC requirement: RFC7950-9.4.4-1 negative — a negative length bound "-1..5", and length parts "10..20 | 1..5" written out of ascending order, are each refused.
 		{name: "length negative", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type string { length "-1..5"; } } }`}, wantErr: "length"},
-		{name: "length descending", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type string { length "5..1"; } } }`}, wantErr: "length"},
+		{name: "length parts descending", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type string { length "10..20 | 1..5"; } } }`}, wantErr: "length"},
 		{name: "enum duplicate name", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type enumeration { enum x; enum x; } } }`}, wantErr: "already assigned"},
 		// RFC requirement: RFC7950-9.6.4.2-1 negative — an enum after one valued 2147483647 that carries no value, two enums with one value, and a value outside the int32 range are each refused.
 		{name: "enum after max without value", texts: []string{`module m { namespace "urn:m"; prefix m; leaf a { type enumeration { enum x { value 2147483647; } enum y; } } }`}, wantErr: "value"},
