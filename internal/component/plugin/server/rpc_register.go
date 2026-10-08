@@ -17,8 +17,10 @@ var registeredRPCs []RPCRegistration
 // RegisterRPCs adds RPCs to the package-level registry.
 // Called from init() in register.go files. Each registration is stamped with
 // the import path of the calling package (Registrar), which is what its
-// wire-method prefix is derived from (OwnerPrefix). A Registrar the caller set
-// is overwritten, so the stamp is a fact about the call, never a claim.
+// wire-method prefix is derived from (OwnerPrefix). The registrar field is
+// unexported, so no other package can set it: this function stamps every
+// registration from the call site, and the stamp is a fact about the call,
+// never a claim.
 func RegisterRPCs(rpcs ...RPCRegistration) {
 	registrar := callsite.Package(2)
 	for _, rpc := range rpcs {

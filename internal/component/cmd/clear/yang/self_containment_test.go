@@ -75,8 +75,26 @@ func foreignPrefixes(t *testing.T, name, text, extension, own string) []string {
 			foreign = append(foreign, value)
 		}
 	}
-	if present := strings.Count(text, extension+" "); present != judged {
+	if present := statementCount(text, extension); present != judged {
 		t.Errorf("%s carries %d %s statements but the scan judged %d", name, present, extension, judged)
 	}
 	return foreign
+}
+
+// statementCount counts the keyword statements in text: each keyword followed
+// by a YANG separator (RFC 7950 Section 14, sep = 1*(WSP / line-break)), so a
+// statement whose argument follows a tab or a line break is counted as well
+// as one whose argument follows a space.
+func statementCount(text, keyword string) int {
+	count := 0
+	for rest := text; ; {
+		at := strings.Index(rest, keyword)
+		if at < 0 {
+			return count
+		}
+		rest = rest[at+len(keyword):]
+		if rest != "" && strings.ContainsRune(" \t\r\n", rune(rest[0])) {
+			count++
+		}
+	}
 }
