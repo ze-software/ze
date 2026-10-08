@@ -145,11 +145,30 @@ Never hardcode port numbers. Use `$PORT` in `cmd=` exec values and `$PORT2` in `
 The pair is LEASED when the test starts, not when the suite discovers it
 (`runner.LeaseTestPorts`, `internal/test/runner/ports.go`). Discovery numbers the
 Nth test of every suite from the same base, so the preference alone collides
-whenever two le test processes run at once; the lease takes a machine-wide
-advisory lock in `$TMPDIR/ze-test-port-locks` and probes the pair, and a test
-whose preferred pair is locked or occupied gets one from 25000-32759 instead. A
-hardcoded number in a `.ci` file takes part in neither step, which is why the
-rule above is a rule.
+whenever two le test processes run at once. The lease takes per-port advisory
+locks in `/tmp/le-port-locks-<effective-uid>`, independent of `TMPDIR`, checkout,
+or session. The flat per-user directory avoids requiring access through another
+user's private lock directory. Directory and file creation modes are 0700 and
+0600, respectively; cross-user coordination is unsupported. Lock files MUST NOT
+be unlinked: replacing a lock inode splits ownership between old and new users
+of the path.
+
+All participating runners MUST be rebuilt for this namespace cutover. Old
+runners using `le-port-locks` under their temporary directory do not coordinate
+with this namespace; there is no fallback or hybrid locking mode.
+
+While holding the locks, the runner probes `127.0.0.1` with TCP/IPv4 and `::1`
+with TCP/IPv6 for both ports, keeping all probe listeners open until the whole
+pair has been checked. IPv6 is omitted only when its family, protocol, or
+loopback address is unavailable, not when its port is occupied. Probe listeners
+close before children bind; the advisory locks remain until the test releases
+its lease. A preferred pair that is locked or occupied moves to 25000-32759.
+
+The locks coordinate participating same-user processes on the same host that
+share `/tmp`; they do not provide universal port exclusivity across users or
+isolated filesystems. An unrelated process can still bind after the probes
+close. A hardcoded number in a `.ci` file takes part in neither step, which is
+why the rule above is a rule.
 
 <!-- source: internal/test/runner/ports.go -- LeaseTestPorts -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest leases before any $PORT expansion -->

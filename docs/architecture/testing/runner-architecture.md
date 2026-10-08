@@ -128,6 +128,36 @@ display.
   and calls `setNoSummary` to suppress each iteration summary.
   <!-- source: internal/test/runner/runner.go -- Runner.RunWithCount -->
 
+### Port leases
+
+`.ci` execution leases `$PORT` and `$PORT2` through `LeaseTestPorts` before
+expanding commands. `ReservePorts` uses the same per-port advisory lock mechanism
+for web cases. The stable directory is `/tmp/le-port-locks-<effective-uid>`, not
+a directory under the caller's `TMPDIR`, checkout, or session. A flat per-user
+directory avoids requiring access through another user's private lock directory.
+Participating same-user runners share lock inodes across those boundaries.
+Directory and file creation modes are 0700 and 0600, respectively; cross-user
+coordination is unsupported. Lock files MUST NOT be unlinked, even after
+release, because a replacement inode would admit a second holder.
+
+All participating runners MUST be rebuilt after this namespace cutover.
+Runners using the old `le-port-locks` directory under their temporary directory
+do not share these locks. There is no fallback or hybrid locking mode.
+
+While locked, a candidate range is probed on both `127.0.0.1` (`tcp4`) and `::1`
+(`tcp6`). All probe listeners remain open until the complete range is checked,
+then close so children can bind. Only an unavailable IPv6 family, protocol, or
+loopback address permits omitting IPv6; an occupied IPv6 port rejects the range.
+`LeaseTestPorts` keeps its 25000-32759 fallback band. The lease owner MUST release
+its locks after its use of the ports ends.
+
+These are same-host, same-user advisory leases for processes sharing `/tmp`,
+not universal socket reservations. They cannot exclude a nonparticipating
+process that binds after probing, or coordinate isolated lock filesystems.
+Job admission and stress concurrency controls do not replace port leases.
+<!-- source: internal/test/runner/ports.go -- LeaseTestPorts, ReservePorts, tryReservePortRange, reservePortLocks -->
+<!-- source: internal/test/runner/runner_exec.go -- runTest -->
+
 ## Web test format (`.wb`)
 
 Web tests live in `test/web/*.wb` and drive the HTMX web UI through a headless

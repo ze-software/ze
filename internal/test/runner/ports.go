@@ -21,8 +21,9 @@ type PortRange struct {
 
 // PortReservation holds advisory locks for a port range assigned to one running
 // test (LeaseTestPorts) or to one running web case (ReservePorts). The locks
-// coordinate concurrent le test processes; they do not bind the TCP ports, so
-// child ze/ze-peer processes can use them.
+// coordinate same-user le test processes sharing /tmp, independently of TMPDIR,
+// checkout, or session. They do not bind TCP ports, so child ze/ze-peer processes
+// can use them; nonparticipating binders are not excluded.
 //
 // flock is per open file description, so a second reservation over a port this
 // process already holds is refused exactly as another process's would be. A
@@ -44,6 +45,8 @@ func (p PortRange) String() string {
 }
 
 // Release drops the advisory port locks. It is safe to call more than once.
+// The owner MUST call Release after its use of the leased ports ends.
+// Lock files MUST NOT be unlinked: replacing an inode splits lock ownership.
 func (p *PortReservation) Release() {
 	for _, f := range p.files {
 		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
@@ -74,9 +77,11 @@ func findFreePortRange(base, count int) (int, error) {
 	return 0, fmt.Errorf("no free port range of %d ports found starting from %d", count, base)
 }
 
-// isPortRangeFree checks if ports [start, start+count) are all available.
+// isPortRangeFree probes both loopback families for ports [start, start+count).
+// All successful probes MUST remain open until the complete range is checked,
+// then close before returning so the lease owner's children can bind.
 func isPortRangeFree(start, count int) bool {
-	listeners := make([]net.Listener, 0, count)
+	listeners := make([]net.Listener, 0, 2*count)
 	defer func() {
 		for _, ln := range listeners {
 			_ = ln.Close()
@@ -84,14 +89,31 @@ func isPortRangeFree(start, count int) bool {
 	}()
 
 	for port := start; port < start+count; port++ {
-		ln, err := net.Listen("tcp", textbuf.StrInt("127.0.0.1:", int64(port))) //nolint:noctx // port probing, no context needed
+		ln, err := net.Listen("tcp4", textbuf.StrInt("127.0.0.1:", int64(port))) //nolint:noctx // Port probing, no context needed.
 		if err != nil {
-			return false // Port in use
+			return false
+		}
+		listeners = append(listeners, ln)
+
+		ln, err = net.Listen("tcp6", textbuf.StrInt("[::1]:", int64(port))) //nolint:noctx // Port probing, no context needed.
+		if err != nil {
+			if isIPv6LoopbackUnavailable(err) {
+				continue
+			}
+			return false
 		}
 		listeners = append(listeners, ln)
 	}
 
 	return true
+}
+
+// isIPv6LoopbackUnavailable distinguishes an unsupported loopback family from
+// an occupied port or an arbitrary probe failure, both of which reject a range.
+func isIPv6LoopbackUnavailable(err error) bool {
+	return errors.Is(err, syscall.EAFNOSUPPORT) ||
+		errors.Is(err, syscall.EPROTONOSUPPORT) ||
+		errors.Is(err, syscall.EADDRNOTAVAIL)
 }
 
 // allocatePorts tries to allocate a port range, falling back if base is occupied.
@@ -105,9 +127,10 @@ func allocatePorts(base, count int) (PortRange, bool, error) {
 	return reservation.PortRange, shifted, nil
 }
 
-// ReservePorts allocates a free port range and keeps an advisory
-// reservation until Release is called. This prevents concurrent le test
-// processes from probing the same free range and racing each other at bind time.
+// ReservePorts allocates a free port range and keeps an advisory reservation.
+// The owner MUST call Release after its use of the leased ports ends.
+// This prevents participating same-user le test processes sharing /tmp from
+// probing the same free range and racing each other at bind time.
 func ReservePorts(base, count int) (*PortReservation, bool, error) {
 	if reservation, ok, err := tryReservePortRange(base, count); err != nil {
 		return nil, false, err
@@ -139,9 +162,9 @@ const (
 
 var errNoLeasablePortPair = errors.New("no free test port pair in the lease band")
 
-// LeaseTestPorts leases the port span one .ci test owns and holds the advisory
-// lock until Release is called, so the lease covers exactly the test that binds
-// the ports.
+// LeaseTestPorts leases the port span one .ci test owns and holds advisory locks.
+// The owner MUST call Release after its use of the leased ports ends, so the
+// lease covers exactly the test that binds the ports.
 //
 // preferred is the port the suite would like this test to have. It is honored
 // when the pair is both unlocked and bindable AT LEASE TIME; otherwise the test
@@ -173,12 +196,7 @@ func LeaseTestPorts(preferred int) (*PortReservation, error) {
 
 // checkPortAvailable checks if a single port is available.
 func checkPortAvailable(port int) bool {
-	ln, err := net.Listen("tcp", textbuf.StrInt("127.0.0.1:", int64(port))) //nolint:noctx // port probing, no context needed
-	if err != nil {
-		return false
-	}
-	_ = ln.Close()
-	return true
+	return isPortRangeFree(port, 1)
 }
 
 func findReservedFreePortRange(base, count int) (int, *PortReservation, error) {
@@ -221,7 +239,9 @@ func tryReservePortRange(start, count int) (*PortReservation, bool, error) {
 }
 
 func reservePortLocks(start, count int) (*PortReservation, bool, error) {
-	lockDir := filepath.Join(os.TempDir(), "le-port-locks")
+	// A flat per-user directory cannot be blocked by another user's private
+	// legacy directory, and stays shared across TMPDIR overrides.
+	lockDir := textbuf.StrInt("/tmp/le-port-locks-", int64(os.Geteuid()))
 	if err := os.MkdirAll(lockDir, 0o700); err != nil {
 		return nil, false, fmt.Errorf("create port lock directory: %w", err)
 	}
@@ -233,7 +253,7 @@ func reservePortLocks(start, count int) (*PortReservation, bool, error) {
 	}
 	for port := start; port < start+count; port++ {
 		path := filepath.Join(lockDir, textbuf.IntStr(int64(port), ".lock"))
-		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // path is lockDir (TempDir constant) + integer port number
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // Path is a private effective-UID lock directory plus an integer port.
 		if err != nil {
 			reservation.Release()
 			return nil, false, fmt.Errorf("open port lock %d: %w", port, err)
