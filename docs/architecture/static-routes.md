@@ -51,6 +51,16 @@ same entry whenever their metrics agreed, which they do by default. Which one
 forwarded was decided by write order. One writer per prefix is what makes the
 declared distance mean anything.
 
+The kernel side is read back by four functional tests in `test/static/`.
+`static-kernel-distance-static-wins.ci` and `static-kernel-distance-bgp-wins.ci`
+declare opposite distances for one contested prefix and each expect exactly one
+kernel entry, `proto 250`, via the winner's next-hop.
+`static-kernel-weighted-multipath.ci` expects the configured weights on the
+kernel's multipath hops, and `static-kernel-interface-nexthop.ci` expects an
+interface-only route to leave by that device with no gateway. A reload that
+fails is undone by the journal `applyRouteSet` returns, which re-applies the
+previous set to the Loc-RIB (`TestStaticRollbackRestoresThePreviousPathSet`).
+
 A NAMED table keeps the direct write. The Loc-RIB is keyed by (family, prefix)
 and carries no table, so a named-table route inserted there would collide with the
 main-table route for the same prefix. A named table also has exactly one writer by

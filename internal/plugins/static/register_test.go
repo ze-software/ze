@@ -3,13 +3,16 @@ package static
 import (
 	"bytes"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -208,4 +211,90 @@ func TestPendingSectionTakeClearsState(t *testing.T) {
 	if routes != nil {
 		t.Errorf("second take returned %d routes, want none", len(routes))
 	}
+}
+
+// TestStaticRollbackRestoresThePreviousPathSet
+// VALIDATES: AC-16 and A-7. A transaction that applies a new static set and is
+// then rolled back leaves the Loc-RIB holding the set the previous transaction
+// committed, and the plugin's own record of the live set agrees with it.
+// Method: commit an old set, apply a new one that changes one route's next-hop,
+// drops one route and adds another, check the Loc-RIB holds the new set, run the
+// journal's undo the way OnConfigRollback does, and compare the Loc-RIB with the
+// old set prefix by prefix.
+// PREVENTS: an aborted commit leaving the new set's paths in the Loc-RIB, where
+// the FIB plugin, the single writer of main-table routes, would keep programming
+// a configuration the operator never committed.
+func TestStaticRollbackRestoresThePreviousPathSet(t *testing.T) {
+	loc := locrib.NewRIB()
+	rm := newRouteManager(&mockStaticBackend{})
+	rm.setLocRIB(loc, nil)
+
+	oldRoutes := []staticRoute{
+		fwd("10.0.0.0/8", "192.0.2.1"),
+		fwd("172.16.0.0/12", "192.0.2.1"),
+	}
+	newRoutes := []staticRoute{
+		fwd("10.0.0.0/8", "192.0.2.9"),
+		{Prefix: netip.MustParsePrefix("198.51.100.0/24"), Action: actionBlackhole},
+	}
+
+	var mu sync.Mutex
+	var current []staticRoute
+	if err := rm.applyRoutes(oldRoutes); err != nil {
+		t.Fatalf("committing the previous set: %v", err)
+	}
+	current = oldRoutes
+	before := staticLocRIBSnapshot(loc)
+	wantBefore := map[netip.Prefix]string{
+		netip.MustParsePrefix("10.0.0.0/8"):    "192.0.2.1",
+		netip.MustParsePrefix("172.16.0.0/12"): "192.0.2.1",
+	}
+	if !maps.Equal(before, wantBefore) {
+		t.Fatalf("the previous set reached the Loc-RIB as %v, want %v", before, wantBefore)
+	}
+
+	j, err := applyRouteSet(rm, &mu, &current, oldRoutes, newRoutes)
+	if err != nil {
+		t.Fatalf("applyRouteSet: %v", err)
+	}
+	applied := staticLocRIBSnapshot(loc)
+	wantApplied := map[netip.Prefix]string{
+		netip.MustParsePrefix("10.0.0.0/8"):      "192.0.2.9",
+		netip.MustParsePrefix("198.51.100.0/24"): netip.Addr{}.String(),
+	}
+	if !maps.Equal(applied, wantApplied) {
+		t.Fatalf("after apply the Loc-RIB holds %v, want the new set %v", applied, wantApplied)
+	}
+
+	if errs := j.Rollback(); len(errs) > 0 {
+		t.Fatalf("rollback: %v", errs)
+	}
+	if after := staticLocRIBSnapshot(loc); !maps.Equal(after, wantBefore) {
+		t.Errorf("after rollback the Loc-RIB holds %v, want the previous set %v", after, wantBefore)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !slices.EqualFunc(current, oldRoutes, func(a, b staticRoute) bool { return a.Prefix == b.Prefix }) {
+		t.Errorf("after rollback the plugin records %v as live, want the previous set", current)
+	}
+}
+
+// staticLocRIBSnapshot maps every IPv4 prefix the Loc-RIB holds to its best
+// path's next-hop, so two snapshots compare the whole installed set. The
+// prefixes are collected first and looked up after Iterate returns, because
+// Best takes the shard lock Iterate is holding.
+func staticLocRIBSnapshot(loc *locrib.RIB) map[netip.Prefix]string {
+	fam := familyOf(netip.MustParsePrefix("10.0.0.0/8"))
+	var prefixes []netip.Prefix
+	loc.Iterate(fam, func(prefix netip.Prefix, _ locrib.PathGroup) bool {
+		prefixes = append(prefixes, prefix)
+		return true
+	})
+	snapshot := map[netip.Prefix]string{}
+	for _, prefix := range prefixes {
+		if best, ok := loc.Best(fam, prefix); ok {
+			snapshot[prefix] = best.NextHop.String()
+		}
+	}
+	return snapshot
 }

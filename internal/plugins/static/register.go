@@ -318,31 +318,8 @@ func runStaticPlugin(conn net.Conn) int {
 			return nil
 		}
 
-		j := sdk.NewJournal()
-		err := j.Record(
-			func() error {
-				if applyErr := rm.applyRoutes(newRoutes); applyErr != nil {
-					return fmt.Errorf("static routes apply: %w", applyErr)
-				}
-				mu.Lock()
-				currentRoutes = newRoutes
-				mu.Unlock()
-				logger().Info("static routes reloaded")
-				return nil
-			},
-			func() error {
-				if applyErr := rm.applyRoutes(oldRoutes); applyErr != nil {
-					return fmt.Errorf("static routes rollback: %w", applyErr)
-				}
-				mu.Lock()
-				currentRoutes = oldRoutes
-				mu.Unlock()
-				logger().Info("static routes rolled back")
-				return nil
-			},
-		)
+		j, err := applyRouteSet(rm, &mu, &currentRoutes, oldRoutes, newRoutes)
 		if err != nil {
-			j.Rollback()
 			return err
 		}
 
@@ -410,6 +387,45 @@ func runStaticPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// applyRouteSet applies newRoutes and returns the journal whose undo re-applies
+// oldRoutes. The OnConfigRollback handler runs that undo when the transaction
+// aborts after this apply succeeded, so the Loc-RIB, and the FIB that follows
+// it, return to the set the previous transaction committed. current is the set
+// the plugin believes is live; each half records its own set there under mu.
+//
+// A failed apply is undone before returning, so the caller never holds a journal
+// for a set that was only partly applied.
+func applyRouteSet(rm *routeManager, mu *sync.Mutex, current *[]staticRoute, oldRoutes, newRoutes []staticRoute) (*sdk.Journal, error) {
+	j := sdk.NewJournal()
+	err := j.Record(
+		func() error {
+			if applyErr := rm.applyRoutes(newRoutes); applyErr != nil {
+				return fmt.Errorf("static routes apply: %w", applyErr)
+			}
+			mu.Lock()
+			*current = newRoutes
+			mu.Unlock()
+			logger().Info("static routes reloaded")
+			return nil
+		},
+		func() error {
+			if applyErr := rm.applyRoutes(oldRoutes); applyErr != nil {
+				return fmt.Errorf("static routes rollback: %w", applyErr)
+			}
+			mu.Lock()
+			*current = oldRoutes
+			mu.Unlock()
+			logger().Info("static routes rolled back")
+			return nil
+		},
+	)
+	if err != nil {
+		j.Rollback()
+		return nil, err
+	}
+	return j, nil
 }
 
 // commandDecls names the commands this plugin serves and states what each

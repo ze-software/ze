@@ -414,8 +414,8 @@ requires it to be measured RED.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Assigns 10.0.0.0/24 to an interface while a peer announces 10.0.0.0/24 | iface event -> connected -> Loc-RIB -> selectBest -> sysrib withdraw -> fib-kernel delete | `test/plugin/connected-distance-arbitration.ci` |
-| 2 | Writes `rib { distance { static 250 } }` and expects BGP to win a prefix both offer | config -> sysrib -> distance seam -> static stamp -> selectBest -> fib-kernel | `test/static/static-distance-loses-to-ebgp.ci` (system RIB winner); the kernel-entry read is OWED |
-| 3 | Configures a weighted two-next-hop static route and reads `ip route` | config -> static -> Loc-RIB path with weights -> sysrib -> rich route -> netlink multipath | OWED: no test reads the kernel multipath weights. Unit coverage only: `TestStaticPathCarriesWeightedNextHops`, `TestBestChangeCarriesTheDeclaredWeights` |
+| 2 | Writes `rib { distance { static 250 } }` and expects BGP to win a prefix both offer | config -> sysrib -> distance seam -> static stamp -> selectBest -> fib-kernel | `test/static/static-distance-loses-to-ebgp.ci` (system RIB winner) and `test/static/static-kernel-distance-bgp-wins.ci` (one kernel entry, proto 250, via the BGP next-hop) |
+| 3 | Configures a weighted two-next-hop static route and reads `ip route` | config -> static -> Loc-RIB path with weights -> sysrib -> rich route -> netlink multipath | `test/static/static-kernel-weighted-multipath.ci` (kernel hops carry weight 3 and weight 1, proto 250); unit `TestStaticPathCarriesWeightedNextHops`, `TestBestChangeCarriesTheDeclaredWeights` |
 | 4 | Configures a static route in table blue for policy routing | config -> static -> direct backend, unchanged | `test/static/static-named-table-unchanged.ci` (table 171, proto 251, absent from main and `show rib`) and `test/static/static-table-interface.ci` |
 | 5 | Runs `show rib` after an interface address is configured | connected path -> Loc-RIB -> sysrib `(*sysRIB).showRIB` | `TestOSInstalledWinnerStaysInTheSystemRIB` (calls `showRIB`) |
 | 6 | Runs the doctor after configuring a static route with an unresolvable interface | static resolution failure -> `rm.skipped` -> `static-route-skipped` | `test/static/static-per-route-isolation.ci` |
@@ -442,7 +442,7 @@ requires it to be measured RED.
 | `TestStaticStampsTheDeclaredDistance` | `internal/plugins/static/locrib_test.go` | AC-8, AC-9 at the producer | exists |
 | `TestNamedTableStaticRouteNeverReachesTheLocRIB` | `internal/plugins/static/locrib_test.go` | AC-10, R-5 | exists |
 | `TestStaticRefusesAnUnresolvableNextHopBeforeInsert` | `internal/plugins/static/locrib_test.go` | AC-15, A-6 | exists |
-| `TestStaticRollbackRestoresThePreviousPathSet` | `internal/plugins/static/register_test.go` | AC-16, A-7 | OWED: does not exist. `TestPendingSectionResetDropsAnAbortedTransaction` covers the pending-section reset, not the Loc-RIB holding the previous set |
+| `TestStaticRollbackRestoresThePreviousPathSet` | `internal/plugins/static/register_test.go` | AC-16, A-7 | exists. Drives `applyRouteSet` (the OnConfigApply body, extracted so the journal is testable) over a real `locrib.RIB`, then the journal's undo as OnConfigRollback runs it; asserts the Loc-RIB holds the previous set prefix by prefix. Red: undo re-applying the new set gives "after rollback the Loc-RIB holds map[10.0.0.0/8:192.0.2.9 198.51.100.0/24:invalid IP], want the previous set map[10.0.0.0/8:192.0.2.1 172.16.0.0/12:192.0.2.1]"; restored green |
 | `TestStaticBFDDownReinsertsTheSurvivingNextHop` | `internal/plugins/static/locrib_test.go` | AC-18 | exists |
 | `TestStaticBlackholeCarriesTheRouteType` | `internal/plugins/static/locrib_test.go` | AC-14 | exists |
 | `TestOnChangeCarriesBestPathECMP` with `TestBestChangeCarriesTheDeclaredWeights` | `internal/core/rib/locrib/locrib_test.go`, `internal/component/sysrib/sysrib_nexthop_detail_test.go` | the next-hop list is carry-through, and the weights reach the best-change | exists (planned as `TestPathCarriesWeightedNextHops`; no test asserts the weighted list is excluded from `key()`) |
@@ -472,27 +472,49 @@ requires it to be measured RED.
 | `connected-distance-arbitration` | `test/plugin/connected-distance-arbitration.ci` | a connected prefix outranks a BGP path and Ze programs nothing for it | |
 | `connected-distance-raised-loses` | `test/plugin/connected-distance-raised-loses.ci` | `rib { distance { connected 250 } }` hands the prefix back to BGP | |
 | `static-per-route-isolation` | `test/static/static-per-route-isolation.ci` | existing test, updated for the narrowed skip classes (AC-15) | updated in `1e3328ef53`: asserts fib-kernel's refused add for the kernel-unreachable gateway, rejects static's "route skipped" |
+| `static-kernel-distance-static-wins` | `test/static/static-kernel-distance-static-wins.ci` | `static 5`: the kernel holds exactly one entry for 10.0.0.0/8, proto 250, via the static next-hop (AC-9, AC-11) | green 2026-10-08; red recorded below |
+| `static-kernel-distance-bgp-wins` | `test/static/static-kernel-distance-bgp-wins.ci` | `static 250`: exactly one kernel entry in any table, proto 250, via the BGP next-hop (AC-8, AC-11) | green 2026-10-08; red recorded below |
+| `static-kernel-weighted-multipath` | `test/static/static-kernel-weighted-multipath.ci` | the kernel multipath entry carries `weight 3` and `weight 1` on its two hops, proto 250 (AC-12) | green 2026-10-08; red recorded below |
+| `static-kernel-interface-nexthop` | `test/static/static-kernel-interface-nexthop.ci` | an interface-only route leaves by `dev zentk`, proto 250, with no gateway (AC-13) | green 2026-10-08; red recorded below |
 
 ### QEMU Integration Tests (Linux-only paths, `ai/rules/platform-linux.md`)
-| Test | Location | What it reads from the kernel | Status |
-|------|----------|-------------------------------|--------|
-None of the five Go tests planned here exists under any name (checked 2026-10-08:
-no `func TestQEMU` in the static, connected, sysrib or fib-kernel packages). Two
-behaviors are covered by `.ci` tests that read the kernel under CAP_NET_ADMIN and
-run in the QEMU guest through `./le test qemu`; three are OWED.
+
+None of the five Go tests planned here exists under its planned name (checked
+2026-10-08: no `func TestQEMU` in the static, connected, sysrib or fib-kernel
+packages). Every planned behavior is covered by a `.ci` test that reads the
+installed kernel state under CAP_NET_ADMIN, which runs in the QEMU guest through
+`./le test qemu` and was run here inside an unprivileged user network namespace
+(`unshare -rn`, which grants CAP_NET_ADMIN over a private stack, no root).
 
 | Planned test | Covered by | What it reads from the kernel | Status |
 |------|----------|-------------------------------|--------|
-| `TestQEMUStaticDistanceDecidesAgainstBGP` | nothing at kernel level; `test/static/static-distance-{beats,loses}-ebgp.ci` read the system RIB winner only | one entry for the prefix, `proto 250`, next-hop matching the winner the distance selects | OWED |
+| `TestQEMUStaticDistanceDecidesAgainstBGP` | `test/static/static-kernel-distance-{static,bgp}-wins.ci` | exactly one entry for the prefix across all tables, `proto 250`, via the next-hop of the winner the distance selects | covered |
 | `TestQEMUConnectedBeatsBGPForTheSamePrefix` | `test/plugin/connected-distance-arbitration.ci` | the prefix is won by connected and Ze programmed nothing for it (`ze-programmed=no`) | covered |
-| `TestQEMUStaticWeightedMultipath` | nothing at kernel level; unit `TestStaticPathCarriesWeightedNextHops`, `TestBestChangeCarriesTheDeclaredWeights` | a multipath route whose hop weights match the config | OWED |
-| `TestQEMUStaticInterfaceNextHop` | nothing at kernel level for a main-table interface-only route; unit `TestECMPPathCarriesTheInterface`; `test/static/static-table-interface.ci` reads `show static`, not the oif | the route's oif is the configured interface's index | OWED |
+| `TestQEMUStaticWeightedMultipath` | `test/static/static-kernel-weighted-multipath.ci` | `nexthop via 192.0.2.1 dev zentk weight 3` and `nexthop via 192.0.2.3 dev zentk weight 1`, proto 250 | covered |
+| `TestQEMUStaticInterfaceNextHop` | `test/static/static-kernel-interface-nexthop.ci` | `198.18.74.0/24 dev zentk proto 250`, no `via` | covered |
 | `TestQEMUNamedTableStaticUnchanged` | `test/static/static-named-table-unchanged.ci` | table 171 holds the route as proto 251 via the gateway; the main table and `show rib` do not | covered |
 
-AC-11 (the distance-selection test red on the pre-change tree) is not recorded:
-it needs the kernel-level `TestQEMUStaticDistanceDecidesAgainstBGP`, which does
-not exist, run against a build of the tree before `125979ea99` (static main-table
-routes reach the FIB through the Loc-RIB). OWED with it.
+Discrimination, each run 2026-10-08 under `unshare -rn` with a pristine copy saved
+first and restored after (no `MUTATION-APPLIED` left in the tree):
+
+| Test | Break applied to the producer | Red observed | Restored |
+|------|-------------------------------|--------------|----------|
+| `static-kernel-distance-bgp-wins` (AC-11) | `staticRoute.inMainTable` returns false, so main-table routes take the static plugin's own netlink write: the behavior before `125979ea99` | `10.0.0.0/8 won by bgp: want exactly one kernel entry, proto 250 via 198.51.100.1; ip route show table all: ["10.0.0.0/8 via 192.0.2.1 dev zentk proto 251"]`: BGP won the system RIB and the kernel forwarded on the static route anyway | green |
+| `static-kernel-distance-static-wins` (AC-11) | same break | `10.0.0.0/8: system RIB winner is "bgp", want "static"` | green |
+| `static-kernel-weighted-multipath` (AC-12) | `staticPath` stamps weight 1 on every hop | `ip route: "198.18.73.0/24 proto 250 nexthop via 192.0.2.1 dev zentk weight 1 nexthop via 192.0.2.3 dev zentk weight 1"` | green |
+| `static-kernel-interface-nexthop` (AC-13) | `staticPath` drops `Interface` from the path | `198.18.74.0/24: want a proto 250 entry out of dev zentk; ip route: ""` | green |
+
+AC-11's literal wording asks for a run on the tree before `125979ea99`. That tree
+was not checked out; the break above reproduces its producer behavior (the
+direct RTPROT_STATIC write for main-table routes) on the current tree, which is
+the condition the commit's fix removed.
+
+Load note: `static-kernel-weighted-multipath` reached the 30s `.ci` timeout twice
+(no observer output, the daemon had not logged "static routes loaded") at load
+average 10-16, and passed in every other run (3.6s to 14.5s), including when run
+directly after `static-kernel-interface-nexthop`. Same intermittent startup-under-
+load pattern recorded for the other static tests; a stress-repro on a quiet host
+is owed with the static gate.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -832,17 +854,17 @@ what is missing is said in the row rather than left to a later pass.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| `static` decides a route-install outcome: one number changes and the prefix changes hands | functional | `test/static/static-distance-beats-ebgp.ci` and `static-distance-loses-to-ebgp.ci` differ only in the declared distance and expect opposite winners in `show rib`; both green under `unshare -rn` on 2026-10-08. MISSING: the kernel half (one `proto 250` entry whose next-hop is the winner's) has no test, and AC-11's pre-change red is not recorded |
+| `static` decides a route-install outcome: one number changes and the prefix changes hands | functional | `test/static/static-distance-beats-ebgp.ci` and `static-distance-loses-to-ebgp.ci` differ only in the declared distance and expect opposite winners in `show rib`; both green under `unshare -rn` on 2026-10-08. Kernel half: `test/static/static-kernel-distance-static-wins.ci` and `static-kernel-distance-bgp-wins.ci` read exactly one kernel entry, proto 250, via the winner's next-hop. AC-11 red: with main-table routes sent back through static's direct write (the pre-`125979ea99` producer), bgp-wins reads `10.0.0.0/8 via 192.0.2.1 dev zentk proto 251` while BGP holds the system RIB, and static-wins reads winner "bgp"; restored green |
 | `connected` decides a route-install outcome: a connected prefix at distance 0 wins and Ze programs nothing the kernel already holds | functional + unit | `test/plugin/connected-distance-arbitration.ci` ("won by connected, ze-programmed=no", read from the kernel), `test/plugin/connected-distance-raised-loses.ci` (distance 250 hands it back to BGP); `TestOSInstalledWinnerWithdrawsTheZeRoute`, `TestOSInstalledWinnerEmitsNothingWhenNothingWasProgrammed`, `TestOSInstalledLoserLeavesTheZeRouteProgrammed` |
 | One writer programs the kernel for main-table static routes | functional | `test/static/static-named-table-unchanged.ci` waits for the main-table static route as `proto 250` (fib-kernel's stamp, not static's 251) before its assertions; `test/static/static-per-route-isolation.ci` (`1e3328ef53`) shows a kernel-refused main-table route surfacing as fib-kernel's "add route failed", not as static's skip |
 | Named tables keep the direct write and stay out of the Loc-RIB (main-table scope boundary) | functional, red proven | `test/static/static-named-table-unchanged.ci` (`5828b35d10`): table 171 holds the route as proto 251, main table and `show rib` do not. Red 1: `inMainTable()` forced true gives "never reached table 171". Red 2: named route inserted into the Loc-RIB gives "leaked into the main table ... proto 250" |
-| Weighted multipath and interface-only next-hops survive the relocation (AC-12, AC-13) | unit only | `TestStaticPathCarriesWeightedNextHops`, `TestBestChangeCarriesTheDeclaredWeights`, `TestECMPPathCarriesTheInterface`. MISSING: no test reads the kernel multipath weights or the oif |
-| A failed transaction leaves the Loc-RIB on the previous set (AC-16, A-7) | none | MISSING: `TestStaticRollbackRestoresThePreviousPathSet` does not exist |
+| Weighted multipath and interface-only next-hops survive the relocation (AC-12, AC-13) | functional, red proven + unit | `test/static/static-kernel-weighted-multipath.ci` (kernel hops `weight 3` and `weight 1`; red with weights stamped 1: both hops `weight 1`), `test/static/static-kernel-interface-nexthop.ci` (`dev zentk proto 250`, no gateway; red with the interface dropped: no kernel entry); unit `TestStaticPathCarriesWeightedNextHops`, `TestBestChangeCarriesTheDeclaredWeights`, `TestECMPPathCarriesTheInterface` |
+| A failed transaction leaves the Loc-RIB on the previous set (AC-16, A-7) | unit, red proven | `TestStaticRollbackRestoresThePreviousPathSet` (`internal/plugins/static/register_test.go`) over a real `locrib.RIB`: after the journal's undo the Loc-RIB holds the previous set prefix by prefix. Red with the undo re-applying the new set. The kernel half of AC-16 is not read by a rollback-specific test: it rests on the FIB plugin being the single writer of Loc-RIB winners, which the kernel tests above prove |
 
-Ready for independent closure: NO. Owed before `/ze-close`: the kernel-level
-static-distance test with its AC-11 red on the tree before `125979ea99`, the
-weighted-multipath and interface-oif kernel reads (AC-12, AC-13), and the AC-16
-rollback test.
+Ready for independent closure: YES for the owed tests (2026-10-08). Gates still
+owed by the main thread: `./le test static -a` under net-admin on a quiet host or
+the QEMU guest (`./le test qemu`), and a stress-repro of
+`static-kernel-weighted-multipath`, which timed out twice at load average 10-16.
 
 ## Review Gate
 
