@@ -25,6 +25,8 @@ func TestOwnerPrefixFollowsThePackage(t *testing.T) {
 		{"github.com/ze-software/ze/internal/plugins/ospf", "ze-ospf"},
 		{"github.com/ze-software/ze/internal/plugins/host-cmd/cmd", "ze-host"},
 		{"github.com/ze-software/ze/internal/plugins/anomaly/detect", "ze-anomaly"},
+		{"github.com/ze-software/ze/internal/test/plugins/fakel2tp/yang", "ze-test-fakel2tp"},
+		{"github.com/ze-software/ze/internal/test/plugins/fakeredist", "ze-test-fakeredist"},
 	}
 	for _, tc := range cases {
 		got, err := OwnerPrefix(tc.pkg)
@@ -43,6 +45,8 @@ func TestOwnerPrefixFollowsThePackage(t *testing.T) {
 		"github.com/ze-software/ze/internal/component",
 		"github.com/ze-software/ze/internal/core/ipc",
 		"github.com/ze-software/ze/internal/plugins/-cmd",
+		"github.com/ze-software/ze/internal/test/plugins",
+		"github.com/ze-software/ze/internal/test/fixture",
 		"example.com/other/internal/component/bgp",
 	} {
 		got, err := OwnerPrefix(pkg)

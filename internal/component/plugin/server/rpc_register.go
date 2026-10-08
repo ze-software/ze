@@ -39,15 +39,17 @@ var ErrNoOwnerPrefix = errors.New("package lives under no subsystem root")
 // directory directly under internal/component/ or internal/plugins/, with a
 // "-cmd" suffix dropped, because internal/plugins/<x>-cmd is the command
 // provider of subsystem x. A package nested deeper takes its root's prefix, so
-// every BGP plugin under internal/component/bgp/ declares ze-bgp. There is no
-// table: a new subsystem owns its prefix by existing, and no package can spell
+// every BGP plugin under internal/component/bgp/ declares ze-bgp. A fake
+// plugin under internal/test/plugins/<x> owns "ze-test-<x>": the "test-" keeps
+// a fake from ever spelling a real subsystem's prefix. There is no table: a
+// new subsystem owns its prefix by existing, and no package can spell
 // another's (spec-rpc-published-name-does-not-reach-its-handler, AC-10).
 func OwnerPrefix(pkg string) (string, error) {
 	rel, ok := strings.CutPrefix(pkg, zeModulePath)
 	if !ok {
 		return "", fmt.Errorf("%w: %q", ErrNoOwnerPrefix, pkg)
 	}
-	parts := strings.SplitN(rel, "/", 4)
+	parts := strings.SplitN(rel, "/", 5)
 	if len(parts) < 3 {
 		return "", fmt.Errorf("%w: %q", ErrNoOwnerPrefix, pkg)
 	}
@@ -60,11 +62,29 @@ func OwnerPrefix(pkg string) (string, error) {
 		subsystem = parts[2]
 	case "plugins":
 		subsystem = strings.TrimSuffix(parts[2], "-cmd")
+	case "test":
+		subsystem = testPluginSubsystem(parts)
 	}
 	if subsystem == "" {
 		return "", fmt.Errorf("%w: %q", ErrNoOwnerPrefix, pkg)
 	}
 	return "ze-" + subsystem, nil
+}
+
+// testPluginSubsystem answers "test-<x>" for a package under
+// internal/test/plugins/<x>, and "" for any other package under internal/test,
+// which owns no prefix.
+func testPluginSubsystem(parts []string) string {
+	if len(parts) < 4 {
+		return ""
+	}
+	if parts[2] != "plugins" {
+		return ""
+	}
+	if parts[3] == "" {
+		return ""
+	}
+	return "test-" + parts[3]
 }
 
 // ProcessCleanupFunc is called when a plugin process exits.

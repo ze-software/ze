@@ -20,7 +20,7 @@ upper bound.";
 
         container emit {
             config false;
-            ze:command "ze-fakeredist-api:fakeredist-emit";
+            ze:command "ze-test-fakeredist:emit";
             ze:rpc "ze-fakeredist-api:fakeredist-emit";
             description "The arguments are 'add' or 'remove', an address family, a prefix, and an
 optional next hop. The batch carries one entry. The answer carries 'delivered',
@@ -30,7 +30,7 @@ the number of consumers that received it.";
 
         container emit-burst {
             config false;
-            ze:command "ze-fakeredist-api:fakeredist-emit-burst";
+            ze:command "ze-test-fakeredist:emit-burst";
             ze:rpc "ze-fakeredist-api:fakeredist-emit-burst";
             description "The arguments are the count, 'add' or 'remove', an address family, and a base
 prefix. The count MUST be a positive integer no larger than 1000000. Each step
@@ -41,7 +41,7 @@ distinct prefixes.";
 
         container consume {
             config false;
-            ze:command "ze-fakeredist-api:fakeredist-consume";
+            ze:command "ze-test-fakeredist:consume";
             ze:rpc "ze-fakeredist-api:fakeredist-consume";
             description "The argument is the destination name to register under. It MUST differ from
 'fakeredist', because a protocol is never redistributed into itself. Registering
@@ -52,7 +52,7 @@ repair.";
 
         container consumed {
             config false;
-            ze:command "ze-fakeredist-api:fakeredist-consumed";
+            ze:command "ze-test-fakeredist:consumed";
             ze:rpc "ze-fakeredist-api:fakeredist-consumed";
             description "The argument is the destination name. The answer carries 'prefixes', the
 sorted prefix list the consumer was given, and 'count'.";
@@ -61,7 +61,7 @@ sorted prefix list the consumer was given, and 'count'.";
 
         container help {
             config false;
-            ze:command "ze-fakeredist-api:fakeredist-help";
+            ze:command "ze-test-fakeredist:help";
             ze:rpc "ze-fakeredist-api:fakeredist-help";
             description "The answer is the two usage lines of the plugin: 'fakeredist emit add|remove
 <family> <prefix> [<nexthop>]' and 'fakeredist emit-burst <N> add|remove

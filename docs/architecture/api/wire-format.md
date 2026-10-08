@@ -65,6 +65,11 @@ owner is the package that registered the node's YANG module: `RegisterModule`
 stamps the caller's package the same way, and `OwnerPrefix` applies the same
 rule to it. `ze-env-cmd.yang` is registered from `internal/plugins/env/yang`, so
 its nodes declare `ze-env:`.
+
+A fake plugin under `internal/test/plugins/<x>` owns `ze-test-<x>:`, so
+`ze-fakel2tp-cmd.yang` declares `ze-test-fakel2tp:emit`. The `test-` keeps a
+fake from ever taking a real subsystem's prefix, and every other package under
+`internal/test/` owns none.
 <!-- source: internal/component/plugin/server/rpc_register.go -- RegisterRPCs, OwnerPrefix -->
 <!-- source: internal/component/config/yang/register.go -- RegisterModule, ModuleRegistrar -->
 <!-- source: internal/le/doc/yangcontract/contract.go -- foreignPrefixes, foreignCommandPrefixes -->
