@@ -194,8 +194,9 @@ func lineAt(lines []string, index int) string {
 // The published mirror linked reference/feature-status/configuration/, which
 // the site has never published: the retired build's legacy-URL rewriting
 // matched the features.md prefix and rewrote a path it did not own. The
-// published page linked docs/features/configuration/, which is a redirect stub
-// onto features/bgp-configuration/. One target, and it resolves.
+// published page linked docs/features/configuration/, which was a redirect stub
+// onto features/bgp-configuration/ and is retired with the other legacy URLs.
+// One target, and it resolves.
 func TestTheGuideLinkResolvesOnBothSurfaces(t *testing.T) {
 	paths := configurationPaths(t)
 	if _, err := renderConfiguration(paths); err != nil {

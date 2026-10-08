@@ -75,7 +75,7 @@ const (
 //
 // ONE model, written by publishSiteFacts and read by llmsdata.go, docpage.go
 // and home.go. Two models of one file drift apart, which is what phase 6 of
-// plan/spec-site-renderers-in-go.md removed for features.json and
+// spec-site-renderers-in-go removed for features.json and
 // dependencies.json.
 //
 // The fields are declared in the alphabetical order of their JSON keys,

@@ -361,7 +361,7 @@ Row 126's ledger finding is an `rfc/short/rfc7947.md` correction owed under
 | R-5 | Another session edits `docs/features.md` between now and Phase 3, so the migration drops a hand edit | `git log docs/features.md` after the audit date | Phase 3 starts by diffing the table against the seed and carrying any new row or prose |
 | R-6 | Description prose moved verbatim carries `<!-- source: -->` anchors whose doc-to-code index (`ai/CODE-TO-DOCS.md`) changes owner from `docs/features.md` to `features/<id>.md` | `./le doc index check` diff | regenerate the index in the same change; anchors stay valid |
 | R-7 | The site's 52 cards do not map cleanly to 131 declarations | cards with no matching declaration | a card names one or more ids; a card naming none is refused, so the gap is found at build |
-| R-8 | `internal/le/site` features producer is owned by an in-progress spec (`plan/pre-release/spec-site-renderers-in-go.md`) | overlapping edits to `datapages.go` | Phase 4 starts after that spec closes, or coordinates through its owner |
+| R-8 | `internal/le/site` features producer is owned by an in-progress spec (spec-site-renderers-in-go, closed 2026-10-08) | overlapping edits to `datapages.go` | Phase 4 starts after that spec closes, or coordinates through its owner |
 
 ## Blast Radius
 
@@ -369,7 +369,7 @@ Row 126's ledger finding is an `rfc/short/rfc7947.md` correction owed under
 |----------|--------|
 | What breaks if this is wrong? | nothing in the daemon; the public feature page and site count could publish a wrong level or fail to build |
 | How is it reverted? | single commit revert per phase; the hand table returns from history |
-| Who else touches this path? | any session adding a feature row, the weekly update procedure, `internal/le/site` work (`plan/pre-release/spec-site-renderers-in-go.md`, in-progress) |
+| Who else touches this path? | any session adding a feature row, the weekly update procedure, `internal/le/site` work (spec-site-renderers-in-go, closed 2026-10-08; its design lives in `website/AI.md`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

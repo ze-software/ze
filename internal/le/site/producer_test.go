@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -156,9 +155,6 @@ func TestCheckRefusesAPublishedRouteWithNoProducer(t *testing.T) {
 	}
 	if !coverage.Red() {
 		t.Fatal("an unclaimed route left the coverage green")
-	}
-	if !strings.Contains(coverage.Spec, "spec-site-renderers-in-go") {
-		t.Fatalf("coverage names %q, want the spec that owns this red", coverage.Spec)
 	}
 	if exit := (checkReport{Coverage: coverage}).exit(); exit == 0 {
 		t.Fatal("a check with an unclaimed route exited zero")

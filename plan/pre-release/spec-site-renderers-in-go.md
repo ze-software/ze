@@ -419,7 +419,7 @@ and its carry-over are untouched.
 | `./le site build` | → | `producers()` registry iterated by `Build` | `TestBuildRunsEveryRegisteredProducer` |
 | `./le site check` | → | the published-route coverage check | `TestCheckRefusesAPublishedRouteWithNoProducer` |
 | a `docs/*.md` source | → | the docs producer through the shared shell | `TestDocsProducerRendersAManifestRoute` |
-| `website/data/features.json` | → | the features producer | `TestFeaturesProducerRendersEveryCard` |
+| `website/data/features.json` | → | the features producer | `TestFeaturesProducerDerivesCardState` (`internal/le/site/datapages_test.go`, calls `renderFeatures`; the planned name `TestFeaturesProducerRendersEveryCard` was never written) |
 
 ## Acceptance Criteria
 
@@ -518,9 +518,9 @@ and its carry-over are untouched.
 | `TestBlogPostsSharingADateOrderByFilename` | `internal/le/site/blog_test.go` | AC-7, the tie order a Go port loses | pass |
 | `TestAnUndatedArticleSortsLastAndStaysOutOfTheFeed` | `internal/le/site/blog_test.go` | AC-7, an article with no date | pass |
 | `TestAnArticleAPageCannotBeMadeFromIsRefused` | `internal/le/site/blog_test.go` | AC-7, no title, no author, a date that is not a date | pass |
-| `TestABlogArticleReadsAsThePublishedArticle` | `internal/le/site/blog_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
+| `TestABlogArticleRendersItsAuthoredInputs` | `internal/le/site/blog_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
 | `TestAnArticlePageCarriesItsHeroIllustrationAndContents` | `internal/le/site/blog_test.go` | AC-3, the blocks around the body | pass |
-| `TestTheBlogIndexReadsAsThePublishedIndex` | `internal/le/site/blog_test.go` | AC-3, AC-5, AC-7 | pass |
+| `TestTheBlogIndexRendersItsAuthoredInputs` | `internal/le/site/blog_test.go` | AC-3, AC-5, AC-7 | pass |
 | `TestAnIndexCardTakesTheToneAtItsPosition` | `internal/le/site/blog_test.go` | AC-7, the presentation cycle | pass |
 | `TestTheBlogFeedCarriesEveryDatedArticle` | `internal/le/site/blog_test.go` | AC-7, AC-16's blog feed | pass |
 | `TestARetiredArticleLosesItsPage` | `internal/le/site/blog_test.go` | AC-2, a producer removes what it stops owning | pass |
@@ -529,9 +529,9 @@ and its carry-over are untouched.
 | `TestAnUnknownTagFamilyIsRefused` | `internal/le/site/changes_test.go` | AC-7, a chip cannot launder a typo | pass |
 | `TestANamespacedTagIsClassifiedByItsFamilyAndShownInFull` | `internal/le/site/changes_test.go` | AC-7, the neutral chip | pass |
 | `TestADraftWeekIsPublishedAndKeptOutOfTheFeed` | `internal/le/site/changes_test.go` | AC-7, the draft split | pass |
-| `TestAWeekReadsAsThePublishedWeek` | `internal/le/site/changes_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
+| `TestAWeekRendersItsAuthoredInputs` | `internal/le/site/changes_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
 | `TestAListWrittenUnderItsParagraphGetsItsBlankLine` | `internal/le/site/changes_test.go` | AC-5, the mirror a chat-written list reaches | pass |
-| `TestTheChangesIndexReadsAsThePublishedIndex` | `internal/le/site/changes_test.go` | AC-3, AC-5, AC-7 over all 37 weeks | pass |
+| `TestTheChangesIndexRendersItsAuthoredInputs` | `internal/le/site/changes_test.go` | AC-3, AC-5, AC-7 over all 37 weeks | pass |
 | `TestTheCategoryLegendKeepsItsDeclaredOrder` | `internal/le/site/changes_test.go` | AC-7, no output order comes from a Go map | pass |
 | `TestTheChangesIndexFileIsNewestFirst` | `internal/le/site/changes_test.go` | AC-7, `data/changes.json` | pass |
 | `TestTheChangesFeedIsPublishedAtBothAddresses` | `internal/le/site/changes_test.go` | AC-7, AC-16's two changes feeds | pass |
@@ -612,7 +612,7 @@ and its carry-over are untouched.
 | `TestTheRFCComplianceMirrorReadsAsThePublishedMirror` | `internal/le/site/rfccompliance_test.go` | AC-5 | pass |
 | `TestTheComplianceSnapshotIsPublishedBesideThePage` | `internal/le/site/rfccompliance_test.go` | AC-16, `data/rfc-compliance.json` | pass |
 | `TestTheRFCComplianceProducerClaimsItsPublishedRoute` | `internal/le/site/rfccompliance_test.go` | AC-1, 1 of 712 | pass |
-| `TestEveryAnnotationKindTheCorpusCarriesHasABucket` | `internal/le/site/rfccompliance_test.go` | AC-10, a fourth kind cannot fall in no bucket | pass |
+| `TestEveryAnnotationKindHasABucket` | `internal/le/site/rfccompliance_test.go` | AC-10, a fourth kind cannot fall in no bucket | pass |
 | `TestTheGateSnapshotAgreesWithItself` | `internal/le/site/rfccompliance_test.go` | AC-10, the live collector's own arithmetic | pass |
 | `TestEachGatedRequirementFallsInTheBucketItsEvidencePutsItIn` | `internal/le/site/rfccompliance_test.go` | AC-10, one polarity is not a pair | pass |
 | `TestTheGapDisclosureOrdersStatusesAndBoundsTheClusters` | `internal/le/site/rfccompliance_test.go` | AC-10, the three orderings a Go port loses | pass |
@@ -633,8 +633,8 @@ and its carry-over are untouched.
 | `TestEveryDisplayFigureIsTheRoundingOfTheNumberBesideIt` | `internal/le/site/facts_test.go` | AC-11, the pair cannot disagree | pass |
 | `TestTheRFCFiguresArePrintedExactly` | `internal/le/site/facts_test.go` | AC-11, the gate compares these numbers | pass |
 | `TestThisCheckoutCanAnswerEveryPublishedFact` | `internal/le/site/facts_test.go` | AC-11, this tree can publish its own numbers | pass |
-| `TestTheHomepageReadsAsThePublishedHomepage` | `internal/le/site/home_test.go` | AC-3, AC-4, rendered parity over the whole body | pass |
-| `TestTheHomepageProofStripCarriesItsSixStatSpans` | `internal/le/site/home_test.go` | AC-4, the six numbers and the keys they name | pass |
+| `TestTheHomepageLinksItsGeneratedNews` | `internal/le/site/home_test.go` | AC-3, AC-4, rendered parity over the whole body | pass |
+| `TestTheHomepageProofStripCarriesItsStatSpans` | `internal/le/site/home_test.go` | AC-4, the six numbers and the keys they name | pass |
 | `TestAFactTheSnapshotLostStopsTheHomepage` | `internal/le/site/home_test.go` | AC-11, a blank where a number belongs is refused | pass |
 | `TestTheHomepageCardsKeepTheDataFilesOwnOrder` | `internal/le/site/home_test.go` | AC-8, both grids in the author's order | pass |
 | `TestTheFeatureCategoryLinksFollowThePagesOwnOrder` | `internal/le/site/home_test.go` | AC-8, no output order comes from a Go map | pass |
@@ -1254,3 +1254,140 @@ and its carry-over are untouched.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/le/site`: a producer registry (`registerProducer`, `allProducers`, `renderProducers`) that `Build` iterates, the route-coverage and named-artifact checks behind `./le site check`, one shared shell, the goldmark pipeline, mirrors, and 22 producers (docs, authored pages, blog, changes, data pages, plugins, config, health, RFC compliance, homepage, commands, llms.txt and llms-full.txt, wiki index, search, sitemap, robots, facts).
+- Closing commits before this review: 5c8f1a33de (redirect producer, rewrite and legacy table deleted under the 2026-10-08 decision), 8cb45c9756 (facts carry, `TestASecondBuildChangesNothing`, `TestBuildRendersEveryPublishedRoute`), 2ee3a59bae (cleanProse keeps a link address whole), 330e017757 (features fixture), e490688d7c (RFC pages drop authoring comments, render closed emphasis), 5e8af797a3 and a433cb8741 (command-reference table, AC-14 pair).
+
+### Bugs Found/Fixed
+- Closure review: `pageRegistry` still skipped any page carrying a meta refresh (`isRedirectPage`, `internal/le/site/pages.go`) after the redirect producer was deleted. A stub carried by the seed was then invisible to the coverage, mirror, sitemap and llms-full passes, and would publish forever on the seed alone. Fixed by deleting the skip; `TestPageRegistryAndMirrorCheck` now asserts the stub is a route owing a mirror (red with the skip restored: the registry returned two pages, not three).
+- Closure review: `Coverage.Spec` named this spec on every coverage red. Its own contract was "while that work is open"; it is deleted with the spec (`test/weakened/450bc92b.md`).
+
+### Documentation Updates
+- `website/AI.md` carries the facts carry and the RFC renderer behavior (e490688d7c). The two closure fixes change no documented behavior: `grep -n -i redirect website/AI.md docs/contributing/gh-pages.md` returns nothing.
+
+### Deviations from Plan
+- AC-12 withdrawn by owner decision 2026-10-08; `redirect.go` is not created and its tests are deleted.
+- The planned `quality.go` became `health.go` and `rfccompliance.go`. Seven planned test names were renamed by f8ebafe083, 8af5c14f85 and 0f2063c6d1; the TDD table now names the current tests. The Wiring Test row named `TestFeaturesProducerRendersEveryCard`, which was never written; it names `TestFeaturesProducerDerivesCardState`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The redirect deletion removed the producer and its table but kept the route-discovery skip that existed only for its stubs | A guard for a deleted producer becomes an exemption: it hides seeded pages from every check | closure review, removed-behavior audit of 5c8f1a33de | skip deleted, test asserts the stub is a route |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every published page generated from its source by `./le site build` | Done | `internal/le/site/build.go` `Build`, `producer.go` `renderProducers` | `TestBuildRendersEveryPublishedRoute` |
+| Rendered parity with `../gh-pages` | Done | per-family parity tests | see Goal Validation |
+| Redirect stubs and legacy rewriting | Changed | deleted (5c8f1a33de) | owner decision 2026-10-08 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-1a | Done | `TestCheckRefusesAPublishedRouteWithNoProducer` | |
+| AC-2 | Done | `TestBuildRunsEveryRegisteredProducer`, `TestBuildRendersEveryPublishedRoute` | |
+| AC-3 | Done | `TestShellCarriesEveryChromeElement` | |
+| AC-4 | Done | `TestMarkdownReadsTheSameAsThePublishedPage` | |
+| AC-5 | Done | `TestMirrorConvertsBackWhenTheSourceHoldsBlockHTML` | |
+| AC-6 | Done | `TestTheCLIReferencePageCarriesTheFullSiteShell` | |
+| AC-7 | Done | `TestBlogPostsSharingADateOrderByFilename` | |
+| AC-8 | Done | `TestTheFeaturesPageKeepsTheDataFilesOwnOrder` | |
+| AC-9 | Done | `TestPluginCatalogCarriesTheFieldsThePageShows` | |
+| AC-10 | Done | `TestRenderAnswersTheArtifactsAndTheVocabularyThatReadsThem` | |
+| AC-11 | Done | `TestTheFactsSnapshotStatesEveryKeyTheContractNames` | |
+| AC-12 | Changed | withdrawn | owner decision 2026-10-08 |
+| AC-13 | Done | `TestTheSitemapListsEveryPublishedPage` | |
+| AC-14 | Done | `TestASecondBuildChangesNothing`, real pair C/D | Goal Validation |
+| AC-15, AC-15a..d | Done | `TestLLMSFullCarriesEveryPublishedMirror`, `TestLLMSFullPutsEvaluationBeforeUsage`, `TestLLMSFullRefusesAnUnsectionedPage`, `TestLLMSFullRefusesAnEmptySection` | |
+| AC-16 | Done | `TestCheckRefusesAMissingNamedArtifact` | |
+| AC-17, AC-17a..c | Done | `TestTheWikiSectionReferencesTheWikiRatherThanRepublishingIt`, `TestTheBuildReadsTheCommittedWikiIndexAndNeverTheCheckout`, `TestTheWikiIndexRefusesAPageTheSidebarDoesNotList` | |
+| AC-18 | Done | `TestAnAssetEditReachesTheArtifact` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 232 rows in the TDD table | Done | `internal/le/site/*_test.go` | every name resolves to a `func` except the four AC-12 rows deleted or removed by decision |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `producer.go`, `shell.go`, `markdown.go`, `mirror.go`, `nav.go`, `docs.go`, `blog.go`, `changes.go`, `datapages.go`, `plugins.go`, `config.go`, `home.go`, `derived.go` | Done | present |
+| `quality.go` | Changed | `health.go`, `rfccompliance.go` |
+| `redirect.go` | Changed | withdrawn, AC-12 |
+
+### Audit Summary
+- **Total items:** 25 AC rows, 3 task requirements
+- **Done:** all but AC-12
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-12 (owner decision), `quality.go` split, test renames (Deviations)
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none in scope | AC-12 was withdrawn by the owner, not left undone | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/site-renderers-in-go-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` (8 files, verdict clean) |
+| `./le spec review check` | OK (6 code files, clean, hashes match) |
+| Rounds | 2 |
+| Reviewer lenses used | removed-behavior audit of the redirect deletion; facts carry (stale stamp over changed facts); cleanProse tag masking and the RFC renderer (escaping order, injection); citers; style pass over the changed Go |
+
+Round 1 answers to the four questions put to the review:
+- Facts carry: `previousFactsAt` re-renders the new facts with only `generated_at` and `published_at` taken from the previous file and requires byte equality with it, so any other changed field publishes the new file and stamp. No stale stamp survives changed facts.
+- cleanProse: it masks tags and character references in goldmark output of repository docs and restores them verbatim; it adds no markup, and goldmark escapes text `<`, so no tag can be forged from text.
+- RFC renderer: `rfcAuthoringNotesRemoved` strips comments from the raw text, `rfcProseHTML` splits on `**` and every run goes through `rfcProseSpansHTML` (`html.EscapeString`) before `<strong>` wraps it; the subject goes through `html.EscapeString(requirement.Subject())`. Text is escaped before emphasis markup is added.
+- Redirect deletion: no route, sitemap entry or producer names a redirect; the one leftover was the `isRedirectPage` skip (finding 1).
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | route discovery still skipped meta-refresh pages after the redirect producer was deleted, so a seeded stub escaped every check and published on the seed alone | `internal/le/site/pages.go` `pageRegistry`, `isRedirectPage` | skip deleted; `TestPageRegistryAndMirrorCheck` red with it restored, green after |
+| 2 | ISSUE | `Coverage.Spec` would name a deleted spec on every future coverage red | `internal/le/site/producer.go` `coverageSpec` | field and constant deleted, assertion removed (`test/weakened/450bc92b.md`) |
+
+NOTEs (no round): the spec's TDD and Wiring tables named seven renamed tests and one never-written test (corrected here); a stale "is a redirect stub" comment in `config_test.go` (corrected); llms.txt "Generated date" reads the carried `generated_at`, so it dates the facts snapshot rather than the file; producers register from `init()` in their own files while the style table puts registration in `register*.go` (the hook pattern matches `Register` and does not see `registerProducer`; the design records the choice); the published RFC ledger JSON keeps authoring comments as authored.
+
+Round 2: the two fixes re-read; `pageRegistry` no longer reads page content, the footer, llms-full and coverage passes all see one route set; targeted tests and scoped lint green. 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/site/{producer,shell,markdown,mirror,nav,docs,blog,changes,datapages,plugins,config,home,derived,health,rfccompliance}.go` | Yes | `ls` 2026-10-08 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | an unclaimed route fails the check | `go test -run 'TestCheck|TestPageRegistryAndMirrorCheck|TestBuildRunsEveryRegisteredProducer|TestTheSitemap|TestTheGuideLink'` ok 2026-10-08 |
+| AC-14 | byte-identical rebuild | real pair C/D `diff -rq` empty, 2160 files each (Goal Validation) |
+| all | site package | `go test -race -timeout 25m ./internal/le/site/` (closure run, see report) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le site build` | none (developer tooling); `TestBuildRendersEveryPublishedRoute` runs `Build` over the real checkout | Yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Assumptions table |
+| A-2 | confirmed | Assumptions table |
+| A-3 | confirmed | A-3 measurement |
+| A-4 | accepted | owner decision 2026-08-29 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `website/AI.md` facts carry and RFC rendering | `facts.go` `previousFactsAt`, `rfcprose.go` `rfcProseHTML` | Yes |
+| no page documents redirect stubs or the coverage spec field | `grep -n -i redirect website/AI.md docs/contributing/gh-pages.md` empty | Yes |

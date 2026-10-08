@@ -88,7 +88,7 @@ func allProducers() []Producer {
 //
 // A producer answers routes, and none of these is one, so the coverage
 // arithmetic cannot see them. They are named in the check instead, which is
-// what AC-16 of plan/spec-site-renderers-in-go.md arms.
+// what AC-16 of spec-site-renderers-in-go armed.
 func writeNamedArtifact(output, name, content string) error {
 	path := filepath.Join(output, filepath.FromSlash(name))
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
@@ -174,16 +174,7 @@ type Coverage struct {
 	Written   int      `json:"written"`
 	Unclaimed []string `json:"unclaimed,omitempty"`
 	Doubled   []Claim  `json:"doubly-claimed,omitempty"`
-	// Spec names the work that owns this red while that work is open, so a
-	// session sharing this checkout does not diagnose the red as its own
-	// breakage. It is empty when the coverage is green.
-	Spec string `json:"spec,omitempty"`
 }
-
-// coverageSpec is the open work that makes this coverage green. Its phase 1
-// arms the check and its phase 10 empties the unclaimed list, so the red stands
-// for the duration and states the defect rather than a new breakage.
-const coverageSpec = "plan/pre-release/spec-site-renderers-in-go.md"
 
 // Red reports whether this coverage refuses the artifact.
 func (coverage Coverage) Red() bool {
@@ -254,9 +245,6 @@ func coverageOf(output string, claims []Claim) (Coverage, error) {
 		if writers[page.Route] == 0 {
 			coverage.Unclaimed = append(coverage.Unclaimed, page.Route)
 		}
-	}
-	if coverage.Red() {
-		coverage.Spec = coverageSpec
 	}
 	return coverage, nil
 }

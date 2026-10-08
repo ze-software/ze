@@ -455,7 +455,9 @@ func TestYANGConfigTreeIndexesRoots(t *testing.T) {
 }
 
 // VALIDATES: the page registry follows public routes and requires Markdown
-// mirrors without treating unrelated HTML files as pages.
+// mirrors without treating unrelated HTML files as pages. A redirect stub is a
+// route like any other: the site publishes no redirect, so a stub the seed
+// carried must reach the coverage and mirror checks rather than hide from them.
 func TestPageRegistryAndMirrorCheck(t *testing.T) {
 	root := t.TempDir()
 	for name, content := range map[string]string{
@@ -476,14 +478,14 @@ func TestPageRegistryAndMirrorCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(pages) != 2 || pages[0].Route != "/" || pages[1].Route != "/guide/" {
+	if len(pages) != 3 || pages[0].Route != "/" || pages[1].Route != "/guide/" || pages[2].Route != "/moved/" {
 		t.Fatalf("unexpected page registry: %#v", pages)
 	}
 	missing, err := checkPageMirrors(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(missing) != 1 || !strings.Contains(missing[0], "guide/index.md") {
+	if len(missing) != 2 || !strings.Contains(missing[0], "guide/index.md") || !strings.Contains(missing[1], "moved/index.md") {
 		t.Fatalf("unexpected missing mirrors: %v", missing)
 	}
 }

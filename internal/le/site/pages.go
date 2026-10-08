@@ -42,6 +42,10 @@ type Page struct {
 // pageRegistry discovers public routes from the artifact. A directory enters
 // the registry only through index.html, so helper files cannot become pages by
 // accident.
+//
+// A redirect stub is a route like any other. The site publishes no redirect
+// (owner decision, 2026-10-08), so a stub carried forward by the seed is a page
+// no producer wrote, and the coverage check names it rather than skipping it.
 func pageRegistry(root string) ([]Page, error) {
 	var pages []Page
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
@@ -59,13 +63,6 @@ func pageRegistry(root string) ([]Page, error) {
 			}
 		}
 		if entry.IsDir() || entry.Name() != pageIndexFile {
-			return nil
-		}
-		content, err := os.ReadFile(path) //nolint:gosec // a site build reads the checkout it was pointed at
-		if err != nil {
-			return err
-		}
-		if isRedirectPage(content) {
 			return nil
 		}
 		relative, err := filepath.Rel(root, path)
@@ -102,12 +99,6 @@ func pageRegistry(root string) ([]Page, error) {
 func isFrozenTalkPath(name string) bool {
 	segments := strings.Split(strings.Trim(filepath.ToSlash(name), "/"), "/")
 	return len(segments) > 1 && segments[0] == talksDirectory && segments[1] != pageIndexFile
-}
-
-func isRedirectPage(content []byte) bool {
-	text := string(content)
-	return strings.Contains(text, `<meta name="robots" content="noindex">`) &&
-		strings.Contains(text, `<meta http-equiv="refresh"`)
 }
 
 // checkPageMirrors reports every public route whose Markdown sibling is absent,
