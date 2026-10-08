@@ -49,6 +49,17 @@ and writes `crashlog: N bytes of stderr dropped` into the stream where they went
 missing.
 <!-- source: internal/core/crashlog/stderr_queue.go -- stderrQueue -->
 
+**The real stderr gets bytes as they arrive, and syslog gets lines.** The relay
+writes each read to the real stderr at once, a partial line included, because a
+prompt such as `ze init`'s `username: ` has no line end and the process waits
+for its answer: a relay that forwarded whole lines held the prompt, and the
+operator saw nothing to answer. Syslog keeps one message per line, because a
+syslog message is a record. A line goes to syslog at its newline, at the end of
+input, or once it fills 256 KiB, after which the rest of it goes in fragments of
+that size. Panic detection reads the same lines, so only the start of a line can
+open a trace.
+<!-- source: internal/core/crashlog/stderr.go -- relayStderr, lineRelay -->
+
 The test-only `le test plugin-external` launcher ends its local stderr relay
 with `Flush` before configuring the engine logger. Its parent daemon owns the
 stderr pipe and relays those writes. A refusing engine can close its SDK

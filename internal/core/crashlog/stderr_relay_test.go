@@ -2,9 +2,12 @@ package crashlog
 
 import (
 	"errors"
+	"io"
 	"os"
 	"strings"
 	"testing"
+	"testing/iotest"
+	"time"
 )
 
 // VALIDATES: relayStderr marks a panic trace whose read stopped early.
@@ -108,5 +111,88 @@ func TestRelayStderrSurvivesALongLine(t *testing.T) {
 	}
 	if string(got) != input {
 		t.Fatalf("relayed %d bytes, want %d; tail %q", len(got), len(input), got[max(0, len(got)-40):])
+	}
+}
+
+// chanWriter hands every write to a channel, so a test can wait for one
+// without polling a shared buffer.
+type chanWriter chan string
+
+func (c chanWriter) Write(p []byte) (int, error) {
+	c <- string(p)
+	return len(p), nil
+}
+
+// TestRelayStderrForwardsAPartialLine proves a write with no newline reaches the
+// real stderr without waiting for one.
+//
+// The method writes a prompt with no line end into a pipe the relay reads, and
+// writes nothing else, then waits for the prompt to come out of the relay. The
+// relay once forwarded whole lines only: `ze init` wrote "username: " into the
+// pipe and blocked reading the terminal, and the prompt stayed in the relay, so
+// the operator saw nothing to answer.
+func TestRelayStderrForwardsAPartialLine(t *testing.T) {
+	pr, pw := io.Pipe()
+	out := make(chanWriter, 16)
+	done := make(chan error, 1)
+	go relayPartialLine(pr, out, done)
+
+	if _, err := pw.Write([]byte("username: ")); err != nil {
+		t.Fatal(err)
+	}
+
+	var got string
+	timeout := time.After(5 * time.Second)
+	for got != "username: " {
+		select {
+		case s := <-out:
+			got += s
+		case <-timeout:
+			pw.Close() //nolint:errcheck // test cleanup
+			t.Fatalf("the prompt did not reach stderr without a newline; got %q", got)
+		}
+	}
+
+	pw.Close() //nolint:errcheck // ends the relay
+	if err := <-done; err != nil {
+		t.Fatalf("the relay stopped: %v", err)
+	}
+}
+
+func relayPartialLine(r io.Reader, out io.Writer, done chan<- error) {
+	_, _, err := relayStderr(r, out, nil)
+	done <- err
+}
+
+// TestRelayStderrKeepsLineFramingForPanics proves a panic header split across
+// reads is still recognized at its line start, and a partial line at the end
+// of input is collected without a newline being invented on stderr.
+//
+// The method feeds the trace one byte per read, so no read holds a whole line,
+// and compares what reached stderr with the input byte for byte.
+func TestRelayStderrKeepsLineFramingForPanics(t *testing.T) {
+	sink, err := os.CreateTemp(t.TempDir(), "stderr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sink.Close() //nolint:errcheck // test cleanup
+
+	input := panicTrace + "no line end"
+	buf, inPanic, err := relayStderr(iotest.OneByteReader(strings.NewReader(input)), sink, nil)
+	if err != nil {
+		t.Fatalf("the relay stopped: %v", err)
+	}
+	if !inPanic {
+		t.Fatal("a panic header split across reads was not detected")
+	}
+	if !strings.Contains(string(buf), "main.main()\n") || !strings.HasSuffix(string(buf), "no line end\n") {
+		t.Fatalf("the trace lost its lines:\n%s", buf)
+	}
+	got, err := os.ReadFile(sink.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != input {
+		t.Fatalf("stderr got %q, want %q", got, input)
 	}
 }
