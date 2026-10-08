@@ -186,20 +186,85 @@ func Validate(root string) (ValidationResult, error) {
 		}
 	}
 
-	return ValidationResult{
+	// A skipped handler is still SERVED, so a declaration naming it is not
+	// an orphan: the skip list exempts a handler from needing a node, never a
+	// declaration from needing a handler.
+	served := make(map[string]bool, len(rpcs))
+	for _, rpc := range rpcs {
+		served[rpc.WireMethod] = true
+	}
+	declarations, err := publishedRPCs(loader)
+	if err != nil {
+		return ValidationResult{}, err
+	}
+
+	result := ValidationResult{
 		YANGCommands:        commands,
 		Handlers:            handlers,
 		LocalHandlers:       localHandlers,
 		OrphanYANG:          orphanYANG,
 		OrphanHandlers:      orphanHandlers,
 		OrphanLocalHandlers: orphanLocalHandlers,
+		OrphanRPCs:          unservedRPCs(declarations, served),
 		SkippedHandlers:     skipped,
 		Total:               len(commands),
 		TotalHandlers:       len(handlers),
 		TotalLocal:          len(localHandlers),
-		Valid:               contractSatisfied(orphanYANG, orphanHandlers),
+		TotalRPCs:           len(declarations),
 		Warnings:            warnings,
-	}, nil
+	}
+	result.Valid = contractSatisfied(&result)
+	return result, nil
+}
+
+// publishedRPCs answers every rpc declaration in the loader's `-api` modules,
+// under the wire method the help surfaces publish for it, sorted by method.
+//
+// The methods are built by RegisterRPCs, the function `ze schema methods`
+// (loadAPIRPCs) and `ze help ai --json` (aihelp.SchemaRegistry) both build
+// them with, so this gate judges the spelling a caller reads rather than a
+// second derivation of it. A loader holding no `-api` module is an error: the
+// run would otherwise judge nothing and answer that nothing is orphaned.
+func publishedRPCs(loader *yang.Loader) ([]RPCDeclaration, error) {
+	modules := loader.APIModuleNames()
+	if len(modules) == 0 {
+		return nil, errNoAPIModule
+	}
+	schema := pluginserver.NewSchemaRegistry()
+	for _, module := range modules {
+		if err := schema.RegisterRPCs(module, yang.ExtractRPCs(loader, module)); err != nil {
+			return nil, err
+		}
+	}
+	registered := schema.ListRPCs("")
+	declarations := make([]RPCDeclaration, 0, len(registered))
+	for _, rpc := range registered {
+		declarations = append(declarations, RPCDeclaration{
+			WireMethod: rpc.WireMethod,
+			Module:     rpc.Module,
+			RPC:        rpc.Name,
+		})
+	}
+	sort.Slice(declarations, func(i, j int) bool {
+		return declarations[i].WireMethod < declarations[j].WireMethod
+	})
+	return declarations, nil
+}
+
+// errNoAPIModule is publishedRPCs refusing a loader with no `-api` module.
+var errNoAPIModule = errors.New("no -api YANG module is loaded, so no published rpc can be judged")
+
+// unservedRPCs answers the declarations whose wire method no handler in served
+// answers. A declaration a caller can read and no dispatcher answers is the
+// orphan AC-15 names: the method is published, and sending it fails.
+func unservedRPCs(declarations []RPCDeclaration, served map[string]bool) []RPCDeclaration {
+	var orphans []RPCDeclaration
+	for _, rpc := range declarations {
+		if !served[rpc.WireMethod] {
+			orphans = append(orphans, rpc)
+		}
+	}
+	return orphans
 }
 
 // sortCommands puts the command table in a TOTAL order: wire method, then YANG
@@ -225,16 +290,30 @@ func sortCommands(commands []CommandEntry) {
 	})
 }
 
-// contractSatisfied is the gate's verdict, and it reads BOTH directions: no
-// YANG command node without a handler, and no registered handler without a
-// node.
+// contractSatisfied is the gate's verdict, and it reads every orphan set the
+// result carries: no YANG command node without a handler, no registered
+// handler without a node, no local handler without a node, and no published
+// rpc declaration without a handler.
+//
+// Every set the report prints decides the verdict. A section printed under a
+// passing verdict is a finding nobody acts on, which is what the local-handler
+// rows were until this read them.
 //
 // It is a function of its own because it is the whole of what the gate
-// ANSWERS, and the second half cannot be reached from any fixture tree: the
+// ANSWERS, and the handler halves cannot be reached from any fixture tree: the
 // handlers come from the process's own registry, so a test that varies the
-// tree varies only the first half. Named here, the verdict is driven directly.
-func contractSatisfied(orphanYANG []CommandEntry, orphanHandlers []string) bool {
-	return len(orphanYANG) == 0 && len(orphanHandlers) == 0
+// tree varies only the node half. Named here, the verdict is driven directly.
+func contractSatisfied(result *ValidationResult) bool {
+	if len(result.OrphanYANG) > 0 {
+		return false
+	}
+	if len(result.OrphanHandlers) > 0 {
+		return false
+	}
+	if len(result.OrphanLocalHandlers) > 0 {
+		return false
+	}
+	return len(result.OrphanRPCs) == 0
 }
 
 // yangPathToCLIPath turns the tree path into the words an operator types.

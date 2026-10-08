@@ -207,7 +207,8 @@ func TestTheVerdictReadsBothDirections(t *testing.T) {
 		{name: "one of each", yang: orphanNode, handlers: []string{"c:d"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := contractSatisfied(tc.yang, tc.handlers); got != tc.want {
+			result := ValidationResult{OrphanYANG: tc.yang, OrphanHandlers: tc.handlers}
+			if got := contractSatisfied(&result); got != tc.want {
 				t.Fatalf("the verdict is %v, want %v", got, tc.want)
 			}
 		})

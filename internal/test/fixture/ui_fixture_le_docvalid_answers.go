@@ -155,6 +155,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		"orphan-yang",
 		"orphan-handlers",
 		"orphan-local-handlers",
+		"orphan-rpcs",
 		"skipped-handlers",
 	}
 	lists := make(map[string][]any, len(listNames))
@@ -202,7 +203,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 			}
 		}
 	}
-	for _, key := range []string{"orphan-yang", "orphan-handlers"} {
+	for _, key := range []string{"orphan-yang", "orphan-handlers", "orphan-local-handlers", "orphan-rpcs"} {
 		if len(lists[key]) != 0 {
 			return fmt.Errorf("command contract reports %d entries in %s: %#v", len(lists[key]), key, lists[key])
 		}

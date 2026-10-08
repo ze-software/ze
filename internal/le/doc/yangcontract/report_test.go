@@ -88,6 +88,7 @@ func TestValidationTextRendersEverySection(t *testing.T) {
 		OrphanYANG:          []CommandEntry{{WireMethod: "a:b", YANGPath: "a > b", Module: "m-cmd"}},
 		OrphanHandlers:      []string{"c:d"},
 		OrphanLocalHandlers: []string{"show thing"},
+		OrphanRPCs:          []RPCDeclaration{{WireMethod: "e:f", Module: "e-api", RPC: "f"}},
 		SkippedHandlers:     []string{"ze-editor:mode-command", "ze-editor:mode-edit"},
 		Total:               1, TotalHandlers: 1, TotalLocal: 1,
 		Warnings: []string{"ze-ghost-cmd"},
@@ -105,7 +106,9 @@ func TestValidationTextRendersEverySection(t *testing.T) {
 		"  c:d\n\n" +
 		"## Local handlers with no YANG command (1)\n\n" +
 		"  show thing\n\n" +
-		"FAILED: 2 problem(s)\n" +
+		"## RPC declarations with no handler (1)\n\n" +
+		"  e:f  (rpc f in e-api)\n\n" +
+		"FAILED: 4 problem(s)\n" +
 		"\n## All YANG commands (1)\n\n" +
 		"| WireMethod | YANG Path | Module |\n" +
 		"|------------|-----------|--------|\n" +

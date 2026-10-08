@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-13 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -490,6 +490,26 @@ deleting duplicate declarations.
 ## Design Insights
 <!-- LIVE: write immediately when you learn something. At closure these route to
      a subsystem arch doc, a rule, or the learned summary. -->
+- 2026-10-08, AC-14..AC-16 gate holes closed in `internal/le/doc/yangcontract/contract.go`:
+  `contractSatisfied` takes the whole result and reads all four orphan sets; `publishedRPCs`
+  reads every `-api` rpc through `RegisterRPCs`, the derivation both help surfaces use, and
+  refuses a loader with no `-api` module; `unservedRPCs` names module, rpc and wire method.
+  → Decision: the served set for a declaration includes the skipped editor handlers, because
+  the skip list exempts a handler from needing a node, never a declaration from needing a handler.
+- The strengthened gate is red on the live tree, truthfully: 14 local handlers with no node and
+  117 published rpc methods with no handler (journal: `plan/journal/gate-excludes-part-of-its-population.md`,
+  two 2026-10-08 rows). The 117 belong to `spec-rpc-published-name-does-not-reach-its-handler.md`,
+  whose owner design (2026-09-06) removes `WireModule`. That set includes this spec's own
+  `ze-bgp-cmd-peer:peer-save` and `ze-bgp:peer-remove`, which AC-17's retention ruling and the
+  peer-create/peer-delete rename resolve.
+  The 14 local handlers: `clear debug`, `delete debug module`, `delete debug profile name`,
+  `set debug active name`, `set debug module`, `set debug profile name`, `set debug timeout`,
+  `show debug profile` (`internal/plugins/debug/register.go`); `explain`, `skills`, `support`
+  (their `internal/plugins/<name>/register.go`); `generate wireguard keypair`
+  (`internal/plugins/diag/register.go`); `show config graph`, `validate config`
+  (`internal/component/config/cli/register.go`).
+  → Constraint: `go test` without the le feature tags links no BGP handler, so the live-tree tests
+  must run with `ze_le` plus `feature_tags feature-gates.txt`, as `./le` itself is built.
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->

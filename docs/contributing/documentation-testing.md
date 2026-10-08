@@ -25,7 +25,7 @@ checks needed for the current diff and is included in `./le verify current mode 
 | Native action | What it validates |
 |---------------|-------------------|
 | `./le doc yang-contract doc-drift` | Published counts and lists agree with live registries and the tree |
-| `./le doc yang-contract command-contract` | Every YANG `ze:command` has a registered handler |
+| `./le doc yang-contract command-contract` | Every YANG `ze:command` and every published `-api` rpc has a registered handler, and every handler has a node |
 | `./le doc yang-contract usage-contract` | The model states every command's argument grammar, and no description spells one in prose |
 | `./le doc yang-contract help-shape` | Every command node, every RPC, every offline local command and every config node declares a one-line summary a row renders whole, with a long text beside it, and the report states how much of each corpus is written |
 | `./le doc index check` | Documentation source paths and claimed symbols resolve |
@@ -133,11 +133,19 @@ Registered handlers: 69
   ...
 
 ## Handlers with no YANG command (0)
+...
+FAILED: 30 problem(s)
 ```
 
-Two-direction check. Both directions are contract bugs:
+Each section it prints is a contract bug, and each one fails the run:
 - YANG declares a command but no Go code registered an RPC or local handler -> dead command
 - RPC handler registered but YANG doesn't declare it -> command unreachable from CLI
+- A local handler (`registry.MustRegisterLocal*`) whose path no YANG command node declares -> command missing from the tree
+- An `-api` module's rpc whose published wire method no handler serves -> `ze schema methods` and `ze help ai --json` publish a method the daemon answers with "unknown method". The method is the one `RegisterRPCs` builds, which strips `-api` from the module name, and the row names the wire method, the rpc and the module
+
+A run that loads no `-api` module is an error rather than a pass, because it
+judged no declaration.
+<!-- source: internal/le/doc/yangcontract/contract.go -- contractSatisfied, publishedRPCs, unservedRPCs -->
 
 ### `./le doc yang-contract help-shape`
 

@@ -5,11 +5,15 @@
 package docyangcontract
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/aihelp"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -225,5 +229,148 @@ func TestSkippedHandlersAreTheEditorModesOnly(t *testing.T) {
 func TestYANGPathBecomesTheTypedCommand(t *testing.T) {
 	if got := yangPathToCLIPath("show > env > list"); got != "show env list" {
 		t.Fatalf("the typed command is %q", got)
+	}
+}
+
+// VALIDATES: a local handler with no YANG command node fails the verdict
+// (AC-16), and the report names it under the failure.
+// PREVENTS: the hole this gate carried, where `contractSatisfied` read two of
+// the three orphan sets and printed "Local handlers with no YANG command"
+// above "All commands validated.", so the rows changed no verdict.
+// MUTATION: drop the OrphanLocalHandlers guard from contractSatisfied and this
+// test goes red.
+func TestAnOrphanLocalHandlerFailsTheVerdict(t *testing.T) {
+	result := ValidationResult{OrphanLocalHandlers: []string{"show thing"}}
+	if contractSatisfied(&result) {
+		t.Fatal("a local handler with no YANG command node satisfied the contract")
+	}
+	result.Valid = contractSatisfied(&result)
+	text := result.Text()
+	if !strings.Contains(text, "FAILED: 1 problem(s)") {
+		t.Fatalf("the report does not fail on the orphan local handler:\n%s", text)
+	}
+	if !strings.Contains(text, "  show thing\n") {
+		t.Fatalf("the report does not name the orphan local handler:\n%s", text)
+	}
+}
+
+// VALIDATES: an rpc declaration whose published method no handler serves fails
+// the verdict (AC-15).
+// PREVENTS: a published method that resolves to nothing passing the gate.
+// MUTATION: drop the OrphanRPCs clause from contractSatisfied and this test
+// goes red.
+func TestAnUnservedRPCDeclarationFailsTheVerdict(t *testing.T) {
+	result := ValidationResult{OrphanRPCs: []RPCDeclaration{
+		{WireMethod: "ze-fixture:socket-clear", Module: "ze-fixture-api", RPC: "socket-clear"},
+	}}
+	if contractSatisfied(&result) {
+		t.Fatal("an rpc declaration no handler serves satisfied the contract")
+	}
+}
+
+// fixtureDeclarations answers the published rpcs of the fixture `-api` module
+// alone, read through the gate's own reader over the shared fixture loader.
+func fixtureDeclarations(t *testing.T) []RPCDeclaration {
+	t.Helper()
+	declarations, err := publishedRPCs(shapeLoader(t, shapeModule, shapeAPIModule))
+	if err != nil {
+		t.Fatalf("read the published rpcs: %v", err)
+	}
+	var fixture []RPCDeclaration
+	for _, rpc := range declarations {
+		if rpc.Module == "ze-fixture-api" {
+			fixture = append(fixture, rpc)
+		}
+	}
+	return fixture
+}
+
+// VALIDATES: the gate reads every rpc of an `-api` module under the wire
+// method the help surfaces publish, which strips `-api` from the module name.
+// PREVENTS: the gate judging a spelling no caller reads. A declaration judged
+// as `ze-fixture-api:socket-list` would never match the handler a caller
+// reaches as `ze-fixture:socket-list`, in either direction.
+func TestPublishedRPCsCarryTheWireMethodCallersRead(t *testing.T) {
+	fixture := fixtureDeclarations(t)
+	want := []RPCDeclaration{
+		{WireMethod: "ze-fixture:socket-clear", Module: "ze-fixture-api", RPC: "socket-clear"},
+		{WireMethod: "ze-fixture:socket-list", Module: "ze-fixture-api", RPC: "socket-list"},
+	}
+	if len(fixture) != len(want) {
+		t.Fatalf("the fixture module publishes %v, want %v", fixture, want)
+	}
+	for i := range want {
+		if fixture[i] != want[i] {
+			t.Fatalf("row %d is %v, want %v", i, fixture[i], want[i])
+		}
+	}
+}
+
+// VALIDATES: a deliberately orphaned declaration is named by module, rpc and
+// wire method, and fails the run, while its served sibling passes (AC-15).
+// PREVENTS: the population hole: the gate opened `-cmd` modules only, so an
+// `-api` rpc no handler serves was never read at all.
+// MUTATION: make unservedRPCs answer nil and this test goes red.
+func TestADeliberatelyOrphanedDeclarationIsNamed(t *testing.T) {
+	served := map[string]bool{"ze-fixture:socket-list": true}
+	result := ValidationResult{OrphanRPCs: unservedRPCs(fixtureDeclarations(t), served)}
+
+	want := RPCDeclaration{WireMethod: "ze-fixture:socket-clear", Module: "ze-fixture-api", RPC: "socket-clear"}
+	if len(result.OrphanRPCs) != 1 {
+		t.Fatalf("the orphans are %v, want only %v", result.OrphanRPCs, want)
+	}
+	if result.OrphanRPCs[0] != want {
+		t.Fatalf("the orphan is %v, want %v", result.OrphanRPCs[0], want)
+	}
+	result.Valid = contractSatisfied(&result)
+	if result.Valid {
+		t.Fatal("a run holding an orphaned declaration passed")
+	}
+	text := result.Text()
+	if !strings.Contains(text, "  ze-fixture:socket-clear  (rpc socket-clear in ze-fixture-api)\n") {
+		t.Fatalf("the report does not name the module, the rpc and the wire method:\n%s", text)
+	}
+}
+
+// VALIDATES: a loader with no `-api` module stops the gate.
+// PREVENTS: a run that judged no declaration answering that none is orphaned,
+// the silent zero aihelp.SchemaRegistry answers after a loader error.
+func TestPublishedRPCsRefuseALoaderWithNoAPIModule(t *testing.T) {
+	loader := yang.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		t.Fatalf("load the embedded modules: %v", err)
+	}
+	if _, err := publishedRPCs(loader); !errors.Is(err, errNoAPIModule) {
+		t.Fatalf("a loader with no -api module answered %v, want %v", err, errNoAPIModule)
+	}
+}
+
+// VALIDATES: every method `ze help ai --json` publishes from the YANG schema
+// has a registered handler in this checkout (AC-14). `ze schema methods`
+// builds the same set through RegisterRPCs over the same `-api` modules.
+// PREVENTS: an MCP client or an operator reading a method name that the
+// daemon answers with "unknown method".
+//
+// The set is aihelp.SchemaRegistry, never aihelp.Build: Build appends every
+// builtin handler to the declared methods, so a schema registry that came back
+// empty after a loader error still published a non-empty list, every row of it
+// served, and this test passed having judged no declaration.
+func TestEveryPublishedMethodHasAHandler(t *testing.T) {
+	served := map[string]bool{}
+	for _, rpc := range pluginserver.AllBuiltinRPCs() {
+		served[rpc.WireMethod] = true
+	}
+	published := aihelp.SchemaRegistry().ListRPCs("")
+	if len(published) == 0 {
+		t.Fatal("the help reference publishes no YANG method, so this test proves nothing")
+	}
+	var unserved []string
+	for _, rpc := range published {
+		if !served[rpc.WireMethod] {
+			unserved = append(unserved, rpc.WireMethod)
+		}
+	}
+	if len(unserved) > 0 {
+		t.Errorf("%d published methods have no handler: %v", len(unserved), unserved)
 	}
 }

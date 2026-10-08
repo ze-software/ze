@@ -72,6 +72,18 @@ type CommandEntry struct {
 	Module     string `json:"module"`
 }
 
+// RPCDeclaration is one YANG `rpc` statement in an `-api` module, under the
+// wire method the help surfaces publish for it.
+//
+// Module and RPC name the file and the statement an author has to open, and
+// WireMethod is the method `ze schema methods` and `ze help ai --json` print,
+// which is the one a caller sends.
+type RPCDeclaration struct {
+	WireMethod string `json:"wire-method"`
+	Module     string `json:"module"`
+	RPC        string `json:"rpc"`
+}
+
 // ValidationResult holds the cross-check between the YANG command tree and the
 // registered handlers.
 //
@@ -84,11 +96,17 @@ type ValidationResult struct {
 	OrphanYANG          []CommandEntry `json:"orphan-yang"`
 	OrphanHandlers      []string       `json:"orphan-handlers"`
 	OrphanLocalHandlers []string       `json:"orphan-local-handlers"`
-	SkippedHandlers     []string       `json:"skipped-handlers"`
-	Total               int            `json:"total-yang"`
-	TotalHandlers       int            `json:"total-handlers"`
-	TotalLocal          int            `json:"total-local-handlers"`
-	Valid               bool           `json:"valid"`
+	// OrphanRPCs names every rpc declaration whose published wire method no
+	// registered handler serves.
+	OrphanRPCs      []RPCDeclaration `json:"orphan-rpcs"`
+	SkippedHandlers []string         `json:"skipped-handlers"`
+	Total           int              `json:"total-yang"`
+	TotalHandlers   int              `json:"total-handlers"`
+	TotalLocal      int              `json:"total-local-handlers"`
+	// TotalRPCs counts the rpc declarations the help surfaces publish, so a
+	// run that judged none of them is told from one that found no orphan.
+	TotalRPCs int  `json:"total-rpcs"`
+	Valid     bool `json:"valid"`
 	// Warnings names a declared -cmd module the loader does not hold. The
 	// script printed each one before its report and put none of them in its
 	// JSON, so this field stays out of the JSON too.
@@ -136,10 +154,19 @@ func (r ValidationResult) Text() string {
 		tb.Byte('\n')
 	}
 
+	if len(r.OrphanRPCs) > 0 {
+		tb.Str("## RPC declarations with no handler (").Int(int64(len(r.OrphanRPCs))).Str(")\n\n")
+		for _, rpc := range r.OrphanRPCs {
+			tb.Str("  ").Str(rpc.WireMethod).Str("  (rpc ").Str(rpc.RPC).
+				Str(" in ").Str(rpc.Module).Str(")\n")
+		}
+		tb.Byte('\n')
+	}
+
 	if r.Valid {
 		tb.Str("All commands validated.\n")
 	} else {
-		problems := len(r.OrphanYANG) + len(r.OrphanHandlers)
+		problems := len(r.OrphanYANG) + len(r.OrphanHandlers) + len(r.OrphanLocalHandlers) + len(r.OrphanRPCs)
 		tb.Str("FAILED: ").Int(int64(problems)).Str(" problem(s)\n")
 	}
 
