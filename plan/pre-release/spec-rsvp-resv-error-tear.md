@@ -126,6 +126,28 @@ Wire bytes in, wire bytes out through the transport; admission controller and FI
 
 - [ ] No page describes behavior this work changed: no producer code changed
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Twelve tagged tests, a positive and a negative for each of the six rows | `grep -c "RFC requirement: RFC2205-" internal/plugins/rsvpte/rfc2205_resv_error_test.go` prints 12 |
+| Tests pass | `./le job run label rsvpte-rfc2205 command go test -tags ze_rsvpte -run 'TestRFC2205\|TestPathTearUnknownCTypeObjectsIgnored' ./internal/plugins/rsvpte/` (ok on 2026-10-08) |
+| Twelve discrimination records for those tests | `rfc/discrimination/rfc2205.json` holds 12 records whose `unit` is in `rfc2205_resv_error_test.go` for RFC2205-2-8, 3-13, 3-17, 3-18, 3-19, 3-20 |
+| No stale or owed RFC 2205 record or verdict | `./le rfc check` prints no line naming `rfc2205` (true after f3f77ffbf2 re-recorded the ten records and four verdicts that 1d457b0d52 and f9180d62a6 staled) |
+| The six rows carry no `{gap}`; Support remaining counts 43 MUST gaps | `grep -E "\[RFC2205-(2-8\|3-13\|3-17\|3-18\|3-19\|3-20)\]" rfc/short/rfc2205.md \| grep -c "{gap"` prints 0; `grep -E "^- \[ \] \[RFC2205-[^]]+\] \[MUST" rfc/short/rfc2205.md \| grep -c "{gap"` prints 43 |
+| PathTear unknown C-Type fix from review (RFC2205-3-13) | `TestPathTearUnknownCTypeObjectsIgnored` passes; `message_validation.go::pathTearIgnored` runs before `knownCType` in `wire.go::DecodeMessage` |
+| Interop: the four Closure Review items | `./le test integration interop-rsvpte` scenarios `transit-resv-increase-refused-in-place`, `ingress-resv-error-relayed`, `transit-resv-tear-relayed`, `transit-ff-resv-unknown-sender` pass (needs root; logs named in "Interop status" below) |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | ResvErr and ResvTear come from any RSVP peer. `handleResvErr` acts only on a held reservation whose STYLE matches and whose previous hop is the source (`samePeer`); `handleResvTear` also requires the RSVP_HOP LIH and the next hop to match. The STYLE mismatch (AC-5), the unknown sender (AC-1) and the LIH mismatch (AC-3) are proven by negative tests. A spoofed source address is NOT covered by this spec's tests: the `samePeer` checks exist, no test here sends from a wrong peer |
+| Ignored objects | A PathTear's SENDER_TSPEC and ADSPEC are skipped before any decode or C-Type check, so a malformed body in either cannot reject the tear (AC-2, `TestPathTearUnknownCTypeObjectsIgnored`) |
+| Resource exhaustion | An FF Resv yields at most one ResvErr per failing descriptor, bounded by the descriptors one message can carry (message Length is 16 bits); no per-descriptor goroutine or unbounded state. A failed increase keeps the old admission charge (AC-6), and a failed install releases the label it allocated (`acceptReservation`, the `allocated` branch), so repeated over-capacity Resvs leak neither bandwidth nor labels |
+| Fail-open authorization | A failed admission or install leaves the existing reservation and forwarding in place and never installs the refused one (AC-6); a first reservation that fails leaves no RSB (AC-6 negative) |
+| Error leakage | A ResvErr carries only SESSION, RSVP_HOP, ERROR_SPEC, STYLE and the failing descriptor, all values the peer already sent or the RFC requires (AC-5) |
+
 ## Risks & Assumptions
 
 | Item | Note |
