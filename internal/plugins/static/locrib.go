@@ -63,7 +63,8 @@ func (rm *routeManager) setLocRIB(loc *locrib.RIB, remote routeSink) {
 // same prefix. A named table also has exactly one writer by construction, so
 // there is nothing there for an administrative distance to decide. Named-table
 // routes therefore keep the direct data-plane write. The table dimension belongs
-// to plan/immediate/spec-fib-depth.md, which owns BestChangeEntry.TableID.
+// to plan/immediate/spec-fib-nexthop-objects-vpp-metric.md, which owns the
+// BestChangeEntry.TableID production.
 func (r staticRoute) inMainTable() bool { return r.Table == 0 }
 
 // applyProgrammed installs one route as the operator declared it, with the

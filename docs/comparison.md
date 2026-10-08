@@ -404,6 +404,7 @@ one.
 | Fuzz testing | Yes | No | No | No | No | No | Yes | No | No | Yes | No |
 | Interop test suite | Yes | No | No | No | No | No | Partial | No | No | Yes | Yes |
 | Static routes (ECMP+BFD) | Yes | Yes | Yes | Yes | Yes | No | No | No | No | No | Yes |
+| Configurable administrative distance arbitrating connected and static against BGP and the IGPs | Yes | Yes (preference) | Yes (preference) | Yes | No | No | Unclear | No | No | Unclear | Unclear |
 | Policy-based routing (PBR) | Yes | No | No | Yes | No | No | No | No | No | No | Yes |
 | FIB/kernel integration | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes |
 | Sysctl management | Yes | No | No | Partial | Partial | No | No | No | No | No | No |
@@ -433,6 +434,21 @@ marked `Unclear`: it runs its own IP stack, and this claim was not checked
 against its source.
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- Router Advertisement send loop -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
+
+**Administrative distance:** `rib { distance { } }` sets one distance per
+protocol, and every leaf decides which route the kernel forwards on. Connected
+prefixes and main-table static routes are paths in the same Loc-RIB as BGP, OSPF
+and IS-IS, so the declared number arbitrates between them, and one FIB writer
+programs the winner. A connected winner withdraws Ze's own route, because the
+kernel already holds the connected one. A static route in a named table is
+programmed straight into that table, where nothing competes with it. FRR does the
+same with `distance`, and BIRD with each protocol's `preference`. OpenBGPd,
+GoBGP, ExaBGP and RustyBGP run no static or connected protocol to arbitrate
+against, so the row is `No` for them. bio-rd, rustbgpd and freeRtr are marked
+`Unclear`, because this claim was not checked against their source.
+<!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- container distance -->
+<!-- source: internal/plugins/static/locrib.go -- staticPath, inMainTable -->
+<!-- source: internal/plugins/connected/locrib.go -- the connected Loc-RIB path and its distance -->
 
 **netlab lab integration:** [netlab](https://netlab.tools) builds a lab from a YAML
 topology and runs each node under containerlab. Scope: netlab 26.08, inspected at

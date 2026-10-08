@@ -55,7 +55,10 @@ A NAMED table keeps the direct write. The Loc-RIB is keyed by (family, prefix)
 and carries no table, so a named-table route inserted there would collide with the
 main-table route for the same prefix. A named table also has exactly one writer by
 construction, so there is nothing for a distance to decide. The table dimension
-belongs to `plan/immediate/spec-fib-depth.md`, which owns `BestChangeEntry.TableID`.
+belongs to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md`, which owns the
+`BestChangeEntry.TableID` production (split out of `spec-fib-depth` on 2026-10-08).
+`test/static/static-named-table-unchanged.ci` holds the boundary: the route lands
+in its table as protocol 251, and neither `show rib` nor the main table lists it.
 
 Redistribution is unchanged and does not pass through the Loc-RIB.
 `redistribute { import static }` receives the routes over the redistribute event

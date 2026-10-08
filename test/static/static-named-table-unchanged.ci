@@ -1,0 +1,65 @@
+# Test: a static route in a named routing table keeps its direct path to the
+#       kernel, while a main-table static route goes through the Loc-RIB.
+# VALIDATES: spec-connected-static-reach-the-locrib AC-10 -- `static { table
+#            blue { route ... } }` is programmed straight into table blue by the
+#            static plugin (proto 251), no Loc-RIB path is created for it, so
+#            `show rib` does not list it, and no main-table entry appears.
+# PREVENTS: a named-table route entering the Loc-RIB, which is keyed by
+#           (family, prefix) with no table: it would be programmed into the main
+#           table by the FIB plugin and could displace a main-table route for the
+#           same prefix (spec R-5).
+#
+# The main-table route in the same config is the control. The observer first
+# waits for it in the system RIB and in the kernel's main table as proto 250, so
+# the absences it then asserts for the named-table prefix are read from a
+# pipeline it has seen working.
+#
+# Requires Linux and CAP_NET_ADMIN: the setup creates a dummy link for the
+# gateway subnet, the static plugin programs table 171 through netlink, and the
+# FIB plugin programs the main table.
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external static-named-table-test {
+		run "le test fixture static/static-named-table-unchanged"
+		encoder json
+	}
+	internal rib {
+		use rib
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+
+routing-table {
+	table blue {
+		id 171
+	}
+}
+
+static {
+	table default {
+		route 198.18.72.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+	table blue {
+		route 198.18.71.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+option=env:var=ze.log.routing.table:value=info
+
+cmd=foreground:seq=1:exec=le test fixture static/static-named-table-unchanged-setup
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=static routes loaded
+expect=stderr:contains=OK: 198.18.71.0/24 is in table 171 as proto 251, absent from the main table and the system RIB
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

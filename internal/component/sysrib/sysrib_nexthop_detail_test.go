@@ -128,7 +128,8 @@ func TestEqualCostGroupKeepsWeightOneForProducersThatStateNone(t *testing.T) {
 
 // TestSysRIBEmitsNoTableID is A-3 and the main-table boundary: sysrib assigns no
 // table id anywhere, so everything it publishes lands in the main table. The
-// table dimension belongs to plan/immediate/spec-fib-depth.md, and a static route
+// table dimension belongs to plan/immediate/spec-fib-nexthop-objects-vpp-metric.md,
+// and a static route
 // in a named table is kept out of the Loc-RIB for exactly this reason.
 func TestSysRIBEmitsNoTableID(t *testing.T) {
 	bus := newTestEventBus()
