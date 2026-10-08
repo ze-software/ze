@@ -137,3 +137,27 @@ Semantic discrimination beyond the revert records, by Go overlay on 2026-10-08:
 disabling the `!inside && !target.Loose` refusal in `resolveExplicitPath`
 reddens both negative tests. No producer defect was exposed and no producer
 code changed.
+
+## Closure Review (2026-10-08): closure withheld on interop
+
+Independent review of 48c344b081 by a session that wrote none of it.
+
+| Check | Result |
+|-------|--------|
+| Claim against assertion, 4 tagged tests | Each `RFC requirement:` claim states what its test body asserts and no more; the untagged loose test asserts step 5b expansion only |
+| RFC quotes | Both quotes found verbatim in `rfc/full/rfc3209.txt` (Sections 4.3.3.1, 4.3.4.2) |
+| `./le rfc check` | No violation names rfc3209 |
+| Scoped tests | `go test ./internal/plugins/rsvpte/` green, `go vet` clean |
+
+**Interop gap: this spec does not close.** `ai/rules/interop-and-goal-validation.md`
+requires a scenario against another implementation, and this spec's own Risks
+row says strict and loose ERO interop is unproven. The only RSVP-TE carrier,
+`freertr_interop_integration_linux_test.go::TestRSVPFreeRouterInterop`, makes
+Ze the egress: the peer's ERO ends at Ze, so no strict or loose transition is
+resolved at a Ze transit. Scenario needed: freeRouter ingress signalling
+through Ze as transit to a second node, asserting at the peers (1) a strict hop
+to a node Ze reaches directly: the downstream peer receives the PATH with the
+trimmed ERO and the LSP comes up, (2) a strict hop whose native next hop is
+outside both abstract nodes: the ingress peer receives PathErr 24/2, and (3)
+the same hop loose: the downstream peer receives the PATH with the expanded
+ERO. The carrier needs root, so it was not run in this review.

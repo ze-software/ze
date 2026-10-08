@@ -155,3 +155,42 @@ forcing it off reddens `TestRFC2205FailedIncreaseLeavesReservationInPlace`, and
 dropping the STYLE match in `handleResvErr` reddens
 `TestRFC2205ResvErrWrongStyleNotRouted`. No producer defect was exposed and no
 producer code changed.
+
+## Closure Review (2026-10-08): closure withheld on interop
+
+Independent review of 6ad44e4ee0 by a session that wrote none of it.
+
+| Check | Result |
+|-------|--------|
+| Claim against assertion, 12 tagged tests | Each `RFC requirement:` claim states what its test body asserts and no more |
+| RFC quotes | All six sentences found verbatim in `rfc/full/rfc2205.txt` (Sections 2.5, 3.1.5, 3.1.6, 3.1.8) |
+| `./le rfc check` | No violation names rfc2205 or rfc3209; its 164 violations are in BGP stems other sessions own |
+| Scoped tests | `go test ./internal/plugins/rsvpte/` green, `go vet` clean |
+
+**Defect fixed in review (RFC2205-3-13).** `DecodeMessage` (`wire.go`) ran
+`knownCType` before the PathTear skip, so a PathTear whose SENDER_TSPEC or
+ADSPEC carried an unknown C-Type was rejected whole and its path state stayed.
+RFC 2205 Section 3.1.5 governs: "A PathTear message may include a SENDER_TSPEC
+or ADSPEC object in its sender descriptor, but these must be ignored." Section
+3.10 is a SHOULD stated generally: "Generally, the appearance of an object with
+unknown C-Type should result in rejection of the entire message and generation
+of an error message (ResvErr or PathErr as appropriate)." The specific MUST
+wins, and an ignored object's C-Type is not examined. The skip now runs before
+the C-Type check (`message_validation.go::pathTearIgnored`); the two dead
+in-switch skips were removed. `TestPathTearUnknownCTypeObjectsIgnored` was red
+before the fix (path state kept, no tear relayed) and is green after.
+`docs/architecture/rsvpte/mpls-rsvp-te.md` states the rule.
+
+**Interop gap: this spec does not close.** `ai/rules/interop-and-goal-validation.md`
+requires a scenario against another implementation. The only RSVP-TE carrier,
+`freertr_interop_integration_linux_test.go::TestRSVPFreeRouterInterop`, makes
+Ze the egress of one freeRouter LSP: it exercises a peer PathTear carrying
+ADSPEC (part of RFC2205-3-13) and nothing else this spec proves. No ResvErr,
+ResvTear, FF multi-descriptor Resv or admission failure crosses the wire to an
+independent peer, and Ze is never a transit. Scenario needed: freeRouter
+ingress, Ze transit, freeRouter (or a second peer) egress, asserting at the
+peers that (1) a ResvErr Ze originates for an over-capacity increase carries
+InPlace and the old reservation keeps forwarding, (2) a peer ResvErr is relayed
+to the egress, (3) a peer ResvTear reaches the ingress and removes Ze's swap
+route, (4) an FF Resv with one unknown sender yields one ResvErr while the good
+LSP stays up. The carrier needs root, so it was not run in this review.
