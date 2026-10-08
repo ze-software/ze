@@ -20,10 +20,10 @@ restored the missing producers in `internal/le/site`; `Build` now invokes
 
 The frozen-page defect described by the original August task is the motivation,
 not a claim that the current build still has no producers. The non-redirect
-phase-10 producers have landed. The full real-checkout build, unchanged-input
-second-build proof, published-content review and final review/closure evidence
-remain incomplete. The empty AC-14/full-build evidence rows remain obligations,
-not passes. Status is `in-progress`, not a verification handoff.
+phase-10 producers have landed. The full real-checkout build, the
+unchanged-input second-build proof (AC-14) and the published-content review
+carry their evidence in Goal Validation (2026-10-08). Independent review and
+closure remain. Status is `in-progress`, not a verification handoff.
 
 The owner paused redirect stubs and legacy-URL rewriting on 2026-08-30, and
 withdrew them on 2026-10-08 (Decision below): `redirect.go`, its tests and the
@@ -1227,7 +1227,7 @@ and its carry-over are untouched.
 |------------------|---------------|-------------------|
 | Every published page is generated again from its source by `./le site build`, none surviving on the seed alone | functional, real checkout | `TestBuildRendersEveryPublishedRoute` (8cb45c9756): a full build over the real checkout, green in 225s; RED with the first registered producer dropped (`1 published routes no producer wrote: [/project/activity/]`). Real build A over the checkout: rc=0, 994 routes published, 994 written, 22 producers |
 | Rendered parity with the page published in `../gh-pages` | functional, parity fixtures plus content review | The per-family parity tests (`TestTheFeaturesPageReadsAsThePublishedPage` and its siblings) compare visible text against fixtures captured from the published pages; the features fixture now carries Policy Routing shipped, which c9e5b8b340 made correct (330e017757). Content review of real build B (992 pages, talk decks excluded as frozen) found and fixed: a broken feature-status href (2ee3a59bae, `TestEvidenceCleanupKeepsALinkAddressWhole` red/green), the command-reference Update Commands table rendering as literal pipes with no rows (section removed, its commands are documented in the IRR, resolve and firmware sections), authoring HTML comments and literal `**` on RFC pages (e490688d7c, `TestAnAuthoringNoteIsNotPublished`, `TestTheAuthorsEmphasisRendersAsEmphasis` red/green). `assets/header.html` `__ZE_SITE_ROOT__` placeholders are its template, not a defect |
-| A build over an unchanged tree is reproducible (AC-14) | functional plus real-checkout pair | `TestASecondBuildChangesNothing` (8cb45c9756): green; RED with the facts carry disabled, RED with `carryPublicationStamps` disabled. Real pair A/B: 38 files differ, all traced to the tree moving between builds (HEAD 03d466c58d to a424629b50) except `data/site-facts.json` `published_at`, the defect 8cb45c9756 fixed. Real pair C/D after the fix: OWED. The first attempt (2026-10-08 05:13, HEAD c976fab95a) stopped in build C, because another session's uncommitted edit to the draft-ietf-idr-bgp-bfd-strict-mode summary does not parse and no derived artifact can build until it does. The pair is scripted in the session scratch as `ac14.sh`: C seeded from build B, D seeded from C, HEAD and `git status` hashed before C, after C and after D, then `diff -rq` C D |
+| A build over an unchanged tree is reproducible (AC-14) | functional plus real-checkout pair | `TestASecondBuildChangesNothing` (8cb45c9756): green; RED with the facts carry disabled, RED with `carryPublicationStamps` disabled. Real pair A/B: 38 files differ, all traced to the tree moving between builds (HEAD 03d466c58d to a424629b50) except `data/site-facts.json` `published_at`, the defect 8cb45c9756 fixed. Real pair C/D after the fix (2026-10-08, scripted as `ac14.sh` in the session scratch: C seeded from build B, D seeded from C, HEAD and `git status` recorded before C, after C and after D, then `diff -rq` C D): HEAD 5e8af797a3 at all three points; C rc=0 and D rc=0; both output directories present with 2160 files each; both build reports carry the same `source-digest` 8515da82ca63; `diff -rq` C D is empty (0 lines), so the artifact is byte-identical. The `git status` listing was identical after C and after D. Between before-C and after-C one untracked file appeared, another session's `plan/journal/policy-change-never-re-evaluates-what-it-admitted.md`, before D started, so C and D built the same tree |
 
 ## Checklist
 

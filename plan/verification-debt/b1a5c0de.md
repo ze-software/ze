@@ -7,5 +7,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-08 | b1a5c0de | stress-repro: build ze from the tree, refuse an all-failed verdict (+29 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-01T12:40:37Z) | open |
+| 2026-10-08 | b1a5c0de | stress-repro: build ze from the tree, refuse an all-failed verdict (+30 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: last verify failed (exit=1, at 2026-10-01T12:40:37Z) | open |
 | 2026-10-08 | b1a5c0de | stress-repro: build ze from the tree, refuse an all-failed verdict (+14 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
