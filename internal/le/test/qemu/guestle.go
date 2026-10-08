@@ -32,20 +32,20 @@ func GuestLeRel(goarch string) string {
 }
 
 // buildGuestLe cross-builds a linux le for goarch into the checkout, through
-// job admission, and answers its path. The guest runs it as `le test ...`, so
+// job admission, at GuestLeRel(goarch). The guest runs it as `le test ...`, so
 // every harness command it runs is the harness of this checkout.
-func buildGuestLe(root, goarch string) (string, error) {
+func buildGuestLe(root, goarch string) error {
 	toolchain, err := gotoolchain.New(root)
 	if err != nil {
-		return "", err
+		return err
 	}
 	tags, err := linuxle.Tags(root)
 	if err != nil {
-		return "", err
+		return err
 	}
 	admission, err := job.NewIn(root)
 	if err != nil {
-		return "", err
+		return err
 	}
 	admission.Out = os.Stderr
 
@@ -53,9 +53,9 @@ func buildGuestLe(root, goarch string) (string, error) {
 	environment := append(toolchain.Environment(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
 	if _, code := admission.Run("qemu-build-le", linuxle.Argv(tags, output), root, environment); code != 0 {
-		return "", fmt.Errorf("build the guest le for linux/%s exited %d", goarch, code)
+		return fmt.Errorf("build the guest le for linux/%s exited %d", goarch, code)
 	}
-	return output, nil
+	return nil
 }
 
 // guestLeLink writes dir/le as a symlink to the file of the running process,

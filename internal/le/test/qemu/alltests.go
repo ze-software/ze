@@ -875,12 +875,19 @@ var errNotOneCI = errors.New("qemu: all-tests test takes test/<dir>/<name>.ci")
 // vmSuiteFor answers the VM suite that runs the .ci at rel, test/<dir>/<name>.ci,
 // with its all-tests flag removed and the test's stem in Only, so the suite
 // selects that one file. A suite walks the directory its last word names.
+// ciRootDir is the checkout directory every .ci suite lives under, and
+// goTestVerb the go subcommand a guest test binary is built with.
+const (
+	ciRootDir  = "test"
+	goTestVerb = "test"
+)
+
 func vmSuiteFor(rel string) (vmSuite, error) {
 	parts := strings.Split(rel, "/")
 	if len(parts) != 3 {
 		return vmSuite{}, fmt.Errorf("%w, got %s", errNotOneCI, rel)
 	}
-	if parts[0] != "test" {
+	if parts[0] != ciRootDir {
 		return vmSuite{}, fmt.Errorf("%w, got %s", errNotOneCI, rel)
 	}
 	stem, isCI := strings.CutSuffix(parts[2], ".ci")
@@ -972,7 +979,7 @@ func (a *allTestsRun) unitPhase(environ []string) (PhaseResult, error) {
 	}
 	tags = strings.Replace(tags, " "+IntegrationTag, "", 1)
 	argv := []string{
-		"env", "CGO_ENABLED=0", "go", "test",
+		"env", "CGO_ENABLED=0", "go", goTestVerb,
 		"-timeout", "20m",
 		tagsFlag, tags,
 		"./...",
@@ -992,7 +999,7 @@ func (a *allTestsRun) unitPhase(environ []string) (PhaseResult, error) {
 // (`le test unit installer`), so this VM is where they run.
 func (a *allTestsRun) installerPhase(environ []string) PhaseResult {
 	argv := []string{
-		"env", "CGO_ENABLED=0", "go", "test",
+		"env", "CGO_ENABLED=0", "go", goTestVerb,
 		"-count=1",
 		"-timeout", "120s",
 		tagsFlag, "ze_core ze_installer",
@@ -1044,7 +1051,7 @@ func (a *allTestsRun) integrationArgs() ([]string, error) {
 	}
 
 	argv := make([]string, 0, len(packages)+9)
-	argv = append(argv, "env", "CGO_ENABLED=0", "go", "test", tagsFlag, tags,
+	argv = append(argv, "env", "CGO_ENABLED=0", "go", goTestVerb, tagsFlag, tags,
 		"-count=1", "-timeout", "120s")
 	return append(argv, packages...), nil
 }

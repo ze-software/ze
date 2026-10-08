@@ -133,7 +133,7 @@ type RunOptions struct {
 // parseRunArguments validates the qemu run keyword values.
 func parseRunArguments(args leaction.Arguments) (RunOptions, error) {
 	options := RunOptions{
-		Command: args.One(keywordCommand), Packages: strings.Fields(args.One("packages")),
+		Command: args.One(keywordCommand), Packages: strings.Fields(args.One(keywordPackages)),
 		Timeout: DefaultCommandTimeout, Kernel: args.One(keywordKernel),
 		KeepAlive: args.Has("keep-alive"), Memory: settingOr(runMemoryEntry.Key, DefaultRunMemory),
 		CPUs: settingOr(runCPUsEntry.Key, DefaultRunCPUs), Boot: DefaultBootTimeout,

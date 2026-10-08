@@ -34,10 +34,14 @@ import (
 // The run and install actions share these keywords, and the code that reads an
 // argument names the same constant the action declares.
 const (
-	keywordCommand = "command"
-	keywordKernel  = "kernel"
-	keywordTimeout = "timeout"
+	keywordCommand  = "command"
+	keywordKernel   = "kernel"
+	keywordPackages = "packages"
+	keywordTimeout  = "timeout"
 )
+
+// valueDuration is the value placeholder every timeout keyword shows in help.
+const valueDuration = "duration"
 
 // zeMainPackage is the package path of the ze binary each build here compiles.
 const zeMainPackage = "./cmd/ze"
@@ -70,8 +74,8 @@ var actions = leaction.New(area,
 			// what refuses one carrying neither. The keyword is optional
 			// because the switch beside it can answer for it.
 			{Keyword: keywordCommand, Value: "command", Requirement: leaction.Optional},
-			{Keyword: "packages", Value: "space-separated-packages", Requirement: leaction.Optional},
-			{Keyword: keywordTimeout, Value: "duration", Requirement: leaction.Optional},
+			{Keyword: keywordPackages, Value: "space-separated-packages", Requirement: leaction.Optional},
+			{Keyword: keywordTimeout, Value: valueDuration, Requirement: leaction.Optional},
 			{Keyword: keywordKernel, Value: "path", Requirement: leaction.Optional},
 			{Keyword: "keep-alive"},
 		},
@@ -116,7 +120,7 @@ var actions = leaction.New(area,
 			" and prove both MOBIKE movement scenarios against Alpine strongSwan without Docker",
 		Parameters: []leaction.Parameter{
 			{Keyword: keywordKernel, Value: "vmlinuz-path", Requirement: leaction.Required},
-			{Keyword: keywordTimeout, Value: "duration", Requirement: leaction.Optional},
+			{Keyword: keywordTimeout, Value: valueDuration, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runIPsecMOBIKEHere,
 	},
@@ -211,7 +215,7 @@ func runQEMUHere(args leaction.Arguments) (any, int) {
 	}
 	// The guest runs every harness command as `le test <name>` from this
 	// build, so the harness it runs is the harness of this checkout.
-	if _, err := buildGuestLe(root, GuestArch()); err != nil {
+	if err := buildGuestLe(root, GuestArch()); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}

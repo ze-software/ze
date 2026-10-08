@@ -102,7 +102,7 @@ func stressAction() leaction.Action {
 			{Keyword: keywordOutput, Value: "directory", Requirement: leaction.Required},
 			{Keyword: keywordPrefixes, Value: "count", Requirement: leaction.Optional},
 			{Keyword: keywordPprof},
-			{Keyword: keywordTimeout, Value: "duration", Requirement: leaction.Optional},
+			{Keyword: keywordTimeout, Value: valueDuration, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runStressHere,
 	}
@@ -194,16 +194,16 @@ func runStressGuest(root string, request stressRequest) (any, int) {
 		return nil, 1
 	}
 	options, err := parseRunArguments(leaction.Arguments{
-		keywordCommand: {stressGuestCommand(request, goarch)},
-		"packages":     {stressGuestPackages},
-		keywordTimeout: {request.Timeout.String()},
+		keywordCommand:  {stressGuestCommand(request, goarch)},
+		keywordPackages: {stressGuestPackages},
+		keywordTimeout:  {request.Timeout.String()},
 	})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
 	options.HardwareOnly = true
-	if _, err := buildGuestLe(root, goarch); err != nil {
+	if err := buildGuestLe(root, goarch); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
@@ -215,7 +215,7 @@ func runStressGuest(root string, request stressRequest) (any, int) {
 		return &run, 1
 	}
 	report := &StressGuestReport{Run: &run, Output: request.Output}
-	raw, err := os.ReadFile(reportPath)
+	raw, err := os.ReadFile(reportPath) //nolint:gosec // the report path is this checkout's own tmp/qemu file, never input
 	if err != nil {
 		report.Failure = "the guest wrote no stress report: " + err.Error()
 		return report, 1
@@ -289,7 +289,7 @@ func copyGuestFile(root, guestPath, output string) (string, error) {
 		return "", fmt.Errorf("the guest wrote %s outside %s, so the host cannot read it", guestPath, GuestWorkspace)
 	}
 
-	source, err := os.Open(filepath.Join(root, filepath.FromSlash(relative)))
+	source, err := os.Open(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // relative is confined to the shared checkout by the GuestWorkspace prefix check above
 	if err != nil {
 		return "", fmt.Errorf("the report names %s, which the host cannot read: %w", guestPath, err)
 	}

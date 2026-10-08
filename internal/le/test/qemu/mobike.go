@@ -52,9 +52,9 @@ func runIPsecMOBIKEHere(args leaction.Arguments) (answer any, code int) {
 	command := shellQuote(filepath.Join(guestArtifacts, "le")) +
 		" deployment ipsec-mobike-test daemon " + shellQuote(filepath.Join(guestArtifacts, "ze"))
 	runArgs := leaction.Arguments{
-		keywordCommand: {command},
-		keywordKernel:  {args.One(keywordKernel)},
-		"packages":     {"iproute2 iputils util-linux strongswan"},
+		keywordCommand:  {command},
+		keywordKernel:   {args.One(keywordKernel)},
+		keywordPackages: {"iproute2 iputils util-linux strongswan"},
 	}
 	if timeout := args.One(keywordTimeout); timeout != "" {
 		runArgs[keywordTimeout] = []string{timeout}
