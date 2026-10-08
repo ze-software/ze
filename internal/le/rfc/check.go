@@ -440,6 +440,13 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled))...)
 	}
 	findings = append(findings, notes(collected.ParseErrors)...)
+	// A document under reference/ is non-normative until the owner moves it into
+	// rfc/full/ or rfc/drafts/ (reference/README.md).
+	referenceErrors, err := checkReferenceSources(tree, stems)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	findings = append(findings, notes(referenceErrors)...)
 	findings = append(findings, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, retired, levelsKnown))...)
 	findings = append(findings, evaluate(collected.Requirements, collected.Tags, collected.Enrolled)...)
 	findings = append(findings, evaluateGapTags(collected.Requirements, collected.GapTags)...)

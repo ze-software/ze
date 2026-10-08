@@ -51,6 +51,10 @@ const (
 	discriminationRel = "rfc/discrimination"
 	fullRel           = "rfc/full"
 	draftsRel         = "rfc/drafts"
+	// referenceRel holds non-normative IETF documents that are never a
+	// requirement source; referenceReadmeRel states that rule.
+	referenceRel       = "reference"
+	referenceReadmeRel = "reference/README.md"
 )
 
 // specDirNames are the release buckets a spec can live in. They come from

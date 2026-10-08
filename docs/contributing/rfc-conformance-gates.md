@@ -79,6 +79,14 @@ carries one. `./le rfc check` reads the summaries, the tags and the audits
 rather than any of the five, so no gate compares a re-render against a committed
 copy.
 
+`reference/` holds non-normative IETF documents (BCPs, Informational RFCs,
+active drafts) and is never a requirement source. `./le rfc check` refuses a
+summary or an extraction sign-off whose stem has a text under `reference/` and
+none under `rfc/full/` or `rfc/drafts/`. It also refuses a summary that cites a
+`reference/` path. Only the owner moves a document into `rfc/full/` or
+`rfc/drafts/`, as `reference/README.md` states.
+<!-- source: internal/le/rfc/check_reference.go -- checkReferenceSources -->
+
 Everything in that table is also PUBLISHED, one page per summary stem at
 `/quality/rfc-compliance/<stem>/`. The page carries the same six cells, the
 recorded verdict and its freshness, and the state of every stored proof
