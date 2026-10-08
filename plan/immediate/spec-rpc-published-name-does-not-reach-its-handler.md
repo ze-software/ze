@@ -88,10 +88,12 @@ the PUBLISHED method, so `ze yang doc` prints no input or output parameters for
 any command whose two names disagree. `docs/architecture/api/wire-format.md`
 copied the derivation into its "Method Naming" table, and its `ze-rib:show` row
 names a method that no handler answers and no `ze:command` node declares.
-One measurement is masked in the tree today, and it is a separate defect that
-this spec does not fix: on the `ze_core,ze_distro` build of 2026-09-06,
-`SchemaRegistry` returns an empty registry after a loader error it discards, so
-`ze help ai` reports "0 YANG RPCs" and `ze schema methods` fails with "register
+One measurement was masked when this research was done, by a defect the
+second closure review brought into scope and 3fa0b1f227 fixed (`SchemaRegistry`,
+`Services` and `Build` now return the loader and `ze:rpc` pointer errors, and
+`ze help ai` exits 1 on them): on the `ze_core,ze_distro` build of 2026-09-06,
+`SchemaRegistry` returned an empty registry after a loader error it discarded, so
+`ze help ai` reported "0 YANG RPCs" and `ze schema methods` failed with "register
 ze-ddos-fake.yang: module ze-fakeddos-conf imports ze-ddos-detect-conf but it is
 not available".
 
@@ -533,7 +535,8 @@ removes after moving its two unique facts.
    - Files: the `-cmd` modules of one subsystem, and the handler literals beside them
    - Verify: 249 verb-prefixed declarations reach an owner prefix, the 49 that still carry `-api` are corrected, and no prefix is left with two owners
    - Status (2026-10-08): Q4 derivation done. `RegisterRPCs` stamps `RPCRegistration.Registrar` with the caller's package, and `OwnerPrefix` (`internal/component/plugin/server/rpc_register.go`) answers `ze-` plus the directory directly under `internal/component/` or `internal/plugins/`, `-cmd` dropped. The gate's `foreignPrefixes` (`contract.go`) fails the run on any other prefix. 302 of 374 registered methods moved in one mechanical pass (map: session scratch `p6/map.tsv`). A verb prefix becomes the first word of the name with the owner word dropped (`ze-show:ospf-neighbors` to `ze-ospf:show-neighbors`); a foreign owner prefix becomes a qualifier (`ze-rib-api:routes` to `ze-bgp:rib-routes`, `ze-system:help` to `ze-plugin:system-help`, `ze-bgp:log-levels` to `ze-log:bgp-log-levels`). One commit rather than one per subsystem, because the check is all-or-nothing over the linked set.
-   - Open: 52 `ze:command` methods with no builtin handler keep their old prefix: local CLI handlers in `internal/plugins/{env,config-cli,config-schema,config-storage,config-yang,debug,diag,explain,skills,support}` and `internal/component/{plugin,bgp/cli}`, and the external fake plugins under `internal/test/plugins/`. No registrar exists for them, so their owner needs a second derivation source (the package that declares the `-cmd` module), and the gate does not judge them yet.
+   - Status (2026-10-08, later): the `ze:command` methods with no builtin handler (estimated at 52 above) are done. 89497c80e4 moved the 36 locally served methods: `RegisterModule` stamps `Module.Registrar`, `OwnerPrefix` applies to it unchanged, and the gate's `foreignCommandPrefixes` judges them (`TestEverySubsystemDeclaresUnderItsOwnPrefix` red on the 36, then green). 07431bb80e moved the nine methods of the fake test plugins `fakeas112`, `fakel2tp` and `fakeredist` to `ze-test-<dir>`: `internal/test/plugins/<x>` is a third `OwnerPrefix` root. The owner ruled on 2026-10-08 that fake test plugins keep `ze-test-<dir>`.
+   - Status (2026-10-08, second closure review): the rename had left three owner guards vacuous (`"ze-clear:ospf-` matched no YANG file; `"ze-l2tp-api:` and `"ze-rib-api:` matched only `ze:rpc` pointers). adf1f79ae6 keys `TestClearOwnerRemovalLeavesNoResidue` and `TestShowSchemaHasNoBGPPluginCommands` on the `ze:command` spelling (`"ze-ospf:clear-`, `"ze-l2tp:`, `"ze-bgp:rib-`) and adds a derived check per package: every `ze:command` in the central schema carries `ze-cmd:` and every `ze:rpc` names the package's own API module. Planted owner nodes turned all four tests red; the HEAD tests stayed green over the same plant.
 -> Decision: the verb or foreign-owner qualifier keeps every renamed method unique; the prefix is derived and checked, the name after it is a convention.
 7. **Phase: Correct the surfaces and the pages** -- one name for each command
    - Tests: `test/parse/cli-schema-methods.ci`, `test/ui/help-ai-json-methods-answer.ci`
@@ -654,8 +657,7 @@ command. The only external contract is S-1 to S-3, which AC-7 freezes.
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
 - `plan/immediate/spec-yang-rpc-declarations-with-no-handler.md` keeps the peer-add, peer-delete and peer-save capability (its RIB-effect proofs and the peer-create/peer-delete rename). The 117 published methods with no handler, the nodeless `-api` rpcs among them, are this spec's since the owner decision of 2026-10-08.
-- `SchemaRegistry` returning an empty registry after a discarded loader error is a separate defect and is not fixed here.
-- `findRPC`, `findRPCByCommand` and `registerCLICommand` have no non-test caller. Deleting them is not in this spec.
+- `findRPC`, `findRPCByCommand` and `registerCLICommand` have no non-test caller. Deleting them deletes or rewrites the four `schema_test.go` tests that are their only callers, so it is not in this spec; the row is in `plan/journal/unwired-feature.md` (2026-10-08).
 
 ## RFC Documentation (Scope: protocol)
 
