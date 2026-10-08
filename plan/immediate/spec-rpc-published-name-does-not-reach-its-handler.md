@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Handoff | - |
 | Updated | 2026-10-08 |
 
@@ -485,7 +485,7 @@ removes after moving its two unique facts.
 | 13 | Route metadata keys added/changed? | N-A | No route metadata |
 | 14 | Prometheus counters added/changed? | N-A | No counters |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/<this-spec>.md` lists them |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Declared by this spec's files (`./le spec citation anchors`, 2026-10-08), each read and corrected in the phase that changes its declaring file: `docs/architecture/api/process-protocol.md` (`schema.go`, `command.go`, `command_registry.go`; phases 4 and 5), `docs/architecture/config/yang-config-design.md` (`rpc.go`, `command.go`, `tree.go`, `schema/cli/main.go`; phases 4 and 7), `docs/features/ai-first.md` (`aihelp.go`; phase 7), `docs/guide/mcp/overview.md` (`aihelp.go`; phase 7) |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | The `ze-rib:show` row in `docs/architecture/api/wire-format.md` is wrong today |
 
 ## Implementation Steps
@@ -579,6 +579,22 @@ removes after moving its two unique facts.
      a subsystem arch doc, a rule, or the learned summary. -->
 - Three files can name one method, and the command works when any two of them agree. That is why a wrong published name is invisible from the CLI.
 - A published name that reaches no dispatch path is documentation, and documentation with no consumer inside the process drifts without a gate.
+- 2026-10-08, implementation start. Phase 1's gate already exists: the sibling spec moved it to
+  `internal/le/doc/yangcontract/contract.go` (949091e15a), so the `internal/le/docvalid/` paths in
+  this spec are stale. `./le doc yang-contract command-contract` after `./le --update`: 418 YANG
+  commands, 372 handlers, 40 local handlers, verdict FAIL on 117 rpc declarations with no handler,
+  0 local orphans.
+  -> Constraint: a join by method LOCAL name fails even inside one `-cmd` module. 19 `-cmd` modules
+  declare two or three methods that share a local name under different prefixes (`ze-ping-cmd`:
+  `ze-monitor:ping`, `ze-resolve:ping`, `ze-show:ping`; `ze-cli-show-cmd`: `summary` under
+  `ze-l2tp-api`, `ze-pppoe-api`, `ze-subscriber-api`; `ze-debug-cmd`, `ze-resolve-cmd`,
+  `ze-firewall-irr-cmd`, ...). So the third open question cannot be answered by "move the rpc
+  statements into the command modules" alone: the node must name its rpc explicitly either way.
+  -> OPEN (blocks phase 4, which is what turns the gate green; no owner answer recorded): how the
+  node names its rpc. Proposed pick: the node carries an explicit pointer to the rpc statement it
+  documents, the rpc names no method, and `WireModule` goes.
+  -> OPEN (blocks phase 6 and AC-10; no owner answer recorded): how "owner" is derived for the
+  owner prefix. R-5's "one table the check reads" is a central enumeration (`ai/rules/principles.md`).
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
