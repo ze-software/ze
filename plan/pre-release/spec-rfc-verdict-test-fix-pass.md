@@ -98,6 +98,25 @@ archive, approved fixture changes and coverage limits. Wiki `ad06d64` and site
 was pushed. The owner-requested pause follows this checkpoint, with remaining
 forwarding, LLGR, OSPF and RFC acceptance still open. Neither spec is closed.
 
+The owner subsequently resumed that remaining scope with "ok continue use agents"
+and "use agents to do this in parrallel". Five independent slices now cover
+forwarding, LLGR, inter-AS OSPF, readiness proof and RFC/closure inventory.
+The child retains the checkpoint evidence and owns the resumed acceptance;
+shared-image execution and canonical RFC writes stay serialized. No push is
+authorized, and neither spec's closure criteria are reduced.
+
+Progress, 2026-10-08: continuation remains Docker-free. The coupled BGP source,
+tests, docs and records landed as `d3e5b4a770`; MRT landed as `9f89c5fac43a`.
+All five committed build flavors passed at `824407ddae1f` after a concurrent
+launcher producer landed. Wiki retirement landed as `328c4dc`. The child's
+"Acceptance evidence, 2026-10-08" distinguishes the 19 promoted fixtures,
+whole-suite and later targeted results, and completed IPv6 claim renewals
+from two pending guest replay bindings. Private site rendering and browser
+proof passed; publication landing remains open. A new actual-writer regression
+reproduced a shared-subnet defect, so its repair and final stress remain owed.
+Remaining clause judgments stay open. Earlier container evidence is historical,
+not a new run under this restriction. Neither spec is closed; no push ran.
+
 | Stays in the parent | Why |
 |---------------------|-----|
 | The narrowing audit | it runs over every stem, and its output feeds every child |
@@ -890,6 +909,7 @@ The children's functional and interop tests are per D-8 fix and are planned in e
 - `./le rfc check` stays red from the 18 `producer-changed` records other sessions staled, journaled in `plan/journal/concurrent-rfc-gate-stale.md`; this pass neither owns nor fixes them
 - The R-7 rows of un-enrolled stems (8210bis, rfc1035, rfc9190) are recorded in this spec's table, not in an audit file, because `audit-stamp` refuses an un-enrolled stem; enrolment is `spec-rfc-evidence-strength-3`'s
 - Verdicts blocked by another spec's producer fix leave this pass in that spec's acceptance criteria (P-3), so the whole-corpus listing reaches empty only when those specs close
+- Owner decision, 2026-10-08: `plan/spec-bgp-tunnel-encapsulation-consumption.md` owns the absent RFC 9012 attribute-driven consumer. The BGP child's weak RFC9012-13-16 is explicitly Blocked by AC-2/AC-6; gap RFC9012-13-17, MAC-consumption RFC9012-4.2-1, and Sections 3.7/15 consumer work are retained there without conformance credit. Existing receive RFC9012-13-10/12/13/14 and RFC 9830 ownership do not move.
 
 ## Checklist
 

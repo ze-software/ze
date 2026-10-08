@@ -7,7 +7,7 @@
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BGP group before any row edit, parent R-11) |
 | Phase | 2/48 |
 | Handoff | - |
-| Updated | 2026-10-07 |
+| Updated | 2026-10-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -321,6 +321,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 | weak | `spec-add-path-limit-send-receive` AC-21 (BGP c31, 2026-10-02: the unmet half is the ingress ceiling, "the maximum number of paths to accept from a sender"; no code drops a received path above PathsLimitRecv, and that spec builds the ceiling) |
 | RFC8669-6-3 | weak | `spec-bgp-prefix-sid-rfc-defects` AC-8/AC-9 (owner decision, 2026-10-02: discard duplicate recognized single-occurrence TLVs on relay, including types 5 and 6; preserve the existing red probe) |
 | RFC9252-5-3 | weak | `spec-vpp-srv6-service-policy` AC-1..AC-7 (owner decision, 2026-10-02: VPP needs an encapsulating SR policy and locally allocated binding SID before prefix steering; preserve the existing red probe) |
+| RFC9012-13-16 | unimplemented gap; native rejudge pending | `plan/spec-bgp-tunnel-encapsulation-consumption.md` AC-2/AC-6 (owner ruling, 2026-10-08: absent attribute-driven tunnel consumption; remove obsolete carry tags, preserve their assertions under 13-18/-19 and RFC9830, and retain the permanent audit identity) |
 
 - RFC9494-5-2 is a `{gap}` with no verdict in `rfc/audit/rfc9494.json`, so it is not in the derived listing and not a blocked verdict; owner ruling 8 (e) homes it in `spec-bgp-llgr-per-family-config` AC-6.
 - RFC8277-2.5-3 is a `{gap}` with no weak or wrong verdict; `spec-bgp-addpath-best-path-per-prefix` AC-6 owns it.
@@ -328,6 +329,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 - RFC9252-5-2 is `unimplemented`, not weak or wrong.
 - RFC 2545 Section 3 (update-propagation D6) and RFC 7854 Section 4.9 reason 4 (bmp-sflow D1) have no row. RFC7854-4.9-1 is explicitly blocked by the BMP spec's AC-5 for its reason 2 FSM event code. The committing spec also renews records changed by the shared `peerDownFor` repair (R-6 of the parent).
 - RFC 9830 Section 2.4.2 D2 (the BSID label width) has no row; its producer change stales the srpolicy records the same way.
+- RFC9012-13-17 and RFC9012-4.2-1 have no current audit verdict. Their absent header-construction and MAC-consumption behavior, plus Section 3.7 consumer behavior and Section 15 tunnel traffic filtering, belong to `plan/spec-bgp-tunnel-encapsulation-consumption.md` AC-2/AC-3/AC-4/AC-6. They retain explicit gaps and receive no conformance credit. Existing receive defects and proof debt under RFC9012-13-10/12/13/14 remain here; RFC 9830 ownership is unchanged.
 
 ## Required Reading
 
@@ -870,6 +872,69 @@ between that native run and landing. Initial and corrected fixture snapshots
 are separate. Successful per-assertion response bodies and the wire JSONL were
 not retained, so the archive supports the native aggregate verdict and immutable
 inputs, not a claim that those individual responses can be re-read.
+
+### Acceptance resumed, 2026-10-07
+
+After checkpoint `224bb7d9f2`, the owner said "ok continue use agents" and
+"use agents to do this in parrallel". This lifts the pause for the existing
+remaining scope; it does not authorize absent features or a push.
+
+Independent slices resume forwarding/ModCopy acceptance, the remaining LLGR
+physical runs, inter-AS OSPF semantic proof, populated persist and RR error-path
+readiness proof, and the current RFC/closure inventory. Existing passing evidence
+stays valid within its recorded bounds: the rebuilt Linux LLGR transition80
+result is not repeated merely because the old wrapper stopped before the other
+three workflows. Shared-image runs and canonical RFC writes remain serialized.
+The main thread integrates source-grounded reports, runs missing proof after
+edits settle, and retains the original acceptance and external ownership limits.
+Both specs remain in progress; this is not a closure verdict.
+
+### Resumed scope decisions and evidence
+
+The owner selected "Retire bgp-persist; migrate to bgp-rib" after populated
+replay failed through the real SDK. The cutover removes the duplicate producer
+and migrates explicit peer bindings and populated replay proof to RIB; it does
+not grant export authority globally or add durable restart storage.
+
+| Surface | Observed result |
+|---------|-----------------|
+| OSPF inter-AS | Native positive passed; changing remote IPv6 Router-ID TLV 1031 to 1029 failed with the exact wrong-TLV verdict. Logs: `job-ospf-interas-memory-positive-44f808c7.log`, `job-ospf-interas-memory-negative-5ace61e8.log`. Disposable `/etc/ze` tmpfs isolates storage latency; this is protocol proof, not disk-durability proof. |
+| ModCopy | Passing native baseline and exact omission failure follow the attribute-value/header correction. Independent review then found ordinary eBGP prepend composition missing; that repair remains open. |
+| LLGR readvertise | The physical run stopped at invocation 23 after 22 successes: the IPv6 control listener could not bind. This is not an 80-run pass. Cross-TMPDIR locks and IPv4-only availability probing require runner repair before retry. |
+| SendHold and IPv6 | Native regressions observed no-output attempts extending SendHold and invalid/global-off-subnet next-hop output. Source repairs and their independent proof are in progress. |
+
+The session state retains exact commands, logs and remaining boundaries. No
+whole-tree verification or closure is claimed.
+
+### Acceptance evidence, 2026-10-08
+
+| Surface | Observed result and remaining boundary |
+|---------|----------------------------------------|
+| Forwarding | All seven saved workflows have qualifying passes, including rebuilt ModCopy baseline with five passing assertions in `job-forward-composed-baseline-rebuild-e9ad2386.log`. Omitting only cached-rail AS override produces actual `[65002 65001]` versus required `[65000 65001]` in `job-forward-composed-omit-override-8c418571.log`; removing the edited recipient triggers the exact three-address EOR observer failure in `job-forward-composed-absent-recipient-b7f1169e.log`. Pool/dedup/lifetime evidence is retained; no whole-package race20 claim. |
+| Runner port leases | Per-EUID fixed lock namespace and IPv4/IPv6 probing passed the full runner package under race in `job-port-lease-uid-full-package-after-c7d87103.log`, independent review, and rebuilt native workflows. Existing root-owned legacy locks were not changed. |
+| LLGR physical workflows | All four have qualifying80-run evidence: retained transition; readvertise `bgp-plugin-draft-llgr-readvertise-20261007-232446.log`; peer timer `bgp-plugin-llgr-peer-stale-time-drives-timer-20261008-034659.log`; repaired RIB-stale `bgp-plugin-draft-llgr-rib-stale-20261008-042957.log`, under `tmp/stress-repro/`. Each newer capture has80 consecutive physical invocations, zero exits, passing peer exchanges and inside-parent markers. |
+| LLGR lifecycle regression | Before `job-llgr-writer-before-capability-after-b747a51e.log` exposed a fresh-route withdrawal. Atomic received-owner removal and writer receipt guards passed all five schedules in `job-lifecycle-capability-bounded-after-12720db6.log`, complete RIB/storage race packages in `job-llgr-rib-storage-packages-after-1b877af0.log`, and independent review. This does not retrospectively establish the cause of physical invocation56. |
+| Unsupported Capability | Full-value and repeated ADD-PATH grouping repairs passed both OPEN paths and independent whole-clause review. Four new tuple bindings were recorded in `job-capability-tuple-native-records-b59f0db8.log`; all fifteen remaining capability bindings completed in `job-capability-closing-native-records-03dfba48.log`. Native RFC5492-5-1 rejudgment stamped successfully in `job-capability-whole-clause-rejudge-seal-c28e7814.log`. Producer-halt bindings do not replace the earlier semantic tuple proof. |
+| Absent tunnel consumer | The owner selected a separate owning spec, `plan/spec-bgp-tunnel-encapsulation-consumption.md`. This records scope only, not an approved implementation design, and does not transfer existing receive validation defects. |
+| Receive admission | OpenSent/OpenConfirm nil-pointer panics were reproduced in `job-receive-admission-late-as-before-static-fixed-5ae3c30d.log`. Admission now returns before any unclassified UPDATE handoff. Both states pass `job-receive-admission-callback-accounting-after-183d1f4a.log`, with exact FSM notification, connection closure and no received UPDATE/EOR; bounded independent review accepted the fix. |
+| Late receive errors | Original-reachability metadata closes first-AS and tunnel-endpoint empty-MP escalation gaps. Before logs `job-receive-admission-late-as-before-static-fixed-5ae3c30d.log` and `job-tunnel-empty-mp-late-error-before-91ab52c0.log` isolate the failures. After `job-tunnel-empty-mp-late-error-after-2096b5cd.log` passes the full diagnostic and affected endpoint roots. Full reactor and message packages passed race in `job-receive-final-reactor-message-race-7d820229.log`. Independent RFC8654-3-1 judgment is canonical enforced; later changed-unit freshness is a separate check. |
+| LLGR independent receiver | Transport-only USR1 fault and actual CLI-array parsing passed FRR10.3.1 in `job-llgr-transport-only-positive-c00792ae-20261008f-cc087131.log`. Omitted-GR and sibling-LLST-reset mutations failed at the intended original-expiry assertion in `094483f2` and `7576ea55`; rebuilt unmutated scenario passed `job-llgr-restored-c00792ae-20261008i-925bd407.log`. Timing, identity and validity gates stayed unchanged. Harness block committed as `456c637b81`; all five committed build flavors passed `job-llgr-transport-tracked-five-flavor-8adf7457.log`. Earlier invalid-route cause remains unproven. |
+| Packet-rate zero | Actual runtime kernel7.2 mutation failed `received 03, want token 4` in `job-flowspec-semantic-packet-zero-kernel-9c4ece52.log`. Rebuilt unmutated carrier, including reinstalled-zero discard followed by withdrawal delivery, passed without skip in `job-flowspec-zero-restored-guest-path-637874ca.log`. An initial restored guest invocation used an incorrect path and did not execute the test; it is not semantic evidence. Independent review accepted the corrected proof; native claim binding remains. |
+| Strict-mode combined condition | Nonzero hold-down initial FSM and exact wire assertions passed `job-remaining-bgp-fixture-after-2acfc16f.log`; independent whole-condition review accepted10-1, and the judgment is canonical. Draft `Support remaining` is `-`, as the draft table schema requires; native proof disclosure remains in the other Meta fields. |
+| Canonical tunnel accounting | New RFC9012-13-21 restores first-occurrence consumer duty as an explicit gap and maps extraction13:7 without reusing retired13-7. The separate consumer spec owns AC-7; no implementation was added. False default-filtering support prose was corrected toward the observed gaps. Endpoint/filter judgments and the 13-16 unimplemented verdict are canonical. The remaining 13-10 processing-equivalence proof and changed-unit bindings are distinct from those completed stamps. |
+| Numeric emission | Four emission mutations produced exact-wire failures, including RFC-relevant four-octet output for values256/65535 and two-octet ICMP code; four reception mutations rejected legal wider encodings. Restored emission, compatibility and recipient-forwarding roots passed race in `job-flowspec-numeric-restored-after-mutations-c672abd1.log`. Legal-wide reception is not emission-negative evidence; four emitter rows now carry justified single-positive polarity. Native records/stamps remain. |
+| BGP-LS object placement | Complete parallel-link descriptors and competing same-prefix OSPF route classes now pass all five native/exporter roots under race in `job-bgpls-complete-object-identity-after-9a6e8f72.log`. Independent bounded rejudgment accepts both conditional placement clauses. Absent optional TLV producers remain feature gaps, not a reason to reject placement of implemented attributes; native records/stamps remain. |
+| IPv6 ordinary and effective forwarding | Ordinary and effective-width package runs passed in `4d2ac14f` and `220a4b89`. Before `42945d7b` then exposed zero/eight-width and invalid-replacement bypasses; their repair and subsequent finite-family corrections are included in `d3e5b4a770`. Earlier race20 attempts were cancelled before later source changes. Final attempt `8efbf851` exited143 after 1825.83 seconds with an empty log; no cause or PASS is inferred. Final stress remains owed after the joint-subnet correction. |
+| Finite next-hop family census | Initial repairs passed 17 roots under race in `3aaee687`. Independent review then rejected blanket mapped-AFI2 refusal. Before `e2adc846` failed all three real-path mapped roots; corrected admission passed 28 selected reactor/message/SR Policy roots in `e55e9097` and independent review. Explicit sixteen-byte mapped fields remain supported; native four-byte AFI2 fields remain invalid. No automatic mapping, discovery or new dataplane was added. |
+| Native fixture promotions | Nineteen drafts are promoted: three LLGR, eleven other repaired fixtures, IPv6 replay and four VPN withdrawal inventories. IPv6 replay has 80 physical namespace runs in Docker-free QEMU `33025abc`, plus a separate passing stateless-rule/table isolation run `cbdf24da`; it does not prove remote next-hop adjacency. Each VPN draft completed 80 memory-backed native runs in `7b6b6231`; complete withdrawn identities remain exact. |
+| Live suite and valid input | `f304b83b` passed 790 fixtures and skipped 82 of 872 using the frozen family binary before final compatibility corrections. Six final-fields API workflows passed `56f77022`. The full encode run passed 60/63; both corrected ASN4 fixtures passed `6801839d`, and mapped extended-next-hop wire/API/JSON assertions passed `8a8870b2`. These targeted results are not a repeated final whole-suite pass. |
+| IPv6 claim records | Ordinary covers reached 36/36 in `74c0f6a2`; finite-family/API and actual-Session records followed in `5fed32bd` and `6fb39425`. After mapped-field correction, all 33 required renewals completed in `53bc2065`. Two RFC2545 replay functional bindings remain pending: the recorder's isolated builds lack existing guest namespace preparation. The earlier 80-run QEMU proof remains separate evidence; no whole-clause closure follows from producer-halt records alone. |
+| Source landing | `d3e5b4a770` landed 309 files covering the coupled source, fixtures, docs, records and retirement. MRT landed separately as `9f89c5fac43a`. The first coupled committed build failed because a concurrent launcher import preceded its producer; that producer landed as `fee993d9ca`. All five flavors then passed at `824407ddae1f` in `job-committed-bgp-with-ietf-producer-five-flavors-717e2c46.log`. Journal commit `55bad76c6c` preserves the original red. |
+| Retirement publication | Canonical wiki cutover landed as `328c4dc`, including the retired page removal and regenerated aggregates. Native wiki snapshot `fc3b90b7` derived the site's input from committed wiki HEAD. Private site build `f20febfa` wrote 994 published pages; Chromium showed zero catalog matches and a404 former detail for bgp-persist, the bgp-rib detail, and the rendered in-memory reconnect/migration guide. Final publication landing remains owed; historical parity fixtures stay pinned. |
+| Docker-free boundary | No Docker or push ran in this continuation. Unavailable container interop remains explicit. The receive-only two-octet RIB diagnostic stays draft, with its missing export carrier journaled rather than attributed to AS width. Final race stress, remaining RFC judgments, guest replay records and retirement publication remain open; completed source no longer waits for those gates to land. |
+| Shared-subnet condition | New actual-writer root `TestRFC2545JointSubnetWriter` reproduced four split-link failures in `d6f18d6b`: cached/RS, with/without capability77, emitted a32-byte pair instead of16-byte global-only. All same-link, entity-off and recipient-off controls passed. RFC2545-3-3/-3-4 remain weak; the minimal common-prefix repair, real namespace carrier and bounded FRR receiver proof are in progress. No Neighbor Discovery or third-party-origination feature is authorized. |
+| Unknown sub-TLV processing | `TestRFC9012UnknownSubTLVEndpointProcessing` passed27 combinations under race in `d6f18d6b`, covering exact recipient attributes on both export rails and actual stored-route removal. Positive-only 13-10 metadata distinguishes legal unknown types from separate endpoint errors. Selective semantic mutation, native binding and independent whole-clause judgment remain owed. |
+
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
