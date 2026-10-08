@@ -33,7 +33,7 @@ func validateDemoRuntime(id string, stdout, _ io.Writer) (err error) {
 var demoValidators = map[string]func() error{
 	"cli-dashboard": validateCLIDashboard, demoZefsConfig: validateZeFSConfig,
 	"rbac": validateRBAC, "traceroute": validateTraceroute, "launcher": validateLauncher,
-	"web-config": validateWebConfig, "commit-confirmed": validateCommitConfirmed,
+	"web-config": validateWebConfig, demoCommitConfirmed: validateCommitConfirmed,
 	demoRPKI: validateRPKI, "irr-filter": validateIRR, "rib-fib": validateRIBFIB,
 	"health-reports": validateHealthReports, demoConfigViews: validateConfigViews,
 	"bfd-failover": validateBFD, "ospf-adjacency": validateOSPF,
@@ -304,21 +304,10 @@ func validateWebConfig() error {
 }
 
 func validateCommitConfirmed() error {
-	state := demoState("commit-confirmed")
-	if err := os.RemoveAll(state); err != nil {
+	if err := runCommitConfirmed(actionPrepare); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(state, 0o750); err != nil {
-		return err
-	}
-	config := filepath.Join(state, "ze.conf")
-	data, err := os.ReadFile(filepath.Join(demoDir("commit-confirmed"), "identity.conf"))
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(config, data, 0o600); err != nil {
-		return err
-	}
+	config := commitConfirmedConfig()
 	output, err := runPTYFixture(demoEnvironment(), "--delay", "2", "--command", "show system host", "--command", "set system host edge-trial", "--command", "show | compare", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "show system host", "--command", "@wait automatically rolled back", "--command", "show system host", "--command", "set system host edge-confirmed", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "confirm", "--command", "@wait confirmed and saved permanently", "--command", "@sleep 7", "--command", "show system host", "--command", "exit", "--command", `@wait operational\]`, "--command", "@escape", "--command", `@wait Quit\?`, "--command", "@escape", "--", "ze", "config", "edit", "-f", config)
 	if err != nil {
 		return err

@@ -2,10 +2,9 @@ Output artifacts/commit-confirmed.webm
 Source common.tape
 
 Hide
-Type "mkdir -p /src/tmp/terminal-demos/state/commit-confirmed"
+Type "ze-demo run commit-confirmed prepare"
 Enter
-Type "cp /src/demos/terminal/commit-confirmed/identity.conf /src/tmp/terminal-demos/state/commit-confirmed/ze.conf"
-Enter
+Wait+Screen /Commit confirmed demo prepared/
 Type "clear"
 Enter
 Type "ze-demo card commit-confirmed intro"
@@ -16,7 +15,7 @@ Sleep 500ms
 Screenshot artifacts/commit-confirmed.png
 
 Hide
-Type "cd /src/tmp/terminal-demos/state/commit-confirmed"
+Type "cd /src/tmp/terminal-demos/state/commit-confirmed/config"
 Enter
 Type "clear"
 Enter

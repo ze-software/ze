@@ -39,6 +39,8 @@ func runScenario(id, action string, args []string, stdout, stderr io.Writer) err
 		err = runHealthReports(action)
 	case demoConfigViews:
 		err = runConfigViews(action)
+	case demoCommitConfirmed:
+		err = runCommitConfirmed(action)
 	case "bfd-failover":
 		err = runBFD(action, args, stdout)
 	case "ospf-adjacency":
@@ -430,6 +432,39 @@ func runConfigViews(action string) error {
 	}
 	fmt.Println("Configuration views prepared")
 	return nil
+}
+
+// demoCommitConfirmed names the commit-confirmed demo.
+const demoCommitConfirmed = "commit-confirmed"
+
+// runCommitConfirmed prepares the commit-confirmed demo. `ze config edit -f`
+// opens the config history store in its file's folder, and `commit confirmed`
+// refuses without that history because its auto-revert restores the backup
+// the commit records. So prepare initializes the store with `ze init` in the
+// scenario's ZE_CONFIG_DIR and writes the demo config into that same folder.
+func runCommitConfirmed(action string) error {
+	if action != actionPrepare {
+		return errors.New("commit-confirmed action must be prepare")
+	}
+	const id = demoCommitConfirmed
+	if err := prepareScenario(id, "pids", true); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(filepath.Join(demoDir(id), "identity.conf"))
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(commitConfirmedConfig(), data, 0o600); err != nil {
+		return err
+	}
+	fmt.Println("Commit confirmed demo prepared")
+	return nil
+}
+
+// commitConfirmedConfig is the file the commit-confirmed demo edits. It sits
+// in the scenario's ZE_CONFIG_DIR, the folder `ze init` gave a store.
+func commitConfirmedConfig() string {
+	return filepath.Join(demoState(demoCommitConfirmed), "config", zeConfigFile)
 }
 
 func runTraceroute(action string) error {
