@@ -318,4 +318,12 @@ const (
 	ErrCodeUnknownStyle         uint8 = 6
 	ErrCodeTrafficControlSystem uint8 = 22
 	ErrFlagInPlace              uint8 = 1
+	// RFC 2205 Appendix B: "Error Code = 21: Traffic Control Error", "Traffic
+	// Control call failed due to the format or contents of the parameters to
+	// the request." Sub-codes 03 "Bad Flowspec value" and 05 "Bad Adspec
+	// value" each read "Malformed or unreasonable request." Ze sends them for
+	// a path MTU under mplsfib.PathMTUMinimum.
+	ErrCodeTrafficControlError uint8  = 21
+	ErrValueBadFlowspec        uint16 = 3
+	ErrValueBadAdspec          uint16 = 5
 )

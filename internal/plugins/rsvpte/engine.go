@@ -24,11 +24,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 // fibProgrammer returns only after the native forwarding owner accepts or
@@ -58,6 +61,10 @@ type fibProgrammer interface {
 
 var errForwardingUnavailable = errors.New("rsvp-te: native forwarding is unavailable")
 var errReservationPolicy = errors.New("rsvp-te: reservation denied by local policy")
+
+// errPathMTUBelowFloor is an ingress refusing to originate over a link whose
+// MTU is under mplsfib.PathMTUMinimum, the value every downstream node refuses.
+var errPathMTUBelowFloor = errors.New("rsvp-te: outgoing link MTU below the labeled-route floor")
 
 // engine runs the RSVP-TE control plane over a Transport. Per-LSP state is
 // guarded by each LSP's own mutex (see LSP.mu), so the engine itself is
@@ -204,6 +211,14 @@ func (e *engine) sendPath(lsp *LSP) error {
 		selected, err = e.resolveOriginatingPath(original)
 		if err != nil {
 			return err
+		}
+		// The ADSPEC an ingress originates carries its outgoing link MTU, and a
+		// value under the floor is one every downstream node answers with
+		// PathErr 21/05 and every RESV acceptance refuses, so the ingress
+		// refuses it first rather than signal it on each refresh.
+		if pathMTUBelowFloor(selected.Route.MTU) {
+			return fmt.Errorf("%w: link MTU %d, floor %d", errPathMTUBelowFloor,
+				selected.Route.MTU, mplsfibevents.PathMTUMinimum)
 		}
 	}
 	bypassMTU := e.bypassPathMTU(bypassKey)
@@ -446,6 +461,19 @@ func (e *engine) handlePath(src netip.Addr, msg *ParsedMessage) {
 	if err != nil {
 		e.log.Warn("rsvp-te: explicit route rejected", "error", err)
 		e.sendPathErr(src, msg, ErrCodeRoutingProblem, selected.ErrorValue)
+		return
+	}
+	// A path MTU under the floor would reach a push route as a metric that can
+	// livelock a stock kernel's IPv4 fragmentation (mplsfib.PathMTUMinimum), so
+	// it is neither stored, echoed in a RESV, nor composed onward. The onward
+	// value is composed per RFC 2215 Section 3.5. RFC 2205 Appendix B, Error
+	// Code 21: "The Resv or Path message that caused the call cannot be
+	// forwarded, and repeating the call would be futile."
+	if onward := onwardPathMTU(msg.PathMTU, selected.Route.MTU); pathMTUBelowFloor(onward) {
+		e.log.Warn("rsvp-te: PATH refused, path MTU below the labeled-route floor",
+			"src", src, "received-mtu", msg.PathMTU, "link-mtu", selected.Route.MTU,
+			"floor", mplsfibevents.PathMTUMinimum)
+		e.sendPathErr(src, msg, ErrCodeTrafficControlError, ErrValueBadAdspec)
 		return
 	}
 	if e.mergeBackupPath(src, msg, selected.ERO) {

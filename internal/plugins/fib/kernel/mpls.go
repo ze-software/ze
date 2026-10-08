@@ -7,15 +7,14 @@ package fibkernel
 import (
 	"errors"
 	"fmt"
+
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 var errMPLSEmptyLabelStack = errors.New("mpls: empty label stack")
 
-const (
-	// RFC 3032 Section 2.1: 20-bit label field.
-	maxMPLSLabel  = 1048575
-	maxLabelStack = 16
-)
+// RFC 3032 Section 2.1: 20-bit label field.
+const maxMPLSLabel = 1048575
 
 // validateMPLSLabels enforces the RFC 3032 label-stack invariants. Validation
 // is platform-independent (the 20-bit range and stack-depth limit do not depend
@@ -24,8 +23,9 @@ func validateMPLSLabels(labels []uint32) error {
 	if len(labels) == 0 {
 		return errMPLSEmptyLabelStack
 	}
-	if len(labels) > maxLabelStack {
-		return fmt.Errorf("mpls: label stack depth %d exceeds limit %d", len(labels), maxLabelStack)
+	// mplsfib.MaxLabelStack also sizes the path MTU floor producers apply.
+	if len(labels) > mplsfibevents.MaxLabelStack {
+		return fmt.Errorf("mpls: label stack depth %d exceeds limit %d", len(labels), mplsfibevents.MaxLabelStack)
 	}
 	for _, l := range labels {
 		if l > maxMPLSLabel {

@@ -6,6 +6,8 @@ package rsvpte
 import (
 	"encoding/binary"
 	"errors"
+
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 const (
@@ -270,4 +272,32 @@ func receivedPathMTU(fs FlowSpec, advertised bool) uint32 {
 		return fs.MaxPacketSize
 	}
 	return 0
+}
+
+// pathMTUBelowFloor reports whether a known path MTU is under the floor a
+// labeled route may carry (mplsfib.PathMTUMinimum). Zero means unknown: no
+// metric is installed and nothing is signaled, so it is not below the floor.
+// RFC 2210 and RFC 2215 set no lower bound and say nothing of a composed MTU
+// too small to carry IP, and raising it would claim frames the path cannot
+// carry, so a caller MUST refuse the request rather than clamp the value.
+func pathMTUBelowFloor(mtu uint32) bool {
+	if mtu == 0 {
+		return false
+	}
+	return mtu < mplsfibevents.PathMTUMinimum
+}
+
+// onwardPathMTU is the path MTU this node would compose into the ADSPEC it
+// forwards: the received composed value bounded by the outgoing link. Zero
+// means no usable advertisement arrived, so none is composed.
+func onwardPathMTU(received, link uint32) uint32 {
+	if received == 0 {
+		return 0
+	}
+	if link == 0 {
+		return received
+	}
+	// RFC 2215 Section 3.5: "The composition rule is to take the minimum of
+	// the network element's MTU and the previously composed value."
+	return min(received, link)
 }

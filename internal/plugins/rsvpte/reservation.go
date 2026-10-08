@@ -7,6 +7,8 @@ import (
 	"errors"
 	"net/netip"
 	"time"
+
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 func ownedObject(old, received []byte) []byte {
@@ -139,6 +141,16 @@ func (e *engine) acceptReservation(src netip.Addr, msg *ParsedMessage, descripto
 	old, oldBandwidth, oldIface := lsp.RSB, lsp.Bandwidth, lsp.AdmissionIface
 	inLabel, role, bypassKey := lsp.InLabel, lsp.Role, lsp.Bypass
 	pathMTU := reservationPathMTU(lsp, descriptor.FlowSpec)
+	// A receiver's M under the floor would be installed as the push or swap
+	// metric (mplsfib.PathMTUMinimum). RFC 2205 Appendix B, Error Code 21,
+	// sub-code 03 "Bad Flowspec value": "Malformed or unreasonable request."
+	if pathMTUBelowFloor(pathMTU) {
+		lsp.mu.Unlock()
+		e.log.Warn("rsvp-te: RESV refused, path MTU below the labeled-route floor",
+			"src", src, "path-mtu", pathMTU, "floor", mplsfibevents.PathMTUMinimum)
+		e.rejectReservation(src, msg, &failed, ErrCodeTrafficControlError, ErrValueBadFlowspec, old != nil)
+		return
+	}
 	confirmHere := msg.HasResvConfirm && (role == RoleIngress || old != nil && reservationCovers(old.FlowSpec, descriptor.FlowSpec))
 	lsp.mu.Unlock()
 	allocated := role == RoleTransit && inLabel == 0

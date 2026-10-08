@@ -172,14 +172,29 @@ of eight: zero. The remaining length never shrinks, and the loop sends empty
 fragments through `mpls_xmit` forever, in the softirq that the sending thread
 runs. That thread never returns to user space to take a signal, and the host
 needs a reboot. Upstream has no floor there through 7.2; the patch adds the
-`EMSGSIZE` check described above. Ze installs a peer's path MTU on a push with
-no floor of its own, which is an open defect
-(`plan/journal/kernel-refuses-what-the-installer-sends.md`).
+`EMSGSIZE` check described above.
+
+Ze therefore never produces a nonzero path MTU below
+`mplsfib.PathMTUMinimum`: RFC 791's 68-octet IPv4 minimum (a 60-octet header
+and one 8-octet fragment) plus four octets for each entry of the deepest label
+stack the forwarding owner installs (`mplsfib.MaxLabelStack`, 16), which is 132.
+A floor-sized frame under any stack Ze can push still leaves fragmentation a
+whole header and eight data octets. RSVP-TE applies it where a peer's value
+enters: a PATH whose composed ADSPEC MTU, bounded by the outgoing link, is under
+the floor is answered with a PathErr (Error Code 21, Bad Adspec value) and is
+neither stored nor forwarded, and a RESV whose M would put the push or swap
+metric under it gets a ResvErr (Error Code 21, Bad Flowspec value). An ingress
+whose outgoing link MTU is under the floor does not originate the PATH. The value is
+refused rather than raised to the floor, because a larger MTU would claim frames
+the path cannot carry. IPv6 needs no floor of its own here: a router never
+fragments IPv6, so an oversized IPv6 datagram is answered with Packet Too Big.
 
 <!-- source: internal/component/kernelcap/probe_linux.go -- MPLSIPMTU, classifyMPLSIPMTU -->
 <!-- source: internal/plugins/fib/kernel/mplsentry_linux.go -- transitRouteMTU, askTransitMTU -->
 <!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- transitMTUCapability -->
 <!-- source: internal/core/mplsfib/events.go -- Entry.PathMTU -->
+<!-- source: internal/core/mplsfib/pathmtu.go -- PathMTUMinimum, MaxLabelStack -->
+<!-- source: internal/plugins/rsvpte/mtu.go -- pathMTUBelowFloor, onwardPathMTU -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute -->
 <!-- source: gokrazy/kernel/patches/0002-mpls-ip-mtu.patch -- native IP MTU enforcement -->
 

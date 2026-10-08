@@ -46,6 +46,25 @@ ordinary and periodic refreshes continue.
 <!-- source: internal/plugins/rsvpte/engine.go -- sendResv, the refresh path -->
 <!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation -->
 
+## Decision: a path MTU under the labeled-route floor is refused, not clamped
+
+A received PATH whose composed ADSPEC MTU, bounded by the outgoing link, is
+below `mplsfib.PathMTUMinimum` draws a PathErr with Error Code 21 (Traffic
+Control Error), sub-code 05 (Bad Adspec value), and leaves no path state. A
+RESV whose accepted M would put a push or swap metric below it draws a ResvErr
+with Error Code 21, sub-code 03 (Bad Flowspec value), and installs nothing.
+An ingress whose outgoing link MTU is below the floor does not originate the
+PATH: `sendPath` returns an error the caller logs, on setup and on each
+refresh, rather than advertise a value every downstream node refuses.
+RFC 2210 and RFC 2215 set no minimum and give no rule for one, and raising the
+value would claim frames the path cannot carry. A metric under the floor can
+livelock a stock kernel's IPv4 fragmentation on a push route
+(`docs/architecture/mpls/mpls-kernel.md`).
+
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePath, sendPath -->
+<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation -->
+<!-- source: internal/plugins/rsvpte/mtu.go -- pathMTUBelowFloor -->
+
 ## Decision: an unknown object class is classified, not skipped
 
 The decode switch has a case per object class ze processes. Its default arm
