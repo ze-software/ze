@@ -92,11 +92,11 @@ func TestForeignCommandPrefixesNamesEachGround(t *testing.T) {
 // let a package outside internal/component and internal/plugins spell any
 // prefix.
 func TestForeignPrefixesNamesEachGround(t *testing.T) {
-	rpcs := []pluginserver.RPCRegistration{
-		{WireMethod: "ze-ospf:show-neighbors", Registrar: "github.com/ze-software/ze/internal/plugins/ospf"},
-		{WireMethod: "ze-show:ospf-neighbors", Registrar: "github.com/ze-software/ze/internal/plugins/ospf"},
-		{WireMethod: "ze-hub:status", Registrar: "github.com/ze-software/ze/cmd/ze/hub"},
-		{WireMethod: "no-colon", Registrar: "github.com/ze-software/ze/internal/plugins/ospf"},
+	rpcs := []registration{
+		{method: "ze-ospf:show-neighbors", registrar: "github.com/ze-software/ze/internal/plugins/ospf"},
+		{method: "ze-show:ospf-neighbors", registrar: "github.com/ze-software/ze/internal/plugins/ospf"},
+		{method: "ze-hub:status", registrar: "github.com/ze-software/ze/cmd/ze/hub"},
+		{method: "no-colon", registrar: "github.com/ze-software/ze/internal/plugins/ospf"},
 	}
 	got := foreignPrefixes(rpcs)
 	if len(got) != 3 {

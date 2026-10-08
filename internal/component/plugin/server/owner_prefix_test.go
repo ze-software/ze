@@ -71,14 +71,14 @@ func TestRegisterRPCsStampsTheRegistrar(t *testing.T) {
 
 	RegisterRPCs(RPCRegistration{
 		WireMethod: "ze-plugin:stamp-probe",
-		Registrar:  "github.com/ze-software/ze/internal/component/bgp",
+		registrar:  "github.com/ze-software/ze/internal/component/bgp",
 	})
 
 	if len(registeredRPCs) != 1 {
 		t.Fatalf("registered %d rpcs, want 1", len(registeredRPCs))
 	}
 	const want = "github.com/ze-software/ze/internal/component/plugin/server"
-	if got := registeredRPCs[0].Registrar; got != want {
+	if got := registeredRPCs[0].Registrar(); got != want {
 		t.Errorf("Registrar = %q, want %q", got, want)
 	}
 }

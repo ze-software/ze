@@ -22,7 +22,7 @@ var registeredRPCs []RPCRegistration
 func RegisterRPCs(rpcs ...RPCRegistration) {
 	registrar := callsite.Package(2)
 	for _, rpc := range rpcs {
-		rpc.Registrar = registrar
+		rpc.registrar = registrar
 		registeredRPCs = append(registeredRPCs, rpc)
 	}
 }

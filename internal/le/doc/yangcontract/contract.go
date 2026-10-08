@@ -64,6 +64,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/ipc"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -199,7 +200,7 @@ func Validate(root string) (ValidationResult, error) {
 		return ValidationResult{}, err
 	}
 
-	foreign := foreignPrefixes(rpcs)
+	foreign := foreignPrefixes(registrations(rpcs))
 	foreign = append(foreign, foreignCommandPrefixes(commands, served, yang.ModuleRegistrar)...)
 
 	result := ValidationResult{
@@ -341,22 +342,44 @@ func contractSatisfied(result *ValidationResult) bool {
 // derivation is the whole rule: there is no table of owners to keep, so a
 // subsystem cannot declare under another's prefix and a clash between two
 // subsystems cannot be written (AC-10).
-func foreignPrefixes(rpcs []pluginserver.RPCRegistration) []string {
+func foreignPrefixes(rpcs []registration) []string {
 	var violations []string
 	for _, rpc := range rpcs {
-		owned, err := pluginserver.OwnerPrefix(rpc.Registrar)
+		owned, err := pluginserver.OwnerPrefix(rpc.registrar)
 		if err != nil {
-			violations = append(violations, rpc.WireMethod+" ("+err.Error()+")")
+			violations = append(violations, rpc.method+" ("+err.Error()+")")
 			continue
 		}
-		prefix, _, _ := strings.Cut(rpc.WireMethod, ":")
+		// The method is a handler's literal, so it is parsed here before its
+		// prefix is trusted: a malformed method owns no prefix.
+		prefix, _, err := ipc.ParseMethod(rpc.method)
+		if err != nil {
+			violations = append(violations, rpc.method+" ("+err.Error()+")")
+			continue
+		}
 		if prefix == owned {
 			continue
 		}
-		violations = append(violations, rpc.WireMethod+" (registered by "+rpc.Registrar+
+		violations = append(violations, rpc.method+" (registered by "+rpc.registrar+
 			", which owns "+owned+")")
 	}
 	return violations
+}
+
+// registration is the part of a builtin RPCRegistration the prefix check
+// reads: its wire method and the package RegisterRPCs stamped on it.
+type registration struct {
+	method    string
+	registrar string
+}
+
+// registrations reads the method and the stamped registrar of each builtin.
+func registrations(rpcs []pluginserver.RPCRegistration) []registration {
+	out := make([]registration, 0, len(rpcs))
+	for i := range rpcs {
+		out = append(out, registration{method: rpcs[i].WireMethod, registrar: rpcs[i].Registrar()})
+	}
+	return out
 }
 
 // foreignCommandPrefixes names every ze:command node that no builtin handler

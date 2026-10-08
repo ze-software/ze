@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/ipc"
 )
 
 // publishCmdModule points two nodes at the fixture -api module's socket-list
@@ -113,6 +115,38 @@ func TestPublishedRPCsRefuseABrokenPointer(t *testing.T) {
 			require.ErrorIs(t, err, ErrRPCPointer)
 		})
 	}
+}
+
+// TestPublishedRPCsRefuseAMalformedMethod proves a method the schema would
+// publish passes ipc.ParseMethod first, from either declaration.
+//
+// VALIDATES: a ze:command with whitespace, one longer than
+// ipc.MaxMethodLength, and a ze:method with no colon are each an ErrRPCMethod.
+// PREVENTS: `ze help ai --json` and `ze schema methods` publishing a raw YANG
+// string as a wire method no sender could put on a line.
+func TestPublishedRPCsRefuseAMalformedMethod(t *testing.T) {
+	commands := map[string]string{
+		"whitespace": "ze-show:a b",
+		"too long":   "ze-show:" + strings.Repeat("a", ipc.MaxMethodLength),
+	}
+	for name, method := range commands {
+		t.Run(name, func(t *testing.T) {
+			module := strings.Replace(publishCmdModule, `"ze-show:sockets"`, `"`+method+`"`, 1)
+			require.NotEqual(t, publishCmdModule, module, "the fixture no longer carries ze-show:sockets")
+			_, err := PublishedRPCs(publishLoader(t, module))
+			require.ErrorIs(t, err, ErrRPCMethod)
+		})
+	}
+
+	t.Run("ze:method with no colon", func(t *testing.T) {
+		loader := NewLoader()
+		require.NoError(t, loader.LoadEmbedded())
+		require.NoError(t, loader.AddModuleFromText("ze-fixture-proto-api.yang",
+			"module ze-fixture-proto-api { namespace \"urn:ze:fixture:proto\"; prefix zefp; import ze-extensions { prefix ze; } rpc ping { ze:method \"ping\"; } }"))
+		require.NoError(t, loader.Resolve())
+		_, err := PublishedRPCs(loader)
+		require.ErrorIs(t, err, ErrRPCMethod)
+	})
 }
 
 // TestExtractRPCsNonexistentModule verifies graceful handling of missing modules.

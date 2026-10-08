@@ -223,9 +223,17 @@ type RPCRegistration struct {
 	Handler          Handler // Handler function
 	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
 	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
-	// Registrar is the import path of the package that called RegisterRPCs.
-	// RegisterRPCs writes it and overwrites any value the caller set, so a
-	// package cannot claim another's identity. OwnerPrefix derives from it the
-	// only wire-method prefix that package may declare.
-	Registrar string
+	// registrar is the import path of the package that called RegisterRPCs.
+	// Only RegisterRPCs writes it, and the field is private so that neither a
+	// struct literal nor a caller holding the slice AllBuiltinRPCs returns can
+	// claim another package's identity. OwnerPrefix derives from it the only
+	// wire-method prefix that package may declare. Its zero value, "", means
+	// the registration never passed RegisterRPCs, and OwnerPrefix refuses it.
+	registrar string
+}
+
+// Registrar answers the import path of the package that registered r through
+// RegisterRPCs, or "" for a registration that never passed it.
+func (r *RPCRegistration) Registrar() string {
+	return r.registrar
 }

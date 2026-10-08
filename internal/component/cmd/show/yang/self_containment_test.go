@@ -128,30 +128,49 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 // PREVENTS: a show command drifting back into the central schema under an
 // owner prefix that the hand-listed tokens above do not name.
 func TestShowSchemaNamesNoOwnerCommand(t *testing.T) {
+	commands, rpcs := 0, 0
 	for name, text := range map[string]string{"ze-cli-show-cmd": ZeCliShowCmdYANG, "ze-cli-show-api": ZeCliShowAPIYANG} {
-		for _, bad := range foreignPrefixes(text, "ze:command", "ze-cmd") {
-			t.Errorf("%s declares owner command %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, bad)
+		bad, judged := foreignPrefixes(t, name, text, "ze:command", "ze-cmd")
+		commands += judged
+		for _, value := range bad {
+			t.Errorf("%s declares owner command %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, value)
 		}
-		for _, bad := range foreignPrefixes(text, "ze:rpc", "ze-cli-show-api") {
-			t.Errorf("%s points at owner rpc %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, bad)
+		bad, judged = foreignPrefixes(t, name, text, "ze:rpc", "ze-cli-show-api")
+		rpcs += judged
+		for _, value := range bad {
+			t.Errorf("%s points at owner rpc %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, value)
 		}
+	}
+	// The central show schema holds the ze-cmd: commands, some carrying an
+	// rpc pointer, so a run that judged none of either judged nothing.
+	if commands == 0 {
+		t.Error("the central show schemas carry no ze:command statement, so the check judged nothing")
+	}
+	if rpcs == 0 {
+		t.Error("the central show schemas carry no ze:rpc statement, so the check judged nothing")
 	}
 }
 
 // foreignPrefixes returns each `<extension> "<prefix>:..."` argument whose
-// prefix is not own.
-func foreignPrefixes(text, extension, own string) []string {
-	var foreign []string
+// prefix is not own, and how many arguments it judged. It fails the test when
+// the text carries an extension statement it could not read, so a spelling
+// the scan does not know cannot pass unjudged.
+func foreignPrefixes(t *testing.T, name, text, extension, own string) (foreign []string, judged int) {
+	t.Helper()
 	for line := range strings.Lines(text) {
 		_, arg, found := strings.Cut(line, extension+` "`)
 		if !found {
 			continue
 		}
+		judged++
 		value, _, _ := strings.Cut(arg, `"`)
 		prefix, _, _ := strings.Cut(value, ":")
 		if prefix != own {
 			foreign = append(foreign, value)
 		}
 	}
-	return foreign
+	if present := strings.Count(text, extension+" "); present != judged {
+		t.Errorf("%s carries %d %s statements but the scan judged %d", name, present, extension, judged)
+	}
+	return foreign, judged
 }

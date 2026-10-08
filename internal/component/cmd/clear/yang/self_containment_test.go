@@ -38,30 +38,45 @@ func TestClearOwnerRemovalLeavesNoResidue(t *testing.T) {
 // PREVENTS: a clear command drifting back into the central schema under an
 // owner prefix that the hand-listed tokens above do not name.
 func TestClearSchemaNamesNoOwnerCommand(t *testing.T) {
+	// The central clear schemas hold no command node and no rpc pointer: every
+	// clear command lives with its owner. A count of zero is therefore the true
+	// answer here, so this test asserts no minimum. foreignPrefixes instead
+	// refuses an extension statement it could not read, which is the way a
+	// zero would otherwise hide a node.
 	for name, text := range map[string]string{"ze-cli-clear-cmd": ZeCliClearCmdYANG, "ze-cli-clear-api": ZeCliClearAPIYANG} {
-		for _, bad := range foreignPrefixes(text, "ze:command", "ze-cmd") {
-			t.Errorf("%s declares owner command %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, bad)
+		bad := foreignPrefixes(t, name, text, "ze:command", "ze-cmd")
+		for _, value := range bad {
+			t.Errorf("%s declares owner command %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, value)
 		}
-		for _, bad := range foreignPrefixes(text, "ze:rpc", "ze-cli-clear-api") {
-			t.Errorf("%s points at owner rpc %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, bad)
+		bad = foreignPrefixes(t, name, text, "ze:rpc", "ze-cli-clear-api")
+		for _, value := range bad {
+			t.Errorf("%s points at owner rpc %q; it belongs in the owner's schema (see ai/rules/plugins.md)", name, value)
 		}
 	}
 }
 
 // foreignPrefixes returns each `<extension> "<prefix>:..."` argument whose
-// prefix is not own.
-func foreignPrefixes(text, extension, own string) []string {
+// prefix is not own. It fails the test when the text carries an extension
+// statement it could not read, so a spelling the scan does not know cannot
+// pass unjudged.
+func foreignPrefixes(t *testing.T, name, text, extension, own string) []string {
+	t.Helper()
 	var foreign []string
+	judged := 0
 	for line := range strings.Lines(text) {
 		_, arg, found := strings.Cut(line, extension+` "`)
 		if !found {
 			continue
 		}
+		judged++
 		value, _, _ := strings.Cut(arg, `"`)
 		prefix, _, _ := strings.Cut(value, ":")
 		if prefix != own {
 			foreign = append(foreign, value)
 		}
+	}
+	if present := strings.Count(text, extension+" "); present != judged {
+		t.Errorf("%s carries %d %s statements but the scan judged %d", name, present, extension, judged)
 	}
 	return foreign
 }

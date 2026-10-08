@@ -8,7 +8,7 @@
 | Page | docs/features/api-commands.md |
 | Kind | daemon |
 | Scope | partial |
-| Scope gaps | YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md), published RPC names that do not reach their handler (plan/immediate/spec-rpc-published-name-does-not-reach-its-handler.md) |
+| Scope gaps | YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md) |
 | Level | experimental |
 | Components | internal/component/bgp/plugins/cmd |
 | Real-path tests | test/plugin/plugin-announce.ci, test/plugin/plugin-refresh.ci, test/plugin/plugin-notification.ci |

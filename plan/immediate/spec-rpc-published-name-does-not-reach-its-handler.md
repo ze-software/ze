@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | 2/7 |
+| Phase | 7/7 |
 | Handoff | - |
 | Updated | 2026-10-08 |
 
@@ -704,3 +704,153 @@ N-A. No RFC governs the method naming of Ze's own plugin IPC.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- 03f75f251a, e62c16d72e: the `-api` declarations no node reaches deleted; `ze-bgp-cmd-peer-api` removed after moving peer-save and the session leaf.
+- 55e1d3bd4c: `ze:rpc` (node to rpc) and `ze:method` (IPC rpcs, notifications); `yang.PublishedRPCs` (`internal/component/config/yang/rpc_publish.go`); `WireModule` deleted.
+- c8574d4911: `Dispatcher.Register`/`RegisterWithOptions` and `loadBuiltinsWithAliases` refuse a second holder (`ErrCommandHeld`, `ErrWireMethodHeld`); `NewServer` returns the refusal.
+- 756e85f100, 89497c80e4, 07431bb80e: `OwnerPrefix` derivation from the registering package, 302 + 36 + 9 methods renamed, gate `foreignPrefixes`/`foreignCommandPrefixes`.
+- a699ee08a1, a47daeb8d0, 3fa0b1f227, adf1f79ae6: `help-ai-json-methods-answer.ci`, `Build` publishes each rpc once, `SchemaRegistry`/`Services` return their errors, owner guards re-keyed on the `ze:command` spelling.
+- Closure (this commit): the derived show/clear guards count what they judge; `RPCRegistration.Registrar` is private behind `Registrar()`; `PublishedRPCs` and the prefix gate parse every method with `ipc.ParseMethod`.
+
+### Bugs Found/Fixed
+- 117 published methods no handler answered: gate `TestEveryPublishedMethodHasAHandler`.
+- 65 methods published twice in `ze help ai --json`: `TestBuildPublishesEachRPCOnce`.
+- Discarded `ErrRPCPointer` in `aihelp.SchemaRegistry`: `TestSchemaRegistryRefusesABrokenRPCPointer`.
+- Closure: a raw `ze:command`/`ze:method` string became a published wire method without `ipc.ParseMethod`: `TestPublishedRPCsRefuseAMalformedMethod` (red with the parse removed, scratch `c5-red-method.log`).
+- Closure: `RPCRegistration.Registrar` was an exported field, writable through the slice `AllBuiltinRPCs` returns, while the gate trusted it; now private.
+
+### Documentation Updates
+- `docs/architecture/api/wire-format.md` ("Method Naming"), `docs/architecture/api/architecture.md` (the `PublishedRPCs`/`OwnerPrefix` paragraph), `docs/architecture/config/yang-config-design.md`, `docs/architecture/command-ownership.md`, `ai/patterns/cli-command.md`, `docs/contributing/documentation-testing.md` (gate row; closure corrected the corpora paragraph that still said an `-api` rpc declares the method).
+- `features/api-commands.md`, `features/cli-commands.md`: the scope-gap citation of this spec removed.
+
+### Deviations from Plan
+- The plan named `TestPublishedMethodHasAHandler`, `TestOrphanLocalHandlerFailsTheGate`, `TestRPCDocsCarryParameters` and `test/mcp/reference-methods-answer.ci`; they landed as `TestEveryPublishedMethodHasAHandler`, `TestAnOrphanLocalHandlerFailsTheVerdict`, `TestAllRPCDocsHaveParams` and `test/ui/help-ai-json-methods-answer.ci`. AC-2 is proven by `TestTheVerdictReadsBothDirections` ("a handler with no node").
+- Phase 6 landed as one commit rather than one per subsystem: the prefix check is all-or-nothing over the linked set.
+- The central clear schema holds no command node, so its derived guard asserts that every extension statement was read rather than a minimum count.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | 3fa0b1f227 called `cli.WireToPath()` in a two-value form that existed only in another session's uncommitted file | HEAD did not build `cmd/ze` until 40db22a585 | Closure review 3, clean clone of HEAD | Closure evidence gathered in a clean clone of HEAD (`plan/learned/029-a-name-nothing-dispatches-on-drifts.md`) |
+| approach | The prefix rename left three hand-listed guard tokens matching nothing | A token over a text scan can go vacuous with no red | Closure review 2 | Derived guards, which now count what they judged |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `ze:command` is the single declaration of a wire method | Done | `yang.PublishedRPCs` (`rpc_publish.go`) | |
+| `WireModule` and every file-name derivation deleted | Done | `git grep WireModule HEAD` hits only plan/ and test/weakened | |
+| Gate compares published methods with handlers | Done | `Validate`, `contractSatisfied` (`internal/le/doc/yangcontract/contract.go`) | |
+| Isolation: a clash impossible, a second holder refused | Done | `OwnerPrefix` (`rpc_register.go`), `Dispatcher.Register` (`command.go`) | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEveryPublishedMethodHasAHandler`, `TestAnUnservedRPCDeclarationFailsTheVerdict` | |
+| AC-2 | Done | `TestTheVerdictReadsBothDirections`, `TestEveryRPCHasYANGPath` | |
+| AC-3 | Done | `TestAnOrphanLocalHandlerFailsTheVerdict` | |
+| AC-4 | Done | `Validate` reads `pluginserver.AllBuiltinRPCs` and the loaded YANG tree | |
+| AC-5 | Done | `test/ui/help-ai-json-methods-answer.ci`, `test/parse/cli-schema-methods.ci`, `TestBuildPublishesEachRPCOnce` | |
+| AC-6 | Done | `TestAllRPCDocsHaveParams`; `ze yang doc "show bgp peer list"` prints `selector peer-selector` | ze_bgp build |
+| AC-7 | Done | `TestPluginIPCMethodsKeepTheirSpelling` | |
+| AC-8 | Done | `TestPublishedRPCsTakeTheMethodOfThePointingNode` | |
+| AC-9 | Done | `TestADeliberatelyOrphanedDeclarationIsNamed`; `PublishedRPCs.Unnamed` | |
+| AC-10 | Done | `TestEverySubsystemDeclaresUnderItsOwnPrefix`, `TestForeignPrefixesNamesEachGround`, `TestOwnerPrefixFollowsThePackage` | |
+| AC-11 | Done | `TestDispatcherRefusesADuplicateName` | |
+| AC-12 | Done | `TestNewServerRefusesABuiltinCollision`, `TestNoOwnerHoldsAnotherOwnersName` | |
+| AC-13 | Done | `TestCommandRegistryRefusesOnEachGround` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every row of the TDD table | Done | as named in the table, with the substitutions under Deviations | green over HEAD plus the closure edits, scratch `c5-unit.log`, `c5-unit2.log`, `c5-r5.log` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every row of Files to Modify and Files to Create | Done | `internal/le/doc/yangcontract/published_test.go` exists; `docs/plugin-development/protocol.md` needed no edit (IPC spelling unchanged) |
+
+### Audit Summary
+- **Total items:** 4 requirements, 13 ACs
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** test names, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every published method is one the daemon answers | functional + gate | `./le doc yang-contract command-contract` over HEAD: "All commands validated", 418 commands, 40 local handlers (scratch `c5-gate.log`, `c5-gate2.log`); `help-ai-json-methods-answer.ci` and `cli-schema-methods.ci` pass (`c5-ui2.log`, `c5-parse2.log`) |
+| One method name per command on every surface | functional | `ze help ai --json` (ze_core,ze_distro, HEAD): 169 rpcs, 0 duplicates, 0 verb prefixes, 0 `-api` prefixes (`c5-helpai-check.txt`) |
+| `ze yang doc` prints the rpc parameters | functional | `ze yang doc "show bgp peer list"` prints `selector peer-selector Peer filter` under "Parameters (input)" (`c5-yangdoc.txt`) |
+| The plugin IPC contract is unchanged | unit | `TestPluginIPCMethodsKeepTheirSpelling` green over HEAD (`c5-unit2.log`) |
+| No owner can take another owner's name | unit, red-proven | `TestEverySubsystemDeclaresUnderItsOwnPrefix` red on 302 before the rename; `TestDispatcherRefusesADuplicateName`, `TestNoOwnerHoldsAnotherOwnersName` green (`c5-unit2.log`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done; the dead `findRPC`/`findRPCByCommand`/`registerCLICommand` are an out-of-scope defect recorded in `plan/journal/unwired-feature.md` | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure (scratch `c5-review-record.log`) |
+| `./le spec review check` | clean |
+| Rounds | 5 |
+| Reviewer lenses used | wiring, functional coverage, documentation drift, error handling (ze-go-style), validated construction (owner's added check), vacuity |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `ze help ai --json` published 65 methods twice | `aihelp.Build` | a47daeb8d0 |
+| 2 | ISSUE | Stale verb-prefix teaching and method names in pages | `ai/patterns/cli-command.md`, `docs/architecture/command-ownership.md` | a477c973d1 |
+| 3 | ISSUE | Owner guard tokens vacuous after the rename | show/clear `self_containment_test.go` | adf1f79ae6 |
+| 4 | ISSUE | `SchemaRegistry` discarded `ErrRPCPointer` | `aihelp.SchemaRegistry` | 3fa0b1f227 |
+| 5 | BLOCKER | HEAD did not build `cmd/ze` (two-value `cli.WireToPath`) | `cmd/ze/help_ai.go` | 40db22a585 (another session's landing) |
+| 6 | ISSUE | Corpora paragraph said an `-api` rpc declares the method | `docs/contributing/documentation-testing.md` | closure commit |
+| 7 | ISSUE | Raw `ze:command`/`ze:method` published without `ipc.ParseMethod`; the gate cut the prefix from an unparsed method | `PublishedRPCs`, `foreignPrefixes` | closure commit |
+| 8 | ISSUE | `RPCRegistration.Registrar` exported and writable through `AllBuiltinRPCs` | `handler.go` | closure commit |
+| NOTE | NOTE | Derived show/clear guards would pass on a schema with no statement | show/clear `self_containment_test.go` | closure commit: show asserts a minimum; both refuse an unread statement (plants red, `c5-plant-*.log`) |
+
+Open NOTE: `yang.Module.Registrar` (`internal/component/config/yang/register.go`) is still an exported field, and `Modules()` returns the shared slice, so a caller could rewrite the registrar `foreignCommandPrefixes` trusts. No caller writes it.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/doc/yangcontract/published_test.go` | yes | `ls` in the HEAD clone |
+| `test/parse/cli-schema-methods.ci`, `test/ui/help-ai-json-methods-answer.ci` | yes | run by `./le test bgp parse` and `./le test ui` (`c5-parse2.log`, `c5-ui2.log`) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-13 | as in the audit | `c5-unit.log`, `c5-unit2.log`, `c5-r5.log` all ok over HEAD f3b2eb3c65 plus the closure edits |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze help ai --json` | `test/ui/help-ai-json-methods-answer.ci` | read: asserts `ze-l2tp:summary`, `ze-bgp:rib-routes`, rejects `-api` and verb prefixes; passes |
+| `ze schema methods` | `test/parse/cli-schema-methods.ci` | read: asserts `ze-bgp:rib-routes`, rejects `ze-rib:show`, `ze-l2tp-api:`; passes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Phase 2 Result, exceptions S-4 and S-5 journaled |
+| A-2 | confirmed | `TestPluginIPCMethodsKeepTheirSpelling` green at closure (`c5-unit2.log`) |
+| A-3 | confirmed | gate blank-imports `internal/component/plugin/all`; 372 + 2 skipped handlers |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| API/RPC, wire format, architecture | `wire-format.md` and `architecture.md` name `PublishedRPCs` and `OwnerPrefix`, both present in HEAD | yes |
+| Plugin SDK | `docs/plugin-development/protocol.md` IPC naming `<module>:<rpc-name>` unchanged | yes, no edit |
+| Test infrastructure | `documentation-testing.md` gate row and corpora paragraph match `contractSatisfied` | yes |

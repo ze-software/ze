@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
+
+	"github.com/ze-software/ze/internal/core/ipc"
 )
 
 // RPCPublication is every rpc statement the loaded schema holds, sorted into
@@ -40,6 +42,10 @@ type RPCPublication struct {
 // no ze:command, one wire method pointing at two rpcs, or an rpc that is both
 // pointed at and carries its own ze:method.
 var ErrRPCPointer = errors.New("ze:rpc pointer")
+
+// ErrRPCMethod marks a ze:command or ze:method argument that ipc.ParseMethod
+// refuses, so the schema cannot publish it as a wire method.
+var ErrRPCMethod = errors.New("malformed wire method")
 
 // PublishedRPCs answers the wire name of every rpc statement the loader holds.
 //
@@ -102,6 +108,10 @@ func PublishedRPCs(loader *Loader) (RPCPublication, error) {
 		meta := declared[key]
 		switch {
 		case meta.WireMethod != "":
+			if _, _, err := ipc.ParseMethod(meta.WireMethod); err != nil {
+				errs = append(errs, fmt.Errorf("%w: %s:%s declares ze:method %q: %w", ErrRPCMethod, meta.Module, meta.Name, meta.WireMethod, err))
+				continue
+			}
 			pub.Protocol = append(pub.Protocol, meta)
 		case !pointed[key]:
 			pub.Unnamed = append(pub.Unnamed, meta)
@@ -139,7 +149,9 @@ func collectRPCPointers(entry *gyang.Entry, module string, pointers map[string]s
 			switch {
 			case method == "":
 				*errs = append(*errs, fmt.Errorf("%w: node %s in %s points at %s but declares no ze:command", ErrRPCPointer, child.Path(), module, target))
-			case !validRPCTarget(target):
+			case !validWireMethod(method):
+				*errs = append(*errs, fmt.Errorf("%w: node %s in %s declares ze:command %q", ErrRPCMethod, child.Path(), module, method))
+			case !validWireMethod(target):
 				*errs = append(*errs, fmt.Errorf("%w: %s points at %q, which is not module:rpc-name", ErrRPCPointer, method, target))
 			case pointers[method] != "" && pointers[method] != target:
 				*errs = append(*errs, fmt.Errorf("%w: %s points at both %s and %s", ErrRPCPointer, method, pointers[method], target))
@@ -151,11 +163,12 @@ func collectRPCPointers(entry *gyang.Entry, module string, pointers map[string]s
 	}
 }
 
-// validRPCTarget reports whether a ze:rpc argument has the module:rpc-name
-// shape, with both halves present.
-func validRPCTarget(target string) bool {
-	module, name, found := strings.Cut(target, ":")
-	return found && module != "" && name != "" && !strings.Contains(name, ":")
+// validWireMethod reports whether a ze:command method or a ze:rpc target has
+// the module:rpc-name shape ipc.ParseMethod accepts: both halves present, no
+// whitespace or second colon, and no longer than ipc.MaxMethodLength.
+func validWireMethod(method string) bool {
+	_, _, err := ipc.ParseMethod(method)
+	return err == nil
 }
 
 func sortByWireMethod(rpcs []RPCMeta) {

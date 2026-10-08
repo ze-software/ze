@@ -8,7 +8,7 @@
 | Page | docs/features/cli-commands.md |
 | Kind | daemon |
 | Scope | partial |
-| Scope gaps | YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md), published RPC names that do not reach their handler (plan/immediate/spec-rpc-published-name-does-not-reach-its-handler.md), declared commands without leaves (plan/immediate/spec-declared-commands-without-leaves.md) |
+| Scope gaps | YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md), declared commands without leaves (plan/immediate/spec-declared-commands-without-leaves.md) |
 | Level | experimental |
 | Components | internal/plugins/signal/main.go, internal/component/ssh/ssh.go, internal/component/command |
 | Real-path tests | test/ui/cli-verb-daemon-dispatch.ci, test/ui/send-old-paths-are-refused.ci, test/ui/help-parent-node.ci |
