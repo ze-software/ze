@@ -49,10 +49,12 @@ func TestParseCIRefusesUnknownDirective(t *testing.T) {
 		directive string
 	}{
 		// The three spellings measured live in test/parse on 2026-09-06, each
-		// dropped in silence by the chain this replaces.
+		// dropped in silence by the chain this replaces. The first two are the
+		// retired spellings AC-4 deletes, so neither may come back as an alias.
 		{"retired regex key", "expect=stdout:regex=ze [0-9]"},
-		{"generic parser's stdout regex key, before it was read here", "expect=stdout:oops=ze"},
+		{"retired negative key", "expect=stdout:not:contains=ze"},
 		{"engine directive that no parse-suite command can answer", "expect=output:contains=ze"},
+		{"unknown stdout key", "expect=stdout:oops=ze"},
 		{"typo in the action", "exepct=stdout:contains=ze"},
 		{"key that belongs to expect=file", "expect=stdout:not-contains=ze"},
 	}

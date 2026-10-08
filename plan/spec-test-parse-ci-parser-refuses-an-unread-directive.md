@@ -7,7 +7,7 @@
 | Depends | `plan/spec-ci-parser-refuses-an-assertion-key-it-does-not-read.md` (landed at `8c7f0a5bf2`, which set the vocabulary this one adopts) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-08 |
 
 <!-- Backfilled after work commissioned from a journal row. The parser rewrite
      and migration are committed; acceptance and discrimination evidence remains
@@ -200,7 +200,9 @@ uncommitted rewrite.
 | 16 | Any changed source file referenced by existing doc anchors? | Yes | `docs/architecture/testing/ci-format.md` is the `// Design:` anchor of `parsing.go`, and it MUST state the per-command scope that distinguishes this parser from the generic one |
 | 1-9, 11-15, 17 | - | No | no operator-facing surface changed |
 
-## Original Implementation Steps (committed work; evidence reconciliation remains)
+## Implementation Steps
+
+Committed in `d1e6e2d200`; the evidence was reconciled at the 2026-10-08 closure.
 
 1. **Phase: Wiring (MANDATORY FIRST)** - move the line loop onto a dispatcher
    with a default that fails, and write the refusal test. Observe it red.
@@ -305,4 +307,135 @@ not a new parser, corpus or discrimination run.
 | Parser rewrite and vocabulary | committed; `ciDirectives`, `ciFileParser.line` and `checkExpectations` remain the producers |
 | Documentation | the shared vocabulary and per-command scope are described in `docs/architecture/testing/ci-format.md`, "The parse suite reads its own dialect" |
 | Acceptance evidence | reconcile AC-1 through AC-7 individually; do not equate a migrated spelling with a discriminating assertion |
-| Remains | account for every originally identified migration and exposed red; prove the bcrypt rejection discriminates; recover or repeat corpus and ratchet evidence and reconcile the baseline if needed; complete the closure sections only after those obligations are met |
+| Remains | nothing: the 2026-10-08 closure ran the corpus, the ratchet and the AC-6 discrimination, recorded below |
+
+## Implementation Summary
+
+### What Was Implemented
+- `d1e6e2d200` (2026-09-06): `ciDirectives` table and `ciFileParser.line` default refusal in `internal/test/runner/parsing.go`; `regex=` and `not:contains=` deleted; 31 lines in 9 `test/parse` files migrated (23 `expect=stdout:regex=` to `pattern=`, 6 `expect=stdout:not:contains=` to `reject=stdout:contains=`, 2 `expect=output:contains=` to `expect=stdout:contains=`); `internal/test/runner/parsing_test.go`.
+- `8c7f0a5bf2`: `test/parse/config-dump-masks-bcrypt.ci` `expect=stdout:not=` became `reject=stdout:contains=UlwuiuH82Unfsq`.
+- `0897c2b951`: the generic parser's key refusal, which `TestParseCICorpusReadsUnderTheGenericParser` applies to every `test/parse` file.
+- Closure (2026-10-08): `TestParseCIRefusesUnknownDirective` gained the `expect=stdout:not:contains=` case AC-4 names and lacked; the mislabeled `expect=stdout:oops=` case is relabeled "unknown stdout key".
+
+### Bugs Found/Fixed
+- AC-4 was half-tested: `expect=stdout:not:contains=` had no refusal case. Now `TestParseCIRefusesUnknownDirective/retired_negative_key`, red under an overlay that re-adds the alias, green on the tree.
+- The September 6 run exposed `test/parse/tacacs-key-required.ci` proving nothing (`runOneCommand` rewrote `-` to a path); fixed in `d1e6e2d200`, recorded in `plan/journal/green-that-could-not-have-been-red.md`.
+
+### Documentation Updates
+- `docs/architecture/testing/ci-format.md`, "The parse suite reads its own dialect", states the per-command scope, the subset vocabulary and the discovery-time refusal. Written in `d1e6e2d200`, re-read against `ciDirectives` and `parseExpectStderrContains` on 2026-10-08. No change at closure.
+
+### Deviations from Plan
+- The journal counted 26 vacuous lines; the migration touched 31 (the measurement counted 16 of the 23 regex lines). Every migrated line runs in the corpus run below, so the difference changes no AC.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The first two corpus runs at closure showed 74 and 42 `text file busy` failures | another process of the same session was rebuilding `tmp/session/<SID>/bin/ze` while the suite exec'd it | `ps` showed a second suite on the same session bin | reran under a distinct `CLAUDE_CODE_SESSION_ID`, so the suite built its own binary: 335/335 PASS |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| one vocabulary for one format | Done | `internal/test/runner/parsing.go` `ciDirectives` | every prefix is a generic-parser spelling; `TestParseCICorpusReadsUnderTheGenericParser` |
+| a directive no arm reads fails the file | Done | `internal/test/runner/parsing.go` `(*ciFileParser).line` | the default arm builds the refusal from `ciDirectives` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParseCIRefusesUnknownDirective`, `TestParseCIRefusesAssertionWithoutCommand` | asserts the error quotes the directive, the file and the accepted list |
+| AC-2 | Done | `TestParseCIAcceptsTheDialect`, `TestParseCIAssertionsDiscriminate` | stdout pattern in both polarities |
+| AC-3 | Done | `TestParseCIAssertionsDiscriminate` | reject stdout contains, absent and present |
+| AC-4 | Done | `TestParseCIRefusesUnknownDirective/retired_regex_key`, `/retired_negative_key` | second case added at closure |
+| AC-5 | Done | `./le test bgp parse -a` 335/335 PASS; `TestEveryParseCIFileParses` | |
+| AC-6 | Done | overlay red/green, Functional Tests row | `a424629b50` |
+| AC-7 | Done | `TestCIAcceptOnlyLint` PASS; `TestParseCICorpusReadsUnderTheGenericParser` PASS | the 60 `test/parse` lines in `test/.accept-only-baseline` are grandfathered exit-only tests the lint finds neither new nor stale |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| default-arm refusal and each migrated key | Done | `internal/test/runner/parsing_test.go` | 8 tests, all PASS on 2026-10-08 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/runner/parsing.go` | Done | `d1e6e2d200` |
+| `internal/test/runner/parsing_test.go` | Done | `d1e6e2d200`, one case added at closure |
+| `test/parse/*.ci` | Done | 31 lines in `d1e6e2d200`; the bcrypt line in `8c7f0a5bf2` |
+| `test/.accept-only-baseline` | Done | no change owed: the lint passes |
+| `docs/architecture/testing/ci-format.md` | Done | `d1e6e2d200` |
+
+### Audit Summary
+- **Total items:** 16
+- **Done:** 16
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (line count, in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| a directive no arm reads fails the file | unit test through `Discover` | `TestParseCIRefusesUnknownDirective` 6 cases PASS; `retired_negative_key` went red when an overlay of `parsing.go` re-added `expect=stdout:not:contains=` as an alias (`directive "expect=stdout:not:contains=ze" parsed without error; it must be refused`) |
+| one vocabulary for one format | unit test over the committed corpus | `TestParseCICorpusReadsUnderTheGenericParser` reads all 335 `test/parse` files with the generic parser; `grep -rnE 'regex=\|not:contains=\|expect=stdout:not=\|expect=output:' test/parse/` exits 1 |
+| every assertion is live | functional run plus per-kind discrimination | `./le test bgp parse -a` exit 0, 335 PASS, 0 FAIL on 2026-10-08; `TestParseCIAssertionsDiscriminate` drives every assertion kind red and green |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is met | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/test-parse-ci-parser-refuses-an-unread-directive-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` (2 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | AC by AC against the producer, dispatcher completeness, discrimination of each assertion kind, style pass on `parsing_test.go` |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-4 names two deleted spellings; only `regex=` had a refusal case, so an alias for `not:contains=` would have stayed green | `internal/test/runner/parsing_test.go` `TestParseCIRefusesUnknownDirective` | added `retired negative key`; red under the alias overlay, green on the tree |
+
+### Notes (non-blocking)
+- The `expect=stdout:oops=` case was labeled "generic parser's stdout regex key"; relabeled "unknown stdout key".
+- `parseEnv` ignores a field that is neither `var=` nor `value=`. The committed corpus stays guarded: `TestParseCICorpusReadsUnderTheGenericParser` runs the generic parser, whose key refusal (`0897c2b951`) rejects such a field.
+- Style pass over `parsing_test.go`: no `panic`, no discarded error, comments are sentences.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/runner/parsing_test.go` | yes | `ls` on 2026-10-08 |
+| `test/parse/config-dump-masks-bcrypt.ci` | yes | `ls` on 2026-10-08; PASS in the 335-file corpus run |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..4 | refusal, pattern, reject, deleted spellings | `go test -run 'TestParseCI\|TestEveryParseCIFileParses' ./internal/test/runner` ok on 2026-10-08 |
+| AC-5 | the corpus parses and passes | `./le test bgp parse -a` exit 0, 335 PASS |
+| AC-6 | the bcrypt reject discriminates | `a424629b50` overlay red; green before and after |
+| AC-7 | the ratchet names no file | `TestCIAcceptOnlyLint` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a `test/parse` file with an unread directive | temp file through `ParsingTests.Discover` (`discoverParseCI`) | yes, the suite's own discovery entry |
+| the `reject=stdout:contains=` arm | `test/parse/config-dump-masks-bcrypt.ci` | yes, line read; red under the AC-6 overlay |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | all 31 migrated lines have a shared spelling; the corpus grep finds no retired form; 335 PASS |
+| A-2 | confirmed | `ciCommand` keeps per-command slices; `checkExpectations` reads one command's stdout and stderr; ci-format.md states it |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| ci-format.md: an unread directive fails at discovery, naming the directive, the file and the accepted list | `(*ciFileParser).line`; `parseCIFile` wraps with the file base name | yes |
+| ci-format.md: `expect=stderr:contains=` may precede the first `cmd=` | its `ciDirectives` entry has no `needsCommand`; `parseExpectStderrContains` | yes |

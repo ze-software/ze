@@ -35,8 +35,8 @@ cannot answer says so.
 Implementation and vocabulary migration landed at `8c7f0a5bf2`. The remaining
 work is the AC-5 discrimination walk over the sixteen repaired assertions and
 the closure evidence. The sibling parser's migration is recorded separately in
-`plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md`; neither spec is
-ready-to-start implementation.
+`spec-test-parse-ci-parser-refuses-an-unread-directive`, closed on 2026-10-08;
+this spec is not ready-to-start implementation.
 
 ## Required Reading
 
@@ -89,7 +89,7 @@ ready-to-start implementation.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | `.ci` author ↔ runner | the directive text | Yes, the file now fails on an unread key |
-| Generic parser ↔ the `test/parse` parser | two implementations with a shared vocabulary | migration is committed; both now scope stdout/containment to a command, while stderr regex and legacy handling differ. Remaining evidence belongs to `plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md` |
+| Generic parser ↔ the `test/parse` parser | two implementations with a shared vocabulary | migration is committed; both now scope stdout/containment to a command, while stderr regex and legacy handling differ. That evidence was recorded by `spec-test-parse-ci-parser-refuses-an-unread-directive`, closed on 2026-10-08 |
 
 ### Integration Points
 - `internal/test/runner/accept_only.go` - the accept-only ratchet parses with
@@ -242,7 +242,7 @@ ready-to-start implementation.
 ## Known Limitations
 - The `test/parse` suite has its OWN parser for the same format, and it still
   drops a directive no arm matches. `not:contains=` means the OPPOSITE there.
-  That is `plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md`.
+  That was `spec-test-parse-ci-parser-refuses-an-unread-directive`, closed on 2026-10-08.
 - `splitOnKeyBoundary` folds a key whose lead byte is not a letter into the
   previous value, so a second assertion can vanish before `checkKeys` sees it.
   Recorded in `plan/journal/silent-fall-through.md`, no live instance in the tree.
