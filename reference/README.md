@@ -27,6 +27,9 @@ location and this tree does not hold a second copy.
 |---------------|----------|
 | `idr` | Every published BCP and Informational RFC, and every active draft |
 | `grow` | Every published BCP and Informational RFC, and every active draft |
+| `opsec` | Every published BCP and Informational RFC. The group has no active draft and no Standards Track RFC |
 
-Operational BCPs from other working groups are not here yet. An example is
-RFC 7454, "BGP Operations and Security", from OPSEC.
+A BCP or Informational RFC that the owner has already reviewed stays in
+`rfc/full/`, and its row in `ietf/INDEX.tsv` names that location. Its summary
+records the ruling: RFC 7454 and RFC 8195 are declared non-normative, and
+RFC 6996 and RFC 7999 are enrolled for the MUST-level obligations they do state.

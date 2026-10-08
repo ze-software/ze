@@ -1,0 +1,2019 @@
+
+
+
+
+
+
+Internet Engineering Task Force (IETF)                           F. Gont
+Request for Comments: 7126                        UTN-FRH / SI6 Networks
+BCP: 186                                                     R. Atkinson
+Category: Best Current Practice                               Consultant
+ISSN: 2070-1721                                             C. Pignataro
+                                                                   Cisco
+                                                           February 2014
+
+
+  Recommendations on Filtering of IPv4 Packets Containing IPv4 Options
+
+Abstract
+
+   This document provides advice on the filtering of IPv4 packets based
+   on the IPv4 options they contain.  Additionally, it discusses the
+   operational and interoperability implications of dropping packets
+   based on the IP options they contain.
+
+Status of This Memo
+
+   This memo documents an Internet Best Current Practice.
+
+   This document is a product of the Internet Engineering Task Force
+   (IETF).  It has been approved for publication by the Internet
+   Engineering Steering Group (IESG).  Further information on BCPs is
+   available in Section 2 of RFC 5741.
+
+   Information about the current status of this document, any errata,
+   and how to provide feedback on it may be obtained at
+   http://www.rfc-editor.org/info/rfc7126.
+
+Copyright Notice
+
+   Copyright (c) 2014 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                 [Page 1]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+     1.1.  Terminology and Conventions Used in This Document . . . .   3
+     1.2.  Operational Focus . . . . . . . . . . . . . . . . . . . .   4
+   2.  IP Options  . . . . . . . . . . . . . . . . . . . . . . . . .   4
+   3.  General Security Implications of IP Options . . . . . . . . .   5
+     3.1.  Processing Requirements . . . . . . . . . . . . . . . . .   5
+   4.  Advice on the Handling of Packets with Specific IP Options  .   7
+     4.1.  End of Option List (Type = 0) . . . . . . . . . . . . . .   7
+     4.2.  No Operation (Type = 1) . . . . . . . . . . . . . . . . .   7
+     4.3.  Loose Source and Record Route (LSRR) (Type = 131) . . . .   8
+     4.4.  Strict Source and Record Route (SSRR) (Type = 137)  . . .  10
+     4.5.  Record Route (Type = 7) . . . . . . . . . . . . . . . . .  11
+     4.6.  Stream Identifier (Type = 136) (obsolete) . . . . . . . .  12
+     4.7.  Internet Timestamp (Type = 68)  . . . . . . . . . . . . .  13
+     4.8.  Router Alert (Type = 148) . . . . . . . . . . . . . . . .  14
+     4.9.  Probe MTU (Type = 11) (obsolete)  . . . . . . . . . . . .  15
+     4.10. Reply MTU (Type = 12) (obsolete)  . . . . . . . . . . . .  16
+     4.11. Traceroute (Type = 82)  . . . . . . . . . . . . . . . . .  16
+     4.12. DoD Basic Security Option (Type = 130)  . . . . . . . . .  17
+     4.13. DoD Extended Security Option (Type = 133) . . . . . . . .  20
+     4.14. Commercial IP Security Option (CIPSO) (Type = 134)  . . .  22
+     4.15. VISA (Type = 142) . . . . . . . . . . . . . . . . . . . .  23
+     4.16. Extended Internet Protocol (Type = 145) . . . . . . . . .  24
+     4.17. Address Extension (Type = 147)  . . . . . . . . . . . . .  25
+     4.18. Sender Directed Multi-Destination Delivery (Type = 149) .  25
+     4.19. Dynamic Packet State (Type = 151) . . . . . . . . . . . .  26
+     4.20. Upstream Multicast Pkt. (Type = 152)  . . . . . . . . . .  26
+     4.21. Quick-Start (Type = 25) . . . . . . . . . . . . . . . . .  27
+     4.22. RFC3692-Style Experiment (Types = 30, 94, 158, and 222) .  28
+     4.23. Other IP Options  . . . . . . . . . . . . . . . . . . . .  29
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .  31
+   6.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  31
+   7.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  31
+     7.1.  Normative References  . . . . . . . . . . . . . . . . . .  31
+     7.2.  Informative References  . . . . . . . . . . . . . . . . .  32
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                 [Page 2]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+1.  Introduction
+
+   This document discusses the filtering of IPv4 packets based on the
+   IPv4 options they contain.  Since various protocols may use IPv4
+   options to some extent, dropping packets based on the options they
+   contain may have implications on the proper functioning of such
+   protocols.  Therefore, this document attempts to discuss the
+   operational and interoperability implications of such dropping.
+   Additionally, it outlines what a network operator might do in typical
+   enterprise or Service Provider environments.  This document also
+   draws and is partly derived from [RFC6274], which also received
+   review from the operational community.
+
+   We note that data seems to indicate that there is a current
+   widespread practice of blocking IPv4 optioned packets.  There are
+   various plausible approaches to minimize the potential negative
+   effects of IPv4 optioned packets while allowing some option
+   semantics.  One approach is to allow for specific options that are
+   expected or needed, and have a default deny.  A different approach is
+   to deny unneeded options and have a default allow.  Yet a third
+   possible approach is to allow for end-to-end semantics by ignoring
+   options and treating packets as un-optioned while in transit.
+   Experiments and currently available data tend to support the first or
+   third approaches as more realistic.  Some results regarding the
+   current state of affairs with respect to dropping packets containing
+   IP options can be found in [MEDINA] and [FONSECA].  Additionally,
+   [BREMIER-BARR] points out that the deployed Internet already has many
+   routers that do not process IP options.
+
+   We also note that while this document provides advice on dropping
+   packets on a "per IP option type", not all devices (routers, security
+   gateways, and firewalls) may provide this capability with such
+   granularity.  Additionally, even in cases in which such functionality
+   is provided, an operator might want to specify a dropping policy with
+   a coarser granularity (rather than on a "per IP option type"
+   granularity), as indicated above.
+
+   Finally, in scenarios in which processing of IP options by
+   intermediate systems is not required, a widespread approach is to
+   simply ignore IP options and process the corresponding packets as if
+   they do not contain any IP options.
+
+1.1.  Terminology and Conventions Used in This Document
+
+   The terms "fast path", "slow path", and associated relative terms
+   ("faster path" and "slower path") are loosely defined as in Section 2
+   of [RFC6398].
+
+
+
+
+Gont, et al.              Best Current Practice                 [Page 3]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   Because of the security-oriented nature of this document, we are
+   deliberately including some historical citations.  The goal is to
+   explicitly retain and show history, as well as remove ambiguity and
+   confusion.
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+1.2.  Operational Focus
+
+   All of the recommendations in this document have been made in an
+   effort to optimize for operational community consensus, as best the
+   authors have been able to determine that.  This has included not only
+   accepting feedback from public lists, but also accepting off-list
+   feedback from people at various network operators (e.g. Internet
+   Service Providers, content providers, educational institutions,
+   commercial firms).
+
+2.  IP Options
+
+   IP options allow for the extension of the Internet Protocol.  As
+   specified in [RFC0791], there are two cases for the format of an
+   option:
+
+   o  Case 1: A single byte of option-type.
+
+   o  Case 2: An option-type byte, an option-length byte, and the actual
+      option-data bytes.
+
+   IP options of Case 1 have the following syntax:
+
+   +-+-+-+-+-+-+-+-+- - - - - - - - -
+   |  option-type  |  option-data
+   +-+-+-+-+-+-+-+-+- - - - - - - - -
+
+   The length of IP options of Case 1 is implicitly specified by the
+   option-type byte.
+
+   IP options of Case 2 have the following syntax:
+
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
+   |  option-type  | option-length |  option-data
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
+
+   In this case, the option-length byte counts the option-type byte and
+   the option-length byte, as well as the actual option-data bytes.
+
+
+
+
+Gont, et al.              Best Current Practice                 [Page 4]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   All current and future options, except "End of Option List" (Type =
+   0) and "No Operation" (Type = 1), are of Class 2.
+
+   The option-type has three fields:
+
+   o  1 bit: copied flag.
+
+   o  2 bits: option class.
+
+   o  5 bits: option number.
+
+   The copied flag indicates whether this option should be copied to all
+   fragments in the event the packet carrying it needs to be fragmented:
+
+   o  0 = not copied.
+
+   o  1 = copied.
+
+   The values for the option class are:
+
+   o  0 = control.
+
+   o  1 = reserved for future use.
+
+   o  2 = debugging and measurement.
+
+   o  3 = reserved for future use.
+
+   This format allows for the creation of new options for the extension
+   of the Internet Protocol (IP).
+
+   Finally, the option number identifies the syntax of the rest of the
+   option.
+
+   The "IP OPTION NUMBERS" registry [IANA-IP] contains the list of the
+   currently assigned IP option numbers.
+
+3.  General Security Implications of IP Options
+
+3.1.  Processing Requirements
+
+   Historically, most IP routers used a general-purpose CPU to process
+   IP packets and forward them towards their destinations.  This same
+   CPU usually also processed network management traffic (e.g., SNMP),
+   configuration commands (e.g., command line interface), and various
+   routing protocols (e.g., RIP, OSPF, BGP, IS-IS) or other control
+   protocols (e.g., RSVP, ICMP).  In such architectures, it has been
+   common for the general-purpose CPU also to perform any packet
+
+
+
+Gont, et al.              Best Current Practice                 [Page 5]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   filtering that has been enabled on the router (or router interface).
+   An IP router built using this architecture often has a significant
+   Distributed Denial-of-Service (DDoS) attack risk if the router
+   control plane (e.g., CPU) is overwhelmed by a large number of IPv4
+   packets that contain IPv4 options.
+
+   From about 1995 onwards, a growing number of IP routers have
+   incorporated silicon specialized for IP packet processing (i.e.,
+   Field-Programmable Gate Array (FPGA), Application-Specific Integrated
+   Circuit (ASIC)), thereby separating the function of IP packet
+   forwarding from the other functions of the router.  Such router
+   architectures tend to be more resilient to DDoS attacks that might be
+   seen in the global public Internet.  Depending upon various
+   implementation and configuration details, routers with a silicon
+   packet-forwarding engine can handle high volumes of IP packets
+   containing IP options without any adverse impact on packet-forwarding
+   rates or on the router's control plane (e.g., general-purpose CPU).
+   Some implementations have a configuration knob simply to forward all
+   IP packets containing IP options at wire-speed in silicon, as if the
+   IP packet did not contain any IP options ("ignore options &
+   forward").  Other implementations support wire-speed silicon-based
+   packet filtering, thereby enabling packets containing certain IP
+   options to be selectively dropped ("drop"), packets containing
+   certain other IP options to have those IP options ignored ("ignore
+   options & forward"), and other packets containing different IP
+   options to have those options processed, either on a general-purpose
+   CPU or using custom logic (e.g., FPGA, ASIC), while the packet is
+   being forwarded ("process option & forward").
+
+   Broadly speaking, any IP packet that requires processing by an IP
+   router's general-purpose CPU can be a DDoS risk to that router's
+   general-purpose CPU (and thus to the router itself).  However, at
+   present, the particular architectural and engineering details of the
+   specific IP router being considered are important to understand when
+   evaluating the operational security risks associated with a
+   particular IP packet type or IP option type.
+
+   Operators are urged to consider the capabilities of potential IP
+   routers for IP option filtering and handling as they make deployment
+   decisions in the future.
+
+   Additional considerations for protecting the control plane from
+   packets containing IP options can be found in [RFC6192].
+
+   Finally, in addition to advice to operators, this document also
+   provides advice to router, security gateway, and firewall
+   implementers in terms of providing the capability to filter packets
+
+
+
+
+Gont, et al.              Best Current Practice                 [Page 6]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   with different granularities: both on a "per IP option type"
+   granularity (to maximize flexibility) as well as more coarse filters
+   (to minimize configuration complexity).
+
+4.  Advice on the Handling of Packets with Specific IP Options
+
+   The following subsections contain a description of each of the IP
+   options that have so far been specified, a discussion of possible
+   interoperability implications if packets containing such options are
+   dropped, and specific advice on whether to drop packets containing
+   these options in a typical enterprise or Service Provider
+   environment.
+
+4.1.  End of Option List (Type = 0)
+
+4.1.1.  Uses
+
+   This option is used to indicate the "end of options" in those cases
+   in which the end of options would not coincide with the end of the
+   Internet Protocol header.
+
+4.1.2.  Option Specification
+
+   Specified in RFC 791 [RFC0791].
+
+4.1.3.  Threats
+
+   No specific security issues are known for this IPv4 option.
+
+4.1.4.  Operational and Interoperability Impact if Blocked
+
+   Packets containing any IP options are likely to include an End of
+   Option List.  Therefore, if packets containing this option are
+   dropped, it is very likely that legitimate traffic is blocked.
+
+4.1.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD NOT drop packets
+   because they contain this option.
+
+4.2.  No Operation (Type = 1)
+
+4.2.1.  Uses
+
+   The no-operation option is basically meant to allow the sending
+   system to align subsequent options in, for example, 32-bit
+   boundaries.
+
+
+
+
+Gont, et al.              Best Current Practice                 [Page 7]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.2.2.  Option Specification
+
+   Specified in RFC 791 [RFC0791].
+
+4.2.3.  Threats
+
+   No specific security issues are known for this IPv4 option.
+
+4.2.4.  Operational and Interoperability Impact if Blocked
+
+   Packets containing any IP options are likely to include a No
+   Operation option.  Therefore, if packets containing this option are
+   dropped, it is very likely that legitimate traffic is blocked.
+
+4.2.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD NOT drop packets
+   because they contain this option.
+
+4.3.  Loose Source and Record Route (LSRR) (Type = 131)
+
+   RFC 791 states that this option should appear at most once in a given
+   packet.  Thus, if a packet contains more than one LSRR option, it
+   should be dropped, and this event should be logged (e.g., a counter
+   could be incremented to reflect the packet drop).  Additionally,
+   packets containing a combination of LSRR and SSRR options should be
+   dropped, and this event should be logged (e.g., a counter could be
+   incremented to reflect the packet drop).
+
+4.3.1.  Uses
+
+   This option lets the originating system specify a number of
+   intermediate systems a packet must pass through to get to the
+   destination host.  Additionally, the route followed by the packet is
+   recorded in the option.  The receiving host (end-system) must use the
+   reverse of the path contained in the received LSRR option.
+
+   The LSSR option can be of help in debugging some network problems.
+   Some Internet Service Provider (ISP) peering agreements require
+   support for this option in the routers within the peer of the ISP.
+
+4.3.2.  Option Specification
+
+   Specified in RFC 791 [RFC0791].
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                 [Page 8]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.3.3.  Threats
+
+   The LSRR option has well-known security implications [RFC6274].
+   Among other things, the option can be used to:
+
+   o  Bypass firewall rules.
+
+   o  Reach otherwise unreachable internet systems.
+
+   o  Establish TCP connections in a stealthy way.
+
+   o  Learn about the topology of a network.
+
+   o  Perform bandwidth-exhaustion attacks.
+
+   Of these attack vectors, the one that has probably received least
+   attention is the use of the LSRR option to perform bandwidth
+   exhaustion attacks.  The LSRR option can be used as an amplification
+   method for performing bandwidth-exhaustion attacks, as an attacker
+   could make a packet bounce multiple times between a number of systems
+   by carefully crafting an LSRR option.
+
+      This is the IPv4 version of the IPv6 amplification attack that was
+      widely publicized in 2007 [Biondi2007].  The only difference is
+      that the maximum length of the IPv4 header (and hence the LSRR
+      option) limits the amplification factor when compared to the IPv6
+      counterpart.
+
+   Additionally, some implementations have been found to fail to include
+   proper sanity checks on the LSRR option, thus leading to security
+   issues.  These specific issues are believed to be solved in all
+   modern implementations.
+
+      [Microsoft1999] is a security advisory about a vulnerability
+      arising from improper validation of the Pointer field of the LSRR
+      option.
+
+   Finally, we note that some systems were known for providing a system-
+   wide toggle to enable support for this option for those scenarios in
+   which this option is required.  However, improper implementation of
+   such a system-wide toggle caused those systems to support the LSRR
+   option even when explicitly configured not to do so.
+
+      [OpenBSD1998] is a security advisory about an improper
+      implementation of such a system-wide toggle in 4.4BSD kernels.
+      This issue was resolved in later versions of the corresponding
+      operating system.
+
+
+
+
+Gont, et al.              Best Current Practice                 [Page 9]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.3.4.  Operational and Interoperability Impact if Blocked
+
+   Network troubleshooting techniques that may employ the LSRR option
+   (such as ping or traceroute with the appropriate arguments) would
+   break when using the LSRR option.  (Ping and traceroute without IPv4
+   options are not impacted.)  Nevertheless, it should be noted that it
+   is virtually impossible to use the LSRR option for troubleshooting,
+   due to widespread dropping of packets that contain the option.
+
+4.3.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD implement an option-
+   specific configuration knob to select whether packets with this
+   option are dropped, packets with this IP option are forwarded as if
+   they did not contain this IP option, or packets with this option are
+   processed and forwarded as per [RFC0791].  The default setting for
+   this knob SHOULD be "drop", and the default setting MUST be
+   documented.
+
+   Please note that treating packets with LSRR as if they did not
+   contain this option can result in such packets being sent to a
+   different device than the initially intended destination.  With
+   appropriate ingress filtering, this should not open an attack vector
+   into the infrastructure.  Nonetheless, it could result in traffic
+   that would never reach the initially intended destination.  Dropping
+   these packets prevents unnecessary network traffic and does not make
+   end-to-end communication any worse.
+
+4.4.  Strict Source and Record Route (SSRR) (Type = 137)
+
+4.4.1.  Uses
+
+   This option allows the originating system to specify a number of
+   intermediate systems a packet must pass through to get to the
+   destination host.  Additionally, the route followed by the packet is
+   recorded in the option, and the destination host (end-system) must
+   use the reverse of the path contained in the received SSRR option.
+
+   This option is similar to the Loose Source and Record Route (LSRR)
+   option, with the only difference that in the case of SSRR, the route
+   specified in the option is the exact route the packet must take
+   (i.e., no other intervening routers are allowed to be in the route).
+
+   The SSRR option can be of help in debugging some network problems.
+   Some ISP peering agreements require support for this option in the
+   routers within the peer of the ISP.
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 10]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.4.2.  Option Specification
+
+   Specified in RFC 791 [RFC0791].
+
+4.4.3.  Threats
+
+   The SSRR option has the same security implications as the LSRR
+   option.  Please refer to Section 4.3 for a discussion of such
+   security implications.
+
+4.4.4.  Operational and Interoperability Impact if Blocked
+
+   Network troubleshooting techniques that may employ the SSRR option
+   (such as ping or traceroute with the appropriate arguments) would
+   break when using the SSRR option.  (Ping and traceroute without IPv4
+   options are not impacted.)  Nevertheless, it should be noted that it
+   is virtually impossible to use the SSRR option for trouble-shooting,
+   due to widespread dropping of packets that contain such option.
+
+4.4.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD implement an option-
+   specific configuration knob to select whether packets with this
+   option are dropped, packets with this IP option are forwarded as if
+   they did not contain this IP option, or packets with this option are
+   processed and forwarded as per [RFC0791].  The default setting for
+   this knob SHOULD be "drop", and the default setting MUST be
+   documented.
+
+   Please note that treating packets with SSRR as if they did not
+   contain this option can result in such packets being sent to a
+   different device that the initially intended destination.  With
+   appropriate ingress filtering this should not open an attack vector
+   into the infrastructure.  Nonetheless, it could result in traffic
+   that would never reach the initially intended destination.  Dropping
+   these packets prevents unnecessary network traffic, and does not make
+   end-to-end communication any worse.
+
+4.5.  Record Route (Type = 7)
+
+4.5.1.  Uses
+
+   This option provides a means to record the route that a given packet
+   follows.
+
+4.5.2.  Option Specification
+
+   Specified in RFC 791 [RFC0791].
+
+
+
+Gont, et al.              Best Current Practice                [Page 11]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.5.3.  Threats
+
+   This option can be exploited to map the topology of a network.
+   However, the limited space in the IP header limits the usefulness of
+   this option for that purpose.
+
+4.5.4.  Operational and Interoperability Impact if Blocked
+
+   Network troubleshooting techniques that may employ the RR option
+   (such as ping with the RR option) would break when using the RR
+   option.  (Ping without IPv4 options is not impacted.)  Nevertheless,
+   it should be noted that it is virtually impossible to use such
+   techniques due to widespread dropping of packets that contain RR
+   options.
+
+4.5.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD implement an option-
+   specific configuration knob to select whether packets with this
+   option are dropped, packets with this IP option are forwarded as if
+   they did not contain this IP option, or packets with this option are
+   processed and forwarded as per [RFC0791].  The default setting for
+   this knob SHOULD be "drop", and the default setting MUST be
+   documented.
+
+4.6.  Stream Identifier (Type = 136) (obsolete)
+
+   The Stream Identifier option originally provided a means for the
+   16-bit SATNET stream Identifier to be carried through networks that
+   did not support the stream concept.
+
+   However, as stated by Section 3.2.1.8 of RFC 1122 [RFC1122] and
+   Section 4.2.2.1 of RFC 1812 [RFC1812], this option is obsolete.
+   Therefore, it must be ignored by the processing systems.  See also
+   [IANA-IP] and [RFC6814].
+
+   RFC 791 states that this option appears at most once in a given
+   datagram.  Therefore, if a packet contains more than one instance of
+   this option, it should be dropped, and this event should be logged
+   (e.g., a counter could be incremented to reflect the packet drop).
+
+4.6.1.  Uses
+
+   This option is obsolete.  There is no current use for this option.
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 12]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.6.2.  Option Specification
+
+   Specified in RFC 791 [RFC0791], and deprecated in RFC 1122 [RFC1122]
+   and RFC 1812 [RFC1812].  This option has been formally obsoleted by
+   [RFC6814].
+
+4.6.3.  Threats
+
+   No specific security issues are known for this IPv4 option.
+
+4.6.4.  Operational and Interoperability Impact if Blocked
+
+   None.
+
+4.6.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop IP packets
+   containing a Stream Identifier option.
+
+4.7.  Internet Timestamp (Type = 68)
+
+4.7.1.  Uses
+
+   This option provides a means for recording the time at which each
+   system (or a specified set of systems) processed this datagram, and
+   it may optionally record the addresses of the systems providing the
+   timestamps.
+
+4.7.2.  Option Specification
+
+   Specified by RFC 791 [RFC0791].
+
+4.7.3.  Threats
+
+   The timestamp option has a number of security implications [RFC6274].
+   Among them are:
+
+   o  It allows an attacker to obtain the current time of the systems
+      that process the packet, which the attacker may find useful in a
+      number of scenarios.
+
+   o  It may be used to map the network topology in a similar way to the
+      IP Record Route option.
+
+   o  It may be used to fingerprint the operating system in use by a
+      system processing the datagram.
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 13]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   o  It may be used to fingerprint physical devices by analyzing the
+      clock skew.
+
+   [Kohno2005] describes a technique for fingerprinting devices by
+   measuring the clock skew.  It exploits, among other things, the
+   timestamps that can be obtained by means of the ICMP timestamp
+   request messages [RFC0791].  However, the same fingerprinting method
+   could be implemented with the aid of the Internet Timestamp option.
+
+4.7.4.  Operational and Interoperability Impact if Blocked
+
+   Network troubleshooting techniques that may employ the Internet
+   Timestamp option (such as ping with the Timestamp option) would break
+   when using the Timestamp option.  (Ping without IPv4 options is not
+   impacted.)  Nevertheless, it should be noted that it is virtually
+   impossible to use such techniques due to widespread dropping of
+   packets that contain Internet Timestamp options.
+
+4.7.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop IP packets
+   containing an Internet Timestamp option.
+
+4.8.  Router Alert (Type = 148)
+
+4.8.1.  Uses
+
+   The Router Alert option has the semantic "routers should examine this
+   packet more closely, if they participate in the functionality denoted
+   by the Value of the option".
+
+4.8.2.  Option Specification
+
+   The Router Alert option is defined in RFC 2113 [RFC2113] and later
+   updates to it have been clarified by RFC 5350 [RFC5350].  It contains
+   a 16-bit Value governed by an IANA registry (see [RFC5350]).
+
+4.8.3.  Threats
+
+   The security implications of the Router Alert option have been
+   discussed in detail in [RFC6398].  Basically, the Router Alert option
+   might be exploited to perform a DoS attack by exhausting CPU
+   resources at the processing routers.
+
+4.8.4.  Operational and Interoperability Impact if Blocked
+
+   Applications that employ the Router Alert option (such as RSVP
+   [RFC2205]) would break.
+
+
+
+Gont, et al.              Best Current Practice                [Page 14]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.8.5.  Advice
+
+   This option SHOULD be allowed only in controlled environments, where
+   the option can be used safely.  [RFC6398] identifies some such
+   environments.  In unsafe environments, packets containing this option
+   SHOULD be dropped.
+
+   A given router, security gateway, or firewall system has no way of
+   knowing a priori whether this option is valid in its operational
+   environment.  Therefore, routers, security gateways, and firewalls
+   SHOULD, by default, ignore the Router Alert option.  Additionally,
+   routers, security gateways, and firewalls SHOULD have a configuration
+   setting that governs their reaction in the presence of packets
+   containing the Router Alert option.  This configuration setting
+   SHOULD allow to honor and process the option, ignore the option, or
+   drop packets containing this option.
+
+4.9.  Probe MTU (Type = 11) (obsolete)
+
+4.9.1.  Uses
+
+   This option originally provided a mechanism to discover the Path-MTU.
+   It has been declared obsolete.
+
+4.9.2.  Option Specification
+
+   This option was originally defined in RFC 1063 [RFC1063] and was
+   obsoleted with RFC 1191 [RFC1191].  This option is now obsolete, as
+   RFC 1191 obsoletes RFC 1063 without using IP options.
+
+4.9.3.  Threats
+
+   This option is obsolete.  This option could have been exploited to
+   cause a host to set its Path MTU (PMTU) estimate to an inordinately
+   low or an inordinately high value, thereby causing performance
+   problems.
+
+4.9.4.  Operational and Interoperability Impact if Blocked
+
+   None
+
+      This option is NOT employed with the modern "Path MTU Discovery"
+      (PMTUD) mechanism [RFC1191], which employs special ICMP messages
+      (Type 3, Code 4) in combination with the IP DF bit.  Packetization
+      Layer PMTUD (PLPMTUD) [RFC4821] can perform PMTUD without the need
+      for any special packets.
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 15]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.9.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop IP packets that
+   contain a Probe MTU option.
+
+4.10.  Reply MTU (Type = 12) (obsolete)
+
+4.10.1.  Uses
+
+   This option originally provided a mechanism to discover the Path-MTU.
+   It is now obsolete.
+
+4.10.2.  Option Specification
+
+   This option was originally defined in RFC 1063 [RFC1063] and was
+   obsoleted with RFC 1191 [RFC1191].  This option is now obsolete, as
+   RFC 1191 obsoletes RFC 1063 without using IP options.
+
+4.10.3.  Threats
+
+   This option is obsolete.  This option could have been exploited to
+   cause a host to set its PMTU estimate to an inordinately low or an
+   inordinately high value, thereby causing performance problems.
+
+4.10.4.  Operational and Interoperability Impact if Blocked
+
+   None
+
+      This option is NOT employed with the modern "Path MTU Discovery"
+      (PMTUD) mechanism [RFC1191], which employs special ICMP messages
+      (Type 3, Code 4) in combination with the IP DF bit.  PLPMTUD
+      [RFC4821] can perform PMTUD without the need of any special
+      packets.
+
+4.10.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop IP packets that
+   contain a Reply MTU option.
+
+4.11.  Traceroute (Type = 82)
+
+4.11.1.  Uses
+
+   This option originally provided a mechanism to trace the path to a
+   host.
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 16]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.11.2.  Option Specification
+
+   This option was originally specified by RFC 1393 [RFC1393] as
+   "experimental", and it was never widely deployed on the public
+   Internet.  This option has been formally obsoleted by [RFC6814].
+
+4.11.3.  Threats
+
+   This option is obsolete.  Because this option required each router in
+   the path both to provide special processing and to send an ICMP
+   message, it could have been exploited to perform a DoS attack by
+   exhausting CPU resources at the processing routers.
+
+4.11.4.  Operational and Interoperability Impact if Blocked
+
+   None
+
+4.11.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop IP packets that
+   contain a Traceroute option.
+
+4.12.  DoD Basic Security Option (Type = 130)
+
+4.12.1.  Uses
+
+   This option [RFC1108] is used by Multi-Level Secure (MLS) end-systems
+   and intermediate systems in specific environments to:
+
+   o  transmit from source to destination in a network standard
+      representation the common security labels required by computer
+      security models [Landwehr81],
+
+   o  validate the datagram as appropriate for transmission from the
+      source and delivery to the destination, and,
+
+   o  ensure that the route taken by the datagram is protected to the
+      level required by all protection authorities indicated on the
+      datagram.
+
+   The DoD Basic Security Option (BSO) was implemented in IRIX
+   [IRIX2008] and is currently implemented in a number of operating
+   systems (e.g., Security-Enhanced Linux [SELinux2008], Solaris
+   [Solaris2008], and Cisco IOS [Cisco-IPSO]).  It is also currently
+   deployed in a number of high-security networks.  These networks are
+   typically either in physically secure locations, protected by
+   military/governmental communications security equipment, or both.
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 17]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   Such networks are typically built using commercial off-the-shelf
+   (COTS) IP routers and Ethernet switches, but they are not normally
+   interconnected with the global public Internet.  MLS systems are much
+   more widely deployed now than they were at the time the then-IESG
+   decided to remove IPSO (IP Security Options) from the IETF Standards
+   Track.  Since nearly all MLS systems also support IPSO BSO and IPSO
+   ESO, this option is believed to have more deployment now than when
+   the IESG removed this option from the IETF Standards Track.
+   [RFC5570] describes a similar option recently defined for IPv6 and
+   has much more detailed explanations of how sensitivity label options
+   are used in real-world deployments.
+
+4.12.2.  Option Specification
+
+   It is specified by RFC 1108 [RFC1108], which obsoleted RFC 1038
+   [RFC1038] (which in turn obsoleted the Security Option defined in RFC
+   791 [RFC0791]).
+
+      RFC 791 [RFC0791] defined the "Security Option" (Type = 130),
+      which used the same option type as the DoD Basic Security option
+      discussed in this section.  Later, RFC 1038 [RFC1038] revised the
+      IP security options, and in turn was obsoleted by RFC 1108
+      [RFC1108].  The "Security Option" specified in RFC 791 is
+      considered obsolete by Section 3.2.1.8 of RFC 1122 [RFC1122] and
+      Section 4.2.2.1 of RFC 1812 [RFC1812], and therefore the
+      discussion in this section is focused on the DoD Basic Security
+      option specified by RFC 1108 [RFC1108].
+
+   Section 4.2.2.1 of RFC 1812 states that routers "SHOULD implement
+   [this option]".
+
+      Some private IP networks consider IP router-based per-interface
+      selective filtering of packets based on (a) the presence of an
+      IPSO option (including BSO and ESO) and (b) the contents of that
+      IPSO option to be important for operational security reasons.  The
+      recent IPv6 Common Architecture Label IPv6 Security Option
+      (CALIPSO) specification discusses this in additional detail,
+      albeit in an IPv6 context [RFC5570].
+
+      Such private IP networks commonly are built using both commercial
+      and open-source products -- for hosts, guards, firewalls,
+      switches, routers, etc.  Some commercial IP routers support this
+      option, as do some IP routers that are built on top of MLS
+      operating systems (e.g., on top of Trusted Solaris [Solaris2008]
+      or Security-Enhanced Linux [SELinux2008]).
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 18]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+      For example, many Cisco routers that run Cisco IOS include support
+      for selectively filtering packets that contain the IP Security
+      Options (IPSO) with per-interface granularity.  This capability
+      has been present in many Cisco routers since the early 1990s
+      [Cisco-IPSO-Cmds].  Some government-sector products reportedly
+      also support the IP Security Options (IPSO), for example, CANEWARE
+      [RFC4949].
+
+      Support for the IPSO Basic Security Option also is included in the
+      "IPsec Configuration Policy Information Model" [RFC3585] and in
+      the "IPsec Security Policy Database Configuration MIB" [RFC4807].
+      Section 4.6.1 of the IP Security Domain of Interpretation
+      [RFC2407] includes support for labeled IPsec security associations
+      compatible with the IP Security Options.  (Note: RFC 2407 was
+      obsoleted by [RFC4306], which was obsoleted by [RFC5996].)
+
+4.12.3.  Threats
+
+   Presence of this option in a packet does not by itself create any
+   specific new threat.  Packets with this option ought not normally be
+   seen on the global public Internet.
+
+4.12.4.  Operational and Interoperability Impact if Blocked
+
+   If packets with this option are blocked or if the option is stripped
+   from the packet during transmission from source to destination, then
+   the packet itself is likely to be dropped by the receiver because it
+   is not properly labeled.  In some cases, the receiver might receive
+   the packet but associate an incorrect sensitivity label with the
+   received data from the packet whose BSO was stripped by an
+   intermediate router or firewall.  Associating an incorrect
+   sensitivity label can cause the received information either to be
+   handled as more sensitive than it really is ("upgrading") or as less
+   sensitive than it really is ("downgrading"), either of which is
+   problematic.
+
+4.12.5.  Advice
+
+   A given IP router, security gateway, or firewall has no way to know a
+   priori what environment it has been deployed into.  Even closed IP
+   deployments generally use exactly the same commercial routers,
+   security gateways, and firewalls that are used in the public
+   Internet.
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 19]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   Since operational problems result in environments where this option
+   is needed if either the option is dropped or IP packets containing
+   this option are dropped, but no harm results if the option is carried
+   in environments where it is not needed, the default configuration
+   SHOULD NOT (a) modify or remove this IP option or (b) drop an IP
+   packet because the IP packet contains this option.
+
+   A given IP router, security gateway, or firewall MAY be configured to
+   drop this option or to drop IP packets containing this option in an
+   environment known to not use this option.
+
+   For auditing reasons, routers, security gateways, and firewalls
+   SHOULD be capable of logging the numbers of packets containing the
+   BSO on a per-interface basis.  Also, routers, security gateways, and
+   firewalls SHOULD be capable of dropping packets based on the BSO
+   presence as well as the BSO values.
+
+4.13.  DoD Extended Security Option (Type = 133)
+
+4.13.1.  Uses
+
+   This option permits additional security labeling information, beyond
+   that present in the Basic Security Option (Section 4.12), to be
+   supplied in an IP datagram to meet the needs of registered
+   authorities.
+
+4.13.2.  Option Specification
+
+   The DoD Extended Security Option (ESO) is specified by RFC 1108
+   [RFC1108].
+
+      Some private IP networks consider IP router-based per-interface
+      selective filtering of packets based on (a) the presence of an
+      IPSO option (including BSO and ESO) and (b) based on the contents
+      of that IPSO option to be important for operational security
+      reasons.  The recent IPv6 CALIPSO option specification discusses
+      this in additional detail, albeit in an IPv6 context [RFC5570].
+
+      Such private IP networks commonly are built using both commercial
+      and open-source products -- for hosts, guards, firewalls,
+      switches, routers, etc.  Some commercial IP routers support this
+      option, as do some IP routers that are built on top of MLS
+      operating systems (e.g., on top of Trusted Solaris [Solaris2008]
+      or Security-Enhanced Linux [SELinux2008]).
+
+      For example, many Cisco routers that run Cisco IOS include support
+      for selectively filtering packets that contain the IP Security
+      Options (IPSO) with per-interface granularity.  This capability
+
+
+
+Gont, et al.              Best Current Practice                [Page 20]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+      has been present in many Cisco routers since the early 1990s
+      [Cisco-IPSO-Cmds].  Some government sector products reportedly
+      also support the IP Security Options (IPSO), for example, CANEWARE
+      [RFC4949].
+
+      Support for the IPSO Extended Security Option also is included in
+      the "IPsec Configuration Policy Information Model" [RFC3585] and
+      in the "IPsec Security Policy Database Configuration MIB"
+      [RFC4807].  Section 4.6.1 of the IP Security Domain of
+      Interpretation [RFC2407] includes support for labeled IPsec
+      security associations compatible with the IP Security Options.
+
+4.13.3.  Threats
+
+   Presence of this option in a packet does not by itself create any
+   specific new threat.  Packets with this option ought not normally be
+   seen on the global public Internet.
+
+4.13.4.  Operational and Interoperability Impact if Blocked
+
+   If packets with this option are blocked or if the option is stripped
+   from the packet during transmission from source to destination, then
+   the packet itself is likely to be dropped by the receiver because it
+   is not properly labeled.  In some cases, the receiver might receive
+   the packet but associate an incorrect sensitivity label with the
+   received data from the packet whose ESO was stripped by an
+   intermediate router or firewall.  Associating an incorrect
+   sensitivity label can cause the received information either to be
+   handled as more sensitive than it really is ("upgrading") or as less
+   sensitive than it really is ("downgrading"), either of which is
+   problematic.
+
+4.13.5.  Advice
+
+   A given IP router, security gateway, or firewall has no way to know a
+   priori what environment it has been deployed into.  Even closed IP
+   deployments generally use exactly the same commercial routers,
+   security gateways, and firewalls that are used in the public
+   Internet.
+
+   Since operational problems result in environments where this option
+   is needed if either the option is dropped or IP packets containing
+   this option are dropped, but no harm results if the option is carried
+   in environments where it is not needed, the default configuration
+   SHOULD NOT (a) modify or remove this IP option or (b) drop an IP
+   packet because the IP packet contains this option.
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 21]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   A given IP router, security gateway, or firewall MAY be configured to
+   drop this option or to drop IP packets containing this option in an
+   environment known to not use this option.
+
+   For auditing reasons, routers, security gateways, and firewalls
+   SHOULD be capable of logging the numbers of packets containing the
+   ESO on a per-interface basis.  Also, routers, security gateways, and
+   firewalls SHOULD be capable of dropping packets based on the ESO
+   presence as well as the ESO values.
+
+4.14.  Commercial IP Security Option (CIPSO) (Type = 134)
+
+4.14.1.  Uses
+
+   This option was proposed by the Trusted Systems Interoperability
+   Group (TSIG), with the intent of meeting trusted networking
+   requirements for the commercial trusted systems marketplace.
+
+   It was implemented in IRIX [IRIX2008] and is currently implemented in
+   a number of operating systems (e.g., Security-Enhanced Linux
+   [SELinux2008] and Solaris [Solaris2008]).  It is also currently
+   deployed in a number of high-security networks.
+
+4.14.2.  Option Specification
+
+   This option is specified in [CIPSO] and [FIPS1994].  There are zero
+   known IP router implementations of CIPSO.  Several MLS operating
+   systems support CIPSO, generally the same MLS operating systems that
+   support IPSO.
+
+      The TSIG proposal was taken to the Commercial Internet Security
+      Option (CIPSO) Working Group of the IETF [CIPSOWG1994], and an
+      Internet-Draft was produced [CIPSO].  The Internet-Draft was never
+      published as an RFC, but the proposal was later standardized by
+      the U.S.  National Institute of Standards and Technology (NIST) as
+      "Federal Information Processing Standard Publication 188"
+      [FIPS1994].
+
+4.14.3.  Threats
+
+   Presence of this option in a packet does not by itself create any
+   specific new threat.  Packets with this option ought not normally be
+   seen on the global public Internet.
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 22]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.14.4.  Operational and Interoperability Impact if Blocked
+
+   If packets with this option are blocked or if the option is stripped
+   from the packet during transmission from source to destination, then
+   the packet itself is likely to be dropped by the receiver because it
+   is not properly labeled.  In some cases, the receiver might receive
+   the packet but associate an incorrect sensitivity label with the
+   received data from the packet whose CIPSO was stripped by an
+   intermediate router or firewall.  Associating an incorrect
+   sensitivity label can cause the received information either to be
+   handled as more sensitive than it really is ("upgrading") or as less
+   sensitive than it really is ("downgrading"), either of which is
+   problematic.
+
+4.14.5.  Advice
+
+   Because of the design of this option, with variable syntax and
+   variable length, it is not practical to support specialized filtering
+   using the CIPSO information.  No routers or firewalls are known to
+   support this option.  However, routers, security gateways, and
+   firewalls SHOULD NOT by default modify or remove this option from IP
+   packets and SHOULD NOT by default drop packets because they contain
+   this option.  For auditing reasons, routers, security gateways, and
+   firewalls SHOULD be capable of logging the numbers of packets
+   containing the CIPSO on a per-interface basis.  Also, routers,
+   security gateways, and firewalls SHOULD be capable of dropping
+   packets based on the CIPSO presence.
+
+4.15.  VISA (Type = 142)
+
+4.15.1.  Uses
+
+   This options was part of an experiment at the University of Southern
+   California (USC) and was never widely deployed.
+
+4.15.2.  Option Specification
+
+   The original option specification is not publicly available.  This
+   option has been formally obsoleted by [RFC6814].
+
+4.15.3.  Threats
+
+   Not possible to determine (other than the general security
+   implications of IP options discussed in Section 3), since the
+   corresponding specification is not publicly available.
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 23]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.15.4.  Operational and Interoperability Impact if Blocked
+
+   None.
+
+4.15.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop IP packets that
+   contain this option.
+
+4.16.  Extended Internet Protocol (Type = 145)
+
+4.16.1.  Uses
+
+   The EIP option was introduced by one of the proposals submitted
+   during the IP Next Generation (IPng) efforts to address the problem
+   of IPv4 address exhaustion.
+
+4.16.2.  Option Specification
+
+   Specified in [RFC1385].  This option has been formally obsoleted by
+   [RFC6814].
+
+4.16.3.  Threats
+
+   This option is obsolete.  This option was used (or was intended to be
+   used) to signal that a packet superficially similar to an IPv4 packet
+   actually contained a different protocol, opening up the possibility
+   that an IPv4 node that simply ignored this option would process a
+   received packet in a manner inconsistent with the intent of the
+   sender.  There are no known threats arising from this option, other
+   than the general security implications of IP options discussed in
+   Section 3.
+
+4.16.4.  Operational and Interoperability Impact if Blocked
+
+   None.
+
+4.16.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop packets that
+   contain this option.
+
+
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 24]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.17.  Address Extension (Type = 147)
+
+4.17.1.  Uses
+
+   The Address Extension option was introduced by one of the proposals
+   submitted during the IPng efforts to address the problem of IPv4
+   address exhaustion.
+
+4.17.2.  Option Specification
+
+   Specified in [RFC1475].  This option has been formally obsoleted by
+   [RFC6814].
+
+4.17.3.  Threats
+
+   There are no known threats arising from this option, other than the
+   general security implications of IP options discussed in Section 3.
+
+4.17.4.  Operational and Interoperability Impact if Blocked
+
+   None.
+
+4.17.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop packets that
+   contain this option.
+
+4.18.  Sender Directed Multi-Destination Delivery (Type = 149)
+
+4.18.1.  Uses
+
+   This option originally provided unreliable UDP delivery to a set of
+   addresses included in the option.
+
+4.18.2.  Option Specification
+
+   This option is specified in RFC 1770 [RFC1770].  It has been formally
+   obsoleted by [RFC6814].
+
+4.18.3.  Threats
+
+   This option could have been exploited for bandwidth-amplification in
+   DoS attacks.
+
+4.18.4.  Operational and Interoperability Impact if Blocked
+
+   None.
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 25]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.18.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop IP packets that
+   contain a Sender Directed Multi-Destination Delivery option.
+
+4.19.  Dynamic Packet State (Type = 151)
+
+4.19.1.  Uses
+
+   The Dynamic Packet State option was used to specify the Dynamic
+   Packet State (DPS) in the context of the differentiated services
+   architecture.
+
+4.19.2.  Option Specification
+
+   The Dynamic Packet State option was specified in [DIFFSERV-DPS].  The
+   aforementioned document was meant to be published as "Experimental",
+   but never made it into an RFC.  This option has been formally
+   obsoleted by [RFC6814].
+
+4.19.3.  Threats
+
+   Possible threats include theft of service and denial of service.
+   However, we note that this option has never been widely implemented
+   or deployed.
+
+4.19.4.  Operational and Interoperability Impact if Blocked
+
+   None.
+
+4.19.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop packets that
+   contain this option.
+
+4.20.  Upstream Multicast Pkt. (Type = 152)
+
+4.20.1.  Uses
+
+   This option was meant to solve the problem of doing upstream
+   forwarding of multicast packets on a multi-access LAN.
+
+4.20.2.  Option Specification
+
+   This option was originally specified in [BIDIR-TREES].  It was never
+   formally standardized in the RFC series and was never widely
+   implemented and deployed.  Its use was obsoleted by [RFC5015], which
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 26]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   employs a control-plane mechanism to solve the problem of doing
+   upstream forwarding of multicast packets on a multi-access LAN.  This
+   option has been formally obsoleted by [RFC6814].
+
+4.20.3.  Threats
+
+   This option is obsolete.  A router that ignored this option instead
+   of processing it as specified in [BIDIR-TREES] could have forwarded
+   multicast packets to an unintended destination.
+
+4.20.4.  Operational and Interoperability Impact if Blocked
+
+   None.
+
+4.20.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD drop packets that
+   contain this option.
+
+4.21.  Quick-Start (Type = 25)
+
+4.21.1.  Uses
+
+   This IP Option is used in the specification of Quick-Start for TCP
+   and IP, which is an experimental mechanism that allows transport
+   protocols, in cooperation with routers, to determine an allowed
+   sending rate at the start and, at times, in the middle of a data
+   transfer (e.g., after an idle period) [RFC4782].
+
+4.21.2.  Option Specification
+
+   Specified in RFC 4782 [RFC4782], on the "Experimental" track.
+
+4.21.3.  Threats
+
+   Section 9.6 of [RFC4782] notes that Quick-Start is vulnerable to two
+   kinds of attacks:
+
+   o  attacks to increase the routers' processing and state load, and,
+
+   o  attacks with bogus Quick-Start Requests to temporarily tie up
+      available Quick-Start bandwidth, preventing routers from approving
+      Quick-Start Requests from other connections.
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 27]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.21.4.  Operational and Interoperability Impact if Blocked
+
+   The Quick-Start functionality would be disabled, and additional
+   delays in TCP's connection establishment (for example) could be
+   introduced.  (Please see Section 4.7.2 of [RFC4782].)  We note,
+   however, that Quick-Start has been proposed as a mechanism that could
+   be of use in controlled environments, and not as a mechanism that
+   would be intended or appropriate for ubiquitous deployment in the
+   global Internet [RFC4782].
+
+4.21.5.  Advice
+
+   A given router, security gateway, or firewall system has no way of
+   knowing a priori whether this option is valid in its operational
+   environment.  Therefore, routers, security gateways, and firewalls
+   SHOULD, by default, ignore the Quick-Start option.  Additionally,
+   routers, security gateways, and firewalls SHOULD have a configuration
+   setting that governs their reaction in the presence of packets
+   containing the Quick-Start option.  This configuration setting SHOULD
+   allow to honor and process the option, ignore the option, or drop
+   packets containing this option.  The default configuration is to
+   ignore the Quick-Start option.
+
+      We note that if routers in a given environment do not implement
+      and enable the Quick-Start mechanism, only the general security
+      implications of IP options (discussed in Section 3) would apply.
+
+4.22.  RFC3692-Style Experiment (Types = 30, 94, 158, and 222)
+
+   Section 2.5 of RFC 4727 [RFC4727] allocates an option number with all
+   defined values of the "copy" and "class" fields for RFC3692-style
+   experiments.  This results in four distinct option type codes: 30,
+   94, 158, and 222.
+
+4.22.1.  Uses
+
+   It is only appropriate to use these values in explicitly configured
+   experiments; they MUST NOT be shipped as defaults in implementations.
+
+4.22.2.  Option Specification
+
+   Specified in RFC 4727 [RFC4727] in the context of RFC3692-style
+   experiments.
+
+4.22.3.  Threats
+
+   No specific security issues are known for this IPv4 option.
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 28]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+4.22.4.  Operational and Interoperability Impact if Blocked
+
+   None.
+
+4.22.5.  Advice
+
+   Routers, security gateways, and firewalls SHOULD have configuration
+   knobs for IP packets that contain RFC3692-style Experiment options to
+   select between "ignore & forward" and "drop & log".  Otherwise, no
+   legitimate experiment using these options will be able to traverse
+   any IP router.
+
+   Special care needs to be taken in the case of "drop & log".  Devices
+   SHOULD count the number of packets dropped, but the logging of drop
+   events SHOULD be limited so as to not overburden device resources.
+
+   The aforementioned configuration knob SHOULD default to "drop & log".
+
+4.23.  Other IP Options
+
+4.23.1.  Specification
+
+   Unrecognized IP options are to be ignored.  Section 3.2.1.8 of RFC
+   1122 [RFC1122] specifies this behavior as follows:
+
+      The IP and transport layer MUST each interpret those IP options
+      that they understand and silently ignore the others.
+
+   Additionally, Section 4.2.2.6 of RFC 1812 [RFC1812] specifies it as
+   follows:
+
+      A router MUST ignore IP options which it does not recognize.
+
+   This document adds that unrecognized IP options MAY also be logged.
+
+   Further, routers, security gateways, and firewalls MUST provide the
+   ability to log drop events of IP packets containing unrecognized or
+   obsolete options.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 29]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   A number of additional options are listed in the "IP OPTION NUMBERS"
+   IANA registry [IANA-IP] as of the time this document was last edited.
+   Specifically:
+
+   Copy Class Number Value Name
+   ---- ----- ------ ----- -------------------------------------------
+      0     0     10    10 ZSU    - Experimental Measurement
+      1     2     13   205 FINN   - Experimental Flow Control
+      0     0     15    15 ENCODE - ???
+      1     0     16   144 IMITD  - IMI Traffic Descriptor
+      1     0     22   150        - Unassigned (Released 18 Oct. 2005)
+
+   The ENCODE option (type 15) has been formally obsoleted by [RFC6814].
+
+4.23.2.  Threats
+
+   The lack of open specifications for these options makes it impossible
+   to evaluate their security implications.
+
+4.23.3.  Operational and Interoperability Impact if Blocked
+
+   The lack of open specifications for these options makes it impossible
+   to evaluate the operational and interoperability impact if packets
+   containing these options are blocked.
+
+4.23.4.  Advice
+
+   Routers, security gateways, and firewalls SHOULD have configuration
+   knobs for IP packets containing these options (or other options not
+   recognized) to select between "ignore & forward" and "drop & log".
+
+   Section 4.23.1 points out that [RFC1122] and [RFC1812] specify that
+   unrecognized IP options MUST be ignored.  However, the previous
+   paragraph states that routers, security gateways, and firewalls
+   SHOULD have a configuration option for dropping and logging IP
+   packets containing unrecognized options.  While it is acknowledged
+   that this advice contradicts the previous RFCs' requirements, the
+   advice in this document reflects current operational reality.
+
+   Special care needs to be taken in the case of "drop & log".  Devices
+   SHOULD count the number of packets dropped, but the logging of drop
+   events SHOULD be limited so as to not overburden device resources.
+
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 30]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+5.  Security Considerations
+
+   This document provides advice on the filtering of IP packets that
+   contain IP options.  Dropping such packets can help to mitigate the
+   security issues that arise from use of different IP options.  Many of
+   the IPv4 options listed in this document are deprecated and cause no
+   operational impact if dropped.  However, dropping packets containing
+   IPv4 options that are in use can cause real operational problems in
+   deployed networks.  Therefore, the practice of dropping all IPv4
+   packets containing one or more IPv4 options without careful
+   consideration is not recommended.
+
+6.  Acknowledgements
+
+   The authors would like to thank (in alphabetical order) Ron Bonica,
+   C. M. Heard, Merike Kaeo, Panos Kampanakis, Suresh Krishnan, Arturo
+   Servin, SM, and Donald Smith for providing thorough reviews and
+   valuable comments.  Merike Kaeo also contributed text used in this
+   document.
+
+   The authors also wish to thank various network operations folks who
+   supplied feedback on earlier versions of this document but did not
+   wish to be named explicitly in this document.
+
+   Part of this document is initially based on the document "Security
+   Assessment of the Internet Protocol" [CPNI2008] that is the result of
+   a project carried out by Fernando Gont on behalf of UK CPNI (formerly
+   NISCC).  Fernando Gont would like to thank UK CPNI (formerly NISCC)
+   for their continued support.
+
+7.  References
+
+7.1.  Normative References
+
+   [RFC0791]  Postel, J., "Internet Protocol", STD 5, RFC 791, September
+              1981.
+
+   [RFC1122]  Braden, R., "Requirements for Internet Hosts -
+              Communication Layers", STD 3, RFC 1122, October 1989.
+
+   [RFC1191]  Mogul, J. and S. Deering, "Path MTU discovery", RFC 1191,
+              November 1990.
+
+   [RFC1812]  Baker, F., "Requirements for IP Version 4 Routers", RFC
+              1812, June 1995.
+
+   [RFC2113]  Katz, D., "IP Router Alert Option", RFC 2113, February
+              1997.
+
+
+
+Gont, et al.              Best Current Practice                [Page 31]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC4727]  Fenner, B., "Experimental Values In IPv4, IPv6, ICMPv4,
+              ICMPv6, UDP, and TCP Headers", RFC 4727, November 2006.
+
+   [RFC4821]  Mathis, M. and J. Heffner, "Packetization Layer Path MTU
+              Discovery", RFC 4821, March 2007.
+
+   [RFC5015]  Handley, M., Kouvelas, I., Speakman, T., and L. Vicisano,
+              "Bidirectional Protocol Independent Multicast (BIDIR-
+              PIM)", RFC 5015, October 2007.
+
+   [RFC6398]  Le Faucheur, F., "IP Router Alert Considerations and
+              Usage", BCP 168, RFC 6398, October 2011.
+
+   [RFC6814]  Pignataro, C. and F. Gont, "Formally Deprecating Some IPv4
+              Options", RFC 6814, November 2012.
+
+7.2.  Informative References
+
+   [BIDIR-TREES]
+              Estrin, D. and D. Farinacci, "Bi-Directional Shared Trees
+              in PIM-SM", Work in Progress, May 1999.
+
+   [BREMIER-BARR]
+              Bremier-Barr, A. and H. Levy, "Spoofing prevention
+              method", Proceedings of IEEE InfoCom 2005, Volume 1, pp.
+              536-547, March 2005.
+
+   [Biondi2007]
+              Biondi, P. and A. Ebalard, "IPv6 Routing Header Security",
+              CanSecWest 2007 Security Conference, 2007,
+              <http://www.secdev.org/conf/IPv6_RH_security-csw07.pdf>.
+
+   [CIPSOWG1994]
+              IETF CIPSO Working Group, "Commercial Internet Protocol
+              Security Option (CIPSO) Charter", 1994,
+              <http://www.ietf.org/proceedings/94jul/charters/
+              cipso-charter.html>.
+
+   [CIPSO]    IETF CIPSO Working Group, "COMMERCIAL IP SECURITY OPTION
+              (CIPSO 2.2)", Work in Progress, 1992.
+
+   [CPNI2008] Gont, F., "Security Assessment of the Internet Protocol",
+              2008,
+              <http://www.gont.com.ar/papers/InternetProtocol.pdf>.
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 32]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   [Cisco-IPSO-Cmds]
+              Cisco Systems, Inc., "IP Security Options Commands", Cisco
+              IOS Security Command Reference, Release 12.2,
+              <http://www.cisco.com/en/US/docs/ios/12_2/security/
+              command/reference/srfipso.html>.
+
+   [Cisco-IPSO]
+              Cisco Systems, Inc., "Configuring IP Security Options",
+              Cisco IOS Security Configuration Guide, Release 12.2,
+              2006, <http://www.cisco.com/en/US/docs/ios/12_2/security/
+              configuration/guide/scfipso.html>.
+
+   [DIFFSERV-DPS]
+              Stoica, I., Zhang, H., Venkitaram, N., and J. Mysore, "Per
+              Hop Behaviors Based on Dynamic Packet State", Work in
+              Progress, October 2002.
+
+   [FIPS1994]
+              FIPS, "Standard Security Label for Information Transfer",
+              Federal Information Processing Standards Publication, FIP
+              PUBS 188, 1994, <http://csrc.nist.gov/publications/fips/
+              fips188/fips188.pdf>.
+
+   [FONSECA]  Fonseca, R., Porter, G., Katz, R., Shenker, S., and I.
+              Stoica, "IP Options are not an option", EECS Department,
+              University of California, Berkeley, December 2005,
+              <http://www.eecs.berkeley.edu/Pubs/TechRpts/2005/
+              EECS-2005-24.html>.
+
+   [IANA-IP]  IANA, "IP OPTION NUMBERS",
+              <http://www.iana.org/assignments/ip-parameters>.
+
+   [IRIX2008] IRIX, "IRIX 6.5 trusted_networking(7) manual page", 2008,
+              <http://techpubs.sgi.com/library/tpl/cgi-bin/
+              getdoc.cgi?coll=0650&db=man&fname=/usr/share/catman/a_man/
+              cat7/trusted_networking.z>.
+
+   [Kohno2005]
+              Kohno, T., Broido, A., and kc. Claffy, "Remote Physical
+              Device Fingerprinting", IEEE Transactions on Dependable
+              and Secure Computing, Vol. 2, No. 2, 2005.
+
+   [Landwehr81]
+              Landwehr, C., "Formal Models for Computer Security", ACM
+              Computing Surveys, Vol. 13, No. 3, Association for
+              Computing Machinery, New York, NY, USA, September 1981.
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 33]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   [MEDINA]   Medina, A., Allman, M., and S. Floyd, "Measuring
+              Interactions Between Transport Protocols and Middleboxes",
+              Proc. 4th ACM SIGCOMM/USENIX Conference on Internet
+              Measurement, October 2004.
+
+   [Microsoft1999]
+              Microsoft, "Microsoft Security Program: Microsoft Security
+              Bulletin (MS99-038). Patch Available for "Spoofed Route
+              Pointer" Vulnerability", September 1999,
+              <http://www.microsoft.com/technet/security/bulletin/
+              ms99-038.mspx>.
+
+   [OpenBSD1998]
+              OpenBSD, "OpenBSD Security Advisory: IP Source Routing
+              Problem", February 1998,
+              <http://www.openbsd.org/advisories/sourceroute.txt>.
+
+   [RFC1038]  St. Johns, M., "Draft revised IP security option", RFC
+              1038, January 1988.
+
+   [RFC1063]  Mogul, J., Kent, C., Partridge, C., and K. McCloghrie, "IP
+              MTU discovery options", RFC 1063, July 1988.
+
+   [RFC1108]  Kent, S., "U.S. Department of Defense Security Options for
+              the Internet Protocol", RFC 1108, November 1991.
+
+   [RFC1385]  Wang, Z., "EIP: The Extended Internet Protocol", RFC 1385,
+              November 1992.
+
+   [RFC1393]  Malkin, G., "Traceroute Using an IP Option", RFC 1393,
+              January 1993.
+
+   [RFC1475]  Ullmann, R., "TP/IX: The Next Internet", RFC 1475, June
+              1993.
+
+   [RFC1770]  Graff, C., "IPv4 Option for Sender Directed Multi-
+              Destination Delivery", RFC 1770, March 1995.
+
+   [RFC2205]  Braden, B., Zhang, L., Berson, S., Herzog, S., and S.
+              Jamin, "Resource ReSerVation Protocol (RSVP) -- Version 1
+              Functional Specification", RFC 2205, September 1997.
+
+   [RFC2407]  Piper, D., "The Internet IP Security Domain of
+              Interpretation for ISAKMP", RFC 2407, November 1998.
+
+   [RFC3585]  Jason, J., Rafalow, L., and E. Vyncke, "IPsec
+              Configuration Policy Information Model", RFC 3585, August
+              2003.
+
+
+
+Gont, et al.              Best Current Practice                [Page 34]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+   [RFC4306]  Kaufman, C., "Internet Key Exchange (IKEv2) Protocol", RFC
+              4306, December 2005.
+
+   [RFC4782]  Floyd, S., Allman, M., Jain, A., and P. Sarolahti, "Quick-
+              Start for TCP and IP", RFC 4782, January 2007.
+
+   [RFC4807]  Baer, M., Charlet, R., Hardaker, W., Story, R., and C.
+              Wang, "IPsec Security Policy Database Configuration MIB",
+              RFC 4807, March 2007.
+
+   [RFC4949]  Shirey, R., "Internet Security Glossary, Version 2", RFC
+              4949, August 2007.
+
+   [RFC5350]  Manner, J. and A. McDonald, "IANA Considerations for the
+              IPv4 and IPv6 Router Alert Options", RFC 5350, September
+              2008.
+
+   [RFC5570]  StJohns, M., Atkinson, R., and G. Thomas, "Common
+              Architecture Label IPv6 Security Option (CALIPSO)", RFC
+              5570, July 2009.
+
+   [RFC5996]  Kaufman, C., Hoffman, P., Nir, Y., and P. Eronen,
+              "Internet Key Exchange Protocol Version 2 (IKEv2)", RFC
+              5996, September 2010.
+
+   [RFC6192]  Dugal, D., Pignataro, C., and R. Dunn, "Protecting the
+              Router Control Plane", RFC 6192, March 2011.
+
+   [RFC6274]  Gont, F., "Security Assessment of the Internet Protocol
+              Version 4", RFC 6274, July 2011.
+
+   [SELinux2008]
+              National Security Agency (United States), "Security-
+              Enhanced Linux - NSA/CSS", January 2009,
+              <http://www.nsa.gov/research/selinux/index.shtml>.
+
+   [Solaris2008]
+              "Solaris Trusted Extensions: Labeled Security for Absolute
+              Protection", 2008,
+              <http://www.oracle.com/technetwork/server-storage/
+              solaris10/overview/trusted-extensions-149944.pdf>.
+
+
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 35]
+
+RFC 7126            Filtering of IP-Optioned Packets       February 2014
+
+
+Authors' Addresses
+
+   Fernando Gont
+   UTN-FRH / SI6 Networks
+   Evaristo Carriego 2644
+   Haedo, Provincia de Buenos Aires  1706
+   Argentina
+
+   Phone: +54 11 4650 8472
+   EMail: fgont@si6networks.com
+   URI:   http://www.si6networks.com
+
+
+   RJ Atkinson
+   Consultant
+   McLean, VA  22103
+   USA
+
+   EMail: rja.lists@gmail.com
+
+
+   Carlos Pignataro
+   Cisco Systems, Inc.
+   7200-12 Kit Creek Road
+   Research Triangle Park, NC  27709
+   USA
+
+   EMail: cpignata@cisco.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Gont, et al.              Best Current Practice                [Page 36]
+

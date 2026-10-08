@@ -1,5 +1,5 @@
-# Snapshot of the IETF datatracker taken 2026-10-08: every published IDR and GROW RFC
-# whose IETF category is BCP or Informational, and every active IDR and GROW draft.
+# Snapshot of the IETF datatracker taken 2026-10-08: every published IDR, GROW and OPSEC RFC
+# whose IETF category is BCP or Informational, and every active IDR, GROW and OPSEC draft.
 # Non-normative. See reference/README.md before citing any of these as a requirement.
 # columns: wg	kind	stem	category (drafts: intended status)	revision	location	obsoleted-by	title
 grow	draft	draft-ietf-grow-as-path-prepending	unset	19	reference/ietf/grow		AS Path Prepending
@@ -117,3 +117,21 @@ idr	rfc	rfc6472	BCP		reference/ietf/idr	rfc9774	Recommendation for Not Using AS_
 idr	rfc	rfc6996	BCP		rfc/full		Autonomous System (AS) Reservation for Private Use
 idr	rfc	rfc7300	BCP		reference/ietf/idr		Reservation of Last Autonomous System (AS) Numbers
 idr	rfc	rfc9723	Informational		reference/ietf/idr		BGP Colored Prefix Routing (CPR) for Services Based on Segment Routing over IPv6 (SRv6)
+opsec	rfc	rfc4778	Informational		reference/ietf/opsec		Operational Security Current Practices in Internet Service Provider Environments
+opsec	rfc	rfc5635	Informational		reference/ietf/opsec		Remote Triggered Black Hole Filtering with Unicast Reverse Path Forwarding (uRPF)
+opsec	rfc	rfc6039	Informational		reference/ietf/opsec		Issues with Existing Cryptographic Protection Methods for Routing Protocols
+opsec	rfc	rfc6094	Informational		reference/ietf/opsec		Summary of Cryptographic Authentication Algorithm Implementation Requirements for Routing Protocols
+opsec	rfc	rfc6192	Informational		reference/ietf/opsec		Protecting the Router Control Plane
+opsec	rfc	rfc6274	Informational		reference/ietf/opsec		Security Assessment of the Internet Protocol Version 4
+opsec	rfc	rfc7123	Informational		reference/ietf/opsec		Security Implications of IPv6 on IPv4 Networks
+opsec	rfc	rfc7126	BCP		reference/ietf/opsec		Recommendations on Filtering of IPv4 Packets Containing IPv4 Options
+opsec	rfc	rfc7359	Informational		reference/ietf/opsec		Layer 3 Virtual Private Network (VPN) Tunnel Traffic Leakages in Dual-Stack Hosts/Networks
+opsec	rfc	rfc7404	Informational		reference/ietf/opsec		Using Only Link-Local Addressing inside an IPv6 Network
+opsec	rfc	rfc7454	BCP		rfc/full		BGP Operations and Security
+opsec	rfc	rfc7610	BCP		reference/ietf/opsec		DHCPv6-Shield: Protecting against Rogue DHCPv6 Servers
+opsec	rfc	rfc7707	Informational		reference/ietf/opsec		Network Reconnaissance in IPv6 Networks
+opsec	rfc	rfc8704	BCP		reference/ietf/opsec		Enhanced Feasible-Path Unicast Reverse Path Forwarding
+opsec	rfc	rfc9099	Informational		reference/ietf/opsec		Operational Security Considerations for IPv6 Networks
+opsec	rfc	rfc9288	Informational		reference/ietf/opsec		Recommendations on the Filtering of IPv6 Packets Containing IPv6 Extension Headers at Transit Routers
+opsec	rfc	rfc9424	Informational		reference/ietf/opsec		Indicators of Compromise (IoCs) and Their Role in Attack Defence
+opsec	rfc	rfc9511	Informational		reference/ietf/opsec		Attribution of Internet Probes

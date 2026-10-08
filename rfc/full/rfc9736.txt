@@ -1,0 +1,297 @@
+﻿
+
+
+
+Internet Engineering Task Force (IETF)                        J. Scudder
+Request for Comments: 9736                              Juniper Networks
+Updates: 7854, 8671, 9069                                     P. Lucente
+Category: Standards Track                                            NTT
+ISSN: 2070-1721                                               March 2025
+
+
+      The BGP Monitoring Protocol (BMP) Peer Up Message Namespace
+
+Abstract
+
+   RFC 7854, the BGP Monitoring Protocol (BMP), uses different message
+   types for different purposes.  Most of these are structured as Type,
+   Length, Value (TLV).  One message type, the Peer Up message, lacks a
+   set of TLVs defined for its use, instead sharing a namespace with the
+   Initiation message.  Experience has shown that this namespace sharing
+   was a mistake, as it hampers the extension of the protocol.
+
+   This document updates RFC 7854 by creating an independent namespace
+   for the Peer Up message.  It also updates RFCs 8671 and 9069 by
+   moving defined codepoints into the newly introduced registry.
+   Compliant implementations of RFCs 7854, 8671, and 9069 also comply
+   with this specification.
+
+Status of This Memo
+
+   This is an Internet Standards Track document.
+
+   This document is a product of the Internet Engineering Task Force
+   (IETF).  It represents the consensus of the IETF community.  It has
+   received public review and has been approved for publication by the
+   Internet Engineering Steering Group (IESG).  Further information on
+   Internet Standards is available in Section 2 of RFC 7841.
+
+   Information about the current status of this document, any errata,
+   and how to provide feedback on it may be obtained at
+   https://www.rfc-editor.org/info/rfc9736.
+
+Copyright Notice
+
+   Copyright (c) 2025 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (https://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Revised BSD License text as described in Section 4.e of the
+   Trust Legal Provisions and are provided without warranty as described
+   in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction
+     1.1.  Requirements Language
+   2.  String Definition
+   3.  Changes to Existing RFCs
+     3.1.  Revision to the Information TLV
+     3.2.  Revision to the Peer Up Notification
+     3.3.  Definition of Peer Up Information TLV
+   4.  IANA Considerations
+   5.  Security Considerations
+   6.  Normative References
+   Acknowledgements
+   Authors' Addresses
+
+1.  Introduction
+
+   [RFC7854] defines a number of different BGP Monitoring Protocol (BMP)
+   message types.  With the exception of the Route Monitoring message
+   type, these messages are TLV-structured.  Most message types have
+   distinct namespaces and IANA registries.  However, the namespace of
+   the Peer Up message overlaps that of the Initiation message.  As BMP
+   has been extended, this overlap has become problematic.  In this
+   document, we create distinct namespaces for the Peer Up and
+   Initiation messages to eliminate the overlap.
+
+   Compliant implementations of [RFC7854], [RFC8671], and [RFC9069] also
+   comply with this specification.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  String Definition
+
+   A string TLV is a free-form sequence of UTF-8 characters whose length
+   in bytes is given by the TLV's Length field.  There is no requirement
+   to terminate the string with a null (or any other particular)
+   character -- the Length field gives its termination.
+
+3.  Changes to Existing RFCs
+
+   [RFC7854] is updated as detailed in the following subsections.
+
+3.1.  Revision to the Information TLV
+
+   The Information TLV defined in Section 4.4 of [RFC7854] is renamed
+   "Initiation Information TLV".  It is used only by the Initiation
+   message, not by the Peer Up message.
+
+   The definition of Type = 0 is revised as shown below.  Type = 1 and
+   Type = 2 are unchanged; they are provided for completeness.
+
+   *  Type = 0: String.  The Information field contains a string
+      (Section 2).  The value is administratively assigned.  If multiple
+      string TLVs are included, their ordering MUST be preserved when
+      they are reported.
+
+   *  Type = 1: sysDescr.  The Information field contains an ASCII
+      string whose value MUST be set to be equal to the value of the
+      sysDescr MIB-II [RFC1213] object.
+
+   *  Type = 2: sysName.  The Information field contains an ASCII string
+      whose value MUST be set to be equal to the value of the sysName
+      MIB-II [RFC1213] object.
+
+3.2.  Revision to the Peer Up Notification
+
+   The final paragraph of Section 4.10 of [RFC7854] references the
+   Information TLV (which is revised above (Section 3.1)).  That
+   paragraph is replaced by the following:
+
+   *  Information: Information about the peer, using the Peer Up
+      Information TLV format defined in Section 3.3 of RFC 9736.  The
+      String type may be repeated.  Inclusion of the Information field
+      is OPTIONAL.  Its presence or absence can be inferred by
+      inspection of the Message Length in the common header.
+
+3.3.  Definition of Peer Up Information TLV
+
+   The Peer Up Information TLV is used by the Peer Up message.
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |          Information Type     |       Information Length      |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                 Information (variable)                        |
+     ~                                                               ~
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   *  Information Type (2 bytes): types are as defined in the "BMP Peer
+      Up Message TLVs" registry:
+
+      -  Type = 0: String.  The Information field contains a string
+         (Section 2).  The value is administratively assigned.  If
+         multiple strings are included, their ordering MUST be preserved
+         when they are reported.
+
+      -  Type = 3: VRF/Table Name.  The Information field contains a
+         UTF-8 string whose value MUST be equal to the value of the VRF
+         or table name (e.g., RD instance name) being conveyed.  The
+         string size MUST be within the range of 1 to 255 bytes.
+
+      -  Type = 4: Admin Label.  The Information field contains a free-
+         form UTF-8 string whose byte length is given by the Information
+         Length field.  The value is administratively assigned.  There
+         is no requirement to terminate the string a with null or any
+         other character.
+
+   *  Information Length (2 bytes): The length of the following
+      Information field, in bytes.
+
+   *  Information (variable): Information about the monitored router,
+      according to the type.
+
+4.  IANA Considerations
+
+   IANA has created the "BMP Peer Up Message TLVs" within the "BGP
+   Monitoring Protocol (BMP) Parameters" registry group and listed this
+   document as the reference.
+
+   Registration procedures for this registry are:
+
+                 +=============+=========================+
+                 | Range       | Registration Procedures |
+                 +=============+=========================+
+                 | 0, 3-32767  | Standards Action        |
+                 +-------------+-------------------------+
+                 | 32768-65530 | First Come First Served |
+                 +-------------+-------------------------+
+                 | 65531-65534 | Experimental            |
+                 +-------------+-------------------------+
+                 | 1-2, 65535  | Reserved                |
+                 +-------------+-------------------------+
+
+                                  Table 1
+
+   The initial values for this registry are:
+
+                  +=======+================+===========+
+                  |  Type |  Description   | Reference |
+                  +=======+================+===========+
+                  |   0   |     String     |  RFC 9736 |
+                  +-------+----------------+-----------+
+                  |   1   |    Reserved    |  RFC 9736 |
+                  +-------+----------------+-----------+
+                  |   2   |    Reserved    |  RFC 9736 |
+                  +-------+----------------+-----------+
+                  |   3   | VRF/Table Name |  RFC 9736 |
+                  +-------+----------------+-----------+
+                  |   4   |  Admin Label   |  RFC 9736 |
+                  +-------+----------------+-----------+
+                  | 65535 |    Reserved    |  RFC 9736 |
+                  +-------+----------------+-----------+
+
+                                 Table 2
+
+   IANA has also renamed the "BMP Initiation and Peer Up Information
+   TLVs" registry to "BMP Initiation Information TLVs" and populated it
+   with the following values:
+
+                    +=======+=============+===========+
+                    | Type  | Description | Reference |
+                    +=======+=============+===========+
+                    | 0     | String      | RFC 9736  |
+                    +-------+-------------+-----------+
+                    | 1     | sysDescr    | RFC 9736  |
+                    +-------+-------------+-----------+
+                    | 2     | sysName     | RFC 9736  |
+                    +-------+-------------+-----------+
+                    | 3     | Reserved    | RFC 9736  |
+                    +-------+-------------+-----------+
+                    | 4     | Reserved    | RFC 9736  |
+                    +-------+-------------+-----------+
+                    | 65535 | Reserved    | RFC 9736  |
+                    +-------+-------------+-----------+
+
+                                  Table 3
+
+5.  Security Considerations
+
+   This document does not alter the security considerations of [RFC7854]
+   that continue to apply.
+
+6.  Normative References
+
+   [RFC1213]  McCloghrie, K. and M. Rose, "Management Information Base
+              for Network Management of TCP/IP-based internets: MIB-II",
+              STD 17, RFC 1213, DOI 10.17487/RFC1213, March 1991,
+              <https://www.rfc-editor.org/info/rfc1213>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC7854]  Scudder, J., Ed., Fernando, R., and S. Stuart, "BGP
+              Monitoring Protocol (BMP)", RFC 7854,
+              DOI 10.17487/RFC7854, June 2016,
+              <https://www.rfc-editor.org/info/rfc7854>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8671]  Evens, T., Bayraktar, S., Lucente, P., Mi, P., and S.
+              Zhuang, "Support for Adj-RIB-Out in the BGP Monitoring
+              Protocol (BMP)", RFC 8671, DOI 10.17487/RFC8671, November
+              2019, <https://www.rfc-editor.org/info/rfc8671>.
+
+   [RFC9069]  Evens, T., Bayraktar, S., Bhardwaj, M., and P. Lucente,
+              "Support for Local RIB in the BGP Monitoring Protocol
+              (BMP)", RFC 9069, DOI 10.17487/RFC9069, February 2022,
+              <https://www.rfc-editor.org/info/rfc9069>.
+
+Acknowledgements
+
+   The authors would like to thank Maxence Younsi for his review.
+
+Authors' Addresses
+
+   John Scudder
+   Juniper Networks
+   1194 N. Mathilda Ave
+   Sunnyvale, CA 94089
+   United States of America
+   Email: jgs@juniper.net
+
+
+   Paolo Lucente
+   NTT
+   Veemweg 23
+   3771 MT Barneveld
+   Netherlands
+   Email: paolo@ntt.net

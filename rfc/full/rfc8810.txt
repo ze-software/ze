@@ -1,0 +1,216 @@
+﻿
+
+
+
+Internet Engineering Task Force (IETF)                        J. Scudder
+Request for Comments: 8810                              Juniper Networks
+Updates: 5492                                                August 2020
+Category: Standards Track                                               
+ISSN: 2070-1721
+
+
+          Revision to Capability Codes Registration Procedures
+
+Abstract
+
+   This document updates RFC 5492 by making a change to the registration
+   procedures for BGP Capability Codes.  Specifically, the range
+   formerly designated "Private Use" is divided into three new ranges:
+   "First Come First Served", "Experimental Use", and "Reserved".
+
+Status of This Memo
+
+   This is an Internet Standards Track document.
+
+   This document is a product of the Internet Engineering Task Force
+   (IETF).  It represents the consensus of the IETF community.  It has
+   received public review and has been approved for publication by the
+   Internet Engineering Steering Group (IESG).  Further information on
+   Internet Standards is available in Section 2 of RFC 7841.
+
+   Information about the current status of this document, any errata,
+   and how to provide feedback on it may be obtained at
+   https://www.rfc-editor.org/info/rfc8810.
+
+Copyright Notice
+
+   Copyright (c) 2020 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (https://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+Table of Contents
+
+   1.  Introduction
+   2.  Discussion
+   3.  IANA Considerations
+   4.  Security Considerations
+   5.  References
+     5.1.  Normative References
+     5.2.  Informative References
+   Acknowledgements
+   Author's Address
+
+1.  Introduction
+
+   The Border Gateway Protocol uses a mechanism called "Capability
+   Advertisement" [RFC5492] to enable BGP peers to tell one another
+   about their optional protocol extensions.  These so-called
+   "Capabilities" are signaled using code points called "Capability
+   Codes".
+
+   [RFC5492] designates the range of Capability Codes 128-255 as
+   "Private Use".  Subsequent experience has shown this to be not only
+   useless, but actively confusing to implementors.
+
+   Accordingly, this document revises the registration procedures for
+   the range 128-255, as follows, using the terminology defined in
+   [RFC8126]:
+
+   128-238:  First Come First Served
+   239-254:  Experimental Use
+   255:      Reserved
+
+   The procedures for the ranges 1-63 and 64-127 are unchanged,
+   remaining "IETF Review" and "First Come First Served", respectively.
+   The full range for "First Come First Served" is now 64-238.
+
+2.  Discussion
+
+   The reason for providing an "Experimental Use" range is to preserve a
+   range for use during early development.  Although there are few
+   practical differences between "Experimental Use" and "Private Use",
+   the change both makes it clear that code points from this space
+   should not be used long term or in shipping products and reduces the
+   consumption of the scarce Capability Codes space expended for this
+   purpose.  Once classified as "Experimental Use", it should be
+   considered difficult to reclassify the space for some other purpose
+   in the future.
+
+   The reason for reserving the maximum value is that it may be useful
+   in the future if extension of the number space is needed.
+
+   Since the range 128-255 was formerly designated "Private Use",
+   implementors may have chosen to use code points within that range
+   prior to publication of this document.  For this reason, a survey was
+   conducted beginning August 14, 2015 (version 01 of the individual
+   draft [SCUDDER]) to find any such uses.  A number were contributed
+   and were used to seed Table 2.  Of course, there can be no guarantee
+   that all uses were discovered; however, the likelihood seems high
+   that remaining uses, if any, genuinely do fall under the intended use
+   of "Private Use" and are restricted to some special deployment and
+   are not in wide use.  Furthermore, any remaining uses would be no
+   worse than any other code point collision, such as occasionally
+   occurs with code point "squatting", and could be dealt with in the
+   same manner.
+
+3.  IANA Considerations
+
+   IANA has revised the "Capability Codes" registry as follows.
+
+   Reference: [RFC5492] and this document.
+
+   Note: The IETF will be the Change Controller for all future
+   registrations.
+
+   Registration procedures:
+
+                   +=========+=========================+
+                   |  Range  | Registration Procedures |
+                   +=========+=========================+
+                   |   1-63  | IETF Review             |
+                   +---------+-------------------------+
+                   |  64-238 | First Come First Served |
+                   +---------+-------------------------+
+                   | 239-254 | Experimental Use        |
+                   +---------+-------------------------+
+
+                                  Table 1
+
+   IANA has made the following new allocations within the "Capability
+   Codes" registry:
+
+      +=======+============================+===========+============+
+      | Value | Description                | Reference | Change     |
+      |       |                            |           | Controller |
+      +=======+============================+===========+============+
+      |  128  | Prestandard Route Refresh  | RFC 8810  | IETF       |
+      |       | (deprecated)               |           |            |
+      +-------+----------------------------+-----------+------------+
+      |  129  | Prestandard Outbound Route | RFC 8810  | IETF       |
+      |       | Filtering (deprecated),    |           |            |
+      |       | prestandard Routing Policy |           |            |
+      |       | Distribution (deprecated)  |           |            |
+      +-------+----------------------------+-----------+------------+
+      |  130  | Prestandard Outbound Route | RFC 8810  | IETF       |
+      |       | Filtering (deprecated)     |           |            |
+      +-------+----------------------------+-----------+------------+
+      |  131  | Prestandard Multisession   | RFC 8810  | IETF       |
+      |       | (deprecated)               |           |            |
+      +-------+----------------------------+-----------+------------+
+      |  184  | Prestandard FQDN           | RFC 8810  | IETF       |
+      |       | (deprecated)               |           |            |
+      +-------+----------------------------+-----------+------------+
+      |  185  | Prestandard OPERATIONAL    | RFC 8810  | IETF       |
+      |       | message (deprecated)       |           |            |
+      +-------+----------------------------+-----------+------------+
+      |  255  | Reserved                   | RFC 8810  | IETF       |
+      +-------+----------------------------+-----------+------------+
+
+                                  Table 2
+
+4.  Security Considerations
+
+   This revision to registration procedures does not change the
+   underlying security issues inherent in the existing [RFC5492] and
+   [RFC4271].
+
+5.  References
+
+5.1.  Normative References
+
+   [RFC5492]  Scudder, J. and R. Chandra, "Capabilities Advertisement
+              with BGP-4", RFC 5492, DOI 10.17487/RFC5492, February
+              2009, <https://www.rfc-editor.org/info/rfc5492>.
+
+   [RFC8126]  Cotton, M., Leiba, B., and T. Narten, "Guidelines for
+              Writing an IANA Considerations Section in RFCs", BCP 26,
+              RFC 8126, DOI 10.17487/RFC8126, June 2017,
+              <https://www.rfc-editor.org/info/rfc8126>.
+
+5.2.  Informative References
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [SCUDDER]  Scudder, J., "Revision to Capability Codes Registration
+              Procedures", Work in Progress, Internet-Draft, draft-
+              scudder-idr-capabilities-registry-change-01, 14 August
+              2015, <https://tools.ietf.org/html/draft-scudder-idr-
+              capabilities-registry-change-01>.
+
+Acknowledgements
+
+   Thanks to Alia Atlas, Bruno Decraene, Martin Djernaes, Jie Dong, Jeff
+   Haas, Sue Hares, Acee Lindem, Thomas Mangin, and Tom Petch for their
+   reviews and comments.
+
+Author's Address
+
+   John Scudder
+   Juniper Networks
+   1194 N. Mathilda Ave
+   Sunnyvale, CA 94089
+   United States of America
+
+   Email: jgs@juniper.net
