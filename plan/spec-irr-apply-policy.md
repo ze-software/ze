@@ -11,6 +11,20 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## Amendment 2026-10-08
+
+Two owner decisions taken while designing `plan/spec-netbox-0-umbrella.md` (its D-15 and D-16)
+were edited into the rows of this spec in place; nothing here needs to be "read as" anything else.
+Every owner decision in "Owner Decisions" (Q-1 to Q-8) stands unchanged; Q-4's decision (held in
+every mode for automatic applies, warning plus gauge, off by default) holds, and only the place the
+threshold is configured moved.
+
+| What changed | Rows edited |
+|--------------|-------------|
+| The policy decision, the YANG `apply` grouping and the window evaluator live in one shared package that the NetBox builder also uses: `internal/core/applypolicy` (Go) and the grouping-only module `internal/component/config/yang/modules/ze-apply-policy.yang`. The IRR store keeps the IRR-specific parts | Required Reading (`resolve.md`, `ze-system-conf.yang`), A-3, Data Flow step 2, Architectural Verification, Files to Modify, Files to Create, Implementation Steps 1 and 2, Unit Tests, Key Design Decisions, Deliverables |
+| (Round-3 review of the NetBox umbrella, 2026-10-08) The `apply` grouping's cross-leaf refusals (`scheduled` needs both window leaves, `start` != `end`, `delay maximum` not below `minimum`) are ONE validation function in `internal/core/applypolicy`, called by each consumer's verify (both IRR consumers here, `netbox source <s> apply` in the NetBox set), never written in each consumer's `config.go`. `parseHHMM` lives in `internal/component/config/system/selfupdate_validate.go` (it also validates `restart-time`), not in `selfupdate.go`; it moves to `internal/core/applypolicy` and both self-update files call it | Required Reading (`ze-system-conf.yang`), Current Behavior, Architectural Verification, Unit Tests, Files to Modify, Files to Create, Integration Checklist, Implementation Steps 1, 2 and 5 |
+| Thomas: "hold large removal should be a per system option value". The shrink threshold is ONE leaf, `system apply-policy shrink-threshold` (percent, 1..100, absent = off), added to `ze-system-conf.yang` by THIS spec and read by every consumer (`bgp-filter-irr`, `firewall-irr`, later the NetBox builder); it is not in the per-consumer `apply` container | Task, Key insights, Behavior to change, Data Flow entry point and step c, Wiring Test, AC-1, AC-17, AC-18, AC-21, AC-25, Boundary Tests, mock text, Files to Modify, Integration Checklist, Implementation step 1, Documentation rows 2 and 6, new A-10 |
+
 ## Task
 
 Owner request (Thomas, 2026-10-08): "We should have an option for the IRR when we say we want
@@ -38,7 +52,7 @@ Two further owner decisions (2026-10-08) apply on top of the mode:
   - With `maximum` absent or equal to `minimum`, the delay is fixed: the change is applied exactly `minimum` minutes after the successful fetch.
   - With `maximum` above `minimum`, the delay is a range: the change is applied after a delay drawn uniformly at random between the two. The original "0 to X minutes" case is `minimum 0; maximum X`. A fleet then does not change all at once, and an alert or a hold has time to be seen.
   - Verify refuses `maximum` below `minimum`. While it waits, the change is a held change with reason `delay` and its due time, visible in `show <consumer> irr held`.
-- **Shrink threshold (every mode).** Thomas adopted it: "it should raise an alert which can be caught via monitoring". A fetched change that removes more than `shrink-threshold` percent of a family's applied prefixes is held, not applied automatically, and it raises an alert on the existing report bus plus a Prometheus gauge and counter. The leaf is unset by default, which turns the check off.
+- **Shrink threshold (every mode).** Thomas adopted it: "it should raise an alert which can be caught via monitoring". A fetched change that removes more than `system apply-policy shrink-threshold` percent of a family's applied prefixes is held, not applied automatically, and it raises an alert on the existing report bus plus a Prometheus gauge and counter. Thomas placed the threshold at system level ("hold large removal should be a per system option value"): one leaf in `ze-system-conf.yang` that every consumer reads, not a leaf per consumer. The leaf is unset by default, which turns the check off.
 - **`clear bgp irr asn|as-set`.** Thomas asked for it ("yes please") so that BGP matches the firewall. It has the same semantics as `clear firewall irr asn|as-set`. The firewall has no `clear ... all`, so BGP gets none.
 
 A change that is fetched and not yet applied is called a **held change** in this spec and in every
@@ -70,7 +84,7 @@ This spec is written for later implementation; it is not scheduled.
   → Constraint: an oversized entry refuses the whole apply (`refuseOversizedRefs`) and keeps the registered sets; a held-change apply of an oversized list must refuse the same way and leave the change held.
   → Constraint: `refresh-interval` defaults to 0 in the firewall ("Invalid IRR data causing a firewall outage is the risk that makes auto-refresh opt-in"); scheduled mode with interval 0 only applies manual fetches, which must be documented, not refused.
 - [ ] `docs/architecture/resolve.md` - the resolution component and the shared store
-  → Decision: the apply mechanism (held, apply, dismiss, diff) lives once, in `internal/component/resolve/irr/store`, so both consumers share one implementation; the mode value is passed in by each consumer.
+  → Decision: the policy decision (mode, delay draw, window open, shrink check, given an injected clock and random source) lives once in `internal/core/applypolicy`, shared with the NetBox builder (`plan/spec-netbox-0-umbrella.md` D-16). The IRR-specific mechanism (fetched and applied prefix lists, their keys, held, apply, dismiss, the prefix-set diff, the held record's persistence) lives once in `internal/component/resolve/irr/store`, which calls the shared decision; both consumers share one implementation, and the mode value is passed in by each consumer.
 - [ ] `ai/patterns/config-option.md` and `ai/rules/config.md` - leaf naming, `ze:help` plus `description`, native validation
   → Constraint: leaves are spelled in full; the env var mirror is required only under `environment/`, and neither IRR container is under it (`refresh-interval` has none), so no env var is added.
   → Constraint: every new node carries a one-line `ze:help` (96 chars, 25 words) and a different `description`.
@@ -79,7 +93,8 @@ This spec is written for later implementation; it is not scheduled.
   → Constraint: the response payload is structured data satisfying `ResponseData`, and JSON is built with `encoding/json`, never by string concatenation. The existing `show bgp irr` and `show firewall irr` handlers build JSON with `textbuf`; the new `held` answers must not copy that shape.
 - [ ] `internal/component/config/system/yang/ze-system-conf.yang` `maintenance-window` - the existing fetch-anytime, replace-in-window precedent
   → Decision: the scheduled window reuses that shape: `start` and `end` as `HH:MM` local time, a start later than end crosses midnight.
-  → Constraint: the window evaluation in `selfupdate.go` (`inMaintenanceWindow`, `parseHHMM`) is private to `config/system`; reusing it means moving it to one shared place and making self-update call it (`ai/rules/no-layering.md`), not copying it.
+  → Constraint: the window evaluation is private to `config/system`: `inMaintenanceWindow` in `selfupdate.go`, and `parseHHMM` in `selfupdate_validate.go`, which also uses it to validate `restart-time` and the maintenance-window leaves. Reusing it means moving both to `internal/core/applypolicy` and making `selfupdate.go` and `selfupdate_validate.go` call them (`ai/rules/no-layering.md`), not copying them. The HH:MM parse then has one home, which the shared validation function also uses.
+  → Decision: this spec adds the container `apply-policy` under `system` in this module, holding one leaf, `shrink-threshold` (uint8, `range 1..100`, `units percent`, no default). It is the one shrink threshold every consumer reads (owner, 2026-10-08: "hold large removal should be a per system option value"); A-10 covers how the two plugins read it.
 
 - [ ] `docs/architecture/core-design.md` section 15 "Operational Report Bus" - the existing alert channel
   → Decision: the shrink alert is a WARNING, because it describes a state that is currently true and can resolve: `report.RaiseWarning(source, code, subject, message, detail)` when the hold starts, `report.ClearWarning(source, code, subject)` when it ends. It dedupes on `(Source, Code, Subject)`, so re-raising it on each fetch is safe. Operators see it in `show warnings`; monitoring scrapes the Prometheus gauge. No new channel.
@@ -94,7 +109,7 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 **Key insights:**
 - Two plugins, two `PrefixStore` instances, one shared persisted key space `meta/irr/{name}`. Sharing is deliberate: one fetch warms both consumers.
 - Because the persisted list is shared, a per-consumer policy cannot live on that one list: a consumer in `immediate` mode would write what another consumer in `operator` mode is holding, and that consumer's next `Open` (every firewall configure) would load it. The design splits fetched (shared) from applied (per consumer).
-- A consumer "can hold" when its mode is `scheduled` or `operator`, OR its `delay` is above 0 minutes (fixed or range), OR `shrink-threshold` is set. A consumer that cannot hold (`immediate`, no delay, no threshold, the default) writes no applied snapshot and enforces the shared fetched list, exactly as today. The new storage is touched only by a consumer that can hold. Throughout this spec "held modes" means "a consumer that can hold".
+- A consumer "can hold" when its mode is `scheduled` or `operator`, OR its `delay` is above 0 minutes (fixed or range), OR `system apply-policy shrink-threshold` is set. Because that leaf is one system value, setting it (for example for NetBox, whose doctor check recommends it) makes BOTH IRR consumers holding consumers. A consumer that cannot hold (`immediate`, no delay, no threshold, the default) writes no applied snapshot and enforces the shared fetched list, exactly as today. The new storage is touched only by a consumer that can hold. Throughout this spec "held modes" means "a consumer that can hold".
 - `show bgp irr` already owns `status: pending` (unresolved). The new concept is named `held`.
 - BGP truncates an oversized list instead of refusing it (journal row added 2026-10-08 in `plan/journal/guard-addition-drops-what-it-refuses.md`); this spec does not depend on that defect being fixed but must not make it worse.
 
@@ -110,6 +125,7 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 - [ ] `internal/component/firewall/plugins/irr/command.go`, `cmd_irr.go`, `yang/ze-firewall-irr-cmd.yang` - `show firewall irr` (per entry `status` ok/stale/oversized/missing, `last-refresh`, `data-age-seconds`, `stale-since`), `show firewall irr prefix`, `update firewall irr all|asn|as-set`, `clear firewall irr asn|as-set` (Purge then applyTables).
 - [ ] `internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang` - `firewall irr { server; peeringdb-url; refresh-interval (0 or 60..86400, default 0); interface ... }` plus term `from` leaves `source-asn`, `source-as-set`, `destination-asn`, `destination-as-set`.
 - [ ] `internal/component/config/system/selfupdate.go` - `inMaintenanceWindow` compares minutes-of-day against `start`/`end`, crossing midnight when start > end; it fails open on an unparsable value.
+- [ ] `internal/component/config/system/selfupdate_validate.go` - `parseHHMM`, called here for `restart-time` and the maintenance-window leaves, and from `selfupdate.go`.
 - [ ] `internal/test/mock/irr/irr.go` - `le test irr [--port N] [--empty-after-first]`, fixed answers for `AS-TEST` and `AS-V4ONLY`; no way to answer a different list on a later query.
 - [ ] `pkg/zefs/keys.go` - `KeyIRRPrefixCache` `meta/irr/{name}`, `KeyIRRCache` legacy; both plugins grant access through `statestore.RegisterPluginKeys` in their `register.go`.
 - [ ] `internal/core/clock/clock.go` - injectable `Clock` (`Now`, `NewTimer`, `NewTicker`) for deterministic tests.
@@ -126,13 +142,13 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 - In `scheduled` and `operator` modes a successful fetch updates the shared fetched list but not what the consumer enforces; the difference is a held change.
 - New commands to show, apply and dismiss held changes; new `show` fields; new metrics; a new config container in each consumer.
 - `immediate` with a `delay` above 0 holds each change until its due time: exactly `minimum` minutes after the fetch for a fixed delay, or a uniform random time between `minimum` and `maximum` minutes for a range.
-- With `shrink-threshold` set, an automatic apply that would remove more than that share of a family is held and raises the `irr-shrink-held` warning.
+- With `system apply-policy shrink-threshold` set, an automatic apply that would remove more than that share of a family is held and raises the `irr-shrink-held` warning.
 - New `clear bgp irr asn <n>` and `clear bgp irr as-set <name>`.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Config: `bgp policy irr apply { mode; delay { minimum; maximum; } shrink-threshold; window { start; end; } }` and `firewall irr apply { ... }`, delivered as JSON strings to each plugin's configure.
+- Config: `bgp policy irr apply { mode; delay { minimum; maximum; } window { start; end; } }` and `firewall irr apply { ... }`, delivered as JSON strings to each plugin's configure; `system apply-policy shrink-threshold`, delivered to both plugins through `ConfigReads` (A-10).
 - Delay trigger (new): the earliest due time among delayed held changes, armed as one timer in the existing per-configure `refreshLoop`.
 - Deliberate removal (new for BGP): `clear bgp irr asn|as-set`.
 - Fetch triggers (unchanged): the refresh ticker, `initialResolve` (BGP), `update <consumer> irr all|asn|as-set`.
@@ -142,13 +158,13 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 
 ### Transformation Path
 1. Fetch: `PrefixStore.Refresh` resolves and runs the unchanged last-known-good guard; the accepted result becomes the shared **fetched** entry `meta/irr/{name}` (memory and zefs), exactly as today.
-2. Decide: the store compares the consumer's **applied** snapshot with the new fetched entry. A consumer that cannot hold has no snapshot, and the fetched entry is enforced. A consumer that can hold applies these rules in order:
+2. Decide: the store compares the consumer's **applied** snapshot with the new fetched entry and asks `internal/core/applypolicy` for the outcome. A consumer that cannot hold has no snapshot, and the fetched entry is enforced. A consumer that can hold applies these rules in order:
 
 | Step | Condition | Outcome | Reason recorded |
 |------|-----------|---------|-----------------|
 | a | no snapshot and no prior fetched entry (first enrollment) | applied at once (bootstrap), whatever the threshold says | - |
 | b | fetched equals applied (as prefix sets) | nothing held; any existing hold, delay timer and shrink alert are cleared | - |
-| c | `shrink-threshold` set and, for either family, removed prefixes divided by that family's applied count exceed it | held; `irr-shrink-held` warning raised; a delay is not armed | `shrink` |
+| c | `system apply-policy shrink-threshold` set and, for either family, removed prefixes divided by that family's applied count exceed it | held; `irr-shrink-held` warning raised; a delay is not armed | `shrink` |
 | d | mode `operator` | held | `operator` |
 | e | mode `scheduled`, window closed | held | `window` |
 | f | mode `scheduled`, window open | applied | - |
@@ -182,7 +198,7 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | fetch, decide and apply all go through `PrefixStore`; consumers only read `Get` and call the new apply and dismiss methods |
 | No unintended coupling (components stay isolated) | Yes | neither plugin reads the other's config; each passes its own mode and its own applied key to its own store instance |
-| No duplicated functionality (extends existing, does not recreate) | Yes | one held/apply implementation in the store; the window check moves out of `config/system` into one shared helper that self-update also calls |
+| No duplicated functionality (extends existing, does not recreate) | Yes | one held/apply implementation in the store; one policy decision, one window check and one validation of the `apply` grouping in `internal/core/applypolicy`, which self-update (window) and the NetBox builder (all three) also call |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | the applied snapshot shares the fetched prefix slices (both immutable after creation); the diff is computed on demand only for `show` |
 | Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them | Yes | new `ze:command` nodes in each plugin's own `-cmd.yang` and `RegisterRPCs` entries in each plugin's `cmd_irr.go`; each consumer registers its applied zefs key in its own package |
 | Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name | Yes | searched: the store holds no consumer list (the consumer passes its key); the verb registry already has `show`, `update`, `clear`; the mode enum is YANG-native so completion derives from the schema; `pkg/zefs/keys.go` does not need to name the consumers if `MustRegister` is called from each plugin (A-2) |
@@ -194,14 +210,14 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Both consumers fetch the same name into the same fetched entry, so a shared fetched list is correct even when their `server` leaves differ | today `meta/irr/{name}` is already shared regardless of server (`store.go` persist, `firewall-irr.md` "The PrefixStore is shared with BGP") | two servers would overwrite each other's fetched list; already true today, not introduced here | read of `Open`/`persist`; owner decision Q-5 (2026-10-08): keep sharing | validated |
 | A-2 | `zefs.MustRegister` can be called from a plugin package, so each consumer declares its applied key without editing `pkg/zefs/keys.go` | `MustRegister` is an exported function (`pkg/zefs/registry.go`) | the two keys are added to `keys.go` instead, a central list with two entries | grep for `zefs.MustRegister(` outside `pkg/zefs`: `internal/plugins/fib/vpp/register.go` already registers `srv6OwnershipKey` that way (2026-10-08) | validated |
-| A-3 | A YANG grouping can live in a grouping-only module that both consumer modules import, so the `apply` container is declared once | YANG `grouping`/`uses` across modules is used elsewhere (`ze-types`, `ze-extensions` imports) | the container is declared twice with a comparison test pinning them equal | try `./le` YANG load of a grouping-only module; read `internal/component/resolve/yang/register.go` | unvalidated |
+| A-3 | A YANG grouping can live in the grouping-only module `internal/component/config/yang/modules/ze-apply-policy.yang` (beside `ze-types.yang`, which holds no tree nodes) that both consumer modules and the NetBox module import, so the `apply` container is declared once | YANG `grouping`/`uses` across modules is used elsewhere (`ze-types`, `ze-extensions` imports) | the container is declared in each consumer with a comparison test pinning them equal | try `./le` YANG load of the grouping-only module; read how `ze-types.yang` is registered for loading | unvalidated |
 | A-4 | A `.ci` can drive the same daemon store across a restart (two sequential `ze` runs over one store) | `test/plugin/firewall-irr-cold-cache-recovers.ci` exercises a cold cache; restart across runs not yet confirmed | the restart AC is proven at the store boundary by unit tests over a real `KeyStore` and a second `Open`, plus a `.ci` that kills and restarts the plugin (`failure-policy: restart`) | read `docs/functional-tests.md` and `ai/patterns/functional-test.md` for a restart directive | unvalidated |
 | A-5 | An observer fixture plugin (`le test fixture plugin/...`) can read the wall clock and commit a `window` that excludes or includes now | existing firewall IRR `.ci` files drive commands through observer fixtures | the scheduled `.ci` proves only the always-open window; the closed-window path is unit-tested with an injected `clock.Clock` | read one fixture under `internal/test/fixture` | unvalidated |
 | A-6 | Prefix-set equality is the right "changed" test, ignoring order and duplicates | `RefreshPrefixes` order is the server's; a reorder is not a change an operator should approve | spurious holds on every fetch | unit test with reordered identical answers | unvalidated |
 | A-7 | Local time of the appliance is the right clock for the window, matching `maintenance-window` and the SMART `time` leaf | `ze-system-conf.yang` "Start time HH:MM in local time"; `ze-storage-conf.yang` "The clock is the local time of the appliance" | DST and timezone surprises; same as the precedents | owner decision 2026-10-08: local time | validated |
 | A-8 | Both consumers run inside the daemon process, so `report.RaiseWarning` reaches the bus `show warnings` reads | `fibkernel.go` raises warnings from a plugin; the filter is a BGP plugin running in process (`docs/architecture/bgp/filter-irr.md`) | from a plugin running in a separate process, the warning never reaches the daemon's bus. The alert is then only the Prometheus gauge, which must be said in the guide, or the plugin must report over its RPC | confirm how `firewall-irr` is run (`register.go`, `docs/guide/plugins.md`); a `.ci` asserting `show warnings` carries the code (AC-21) | unvalidated |
 | A-9 | `clear bgp irr` purging the shared fetched key `AS<n>` is acceptable even though a firewall `source-asn` ref of the same ASN reads that key | `clear firewall irr asn` already purges the same shared key for BGP today (`store.go` `Purge`) | an operator clearing on one side surprises the other; same as today, and both guides must say it | guide text reviewed; AC-24 | unvalidated |
-
+| A-10 | Both IRR plugins read `system apply-policy shrink-threshold` by listing `system` in their registration's `ConfigReads`, and a commit that changes only that leaf re-delivers config to them | `registry.Registration.ConfigReads` (`internal/component/plugin/registry/registry.go`: "roots the plugin reads but does not own"; `bgp-rpki` reads `pki` that way, verified 2026-10-08) | the plugin keeps the old threshold until its own subtree changes; then the system component publishes the value to consumers (still one declaration) | read the reconfigure path for a `ConfigReads` root; a `.ci` that changes only the system leaf and asserts the new threshold in `show <consumer> irr` (AC-18) | unvalidated |
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
@@ -210,17 +226,16 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 | R-3 | Switching `immediate` to a held mode makes the current fetched list look like a held change, or applies nothing | `show ... held` lists every entry right after the mode change | on entering a held mode, an entry with a fetched list and no applied snapshot gets its snapshot seeded from the fetched list (what was being enforced); AC-8 |
 | R-4 | Switching a held mode to `immediate` silently applies held changes | prefixes change at commit time with no operator action | this is the definition of `immediate` and is documented; the commit's log line names every held entry it applies; AC-9; owner question Q-6 |
 | R-5 | An apply that the consumer refuses (firewall oversized) leaves the store saying "applied" while the kernel holds the old sets | `show firewall irr` status oversized and no held change | the apply is two-phase: the store applies, the consumer enforces, and a refusal rolls back the snapshot and keeps the hold, returning the refusal text (AC-14) |
-| R-6 | Window evaluation drifts from self-update's when copied | two windows with the same config behave differently | one shared helper, self-update moved onto it in the same change (`no-layering`); one table test covers both crossing-midnight cases |
+| R-6 | Window evaluation drifts from self-update's when copied | two windows with the same config behave differently | one window check in `internal/core/applypolicy`, self-update moved onto it in the same change (`no-layering`); one table test covers both crossing-midnight cases |
 | R-7 | The scheduled timer leaks a goroutine per configure | goroutine count grows across reloads | the window timer lives inside the existing per-configure `refreshLoop` select under the same `refreshStop` channel, no new goroutine (`ai/rules/goroutine-lifecycle.md`) |
 | R-8 | A dismissed change resurfaces on every fetch, or a different later change is suppressed with it | `show ... held` flips between empty and non-empty with no new data | dismissal stores the digest of the dismissed fetched list; only a fetched list with the same digest stays dismissed (AC-11) |
 | R-9 | Concurrent apply command and background fetch race on one name | an apply reports success for a list that is not the one shown | apply takes the store write lock and applies the fetched entry current at that instant; the reply carries the counts it applied; the BGP re-read under `plug.mu` rule holds |
 | R-10 | BGP's oversized truncation (journal 2026-10-08) means a held BGP list over 500000 is applied truncated | WARN "prefix list exceeds cap" on apply | out of scope here; the journal row tracks it; this spec adds no new truncation path |
+| R-11 | `show` handlers keep building JSON by hand, and the new fields copy that | review finds `textbuf` JSON in a new handler | new `held` answers are structured `ResponseData`; touching the existing `show <consumer> irr` adds fields through the same structured path, which converts that handler (Files to Modify) |
 | R-12 | A delay that restarts on every fetch never comes due when the IRR keeps changing | a delayed hold older than the configured `maximum` (or `minimum` for a fixed delay) | the due time is drawn once per hold and never re-armed by a newer fetch (step g); AC-20 |
 | R-13 | The shrink alert sticks after the hold ends, or clears while the change is still held | `show warnings` disagrees with `show ... held` | one function ends a hold, and it clears the warning on every path (apply, dismiss, clear, recovering fetch); AC-22 covers each path |
 | R-14 | A delayed change is lost or applied early across a restart | due time missing after restart | the due time is persisted in the snapshot record; AC-23 |
 | R-15 | `clear bgp irr` leaves the ASN with no list, so its peers' UPDATEs are rejected until the next fetch | rejected routes after a clear | this is the deliberate meaning of clear, the same as the firewall's; the reply says so and names `update bgp irr asn <n>` to fetch again; the next fetch is a bootstrap and applies |
-| R-11 | `show` handlers keep building JSON by hand, and the new fields copy that | review finds `textbuf` JSON in a new handler | new `held` answers are structured `ResponseData`; touching the existing `show <consumer> irr` adds fields through the same structured path, which converts that handler (Files to Modify) |
-
 ## Blast Radius
 
 | Question | Answer |
@@ -244,14 +259,14 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 | config `bgp policy irr apply delay { minimum 0; maximum 1; }` + fetch | → | decide step g (range draw), delay timer in `refreshLoop`, `ApplyDue` | `test/plugin/filter-irr-apply-delay-range.ci` |
 | config `firewall irr apply delay { minimum 1; }` + fetch | → | decide step g (fixed due time), delay timer in the firewall refresh loop, `ApplyDue`, `applyTables` | `test/plugin/firewall-irr-apply-delay-fixed.ci` |
 | config `apply delay { minimum 5; maximum 2; }` | → | plugin verify refuses `maximum` below `minimum` | `test/parse/irr-apply-delay-maximum-below-minimum.ci` |
-| config `apply shrink-threshold 20` + shrinking fetch | → | decide step c, `report.RaiseWarning`, gauge | `test/plugin/firewall-irr-apply-shrink-alert.ci` |
+| config `system apply-policy shrink-threshold 20` + shrinking fetch | → | decide step c, `report.RaiseWarning`, gauge | `test/plugin/firewall-irr-apply-shrink-alert.ci` |
 | `clear bgp irr asn 65001` | → | `PrefixStore.Purge`, `st.list` cleared under `plug.mu` | `test/plugin/filter-irr-clear.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | No `apply` container configured, or `mode immediate` with no `delay` above 0 and no `shrink-threshold`, either consumer | Behavior identical to today: every existing `filter-irr*.ci` and `firewall-irr*.ci` passes unchanged; `show` gains `apply-mode: immediate` and no held fields; no `meta/irr-applied/` key is written |
+| AC-1 | No `apply` container configured, or `mode immediate` with no `delay` above 0, and `system apply-policy shrink-threshold` absent, either consumer | Behavior identical to today: every existing `filter-irr*.ci` and `firewall-irr*.ci` passes unchanged; `show` gains `apply-mode: immediate` and no held fields; no `meta/irr-applied/` key is written |
 | AC-2 | `mode immediate` explicitly | Same as AC-1 |
 | AC-3 | `mode operator`, an applied list exists, a fetch returns a different non-empty list | Enforced list unchanged (a route matching only the new prefix is still rejected by BGP; firewall sets unchanged); `show <consumer> irr` reports the entry `held: true`, `held-since`, held IPv4/IPv6 added and removed counts; `ze_irr_held_entries` (BGP) or `ze_firewall_irr_held_entries` is 1 |
 | AC-4 | AC-3 state, then `show <consumer> irr held asn <n>` (or `as-set <name>`) | Payload lists per family the prefixes added and removed, `held-since`, `held-age-seconds`, the fetched and applied counts, and the AS-SET; `| json` renders kebab-case keys; a name with no held change answers an empty held object with `held: false`, never an error; an unknown name is refused naming it |
@@ -267,17 +282,17 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 | AC-14 | Firewall held mode, apply of a held list whose family exceeds the set bound | Apply refused with the existing oversized message naming the entry and the count; enforced sets unchanged; change stays held; counted `refused` |
 | AC-15 | `clear firewall irr asn|as-set` in any mode | Entry removed at once (fetched, applied snapshot, held state, dismissal) and tables re-applied, as today |
 | AC-16 | `mode scheduled` without both `window start` and `window end`, or `start` equal to `end`, or a value not `HH:MM` | Commit refused at verify with a message naming the leaf and the expected form |
-| AC-17 | `update <consumer> irr apply ...` for a consumer that cannot hold (AC-1 config) | Refused: "nothing is held: apply mode is immediate with no delay and no shrink threshold", naming the configured mode; exit non-zero. For a consumer that can hold but a name with nothing held, the reply says nothing was held for that name, without an error |
-| AC-18 | `show <consumer> irr` in any mode | Top level carries `apply-mode`, `delay-minimum-minutes`, `delay-maximum-minutes` and `shrink-threshold-percent` (each absent when unset; a fixed delay reports `delay-maximum-minutes` equal to `delay-minimum-minutes`); in `scheduled` also `window-start`, `window-end`, `window-open` (bool), `next-window` (RFC 3339). Every held entry carries `held-reason` (`operator`, `window`, `delay`, `shrink`) |
+| AC-17 | `update <consumer> irr apply ...` for a consumer that cannot hold (AC-1 config) | Refused: "nothing is held: apply mode is immediate with no delay and no system shrink threshold", naming the configured mode; exit non-zero. For a consumer that can hold but a name with nothing held, the reply says nothing was held for that name, without an error |
+| AC-18 | `show <consumer> irr` in any mode | Top level carries `apply-mode`, `delay-minimum-minutes`, `delay-maximum-minutes` and `shrink-threshold-percent` (the value of `system apply-policy shrink-threshold`; each absent when unset; a commit that changes only the system leaf changes this field, A-10; a fixed delay reports `delay-maximum-minutes` equal to `delay-minimum-minutes`); in `scheduled` also `window-start`, `window-end`, `window-open` (bool), `next-window` (RFC 3339). Every held entry carries `held-reason` (`operator`, `window`, `delay`, `shrink`) |
 | AC-19 | Range delay: `mode immediate`, `delay { minimum 2; maximum 10; }`, a fetch returns a different list | Not applied at once; `show <consumer> irr held` lists it with `held-reason: delay` and `apply-due` (RFC 3339) between fetch time + 2 minutes and fetch time + 10 minutes; with a seeded random source, repeated holds draw due times spread over that interval, not one fixed value; applied when `apply-due` passes (unit test with injected clock; `.ci` with `minimum 0; maximum 1` and a 90 s timeout); counted `delayed` then `applied` |
 | AC-19b | Fixed delay: `mode immediate`, `delay { minimum 5; }` (no `maximum`), and separately `delay { minimum 5; maximum 5; }`, a fetch returns a different list | Not applied at once; held with `held-reason: delay` and `apply-due` exactly `held-since` + 5 minutes in both configs, with no random draw; applied when `apply-due` passes (unit test with injected clock; `.ci` with `minimum 1`, asserting `apply-due` minus `held-since` is 60 s, applied within a 90 s timeout); counted `delayed` then `applied` |
 | AC-19c | `delay { minimum 5; maximum 2; }` in either consumer | Commit refused at verify with a message naming `maximum`, `minimum` and both values, and saying `maximum` must not be below `minimum` |
 | AC-20 | AC-19 state, a newer fetch returns a third list before `apply-due` | The held list becomes the newest fetched list; `apply-due` unchanged; at `apply-due` the newest list is applied. A newer fetch equal to the applied list ends the hold and cancels the due time |
-| AC-21 | `shrink-threshold 20`, applied IPv4 list of 3 prefixes, a fetch removes 1 (33%) in any mode | Change held with `held-reason: shrink`; `show warnings` carries source `bgp` or `firewall`, code `irr-shrink-held`, subject the entry name, and detail with family, applied count, removed count and threshold; `ze_irr_shrink_held_entries` / `ze_firewall_irr_shrink_held_entries` is 1; counter `shrink-held` +1. A fetch removing 1 of 10 (10%) applies normally |
+| AC-21 | `system apply-policy shrink-threshold 20`, applied IPv4 list of 3 prefixes, a fetch removes 1 (33%) in any mode | Change held with `held-reason: shrink`; `show warnings` carries source `bgp` or `firewall`, code `irr-shrink-held`, subject the entry name, and detail with family, applied count, removed count and threshold; `ze_irr_shrink_held_entries` / `ze_firewall_irr_shrink_held_entries` is 1; counter `shrink-held` +1. A fetch removing 1 of 10 (10%) applies normally |
 | AC-22 | AC-21 state, then each of: `update ... irr apply`, `clear ... irr held`, `clear ... irr asn|as-set`, a fetch whose change no longer exceeds the threshold | The warning is cleared and the gauge returns to 0 on every path. The apply command applies the shrinking list deliberately. A dismissal keeps the enforced list |
 | AC-23 | AC-19 state, then a restart before `apply-due` | After restart the change is still held with the same `apply-due` and is applied when it passes. A restart after `apply-due` applies it right after load |
 | AC-24 | `clear bgp irr asn 65001` (and `clear bgp irr as-set AS-TEST`, which clears every enrolled ASN resolved to that AS-SET) | Entry removed from memory and from ZeFS (fetched entry, BGP applied snapshot, hold, dismissal, shrink warning); `show bgp irr` reports the ASN with no list; the reply names the entries removed and says to run `update bgp irr asn <n>` to fetch again; an ASN or AS-SET no IRR-filtered peer uses is refused with the plugin's existing "no IRR-filtered peer with ASN" wording, and an enrolled name with nothing cached is refused "no cached data for <name>", as `purge` in `firewall/plugins/irr/command.go` does |
-| AC-25 | `delay minimum` or `delay maximum` outside 0..1440, `shrink-threshold` outside 1..100 | Refused by YANG range at commit |
+| AC-25 | `delay minimum` or `delay maximum` outside 0..1440, `system apply-policy shrink-threshold` outside 1..100 | Refused by YANG range at commit |
 
 ## End-to-End User Stories
 
@@ -287,12 +302,11 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 | 2 | Sets firewall IRR to operator mode and dismisses a suspicious change | config → `configure` → `update firewall irr as-set` → held → `clear firewall irr held as-set` → dismissed; sets unchanged | `test/plugin/firewall-irr-apply-dismiss.ci` |
 | 3 | Sets a nightly window; changes fetched during the day apply in the window | config → `refreshLoop` → held → window timer → `ApplyDue` → enforcement | `test/plugin/filter-irr-apply-scheduled.ci` plus `TestApplyDueAtWindowStart` |
 | 4 | An agent reads held changes as JSON and applies them | `show firewall irr held | json` → decides → `update firewall irr apply all` | `test/plugin/firewall-irr-apply-operator.ci` |
+| 5 | Restarts the router with a change held | daemon restart → `Open` loads fetched and applied → enforce applied → held still reported | `test/plugin/filter-irr-apply-restart.ci` (A-4) |
 | 6 | Sets a delay range of 0 to 30 minutes so a fleet spreads its IRR updates | config `delay { minimum 0; maximum 30; }` → fetch → held `delay` with a random `apply-due` → timer → apply | `test/plugin/filter-irr-apply-delay-range.ci` |
 | 6b | Sets a fixed 15-minute delay so every change waits a known time before it takes effect | config `delay { minimum 15; }` → fetch → held `delay` with `apply-due` = `held-since` + 15 minutes → timer → apply | `test/plugin/firewall-irr-apply-delay-fixed.ci` |
 | 7 | Monitoring catches an IRR change that would remove a large share of a customer's prefixes | fetch → step c → `show warnings` and `ze_firewall_irr_shrink_held_entries` → operator reviews `held` → applies or dismisses → alert clears | `test/plugin/firewall-irr-apply-shrink-alert.ci` |
 | 8 | Removes the cached list of a deregistered customer AS from the BGP filter | `clear bgp irr asn` → `Purge` → `st.list` cleared | `test/plugin/filter-irr-clear.ci` |
-| 5 | Restarts the router with a change held | daemon restart → `Open` loads fetched and applied → enforce applied → held still reported | `test/plugin/filter-irr-apply-restart.ci` (A-4) |
-
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
@@ -312,8 +326,10 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 | `TestApplyRollbackOnConsumerRefusal` | same | AC-14 | |
 | `TestPurgeRemovesSnapshotAndHold` | same | AC-15 | |
 | `TestApplyDueAtWindowStart`, `TestApplyDueOutsideWindowHolds` | same, with injected `clock.Clock` | AC-13 | |
-| `TestWindowContains` (table, crossing midnight, start==end refused) | new shared window helper test file | AC-13, AC-16, R-6 | |
-| `TestSelfUpdateUsesSharedWindow` | `internal/component/config/system/selfupdate_test.go` | R-6 (no copy left) | |
+| `TestWindowContains` (table, crossing midnight, start==end refused) | `internal/core/applypolicy/window_test.go` | AC-13, AC-16, R-6 | |
+| `TestDecideTable` (steps a to h of Data Flow step 2, injected clock and random source) | `internal/core/applypolicy/decide_test.go` | AC-3, AC-13, AC-19, AC-19b, AC-21 | |
+| `TestValidateApplyConfig` (`scheduled` without both window leaves, `start` == `end`, a value not `HH:MM`, `maximum` below `minimum`; each message names the leaf) | `internal/core/applypolicy/validate_test.go` | AC-16, AC-19c | |
+| `TestSelfUpdateUsesSharedWindow` (`selfupdate.go` and `selfupdate_validate.go` call the moved window check and HH:MM parse) | `internal/component/config/system/selfupdate_test.go` | R-6 (no copy left) | |
 | `TestDelayDueTimeDrawnOnceWithinBound` (range: due time in [`minimum`, `maximum`], drawn once per hold) | `store_test.go`, injected clock and seeded random source | AC-19 | |
 | `TestFixedDelayDueTimeExact` (`maximum` absent, and `maximum` equal to `minimum`: due time exactly `minimum` minutes, random source never consulted) | same | AC-19b | |
 | `TestNewerFetchDuringDelayKeepsDueTime`, `TestFetchEqualToAppliedCancelsDelay` | same | AC-20 |
@@ -323,7 +339,7 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 | `TestOperatorApplyIgnoresThreshold` | same | step c scope |
 | `TestClearBGPIRRPurgesAndEmptiesList`, `TestClearBGPIRRRefusesUnknown` | `filter_irr/command_test.go` | AC-24 |
 | `TestParseApplyConfig` (both consumers, `case string:` coercion, `delay` with and without `maximum`) | `filter_irr/config_test.go`, `firewall/plugins/irr/config_test.go` | AC-16, AC-19, AC-19b | |
-| `TestParseDelayRefusesMaximumBelowMinimum` | same | AC-19c | |
+| `TestParseDelayRefusesMaximumBelowMinimum` (each consumer's verify reaches the shared validation function) | same | AC-19c | |
 | `TestRefreshASNKeepsListWhenHeld` | `filter_irr/filter_irr_test.go` | AC-3 BGP side | |
 | `TestApplyRefusedInImmediateMode` | both `command_test.go` | AC-17 | |
 | `TestShowHeldPayloadShape` | both `command_test.go` | AC-4, AC-18, kebab-case keys | |
@@ -337,7 +353,7 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 | window length | start != end | 00:00 to 00:01 | start == end refused | N/A |
 | `delay minimum` (minutes) | 0..1440 | 0 and 1440 | N/A (uint) | 1441 |
 | `delay maximum` (minutes) | `minimum`..1440 | equal to `minimum`, and 1440 | `minimum` - 1 (refused at verify, AC-19c) | 1441 |
-| `shrink-threshold` (percent) | 1..100 | 1 and 100 | 0 | 101 |
+| `system apply-policy shrink-threshold` (percent) | 1..100 | 1 and 100 | 0 | 101 |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -361,7 +377,7 @@ The mock whois server needs one new option so a fetch can return a changed list:
 `le test irr --change-after-first` answers each query once with the current data, then with a
 second fixed answer for `AS-TEST` that adds one IPv4 prefix and removes another (and adds one IPv6
 prefix). Removing one of the three `AS-TEST` IPv4 prefixes is a 33% shrink, so the same option drives
-the shrink tests with `shrink-threshold 20`. The usage text in `internal/test/mock/irr/irr.go`
+the shrink tests with `system apply-policy shrink-threshold 20`. The usage text in `internal/test/mock/irr/irr.go`
 documents both answers.
 
 ### Interop Tests (Scope: protocol)
@@ -370,21 +386,24 @@ N-A: no wire-visible change. IRR queries are unchanged; BGP and nftables output 
 ## Files to Modify
 - `internal/component/resolve/irr/store/store.go` - fetched vs applied split, mode, decide step, `Apply`, `ApplyDue`, `Dismiss`, `Held` (diff), `Open` loading per-consumer snapshots, `Purge` extension, injected `clock.Clock`
 - `internal/component/bgp/plugins/filter_irr/filter_irr.go` - pass mode and applied key to the store, install `st.list` from the enforced entry, window branch in `refreshLoop`, new metrics
-- `internal/component/bgp/plugins/filter_irr/config.go` - parse `apply { mode; delay { minimum; maximum; } shrink-threshold; window { start; end; } }`; verify for AC-16 and AC-19c
+- `internal/component/bgp/plugins/filter_irr/config.go` - parse `apply { mode; delay { minimum; maximum; } window { start; end; } }` and `system apply-policy shrink-threshold`; verify calls the shared validation function of `internal/core/applypolicy` for AC-16 and AC-19c (no local copy of the rules)
+- `internal/component/config/system/yang/ze-system-conf.yang` - `system apply-policy shrink-threshold` (uint8, `range 1..100`, `units percent`, no default, `ze:help` and `description`)
 - `internal/component/bgp/plugins/filter_irr/command.go`, `cmd_irr.go` - `show bgp irr held`, `update bgp irr apply`, `clear bgp irr held`, `clear bgp irr asn|as-set`, held fields in `show bgp irr` (structured payload), shrink warning raise and clear (source `bgp`), new gauges and counter results
 - `internal/component/bgp/plugins/filter_irr/cache.go` - `loadFromStore` reads the enforced entry (unchanged call, documented)
-- `internal/component/bgp/plugins/filter_irr/register.go` - register the BGP applied key and grant it
+- `internal/component/bgp/plugins/filter_irr/register.go` - register the BGP applied key and grant it; add `system` to `ConfigReads` (A-10)
 - `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang`, `ze-filter-irr-cmd.yang` - `apply` container, new command nodes
-- `internal/component/firewall/plugins/irr/irr.go`, `config.go`, `command.go`, `cmd_irr.go`, `register.go` - same set for the firewall consumer (warning source `firewall`), verify for AC-16 and AC-19c, rollback on refused apply
-- the store's decide step carries the delay due time (fixed: `minimum`; range: a draw from `math/rand/v2`, injectable for tests) and the threshold check; the warning raise and clear sit in the one function that starts and ends a hold, called through a consumer-supplied hook so the store does not hard-code a report source
+- `internal/component/firewall/plugins/irr/irr.go`, `config.go`, `command.go`, `cmd_irr.go`, `register.go` - same set for the firewall consumer (warning source `firewall`, `system` in `ConfigReads`), verify calling the shared validation function for AC-16 and AC-19c, rollback on refused apply
+- the store's decide step calls `internal/core/applypolicy` for the delay due time (fixed: `minimum`; range: a draw from `math/rand/v2`, injectable for tests) and the threshold check; the warning raise and clear sit in the one store function that starts and ends a hold, called through a consumer-supplied hook so the store does not hard-code a report source
 - `internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang`, `ze-firewall-irr-cmd.yang` - `apply` container, new command nodes
-- `internal/component/config/system/selfupdate.go` - call the shared window helper; `inMaintenanceWindow`/`parseHHMM` move out
+- `internal/component/config/system/selfupdate.go` - call the window check in `internal/core/applypolicy`; `inMaintenanceWindow` moves out
+- `internal/component/config/system/selfupdate_validate.go` - `parseHHMM` moves to `internal/core/applypolicy`; the `restart-time` and maintenance-window validation calls the moved parse
 - `internal/test/mock/irr/irr.go` - `--change-after-first`
+- `internal/component/config/yang/loader.go` - `LoadEmbedded` lists the embedded bootstrap modules by path (today `ze-extensions.yang` and `ze-types.yang`); add `modules/ze-apply-policy.yang` so the grouping loads before the consumer modules that `uses` it (A-3); `docs/architecture/config/yang-config-design.md` ("`LoadEmbedded()` loads the two foundation modules", and its module table) gains the third module in the same change
 - `docs/guide/irr-filtering.md`, `docs/architecture/core-design.md` (section 22), `docs/architecture/bgp/filter-irr.md`, `docs/architecture/firewall/firewall-irr.md`, `docs/architecture/resolve.md`, `features/irr-bgp-import-filtering.md`, `docs/guide/configuration.md` (IRR section), `docs/guide/command-reference.md`, `docs/plugin-development/metrics.md` or the IRR telemetry section, `ai/INDEX.md`
 
 ## Files to Create
-- the shared window helper package (location decided at implementation; candidate `internal/core/timewindow/`) with its test
-- the shared YANG grouping module for `apply` (A-3), candidate `internal/component/resolve/yang/ze-resolve-irr-apply.yang`
+- `internal/core/applypolicy/` - the shared policy package: the decision (mode, delay draw, window open, shrink check, given an injected `clock.Clock` and random source) the window check and HH:MM parse moved from `config/system`, and the one validation function of the `apply` grouping's cross-leaf rules that every consumer's verify calls, with `decide_test.go`, `window_test.go` and `validate_test.go`. The NetBox builder (`plan/spec-netbox-0-umbrella.md`) uses this package and names no other location
+- `internal/component/config/yang/modules/ze-apply-policy.yang` - grouping-only module holding the `apply` grouping (mode, delay, window; no shrink threshold), A-3
 - `test/plugin/filter-irr-apply-operator.ci`, `test/plugin/filter-irr-apply-scheduled.ci`, `test/plugin/filter-irr-apply-restart.ci`
 - `test/plugin/firewall-irr-apply-operator.ci`, `test/plugin/firewall-irr-apply-dismiss.ci`, `test/plugin/firewall-irr-apply-cross-consumer.ci`
 - `test/parse/irr-apply-scheduled-needs-window.ci`, `test/parse/irr-apply-delay-maximum-below-minimum.ci`, `test/ui/completion-words-irr-held.ci`
@@ -394,9 +413,9 @@ N-A: no wire-visible change. IRR queries are unchanged; BGP and nftables output 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `ze-filter-irr.yang`, `ze-firewall-irr.yang` (`apply` container via shared grouping), both `-cmd.yang` (held, apply, clear held nodes) |
-| YANG validation constraints | Yes | `mode` enumeration; `start`/`end` use the same HH:MM `pattern` as the SMART `time` leaf in `ze-storage-conf.yang`; `delay` container with `minimum` uint16 `range 0..1440`, `units minutes`, default 0, and `maximum` uint16 `range 0..1440`, `units minutes`, no default (absent means a fixed delay of `minimum`); `shrink-threshold` uint8 `range 1..100`, `units percent`, no default (absent turns the check off) |
-| YANG custom validators | Yes | plugin verify: `scheduled` needs both window leaves, `start` != `end`; `delay maximum` not below `delay minimum` (AC-19c). All cross-leaf, not expressible natively |
+| YANG schema (new RPCs/config) | Yes | `ze-apply-policy.yang` (grouping), `ze-filter-irr.yang`, `ze-firewall-irr.yang` (`apply` container via the shared grouping), `ze-system-conf.yang` (`system apply-policy shrink-threshold`), both `-cmd.yang` (held, apply, clear held nodes) |
+| YANG validation constraints | Yes | `mode` enumeration; `start`/`end` use the same HH:MM `pattern` as the SMART `time` leaf in `ze-storage-conf.yang`; `delay` container with `minimum` uint16 `range 0..1440`, `units minutes`, default 0, and `maximum` uint16 `range 0..1440`, `units minutes`, no default (absent means a fixed delay of `minimum`); `system apply-policy shrink-threshold` uint8 `range 1..100`, `units percent`, no default (absent turns the check off) |
+| YANG custom validators | Yes | one validation function in `internal/core/applypolicy`, called by each consumer's plugin verify: `scheduled` needs both window leaves, `start` != `end`; `delay maximum` not below `delay minimum` (AC-19c). All cross-leaf, not expressible natively; the NetBox set's `netbox source <s> apply` calls the same function |
 | CLI commands/flags | Yes | `show <consumer> irr held [asn <n> \| as-set <name>]`, `update <consumer> irr apply all \| asn <n> \| as-set <name>`, `clear <consumer> irr held all \| asn <n> \| as-set <name>`, and the new `clear bgp irr asn <n> \| as-set <name>` |
 | Report bus alert | Yes | `report.RaiseWarning`/`report.ClearWarning`, code `irr-shrink-held`, sources `bgp` and `firewall`; read by `show warnings` (A-8) |
 | CLI grammar (keyword before value) | Yes | `apply` and `held` are action keywords before the typed selector `asn`/`as-set`; run `./le cli grammar` |
@@ -412,11 +431,11 @@ N-A: no wire-visible change. IRR queries are unchanged; BGP and nftables output 
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/irr-bgp-import-filtering.md` (apply modes); a firewall IRR feature file if one exists at implementation time |
-| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md` IRR section, including the `apply delay { minimum; maximum; }` container and its fixed and range forms; `docs/architecture/config/syntax.md` N-A (no syntax rule changes) |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md` IRR section, including the `apply delay { minimum; maximum; }` container and its fixed and range forms, and its system section for `system apply-policy shrink-threshold`; `docs/architecture/config/syntax.md` N-A (no syntax rule changes) |
 | 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` if it lists the IRR wire methods; check at implementation |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` rows for `bgp-filter-irr` and `firewall-irr` if they describe refresh behavior |
-| 6 | Has a user guide page? | Yes | `docs/guide/irr-filtering.md`: new "Choose when a fetched change takes effect" section, covering the three modes, the fixed and range delay, and the shrink threshold; refresh and troubleshooting rows rewritten per mode |
+| 6 | Has a user guide page? | Yes | `docs/guide/irr-filtering.md`: new "Choose when a fetched change takes effect" section, covering the three modes, the fixed and range delay, and the shrink threshold; it states that `system apply-policy shrink-threshold` is one system value, so setting it (for example for NetBox) holds large removals for both IRR consumers as well; refresh and troubleshooting rows rewritten per mode |
 | 7 | Wire format changed? | N-A | no wire change |
 | 8 | Plugin SDK/protocol changed? | N-A | no SDK change |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | no RFC |
@@ -433,19 +452,19 @@ Discovery (`ai/rules/repo-maintenance.md`): `ai/INDEX.md` has no IRR row today. 
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- YANG `apply` grouping and both containers, the new command nodes and `RegisterRPCs` entries in both plugins returning a stub "not implemented" error, config parsing of `mode`/`delay`/`shrink-threshold`/`window`, mock `--change-after-first`
+1. **Phase: Wiring (MANDATORY FIRST)** -- YANG `apply` grouping in `ze-apply-policy.yang` and both containers, `system apply-policy shrink-threshold` in `ze-system-conf.yang`, `system` in both plugins' `ConfigReads`, the new command nodes and `RegisterRPCs` entries in both plugins returning a stub "not implemented" error, config parsing of `mode`/`delay`/`window` and of the system threshold, mock `--change-after-first`
    - Tests: every Wiring Test row written and failing for the right reason; `TestParseApplyConfig`, `TestParseDelayRefusesMaximumBelowMinimum`
-   - Files: both YANG pairs, both `cmd_irr.go`, both `config.go`, `internal/test/mock/irr/irr.go`
+   - Files: `ze-apply-policy.yang`, `ze-system-conf.yang`, both YANG pairs, both `cmd_irr.go`, both `config.go`, both `register.go`, `internal/test/mock/irr/irr.go`
    - Verify: commands reachable and refused by the stub; config accepted; `./le cli grammar` clean
-2. **Phase: Shared window helper** -- move `parseHHMM`/`inMaintenanceWindow` logic to the shared helper, self-update calls it
-   - Tests: `TestWindowContains`, `TestSelfUpdateUsesSharedWindow`, existing self-update tests
-   - Files: new helper package, `selfupdate.go`
+2. **Phase: Shared policy package** -- create `internal/core/applypolicy` (decision, window check, validation of the `apply` grouping), move `parseHHMM`/`inMaintenanceWindow` logic into it, self-update calls it, both consumers' verify call the validation
+   - Tests: `TestWindowContains`, `TestDecideTable`, `TestValidateApplyConfig`, `TestSelfUpdateUsesSharedWindow`, existing self-update tests
+   - Files: `internal/core/applypolicy/`, `selfupdate.go`, `selfupdate_validate.go`
 3. **Phase: Store** -- fetched/applied split, decide, bootstrap, seed on mode entry, apply, apply-due, dismiss, diff, `Open`, `Purge`, rollback hook
    - Tests: every store row of the Unit Tests table
    - Files: `store.go`, `store_test.go`
 4. **Phase: BGP consumer** -- mode and key into the store, `st.list` from the enforced entry, window branch in `refreshLoop`, commands, show fields, metrics
    - Tests: `TestRefreshASNKeepsListWhenHeld`, BGP command tests, `filter-irr-apply-*.ci`
-5. **Phase: Firewall consumer** -- same, plus verify (AC-16, AC-19c) and refused-apply rollback (AC-14)
+5. **Phase: Firewall consumer** -- same, plus verify calling the shared validation function (AC-16, AC-19c) and refused-apply rollback (AC-14)
    - Tests: firewall command tests, `firewall-irr-apply-*.ci`
 6. **Phase: Docs** -- every row of the Documentation Update Checklist, in the phase that changes the behavior a page describes (`ai/rules/documentation.md`), `ai/INDEX.md` row
 
@@ -464,11 +483,11 @@ Discovery (`ai/rules/repo-maintenance.md`): `ai/INDEX.md` has no IRR row today. 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Three modes configurable in both consumers | `grep -n "enum immediate\|enum scheduled\|enum operator"` in the grouping module; `TestParseApplyConfig` |
+| Three modes configurable in both consumers | `grep -n "enum immediate\|enum scheduled\|enum operator"` in `ze-apply-policy.yang`; `TestParseApplyConfig` |
 | Held, apply, dismiss commands in both consumers | `.ci` files listed, run through `./le job run` |
 | Immediate mode unchanged | every pre-existing `filter-irr*.ci` and `firewall-irr*.ci` green |
 | Section 22 sentence replaced | `grep -n "not implemented" docs/architecture/core-design.md` returns nothing for IRR holding |
-| No window copy | `grep -rn "inMaintenanceWindow" internal/` returns no definition outside the shared helper |
+| No window copy | `grep -rn "inMaintenanceWindow\|parseHHMM" internal/` returns no definition outside `internal/core/applypolicy`; no consumer's `config.go` restates the `apply` cross-leaf rules |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -498,7 +517,7 @@ Discovery (`ai/rules/repo-maintenance.md`): `ai/INDEX.md` has no IRR row today. 
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Policy per consumer (one `apply` container in `bgp policy irr` and one in `firewall irr`), mechanism once in the shared store | (a) one global policy on the shared store; (b) policy and mechanism both per consumer | (a) needs a config home neither plugin reads and forces one answer on two consumers with different risk (the firewall already defaults auto-refresh off for that reason); (b) duplicates the held/apply/diff logic. Per-consumer policy over one mechanism follows section 22: the builder is shared, each consumer pulls when ready |
+| Policy per consumer (one `apply` container in `bgp policy irr` and one in `firewall irr`, from the grouping in `ze-apply-policy.yang`), decision once in `internal/core/applypolicy`, IRR mechanism once in the shared store; the shrink threshold is the one system leaf (owner, 2026-10-08) | (a) one global policy on the shared store; (b) policy and mechanism both per consumer | (a) needs a config home neither plugin reads and forces one answer on two consumers with different risk (the firewall already defaults auto-refresh off for that reason); (b) duplicates the held/apply/diff logic. Per-consumer policy over one mechanism follows section 22: the builder is shared, each consumer pulls when ready |
 | Fetched list shared (`meta/irr/{name}`, unchanged), applied snapshot per consumer (`meta/irr-applied/<consumer>/{name}`), only in held modes | per-consumer copies of everything; a held key beside the shared applied key | keeps today's sharing (one fetch serves both) and today's key meaning; a held key beside one shared applied list cannot express two consumers in different modes (R-1) |
 | Held change = fetched differs from applied (computed), not a stored third list | store a pending list per consumer | nothing to keep in sync; restart and mode changes reduce to "is there a snapshot" |
 | Scheduled shape: daily window `start`/`end` HH:MM local time, applies at window start and on any fetch completing inside it | a single daily `apply-time`; a cron expression; an `apply-interval` separate from `refresh-interval` | matches the existing `system ... maintenance-window` (fetch anytime, replace in window) and its operator vocabulary; a window does not miss a day when the router is busy or down at one instant; cron is power nobody asked for (`ai/rules/simplicity.md`); an interval says how often, not when, which is the question "time-based" asks |
