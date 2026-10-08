@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-08",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -7,13 +7,17 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1": {
-      "note": "Forbidden: a peer with strict-mode enabled whose BGP FSM is not enabled (stays Idle or never exchanges OPEN while BFD is not Up). TestSessionBFDStrictWithholdsKeepalive asserts, with bfd state Down and strict negotiated, session.State() == fsm.StateOpenSent after handleOpen, red on an FSM that held in Idle or refused the connection; TestSessionBFDStrictSendsKeepaliveOnBFDUp asserts the held session reaches OpenConfirm on BfdUp, so the enabled FSM is not parked in an unleavable state.",
-      "requirement_sha": "547034deb9dc019f",
+      "note": "Independent reviewer StrictInitialFSMReview read draft Section 10: 'To avoid deadlock when utilizing both BFD hold-down and BFD strict-mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled.' TestDraftBFDNonzeroHoldDownInitialFSM starts real Idle sessions with strict mode and 400 ms hold-down for initially Down and newly Up BFD. Session.Start reaches Active, Session.Accept reaches OpenSent and emits the exact OPEN, and ReadAndProcess receives the peer OPEN and KEEPALIVE before clock advancement. The configured hold-down and negotiated strict capability are asserted. Down BFD withholds KEEPALIVE; newly Up BFD permits OpenConfirm but not premature Established. Both remain pending at 399 ms and establish at 400 ms; the zero-hold-down control establishes without advancing the clock. The exact accumulated output and far-end stream reject extra or premature messages. The original zero-interval carriers remain supplementary, not the combined-condition proof. Main observed all three cases pass in job-remaining-bgp-fixture-after-2acfc16f.log and independently read the new test and draft Section 10. This semantic judgment does not claim a producer-break run or independent-daemon interoperability; native discrimination remains separately owed.",
+      "requirement_sha": "a6ed42e1ead3a111",
       "tests": {
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go::TestDraftBFDNonzeroHoldDownInitialFSM": "44c205e619e7112c",
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go::TestDraftBFDNonzeroHoldDownInitialFSM#2": "44c205e619e7112c",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSendsKeepaliveOnBFDUp": "56ded9ff159b946a",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "56ded9ff159b946a"
       },
       "units": {
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go::TestDraftBFDNonzeroHoldDownInitialFSM": "df150de21beb4539",
+        "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go::TestDraftBFDNonzeroHoldDownInitialFSM#2": "df150de21beb4539",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSendsKeepaliveOnBFDUp": "fc196b6347846a3d",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "579b89c70c27687d"
       },

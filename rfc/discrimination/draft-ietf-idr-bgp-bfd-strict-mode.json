@@ -3,6 +3,28 @@
   "records": [
     {
       "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go::TestDraftBFDNonzeroHoldDownInitialFSM",
+      "unit-sha": "d3765a9a8cf1a724",
+      "claim-sha": "74362cee37b601d3",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_bfd_strict.go::advanceAfterOpen",
+      "producer-sha": "948fe3a31d7e7a9c",
+      "break": "body of advanceAfterOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_initial_fsm_test.go::TestDraftBFDNonzeroHoldDownInitialFSM",
+      "unit-sha": "d3765a9a8cf1a724",
+      "claim-sha": "c34b8b7928a228df",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_bfd_strict.go::handleBFDEvent",
+      "producer-sha": "c964ea650c473d27",
+      "break": "body of handleBFDEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSendsKeepaliveOnBFDUp",
       "unit-sha": "82069c083fa684a7",
