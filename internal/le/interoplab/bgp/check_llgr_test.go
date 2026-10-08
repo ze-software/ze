@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"path/filepath"
@@ -279,15 +280,16 @@ func llgrFRRSessionGeneration(t *testing.T) {
 }
 
 func llgrFRRReceivedOrigin(t *testing.T) {
-	const received = `{"routes":[{"peer":"10.254.7.3","direction":"received","family":"ipv4/unicast","prefix":"10.20.0.0/24","next-hop":"10.254.7.3"}]}`
+	const received = `[{"peer":"10.254.7.3","direction":"received","family":"ipv4/unicast","prefix":"10.20.0.0/24","next-hop":"10.254.7.3"}]`
 	for _, test := range []struct {
 		name, output   string
 		present, valid bool
 	}{
 		{"FRR-origin", received, true, true},
-		{"empty", `{"routes":[]}`, false, true},
+		{"empty", `[]`, false, true},
 		{"missing", `{}`, false, false},
-		{"null", `{"routes":null}`, false, false},
+		{"null", `null`, false, false},
+		{"RPC-envelope", `{"routes":[]}`, false, false},
 		{"native-first-source", strings.Replace(received, `"peer":"10.254.7.3"`, `"peer":"10.254.7.10"`, 1), false, true},
 		{"native-second-source", strings.Replace(received, `"peer":"10.254.7.3"`, `"peer":"10.254.7.11"`, 1), false, true},
 		{"outbound", strings.Replace(received, `"received"`, `"sent"`, 1), false, true},
@@ -305,6 +307,110 @@ func llgrFRRReceivedOrigin(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLLGRReceivedFenceRetainsEvidence keeps the actual completed result when
+// the last exec consumes the remaining deadline. An observation failure must
+// remain a failure, but its earlier CLI or parser evidence must not disappear.
+func TestLLGRReceivedFenceRetainsEvidence(t *testing.T) {
+	const received = `[{"peer":"10.254.7.3","direction":"received","family":"ipv4/unicast","prefix":"10.20.0.0/24","next-hop":"10.254.7.3"}]`
+	const empty = `[]`
+	const missing = `null`
+	for _, test := range []struct {
+		name    string
+		replies []llgrReceivedProbeReply
+		want    []string
+		pass    bool
+	}{
+		{
+			name:    "received",
+			replies: []llgrReceivedProbeReply{{result: interoplab.CommandResult{Stdout: received}}},
+			pass:    true,
+		},
+		{
+			name:    "parser-error-before-deadline",
+			replies: []llgrReceivedProbeReply{{result: interoplab.CommandResult{Stdout: missing}}},
+			want:    []string{"never measured peer state", "context deadline exceeded", "available=true", fmt.Sprintf("stdout=%q", missing), "ze received RIB query omitted routes"},
+		},
+		{
+			name: "failed-cli-payload-before-deadline",
+			replies: []llgrReceivedProbeReply{{
+				result: interoplab.CommandResult{Stdout: "refused command payload", Stderr: "permission denied", ExitCode: 1},
+				err:    errors.New("CLI refused"),
+			}},
+			want: []string{"never measured peer state", "context deadline exceeded", "available=true", `exit=1 stdout="refused command payload" stderr="permission denied" error=CLI refused`},
+		},
+		{
+			name: "measured-rib-before-parser-error-and-deadline",
+			replies: []llgrReceivedProbeReply{
+				{result: interoplab.CommandResult{Stdout: empty}},
+				{result: interoplab.CommandResult{Stdout: missing}},
+			},
+			want: []string{"timed out before the peer became ready", fmt.Sprintf("stdout=%q", missing), fmt.Sprintf("last measured RIB=%q", empty)},
+		},
+		{
+			name: "no-completed-observation",
+			want: []string{"never measured peer state", "context deadline exceeded", "available=false", `last measured RIB=""`},
+		},
+		{
+			name:    "empty-stdout-is-not-a-measurement",
+			replies: []llgrReceivedProbeReply{{}},
+			want:    []string{"never measured peer state", "peer ze query returned no output", `last measured RIB=""`},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				lab := &llgrReceivedProbeLab{replies: test.replies}
+				check := &interoplab.CheckContext{
+					Network: interoplab.Network{IPv4: netip.MustParsePrefix("10.254.7.0/24")},
+					Lab:     lab,
+				}
+				started := time.Now()
+				err := llgrReceivedFence(t.Context(), check, 3)
+				if test.pass {
+					if err != nil || lab.attempts != 1 {
+						t.Fatalf("received route: attempts=%d error=%v", lab.attempts, err)
+					}
+					return
+				}
+				if err == nil {
+					t.Fatal("failed observation was accepted as received-route evidence")
+				}
+				for _, want := range test.want {
+					if !strings.Contains(err.Error(), want) {
+						t.Errorf("diagnostic omits %q: %v", want, err)
+					}
+				}
+				if elapsed := time.Since(started); elapsed != 30*time.Second {
+					t.Errorf("receipt window changed: %s", elapsed)
+				}
+				if lab.attempts != len(test.replies)+1 {
+					t.Errorf("diagnostics added probes: attempts=%d replies=%d", lab.attempts, len(test.replies))
+				}
+			})
+		})
+	}
+}
+
+type llgrReceivedProbeReply struct {
+	result interoplab.CommandResult
+	err    error
+}
+
+type llgrReceivedProbeLab struct {
+	noEvidenceLab
+	replies  []llgrReceivedProbeReply
+	attempts int
+}
+
+func (lab *llgrReceivedProbeLab) Exec(ctx context.Context, _ string, _ []string, _ []interoplab.EnvironmentVariable) (interoplab.CommandResult, error) {
+	index := lab.attempts
+	lab.attempts++
+	if index < len(lab.replies) {
+		return lab.replies[index].result, lab.replies[index].err
+	}
+	<-ctx.Done()
+	return interoplab.CommandResult{ExitCode: 124}, ctx.Err()
 }
 
 // TestLLGRCheckerRejectsTerminalObservationStall runs the actual observation

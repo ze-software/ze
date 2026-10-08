@@ -8,16 +8,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/netip"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
 const llgrSourceOracle = "llgr-omitted-family-source"
 
 // runLLGRSource sends fixed, asymmetric capabilities, never mirrored OPENs.
-// The checker MUST kill this process only after Ze and FRR have received its
-// routes. This process MUST keep its original connection until that kill;
-// an unexpected close, NOTIFICATION or lifetime expiry is an error.
+// The checker MUST send USR1 only after Ze and FRR have received its routes.
+// This oracle alone registers USR1 and MUST release that registration on exit.
+// The source MUST close only its BGP transport on control, then stay alive until
+// its bounded lifetime ends. Unexpected close, NOTIFICATION or expiry before
+// control is an error.
 func runLLGRSource(options speakerOptions, _ io.Writer) error {
 	if options.asn != 65004 && options.asn != 65005 {
 		return errors.New("LLGR source requires ASN 65004 or 65005")
@@ -30,11 +36,21 @@ func runLLGRSource(options speakerOptions, _ io.Writer) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), options.duration)
 	defer cancel()
+	control := make(chan os.Signal, 1)
+	signal.Notify(control, syscall.SIGUSR1)
+	defer signal.Stop(control)
 	connection, err := dialExtendedRelay(ctx, options.connect)
 	if err != nil {
 		return err
 	}
-	defer connection.Close() //nolint:errcheck // The checker deliberately kills this source.
+	return runLLGRSourceConnection(ctx, options, connection, control)
+}
+
+// runLLGRSourceConnection owns connection and MUST close it before returning.
+// Its caller MUST supply a bounded context and relinquish the connection.
+// The existing idle read bounds control handling without a second goroutine.
+func runLLGRSourceConnection(ctx context.Context, options speakerOptions, connection net.Conn, control <-chan os.Signal) error {
+	defer connection.Close() //nolint:errcheck // Also closes the transport on pre-control failures.
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return errors.New("LLGR source has no lifetime deadline")
@@ -71,6 +87,23 @@ func runLLGRSource(options speakerOptions, _ io.Writer) error {
 	opened, established := false, false
 	nextKeepalive := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("LLGR source ended before transport-loss control: %w", err)
+		}
+		select {
+		case <-control:
+			if !established {
+				return errors.New("LLGR transport-loss control before establishment")
+			}
+			if err := connection.Close(); err != nil {
+				return fmt.Errorf("LLGR controlled transport close: %w", err)
+			}
+			// No NOTIFICATION, KEEPALIVEs or reconnect after control. PID 1
+			// stays alive so Docker retains the source's next-hop interfaces.
+			<-ctx.Done()
+			return nil
+		default:
+		}
 		if established {
 			if !time.Now().Before(nextKeepalive) {
 				if _, err := connection.Write(speakerKeepalive()); err != nil {
@@ -128,7 +161,7 @@ func runLLGRSource(options speakerOptions, _ io.Writer) error {
 			return fmt.Errorf("LLGR source received unexpected message %d", kind)
 		}
 	}
-	return errors.New("LLGR source expired before the checker killed it")
+	return errors.New("LLGR source expired before transport-loss control")
 }
 
 // llgrSourceOpen follows RFC 9494 Section 4.2: "If the Graceful Restart

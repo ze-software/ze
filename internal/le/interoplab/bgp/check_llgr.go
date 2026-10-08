@@ -63,7 +63,9 @@ func checkLLGRIndependentFRR(ctx context.Context, check *interoplab.CheckContext
 		return err
 	}
 	// RFC 9494 Section 4.2: zero GR period and zero LLST retain nothing.
-	if err := check.Lab.Signal(ctx, peerSpeaker2, "KILL"); err != nil {
+	// Both sources MUST close only their transport after the receipt fences;
+	// USR1 leaves PID 1 and the advertised next-hop interfaces alive.
+	if err := check.Lab.Signal(ctx, peerSpeaker2, "USR1"); err != nil {
 		return err
 	}
 	if _, err := llgrWaitDown(ctx, check, 11); err != nil {
@@ -87,7 +89,7 @@ func checkLLGRIndependentFRR(ctx context.Context, check *interoplab.CheckContext
 		return err
 	}
 	loss := time.Now()
-	if err := check.Lab.Signal(ctx, peerSpeaker, "KILL"); err != nil {
+	if err := check.Lab.Signal(ctx, peerSpeaker, "USR1"); err != nil {
 		return err
 	}
 	down, err := llgrWaitDown(ctx, check, 10)
@@ -260,14 +262,37 @@ func llgrReceivedFence(ctx context.Context, check *interoplab.CheckContext, host
 		want = []llgrReceivedExpectation{{"10.20.0.0/24", zeIPv4Unicast, address}}
 	}
 	command := zeCommand("show bgp rib received")
-	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 30 * time.Second, Interval: time.Second, Description: "received LLGR source routes"}, func(probe context.Context) (bool, error) {
-		output, err := check.Lab.Query(probe, "ze", command, queryEnvironment("ze", command))
-		if err != nil {
-			return false, err
+	var lastCompleted interoplab.CommandResult
+	var lastCompletedErr error
+	var haveCompleted bool
+	var lastMeasured string
+	_, report, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 30 * time.Second, Interval: time.Second, Description: "received LLGR source routes"}, func(probe context.Context) (bool, error) {
+		// Query discards stdout on command failure. Retain the actual result
+		// here, including a refused CLI answer, before the final deadline
+		// probe can replace the error that explains the missing observation.
+		result, probeErr := check.Lab.Exec(probe, "ze", command, queryEnvironment("ze", command))
+		ready := false
+		if probeErr == nil {
+			if strings.TrimSpace(result.Stdout) == "" {
+				probeErr = errors.New("peer ze query returned no output")
+			} else {
+				ready, probeErr = llgrReceivedRoutesPresent(result.Stdout, address, want)
+			}
 		}
-		return llgrReceivedRoutesPresent(output, address, want)
+		if probe.Err() == nil {
+			lastCompleted, lastCompletedErr, haveCompleted = result, probeErr, true
+		}
+		if probeErr == nil {
+			lastMeasured = result.Stdout
+		}
+		return ready, probeErr
 	}, func(ready bool) bool { return ready })
-	return err
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%w; attempts=%d transient-failures=%d; last completed probe (available=%t): exit=%d stdout=%q stderr=%q error=%v; last measured RIB=%q",
+		err, report.Attempts, report.TransientFailures, haveCompleted, lastCompleted.ExitCode,
+		lastCompleted.Stdout, lastCompleted.Stderr, lastCompletedErr, lastMeasured)
 }
 
 type llgrReceivedExpectation struct {
@@ -275,24 +300,22 @@ type llgrReceivedExpectation struct {
 }
 
 func llgrReceivedRoutesPresent(output, peer string, want []llgrReceivedExpectation) (bool, error) {
-	var document struct {
-		Routes []struct {
-			Peer      string `json:"peer"`
-			Direction string `json:"direction"`
-			Prefix    string `json:"prefix"`
-			Family    string `json:"family"`
-			NextHop   string `json:"next-hop"`
-		} `json:"routes"`
+	var routes []struct {
+		Peer      string `json:"peer"`
+		Direction string `json:"direction"`
+		Prefix    string `json:"prefix"`
+		Family    string `json:"family"`
+		NextHop   string `json:"next-hop"`
 	}
-	if err := json.Unmarshal([]byte(output), &document); err != nil {
+	if err := json.Unmarshal([]byte(output), &routes); err != nil {
 		return false, err
 	}
-	if document.Routes == nil {
+	if routes == nil {
 		return false, errors.New("ze received RIB query omitted routes")
 	}
 	for _, expected := range want {
 		found := false
-		for _, route := range document.Routes {
+		for _, route := range routes {
 			if route.Peer != peer {
 				continue
 			}
@@ -384,7 +407,11 @@ func llgrQueryRoute(ctx context.Context, check *interoplab.CheckContext, prefix,
 	if err != nil {
 		return false, false, err
 	}
-	return llgrRouteState(output, prefix, networkHostAddress(check.Network, 2), path, marker)
+	present, stale, err := llgrRouteState(output, prefix, networkHostAddress(check.Network, 2), path, marker)
+	if err != nil {
+		return present, stale, fmt.Errorf("FRR route %s: %w; response=%q", prefix, err, output)
+	}
+	return present, stale, nil
 }
 
 func llgrWaitRoute(ctx context.Context, check *interoplab.CheckContext, prefix, family, path, marker string, present, stale bool, timeout time.Duration) error {

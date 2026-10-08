@@ -1177,8 +1177,15 @@ checks and adds two strict input speakers with FRR as the independent receiver.
 One source omits IPv4 from GR while advertising a 40-second IPv4 LLST; its
 IPv6 family has a 20-second GR period followed by the same LLST. The other
 source advertises zero LLST. After fencing initial receipt and bilateral FRR
-LLGR negotiation, the checker requires immediate removal for zero LLST,
-immediate IPv4 LLGR_STALE, and IPv6's conventional-to-LLGR transition.
+LLGR negotiation, the checker sends each native source `USR1` through
+`Lab.Signal`. Only this oracle handles that signal: it closes its BGP socket
+without NOTIFICATION, stops KEEPALIVEs, and keeps PID 1, the container and its
+next-hop interfaces alive until its existing bounded lifetime ends or lab cleanup.
+Unexpected peer closure, NOTIFICATION, or lifetime expiry before control remains
+a failure. The main loss timestamp precedes the signal; the DOWN poll and
+three-second observation margin are unchanged. The checker requires immediate
+removal for zero LLST, immediate IPv4 LLGR_STALE, and IPv6's conventional-to-LLGR
+transition.
 IPv4 must expire at its original DOWN+40 deadline while IPv6 survives until
 DOWN+60. FRR's established/dropped connection counters must remain unchanged;
 its recomputed wall-clock epoch is not a session identity. Complete observation
@@ -1186,6 +1193,20 @@ cycles, including final expiry probes, must stay within the sampling bound.
 An explicit FRR-origin received-route check preserves the original reverse
 direction proof despite the added native sources. This does not cover
 NOTIFICATION, reconnect F-bit or received-stale-policy behavior.
+
+The receipt query is `show bgp rib received | json`; its CLI output is a
+top-level array of route rows, not an object containing a `routes` field.
+An empty array is a measured RIB with no matching route; null or an object
+is not a valid CLI observation.
+
+The received-route fence retains the last completed CLI result (stdout, stderr,
+exit status and parse error), the last successfully measured RIB, and probe
+counts when it fails. A final cancelled Docker exec cannot overwrite this
+earlier evidence. Capturing it adds no queries or time to the original
+30-second receipt fence and changes none of the 40/60-second expiry windows.
+FRR route-observation errors retain the queried prefix and raw JSON response,
+so an invalid route can be distinguished from an unexpected response shape.
+<!-- source: internal/le/interoplab/bgp/check_llgr.go -- llgrReceivedFence -->
 
 `bgp-nexthop-self-local-auto-frr` retains both original self-next-hop checks
 and adds AIGP on the general forwarding path. The received metric is 100;
