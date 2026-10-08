@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-09 | - | `demos/terminal/*/demo.tape` Wait+Screen | A wait regex also matches the command the tape just typed, so the echoed input satisfies it and the wait proves nothing. config-views waited for `canonical output: identical` after a cmp that ran in the wrong directory; the published cast shows no such line. A scan finds the same shape in health-reports, irr-filter (2), rib-fib, traceroute, vrrp-failover and zefs-config (3) | config-views fixed: cmp reads `$STATE`, wait anchored `(?m)^`. Others open. Fix: a pty.go parse check refusing a wait that matches its preceding Type text |

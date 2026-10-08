@@ -558,12 +558,20 @@ func validateConfigViews() error {
 	if err := requireAll(setView, "set bgp peer transit-a connection local ip 192.0.2.1", "set bgp peer transit-a session asn remote 65001"); err != nil {
 		return err
 	}
-	left, _ := os.ReadFile(filepath.Join(demoState(id), "router.set"))
-	right, _ := os.ReadFile(filepath.Join(demoState(id), "roundtrip.set"))
-	if !bytes.Equal(left, right) {
+	// Two unreadable files would compare equal as two empty slices, so a
+	// failed read is the verdict rather than an input to the comparison.
+	original, err := os.ReadFile(filepath.Join(demoState(id), "router.set"))
+	if err != nil {
+		return err
+	}
+	roundTrip, err := os.ReadFile(filepath.Join(demoState(id), "roundtrip.set"))
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(original, roundTrip) {
 		return errors.New("validation failed: hierarchical/set round trip changed canonical output")
 	}
-	matches, err := pipeline([][]string{{"ze", commandShow, "plugins"}, {"ze", pipeKeyword, matchKeyword, "flowspec"}}, demoEnvironment())
+	matches, err := pipeline([][]string{{"ze", commandShow, "plugin", "list"}, {"ze", pipeKeyword, matchKeyword, "flowspec"}}, demoEnvironment())
 	if err != nil {
 		return err
 	}
@@ -607,21 +615,33 @@ func validateBFD() error {
 	if err := runBFD("cut", nil, io.Discard); err != nil {
 		return err
 	}
-	bfd.Reset()
-	bgp.Reset()
-	if err := runBFD(commandCLI, []string{"show bfd sessions | raw"}, &bfd); err != nil {
+	// BGP releases its BFD handle when it leaves Established. The engine keeps
+	// a released session that has heard from its peer, in AdminDown, until its
+	// RFC 5880 Section 6.8.1 retention and Section 6.8.16 AdminDown transmit
+	// windows have passed, so the list holds that session, never an empty list.
+	released, err := waitForCommandText(bfdReleaseAttempts, `"state": "admin-down"`, func() (string, error) {
+		return netnsCLI("bfd", "bfd-failover", "show bfd sessions | raw")
+	})
+	if err != nil {
+		return fmt.Errorf("validation failed: expected BGP to release its BFD session after the cut: %w", err)
+	}
+	if err := requireAll(released, `"peer": "172.30.0.3"`); err != nil {
 		return err
 	}
+	if err := notContains(released, `"state": "up"`); err != nil {
+		return err
+	}
+	bgp.Reset()
 	if err := runBFD(commandCLI, []string{showPeerListRaw}, &bgp); err != nil {
 		return err
-	}
-	if strings.TrimSpace(bfd.String()) != "[]" {
-		return fmt.Errorf("validation failed: expected an empty BFD session list after the cut\n%s", bfd.String())
 	}
 	if err := contains(bgp.String(), `"name": "edge-peer"`); err != nil {
 		return err
 	}
 	if err := notContains(bgp.String(), `"state": "established"`); err != nil {
+		return err
+	}
+	if err := waitForBFDRetired(); err != nil {
 		return err
 	}
 	if err := runBFD("restore", nil, io.Discard); err != nil {
@@ -632,6 +652,37 @@ func validateBFD() error {
 		return err
 	}
 	return requireAll(bgp.String(), `"name": "edge-peer"`, `"state": "established"`)
+}
+
+// Poll bounds for the BFD session BGP releases after the cut. Each attempt is
+// one CLI call plus a 100 ms pause, so an attempt count is a floor in tenths of
+// a second. The release follows BGP leaving Established, which the cut has
+// already waited for, so three seconds is ample. The released session then
+// stays for three AdminDown Detection Times: with the demo's 300 ms, multiplier
+// 3 profile and the one second rate a session outside Up sends at, that is
+// three times three seconds, so twenty seconds bounds it with margin.
+const (
+	bfdReleaseAttempts = 30
+	bfdRetireAttempts  = 200
+)
+
+// waitForBFDRetired waits until the BFD session BGP released after the cut has
+// left the engine, and fails when it outlives its bound: a released session
+// that never retires is a leak, not RFC 5880 retention.
+func waitForBFDRetired() error {
+	var sessions string
+	for range bfdRetireAttempts {
+		output, err := netnsCLI("bfd", "bfd-failover", "show bfd sessions | raw")
+		if err != nil {
+			return err
+		}
+		sessions = output
+		if strings.TrimSpace(sessions) == "[]" {
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return fmt.Errorf("validation failed: expected the released BFD session to retire after its AdminDown window\n%s", sessions)
 }
 
 func validateOSPF() error {

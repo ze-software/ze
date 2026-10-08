@@ -4,8 +4,6 @@ Source common.tape
 Hide
 Type "export STATE=/src/tmp/terminal-demos/state/config-views"
 Enter
-Type "cd $STATE"
-Enter
 Type "ze-demo run config-views prepare"
 Enter
 Wait+Screen /Configuration views prepared/
@@ -34,9 +32,9 @@ Type "ze config migrate format set router.conf 2>/dev/null | ze pipe match 'bgp 
 Enter
 Wait+Screen /set bgp peer transit-a/
 Sleep 7s
-Type "cmp -s router.set roundtrip.set && echo 'canonical output: identical'"
+Type "cmp -s $STATE/router.set $STATE/roundtrip.set && echo 'canonical output: identical'"
 Enter
-Wait+Screen /canonical output: identical/
+Wait+Screen /(?m)^canonical output: identical/
 Sleep 5s
 Type "ze show plugin list | ze pipe match flowspec"
 Enter

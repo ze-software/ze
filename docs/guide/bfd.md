@@ -199,6 +199,16 @@ forwarding path Down, the reactor tears the BGP session with RFC 9384
 Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
 hold timer.
 
+A released session does not leave `show bfd sessions` at once when it has
+heard from its peer. It stays there in `admin-down` for three of its
+Detection Times, because RFC 5880 Section 6.8.1 says its state "MUST be
+preserved for at least one Detection Time" and Section 6.8.16 asks for
+AdminDown Control packets for at least as long. A client that asks for
+the same session inside that window revives it, discriminator included.
+
+<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, retireReleasedLocked, reviveReleasedLocked -->
+<!-- source: internal/component/bfd/session/fsm.go -- AdminDown, adminDownTransmitDetectionTimes -->
+
 Two of those sentences are about the peer WITHOUT `strict true`. A strict
 peer opens its BFD session before the BGP FSM starts and keeps it across
 every retry, releasing it only when the peer itself stops
