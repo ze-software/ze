@@ -60,7 +60,7 @@ func runAIGPSourceCostProcess(name string) error {
 			defer cancel()
 			installed, err := plugin.RouteInstall(ctx, []rpc.RouteInstallEntry{{
 				Protocol: "ospf", AFI: 1, SAFI: 1, Prefix: netip.PrefixFrom(hop, 32).String(),
-				AdminDistance: 110, Metric: uint32(metric),
+				Metric: uint32(metric),
 			}})
 			if err != nil {
 				return rpc.StatusError, nil, err
