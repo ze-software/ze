@@ -545,6 +545,40 @@ func (u *WireUpdate) NLRIIterator(addPath bool) (*NLRIIterator, error)
 ```
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct -->
 
+### Receive UPDATE coalescing
+
+The session combines consecutive legacy IPv4 announcements only after validating
+each original NLRI field, including negotiated ADD-PATH framing. Matching
+attributes reuse the pending batch's validation result. The merged NLRI and
+attributes are not validated a second time when the batch is dispatched.
+Malformed messages, MP attributes, duplicate attributes and carrier-dependent
+tunnel validation pass through individually, after the preceding valid batch.
+This preserves notification semantics, message order and original-message error
+diagnostics without disabling valid announcement coalescing.
+
+With an established receive encoding context, the configured first-AS check also
+runs before a message enters a batch. Without that prerequisite, semantic checks
+remain on the ordinary post-enforcement path rather than guessing the AS width.
+A clean NEW-speaker path uses the completed validator's AS_PATH offset. When AS4
+reconciliation is needed, its existing result is prepared once, then reused for
+encoding the eventual batch. Owned canonical values and rebindable offsets keep
+the result independent of recycled read buffers. Partial-bit normalization runs
+after semantic error diagnostics, so the error record describes the peer's input.
+
+Both readers resolve unexpected-UPDATE admission before handing a body to
+validated dispatch. A later timer transition to Idle cannot reinterpret a
+rejected UPDATE as an admitted, unclassified one. Late attribute errors from
+AS4 reconciliation or the first-AS check pass through the original-reachability
+rule before withdrawal synthesis; an originally empty MP_REACH cannot produce
+a false End-of-RIB in place of the required session reset.
+
+<!-- source: internal/component/bgp/reactor/session_coalesce.go -- readAndProcessCoalesced, flushCoalesce -->
+<!-- source: internal/component/bgp/reactor/session_validation_receive.go -- classifyRFC7606, validateRFC7606Attrs, prepareRFC7606FirstAS -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- processMessage, processValidatedMessage -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606LateAttributeError -->
+<!-- source: internal/component/bgp/wireu/aspath_collapse.go -- AS4FamilyPlan, PrepareAS4Family -->
+
+
 ---
 
 ## 4. RIB Storage Model
@@ -2398,6 +2432,40 @@ Runtime: after `config-push` applies a new config, a 30-second health window mon
 
 ---
 
+## 22. Sources and Read Views
+
+Data has two shapes, one for each kind of user.
+
+| Shape | Who uses it | Optimized for | Duplication |
+|-------|-------------|---------------|-------------|
+| Source | People and tools that edit the data: NetBox, an IRR registry, PeeringDB, the Ze config editor | Writing: normalized, each fact stored once | Not permitted |
+| Read view | A system that acts on the data: a router, a filter, a forwarding table | Reading and processing speed | Permitted when it makes processing simpler |
+
+Data moves from a source to a read view in two pull steps:
+
+1. A builder pulls from the source and writes the read view. The builder is the only component that knows the data model of the source.
+2. The consumer pulls the read view when it is ready to use it.
+
+Nothing pushes data. A source can send a notification that new data exists, but the notification only means "pull now". The consumer keeps control of the timing, so a router that is converging is not forced to change state. A pull that fails keeps the last good read view.
+
+Nobody edits a read view directly. A change goes to the source, and the builder makes the next read view. An edit to a read view is lost at the next build, or it becomes drift that nobody owns.
+
+### Inside Ze
+
+Ze applies the same pattern to the data that it pulls from the network. The configuration is the source that the operator edits. Data that Ze fetches, for example an IRR prefix list resolved through WHOIS, is a local read view of an external source. A background service keeps that read view current.
+
+The IRR filter follows this pattern. A refresh runs at `refresh-interval`, or when the operator runs `update bgp irr`. A refresh that fails, or that returns no prefixes, keeps the last known good list. The list is persisted, so a restart does not need the source.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- refreshLoop, refreshASNCtx -->
+<!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh and last-known-good persistence -->
+
+Fetching new data and applying it are two different decisions. A background service can fetch at any time. The change that it brings can then be applied immediately, at a scheduled time, or when an operator or an agent commits it. Today a successful IRR refresh is applied immediately. Holding a fetched change for a later commit or a schedule is not implemented.
+
+The fleet hub is the builder for a managed router. The hub keeps the configuration of each router, sends `config-changed` as a notification, and the router fetches the new configuration when it is ready. An external source of truth such as NetBox fits the same shape: the hub pulls from NetBox and builds the configuration of each router, and the router pulls from the hub. Ze has no NetBox builder today.
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedServer config-fetch and config-changed -->
+<!-- source: internal/component/managed/handler.go -- client config-changed handling -->
+
+---
+
 ## Related Documents
 
 - `buffer-architecture.md` - Iterators and lazy parsing
@@ -2417,4 +2485,4 @@ Runtime: after `config-push` applies a new config, a 30-second health window mon
 
 ---
 
-**Last Updated:** 2026-05-27 (Added system update backend section)
+**Last Updated:** 2026-10-08 (Added sources and read views section)
