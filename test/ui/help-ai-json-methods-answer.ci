@@ -1,0 +1,21 @@
+# Test: every method ze help ai --json publishes is one a handler registers
+# VALIDATES: AC-5 and AC-10 of spec-rpc-published-name-does-not-reach-its-handler,
+#            user story 1 -- the RPCs array the MCP tool ze_reference hands a
+#            client carries the method each handler registers, and that method
+#            carries the prefix of the subsystem that registers it
+# PREVENTS: a method built from a module file name (ze-l2tp-api:summary, which
+#           no handler answers) or a shared verb prefix (ze-show:) reaching an
+#           agent, which then calls a name that resolves to nothing
+# NOTE: one command on purpose, because an expect matches the ACCUMULATED stdout
+#       of every command in the file.
+
+cmd=foreground:seq=1:exec=ze help ai --json
+expect=exit:code=0
+
+expect=stdout:contains="wire-method": "ze-l2tp:summary"
+expect=stdout:contains="wire-method": "ze-bgp:rib-routes"
+expect=stdout:contains="wire-method": "ze-plugin:system-command-help"
+reject=stdout:pattern="wire-method": "ze-[a-z0-9-]+-api:
+reject=stdout:pattern="wire-method": "ze-(show|set|clear|delete|generate|validate|monitor):
+reject=stdout:contains="wire-method": "ze-system:
+reject=stdout:contains="wire-method": "ze-rib:show"
