@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-bgp-cmd-cache-api.yang", ZeBGPCmdCacheAPIYANG)
 	configyang.RegisterModule("ze-cli-cache-cmd.yang", ZeCliCacheCmdYANG)
 }

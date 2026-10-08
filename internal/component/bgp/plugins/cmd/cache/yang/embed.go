@@ -4,8 +4,5 @@ package yang
 
 import _ "embed"
 
-//go:embed ze-bgp-cmd-cache-api.yang
-var ZeBGPCmdCacheAPIYANG string
-
 //go:embed ze-cli-cache-cmd.yang
 var ZeCliCacheCmdYANG string
