@@ -209,7 +209,7 @@ func TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing(t *testing.T) {
 	)}
 	alone := TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: tePreference(4242)}
 
-	// RFC requirement: RFC9012-13-10 positive -- the Preference read from a TLV wrapped in unrecognized sub-TLVs is the same as from a TLV holding the Preference alone, so the TLV is processed as if they were absent
+	// RFC requirement: RFC9012-13-10 positive -- the local Preference accessor yields 4242 with unknown sub-TLVs or without them, and finds no Preference in an all-unknown TLV.
 	got, ok := surrounded.Preference()
 	require.True(t, ok)
 	want, ok := alone.Preference()
@@ -217,7 +217,8 @@ func TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing(t *testing.T) {
 	assert.Equal(t, want, got)
 	assert.Equal(t, uint32(4242), got)
 
-	// RFC requirement: RFC9012-13-10 negative -- a TLV whose sub-TLVs are all unrecognized yields nothing to process; an unrecognized sub-TLV is never mistaken for a recognized one
+	// Legal unknown sub-TLVs provide no Preference; this is another positive
+	// processing-equivalence case, not malformed unknown input.
 	onlyUnknown := TunnelTLV{TunnelType: teTunnelTypeSRPolicy, Value: teCat(
 		teShort(teSubTLVUnknownShort, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),
 		teLong(0x00, 0x00, 0x00, 0x00, 0x00, 0x00),

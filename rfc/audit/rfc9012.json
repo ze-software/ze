@@ -46,21 +46,19 @@
       "verdict": "enforced"
     },
     "RFC9012-13-10": {
-      "note": "Independent semantic rejudgment: RFC9012 Section 13: \"If a TLV of a Tunnel Encapsulation attribute contains a sub-TLV that is not recognized by a particular BGP speaker, the BGP speaker MUST process that TLV as if the unrecognized sub-TLV had not been present.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Selective rx-unknown-subtlv now executes and clean known-tunnel survives, closing the carrier admission counterfactual. Preference 4242 codec comparison is genuine but remains only a local accessor; no tunnel-processing/selection consumer proves the full as-if-absent obligation. Preserve that gap, not the obsolete malformed-fixture objection. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
+      "note": "RFC9012 Section 13 requires the containing TLV to be processed as if an unrecognized sub-TLV were absent. TestRFC9012UnknownSubTLVEndpointProcessing now compares absent controls with framed short- and long-header unknowns before, after and between endpoints across 27 cases: valid, length-invalid, registry-disallowed, duplicate and missing endpoints. It observes exact retained TLVs through original-input Session receipt, cache/export, default and MED-rebuilt socket output and downstream receipt; real received-route storage observes replacement, removal with no surviving TLV, an unaffected independent route and same-session recovery. A selective tunnelTLVLayout break stopping at unknown types 100/200 leaves absent controls passing but fails exact exported bytes and installed-target removal, including duplicate-endpoint cases with an intervening unknown; restored claim roots pass. Existing carry assertions retain admission and opaque-propagation proof. TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing separately proves local Preference accessor equivalence and absence of a Preference in an all-unknown TLV, not SRPM selection. The positive-only annotation is appropriate: unknown types are legal inputs and surrounding endpoint errors are controls for processing equivalence, not invalid unknown types. This whole conditional receive/transit obligation is enforced without claiming the absent attribute-driven tunnel-selection, encapsulation-header or SRPM consumers, which retain their separate ownership and gaps.",
       "requirement_sha": "b4333e2a81b4313c",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "efdd1728c4ed7d07",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "9c9405d666c6d458",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing#2": "9c9405d666c6d458"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012UnknownSubTLVEndpointProcessing": "8e898ec9c074ca2b",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "e8576a1ee12543a9"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "9484c16509811aa2",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "9484c16509811aa2",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "5c54113fd4e9f845",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing#2": "5c54113fd4e9f845"
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "4331bc08d9c40b95",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012UnknownSubTLVEndpointProcessing": "936e4797cfbd665a",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "1d1abdc0f6f81d1a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9012-13-11": {
       "note": "Independent semantic rejudgment: RFC9012 Section 13: \"If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized sub-TLV MUST remain in the attribute.\" The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Isolated type-200 unknown sub-TLV reception and export loss both fail the exact retained bytes; known-tunnel survives. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",

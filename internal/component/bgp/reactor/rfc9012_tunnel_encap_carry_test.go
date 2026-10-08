@@ -340,7 +340,6 @@ func tePropagationPeer(t *testing.T, address string, peerAS uint32, families ...
 // RFC requirement: RFC9012-13-9 positive -- both Embedded Label Handling occurrences reach the wire unchanged.
 // RFC requirement: RFC9012-13-9 negative -- the rebuilt UPDATE still carries both occurrences.
 // RFC requirement: RFC9012-13-10 positive -- a TLV with an unrecognized sub-TLV gets the same verdict and handling as the clean TLV without it.
-// RFC requirement: RFC9012-13-10 negative -- the dirty and clean runs differ only in the octets of the attribute itself.
 // RFC requirement: RFC9012-13-11 positive -- the unrecognized sub-TLV reaches the wire unchanged.
 // RFC requirement: RFC9012-13-11 negative -- the rebuilt UPDATE still carries it.
 // RFC requirement: RFC9012-13-12 positive -- a UDP Destination Port sub-TLV of Length 3 is handled as an unrecognized one: no action, carried.
@@ -633,4 +632,132 @@ func teRegistryEndpoint(address string) []byte {
 		afi = 1
 	}
 	return teSub(6, append([]byte{0, 0, 0, 0, 0, afi}, ip.AsSlice()...)...)
+}
+
+// TestRFC9012UnknownSubTLVEndpointProcessing compares unknown-absent controls
+// with framed unknowns before, after, and between recognized endpoints. The
+// original UPDATE reaches both export rails and the real received-route store.
+// Unknowns are legal inputs, including when the containing TLV has an invalid
+// endpoint: those endpoint errors are not malformed unknown sub-TLVs.
+// RFC 9012 Section 13: "If a TLV of a Tunnel Encapsulation attribute contains a
+// sub-TLV that is not recognized by a particular BGP speaker, the BGP speaker
+// MUST process that TLV as if the unrecognized sub-TLV had not been present."
+// MUTATION: returning size, keep on unknown type 100 or 200 in tunnelTLVLayout
+// stops before later endpoint/count checks; absent controls remain unchanged,
+// while exact retained-TLV export and installed-route withdrawal must fail.
+// RFC requirement: RFC9012-13-10 positive -- framed short and long unknown sub-TLVs leave endpoint validation, exact retained-TLV export and installed-route withdrawal identical to unknown-absent controls.
+func TestRFC9012UnknownSubTLVEndpointProcessing(t *testing.T) {
+	endpoint := teRegistryEndpoint("10.0.0.77")
+	seed := teTLV(2, endpoint, teSub(9, 1))
+	marked := teTLV(2, endpoint, teSub(9, 2))
+	short := teSub(100, 6, 0xff, 0)
+	// Both header widths carry endpoint-looking bytes that must remain opaque.
+	// Keep values within the existing storage fixture's short attribute header.
+	long := teLongSub(200, 6, 0xff, 0)
+	fam := family.IPv4Unicast
+	peer, client := tunnelStoragePeer(t, fam)
+	session := peer.currentSession()
+	route := []byte{24, 10, 30, 0}
+	control := []byte{24, 10, 31, 0}
+	controlValue := teTLV(2, teSub(6, 0, 0, 0, 0, 0, 0), teSub(99, 1))
+	// RFC 9012 Sections 3.1 and 13: the independent route remains installed.
+	tunnelStorageSend(t, client, fam, control, controlValue)
+	for _, tc := range []struct {
+		name    string
+		first   []byte
+		second  []byte
+		invalid bool
+	}{
+		{"valid", endpoint, nil, false},
+		{"length-invalid", teSub(6, 0, 0, 0, 0, 0, 1, 10, 0, 0), nil, true},
+		{"registry-disallowed", teRegistryEndpoint("192.0.2.1"), nil, true},
+		{"duplicate", endpoint, endpoint, true},
+		{"no-endpoint", nil, nil, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, placement := range []struct {
+				name    string
+				before  []byte
+				between []byte
+				after   []byte
+			}{
+				{"absent", nil, nil, nil},
+				{"short-before", short, nil, nil},
+				{"short-after", nil, nil, short},
+				{"long-before", long, nil, nil},
+				{"long-after", nil, nil, long},
+				{"short-between", nil, short, nil},
+				{"long-between", nil, long, nil},
+			} {
+				if len(placement.between) != 0 && len(tc.second) == 0 {
+					continue
+				}
+				t.Run(placement.name, func(t *testing.T) {
+					value := teTLV(2, placement.before, tc.first, placement.between, tc.second, placement.after)
+					t.Run("verdict", func(t *testing.T) {
+						want := message.RFC7606ActionNone
+						if tc.invalid {
+							want = message.RFC7606ActionTreatAsWithdraw
+						}
+						// RFC 9012 Sections 3.1 and 13.
+						_, action, err := teValidationSession().enforceRFC7606(wireu.NewWireUpdate(teCarryBody(value), 0))
+						if err != nil {
+							t.Fatal(err)
+						}
+						if action != want {
+							t.Fatalf("receive action=%v, want %v", action, want)
+						}
+					})
+					input, retained := value, value
+					if tc.invalid {
+						input = append(bytes.Clone(value), marked...)
+						retained = marked
+					}
+					for _, rebuild := range []bool{false, true} {
+						t.Run("export-rebuild="+strconv.FormatBool(rebuild), func(t *testing.T) {
+							body := teCarryBody(input)
+							original := bytes.Clone(body)
+							// RFC 9012 Section 13: receive original, unsanitized
+							// bytes before cache, policy, socket and downstream receipt.
+							attrs := teForwardedAttrs(t, body, rebuild, retained)
+							count, got := countAttrCode(attrs, uint8(attribute.AttrTunnelEncap))
+							if count != 1 || !bytes.Equal(got, retained) {
+								t.Fatalf("retained tunnel count=%d value=%x, want %x", count, got, retained)
+							}
+							if !bytes.Equal(body, original) {
+								t.Fatal("receive changed the original diagnostic buffer")
+							}
+						})
+					}
+					t.Run("storage-retained", func(t *testing.T) {
+						// RFC 9012 Section 13: first prove the target exists,
+						// then require a changed marker from this actual receive.
+						tunnelStorageSend(t, client, fam, route, seed)
+						tunnelStorageAwait(t, fam, route, control, seed, true)
+						tunnelStorageSend(t, client, fam, route, input)
+						tunnelStorageAwait(t, fam, route, control, retained, true)
+					})
+					if tc.invalid {
+						t.Run("storage-no-survivor", func(t *testing.T) {
+							// RFC 9012 Section 13: "If a Tunnel Encapsulation
+							// attribute does not have any valid TLVs, or it does
+							// not have the transitive bit set, the
+							// \"Treat-as-withdraw\" procedure of [RFC7606] is applied."
+							tunnelStorageSend(t, client, fam, route, seed)
+							tunnelStorageAwait(t, fam, route, control, seed, true)
+							tunnelStorageSend(t, client, fam, route, value)
+							tunnelStorageAwait(t, fam, route, control, nil, false)
+							// Same-session reinstall distinguishes withdrawal from
+							// session failure or rejection of every announcement.
+							tunnelStorageSend(t, client, fam, route, seed)
+							tunnelStorageAwait(t, fam, route, control, seed, true)
+						})
+					}
+					if peer.currentSession() != session || session.State() != fsm.StateEstablished {
+						t.Fatal("unknown sub-TLV processing replaced or reset the session")
+					}
+				})
+			}
+		})
+	}
 }
