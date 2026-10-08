@@ -29,4 +29,5 @@ test/
 !test/interop-l2tp/ze-linux
 !test/interop-pppoe/ze-linux
 !test/interop-radius/ze-linux
+!test/interop-rsvpte/ze-linux
 *.md

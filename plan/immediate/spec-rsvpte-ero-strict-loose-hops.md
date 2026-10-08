@@ -161,3 +161,18 @@ trimmed ERO and the LSP comes up, (2) a strict hop whose native next hop is
 outside both abstract nodes: the ingress peer receives PathErr 24/2, and (3)
 the same hop loose: the downstream peer receives the PATH with the expanded
 ERO. The carrier needs root, so it was not run in this review.
+
+## Interop status (2026-10-08): loose expansion proven at the peer, strict has no originator
+
+`./le test integration interop-rsvpte` (`internal/le/interoplab/rsvpte/`,
+catalog `rsvpte/transit-loose-ero-expansion`) runs freeRouter ingress, Ze
+transit and freeRouter egress in Docker without root.
+
+| Needed | Status |
+|--------|--------|
+| (3) loose hop expanded | Observed at the egress's own capture: the ingress sends `[Ze loose, 198.51.100.4 loose]`, the egress receives `[172.29.81.14 strict, 198.51.100.4 loose]`. Discrimination: with the replacement in `resolveExplicitPath` disabled the check goes red on the ERO (`rsvpte-run5-break.log`), restored it passes the ERO check |
+| LSP comes up | Red: Ze's transit swap install fails (EINVAL, Linux AF_MPLS refuses the path MTU `addMPLSSwap` attaches) and Ze sends ResvErr code 22, `plan/journal/kernel-refuses-what-the-installer-sends.md` |
+| (1) strict direct hop, (2) strict hop outside -> PathErr 24/2 | No originator: freeRouter encodes every ERO hop it originates as loose (`clntMplsTeP2p.workDoer`, `ipFwdTab.fillRsvpPack`, pinned revision and upstream master) |
+
+Closure needs the owner to decide the path-MTU fix and which peer originates a
+strict ERO.

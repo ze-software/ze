@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-08 | rsvp-resv-error-tear, rsvpte-ero-strict-loose-hops | `netlinkBackend.addMPLSSwap` (`internal/plugins/fib/kernel/mplsentry_linux.go`) sets `netlink.Route.MTU` on every AF_MPLS swap with a non-zero `PathMTU` | A stock 6.8 kernel refuses RTA_METRICS on AF_MPLS (`ip -f mpls route add ... mtu 1400`: "Unknown attribute"), so in `interop-rsvpte/transit-loose-ero-expansion` the transit swap fails EINVAL and Ze sends ResvErr 22 instead of a RESV: no Ze transit LSP comes up | Open: a parallel session adds a kernel capability probe. Blocks both specs' transit interop |

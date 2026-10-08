@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab/l2tp"
 	"github.com/ze-software/ze/internal/le/interoplab/pppoe"
 	"github.com/ze-software/ze/internal/le/interoplab/radius"
+	"github.com/ze-software/ze/internal/le/interoplab/rsvpte"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -31,6 +32,7 @@ func declaredBinaries() []interoplab.LabBinary {
 	all = append(all, l2tp.LabBinaries()...)
 	all = append(all, pppoe.LabBinaries()...)
 	all = append(all, radius.LabBinaries()...)
+	all = append(all, rsvpte.LabBinaries()...)
 	return all
 }
 

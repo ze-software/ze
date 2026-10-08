@@ -1,6 +1,11 @@
-# Build/export only. Runtime is Java 21 plus tapInt.bin in the Linux guest.
-# freeRouter and its unchanged TAP helper are CC BY-SA 4.0; retain /peer/NOTICE
-# and /peer/source.tar.gz when redistributing these artifacts.
+# Two products from one pinned build.
+#
+# The default (last) stage is the peer image of the `rsvpte` interop suite
+# (internal/le/interoplab/rsvpte): Java 21, the jar, rawInt.bin bound to the
+# container's eth0, and tcpdump, which records the RSVP the peer receives.
+# `--target export` writes /peer for the root-only guest carrier instead.
+# freeRouter and its unchanged interface helpers are CC BY-SA 4.0; retain
+# /peer/NOTICE and /peer/source.tar.gz when redistributing these artifacts.
 FROM alpine:3.21.3 AS build
 RUN apk add --no-cache ca-certificates curl openjdk21-jdk build-base linux-headers zip
 WORKDIR /src/freertr
@@ -12,10 +17,11 @@ RUN curl --fail --location --output /tmp/source.tar.gz \
 WORKDIR /src/freertr/src
 RUN mkdir -p ../binOut && javac @compiler.txt && sh cp.sh
 WORKDIR /src/freertr
-# Upstream misc/iface/c.sh uses pthreads for tapInt; static musl permits the
-# resulting executable to run directly in the Alpine guest.
+# Upstream misc/iface/c.sh uses pthreads for tapInt and rawInt; static musl
+# permits the resulting executables to run directly in an Alpine guest.
 RUN mkdir -p /peer \
     && cc -O2 -static -pthread -o /peer/tapInt.bin misc/iface/tapInt.c \
+    && cc -O2 -static -pthread -o /peer/rawInt.bin misc/iface/rawInt.c \
     && cp src/rtr.jar /peer/rtr.jar \
     && cp /tmp/source.tar.gz /peer/source.tar.gz \
     && cp readme.md /peer/upstream-readme.md \
@@ -23,6 +29,11 @@ RUN mkdir -p /peer \
     && printf '%s\n' 6c295d8ae79c834ef631d3d21d373c335fb05328 > /peer/REVISION
 COPY NOTICE /peer/NOTICE
 WORKDIR /peer
-RUN sha256sum rtr.jar tapInt.bin > SHA256SUMS
-FROM scratch
+RUN sha256sum rtr.jar tapInt.bin rawInt.bin > SHA256SUMS
+FROM scratch AS export
 COPY --from=build /peer /peer
+FROM alpine:3.21.3
+RUN apk add --no-cache openjdk21-jre-headless iproute2 tcpdump tini
+COPY --from=build /peer /peer
+COPY run-freertr.sh /peer/run-freertr.sh
+ENTRYPOINT ["tini", "--", "sh", "/peer/run-freertr.sh"]

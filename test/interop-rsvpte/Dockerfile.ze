@@ -1,0 +1,18 @@
+# Ze transit image for the rsvpte interop suite.
+#
+# It expects a pre-built linux binary at test/interop-rsvpte/ze-linux, which
+# `./le test integration interop-rsvpte` cross-compiles before it builds this
+# image (internal/le/interoplab/zebuild.go, StageBinaries, declared by
+# internal/le/interoplab/rsvpte/rsvpte.go, LabBinaries). The producer derives
+# the build tags from feature-gates.txt, so this file names none.
+#
+# The scenario's ze-setup.sh enables MPLS in the container's namespace and adds
+# its routes, then execs the daemon. tcpdump records the RSVP Ze exchanges.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini iproute2 tcpdump
+
+COPY test/interop-rsvpte/ze-linux /usr/local/bin/ze
+
+ENTRYPOINT ["tini", "--"]

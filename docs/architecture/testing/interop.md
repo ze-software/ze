@@ -21,8 +21,9 @@ This page is the infrastructure it is owed against.
 | L2TP | Docker | `test/interop-l2tp/` | `./le test deployment l2tp-test`, and `./le test deployment l2tp-ppp-test` for the full PPP and NCP path |
 | PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le test deployment docker-pppoe-accel-test` |
 | RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le test integration interop-radius` |
+| RSVP-TE (Ze as transit) | Docker: freeRouter, ingress and egress | `test/interop-rsvpte/scenarios/` | `./le test integration interop-rsvpte` |
 
-<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec and interop-radius verbs -->
+<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
 
 Every suite discovers its scenarios the same way. `Discover`
@@ -884,6 +885,40 @@ as evidence.
 <!-- source: internal/le/interoplab/radius/radius.go -- the suite, its pinned image, its peers and its probes -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
 <!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
+
+### The freeRouter RSVP-TE suite
+
+`internal/le/interoplab/rsvpte/` puts Ze between two freeRouter nodes on one
+Docker segment, `172.29.81.0/24`: the ingress at `.12` with loopback
+`198.51.100.2`, Ze at `.3`, the egress at `.14` with loopback `198.51.100.4`.
+The addresses are fixed because the freeRouter configurations and Ze's routes
+in each scenario directory name them. Each freeRouter owns its own IPv4 stack
+and MAC: `test/interop-rsvpte/run-freertr.sh` makes the container's `eth0`
+promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
+suite needs Docker and privileged containers, never host root, a TAP device or
+a network namespace. Ze's container is privileged because it programs MPLS
+labels; the preflight loads `mpls_router` and refuses a host kernel without it.
+
+Every assertion reads what a peer received. Each freeRouter container runs
+`tcpdump -vvv` on its `eth0`, and the checker parses that text: a message Ze
+logs as sent counts for nothing until the peer's capture holds it.
+
+| Scenario | What the peers observe |
+|----------|------------------------|
+| `transit-loose-ero-expansion` | The ingress signals `[Ze loose, egress loopback loose]`. Ze's native route to the loopback runs through `.14`, which no subobject names, so the PATH the egress captures carries `.14` ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label, and Ze's MPLS table holds a swap via `.14` |
+
+The pinned freeRouter originates only PATH, PathTear and RESV. It relays
+PathErr, ResvErr and ResvTear but never originates them, encodes every ERO
+subobject it originates as loose (`clntMplsTeP2p.workDoer`,
+`ipFwdTab.fillRsvpPack`), signals one fixed bandwidth for the life of an LSP,
+and sends only fixed-filter RESVs naming its own sender. Strict-hop handling,
+a peer ResvErr or ResvTear, an in-place bandwidth increase and a multi-sender
+fixed-filter RESV therefore have no freeRouter originator, and no scenario here
+claims them.
+
+<!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
+<!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
+<!-- source: test/interop-rsvpte/run-freertr.sh -- freeRouter on eth0 through rawInt.bin -->
 
 ### Typed checker operations
 

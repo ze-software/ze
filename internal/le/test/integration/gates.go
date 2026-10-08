@@ -144,6 +144,13 @@ func Table() []Action {
 				" scenario under test/interop-radius/scenarios/. Needs Docker and no" +
 				" kernel module. RADIUS_INTEROP_SCENARIO=<name> runs one scenario",
 		},
+		{
+			Verb:   "interop-rsvpte",
+			Native: runRSVPTEInterop,
+			Why: "RSVP-TE interop with Ze as transit between two freeRouter nodes, every" +
+				" scenario under test/interop-rsvpte/scenarios/. Needs Docker, privileged" +
+				" containers and host MPLS routing. RSVPTE_INTEROP_SCENARIO=<name> runs one scenario",
+		},
 		// ── Stress ───────────────────────────────────────────────────────
 		{
 			Verb:   StressAction,

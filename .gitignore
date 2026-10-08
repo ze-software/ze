@@ -130,6 +130,7 @@ test/interop-ipsec/ze-linux
 test/interop-l2tp/ze-linux
 test/interop-pppoe/ze-linux
 test/interop-radius/ze-linux
+test/interop-rsvpte/ze-linux
 
 # Runtime / scratch artifacts that leak into the working tree from running ze
 /stderr

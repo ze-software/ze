@@ -194,3 +194,26 @@ InPlace and the old reservation keeps forwarding, (2) a peer ResvErr is relayed
 to the egress, (3) a peer ResvTear reaches the ingress and removes Ze's swap
 route, (4) an FF Resv with one unknown sender yields one ResvErr while the good
 LSP stays up. The carrier needs root, so it was not run in this review.
+
+## Interop status (2026-10-08): no freeRouter originator for any required exchange
+
+The Docker suite now exists without root: `./le test integration interop-rsvpte`
+(`internal/le/interoplab/rsvpte/`, catalog suite `rsvpte`), freeRouter ingress,
+Ze transit, freeRouter egress, every assertion read from a peer's tcpdump
+capture. It cannot carry this spec's four exchanges, because the pinned
+freeRouter (and upstream master) never originates them:
+
+| Needed | freeRouter source | Why no originator |
+|--------|-------------------|-------------------|
+| (1) Ze ResvErr with InPlace on an increase | `clntMplsTeP2p.workDoer` sets `trfEng.bwdt` once per LSP | A bandwidth change re-signals a new LSP with a new LSP-ID, so no reservation is ever increased in place |
+| (2) peer ResvErr relayed to the egress | `rtrRsvpIface.recvPack` | ResvErr, ResvTear and PathErr are only relayed; on ResvErr an egress drops its own state |
+| (3) peer ResvTear to the ingress | `rtrRsvpIface.recvPack` | Same: relayed, never originated |
+| (4) FF Resv with an unknown sender | `rtrRsvpIface.recvPack` egress branch | Every RESV names its own one sender, style 0x12 |
+
+The suite also exposed a Ze defect that blocks any transit LSP: the transit
+swap install fails with EINVAL because Linux AF_MPLS refuses the path MTU
+`addMPLSSwap` attaches (`plan/journal/kernel-refuses-what-the-installer-sends.md`),
+and Ze answers the egress RESV with ResvErr code 22. Closure needs two owner
+decisions: how a transit enforces path MTU, and which peer originates the four
+exchanges (patch freeRouter in the image, route a second Ze through a freeRouter
+relay so freeRouter's encoding reaches Ze, or another implementation).
