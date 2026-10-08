@@ -1,5 +1,5 @@
 # Test: show capture interface error paths
-# Exercises: dispatch-command -> ze-show:capture-interface -> handleCaptureInterface
+# Exercises: dispatch-command -> ze-diag:show-capture-interface -> handleCaptureInterface
 # Verifies: AC-5 (invalid interface), AC-6 (parse errors via missing args)
 
 stdin=peer:terminator=EOF_PEER

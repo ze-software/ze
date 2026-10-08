@@ -138,10 +138,10 @@ func lookupPTR(ctx context.Context, resolver *net.Resolver, name string) ([]stri
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-lookup", Handler: handleDNSLookup},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-cache-stats", Handler: handleDNSCacheStats},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-cache-list", Handler: handleDNSCacheList},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:dns-cache-record", Handler: handleDNSCacheRecord},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:show-dns-lookup", Handler: handleDNSLookup},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:show-dns-cache-stats", Handler: handleDNSCacheStats},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:show-dns-cache-list", Handler: handleDNSCacheList},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:show-dns-cache-record", Handler: handleDNSCacheRecord},
 	)
 }
 

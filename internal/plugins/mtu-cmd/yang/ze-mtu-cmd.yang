@@ -15,7 +15,7 @@ module ze-mtu-cmd {
 
         container mtu {
             config false;
-            ze:command "ze-show:mtu";
+            ze:command "ze-mtu:show-mtu";
             description "Measures the path MTU to every configured IPsec peer and to the reference
 address, derives the ESP ceiling of each tunnel from its negotiated transform,
 and reports whether each tunnel interface is oversized, tight, under-utilized

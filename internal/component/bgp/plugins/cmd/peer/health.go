@@ -18,7 +18,7 @@ func init() {
 	registerHealthShape()
 
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:bgp-health", Handler: handleShowBGPHealth},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:show-health", Handler: handleShowBGPHealth},
 	)
 }
 

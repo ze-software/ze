@@ -7,7 +7,7 @@ import (
 
 func TestAAACmdSchemaOwnsShowCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:aaa-accounting"`,
+		`ze:command "ze-aaa:show-accounting"`,
 		`clishowcmd:show`,
 		"container aaa",
 	} {

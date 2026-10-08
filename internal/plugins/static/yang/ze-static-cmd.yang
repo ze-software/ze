@@ -13,7 +13,7 @@ module ze-static-cmd {
 
         container static {
             config false;
-            ze:command "ze-show:static";
+            ze:command "ze-static:show-static";
             description "Lists each static route with its prefix, next-hop, and interface.";
             ze:help "Show static routes defined in the configuration.";
         }

@@ -12,7 +12,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-clear:interface-counters",
+			WireMethod: "ze-iface:clear-interface-counters",
 			Handler:    handleClearInterfaceCounters,
 		},
 	)

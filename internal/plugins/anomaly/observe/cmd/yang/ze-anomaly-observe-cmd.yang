@@ -24,7 +24,7 @@ module ze-anomaly-observe-cmd {
 
             container observe {
                 config false;
-                ze:command "ze-show:anomaly-observe";
+                ze:command "ze-anomaly:show-observe";
                 description "Per incident: the source entity, cohort, fired features with their
 deviation z-scores, combined score, severity, start time, end time, and whether
 it is still active. Finalized incidents stay in the list, so this shows a

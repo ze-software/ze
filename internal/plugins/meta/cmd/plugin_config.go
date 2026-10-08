@@ -19,9 +19,9 @@ var (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-encoding", Handler: handleBgpPluginEncoding},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-format", Handler: handleBgpPluginFormat},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-ack", Handler: handleBgpPluginAck},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-plugin-encoding", Handler: handleBgpPluginEncoding},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-plugin-format", Handler: handleBgpPluginFormat},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-plugin-ack", Handler: handleBgpPluginAck},
 	)
 }
 

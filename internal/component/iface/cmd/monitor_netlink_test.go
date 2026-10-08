@@ -48,16 +48,16 @@ func TestNetlinkMonitorDetectedAsStreaming(t *testing.T) {
 func TestNetlinkMonitorRPCRegistered(t *testing.T) {
 	found := false
 	for _, r := range pluginserver.AllBuiltinRPCs() {
-		if r.WireMethod == "ze-monitor:system-netlink" {
+		if r.WireMethod == "ze-iface:monitor-system-netlink" {
 			if r.Handler == nil {
-				t.Error("ze-monitor:system-netlink handler must not be nil")
+				t.Error("ze-iface:monitor-system-netlink handler must not be nil")
 			}
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatal("ze-monitor:system-netlink not registered via pluginserver.RegisterRPCs")
+		t.Fatal("ze-iface:monitor-system-netlink not registered via pluginserver.RegisterRPCs")
 	}
 }
 

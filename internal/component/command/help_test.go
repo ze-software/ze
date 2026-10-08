@@ -32,7 +32,7 @@ func testVerbTree() *Node {
 					"system": {
 						Name: "system",
 						Children: map[string]*Node{
-							"file-descriptors": {Name: "file-descriptors", ShortHelp: "Raise file descriptor limit", WireMethod: "ze-set:system-file-descriptors"},
+							"file-descriptors": {Name: "file-descriptors", ShortHelp: "Raise file descriptor limit", WireMethod: "ze-host:set-system-file-descriptors"},
 						},
 					},
 				},
@@ -44,7 +44,7 @@ func testVerbTree() *Node {
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"rib": {Name: "rib", ShortHelp: "Clear RIB state", WireMethod: "ze-rib-api:clear-in"},
+							"rib": {Name: "rib", ShortHelp: "Clear RIB state", WireMethod: "ze-bgp:rib-clear-in"},
 						},
 					},
 				},
@@ -56,7 +56,7 @@ func testVerbTree() *Node {
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"peer": {Name: "peer", ShortHelp: "Remove a peer dynamically", WireMethod: "ze-delete:bgp-peer"},
+							"peer": {Name: "peer", ShortHelp: "Remove a peer dynamically", WireMethod: "ze-bgp:delete-peer"},
 						},
 					},
 				},
@@ -68,7 +68,7 @@ func testVerbTree() *Node {
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"rib": {Name: "rib", ShortHelp: "Request RIB action", WireMethod: "ze-rib-api:inject"},
+							"rib": {Name: "rib", ShortHelp: "Request RIB action", WireMethod: "ze-bgp:rib-inject"},
 						},
 					},
 				},
@@ -418,7 +418,7 @@ func TestHelpListingIsTheDeclaredSummaryByteForByte(t *testing.T) {
 func TestHelpDoesNotListAChoiceGroupAsASubcommand(t *testing.T) {
 	node := &Node{
 		Name:       "peer",
-		WireMethod: "ze-show:policy-chain",
+		WireMethod: "ze-bgp:show-policy-chain",
 		ShortHelp:  "Show the import/export filter chain applied to a peer.",
 		Children: map[string]*Node{
 			"direction": {

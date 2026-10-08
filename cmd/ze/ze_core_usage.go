@@ -71,7 +71,7 @@ func zeUsage() {
 			"ze --plugin ze.hostname -            Start with hostname plugin, config on stdin",
 			"ze show plugin list                  List the plugins in this build",
 			"ze help ai                           AI reference (commands, RPCs, MCP tools)",
-			"ze help ai api                       Daemon API endpoints (ze-show:*, ...)",
+			"ze help ai api                       Daemon API endpoints (ze-bgp:*, ...)",
 			"ze cli                               Interactive CLI",
 			"ze show bgp peer list                Show peer list",
 			"ze show help                         List available show commands",

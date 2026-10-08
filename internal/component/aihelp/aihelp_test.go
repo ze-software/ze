@@ -23,8 +23,8 @@ import (
 func TestReferenceJSONShape(t *testing.T) {
 	ref := Reference{
 		Commands:     []CLICommand{{Name: "show", Mode: "read-only", ShortHelp: "Show state", Subs: "ze show help"}},
-		RPCs:         []RPC{{WireMethod: "ze-show:version", ShortHelp: "Show version"}, {WireMethod: "ze-show:uptime"}},
-		DispatchKeys: map[string]string{"ze-show:version": "show version"},
+		RPCs:         []RPC{{WireMethod: "ze-cmd:show-version", ShortHelp: "Show version"}, {WireMethod: "ze-cmd:show-uptime"}},
+		DispatchKeys: map[string]string{"ze-cmd:show-version": "show version"},
 		Plugins:      []Plugin{{Name: "bgp", Description: "core", Families: []string{"ipv4/unicast"}}},
 		Families:     []string{"ipv4/unicast"},
 		Services:     []ServiceRef{{Name: "web", Leaves: []string{"listen"}}},
@@ -40,8 +40,8 @@ func TestReferenceJSONShape(t *testing.T) {
 	}
 
 	s := string(data)
-	assert.Contains(t, s, `"wire-method":"ze-show:version"`)
-	assert.Contains(t, s, `"dispatch-keys":{"ze-show:version":"show version"}`)
+	assert.Contains(t, s, `"wire-method":"ze-cmd:show-version"`)
+	assert.Contains(t, s, `"dispatch-keys":{"ze-cmd:show-version":"show version"}`)
 }
 
 // TestBuildRunsAndInitializesDispatchKeys verifies Build assembles from the live

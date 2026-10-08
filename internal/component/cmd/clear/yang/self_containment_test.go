@@ -7,14 +7,14 @@ import (
 
 func TestClearOwnerRemovalLeavesNoResidue(t *testing.T) {
 	banned := map[string]string{
-		`"ze-clear:vpn-ipsec-sa"`:       "IPsec clear -> internal/component/ike/yang",
-		`"ze-clear:dns-cache"`:          "DNS cache clear -> internal/plugins/resolve-cmd/yang",
-		`"ze-clear:interface-counters"`: "interface counters clear -> internal/component/iface/yang",
+		`"ze-ike:clear-vpn-ipsec-sa"`:       "IPsec clear -> internal/component/ike/yang",
+		`"ze-resolve:clear-dns-cache"`:          "DNS cache clear -> internal/plugins/resolve-cmd/yang",
+		`"ze-iface:clear-interface-counters"`: "interface counters clear -> internal/component/iface/yang",
 		`"ze-l2tp-api:`:                 "L2TP clear -> internal/component/l2tp/cmd (already owned)",
-		`"ze-clear:isis-adjacency"`:     "IS-IS adjacency clear -> internal/plugins/isis/yang",
-		`"ze-clear:isis-counters"`:      "IS-IS counters clear -> internal/plugins/isis/yang",
+		`"ze-isis:clear-adjacency"`:     "IS-IS adjacency clear -> internal/plugins/isis/yang",
+		`"ze-isis:clear-counters"`:      "IS-IS counters clear -> internal/plugins/isis/yang",
 		`"ze-clear:ospf-`:               "OSPF clear -> internal/plugins/ospf/yang",
-		`"ze-clear:vrrp-statistics"`:    "VRRP statistics clear -> internal/plugins/vrrp/yang",
+		`"ze-vrrp:clear-statistics"`:    "VRRP statistics clear -> internal/plugins/vrrp/yang",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliClearCmdYANG, token) {

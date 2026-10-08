@@ -307,6 +307,7 @@ module ze-fixture-cmd {
     container sockets {
       config false;
       ze:command "ze-fixture:sockets";
+      ze:rpc "ze-fixture-api:sockets";
       ze:help "List the open sockets.";
     }
   }

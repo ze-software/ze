@@ -51,7 +51,7 @@ This directory contains user guides, feature inventories, implementation referen
 | Registered plugins | `./ze show plugin list` |
 | All commands | `./ze help command` (filterable, `--json` for tooling) |
 | Root CLI verbs | `./ze help ai` |
-| Daemon API endpoints | `./ze help ai api` (`ze-show:*`, `ze-set:*`, ...) |
+| Daemon API endpoints | `./ze help ai api` (`ze-bgp:*`, `ze-iface:*`, ...) |
 | YANG modules | `./ze schema list` |
 | Config validity | `./ze config validate <file>` |
 | Feature status | `docs/features.md` plus source anchors |

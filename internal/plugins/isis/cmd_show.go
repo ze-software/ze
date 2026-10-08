@@ -13,8 +13,8 @@
 // in the registry. The handler then forwards straight to the plugin process
 // through ForwardToPlugin -- it must NOT re-Dispatch the command string, which
 // would re-match this same builtin and recurse until the stack overflows. Both
-// the show methods (ze-show:isis-*) and the clear actions (ze-clear:isis-*) are
-// CENTRAL-namespace RPCs registered here in Go (no per-component ze-isis-api
+// the show methods (ze-isis:show-*) and the clear actions (ze-isis:clear-*) are
+// builtin RPCs under the isis prefix, registered here in Go (no per-component ze-isis-api
 // module); the owner command YANG (yang/ze-isis-cmd.yang) ships the command-tree
 // nodes that bind them. Owned by the isis component so removing it removes the
 // `show isis ...` / `clear isis ...` commands, their schema, and these handlers
@@ -46,16 +46,16 @@ const (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:isis-neighbor", Handler: forwardShowNeighbor, PluginCommand: cmdShowNeighbor},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:isis-database", Handler: forwardShowDatabase, PluginCommand: cmdShowDatabase},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:isis-database-detail", Handler: forwardShowDatabaseDetail, PluginCommand: cmdShowDatabaseDetail},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:isis-route", Handler: forwardShowRoute, PluginCommand: cmdShowRoute},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:isis-route-ipv6", Handler: forwardShowRouteIPv6, PluginCommand: cmdShowRouteIPv6},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:isis-interface", Handler: forwardShowInterface, PluginCommand: cmdShowInterface},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:isis-hostname", Handler: forwardShowHostname, PluginCommand: cmdShowHostname},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:isis-spf-log", Handler: forwardShowSPFLog, PluginCommand: cmdShowSPFLog},
-		pluginserver.RPCRegistration{WireMethod: "ze-clear:isis-adjacency", Handler: forwardClearAdjacency, PluginCommand: cmdClearAdjacency},
-		pluginserver.RPCRegistration{WireMethod: "ze-clear:isis-counters", Handler: forwardClearCounters, PluginCommand: cmdClearCounters},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:show-neighbor", Handler: forwardShowNeighbor, PluginCommand: cmdShowNeighbor},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:show-database", Handler: forwardShowDatabase, PluginCommand: cmdShowDatabase},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:show-database-detail", Handler: forwardShowDatabaseDetail, PluginCommand: cmdShowDatabaseDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:show-route", Handler: forwardShowRoute, PluginCommand: cmdShowRoute},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:show-route-ipv6", Handler: forwardShowRouteIPv6, PluginCommand: cmdShowRouteIPv6},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:show-interface", Handler: forwardShowInterface, PluginCommand: cmdShowInterface},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:show-hostname", Handler: forwardShowHostname, PluginCommand: cmdShowHostname},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:show-spf-log", Handler: forwardShowSPFLog, PluginCommand: cmdShowSPFLog},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:clear-adjacency", Handler: forwardClearAdjacency, PluginCommand: cmdClearAdjacency},
+		pluginserver.RPCRegistration{WireMethod: "ze-isis:clear-counters", Handler: forwardClearCounters, PluginCommand: cmdClearCounters},
 	)
 }
 

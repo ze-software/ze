@@ -27,7 +27,7 @@ func TestEveryRPCHasYANGPath(t *testing.T) {
 	wireToPath := buildTestWireToPath()
 
 	for _, reg := range pluginserver.AllBuiltinRPCs() {
-		if strings.HasPrefix(reg.WireMethod, "ze-editor:") {
+		if strings.HasPrefix(reg.WireMethod, "ze-cli:editor-") {
 			continue
 		}
 		path := wireToPath[reg.WireMethod]

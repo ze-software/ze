@@ -21,8 +21,8 @@ var (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:subscribe", Handler: handleSubscribe},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:unsubscribe", Handler: handleUnsubscribe},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:bgp-subscribe", Handler: handleSubscribe},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:bgp-unsubscribe", Handler: handleUnsubscribe},
 	)
 }
 

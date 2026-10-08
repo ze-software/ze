@@ -19,7 +19,7 @@ module ze-ldp-cmd {
 
             container neighbor {
                 config false;
-                ze:command "ze-show:ldp-neighbor";
+                ze:command "ze-ldp:show-neighbor";
                 description "Returns peer address, transport address, session state, and hold time for each
 LDP neighbor.";
                 ze:help "Show LDP neighbors and their session state.";
@@ -27,7 +27,7 @@ LDP neighbor.";
 
             container binding {
                 config false;
-                ze:command "ze-show:ldp-binding";
+                ze:command "ze-ldp:show-binding";
                 description "Lists local and remote label bindings for each FEC (prefix). Use this to
 verify label distribution is working.";
                 ze:help "Show LDP FEC-to-label bindings.";

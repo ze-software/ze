@@ -21,7 +21,7 @@ module ze-vrrp-cmd {
     augment "/clishowcmd:show" {
         container vrrp {
             config false;
-            ze:command "ze-show:vrrp";
+            ze:command "ze-vrrp:show-vrrp";
             description "Per router: its group name, VRID, address family, state (initialize,
 backup, master), configured and effective priority, virtual addresses, and the
 macvlan device that carries the virtual MAC.";
@@ -36,7 +36,7 @@ macvlan device that carries the virtual MAC.";
 
                 container name {
                     config false;
-                    ze:command "ze-show:vrrp-interface";
+                    ze:command "ze-vrrp:show-interface";
                     description "Pass the interface name: show vrrp interface name <interface>.";
                     ze:help "Show the VRRP virtual routers on one parent interface.";
 
@@ -52,7 +52,7 @@ accepted from a programmatic sender.";
 
             container statistics {
                 config false;
-                ze:command "ze-show:vrrp-statistics";
+                ze:command "ze-vrrp:show-statistics";
                 description "Advertisements sent and received, priority-zero advertisements,
 gratuitous ARP and unsolicited neighbor advertisement bursts,
 receive-validation errors by reason, and the derived skew and master-down
@@ -71,7 +71,7 @@ timers in microseconds (a VRRPv3 skew is sub-millisecond).";
 
             container statistics {
                 config false;
-                ze:command "ze-clear:vrrp-statistics";
+                ze:command "ze-vrrp:clear-statistics";
                 description "Protocol state is untouched: clearing counters never triggers a failover.";
                 ze:help "Reset every VRRP virtual router's counters to zero.";
             }

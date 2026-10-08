@@ -11,7 +11,7 @@ module ze-doctor-cmd {
 
         container doctor {
             config false;
-            ze:command "ze-show:doctor";
+            ze:command "ze-doctor:show-doctor";
             description "Verifies runtime dependencies: required files, sockets,
 ports, and kernel modules. Each check reports pass or fail with a reason. Run
 this before first start or after changing the platform setup.";

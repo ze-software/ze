@@ -18,7 +18,7 @@ module ze-ddos-flowspec-cmd {
 
             container flowspec {
                 config false;
-                ze:command "ze-show:ddos-flowspec";
+                ze:command "ze-ddos:show-flowspec";
                 description "The status names whether a rule is announced now, the
 target vector that rule covers, and whether the leak-probe is running.";
                 ze:help "Show the upstream FlowSpec and RTBH DDoS mitigation status.";

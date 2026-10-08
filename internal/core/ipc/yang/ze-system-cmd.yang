@@ -27,7 +27,7 @@ daemon rather than the config.";
 
         container help {
             config false;
-            ze:command "ze-system:help";
+            ze:command "ze-plugin:system-help";
             ze:rpc "ze-system-api:help";
             description "The list carries the built-in commands first, then the commands the plugins
 registered, each written as 'name - description'. A plugin command marked
@@ -38,7 +38,7 @@ instead.";
 
         container dispatch {
             config false;
-            ze:command "ze-system:dispatch";
+            ze:command "ze-plugin:system-dispatch";
             ze:rpc "ze-system-api:dispatch";
             description "Ze joins the words after the keyword into one command string and runs it
 through the text dispatcher the CLI uses. A plugin command is reachable this
@@ -55,7 +55,7 @@ change at different times.";
 
             container software {
                 config false;
-                ze:command "ze-system:version-software";
+                ze:command "ze-plugin:system-version-software";
                 ze:rpc "ze-system-api:version-software";
                 description "The answer carries a version key and a build-date key. Both come from the
 values the build stamped into the binary, so a daemon that was never rebuilt
@@ -65,7 +65,7 @@ reports the same pair after a restart.";
 
             container api {
                 config false;
-                ze:command "ze-system:version-api";
+                ze:command "ze-plugin:system-version-api";
                 ze:rpc "ze-system-api:version-api";
                 description "The answer carries one version key. It holds the IPC protocol number that the
 daemon and its clients agree on, and it is not the ze software version.";
@@ -81,7 +81,7 @@ started, and the process manager owns that set.";
 
             container list {
                 config false;
-                ze:command "ze-system:subsystem-list";
+                ze:command "ze-plugin:system-subsystem-list";
                 ze:rpc "ze-system-api:subsystem-list";
                 description "Each row carries the process name, its stage, a running flag and a command
 count. The command count comes from the dispatcher registry, which is what
@@ -98,7 +98,7 @@ dispatcher, so a command missing from one is missing from the other two.";
 
             container list {
                 config false;
-                ze:command "ze-system:command-list";
+                ze:command "ze-plugin:system-command-list";
                 ze:rpc "ze-system-api:command-list";
                 description "The rows carry the built-in commands first, then the commands the plugins
 registered. Each row carries the command name, its summary and its long
@@ -108,7 +108,7 @@ explanation. Add the word verbose to put the source of each row beside it.";
 
             container help {
                 config false;
-                ze:command "ze-system:command-help";
+                ze:command "ze-plugin:system-command-help";
                 ze:rpc "ze-system-api:command-help";
                 description "The answer carries command, short-help, description and source. A command a
 plugin registered also carries args and its timeout. An unknown name fails
@@ -125,7 +125,7 @@ neither registry fails with unknown command.";
 
             container complete {
                 config false;
-                ze:command "ze-system:command-complete";
+                ze:command "ze-plugin:system-command-complete";
                 ze:rpc "ze-system-api:command-complete";
                 description "Ze completes a command NAME from the partial text. Write 'args' before the
 command name to complete an ARGUMENT of that command instead, in the form
@@ -149,7 +149,7 @@ case-insensitive prefix, and a prefix that matches nothing answers an empty list
 
         container status {
             config false;
-            ze:command "ze-system:daemon-status";
+            ze:command "ze-plugin:system-daemon-status";
             ze:rpc "ze-system-api:daemon-status";
             description "The answer carries the uptime, the peer count and the daemon start time. This
 command needs a running reactor, so a daemon that has none refuses it.";
@@ -164,7 +164,7 @@ command needs a running reactor, so a daemon that has none refuses it.";
 
         container shutdown {
             config false;
-            ze:command "ze-system:daemon-shutdown";
+            ze:command "ze-plugin:system-daemon-shutdown";
             ze:rpc "ze-system-api:daemon-shutdown";
             description "Ze writes the accepted answer first and stops after, so teardown cannot close
 the requesting connection under its own reply. The answer message is 'shutdown
@@ -175,7 +175,7 @@ SIGTERM triggers.";
 
         container reboot {
             config false;
-            ze:command "ze-system:daemon-reboot";
+            ze:command "ze-plugin:system-daemon-reboot";
             ze:rpc "ze-system-api:daemon-reboot";
             description "Ze writes the accepted answer first, then runs the reboot. The answer message
 is 'reboot initiated'. A daemon with no reboot function configured fails with
@@ -185,7 +185,7 @@ is 'reboot initiated'. A daemon with no reboot function configured fails with
 
         container halt {
             config false;
-            ze:command "ze-system:daemon-quit";
+            ze:command "ze-plugin:system-daemon-quit";
             ze:rpc "ze-system-api:daemon-quit";
             description "Ze writes every goroutine stack through the daemon logger at warning
 level, with a 1 MB buffer, and then stops. Use it where a daemon is stuck
@@ -195,7 +195,7 @@ and the stacks are the evidence.";
 
         container reload {
             config false;
-            ze:command "ze-system:daemon-reload";
+            ze:command "ze-plugin:system-daemon-reload";
             ze:rpc "ze-system-api:daemon-reload";
             description "Ze reads the config from disk, verifies it with every plugin that asked for
 the config roots, and then applies it to each. Every plugin verifies before
@@ -206,7 +206,7 @@ any plugin applies. A failure at any step answers 'reload failed:
 
         container quiesce {
             config false;
-            ze:command "ze-system:quiesce";
+            ze:command "ze-plugin:system-quiesce";
             ze:rpc "ze-system-api:quiesce";
             description "It is a test and operator barrier that replaces a fixed sleep.";
             ze:help "Block until every subsystem has drained pending async work, then reply.";

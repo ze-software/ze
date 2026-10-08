@@ -9,7 +9,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-data:backup", Handler: handleDataBackup},
-		pluginserver.RPCRegistration{WireMethod: "ze-data:restore", Handler: handleDataRestore},
+		pluginserver.RPCRegistration{WireMethod: "ze-config:data-backup", Handler: handleDataBackup},
+		pluginserver.RPCRegistration{WireMethod: "ze-config:data-restore", Handler: handleDataRestore},
 	)
 }

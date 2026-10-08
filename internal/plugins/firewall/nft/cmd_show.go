@@ -24,11 +24,11 @@ const showFirewallRulesetCommand = "show firewall ruleset"
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:firewall-ruleset",
+			WireMethod: "ze-firewall:show-ruleset",
 			Handler:    handleShowFirewallRuleset,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:firewall-group",
+			WireMethod: "ze-firewall:show-group",
 			Handler:    handleShowFirewallGroup,
 		},
 	)

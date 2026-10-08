@@ -615,13 +615,13 @@ func TestBuildSchemaRegistryRPCs(t *testing.T) {
 
 	// Verify key RPCs from each module
 	expected := []string{
-		"ze-bgp:peer-list", "ze-bgp:help",
-		"ze-bgp:subscribe", "ze-bgp:unsubscribe", "ze-bgp:commit",
-		"ze-system:help", "ze-system:version-software", "ze-system:daemon-status",
+		"ze-bgp:peer-list", "ze-meta:bgp-help",
+		"ze-cmd:bgp-subscribe", "ze-cmd:bgp-unsubscribe", "ze-bgp:commit",
+		"ze-plugin:system-help", "ze-plugin:system-version-software", "ze-plugin:system-daemon-status",
 		"ze-plugin:help", "ze-plugin:session-ping", "ze-plugin:session-bye",
 		// The RIB show rpc is published under the method of the node that
 		// points at it, `show rib routes`; no node declares ze-rib:show.
-		"ze-rib-api:routes",
+		"ze-bgp:rib-routes",
 	}
 	for _, method := range expected {
 		if !wireSet[method] {

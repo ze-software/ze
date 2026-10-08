@@ -27,7 +27,7 @@ module ze-ipsec-cmd {
 
                 container sa {
                     config false;
-                    ze:command "ze-show:vpn-ipsec-sa";
+                    ze:command "ze-ike:show-vpn-ipsec-sa";
                     description "Lists every SA with peer, negotiated algorithms,
 byte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child
 SA traffic selectors. It is the main IPsec status command.";
@@ -36,7 +36,7 @@ SA traffic selectors. It is the main IPsec status command.";
 
                 container status {
                     config false;
-                    ze:command "ze-show:vpn-ipsec-status";
+                    ze:command "ze-ike:show-vpn-ipsec-status";
                     description "Reports whether the IKE engine is running, how many
 peers are configured, and how many IKE SAs are Established.";
                     ze:help "Quick IPsec health check.";
@@ -51,7 +51,7 @@ kernel expiry, an external flush, or a stranded policy becomes visible.";
 
                     container sa {
                         config false;
-                        ze:command "ze-show:vpn-ipsec-dataplane-sa";
+                        ze:command "ze-ike:show-vpn-ipsec-dataplane-sa";
                         description "Lists each installed ESP SA with its SPI,
 addresses, mode, algorithms, replay window, byte and packet counters, and
 timestamps. Give 'spi <spi>' to show all matching SAs. Without a selector the command
@@ -73,7 +73,7 @@ names one direction. The value 0 is refused.";
 
                     container policy {
                         config false;
-                        ze:command "ze-show:vpn-ipsec-dataplane-policy";
+                        ze:command "ze-ike:show-vpn-ipsec-dataplane-policy";
                         description "Lists each policy with its selector prefixes
 and ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints,
 and the peer that installed it. A policy with no matching SA is the failure
@@ -84,7 +84,7 @@ separate, and so does this tree.";
 
                     container drift {
                         config false;
-                        ze:command "ze-show:vpn-ipsec-dataplane-drift";
+                        ze:command "ze-ike:show-vpn-ipsec-dataplane-drift";
                         description "Reports each Child SA the engine counts as
 installed whose expected identity the kernel SAD does not hold. The command exits non-zero
 when it finds drift, so a script CAN test it. A rekey window holds two SPIs and
@@ -101,7 +101,7 @@ is not drift.";
 
                     container name {
                         config false;
-                        ze:command "ze-show:vpn-ipsec-peer";
+                        ze:command "ze-ike:show-vpn-ipsec-peer";
                         description "Returns IKE SA state, all child SAs with
 traffic selectors, and byte counts.";
                         ze:help "Show full detail for one IPsec peer.";
@@ -136,7 +136,7 @@ none is up.";
 
                 container sa {
                     config false;
-                    ze:command "ze-clear:vpn-ipsec-sa";
+                    ze:command "ze-ike:clear-vpn-ipsec-sa";
                     description "Without arguments, terminates all SAs. Use
 'peer <name>' to clear just one peer. The tunnel WILL renegotiate
 automatically if the config is still active.";
@@ -158,7 +158,7 @@ automatically if the config is still active.";
 
             container ipsec {
                 config false;
-                ze:command "ze-monitor:vpn-ipsec";
+                ze:command "ze-ike:monitor-vpn-ipsec";
                 ze:task-support required;
                 description "Streams sa-up, sa-down, child-up, child-down, and
 child-rekey events. Use it to debug a tunnel flap or a rekey problem.";

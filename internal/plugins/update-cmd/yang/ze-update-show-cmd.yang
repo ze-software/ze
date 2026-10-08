@@ -15,7 +15,7 @@ module ze-update-show-cmd {
 
             container update {
                 config false;
-                ze:command "ze-show:system-update";
+                ze:command "ze-update:show-system-update";
                 ze:rpc "ze-update-api:system-update";
                 description "Shows the running version, latest available version, and when the last check
 ran. Use 'update system firmware check' to trigger an immediate re-check.";
@@ -23,7 +23,7 @@ ran. Use 'update system firmware check' to trigger an immediate re-check.";
 
                 container history {
                     config false;
-                    ze:command "ze-show:system-update-history";
+                    ze:command "ze-update:show-system-update-history";
                     ze:rpc "ze-update-api:system-update-history";
                     description "Lists the last 20 update events: checks, downloads, installs, and rollbacks
 with timestamps and outcomes.";

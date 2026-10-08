@@ -28,7 +28,7 @@ var errCPUProfileInProgress = errors.New("CPU profile already in progress")
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:system-profile", Handler: handleShowSystemProfile},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:show-system-profile", Handler: handleShowSystemProfile},
 	)
 }
 

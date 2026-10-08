@@ -186,7 +186,7 @@ func TestHelpCommandJSONGrammarRoundTrips(t *testing.T) {
 	entries := []commandEntry{{
 		Path:       "show system sockets",
 		Mode:       "daemon",
-		WireMethod: "ze-show:system-sockets",
+		WireMethod: "ze-cmd:show-system-sockets",
 		Grammar: []command.UsageToken{
 			{Text: "show", Kind: command.UsageKeyword},
 			{Text: "port", Kind: command.UsageOption},

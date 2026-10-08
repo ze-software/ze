@@ -19,7 +19,7 @@ const keyInterface = "interface"
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:traffic",
+			WireMethod: "ze-traffic:show-traffic",
 			Handler:    handleShowTraffic,
 		},
 	)

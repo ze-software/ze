@@ -188,7 +188,7 @@ func init() {
 	config.RegisterListenerProtocols("service-as112-ipv6-anycast-listener", config.ProtocolUDP, config.ProtocolTCP)
 
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
-		WireMethod: "ze-show:as112",
+		WireMethod: "ze-as112:show-as112",
 		Handler:    handleShowAS112,
 	})
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{

@@ -7,7 +7,7 @@ import (
 
 func TestCrashesCmdSchemaOwnsShowCrashes(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:crashes"`,
+		`ze:command "ze-crashes:show-crashes"`,
 		"container crashes",
 	} {
 		if !strings.Contains(ZeCrashesCmdYANG, want) {

@@ -1,5 +1,5 @@
 # Test: show tcp-check connects to ze-peer listen port
-# Exercises: dispatch-command -> ze-show:tcp-check -> handleTCPCheck
+# Exercises: dispatch-command -> ze-diag:show-tcp-check -> handleTCPCheck
 # Verifies AC-6: returns JSON with result (connected/refused/timeout), latency-ms
 
 # ze-peer: accepts connection

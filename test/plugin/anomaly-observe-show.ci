@@ -1,7 +1,7 @@
 # Test: show anomaly observe reaches the anomaly-observe incident lifecycle store
 # Exercises: config anomaly{observe{incident-ring-size}} -> RunEngine -> the
 #            process-global activeStore, then dispatch-command ->
-#            ze-show:anomaly-observe -> handleShowAnomalyObserve -> store.list().
+#            ze-anomaly:show-observe -> handleShowAnomalyObserve -> store.list().
 # Verifies AC-6: the wire method resolves, the configured plugin publishes its store
 # (enabled=true), and a daemon with no traffic reports active-count 0 and an empty
 # incident list. The open/finalize lifecycle is proven by the unit tests and by

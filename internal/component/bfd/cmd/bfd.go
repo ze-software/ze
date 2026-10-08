@@ -39,15 +39,15 @@ var errBFDServiceUnavailable = errors.New("bfd: plugin not loaded")
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-bfd-api:show-sessions",
+			WireMethod: "ze-bfd:show-sessions",
 			Handler:    handleShowSessions,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-bfd-api:show-session",
+			WireMethod: "ze-bfd:show-session",
 			Handler:    handleShowSession,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-bfd-api:show-profile",
+			WireMethod: "ze-bfd:show-profile",
 			Handler:    handleShowProfile,
 		},
 	)

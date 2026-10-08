@@ -1,5 +1,5 @@
 # Test: show ping to localhost via dispatch-command
-# Exercises: dispatch-command -> ze-show:ping -> handleShowPing -> doPing ->
+# Exercises: dispatch-command -> ze-ping:show-ping -> handleShowPing -> doPing ->
 #            doPingCtx -> runPingBatch (paced, seq-keyed batch over raw ICMP).
 # Verifies: when privileged, JSON has destination/sent/received/loss-percent/
 #           replies[] (each reply seq/status[/rtt-ms]). When the daemon lacks

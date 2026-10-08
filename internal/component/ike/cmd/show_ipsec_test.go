@@ -18,9 +18,9 @@ import (
 
 func TestShowIPsecSA_RegisteredWireMethods(t *testing.T) {
 	wanted := map[string]bool{
-		"ze-show:vpn-ipsec-sa":     false,
-		"ze-show:vpn-ipsec-status": false,
-		"ze-show:vpn-ipsec-peer":   false,
+		"ze-ike:show-vpn-ipsec-sa":     false,
+		"ze-ike:show-vpn-ipsec-status": false,
+		"ze-ike:show-vpn-ipsec-peer":   false,
 	}
 	for _, r := range pluginserver.AllBuiltinRPCs() {
 		if _, ok := wanted[r.WireMethod]; ok {

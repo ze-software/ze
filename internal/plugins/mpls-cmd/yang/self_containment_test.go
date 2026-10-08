@@ -7,7 +7,7 @@ import (
 
 func TestMPLSCmdSchemaOwnsShowCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:mpls-forwarding"`,
+		`ze:command "ze-mpls:show-forwarding"`,
 		`augment "/clishowcmd:show"`,
 		"container mpls",
 	} {

@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/commands.md — quiesce barrier (test synchronization)
 //
-// `request quiesce` (ze-system:quiesce) blocks until every registered subsystem
+// `request quiesce` (ze-plugin:system-quiesce) blocks until every registered subsystem
 // has drained its pending asynchronous work, then replies. It is the general
 // form of ze-bgp:peer-flush: a test does `send(change); request quiesce; assert`
 // and never sleeps. Subsystems register a Quiescer at runtime (they need a live
@@ -154,7 +154,7 @@ func registerPluginEventQuiescer(s *Server) {
 	})
 }
 
-// handleQuiesce implements `request quiesce` (ze-system:quiesce): drain every
+// handleQuiesce implements `request quiesce` (ze-plugin:system-quiesce): drain every
 // registered subsystem and reply when all have settled. Tests use it as a
 // barrier in place of a fixed sleep.
 func handleQuiesce(ctx *CommandContext, _ []string) (*plugin.Response, error) {
@@ -166,5 +166,5 @@ func handleQuiesce(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 }
 
 func init() {
-	RegisterRPCs(RPCRegistration{WireMethod: "ze-system:quiesce", Handler: handleQuiesce})
+	RegisterRPCs(RPCRegistration{WireMethod: "ze-plugin:system-quiesce", Handler: handleQuiesce})
 }

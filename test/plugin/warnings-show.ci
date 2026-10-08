@@ -1,5 +1,5 @@
 # Test: show warnings returns stale prefix data warning from the report bus
-# Exercises the full CLI path: dispatch-command -> ze-show:warnings -> handleShowWarnings -> report.Warnings()
+# Exercises the full CLI path: dispatch-command -> ze-cmd:show-warnings -> handleShowWarnings -> report.Warnings()
 # The stale warning is raised at peer add time by reactor_peers.go calling RaisePrefixStale
 
 # ze-peer: accepts connection, receives EOR

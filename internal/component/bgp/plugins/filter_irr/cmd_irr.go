@@ -24,32 +24,32 @@ func init() {
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:irr-status",
+			WireMethod:    "ze-bgp:show-irr-status",
 			Handler:       forwardShowIRR,
 			PluginCommand: cmdShowIRR,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:irr-prefix",
+			WireMethod:    "ze-bgp:show-irr-prefix",
 			Handler:       forwardShowIRRPrefix,
 			PluginCommand: cmdShowIRRPrefix,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:irr-check",
+			WireMethod:    "ze-bgp:show-irr-check",
 			Handler:       forwardShowIRRCheck,
 			PluginCommand: cmdShowIRRCheck,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-update:irr-all",
+			WireMethod:    "ze-bgp:update-irr-all",
 			Handler:       forwardUpdateIRRAll,
 			PluginCommand: cmdUpdateIRRAll,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-update:irr-asn",
+			WireMethod:    "ze-bgp:update-irr-asn",
 			Handler:       forwardUpdateIRRAsn,
 			PluginCommand: cmdUpdateIRRAsn,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-update:irr-as-set",
+			WireMethod:    "ze-bgp:update-irr-as-set",
 			Handler:       forwardUpdateIRRAsSet,
 			PluginCommand: cmdUpdateIRRAsSet,
 		},

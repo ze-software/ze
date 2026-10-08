@@ -7,7 +7,7 @@ import (
 
 func TestGNMICmdSchemaOwnsShowCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:gnmi"`,
+		`ze:command "ze-gnmi:show-gnmi"`,
 		`clishowcmd:show`,
 		"container gnmi",
 	} {

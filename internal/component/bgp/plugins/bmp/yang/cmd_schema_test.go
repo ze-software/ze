@@ -12,10 +12,10 @@ import (
 // ai/rules/plugins.md.
 func TestBMPCmdSchemaOwnsShowBMP(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:bmp-sessions"`,
-		`ze:command "ze-show:bmp-peers"`,
-		`ze:command "ze-show:bmp-collectors"`,
-		`ze:command "ze-show:bmp-rib"`,
+		`ze:command "ze-bgp:show-bmp-sessions"`,
+		`ze:command "ze-bgp:show-bmp-peers"`,
+		`ze:command "ze-bgp:show-bmp-collectors"`,
+		`ze:command "ze-bgp:show-bmp-rib"`,
 		"container bmp",
 	} {
 		if !strings.Contains(ZeBMPCmdYANG, want) {

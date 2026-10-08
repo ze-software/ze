@@ -10,7 +10,7 @@ import (
 // PREVENTS: the command silently disappearing, which would let the central show
 // guard pass vacuously, if the owner schema is removed or renamed.
 func TestGeodnsCmdSchemaOwnsShowGeodns(t *testing.T) {
-	if !strings.Contains(ZeGeodnsCmdYANG, `ze:command "ze-show:geodns"`) {
-		t.Error(`geodns command schema must declare ze:command "ze-show:geodns" (see ai/rules/plugins.md)`)
+	if !strings.Contains(ZeGeodnsCmdYANG, `ze:command "ze-geodns:show-geodns"`) {
+		t.Error(`geodns command schema must declare ze:command "ze-geodns:show-geodns" (see ai/rules/plugins.md)`)
 	}
 }

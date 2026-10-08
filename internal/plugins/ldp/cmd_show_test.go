@@ -15,8 +15,8 @@ import (
 // dispatch time (the project's recurring "unwired" defect).
 func TestLDPShowRPCsRegistered(t *testing.T) {
 	want := []string{
-		"ze-show:ldp-neighbor",
-		"ze-show:ldp-binding",
+		"ze-ldp:show-neighbor",
+		"ze-ldp:show-binding",
 	}
 	byMethod := make(map[string]pluginserver.RPCRegistration)
 	for _, r := range pluginserver.AllBuiltinRPCs() {

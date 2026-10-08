@@ -20,7 +20,7 @@ module ze-anomaly-shape-cmd {
 
             container shape {
                 config false;
-                ze:command "ze-show:anomaly-shape";
+                ze:command "ze-anomaly:show-shape";
                 description "Returns the mode (shadow or armed), the action, and the kill-switch
 state. It also returns the armed source entities with their live firewall
 actions.";

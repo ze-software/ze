@@ -10,8 +10,8 @@ import (
 // package MUST. See ai/rules/plugins.md.
 func TestLDPCmdSchemaOwnsShowLDP(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:ldp-neighbor"`,
-		`ze:command "ze-show:ldp-binding"`,
+		`ze:command "ze-ldp:show-neighbor"`,
+		`ze:command "ze-ldp:show-binding"`,
 		"container ldp",
 	} {
 		if !strings.Contains(ZeLDPCmdYANG, want) {

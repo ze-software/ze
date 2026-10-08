@@ -20,22 +20,22 @@ const (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:bmp-sessions",
+			WireMethod:    "ze-bgp:show-bmp-sessions",
 			Handler:       forwardShowBMPSessions,
 			PluginCommand: cmdShowBMPSessions,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:bmp-peers",
+			WireMethod:    "ze-bgp:show-bmp-peers",
 			Handler:       forwardShowBMPPeers,
 			PluginCommand: cmdShowBMPPeers,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:bmp-collectors",
+			WireMethod:    "ze-bgp:show-bmp-collectors",
 			Handler:       forwardShowBMPCollectors,
 			PluginCommand: cmdShowBMPCollectors,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:bmp-rib",
+			WireMethod:    "ze-bgp:show-bmp-rib",
 			Handler:       forwardShowBMPRib,
 			PluginCommand: cmdShowBMPRib,
 		},

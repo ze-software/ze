@@ -1,5 +1,5 @@
 # Test: show system kernel-log count 5 returns kernel messages
-# Exercises: dispatch-command -> ze-show:system-kernel-log -> handleShowSystemKernelLog
+# Exercises: dispatch-command -> ze-host:show-system-kernel-log -> handleShowSystemKernelLog
 # Verifies AC-2: returns JSON with entries and count (Linux-only; accepts both
 # the non-Linux stub's platform error and a Linux kernel that refuses the read
 # for want of CAP_SYSLOG -- see the three outcomes in the observer below)

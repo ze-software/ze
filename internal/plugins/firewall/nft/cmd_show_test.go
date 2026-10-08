@@ -18,8 +18,8 @@ import (
 // it, so `ze show firewall ...` returns "unknown command" at runtime.
 func TestShowFirewall_RegisteredWireMethods(t *testing.T) {
 	wanted := map[string]bool{
-		"ze-show:firewall-ruleset": false,
-		"ze-show:firewall-group":   false,
+		"ze-firewall:show-ruleset": false,
+		"ze-firewall:show-group":   false,
 	}
 	for _, r := range pluginserver.AllBuiltinRPCs() {
 		if _, ok := wanted[r.WireMethod]; ok {

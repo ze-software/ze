@@ -1,5 +1,5 @@
 # Test: show system ntp returns NTP sync status
-# Exercises: dispatch-command -> ze-show:system-ntp -> handleShowSystemNTP
+# Exercises: dispatch-command -> ze-ntp:show-system-ntp -> handleShowSystemNTP
 # Verifies: AC-1/AC-3 - returns JSON with enabled field
 
 # ze-peer: accepts connection

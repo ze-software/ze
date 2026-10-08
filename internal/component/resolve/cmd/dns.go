@@ -14,9 +14,9 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-clear:dns-cache", Handler: handleClearDNSCache},
-		pluginserver.RPCRegistration{WireMethod: "ze-clear:dns-cache-record", Handler: handleClearDNSCacheRecord},
-		pluginserver.RPCRegistration{WireMethod: "ze-clear:dns-cache-stats", Handler: handleClearDNSCacheStats},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:clear-dns-cache", Handler: handleClearDNSCache},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:clear-dns-cache-record", Handler: handleClearDNSCacheRecord},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:clear-dns-cache-stats", Handler: handleClearDNSCacheStats},
 	)
 }
 

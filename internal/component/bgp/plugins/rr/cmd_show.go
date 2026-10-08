@@ -18,12 +18,12 @@ const (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:rr-status",
+			WireMethod:    "ze-bgp:show-rr-status",
 			Handler:       forwardShowRRStatus,
 			PluginCommand: cmdShowRRStatus,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:rr-peers",
+			WireMethod:    "ze-bgp:show-rr-peers",
 			Handler:       forwardShowRRPeers,
 			PluginCommand: cmdShowRRPeers,
 		},

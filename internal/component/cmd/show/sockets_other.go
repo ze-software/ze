@@ -12,7 +12,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:system-sockets", Handler: handleShowSystemSockets},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:show-system-sockets", Handler: handleShowSystemSockets},
 	)
 }
 

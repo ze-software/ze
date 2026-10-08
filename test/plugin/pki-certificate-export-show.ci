@@ -1,5 +1,5 @@
 # Test: show pki certificate export commands (pem, bundle pem, fingerprint)
-# Exercises: dispatch-command -> ze-show:pki-certificate-pem, ze-show:pki-certificate-bundle-pem, ze-show:pki-certificate-fingerprint
+# Exercises: dispatch-command -> ze-pki:show-certificate-pem, ze-pki:show-certificate-bundle-pem, ze-pki:show-certificate-fingerprint
 # Verifies: PEM output contains certificate header, bundle contains both cert and key, fingerprint is colon-separated hex
 
 # ze-peer: accepts connection

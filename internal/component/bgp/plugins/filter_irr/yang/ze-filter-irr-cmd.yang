@@ -18,7 +18,7 @@ or l2vpn.";
 
             container irr {
                 config false;
-                ze:command "ze-show:irr-status";
+                ze:command "ze-bgp:show-irr-status";
                 description "Lists each enrolled ASN with its resolved AS-SET, prefix counts,
 last refresh time, and error status. Use this to confirm that IRR
 prefix-lists are loaded and current.";
@@ -26,7 +26,7 @@ prefix-lists are loaded and current.";
 
                 container prefix {
                     config false;
-                    ze:command "ze-show:irr-prefix";
+                    ze:command "ze-bgp:show-irr-prefix";
                     description "Lists all IPv4 and IPv6 prefixes
 in the IRR-resolved prefix-list for the given peer address.";
                     ze:help "Show IRR-resolved prefixes for a peer.";
@@ -42,7 +42,7 @@ prefix list. An address no enrolled ASN carries is refused.";
 
                 container check {
                     config false;
-                    ze:command "ze-show:irr-check";
+                    ze:command "ze-bgp:show-irr-check";
                     description "Reports whether the
 prefix would be accepted or rejected, and which entry matches.";
                     ze:help "Check if a prefix is accepted by the IRR filter.";
@@ -83,7 +83,7 @@ matched when one did.";
 
                 container all {
                     config false;
-                    ze:command "ze-update:irr-all";
+                    ze:command "ze-bgp:update-irr-all";
                     description "Re-queries the IRR server for every enrolled ASN and atomically
 swaps prefix-lists on success. Failed refreshes preserve the
 existing prefix-list and report an error.";
@@ -92,7 +92,7 @@ existing prefix-list and report an error.";
 
                 container asn {
                     config false;
-                    ze:command "ze-update:irr-asn";
+                    ze:command "ze-bgp:update-irr-asn";
                     description "Re-queries the IRR server for
 the given ASN only.";
                     ze:help "Refresh IRR prefix-list for a specific ASN.";
@@ -108,7 +108,7 @@ server's error.";
 
                 container as-set {
                     config false;
-                    ze:command "ze-update:irr-as-set";
+                    ze:command "ze-bgp:update-irr-as-set";
                     description "Re-queries the IRR server
 for all peers using the given AS-SET name.";
                     ze:help "Refresh IRR prefix-list for a specific AS-SET.";

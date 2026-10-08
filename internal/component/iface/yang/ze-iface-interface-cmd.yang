@@ -15,7 +15,7 @@ module ze-iface-interface-cmd {
     // counters left the central show, monitor, and clear schemas, for plugin
     // self-containment.
     revision 2026-06-03 { description "Relocated the interface commands into the iface component."; }
-    // They shared ze-show:interface with the parent container, so each became an
+    // They shared ze-iface:show-interface with the parent container, so each became an
     // ALIAS path of one wire method. The dispatcher registers the longest path
     // and consumes the keyword, and the handler that switched on it never saw it.
     // show interface errors returned every interface, show interface brief
@@ -30,7 +30,7 @@ module ze-iface-interface-cmd {
 
         container interface {
             config false;
-            ze:command "ze-show:interface";
+            ze:command "ze-iface:show-interface";
             description "Without arguments, returns all interfaces with full detail.
 Subcommands: brief, type <t>, errors, rate [<name>], name <name> detail,
 name <name> counters.";
@@ -38,7 +38,7 @@ name <name> counters.";
 
             container brief {
                 config false;
-                ze:command "ze-show:interface-brief";
+                ze:command "ze-iface:show-interface-brief";
                 description "It is the quick way to see what is up and what
 addresses are assigned.";
                 ze:help "One-line summary per interface: name, state, IP, and MTU.";
@@ -46,7 +46,7 @@ addresses are assigned.";
 
             container scan {
                 config false;
-                ze:command "ze-show:interface-scan";
+                ze:command "ze-iface:show-interface-scan";
                 description "Returns name, Ze type (ethernet, bridge, vxlan, etc.),
 and MAC for each interface found. Pipe to table, yaml, or json for different
 views. Use it during initial setup to see what the box has.";
@@ -55,7 +55,7 @@ views. Use it during initial setup to see what the box has.";
 
             container type {
                 config false;
-                ze:command "ze-show:interface-type";
+                ze:command "ze-iface:show-interface-type";
                 description "Types include ethernet, bridge, vxlan, wireguard,
 tunnel, bond, and more. If you pick an invalid type, the error lists all valid
 ones.";
@@ -71,7 +71,7 @@ without regard to case. When no interface has it, the error lists the types pres
 
             container errors {
                 config false;
-                ze:command "ze-show:interface-errors";
+                ze:command "ze-iface:show-interface-errors";
                 description "Filters to only interfaces with non-zero Rx/Tx error or
 drop counters. It is the quick way to find troubled links.";
                 ze:help "Show interfaces that have errors or drops.";
@@ -79,7 +79,7 @@ drop counters. It is the quick way to find troubled links.";
 
             container rate {
                 config false;
-                ze:command "ze-show:interface-rate";
+                ze:command "ze-iface:show-interface-rate";
                 description "Returns rx/tx bytes and packets per second. Pass an
 interface name to narrow the output. Requires the rate tracker. For continuous
 monitoring, use 'monitor interface rate' instead.";
@@ -94,7 +94,7 @@ follows it. Without a name, show interface answers every interface.";
 
                 container detail {
                     config false;
-                    ze:command "ze-show:interface-detail";
+                    ze:command "ze-iface:show-interface-detail";
                     description "The answer is the whole record the backend holds for that
 interface, and the counters are part of it. An unknown name is reported as the backend's own
 error.";
@@ -110,7 +110,7 @@ up by this name, and an unknown name answers the backend's error.";
 
                 container counters {
                     config false;
-                    ze:command "ze-show:interface-counters";
+                    ze:command "ze-iface:show-interface-counters";
                     description "The answer is the interface name and its Rx and Tx statistics.
 A backend that keeps no statistics for the interface answers no counters available rather
 than an error.";
@@ -139,7 +139,7 @@ it. show interface rate reads the same numbers once.";
 
             container rate {
                 config false;
-                ze:command "ze-monitor:interface-rate";
+                ze:command "ze-iface:monitor-interface-rate";
                 ze:task-support required;
                 description "Shows rx/tx bytes and packets per second, updating
 every second. Optionally pass an interface name to watch just one link.";
@@ -159,7 +159,7 @@ every second. Optionally pass an interface name to watch just one link.";
 
             container counters {
                 config false;
-                ze:command "ze-clear:interface-counters";
+                ze:command "ze-iface:clear-interface-counters";
                 ze:rpc "ze-cli-clear-api:interface-counters";
                 description "One call resets every interface the backend manages, and the answer
 reports the scope as all. Nothing else about the interfaces changes.";
@@ -174,7 +174,7 @@ answer reports that name as the scope it cleared.";
 
                 container counters {
                     config false;
-                    ze:command "ze-clear:interface-counters";
+                    ze:command "ze-iface:clear-interface-counters";
                     ze:rpc "ze-cli-clear-api:interface-counters";
                     description "Only the named interface is reset. Ze translates the name to
 its kernel device first, so a name bound to hardware by a selector clears the right port.";

@@ -17,8 +17,8 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:metrics-values", Handler: handleMetricsValues},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:metrics-list", Handler: handleMetricsList},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:bgp-metrics-values", Handler: handleMetricsValues},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:bgp-metrics-list", Handler: handleMetricsList},
 	)
 }
 

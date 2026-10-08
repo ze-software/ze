@@ -1,5 +1,5 @@
 # Test: `show system cpu` returns the daemon runtime CPU view plus host inventory
-# Exercises: dispatch-command -> ze-show:system-cpu -> handleShowSystemCPU
+# Exercises: dispatch-command -> ze-cmd:show-system-cpu -> handleShowSystemCPU
 #            (internal/component/cmd/show/system.go)
 # VALIDATES: every documented field is produced with a usable value, and the
 #            `hardware` enrichment from host.DetectCPU is merged in, not dropped.

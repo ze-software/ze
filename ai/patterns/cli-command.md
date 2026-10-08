@@ -298,7 +298,7 @@ The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `z
 |------------|-----------|-----------|
 | `ze-show:bgp-peer` | `show bgp peer` | Yes (`RequiresSelector: true`) |
 | `ze-show:bgp-warnings` | `show bgp warnings` | No |
-| `ze-show:version` | `show version` | No |
+| `ze-cmd:show-version` | `show version` | No |
 | `ze-show:bgp-peer` | `show bgp peer` | Yes (`RequiresSelector: true`) |
 | `ze-show:env-list` | `show env list` | No |
 

@@ -52,7 +52,7 @@ func TestHelpPrintsUsageForNodeWithChildren(t *testing.T) {
 func TestHelpPrintsOneUsageForALeafCommand(t *testing.T) {
 	node := &command.Node{
 		Name:       "sockets",
-		WireMethod: "ze-show:system-sockets",
+		WireMethod: "ze-cmd:show-system-sockets",
 		ShortHelp:  "Show open sockets.",
 		ArgDefs: []command.ArgDef{
 			{Name: "protocol", Kind: command.ArgEnum, EnumValues: []string{"tcp", "udp"}},

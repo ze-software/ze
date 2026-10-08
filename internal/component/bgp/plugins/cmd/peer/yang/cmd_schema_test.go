@@ -13,9 +13,9 @@ import (
 // dangling node. See ai/rules/plugins.md.
 func TestPeerCmdSchemaOwnsCarvedVerbs(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:bgp-health"`,
-		`ze:command "ze-delete:bgp-peer"`,
-		`ze:command "ze-update:bgp-peer-prefix"`,
+		`ze:command "ze-bgp:show-health"`,
+		`ze:command "ze-bgp:delete-peer"`,
+		`ze:command "ze-bgp:update-peer-prefix"`,
 		"container show",
 		"container delete",
 		"container update",

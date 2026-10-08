@@ -160,7 +160,7 @@ func parseMonitorPingArgs(args []string) (monitorPingArgs, error) {
 	return out, nil
 }
 
-// handleShowPing is the RPC handler for `show ping` (ze-show:ping): a bounded
+// handleShowPing is the RPC handler for `show ping` (ze-ping:show-ping): a bounded
 // batch of ICMP echo requests sent from the router, returning per-reply RTT
 // and an aggregate summary.
 func handleShowPing(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

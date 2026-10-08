@@ -98,11 +98,14 @@ type ValidationResult struct {
 	OrphanLocalHandlers []string       `json:"orphan-local-handlers"`
 	// OrphanRPCs names every rpc declaration whose published wire method no
 	// registered handler serves.
-	OrphanRPCs      []RPCDeclaration `json:"orphan-rpcs"`
-	SkippedHandlers []string         `json:"skipped-handlers"`
-	Total           int              `json:"total-yang"`
-	TotalHandlers   int              `json:"total-handlers"`
-	TotalLocal      int              `json:"total-local-handlers"`
+	OrphanRPCs []RPCDeclaration `json:"orphan-rpcs"`
+	// ForeignPrefixes names every registered wire method whose prefix is not
+	// the one OwnerPrefix derives from the package that registered it.
+	ForeignPrefixes []string `json:"foreign-prefixes"`
+	SkippedHandlers []string `json:"skipped-handlers"`
+	Total           int      `json:"total-yang"`
+	TotalHandlers   int      `json:"total-handlers"`
+	TotalLocal      int      `json:"total-local-handlers"`
 	// TotalRPCs counts the rpc declarations the help surfaces publish, so a
 	// run that judged none of them is told from one that found no orphan.
 	TotalRPCs int  `json:"total-rpcs"`
@@ -167,10 +170,19 @@ func (r ValidationResult) Text() string {
 		tb.Byte('\n')
 	}
 
+	if len(r.ForeignPrefixes) > 0 {
+		tb.Str("## Wire methods under a prefix their package does not own (").Int(int64(len(r.ForeignPrefixes))).Str(")\n\n")
+		for _, violation := range r.ForeignPrefixes {
+			tb.Str("  ").Str(violation).Byte('\n')
+		}
+		tb.Byte('\n')
+	}
+
 	if r.Valid {
 		tb.Str("All commands validated.\n")
 	} else {
-		problems := len(r.OrphanYANG) + len(r.OrphanHandlers) + len(r.OrphanLocalHandlers) + len(r.OrphanRPCs)
+		problems := len(r.OrphanYANG) + len(r.OrphanHandlers) + len(r.OrphanLocalHandlers) + len(r.OrphanRPCs) +
+			len(r.ForeignPrefixes)
 		tb.Str("FAILED: ").Int(int64(problems)).Str(" problem(s)\n")
 	}
 

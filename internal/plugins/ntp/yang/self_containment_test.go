@@ -7,8 +7,8 @@ import (
 
 func TestNTPCmdSchemaOwnsShowNTP(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:system-ntp"`,
-		`ze:command "ze-show:system-ntp-peers"`,
+		`ze:command "ze-ntp:show-system-ntp"`,
+		`ze:command "ze-ntp:show-system-ntp-peers"`,
 		"container ntp",
 	} {
 		if !strings.Contains(ZeNTPCmdYANG, want) {

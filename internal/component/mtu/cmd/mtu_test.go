@@ -22,7 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// registeredShowMTU answers the handler init() registered for ze-show:mtu,
+// registeredShowMTU answers the handler init() registered for ze-mtu:show-mtu,
 // so every test below drives the same function the dispatcher does.
 func registeredShowMTU(t *testing.T) pluginserver.Handler {
 	t.Helper()

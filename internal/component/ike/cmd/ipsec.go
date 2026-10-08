@@ -15,7 +15,7 @@ const responseKeyAction = "action"
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-clear:vpn-ipsec-sa", Handler: handleClearIPsecSA},
+		pluginserver.RPCRegistration{WireMethod: "ze-ike:clear-vpn-ipsec-sa", Handler: handleClearIPsecSA},
 	)
 }
 

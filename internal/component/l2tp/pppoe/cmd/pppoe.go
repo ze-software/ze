@@ -28,11 +28,11 @@ var errSubsystemUnavailable = errors.New("pppoe: subsystem not running")
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-pppoe-api:summary", Handler: handleSummary},
-		pluginserver.RPCRegistration{WireMethod: "ze-pppoe-api:sessions", Handler: handleSessions},
-		pluginserver.RPCRegistration{WireMethod: "ze-pppoe-api:session", Handler: handleSession},
-		pluginserver.RPCRegistration{WireMethod: "ze-pppoe-api:statistics", Handler: handleStatistics},
-		pluginserver.RPCRegistration{WireMethod: "ze-pppoe-api:interfaces", Handler: handleInterfaces},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:pppoe-summary", Handler: handleSummary},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:pppoe-sessions", Handler: handleSessions},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:pppoe-session", Handler: handleSession},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:pppoe-statistics", Handler: handleStatistics},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:pppoe-interfaces", Handler: handleInterfaces},
 	)
 }
 

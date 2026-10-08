@@ -35,17 +35,17 @@ const leafName = "name"
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:firewall-domain-group-status",
+			WireMethod:    "ze-firewall:show-domain-group-status",
 			Handler:       forwardShowDomainGroup,
 			PluginCommand: cmdShowDomainGroup,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-update:firewall-domain-group",
+			WireMethod:    "ze-firewall:update-domain-group",
 			Handler:       forwardUpdateDomainGroup,
 			PluginCommand: cmdUpdateDomainGroup,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-clear:firewall-domain-group",
+			WireMethod:    "ze-firewall:clear-domain-group",
 			Handler:       forwardClearDomainGroup,
 			PluginCommand: cmdClearDomainGroup,
 		},

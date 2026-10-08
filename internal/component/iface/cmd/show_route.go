@@ -28,7 +28,7 @@ const defaultRouteLimit = 100_000
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:route",
+			WireMethod: "ze-iface:show-route",
 			Handler:    handleShowRoute,
 		},
 	)

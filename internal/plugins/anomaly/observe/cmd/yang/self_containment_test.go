@@ -13,7 +13,7 @@ import (
 
 func TestAnomalyObserveCmdSchemaOwnsShowObserve(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:anomaly-observe"`,
+		`ze:command "ze-anomaly:show-observe"`,
 		"container show",
 		"container anomaly",
 		"container observe",

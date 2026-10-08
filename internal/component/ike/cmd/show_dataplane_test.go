@@ -34,9 +34,9 @@ import (
 // its body is.
 func TestShowDataplaneRegistered(t *testing.T) {
 	for _, wire := range []string{
-		"ze-show:vpn-ipsec-dataplane-sa",
-		"ze-show:vpn-ipsec-dataplane-policy",
-		"ze-show:vpn-ipsec-dataplane-drift",
+		"ze-ike:show-vpn-ipsec-dataplane-sa",
+		"ze-ike:show-vpn-ipsec-dataplane-policy",
+		"ze-ike:show-vpn-ipsec-dataplane-drift",
 	} {
 		t.Run(wire, func(t *testing.T) {
 			var found bool

@@ -220,7 +220,7 @@ func TestPeerCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-bgp:peer-pause", GetCommandExtension(peer.Dir["pause"]))
 	assert.Equal(t, "ze-bgp:peer-resume", GetCommandExtension(peer.Dir["resume"]))
 	assert.Equal(t, "ze-bgp:peer-flush", GetCommandExtension(peer.Dir["flush"]))
-	assert.Equal(t, "ze-plugin:session-peer-ready",
+	assert.Equal(t, "ze-bgp:plugin-session-peer-ready",
 		GetCommandExtension(peer.Dir["plugin"].Dir["session"].Dir["ready"]))
 }
 
@@ -245,7 +245,7 @@ func TestRibCmdModule(t *testing.T) {
 	require.NotNil(t, bgp)
 	rib := bgp.Dir["rib"]
 	require.NotNil(t, rib)
-	assert.Equal(t, "ze-rib-api:rpf", GetCommandExtension(rib.Dir["rpf"]))
+	assert.Equal(t, "ze-bgp:rib-rpf", GetCommandExtension(rib.Dir["rpf"]))
 
 	clear := entry.Dir["clear"]
 	require.NotNil(t, clear)
@@ -253,8 +253,8 @@ func TestRibCmdModule(t *testing.T) {
 	require.NotNil(t, clearBGP)
 	ribClear := clearBGP.Dir["rib"]
 	require.NotNil(t, ribClear)
-	assert.Equal(t, "ze-rib-api:clear-in", GetCommandExtension(ribClear.Dir["in"]))
-	assert.Equal(t, "ze-rib-api:clear-out", GetCommandExtension(ribClear.Dir["out"]))
+	assert.Equal(t, "ze-bgp:rib-clear-in", GetCommandExtension(ribClear.Dir["in"]))
+	assert.Equal(t, "ze-bgp:rib-clear-out", GetCommandExtension(ribClear.Dir["out"]))
 
 	request := entry.Dir["request"]
 	require.NotNil(t, request)
@@ -262,8 +262,8 @@ func TestRibCmdModule(t *testing.T) {
 	require.NotNil(t, requestBGP)
 	ribRequest := requestBGP.Dir["rib"]
 	require.NotNil(t, ribRequest)
-	assert.Equal(t, "ze-rib-api:inject", GetCommandExtension(ribRequest.Dir["inject"]))
-	assert.Equal(t, "ze-rib-api:withdraw", GetCommandExtension(ribRequest.Dir["withdraw"]))
+	assert.Equal(t, "ze-bgp:rib-inject", GetCommandExtension(ribRequest.Dir["inject"]))
+	assert.Equal(t, "ze-bgp:rib-withdraw", GetCommandExtension(ribRequest.Dir["withdraw"]))
 }
 
 // TestRefreshCmdModule verifies ze-refresh-cmd.yang (route refresh from route_refresh plugin).
@@ -306,10 +306,10 @@ func TestMetaCmdModule(t *testing.T) {
 	entry := loader.GetEntry("ze-command-meta-cmd")
 	require.NotNil(t, entry)
 
-	assert.Equal(t, "ze-bgp:help", GetCommandExtension(entry.Dir["help"]))
-	assert.Equal(t, "ze-bgp:command-list", GetCommandExtension(entry.Dir["show"].Dir["command"].Dir["list"]))
-	assert.Equal(t, "ze-bgp:event-list", GetCommandExtension(entry.Dir["show"].Dir["event"].Dir["list"]))
-	assert.Equal(t, "ze-bgp:plugin-encoding", GetCommandExtension(entry.Dir["plugin"].Dir["encoding"]))
+	assert.Equal(t, "ze-meta:bgp-help", GetCommandExtension(entry.Dir["help"]))
+	assert.Equal(t, "ze-meta:bgp-command-list", GetCommandExtension(entry.Dir["show"].Dir["command"].Dir["list"]))
+	assert.Equal(t, "ze-meta:bgp-event-list", GetCommandExtension(entry.Dir["show"].Dir["event"].Dir["list"]))
+	assert.Equal(t, "ze-meta:bgp-plugin-encoding", GetCommandExtension(entry.Dir["plugin"].Dir["encoding"]))
 }
 
 // TestSimpleCmdModules verifies cache, commit, subscribe, log, metrics cmd modules.
@@ -325,7 +325,7 @@ func TestSimpleCmdModules(t *testing.T) {
 		wireMethod string
 	}{
 		{"commit", cmdPluginBase + "cmd/commit/yang/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "request/commit", "ze-bgp:commit"},
-		{"subscribe", cmdBase + "subscribe/yang/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "request/subscribe", "ze-bgp:subscribe"},
+		{"subscribe", cmdBase + "subscribe/yang/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "request/subscribe", "ze-cmd:bgp-subscribe"},
 	}
 
 	for _, tt := range tests {
@@ -391,14 +391,14 @@ func TestLogCmdModule(t *testing.T) {
 	require.NotNil(t, show)
 	showLog := show.Dir["log"]
 	require.NotNil(t, showLog)
-	assert.Equal(t, "ze-bgp:log-levels", GetCommandExtension(showLog.Dir["levels"]))
-	assert.Equal(t, "ze-bgp:log-recent", GetCommandExtension(showLog.Dir["recent"]))
+	assert.Equal(t, "ze-log:bgp-log-levels", GetCommandExtension(showLog.Dir["levels"]))
+	assert.Equal(t, "ze-log:bgp-log-recent", GetCommandExtension(showLog.Dir["recent"]))
 
 	req := entry.Dir["request"]
 	require.NotNil(t, req)
 	reqLog := req.Dir["log"]
 	require.NotNil(t, reqLog)
-	assert.Equal(t, "ze-bgp:log-set", GetCommandExtension(reqLog.Dir["level"]))
+	assert.Equal(t, "ze-log:bgp-log-set", GetCommandExtension(reqLog.Dir["level"]))
 }
 
 // TestMetricsCmdModule verifies ze-cli-metrics-cmd.yang (metrics operations from cmd/metrics plugin).
@@ -420,8 +420,8 @@ func TestMetricsCmdModule(t *testing.T) {
 	require.NotNil(t, showM)
 	metrics := showM.Dir["metrics"]
 	require.NotNil(t, metrics)
-	assert.Equal(t, "ze-bgp:metrics-values", GetCommandExtension(metrics.Dir["values"]))
-	assert.Equal(t, "ze-bgp:metrics-list", GetCommandExtension(metrics.Dir["list"]))
+	assert.Equal(t, "ze-cmd:bgp-metrics-values", GetCommandExtension(metrics.Dir["values"]))
+	assert.Equal(t, "ze-cmd:bgp-metrics-list", GetCommandExtension(metrics.Dir["list"]))
 }
 
 // TestRawCmdModule verifies ze-raw-cmd.yang (send bgp raw from cmd/raw plugin).
@@ -507,7 +507,7 @@ func TestCliSetCmdModule(t *testing.T) {
 }
 
 // TestPeerCmdModuleOwnsDeleteBgpPeer verifies the BGP peer command owner declares
-// delete > bgp > peer (ze-delete:bgp-peer), relocated out of the central delete
+// delete > bgp > peer (ze-bgp:delete-peer), relocated out of the central delete
 // schema, which is now a bare verb-root anchor.
 func TestPeerCmdModuleOwnsDeleteBgpPeer(t *testing.T) {
 	loader := NewLoader()
@@ -520,7 +520,7 @@ func TestPeerCmdModuleOwnsDeleteBgpPeer(t *testing.T) {
 
 	peer := entry.Dir["delete"].Dir["bgp"].Dir["peer"]
 	require.NotNil(t, peer, "delete > bgp > peer must exist in the peer owner module")
-	assert.Equal(t, "ze-delete:bgp-peer", GetCommandExtension(peer))
+	assert.Equal(t, "ze-bgp:delete-peer", GetCommandExtension(peer))
 }
 
 // TestCliDeleteCmdModule verifies the central delete verb module is a bare
@@ -636,15 +636,15 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	rib := bgp.Children["rib"]
 	require.NotNil(t, rib)
 	// show bgp rib is the routes command, owned by the BGP rib plugin schema.
-	assert.Equal(t, "ze-rib-api:routes", rib.WireMethod, "show bgp rib is the BGP-owned routes command")
+	assert.Equal(t, "ze-bgp:rib-routes", rib.WireMethod, "show bgp rib is the BGP-owned routes command")
 	assert.Contains(t, rib.ShortHelp, "Query routes in the BGP RIB", "show bgp rib has the routes description")
 
 	rpf := rib.Children["rpf"]
 	require.NotNil(t, rpf)
-	assert.Equal(t, "ze-rib-api:rpf", rpf.WireMethod)
-	assert.Equal(t, "ze-rib-api:best", rib.Children["best"].WireMethod)
-	assert.Equal(t, "ze-rib-api:best-status", rib.Children["best"].Children["status"].WireMethod)
-	assert.Equal(t, "ze-rib-api:status", rib.Children["status"].WireMethod)
+	assert.Equal(t, "ze-bgp:rib-rpf", rpf.WireMethod)
+	assert.Equal(t, "ze-bgp:rib-best", rib.Children["best"].WireMethod)
+	assert.Equal(t, "ze-bgp:rib-best-status", rib.Children["best"].Children["status"].WireMethod)
+	assert.Equal(t, "ze-bgp:rib-status", rib.Children["status"].WireMethod)
 
 	clear := tree.Children["clear"]
 	require.NotNil(t, clear)
@@ -658,15 +658,15 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	require.NotEmpty(t, clearRIB.ShortHelp, "clear bgp rib grouping gets its YANG description")
 	assert.NotContains(t, clearRIB.ShortHelp, "\n", "a summary is one line, and the long form belongs in the description")
 	assert.Equal(t, "", clearRIB.WireMethod, "clear bgp rib grouping has no WireMethod")
-	assert.Equal(t, "ze-rib-api:clear-in", clearRIB.Children["in"].WireMethod)
-	assert.Equal(t, "ze-rib-api:clear-out", clearRIB.Children["out"].WireMethod)
+	assert.Equal(t, "ze-bgp:rib-clear-in", clearRIB.Children["in"].WireMethod)
+	assert.Equal(t, "ze-bgp:rib-clear-out", clearRIB.Children["out"].WireMethod)
 
 	request := tree.Children["request"]
 	require.NotNil(t, request)
 	requestRIB := request.Children["bgp"].Children["rib"]
 	require.NotNil(t, requestRIB)
-	assert.Equal(t, "ze-rib-api:inject", requestRIB.Children["inject"].WireMethod)
-	assert.Equal(t, "ze-rib-api:withdraw", requestRIB.Children["withdraw"].WireMethod)
+	assert.Equal(t, "ze-bgp:rib-inject", requestRIB.Children["inject"].WireMethod)
+	assert.Equal(t, "ze-bgp:rib-withdraw", requestRIB.Children["withdraw"].WireMethod)
 	// Verify command package is used (tree is *command.Node from BuildCommandTree)
 	require.IsType(t, &command.Node{}, tree)
 }
@@ -690,30 +690,30 @@ func TestSystemCmdModuleLoads(t *testing.T) {
 	// system group
 	sys := entry.Dir["system"]
 	require.NotNil(t, sys)
-	assert.Equal(t, "ze-system:help", GetCommandExtension(sys.Dir["help"]))
-	assert.Equal(t, "ze-system:dispatch", GetCommandExtension(sys.Dir["dispatch"]))
+	assert.Equal(t, "ze-plugin:system-help", GetCommandExtension(sys.Dir["help"]))
+	assert.Equal(t, "ze-plugin:system-dispatch", GetCommandExtension(sys.Dir["dispatch"]))
 
 	// system > version
 	ver := sys.Dir["version"]
 	require.NotNil(t, ver)
-	assert.Equal(t, "ze-system:version-software", GetCommandExtension(ver.Dir["software"]))
-	assert.Equal(t, "ze-system:version-api", GetCommandExtension(ver.Dir["api"]))
+	assert.Equal(t, "ze-plugin:system-version-software", GetCommandExtension(ver.Dir["software"]))
+	assert.Equal(t, "ze-plugin:system-version-api", GetCommandExtension(ver.Dir["api"]))
 
 	// system > command
 	cmd := sys.Dir["command"]
 	require.NotNil(t, cmd)
-	assert.Equal(t, "ze-system:command-list", GetCommandExtension(cmd.Dir["list"]))
+	assert.Equal(t, "ze-plugin:system-command-list", GetCommandExtension(cmd.Dir["list"]))
 
 	// process status under show, lifecycle actions under request
 	show := entry.Dir["show"]
 	require.NotNil(t, show)
-	assert.Equal(t, "ze-system:daemon-status", GetCommandExtension(show.Dir["status"]))
+	assert.Equal(t, "ze-plugin:system-daemon-status", GetCommandExtension(show.Dir["status"]))
 
 	request := entry.Dir["request"]
 	require.NotNil(t, request)
-	assert.Equal(t, "ze-system:daemon-shutdown", GetCommandExtension(request.Dir["shutdown"]))
-	assert.Equal(t, "ze-system:daemon-quit", GetCommandExtension(request.Dir["halt"]))
-	assert.Equal(t, "ze-system:daemon-reload", GetCommandExtension(request.Dir["reload"]))
+	assert.Equal(t, "ze-plugin:system-daemon-shutdown", GetCommandExtension(request.Dir["shutdown"]))
+	assert.Equal(t, "ze-plugin:system-daemon-quit", GetCommandExtension(request.Dir["halt"]))
+	assert.Equal(t, "ze-plugin:system-daemon-reload", GetCommandExtension(request.Dir["reload"]))
 }
 
 // TestPluginCmdModuleLoads verifies ze-plugin-cmd.yang loads and has expected structure.
@@ -924,7 +924,7 @@ module test-enum-cmd {
         config false;
         container goroutines {
             config false;
-            ze:command "ze-show:system-goroutines";
+            ze:command "ze-cmd:show-system-goroutines";
             ze:help "Show goroutines";
             leaf mode {
                 type enumeration {
@@ -970,7 +970,7 @@ module test-union-cmd {
         config false;
         container file-descriptors {
             config false;
-            ze:command "ze-set:system-file-descriptors";
+            ze:command "ze-host:set-system-file-descriptors";
             ze:help "Set FD limit";
             leaf limit {
                 type union {
@@ -1034,7 +1034,7 @@ module test-uint-cmd {
         config false;
         container capture {
             config false;
-            ze:command "ze-show:capture";
+            ze:command "ze-diag:show-capture";
             ze:help "Capture packets";
             leaf count {
                 type uint32 {
@@ -1080,7 +1080,7 @@ module test-pattern-cmd {
         config false;
         container ping {
             config false;
-            ze:command "ze-show:ping";
+            ze:command "ze-ping:show-ping";
             ze:help "Ping host";
             leaf timeout {
                 type string {

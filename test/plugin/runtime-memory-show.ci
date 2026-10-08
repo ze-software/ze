@@ -1,5 +1,5 @@
 # Test: show runtime memory returns Go allocator stats (all platforms)
-# Exercises: dispatch-command -> ze-show:system-memory -> handleShowSystemMemory
+# Exercises: dispatch-command -> ze-cmd:show-system-memory -> handleShowSystemMemory
 # Verifies the R9 rename `show runtime memory` dispatches and returns a JSON
 # map of runtime.MemStats (alloc, heap-in-use, num-gc, ...). Unlike `show
 # system memory` (OS /proc view, Linux-only), this is the Go runtime view and

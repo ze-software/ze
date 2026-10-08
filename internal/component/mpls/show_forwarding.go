@@ -36,7 +36,7 @@ type forwardingEntry struct {
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:mpls-forwarding",
+			WireMethod: "ze-mpls:show-forwarding",
 			Handler:    handleShowMPLSForwarding,
 		},
 	)

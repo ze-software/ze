@@ -1,5 +1,5 @@
 # Test: show uptime returns daemon start-time and uptime via dispatch-command
-# Exercises: dispatch-command -> ze-show:uptime -> handleShowUptime -> reactor.Stats()
+# Exercises: dispatch-command -> ze-cmd:show-uptime -> handleShowUptime -> reactor.Stats()
 # Verifies: returns JSON with start-time (RFC3339) and uptime (duration) fields
 
 # ze-peer: accepts connection

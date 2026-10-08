@@ -171,7 +171,7 @@ type mtuRequest struct {
 	detail     bool
 }
 
-// handleShowMTU is the RPC handler for `show mtu` (ze-show:mtu). It parses
+// handleShowMTU is the RPC handler for `show mtu` (ze-mtu:show-mtu). It parses
 // the request, validates the configured reference address, and answers the
 // payload of one run (run.go, runMTU) over the live dependencies. The
 // command is read-only: no path from here reaches a configuration write.

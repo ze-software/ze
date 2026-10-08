@@ -287,7 +287,7 @@ func CheckRootNamespace(roots []string, namespaces map[string]bool) []Finding {
 // command.Verbs holds, so they need no exemption to pass
 // (spec-fixit-send-names-its-destination, AC-13).
 var bridgeSurface = map[string]bool{
-	"ze-bgp:help": true,
+	"ze-meta:bgp-help": true,
 }
 
 // ExemptCategory reports whether a command (identified by its handler wire method)
@@ -296,17 +296,17 @@ var bridgeSurface = map[string]bool{
 // namespace, never on a per-command string allowlist (AC-7):
 //
 //	E1 bridge        : the one text-bridge word spelled the same on both sides (help)
-//	E2 wire-protocol : plugin/system process-boundary directives (ze-plugin:, ze-system:, ze-bgp:plugin-)
-//	E3 editor        : editor mode switches (ze-editor:)
+//	E2 wire-protocol : plugin/system process-boundary directives (ze-plugin:, ze-bgp:plugin-, ze-meta:bgp-plugin-)
+//	E3 editor        : editor mode switches (ze-cli:editor-)
 func ExemptCategory(wireMethod string) (string, bool) {
 	switch {
 	case bridgeSurface[wireMethod]:
 		return "bridge", true
 	case strings.HasPrefix(wireMethod, "ze-plugin:"),
-		strings.HasPrefix(wireMethod, "ze-system:"),
-		strings.HasPrefix(wireMethod, "ze-bgp:plugin-"):
+		strings.HasPrefix(wireMethod, "ze-bgp:plugin-"),
+		strings.HasPrefix(wireMethod, "ze-meta:bgp-plugin-"):
 		return "wire-protocol", true
-	case strings.HasPrefix(wireMethod, "ze-editor:"):
+	case strings.HasPrefix(wireMethod, "ze-cli:editor-"):
 		return "editor", true
 	}
 	return "", false

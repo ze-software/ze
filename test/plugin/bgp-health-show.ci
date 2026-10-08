@@ -1,5 +1,5 @@
 # Test: show bgp health returns the peer health overview
-# Exercises: dispatch-command -> ze-show:bgp-health -> handleShowBGPHealth
+# Exercises: dispatch-command -> ze-bgp:show-health -> handleShowBGPHealth
 # Verifies the R9 rename `show bgp health` (was `show bgp-health`) dispatches
 # and returns the overview JSON {peers, count, not-established}. Native (no
 # kernel feature); the configured peer1 supplies at least one row.

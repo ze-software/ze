@@ -13,10 +13,10 @@ import (
 // ai/rules/plugins.md.
 func TestTracerouteCmdSchemaOwnsTraceroute(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:traceroute"`,
-		`ze:command "ze-show:probe-round"`,
-		`ze:command "ze-monitor:traceroute"`,
-		`ze:command "ze-resolve:traceroute"`,
+		`ze:command "ze-traceroute:show-traceroute"`,
+		`ze:command "ze-traceroute:show-probe-round"`,
+		`ze:command "ze-traceroute:monitor-traceroute"`,
+		`ze:command "ze-traceroute:resolve-traceroute"`,
 		"container traceroute",
 		"container probe-round",
 	} {

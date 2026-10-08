@@ -1,5 +1,8 @@
 # Test: ze schema methods
-# Verifies schema methods lists RPCs from all YANG API modules
+# Verifies schema methods lists RPCs from all YANG API modules, each under the
+# method its handler registers (spec-rpc-published-name-does-not-reach-its-handler,
+# AC-5, user story 2): an rpc is published under the ze:command method of the
+# node that points at it, never under a name built from the module file name.
 # Note: schema methods doesn't need config input, but test runner requires stdin
 stdin=config:terminator=EOF_CONF
 # Minimal valid config for test framework
@@ -31,21 +34,29 @@ expect=stdout:contains=Module
 expect=stdout:contains=Description
 # RPCs from ze-bgp-api
 expect=stdout:contains=ze-bgp:peer-list
-expect=stdout:contains=ze-bgp:subscribe
+expect=stdout:contains=ze-cmd:bgp-subscribe
 # RPCs from ze-system-api
-expect=stdout:contains=ze-system:help
-expect=stdout:contains=ze-system:daemon-status
+expect=stdout:contains=ze-plugin:system-help
+expect=stdout:contains=ze-plugin:system-daemon-status
 # RPCs from ze-plugin-api
 expect=stdout:contains=ze-plugin:session-ping
-# RPCs from ze-rib-api
-expect=stdout:contains=ze-rib:show
-expect=stdout:contains=ze-rib:best
+# RPCs from ze-rib-api, published under the BGP handler's methods
+expect=stdout:contains=ze-bgp:rib-routes
+expect=stdout:contains=ze-bgp:rib-best
+reject=stdout:contains=ze-rib:show
 
 cmd=foreground:seq=2:exec=ze schema methods ze-system-api:exit=0
 expect=exit:code=0
-expect=stdout:contains=ze-system:help
+expect=stdout:contains=ze-plugin:system-help
 # Should NOT contain RPCs from other modules
 reject=stdout:contains=ze-bgp:
 
 cmd=foreground:seq=3:exec=ze schema methods ze-bogus-api:exit=1
 expect=exit:code=1
+
+# The l2tp rpcs carry the handler's ze-l2tp: methods, never the module name
+cmd=foreground:seq=4:exec=ze schema methods ze-l2tp-api:exit=0
+expect=exit:code=0
+expect=stdout:contains=ze-l2tp:summary
+expect=stdout:contains=ze-l2tp:tunnels
+reject=stdout:contains=ze-l2tp-api:

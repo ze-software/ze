@@ -11,7 +11,7 @@ import (
 )
 
 // TestClearInterfaceCounters_RegisteredWireMethod verifies the
-// `ze-clear:interface-counters` RPC is installed in the builtin
+// `ze-iface:clear-interface-counters` RPC is installed in the builtin
 // registry so `ze clear interface ... counters` is reachable via the
 // dispatcher.
 //
@@ -21,13 +21,13 @@ import (
 func TestClearInterfaceCounters_RegisteredWireMethod(t *testing.T) {
 	found := false
 	for _, r := range pluginserver.AllBuiltinRPCs() {
-		if r.WireMethod == "ze-clear:interface-counters" {
+		if r.WireMethod == "ze-iface:clear-interface-counters" {
 			found = true
 			require.NotNil(t, r.Handler)
 			break
 		}
 	}
-	require.True(t, found, "ze-clear:interface-counters not registered")
+	require.True(t, found, "ze-iface:clear-interface-counters not registered")
 }
 
 // TestHandleClearInterfaceCounters_Grammars verifies every accepted

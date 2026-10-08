@@ -16,7 +16,7 @@ module ze-policyroute-cmd {
 
             container routes {
                 config false;
-                ze:command "ze-show:policy-routes";
+                ze:command "ze-policyroute:show-policy-routes";
                 description "Lists PBR rules with match criteria and routing actions.";
                 ze:help "Show policy-based routing rules.";
             }

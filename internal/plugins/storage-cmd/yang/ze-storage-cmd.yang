@@ -15,7 +15,7 @@ module ze-storage-cmd {
             ze:help "Storage device health and diagnostics.";
             container smart {
                 config false;
-                ze:command "ze-show:storage-smart";
+                ze:command "ze-storage:show-smart";
                 description "Returns health status, temperature, power-on hours, and self-test schedule for
 each block device. Replace drives that report failing health before they cause
 data loss.";

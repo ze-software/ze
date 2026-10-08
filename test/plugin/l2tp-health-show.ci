@@ -1,5 +1,5 @@
 # Test: show l2tp health dispatches to the l2tp health handler
-# Exercises: dispatch-command -> ze-show:l2tp-health -> handleShowL2TPHealth
+# Exercises: dispatch-command -> ze-l2tp:show-health -> handleShowL2TPHealth
 # Verifies the R9 rename `show l2tp health` (was `show l2tp-health`) resolves to
 # its handler end-to-end. With the l2tp service up but no login sessions and CQM
 # off, the handler returns its own "observer not enabled (CQM disabled)" error;

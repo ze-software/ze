@@ -24,15 +24,15 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:vpn-ipsec-sa",
+			WireMethod: "ze-ike:show-vpn-ipsec-sa",
 			Handler:    handleShowVPNIPsecSA,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:vpn-ipsec-status",
+			WireMethod: "ze-ike:show-vpn-ipsec-status",
 			Handler:    handleShowVPNIPsecStatus,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:vpn-ipsec-peer",
+			WireMethod: "ze-ike:show-vpn-ipsec-peer",
 			Handler:    handleShowVPNIPsecPeer,
 		},
 	)

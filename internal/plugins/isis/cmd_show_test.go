@@ -2,7 +2,7 @@
 // ...` proxy registration + contract tests.
 // Related: cmd_show.go -- the proxy handlers under test.
 //
-// VALIDATES: every ze-show:isis-* / ze-clear:isis-* command declared in the
+// VALIDATES: every ze-isis:show-* / ze-isis:clear-* command declared in the
 // grammar has a registered RPC handler with a PluginCommand (so the command is
 // reachable rather than 404ing at dispatch, the project's recurring "unwired"
 // defect); the proxy handlers reject extra args and a nil dispatcher gracefully.
@@ -26,16 +26,16 @@ import (
 // command name (proxy contract).
 func TestISISShowClearRPCsRegistered(t *testing.T) {
 	want := map[string]string{
-		"ze-show:isis-neighbor":        cmdShowNeighbor,
-		"ze-show:isis-database":        cmdShowDatabase,
-		"ze-show:isis-database-detail": cmdShowDatabaseDetail,
-		"ze-show:isis-route":           cmdShowRoute,
-		"ze-show:isis-route-ipv6":      cmdShowRouteIPv6,
-		"ze-show:isis-interface":       cmdShowInterface,
-		"ze-show:isis-hostname":        cmdShowHostname,
-		"ze-show:isis-spf-log":         cmdShowSPFLog,
-		"ze-clear:isis-adjacency":      cmdClearAdjacency,
-		"ze-clear:isis-counters":       cmdClearCounters,
+		"ze-isis:show-neighbor":        cmdShowNeighbor,
+		"ze-isis:show-database":        cmdShowDatabase,
+		"ze-isis:show-database-detail": cmdShowDatabaseDetail,
+		"ze-isis:show-route":           cmdShowRoute,
+		"ze-isis:show-route-ipv6":      cmdShowRouteIPv6,
+		"ze-isis:show-interface":       cmdShowInterface,
+		"ze-isis:show-hostname":        cmdShowHostname,
+		"ze-isis:show-spf-log":         cmdShowSPFLog,
+		"ze-isis:clear-adjacency":      cmdClearAdjacency,
+		"ze-isis:clear-counters":       cmdClearCounters,
 	}
 	byMethod := make(map[string]pluginserver.RPCRegistration)
 	for _, r := range pluginserver.AllBuiltinRPCs() {

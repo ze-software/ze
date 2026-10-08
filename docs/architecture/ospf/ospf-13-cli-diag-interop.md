@@ -8,7 +8,7 @@ views and the FRR interop scenarios. Nothing here originates protocol state.
 
 - **The CLI reuses the engine snapshots and adds RPC proxies.** The engine
   already exposed neighbor, interface, database, route, border-router and SPF
-  snapshots. This layer added the `ze-show:ospf-*` and `ze-clear:ospf-*` builtin
+  snapshots. This layer added the `ze-ospf:show-*` and `ze-ospf:clear-*` builtin
   proxies and the command-tree YANG that binds them.
   <!-- source: internal/plugins/ospf/cmd_show.go -- pluginserver.RegisterRPCs -->
   <!-- source: internal/plugins/ospf/clear.go -- clear -->

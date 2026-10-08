@@ -25,11 +25,11 @@ const fieldIncidents = "incidents"
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:ddos-status",
+			WireMethod: "ze-ddos:show-status",
 			Handler:    handleShowDdos,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:ddos-incidents",
+			WireMethod: "ze-ddos:show-incidents",
 			Handler:    handleShowDdosIncidents,
 		},
 	)

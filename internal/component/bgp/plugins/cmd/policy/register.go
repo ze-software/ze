@@ -9,11 +9,11 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:policy-chain",
+			WireMethod: "ze-bgp:show-policy-chain",
 			Handler:    handleShowPolicyChain,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:policy-test",
+			WireMethod: "ze-bgp:show-policy-test",
 			Handler:    handleShowPolicyTest,
 		},
 	)

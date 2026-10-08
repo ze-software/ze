@@ -13,10 +13,10 @@ import (
 // docs/architecture/cli/command-namespacing.md.
 func TestIfaceShowCmdSchemaOwnsKernelReads(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:route"`,
-		`ze:command "ze-show:route-lookup"`,
-		`ze:command "ze-show:neighbor"`,
-		`ze:command "ze-show:arp"`,
+		`ze:command "ze-iface:show-route"`,
+		`ze:command "ze-iface:show-route-lookup"`,
+		`ze:command "ze-iface:show-neighbor"`,
+		`ze:command "ze-iface:show-arp"`,
 		"container route",
 		"container neighbor",
 		"container arp",
@@ -33,7 +33,7 @@ func TestIfaceShowCmdSchemaOwnsKernelReads(t *testing.T) {
 // See ai/rules/plugins.md.
 func TestIfaceMonitorCmdSchemaOwnsNetlink(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-monitor:system-netlink"`,
+		`ze:command "ze-iface:monitor-system-netlink"`,
 		"container monitor",
 		"container system",
 		"container netlink",
@@ -51,16 +51,16 @@ func TestIfaceMonitorCmdSchemaOwnsNetlink(t *testing.T) {
 // MUST. See ai/rules/plugins.md.
 func TestIfaceInterfaceCmdSchemaOwnsInterface(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:interface"`,
-		`ze:command "ze-show:interface-brief"`,
-		`ze:command "ze-show:interface-type"`,
-		`ze:command "ze-show:interface-errors"`,
-		`ze:command "ze-show:interface-rate"`,
-		`ze:command "ze-show:interface-scan"`,
-		`ze:command "ze-show:interface-detail"`,
-		`ze:command "ze-show:interface-counters"`,
-		`ze:command "ze-monitor:interface-rate"`,
-		`ze:command "ze-clear:interface-counters"`,
+		`ze:command "ze-iface:show-interface"`,
+		`ze:command "ze-iface:show-interface-brief"`,
+		`ze:command "ze-iface:show-interface-type"`,
+		`ze:command "ze-iface:show-interface-errors"`,
+		`ze:command "ze-iface:show-interface-rate"`,
+		`ze:command "ze-iface:show-interface-scan"`,
+		`ze:command "ze-iface:show-interface-detail"`,
+		`ze:command "ze-iface:show-interface-counters"`,
+		`ze:command "ze-iface:monitor-interface-rate"`,
+		`ze:command "ze-iface:clear-interface-counters"`,
 		"container interface",
 		"container clear",
 	} {

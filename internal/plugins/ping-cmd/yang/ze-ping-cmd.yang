@@ -24,7 +24,7 @@ module ze-ping-cmd {
 
         container ping {
             config false;
-            ze:command "ze-show:ping";
+            ze:command "ze-ping:show-ping";
             ze:rpc "ze-cli-show-api:ping";
             description "Sends ICMP echo requests to <dest> (IP or hostname). Default count is 5.
 Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from
@@ -80,7 +80,7 @@ the keyword existed.";
 
         container ping {
             config false;
-            ze:command "ze-monitor:ping";
+            ze:command "ze-ping:monitor-ping";
             ze:task-support required;
             description "Pings <target> until you stop it. Adjust interval and timeout as needed. Shows
 running min/avg/max RTT and packet loss.";
@@ -94,7 +94,7 @@ running min/avg/max RTT and packet loss.";
 
         container ping {
             config false;
-            ze:command "ze-resolve:ping";
+            ze:command "ze-ping:resolve-ping";
             description "The target takes a hostname or an address, and it accepts a zone suffix such as
 fe80::1%eth0. The source binds a local address and takes the same zone suffix.
 The count runs from 1 to 100 and the payload size from 1 to 65507 bytes. 'show

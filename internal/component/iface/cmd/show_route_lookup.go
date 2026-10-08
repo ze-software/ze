@@ -16,7 +16,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:route-lookup",
+			WireMethod: "ze-iface:show-route-lookup",
 			Handler:    handleRouteLookup,
 		},
 	)

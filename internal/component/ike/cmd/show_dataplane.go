@@ -31,15 +31,15 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:vpn-ipsec-dataplane-sa",
+			WireMethod: "ze-ike:show-vpn-ipsec-dataplane-sa",
 			Handler:    handleShowVPNIPsecDataplaneSA,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:vpn-ipsec-dataplane-policy",
+			WireMethod: "ze-ike:show-vpn-ipsec-dataplane-policy",
 			Handler:    handleShowVPNIPsecDataplanePolicy,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:vpn-ipsec-dataplane-drift",
+			WireMethod: "ze-ike:show-vpn-ipsec-dataplane-drift",
 			Handler:    handleShowVPNIPsecDataplaneDrift,
 		},
 	)

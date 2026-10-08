@@ -1,6 +1,8 @@
 package rib
 
 import (
+	"strings"
+
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,10 +18,10 @@ import (
 func TestRibProxyRPCRegistration(t *testing.T) {
 	allRPCs := pluginserver.AllBuiltinRPCs()
 
-	// Collect RIB RPCs (wire method starts with "ze-rib-api:")
+	// Collect RIB RPCs (wire method starts with "ze-bgp:rib-")
 	var found []string
 	for _, reg := range allRPCs {
-		if len(reg.WireMethod) > 11 && reg.WireMethod[:11] == "ze-rib-api:" {
+		if strings.HasPrefix(reg.WireMethod, "ze-bgp:rib-") {
 			found = append(found, reg.WireMethod)
 		}
 	}
@@ -34,17 +36,17 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 
 	// All expected wire methods present
 	for _, wire := range []string{
-		"ze-rib-api:status",
-		"ze-rib-api:routes",
-		"ze-rib-api:best",
-		"ze-rib-api:best-status",
-		"ze-rib-api:clear-in",
-		"ze-rib-api:clear-out",
-		"ze-rib-api:rpf",
-		"ze-rib-api:inject",
-		"ze-rib-api:withdraw",
-		"ze-rib-api:protocol",
-		"ze-rib-api:fastpath",
+		"ze-bgp:rib-status",
+		"ze-bgp:rib-routes",
+		"ze-bgp:rib-best",
+		"ze-bgp:rib-best-status",
+		"ze-bgp:rib-clear-in",
+		"ze-bgp:rib-clear-out",
+		"ze-bgp:rib-rpf",
+		"ze-bgp:rib-inject",
+		"ze-bgp:rib-withdraw",
+		"ze-bgp:rib-protocol",
+		"ze-bgp:rib-fastpath",
 	} {
 		assert.True(t, byWire[wire], "missing RPC: %s", wire)
 	}

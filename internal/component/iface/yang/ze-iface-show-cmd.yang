@@ -13,7 +13,7 @@ module ze-iface-show-cmd {
 
         container route {
             config false;
-            ze:command "ze-show:route";
+            ze:command "ze-iface:show-route";
             description "Lists installed routes with next-hop, interface, protocol,
 and metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap
 the output.";
@@ -33,7 +33,7 @@ the word limit. The default is 100000, and the answer says when it was truncated
 
             container lookup {
                 config false;
-                ze:command "ze-show:route-lookup";
+                ze:command "ze-iface:show-route-lookup";
                 ze:rpc "ze-cli-show-api:route-lookup";
                 description "Performs a longest-prefix-match and returns the
 matching route with gateway, interface, protocol, and metric.";
@@ -50,7 +50,7 @@ kernel answers with the route it selects for a packet to that address.";
 
         container neighbor {
             config false;
-            ze:command "ze-show:neighbor";
+            ze:command "ze-iface:show-neighbor";
             description "Lists IPv4 ARP and IPv6 ND entries with MAC addresses and
 states. Pass ipv4 or ipv6 to filter by address family. No argument shows both.
 For the IPv4-only view, 'show arp' is a shortcut.";
@@ -70,7 +70,7 @@ when it is absent is both families.";
 
         container arp {
             config false;
-            ze:command "ze-show:arp";
+            ze:command "ze-iface:show-arp";
             description "Lists IPv4 ARP entries with MAC address and state. ARP is
 IPv4-only. Use 'show neighbor' for both families or 'show neighbor ipv6' for
 the IPv6 ND table.";

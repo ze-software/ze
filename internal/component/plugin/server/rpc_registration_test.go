@@ -35,7 +35,7 @@ func TestRPCRegistrationTable(t *testing.T) {
 
 			// Editor RPCs register handlers from the cli package (import cycle
 			// prevents this test binary from importing it).
-			if !strings.HasPrefix(reg.WireMethod, "ze-editor:") {
+			if !strings.HasPrefix(reg.WireMethod, "ze-cli:editor-") {
 				assert.NotNil(t, reg.Handler, "nil handler for %s", reg.WireMethod)
 			}
 
@@ -62,8 +62,8 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 	}
 
 	assert.Greater(t, counts["ze-bgp"], 0, "ze-bgp RPCs registered via plugin/all")
-	assert.Equal(t, 14, counts["ze-system"], "ze-system RPCs (server-only, stable count) — incl. ze-system:quiesce barrier")
-	assert.Equal(t, 8, counts["ze-plugin"], "ze-plugin RPCs (session-peer-ready in bgp/plugins/cmd/peer)")
+	assert.Equal(t, 21, counts["ze-plugin"], "ze-plugin RPCs: the server package's 14 system-* and 7 plugin RPCs (stable count, incl. ze-plugin:system-quiesce barrier)")
+	assert.Zero(t, counts["ze-system"], "ze-system is no subsystem: the server package registers under ze-plugin")
 	// ze-editor RPCs may or may not be loaded depending on plugin/all
 	// ze-rib RPCs may or may not be loaded depending on plugin/all
 }
@@ -83,13 +83,13 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 	// Only server-package RPCs are visible here.
 	// BGP handler RPCs (subscribe, rib, peer ops) are tested in handler_test.go.
 	expectedMethods := []string{
-		"ze-system:daemon-shutdown",
-		"ze-system:daemon-reboot",
-		"ze-system:daemon-quit",
-		"ze-system:daemon-status",
-		"ze-system:daemon-reload",
-		"ze-system:help",
-		"ze-system:command-list",
+		"ze-plugin:system-daemon-shutdown",
+		"ze-plugin:system-daemon-reboot",
+		"ze-plugin:system-daemon-quit",
+		"ze-plugin:system-daemon-status",
+		"ze-plugin:system-daemon-reload",
+		"ze-plugin:system-help",
+		"ze-plugin:system-command-list",
 		"ze-plugin:session-ready",
 		"ze-plugin:session-bye",
 	}
@@ -115,7 +115,7 @@ func TestRPCRegistrationLoadDispatcher(t *testing.T) {
 	}
 
 	// Only server-package RPCs are registered in this test's scope
-	assert.True(t, dispatcher.HasMethod("ze-system:help"))
+	assert.True(t, dispatcher.HasMethod("ze-plugin:system-help"))
 	assert.True(t, dispatcher.HasMethod("ze-plugin:session-ready"))
 	// With plugin/all loaded, all RPCs are in scope
 }

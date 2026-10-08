@@ -17,7 +17,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:system-file-descriptors", Handler: handleShowSystemFD},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:show-system-file-descriptors", Handler: handleShowSystemFD},
 	)
 }
 

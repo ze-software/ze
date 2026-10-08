@@ -13,7 +13,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-plugin:session-peer-ready", Handler: handlePeerSessionReady},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-session-peer-ready", Handler: handlePeerSessionReady},
 	)
 }
 

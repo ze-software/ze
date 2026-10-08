@@ -7,15 +7,15 @@ import (
 
 func TestHostCmdSchemaOwnsShowHost(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:host-cpu"`,
-		`ze:command "ze-show:host-nic"`,
-		`ze:command "ze-show:host-dmi"`,
-		`ze:command "ze-show:host-memory"`,
-		`ze:command "ze-show:host-thermal"`,
-		`ze:command "ze-show:host-storage"`,
-		`ze:command "ze-show:host-kernel"`,
-		`ze:command "ze-show:host-platform"`,
-		`ze:command "ze-show:host-all"`,
+		`ze:command "ze-host:show-cpu"`,
+		`ze:command "ze-host:show-nic"`,
+		`ze:command "ze-host:show-dmi"`,
+		`ze:command "ze-host:show-memory"`,
+		`ze:command "ze-host:show-thermal"`,
+		`ze:command "ze-host:show-storage"`,
+		`ze:command "ze-host:show-kernel"`,
+		`ze:command "ze-host:show-platform"`,
+		`ze:command "ze-host:show-all"`,
 		"container host",
 		"container cpu",
 		"container nic",
@@ -42,7 +42,7 @@ func TestHostCmdSchemaOwnsShowHost(t *testing.T) {
 // command therefore succeeded with the daemon DOWN and answered `unknown
 // command` with it UP (test/ui/cli-verb-daemon-dispatch.ci, checks 5 and 7).
 func TestHostCmdSchemaDeclaresBareShowHost(t *testing.T) {
-	const decl = `ze:command "ze-show:host-all"`
+	const decl = `ze:command "ze-host:show-all"`
 	if got := strings.Count(ZeHostCmdYANG, decl); got != 2 {
 		t.Errorf("ze-host-cmd.yang has %d %s declarations, want 2 (container host and container all)", got, decl)
 	}
@@ -50,7 +50,7 @@ func TestHostCmdSchemaDeclaresBareShowHost(t *testing.T) {
 
 func TestHostCmdSchemaOwnsSystemKernelLog(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:system-kernel-log"`,
+		`ze:command "ze-host:show-system-kernel-log"`,
 		"container kernel-log",
 	} {
 		if !strings.Contains(ZeHostCmdYANG, want) {
@@ -61,7 +61,7 @@ func TestHostCmdSchemaOwnsSystemKernelLog(t *testing.T) {
 
 func TestHostSetCmdSchemaOwnsSetFileDescriptors(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-set:system-file-descriptors"`,
+		`ze:command "ze-host:set-system-file-descriptors"`,
 		"container file-descriptors",
 	} {
 		if !strings.Contains(ZeHostSetCmdYANG, want) {

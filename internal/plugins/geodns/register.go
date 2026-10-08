@@ -94,7 +94,7 @@ func init() {
 	config.RegisterListenerProtocols("service-geodns-listener", config.ProtocolUDP, config.ProtocolTCP)
 
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
-		WireMethod: "ze-show:geodns",
+		WireMethod: "ze-geodns:show-geodns",
 		Handler:    handleShowGeoDNS,
 	})
 

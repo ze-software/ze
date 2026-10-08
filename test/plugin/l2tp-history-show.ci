@@ -1,5 +1,5 @@
 # Test: show l2tp {session history|session traffic|tunnel history} <id>
-# Exercises: dispatch-command -> ze-l2tp-api:{session-history,session-traffic,
+# Exercises: dispatch-command -> ze-l2tp:{session-history,session-traffic,
 #            tunnel-history} -> handleSessionHistory/handleSessionTraffic/
 #            handleTunnelHistory.
 # Verifies the R9 rename split (`session-history` -> `session history`, etc.)

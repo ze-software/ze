@@ -22,14 +22,14 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:interface", Handler: handleShowInterface},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-brief", Handler: handleShowInterfaceBrief},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-type", Handler: handleShowInterfaceType},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-errors", Handler: handleShowInterfaceErrors},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-rate", Handler: handleShowInterfaceRateCmd},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-detail", Handler: handleShowInterfaceDetail},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-counters", Handler: handleShowInterfaceCounters},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:interface-scan", Handler: handleShowInterfaceScan},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface", Handler: handleShowInterface},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-brief", Handler: handleShowInterfaceBrief},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-type", Handler: handleShowInterfaceType},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-errors", Handler: handleShowInterfaceErrors},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-rate", Handler: handleShowInterfaceRateCmd},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-detail", Handler: handleShowInterfaceDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-counters", Handler: handleShowInterfaceCounters},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-scan", Handler: handleShowInterfaceScan},
 	)
 }
 

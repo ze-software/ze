@@ -18,11 +18,11 @@ const protocolKey = "protocol"
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:flow-export",
+			WireMethod: "ze-flowexport:show-flow-export",
 			Handler:    handleShowFlowExport,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:flow-recent",
+			WireMethod: "ze-flowexport:show-flow-recent",
 			Handler:    handleShowFlowRecent,
 		},
 	)

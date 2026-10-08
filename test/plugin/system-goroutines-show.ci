@@ -1,5 +1,5 @@
 # Test: show system goroutines summary returns goroutine count and state breakdown
-# Exercises: dispatch-command -> ze-show:system-goroutines -> handleShowSystemGoroutines
+# Exercises: dispatch-command -> ze-cmd:show-system-goroutines -> handleShowSystemGoroutines
 # Verifies AC-3: returns JSON with total goroutine count and breakdown by state
 
 # ze-peer: accepts connection

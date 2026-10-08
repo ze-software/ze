@@ -23,9 +23,9 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ping", Handler: handleShowPing},
-		pluginserver.RPCRegistration{WireMethod: "ze-monitor:ping", Handler: handleMonitorPing},
-		pluginserver.RPCRegistration{WireMethod: "ze-resolve:ping", Handler: handleResolvePing},
+		pluginserver.RPCRegistration{WireMethod: "ze-ping:show-ping", Handler: handleShowPing},
+		pluginserver.RPCRegistration{WireMethod: "ze-ping:monitor-ping", Handler: handleMonitorPing},
+		pluginserver.RPCRegistration{WireMethod: "ze-ping:resolve-ping", Handler: handleResolvePing},
 	)
 
 	registry.MustRegisterLocalMeta("show ping", showPingLocal, registry.Meta{

@@ -18,7 +18,7 @@ import (
 
 func TestRPCsRegistered(t *testing.T) {
 	rpcs := RPCs()
-	want := map[string]bool{"ze-bgp:log-levels": false, "ze-bgp:log-set": false, "ze-bgp:log-recent": false}
+	want := map[string]bool{"ze-log:bgp-log-levels": false, "ze-log:bgp-log-set": false, "ze-log:bgp-log-recent": false}
 	for _, r := range rpcs {
 		if _, ok := want[r.WireMethod]; ok {
 			want[r.WireMethod] = true
@@ -109,7 +109,7 @@ func TestLogSetDisabledSilencesSubsystem(t *testing.T) {
 		t.Fatal("precondition: a fresh logger starts at warn")
 	}
 
-	set := registeredHandler(t, "ze-bgp:log-set")
+	set := registeredHandler(t, "ze-log:bgp-log-set")
 	resp, err := set(nil, []string{subsystem, "disabled"})
 	if err != nil {
 		t.Fatalf("log-set transport error: %v", err)
@@ -121,7 +121,7 @@ func TestLogSetDisabledSilencesSubsystem(t *testing.T) {
 		t.Fatalf("request log level %s disabled: status %v, error %q, want StatusDone", subsystem, resp.Status, resp.Error)
 	}
 
-	levels := registeredHandler(t, "ze-bgp:log-levels")
+	levels := registeredHandler(t, "ze-log:bgp-log-levels")
 	resp, err = levels(nil, nil)
 	if err != nil {
 		t.Fatalf("log-levels transport error: %v", err)
@@ -154,7 +154,7 @@ func TestLogSetDisabledSilencesSubsystem(t *testing.T) {
 // through the registered log-recent handler.
 func recentMessages(t *testing.T, args []string) []string {
 	t.Helper()
-	recent := registeredHandler(t, "ze-bgp:log-recent")
+	recent := registeredHandler(t, "ze-log:bgp-log-recent")
 	resp, err := recent(nil, args)
 	if err != nil {
 		t.Fatalf("log-recent %v transport error: %v", args, err)
@@ -223,7 +223,7 @@ func TestLogRecentLevelFilterMatchesTypedWord(t *testing.T) {
 		t.Fatalf("show log recent level warn answered %q, want no entry", got)
 	}
 
-	recent := registeredHandler(t, "ze-bgp:log-recent")
+	recent := registeredHandler(t, "ze-log:bgp-log-recent")
 	resp, err := recent(nil, []string{"level", "verbose"})
 	if err != nil {
 		t.Fatalf("log-recent transport error: %v", err)

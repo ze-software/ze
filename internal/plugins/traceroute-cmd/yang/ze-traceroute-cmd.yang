@@ -14,7 +14,7 @@ module ze-traceroute-cmd {
 
         container traceroute {
             config false;
-            ze:command "ze-show:traceroute";
+            ze:command "ze-traceroute:show-traceroute";
             description "Shows each hop with its IP and round-trip time. Dest can be an IP or hostname.
 Defaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT
 measurements.";
@@ -62,7 +62,7 @@ the keyword existed.";
 
         container probe-round {
             config false;
-            ze:command "ze-show:probe-round";
+            ze:command "ze-traceroute:show-probe-round";
             description "Sends all probes concurrently for faster results than sequential traceroute.
 Returns per-hop RTT and IP. Use probes and max-hops to tune accuracy vs speed.";
             ze:help "Run a parallel traceroute probe round to a target.";
@@ -101,7 +101,7 @@ a probe round waits one second for every answer.";
 
         container traceroute {
             config false;
-            ze:command "ze-monitor:traceroute";
+            ze:command "ze-traceroute:monitor-traceroute";
             ze:task-support required;
             description "Shows each hop with running RTT statistics. Keeps probing so you can watch
 path changes and latency shifts over time.";
@@ -115,7 +115,7 @@ path changes and latency shifts over time.";
 
         container traceroute {
             config false;
-            ze:command "ze-resolve:traceroute";
+            ze:command "ze-traceroute:resolve-traceroute";
             description "The options are source, max-hops, timeout and probes, each one a
 keyword and a value, and do-not-fragment, a keyword with one of two values. max-hops is 1 to 64 and defaults to 30, probes is 1 to 10 and defaults
 to 3, and timeout is 1s to 30s and defaults to 3s. The source also selects the address

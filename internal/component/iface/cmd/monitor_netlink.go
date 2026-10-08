@@ -49,7 +49,7 @@ func init() {
 	pluginserver.RegisterStreamingHandler("monitor system netlink", streamNetlinkMonitor)
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-monitor:system-netlink",
+			WireMethod: "ze-iface:monitor-system-netlink",
 			Handler:    handleMonitorSystemNetlink,
 		},
 	)

@@ -175,7 +175,7 @@ func TestLineFramingRoundTrip(t *testing.T) {
 	messages := []string{
 		`#1 ze-bgp:peer-list {"selector":"*"}`,
 		`#1 ok {"peers":[]}`,
-		`#2 ze-bgp:subscribe {"events":["update"]}`,
+		`#2 ze-cmd:bgp-subscribe {"events":["update"]}`,
 	}
 
 	var buf bytes.Buffer

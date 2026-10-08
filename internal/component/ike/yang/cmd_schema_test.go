@@ -10,14 +10,14 @@ import (
 // this package MUST. See ai/rules/plugins.md.
 func TestIPsecCmdSchemaOwnsShowVPNIPsec(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:vpn-ipsec-sa"`,
-		`ze:command "ze-show:vpn-ipsec-status"`,
-		`ze:command "ze-show:vpn-ipsec-peer"`,
-		`ze:command "ze-show:vpn-ipsec-dataplane-sa"`,
-		`ze:command "ze-show:vpn-ipsec-dataplane-policy"`,
-		`ze:command "ze-show:vpn-ipsec-dataplane-drift"`,
-		`ze:command "ze-monitor:vpn-ipsec"`,
-		`ze:command "ze-clear:vpn-ipsec-sa"`,
+		`ze:command "ze-ike:show-vpn-ipsec-sa"`,
+		`ze:command "ze-ike:show-vpn-ipsec-status"`,
+		`ze:command "ze-ike:show-vpn-ipsec-peer"`,
+		`ze:command "ze-ike:show-vpn-ipsec-dataplane-sa"`,
+		`ze:command "ze-ike:show-vpn-ipsec-dataplane-policy"`,
+		`ze:command "ze-ike:show-vpn-ipsec-dataplane-drift"`,
+		`ze:command "ze-ike:monitor-vpn-ipsec"`,
+		`ze:command "ze-ike:clear-vpn-ipsec-sa"`,
 		"container vpn",
 		"container ipsec",
 		"container dataplane",

@@ -10,7 +10,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// These cover the OS-tool `resolve ping` (ze-resolve:ping) argument validation,
+// These cover the OS-tool `resolve ping` (ze-ping:resolve-ping) argument validation,
 // moved here with the handler from internal/component/resolve/cmd.
 
 func TestHandleResolvePing_InvalidTarget(t *testing.T) {

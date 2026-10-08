@@ -28,17 +28,17 @@ func init() {
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:reject-asn",
+			WireMethod:    "ze-bgp:show-reject-asn",
 			Handler:       forwardShowRejectASN,
 			PluginCommand: cmdShowRejectASN,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:reject-asn-name",
+			WireMethod:    "ze-bgp:show-reject-asn-name",
 			Handler:       forwardShowRejectASNName,
 			PluginCommand: cmdShowRejectASNName,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:reject-asn-known-transit-free",
+			WireMethod:    "ze-bgp:show-reject-asn-known-transit-free",
 			Handler:       forwardShowRejectASNTransitFree,
 			PluginCommand: cmdShowRejectASNTransitFree,
 		},

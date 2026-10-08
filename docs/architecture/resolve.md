@@ -319,8 +319,8 @@ carrying a `ze:command` extension, which is how every `ze-show:` and
 
 | Command | Wire method | Answers |
 |---------|-------------|---------|
-| `show resolve rir <asn>` | `ze-show:resolve-rir` | `asn`, `registry`, `whois`, `range-start`, `range-end` |
-| `update resolve rir` | `ze-update:resolve-rir` | `key`, `ranges`, `generated` |
+| `show resolve rir <asn>` | `ze-resolve:show-rir` | `asn`, `registry`, `whois`, `range-start`, `range-end` |
+| `update resolve rir` | `ze-resolve:update-rir` | `key`, `ranges`, `generated` |
 
 <!-- source: internal/component/resolve/cmd/register_rir.go -- the two RPC registrations -->
 <!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN, handleRIRRefresh -->

@@ -16,7 +16,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-config-archive:trigger",
+			WireMethod: "ze-config:archive-trigger",
 			Handler:    handleArchiveTrigger,
 		},
 	)

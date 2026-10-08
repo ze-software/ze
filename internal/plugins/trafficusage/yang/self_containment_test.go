@@ -14,7 +14,7 @@ import (
 
 func TestTrafficUsageCmdSchemaOwnsShowTrafficUsage(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:traffic-usage"`,
+		`ze:command "ze-trafficusage:show-traffic-usage"`,
 		"container traffic",
 		"container usage",
 		"container show",

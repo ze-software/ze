@@ -12,8 +12,8 @@ import (
 // ai/rules/plugins.md.
 func TestRRCmdSchemaOwnsShowRR(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:rr-status"`,
-		`ze:command "ze-show:rr-peers"`,
+		`ze:command "ze-bgp:show-rr-status"`,
+		`ze:command "ze-bgp:show-rr-peers"`,
 		"container rr",
 	} {
 		if !strings.Contains(ZeRRCmdYANG, want) {

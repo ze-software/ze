@@ -18,10 +18,10 @@ import (
 // from the plugin schema (which would unwire the command).
 func TestVRRPCmdSchemaOwnsShowVRRP(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:vrrp"`,
-		`ze:command "ze-show:vrrp-interface"`,
-		`ze:command "ze-show:vrrp-statistics"`,
-		`ze:command "ze-clear:vrrp-statistics"`,
+		`ze:command "ze-vrrp:show-vrrp"`,
+		`ze:command "ze-vrrp:show-interface"`,
+		`ze:command "ze-vrrp:show-statistics"`,
+		`ze:command "ze-vrrp:clear-statistics"`,
 		"container vrrp",
 	} {
 		if !strings.Contains(ZeVrrpCmdYANG, want) {

@@ -16,7 +16,7 @@ import (
 func registerSetFD() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-set:system-file-descriptors",
+			WireMethod: "ze-host:set-system-file-descriptors",
 			Handler:    handleSetSystemFD,
 		},
 	)

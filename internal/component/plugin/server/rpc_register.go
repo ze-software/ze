@@ -3,6 +3,9 @@
 package server
 
 import (
+	"errors"
+	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -12,9 +15,76 @@ import (
 var registeredRPCs []RPCRegistration
 
 // RegisterRPCs adds RPCs to the package-level registry.
-// Called from init() in register.go files.
+// Called from init() in register.go files. Each registration is stamped with
+// the import path of the calling package (Registrar), which is what its
+// wire-method prefix is derived from (OwnerPrefix). A Registrar the caller set
+// is overwritten, so the stamp is a fact about the call, never a claim.
 func RegisterRPCs(rpcs ...RPCRegistration) {
-	registeredRPCs = append(registeredRPCs, rpcs...)
+	registrar := callerPackage(2)
+	for _, rpc := range rpcs {
+		rpc.Registrar = registrar
+		registeredRPCs = append(registeredRPCs, rpc)
+	}
+}
+
+// callerPackage answers the import path of a function on the stack:
+// callerPackage(1) names the package of its own caller, callerPackage(2) that
+// caller's caller. It answers "" when the stack is that short.
+// A function name is "<import path>.<symbol>", and the symbol part holds no
+// slash, so the path ends at the first dot after the last slash.
+func callerPackage(skip int) string {
+	pcs := make([]uintptr, 1)
+	if runtime.Callers(skip+1, pcs) == 0 {
+		return ""
+	}
+	frame, _ := runtime.CallersFrames(pcs).Next()
+	name := frame.Function
+	slash := strings.LastIndexByte(name, '/')
+	dot := strings.IndexByte(name[slash+1:], '.')
+	if dot < 0 {
+		return name
+	}
+	return name[:slash+1+dot]
+}
+
+// zeModulePath is the import-path root every Ze package lives under.
+const zeModulePath = "github.com/ze-software/ze/"
+
+// ErrNoOwnerPrefix reports a registering package that lives under neither
+// subsystem root, so no wire-method prefix is derived for it.
+var ErrNoOwnerPrefix = errors.New("package lives under no subsystem root")
+
+// OwnerPrefix answers the only wire-method prefix the package at pkg may
+// declare: "ze-" and the subsystem the package lives in. The subsystem is the
+// directory directly under internal/component/ or internal/plugins/, with a
+// "-cmd" suffix dropped, because internal/plugins/<x>-cmd is the command
+// provider of subsystem x. A package nested deeper takes its root's prefix, so
+// every BGP plugin under internal/component/bgp/ declares ze-bgp. There is no
+// table: a new subsystem owns its prefix by existing, and no package can spell
+// another's (spec-rpc-published-name-does-not-reach-its-handler, AC-10).
+func OwnerPrefix(pkg string) (string, error) {
+	rel, ok := strings.CutPrefix(pkg, zeModulePath)
+	if !ok {
+		return "", fmt.Errorf("%w: %q", ErrNoOwnerPrefix, pkg)
+	}
+	parts := strings.SplitN(rel, "/", 4)
+	if len(parts) < 3 {
+		return "", fmt.Errorf("%w: %q", ErrNoOwnerPrefix, pkg)
+	}
+	if parts[0] != "internal" {
+		return "", fmt.Errorf("%w: %q", ErrNoOwnerPrefix, pkg)
+	}
+	var subsystem string
+	switch parts[1] {
+	case "component":
+		subsystem = parts[2]
+	case "plugins":
+		subsystem = strings.TrimSuffix(parts[2], "-cmd")
+	}
+	if subsystem == "" {
+		return "", fmt.Errorf("%w: %q", ErrNoOwnerPrefix, pkg)
+	}
+	return "ze-" + subsystem, nil
 }
 
 // ProcessCleanupFunc is called when a plugin process exits.

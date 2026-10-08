@@ -13,7 +13,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:policy-list",
+			WireMethod: "ze-cmd:show-policy-list",
 			Handler:    handleShowPolicyList,
 		},
 	)

@@ -1,5 +1,5 @@
-// VALIDATES: spec-ospf-ext-14 AC-1/AC-2/AC-26, A-4, R-9 -- the new IPv4 (ze-show:ospf-*) and
-// IPv6 (ze-show:ospfv3-*) deep-introspection proxies and the two inject proxies are
+// VALIDATES: spec-ospf-ext-14 AC-1/AC-2/AC-26, A-4, R-9 -- the new IPv4 (ze-ospf:show-*) and
+// IPv6 (ze-ospf:show-ospfv3-*) deep-introspection proxies and the two inject proxies are
 // registered and reachable; the v6 wire methods and command nouns do not collide with the
 // v4 ones.
 // PREVENTS: a command that registers no proxy (unreachable), or a v6 method that clobbers a
@@ -24,30 +24,30 @@ func registeredOSPFProxies(t *testing.T) map[string]string {
 
 func TestShowOSPFDatabaseDetailWired(t *testing.T) {
 	m := registeredOSPFProxies(t)
-	if got := m["ze-show:ospf-database-opaque-area-detail"]; got != "show ospf database opaque-area detail" {
+	if got := m["ze-ospf:show-database-opaque-area-detail"]; got != "show ospf database opaque-area detail" {
 		t.Fatalf("IPv4 detail proxy command = %q", got)
 	}
-	if got := m["ze-show:ospf-spf-detail"]; got != "show ospf spf detail" {
+	if got := m["ze-ospf:show-spf-detail"]; got != "show ospf spf detail" {
 		t.Fatalf("IPv4 spf-detail proxy command = %q", got)
 	}
 }
 
 func TestShowOSPFv3DatabaseDetailWired(t *testing.T) {
 	m := registeredOSPFProxies(t)
-	if got := m["ze-show:ospfv3-database-detail"]; got != "show ospf ipv6 database detail" {
+	if got := m["ze-ospf:show-ospfv3-database-detail"]; got != "show ospf ipv6 database detail" {
 		t.Fatalf("IPv6 detail proxy command = %q", got)
 	}
-	if got := m["ze-show:ospfv3-instance"]; got != "show ospf ipv6 instance" {
+	if got := m["ze-ospf:show-ospfv3-instance"]; got != "show ospf ipv6 instance" {
 		t.Fatalf("IPv6 instance proxy command = %q", got)
 	}
 }
 
 func TestDebugInjectWired(t *testing.T) {
 	m := registeredOSPFProxies(t)
-	if got := m["ze-debug:ospf-inject"]; got != "debug ip ospf inject opaque" {
+	if got := m["ze-ospf:debug-inject"]; got != "debug ip ospf inject opaque" {
 		t.Fatalf("IPv4 inject proxy command = %q", got)
 	}
-	if got := m["ze-debug:ospfv3-inject"]; got != "debug ipv6 ospf inject lsa" {
+	if got := m["ze-ospf:debug-ospfv3-inject"]; got != "debug ipv6 ospf inject lsa" {
 		t.Fatalf("IPv6 inject proxy command = %q", got)
 	}
 }
@@ -58,17 +58,17 @@ func TestV3CommandsDistinctFromV4(t *testing.T) {
 	var v6Methods []string
 	for wm, cmd := range m {
 		switch {
-		case strings.HasPrefix(wm, "ze-show:ospfv3-"):
+		case strings.HasPrefix(wm, "ze-ospf:show-ospfv3-"):
 			v6Methods = append(v6Methods, wm)
 			if !strings.HasPrefix(cmd, "show ospf ipv6") {
 				t.Errorf("v6 method %q fronts a non-ipv6 command %q", wm, cmd)
 			}
-		case strings.HasPrefix(wm, "ze-show:ospf-"):
+		case strings.HasPrefix(wm, "ze-ospf:show-"):
 			v4Commands[cmd] = wm
 		}
 	}
 	if len(v6Methods) == 0 {
-		t.Fatalf("no ze-show:ospfv3-* methods registered")
+		t.Fatalf("no ze-ospf:show-ospfv3-* methods registered")
 	}
 	// No v6 command noun may equal a v4 command noun.
 	for wm, cmd := range m {

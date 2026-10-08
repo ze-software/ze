@@ -6,7 +6,7 @@
 #            reaches an operator through iface.KernelRoute.Protocol, which
 #            protocolName (internal/plugins/iface/netlink/route_linux.go) fills
 #            from rtproto.Name, and which `show route`
-#            (internal/component/iface/cmd/show_route.go, ze-show:route) and the
+#            (internal/component/iface/cmd/show_route.go, ze-iface:show-route) and the
 #            web IP Routes page (internal/component/web/page_ip_routes.go) both
 #            print. A DHCP-learned or PPPoE-learned default route used to render
 #            as "boot" (RTPROT_BOOT, what the kernel stamps when Ze names no

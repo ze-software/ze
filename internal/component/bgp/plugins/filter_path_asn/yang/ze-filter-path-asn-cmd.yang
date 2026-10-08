@@ -18,7 +18,7 @@ module ze-filter-path-asn-cmd {
 
             container reject-asn {
                 config false;
-                ze:command "ze-show:reject-asn";
+                ze:command "ze-bgp:show-reject-asn";
                 description "Lists each configured reject-asn list with every ASN it holds, the
 effective position set for that ASN, the network the curated table
 names for it, and how many peers name the list on import and on
@@ -28,7 +28,7 @@ annotation.";
 
                 container name {
                     config false;
-                    ze:command "ze-show:reject-asn-name";
+                    ze:command "ze-bgp:show-reject-asn-name";
                     description "The same answer for a single list, for a config that holds many.";
                     ze:help "Show one reject-asn list.";
                     leaf name {
@@ -52,7 +52,7 @@ because no authority publishes these sets.";
 
                     container transit-free {
                         config false;
-                        ze:command "ze-show:reject-asn-known-transit-free";
+                        ze:command "ze-bgp:show-reject-asn-known-transit-free";
                         description "Prints the well-known transit-free ASNs as one `indirect [ ... ];`
 line to paste directly under `reject-asn NAME { }`, with the sources and
 the curated date as comments. Ze acts on no ASN it was not configured

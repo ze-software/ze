@@ -1,5 +1,5 @@
 # quiesce-barrier: a plugin sends two routes then calls quiesce() (the
-# ze-system:quiesce barrier) instead of sleeping. quiesce blocks until the BGP
+# ze-plugin:system-quiesce barrier) instead of sleeping. quiesce blocks until the BGP
 # forward pool has drained, so the peer sees both UPDATEs on the wire with no
 # fixed delay. Proves spec-test-sync-quiesce AC-4 (send -> quiesce -> on-wire,
 # no fixed sleeps). Wire hex/config reuse the known-good announce.ci fixture.

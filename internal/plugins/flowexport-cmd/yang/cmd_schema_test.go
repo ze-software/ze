@@ -10,7 +10,7 @@ import (
 // `show flow export`, and this package MUST. See ai/rules/plugins.md.
 func TestFlowExportCmdSchemaOwnsShowFlowExport(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:flow-export"`,
+		`ze:command "ze-flowexport:show-flow-export"`,
 		"container flow",
 		"container export",
 	} {

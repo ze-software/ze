@@ -7,10 +7,10 @@ import (
 
 func TestDiagCmdSchemaOwnsCaptureAndTCPCheck(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:tcp-check"`,
-		`ze:command "ze-show:capture"`,
-		`ze:command "ze-show:capture-raw"`,
-		`ze:command "ze-show:capture-interface"`,
+		`ze:command "ze-diag:show-tcp-check"`,
+		`ze:command "ze-diag:show-capture"`,
+		`ze:command "ze-diag:show-capture-raw"`,
+		`ze:command "ze-diag:show-capture-interface"`,
 		"container tcp-check",
 		"container capture",
 		"container raw",

@@ -209,9 +209,9 @@ func TestRelatedExtension_RejectsCommandNotInTree(t *testing.T) {
 			"show": {
 				Name: "show",
 				Children: map[string]*command.Node{
-					"bgp":      {Name: "bgp", Children: map[string]*command.Node{"health": {Name: "health", WireMethod: "ze-show:bgp-health"}}},
-					"warnings": {Name: "warnings", WireMethod: "ze-show:warnings"},
-					"errors":   {Name: "errors", WireMethod: "ze-show:errors"},
+					"bgp":      {Name: "bgp", Children: map[string]*command.Node{"health": {Name: "health", WireMethod: "ze-bgp:show-health"}}},
+					"warnings": {Name: "warnings", WireMethod: "ze-cmd:show-warnings"},
+					"errors":   {Name: "errors", WireMethod: "ze-cmd:show-errors"},
 				},
 			},
 			"peer": {

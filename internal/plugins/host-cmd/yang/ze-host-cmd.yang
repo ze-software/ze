@@ -12,7 +12,7 @@ module ze-host-cmd {
 
         container host {
             config false;
-            ze:command "ze-show:host-all";
+            ze:command "ze-host:show-all";
             description "Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a
 subcommand for one section, or 'show host all' for everything. The bare 'show
 host' is an alias of 'show host all'.";
@@ -20,7 +20,7 @@ host' is an alias of 'show host all'.";
 
             container cpu {
                 config false;
-                ze:command "ze-show:host-cpu";
+                ze:command "ze-host:show-cpu";
                 description "Returns vendor, model, core/thread topology, hybrid layout, scaling driver,
 current/min/max frequencies, and throttle counts.";
                 ze:help "Show what CPUs are in this box.";
@@ -28,7 +28,7 @@ current/min/max frequencies, and throttle counts.";
 
             container nic {
                 config false;
-                ze:command "ze-show:host-nic";
+                ze:command "ze-host:show-nic";
                 description "Returns driver, PCI vendor/device IDs, link speed, queue counts, and firmware
 version. Virtual interfaces are excluded. Use this to confirm NIC firmware
 before an upgrade.";
@@ -37,7 +37,7 @@ before an upgrade.";
 
             container dmi {
                 config false;
-                ze:command "ze-show:host-dmi";
+                ze:command "ze-host:show-dmi";
                 description "Returns system vendor, board name, BIOS version, and chassis type. Useful for
 inventory or confirming which hardware model you are on.";
                 ze:help "Show the box's identity from SMBIOS/DMI.";
@@ -45,7 +45,7 @@ inventory or confirming which hardware model you are on.";
 
             container memory {
                 config false;
-                ze:command "ze-show:host-memory";
+                ze:command "ze-host:show-memory";
                 description "Returns DIMM sizes and, when the edac driver is present, correctable and
 uncorrectable error counters. Non-zero ECC counts mean you should plan a DIMM
 replacement.";
@@ -54,7 +54,7 @@ replacement.";
 
             container thermal {
                 config false;
-                ze:command "ze-show:host-thermal";
+                ze:command "ze-host:show-thermal";
                 description "Returns hwmon sensor readings and per-CPU throttle counters. Non-zero throttle
 counts mean the box has been running hot enough to slow down.";
                 ze:help "Show temperature sensors and thermal throttle events.";
@@ -62,7 +62,7 @@ counts mean the box has been running hot enough to slow down.";
 
             container storage {
                 config false;
-                ze:command "ze-show:host-storage";
+                ze:command "ze-host:show-storage";
                 description "Returns size, model, transport type (nvme, sata, mmc, virtio), rotational
 flag, and NVMe firmware version where applicable.";
                 ze:help "Show storage devices attached to this box.";
@@ -70,7 +70,7 @@ flag, and NVMe firmware version where applicable.";
 
             container kernel {
                 config false;
-                ze:command "ze-show:host-kernel";
+                ze:command "ze-host:show-kernel";
                 description "Returns kernel release, command line, CPU microcode revision, boot time, and
 security-relevant CPU flags (spectre mitigations, etc.).";
                 ze:help "Show the running kernel version and boot parameters.";
@@ -78,7 +78,7 @@ security-relevant CPU flags (spectre mitigations, etc.).";
 
             container platform {
                 config false;
-                ze:command "ze-show:host-platform";
+                ze:command "ze-host:show-platform";
                 description "Reports read-only root, privilege level, systemd presence, gokrazy update
 socket, reboot-allowed flag, persistent-storage writability, and fd limits.
 Helps you understand what operations are possible on this particular
@@ -88,7 +88,7 @@ deployment.";
 
             container all {
                 config false;
-                ze:command "ze-show:host-all";
+                ze:command "ze-host:show-all";
                 description "Returns every section (cpu, nic, dmi, memory, thermal, storage, kernel,
 platform) as a single JSON response. Ideal for support bundles or automated
 inventory collection.";
@@ -101,7 +101,7 @@ inventory collection.";
 
             container kernel-log {
                 config false;
-                ze:command "ze-show:system-kernel-log";
+                ze:command "ze-host:show-system-kernel-log";
                 description "Reads from /dev/kmsg. Filter by syslog level (emerg through debug) and limit
 with count. Without count, you get the newest 50 messages. Linux only. Useful
 for spotting NIC errors or OOM events.";

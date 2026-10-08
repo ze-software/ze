@@ -179,7 +179,7 @@ forwarding`, independent of either engine's in-memory state.
     independently for `show mpls forwarding`: `dumpMPLSRoutes` (`mpls/forwarding_linux.go`)
     lists `netlink.FAMILY_MPLS` routes (swap/pop, keyed by `MPLSDst`) plus ze-owned
     (`rtprotZE`) IPv4/IPv6 routes carrying an `MPLSEncap` (push, `pushEntryFromRoute`,
-    `mpls/forwarding_linux.go`), served by the `ze-show:mpls-forwarding` RPC
+    `mpls/forwarding_linux.go`), served by the `ze-mpls:show-forwarding` RPC
     (`mpls/show_forwarding.go`). This path never touches either engine's in-memory
     LIB/LSP table, it is a pure kernel readback, so it reports the authoritative
     dataplane state (or an installed-but-engine-crashed entry, a useful divergence
@@ -210,7 +210,7 @@ forwarding`, independent of either engine's in-memory state.
 | `internal/core/mplsfib/events.go` | The `(mpls-fib, entry)` event contract: `Entry`/`EntryBatch`, `Action`/`Op` enums, `EntryChange` handle |
 | `internal/plugins/fib/kernel/mplsentry.go` | The one consumer: programs push via rich-route IP+encap, swap/pop via `AF_MPLS`, on both add and remove |
 | `internal/component/mpls/forwarding_linux.go` | Read-only kernel-table dump (`netlink.FAMILY_MPLS` + ze-owned encap IP routes) for `show mpls forwarding` |
-| `internal/component/mpls/show_forwarding.go` | `ze-show:mpls-forwarding` RPC handler, `forwardingEntry` shape, limit/truncation |
+| `internal/component/mpls/show_forwarding.go` | `ze-mpls:show-forwarding` RPC handler, `forwardingEntry` shape, limit/truncation |
 
 ## Invariants & gotchas
 - **fib-kernel is the single kernel programmer for MPLS.** Neither `ldp/fib.go`

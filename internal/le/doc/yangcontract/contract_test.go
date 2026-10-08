@@ -231,15 +231,15 @@ func TestSkippedHandlersAreTheEditorModesOnly(t *testing.T) {
 	if len(skippedWireMethods) != 2 {
 		t.Fatalf("the skip list holds %d entries: %v", len(skippedWireMethods), skippedWireMethods)
 	}
-	for _, wm := range []string{"ze-editor:mode-command", "ze-editor:mode-edit"} {
+	for _, wm := range []string{"ze-cli:editor-mode-command", "ze-cli:editor-mode-edit"} {
 		if !skippedWireMethods[wm] {
 			t.Errorf("%s is no longer skipped", wm)
 		}
 	}
-	if got := skipReason("ze-editor:mode-command"); got != "run -- editor mode switch" {
+	if got := skipReason("ze-cli:editor-mode-command"); got != "run -- editor mode switch" {
 		t.Errorf("the reason for mode-command is %q", got)
 	}
-	if got := skipReason("ze-editor:mode-edit"); got != "edit -- editor mode switch" {
+	if got := skipReason("ze-cli:editor-mode-edit"); got != "edit -- editor mode switch" {
 		t.Errorf("the reason for mode-edit is %q", got)
 	}
 }

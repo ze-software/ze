@@ -1,5 +1,5 @@
 # Test: show warnings source <name> filters by source field
-# Exercises: dispatch-command -> ze-show:warnings -> handleShowWarnings with source filter
+# Exercises: dispatch-command -> ze-cmd:show-warnings -> handleShowWarnings with source filter
 # Based on warnings-show.ci; adds a second source and verifies filtering
 
 # ze-peer: accepts connection, receives EOR

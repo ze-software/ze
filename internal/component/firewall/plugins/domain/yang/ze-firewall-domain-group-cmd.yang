@@ -22,7 +22,7 @@ module ze-firewall-domain-group-cmd {
 
             container domain-group {
                 config false;
-                ze:command "ze-show:firewall-domain-group-status";
+                ze:command "ze-firewall:show-domain-group-status";
                 description "Lists each group with its names, the addresses Ze is enforcing for
                              them, when each name last resolved, and what the last answer said.
                              Read this before a commit to confirm a group has data.";
@@ -48,7 +48,7 @@ carries is an error that lists the groups present.";
 
             container domain-group {
                 config false;
-                ze:command "ze-update:firewall-domain-group";
+                ze:command "ze-firewall:update-domain-group";
                 description "Asks for each name in the group at once rather than waiting for
                              its TTL. A name that fails to resolve keeps the addresses Ze
                              already had for it, and only a name that answers NXDOMAIN empties
@@ -81,7 +81,7 @@ group is resolved, and a name no group carries is an error that lists the groups
 
             container domain-group {
                 config false;
-                ze:command "ze-clear:firewall-domain-group";
+                ze:command "ze-firewall:clear-domain-group";
                 description "Drops the group's addresses from memory and from the persisted
                              cache, then re-applies the firewall tables. Config that still
                              names the group fails to verify until it is resolved again with

@@ -1,6 +1,6 @@
 # Test: the runtime `request subscribe` command takes effect at once, and the
 #       next config apply discards it.
-# Exercises: ze-bgp:subscribe -> Subscription.Runtime -> Server.PeerScopedProcs
+# Exercises: ze-cmd:bgp-subscribe -> Subscription.Runtime -> Server.PeerScopedProcs
 #            (configured-grant intersection), then SIGHUP -> reconcilePeers ->
 #            Server.DiscardRuntimeSubscriptions -> clearRuntimeOverrides.
 # VALIDATES: AC-5 and R-10, both directions of the precedence rule: a runtime

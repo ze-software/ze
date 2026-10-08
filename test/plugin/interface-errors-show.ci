@@ -1,6 +1,6 @@
 # Test: `show interface errors` reports exactly the links with non-zero error or
 #        drop counters
-# Exercises: dispatch-command -> ze-show:interface-errors ->
+# Exercises: dispatch-command -> ze-iface:show-interface-errors ->
 #            handleShowInterfaceErrors -> showInterfaceErrors
 #            (internal/component/iface/cmd/show_interface.go)
 # VALIDATES: the reported rows, and their four counter values, equal what the full

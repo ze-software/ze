@@ -11,21 +11,21 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// TestShowRoute_RegisteredWireMethod verifies the object-rooted `ze-show:route`
+// TestShowRoute_RegisteredWireMethod verifies the object-rooted `ze-iface:show-route`
 // RPC is installed and the pre-reorg `ze-show:ip-route` / `ze-show:kernel-routes`
 // methods are gone (the kernel FIB read is now `show route`).
 func TestShowRoute_RegisteredWireMethod(t *testing.T) {
 	foundRoute := false
 	for _, r := range pluginserver.AllBuiltinRPCs() {
 		switch r.WireMethod {
-		case "ze-show:route":
-			require.NotNil(t, r.Handler, "ze-show:route handler must not be nil")
+		case "ze-iface:show-route":
+			require.NotNil(t, r.Handler, "ze-iface:show-route handler must not be nil")
 			foundRoute = true
 		case "ze-show:ip-route", "ze-show:kernel-routes":
 			t.Errorf("retired wire method %q is still registered after the object-rooting reorg", r.WireMethod)
 		}
 	}
-	require.True(t, foundRoute, "ze-show:route not registered via pluginserver.RegisterRPCs")
+	require.True(t, foundRoute, "ze-iface:show-route not registered via pluginserver.RegisterRPCs")
 }
 
 // TestHandleShowRoute_DispatchShape verifies the handler dispatches to the

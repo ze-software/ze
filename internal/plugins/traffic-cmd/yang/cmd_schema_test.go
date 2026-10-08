@@ -7,7 +7,7 @@ import (
 
 func TestTrafficCmdSchemaOwnsTraffic(t *testing.T) {
 	required := []string{
-		`ze:command "ze-show:traffic"`,
+		`ze:command "ze-traffic:show-traffic"`,
 	}
 	for _, token := range required {
 		if !strings.Contains(ZeTrafficCmdYANG, token) {

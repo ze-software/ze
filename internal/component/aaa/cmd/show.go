@@ -14,7 +14,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:aaa-accounting",
+			WireMethod: "ze-aaa:show-accounting",
 			Handler:    handleShowAAAAccounting,
 		},
 	)

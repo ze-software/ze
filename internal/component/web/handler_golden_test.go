@@ -496,7 +496,7 @@ func webGoldenCommandTree() *command.Node {
 			"show": {
 				Name: "show",
 				Children: map[string]*command.Node{
-					"version": {Name: "version", WireMethod: "ze-show:version"},
+					"version": {Name: "version", WireMethod: "ze-cmd:show-version"},
 					"bgp":     {Name: "bgp", WireMethod: "ze-bgp:overview"},
 				},
 			},

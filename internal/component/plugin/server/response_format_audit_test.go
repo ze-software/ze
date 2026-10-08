@@ -17,13 +17,15 @@
 // applyTableStyled (pipe_table.go) both fall through to printing the scalar
 // back.
 //
-// The walk is scoped to the `ze-show:` namespace, and the scope is load-bearing
+// The walk is scoped to the methods named for the read verb (`<prefix>:show-...`),
+// and the scope is load-bearing
 // rather than a convenience. Judging a payload means CALLING the handler, and a
 // handler is free to act: handleDaemonQuit (system.go) is a registered RPC that
 // quits the daemon, and invoking the whole registry runs it. `show` is the read
 // verb by this repo's own grammar rule ("Choosing the verb", ai/rules/cli.md),
-// so the namespace is the population that can be called for its answer alone.
-// It is 190 of about 380 registered wire methods.
+// so that verb is the population that can be called for its answer alone. The
+// verb is the first word of the name, because the prefix names the owner.
+// It is about 190 of about 380 registered wire methods.
 package server_test
 
 import (
@@ -43,10 +45,10 @@ import (
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )
 
-// readVerbNamespace is the wire-method prefix of the read verb. See the package
-// comment: the walk calls handlers, so it may only call the ones whose verb
-// says they answer a question.
-const readVerbNamespace = "ze-show:"
+// readVerbName is the first word of a wire-method name under the read verb. See
+// the package comment: the walk calls handlers, so it may only call the ones
+// whose verb says they answer a question.
+const readVerbName = "show-"
 
 // formatOperators are the three renderings of one payload that ai/rules/cli.md
 // names. Each takes the JSON string ResponseJSON produced.
@@ -119,7 +121,8 @@ func TestShowCommandPayloadsAreStructured(t *testing.T) {
 	var c census
 
 	for _, reg := range pluginserver.AllBuiltinRPCs() {
-		if !strings.HasPrefix(reg.WireMethod, readVerbNamespace) {
+		_, name, _ := strings.Cut(reg.WireMethod, ":")
+		if !strings.HasPrefix(name, readVerbName) {
 			continue
 		}
 
@@ -167,8 +170,8 @@ func TestShowCommandPayloadsAreStructured(t *testing.T) {
 	// `go test`, which compiles fewer commands in.
 	if c.judged < 30 {
 		t.Fatalf("judged too few show-command payloads (%d); builtin registration is "+
-			"broken, the %q namespace has moved, or the offline-invokable population "+
-			"has collapsed", c.judged, readVerbNamespace)
+			"broken, the %q verb has moved, or the offline-invokable population "+
+			"has collapsed", c.judged, readVerbName)
 	}
 }
 

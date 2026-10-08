@@ -9,7 +9,7 @@
 #            WireMethod + name selector + args each handler in
 #            internal/component/iface/cmd/manage.go reads. After the create -> configure
 #            sequence the test reads `show interface name zetest0 detail`
-#            (ze-show:interface-detail -> handleShowInterfaceDetail -> iface.GetInterface
+#            (ze-iface:show-interface-detail -> handleShowInterfaceDetail -> iface.GetInterface
 #            -> netlinkBackend.GetInterface/linkToInfo) and asserts the REAL producer
 #            fields: type=dummy, mtu=1400, mac-address=02:de:ad:be:ef:01, state=up, and
 #            address 10.99.0.1/24. Teardown (addr-del, down, delete) must remove it so

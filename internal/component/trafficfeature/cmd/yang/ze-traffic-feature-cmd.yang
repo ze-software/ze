@@ -19,7 +19,7 @@ module ze-traffic-feature-cmd {
 
             container feature {
                 config false;
-                ze:command "ze-show:traffic-feature";
+                ze:command "ze-trafficfeature:show-traffic-feature";
                 description "The signals are fan-out (distinct destinations), out/in
 byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto,
 and coarse beaconing.

@@ -18,7 +18,7 @@ module ze-cli-metrics-cmd {
 
             container values {
                 config false;
-                ze:command "ze-bgp:metrics-values";
+                ze:command "ze-cmd:bgp-metrics-values";
                 ze:rpc "ze-bgp-cmd-metrics-api:metrics-show";
                 description "Outputs every registered metric with labels and values. Suitable
 for feeding into Prometheus, Grafana, or curl-based monitoring.";
@@ -27,7 +27,7 @@ for feeding into Prometheus, Grafana, or curl-based monitoring.";
 
             container list {
                 config false;
-                ze:command "ze-bgp:metrics-list";
+                ze:command "ze-cmd:bgp-metrics-list";
                 ze:rpc "ze-bgp-cmd-metrics-api:metrics-list";
                 description "Useful for discovering what metrics exist before querying them.";
                 ze:help "List all registered metric names (no values).";

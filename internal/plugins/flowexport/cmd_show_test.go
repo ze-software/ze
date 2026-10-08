@@ -14,12 +14,12 @@ import (
 // command is reachable rather than 404ing at dispatch time.
 func TestShowFlowExportRPCRegistered(t *testing.T) {
 	for _, r := range pluginserver.AllBuiltinRPCs() {
-		if r.WireMethod == "ze-show:flow-export" {
-			assert.NotNil(t, r.Handler, "ze-show:flow-export must have a handler")
+		if r.WireMethod == "ze-flowexport:show-flow-export" {
+			assert.NotNil(t, r.Handler, "ze-flowexport:show-flow-export must have a handler")
 			return
 		}
 	}
-	require.Fail(t, "ze-show:flow-export RPC is not registered")
+	require.Fail(t, "ze-flowexport:show-flow-export RPC is not registered")
 }
 
 // VALIDATES: with no exporter configured the handler reports not-configured
@@ -35,12 +35,12 @@ func TestShowFlowExportNotConfigured(t *testing.T) {
 // recent-flow query is reachable at dispatch time (Wiring Test row).
 func TestShowFlowRecentRPCRegistered(t *testing.T) {
 	for _, r := range pluginserver.AllBuiltinRPCs() {
-		if r.WireMethod == "ze-show:flow-recent" {
-			assert.NotNil(t, r.Handler, "ze-show:flow-recent must have a handler")
+		if r.WireMethod == "ze-flowexport:show-flow-recent" {
+			assert.NotNil(t, r.Handler, "ze-flowexport:show-flow-recent must have a handler")
 			return
 		}
 	}
-	require.Fail(t, "ze-show:flow-recent RPC is not registered")
+	require.Fail(t, "ze-flowexport:show-flow-recent RPC is not registered")
 }
 
 // VALIDATES: with no exporter configured the handler reports not-configured

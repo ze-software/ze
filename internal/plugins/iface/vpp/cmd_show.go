@@ -25,10 +25,10 @@ var validNodeName = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:vpp-trace-start", Handler: handleVPPTraceStart},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:vpp-trace-show", Handler: handleVPPTraceShow},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:vpp-trace-clear", Handler: handleVPPTraceClear},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:vpp-runtime", Handler: handleVPPRuntime},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-vpp-trace-start", Handler: handleVPPTraceStart},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-vpp-trace-show", Handler: handleVPPTraceShow},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-vpp-trace-clear", Handler: handleVPPTraceClear},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-vpp-runtime", Handler: handleVPPRuntime},
 	)
 }
 

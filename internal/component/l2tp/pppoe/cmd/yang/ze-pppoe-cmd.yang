@@ -15,7 +15,7 @@ module ze-pppoe-cmd {
     augment "/clishowcmd:show" {
         container pppoe {
             config false;
-            ze:command "ze-pppoe-api:summary";
+            ze:command "ze-l2tp:pppoe-summary";
             ze:rpc "ze-pppoe-api:summary";
             description "Without a subcommand, shows a summary of active
 sessions.";
@@ -23,7 +23,7 @@ sessions.";
 
             container sessions {
                 config false;
-                ze:command "ze-pppoe-api:sessions";
+                ze:command "ze-l2tp:pppoe-sessions";
                 ze:rpc "ze-pppoe-api:sessions";
                 description "One line per session: session ID, MAC, subscriber
 login, uptime, and assigned addresses.";
@@ -38,7 +38,7 @@ login, uptime, and assigned addresses.";
 
                 container id {
                     config false;
-                    ze:command "ze-pppoe-api:session";
+                    ze:command "ze-l2tp:pppoe-session";
                     ze:rpc "ze-pppoe-api:session";
                     description "Pass the session ID. Returns discovery tags,
 LCP/NCP state, assigned addresses, and traffic counters.";
@@ -55,7 +55,7 @@ because RFC 2516 reserves it, and an unknown id is refused with 'no session with
 
             container statistics {
                 config false;
-                ze:command "ze-pppoe-api:statistics";
+                ze:command "ze-l2tp:pppoe-statistics";
                 ze:rpc "ze-pppoe-api:statistics";
                 description "Returns PADI, PADO, PADR, PADS, PADT counts, active
 sessions, and errors. A rising PADI count with flat PADS means sessions are not
@@ -65,7 +65,7 @@ completing.";
 
             container interfaces {
                 config false;
-                ze:command "ze-pppoe-api:interfaces";
+                ze:command "ze-l2tp:pppoe-interfaces";
                 ze:rpc "ze-pppoe-api:interfaces";
                 description "Lists each PPPoE-enabled interface with its service
 name, session limit, and how many sessions are active now.";

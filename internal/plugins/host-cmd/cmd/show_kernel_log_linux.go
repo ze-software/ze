@@ -39,7 +39,7 @@ var kmsgLevelNames = [8]string{
 
 func registerShowKernelLog() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:system-kernel-log", Handler: handleShowSystemKernelLog},
+		pluginserver.RPCRegistration{WireMethod: "ze-host:show-system-kernel-log", Handler: handleShowSystemKernelLog},
 	)
 }
 
@@ -112,7 +112,7 @@ func parseLevelArg(s string) int {
 // -- the runtime parks the goroutine until the fd is readable again. /dev/kmsg
 // becomes readable again only when the kernel logs a NEW message, so the EAGAIN
 // exit below was unreachable: once the ring buffer was drained this function
-// blocked, the ze-show:system-kernel-log RPC never returned, and `show system
+// blocked, the ze-host:show-system-kernel-log RPC never returned, and `show system
 // kernel-log` hung the daemon until its caller timed out.
 //
 // That went unseen because the open itself fails EPERM on any host with

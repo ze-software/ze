@@ -31,7 +31,7 @@ var goroutineFullGuard struct {
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:system-goroutines", Handler: handleShowSystemGoroutines},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:show-system-goroutines", Handler: handleShowSystemGoroutines},
 	)
 }
 

@@ -251,7 +251,7 @@
   "path": "show bgp rib",
   "short-help": "Query routes in the BGP RIB.\nLook at received or advertised routes with flexible filters: peer,\nfamily, prefix, AS path regex, community, match expression. Pipe\noperators: | count, | histogram, | graph. This is the main\nroute inspection command.",
   "mode": "read-only",
-  "wire-method": "ze-rib-api:routes",
+  "wire-method": "ze-bgp:rib-routes",
   "task-support": "required",
   "pipes": [
    {
@@ -435,7 +435,7 @@
   "path": "monitor ping",
   "short-help": "Continuous ping with live loss and RTT statistics.\nPings <target> until you stop it. Adjust interval and timeout as\nneeded. Shows running min/avg/max RTT and packet loss.",
   "mode": "read-only",
-  "wire-method": "ze-monitor:ping",
+  "wire-method": "ze-ping:monitor-ping",
   "task-support": "required",
   "operators": [
    {
@@ -556,7 +556,7 @@
   "path": "clear interface counters",
   "short-help": "Zero the Rx/Tx counters for every managed interface.\nUsage: clear interface counters.",
   "mode": "daemon",
-  "wire-method": "ze-clear:interface-counters",
+  "wire-method": "ze-iface:clear-interface-counters",
   "operators": [
    {
     "name": "json",
@@ -655,7 +655,7 @@
   "path": "show interface",
   "short-help": "Show network interfaces on this box.\nWithout arguments, returns all interfaces with full detail.\nSubcommands: brief, type <t>, errors, rate [<name>], name <name> detail,\nname <name> counters.",
   "mode": "read-only",
-  "wire-method": "ze-show:interface",
+  "wire-method": "ze-iface:show-interface",
   "operators": [
    {
     "name": "json",

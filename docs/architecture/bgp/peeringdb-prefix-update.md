@@ -17,7 +17,7 @@ action to take.
 called `Save()`, which wrote the config file directly, and that is the behavior
 whose removal was correct.
 
-**The wire method stays `ze-update:bgp-peer-prefix`**, unchanged from the
+**The wire method stays `ze-bgp:update-peer-prefix`**, unchanged from the
 original, for API stability.
 
 **The `rpc bgp-peer-prefix` declaration moved into the BGP peer command

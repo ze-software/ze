@@ -1,5 +1,5 @@
 # Test: subsystem-list returns real plugin data (not hardcoded ["bgp"])
-# Exercises: dispatch-command -> ze-system:subsystem-list -> handleSystemSubsystemList
+# Exercises: dispatch-command -> ze-plugin:system-subsystem-list -> handleSystemSubsystemList
 # Verifies AC-9: returns JSON array with name, stage, running, command-count per plugin
 #
 # command-count is asserted by VALUE, not by presence. It read 0 for every plugin

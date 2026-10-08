@@ -12,9 +12,9 @@ import (
 
 func TestAllClearCommandsHaveRegisteredRPC(t *testing.T) {
 	want := map[string]string{
-		"ze-clear:dns-cache":          "internal/component/resolve/cmd",
-		"ze-clear:interface-counters": "internal/component/iface/cmd",
-		"ze-clear:vpn-ipsec-sa":       "internal/component/ike/cmd",
+		"ze-resolve:clear-dns-cache":          "internal/component/resolve/cmd",
+		"ze-iface:clear-interface-counters": "internal/component/iface/cmd",
+		"ze-ike:clear-vpn-ipsec-sa":       "internal/component/ike/cmd",
 	}
 
 	rpcs := pluginserver.AllBuiltinRPCs()

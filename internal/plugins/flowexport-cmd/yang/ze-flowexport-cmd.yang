@@ -24,7 +24,7 @@ module ze-flowexport-cmd {
 
             container export {
                 config false;
-                ze:command "ze-show:flow-export";
+                ze:command "ze-flowexport:show-flow-export";
                 description "Without arguments, lists all configured collectors. With 'name <name>', shows
 details for that collector including protocol stats and errors. Returns
 not-configured when no exporter is active.";
@@ -40,7 +40,7 @@ any other value.";
 
             container recent {
                 config false;
-                ze:command "ze-show:flow-recent";
+                ze:command "ze-flowexport:show-flow-recent";
                 description "Without arguments, returns every ring record (oldest to newest, up to the
 configured recent-flow-ring capacity). With 'dst <prefix>', filters to flows
 whose destination is inside that prefix. The ring is fed only while conntrack

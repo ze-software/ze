@@ -1,5 +1,5 @@
 # Test: show pki local-ca pem exports the root of the local certificate authority
-# Exercises: dispatch-command -> ze-show:pki-local-ca-pem
+# Exercises: dispatch-command -> ze-pki:show-local-ca-pem
 # Verifies: the export is a CA certificate in PEM, its payload agrees with the
 #           certificate it carries, and no private key reaches the response
 

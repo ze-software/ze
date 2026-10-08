@@ -35,10 +35,10 @@ const (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:rsvp-te-lsp", Handler: forwardShowSession, PluginCommand: cmdShowSession},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:rsvp-te-interface", Handler: forwardShowInterface, PluginCommand: cmdShowInterface},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:rsvp-te-tunnel", Handler: forwardShowTunnel, PluginCommand: cmdShowTunnel},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:rsvp-te-fast-reroute", Handler: forwardShowFastReroute, PluginCommand: cmdShowFastReroute},
+		pluginserver.RPCRegistration{WireMethod: "ze-rsvpte:show-rsvp-te-lsp", Handler: forwardShowSession, PluginCommand: cmdShowSession},
+		pluginserver.RPCRegistration{WireMethod: "ze-rsvpte:show-rsvp-te-interface", Handler: forwardShowInterface, PluginCommand: cmdShowInterface},
+		pluginserver.RPCRegistration{WireMethod: "ze-rsvpte:show-rsvp-te-tunnel", Handler: forwardShowTunnel, PluginCommand: cmdShowTunnel},
+		pluginserver.RPCRegistration{WireMethod: "ze-rsvpte:show-rsvp-te-fast-reroute", Handler: forwardShowFastReroute, PluginCommand: cmdShowFastReroute},
 	)
 }
 

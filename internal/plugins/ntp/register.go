@@ -66,11 +66,11 @@ func init() {
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-ntp",
+			WireMethod: "ze-ntp:show-system-ntp",
 			Handler:    handleShowSystemNTP,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-ntp-peers",
+			WireMethod: "ze-ntp:show-system-ntp-peers",
 			Handler:    handleShowSystemNTPPeers,
 		},
 	)

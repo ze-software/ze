@@ -1,6 +1,6 @@
 # Test: show anomaly-shape reaches the shadow-first responder plugin
 # Exercises: config anomaly-shape{mode shadow} -> RunEngine -> setGlobalResponder,
-#            then dispatch-command -> ze-show:anomaly-shape -> handleShowAnomalyShape.
+#            then dispatch-command -> ze-anomaly:show-shape -> handleShowAnomalyShape.
 # Verifies AC-1/AC-11 (the wire method resolves; shadow is the wired default with
 # nothing armed). The armed/auto-revert/blast-radius/kill-switch paths are covered
 # by the unit responder tests (fake clock + mocked firewall) since the .ci harness

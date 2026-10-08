@@ -13,8 +13,8 @@ import (
 
 func TestDdosCmdSchemaOwnsShowDdos(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:ddos-status"`,
-		`ze:command "ze-show:ddos-incidents"`,
+		`ze:command "ze-ddos:show-status"`,
+		`ze:command "ze-ddos:show-incidents"`,
 		"container show",
 		"container ddos",
 		"container status",

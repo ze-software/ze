@@ -1,5 +1,5 @@
 # Test: show system platform returns platform type and capabilities
-# Exercises: dispatch-command -> ze-show:system-platform -> handleShowSystemPlatform
+# Exercises: dispatch-command -> ze-cmd:show-system-platform -> handleShowSystemPlatform
 # Verifies: returns JSON with type and capability boolean fields
 
 # ze-peer: accepts connection

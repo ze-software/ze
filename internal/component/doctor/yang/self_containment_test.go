@@ -7,7 +7,7 @@ import (
 
 func TestDoctorCmdSchemaOwnsShowDoctor(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:doctor"`,
+		`ze:command "ze-doctor:show-doctor"`,
 		"container doctor",
 	} {
 		if !strings.Contains(ZeDoctorCmdYANG, want) {

@@ -10,19 +10,19 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// TestShowRouteLookup_RegisteredWireMethod verifies the `ze-show:route-lookup`
+// TestShowRouteLookup_RegisteredWireMethod verifies the `ze-iface:show-route-lookup`
 // RPC is installed in the builtin registry (it moved here from the central
 // show package).
 func TestShowRouteLookup_RegisteredWireMethod(t *testing.T) {
 	found := false
 	for _, r := range pluginserver.AllBuiltinRPCs() {
-		if r.WireMethod == "ze-show:route-lookup" {
-			require.NotNil(t, r.Handler, "ze-show:route-lookup handler must not be nil")
+		if r.WireMethod == "ze-iface:show-route-lookup" {
+			require.NotNil(t, r.Handler, "ze-iface:show-route-lookup handler must not be nil")
 			found = true
 			break
 		}
 	}
-	require.True(t, found, "ze-show:route-lookup not registered via pluginserver.RegisterRPCs")
+	require.True(t, found, "ze-iface:show-route-lookup not registered via pluginserver.RegisterRPCs")
 }
 
 // TestHandleRouteLookup_MissingArg verifies the handler rejects when no

@@ -7,9 +7,9 @@ import (
 
 func TestLogCmdSchemaOwnsLogCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-bgp:log-levels"`,
-		`ze:command "ze-bgp:log-recent"`,
-		`ze:command "ze-bgp:log-set"`,
+		`ze:command "ze-log:bgp-log-levels"`,
+		`ze:command "ze-log:bgp-log-recent"`,
+		`ze:command "ze-log:bgp-log-set"`,
 		"container log",
 		"container levels",
 		"container recent",

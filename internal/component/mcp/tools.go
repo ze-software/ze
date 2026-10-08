@@ -1036,7 +1036,7 @@ var handcraftedTools = []map[string]any{
 	},
 	{
 		toolKeyName:          "ze_reference",
-		schemaKeyDescription: "Full machine-readable reference for this ze daemon: CLI commands, daemon API endpoints (ze-show:*, ze-set:*, ...) with dispatch keys, loaded plugins, address families, and config services. Call this first to discover what this instance can do. Returns the same JSON as 'ze help ai --json'.",
+		schemaKeyDescription: "Full machine-readable reference for this ze daemon: CLI commands, daemon API endpoints (ze-bgp:*, ze-iface:*, ...) with dispatch keys, loaded plugins, address families, and config services. Call this first to discover what this instance can do. Returns the same JSON as 'ze help ai --json'.",
 		schemaKeyInputSchema: map[string]any{
 			schemaKeyType:       elicitTypeObject,
 			schemaKeyProperties: map[string]any{},

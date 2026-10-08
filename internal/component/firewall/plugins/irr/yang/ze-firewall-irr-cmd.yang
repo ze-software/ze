@@ -24,7 +24,7 @@ module ze-firewall-irr-cmd {
 
             container irr {
                 config false;
-                ze:command "ze-show:firewall-irr-status";
+                ze:command "ze-firewall:show-irr-status";
                 description "Lists each cached entry with prefix counts, last
 refresh time, and error status. Use this to confirm that IRR prefix-lists are
 loaded and current before committing firewall config.";
@@ -32,7 +32,7 @@ loaded and current before committing firewall config.";
 
                 container prefix {
                     config false;
-                    ze:command "ze-show:firewall-irr-prefix";
+                    ze:command "ze-firewall:show-irr-prefix";
                     description "Lists all IPv4 and IPv6 prefixes in the cached
 prefix-list for the given ASN or AS-SET.";
                     ze:help "Show IRR-resolved prefixes for a cached entry.";
@@ -66,7 +66,7 @@ in the form AS64500, or an AS-SET name. A key with no cached data is an error.";
 
                 container all {
                     config false;
-                    ze:command "ze-update:firewall-irr-all";
+                    ze:command "ze-firewall:update-irr-all";
                     description "Re-queries the IRR server for every cached
 ASN/AS-SET entry and updates the zefs cache on success. A failed refresh
 preserves the existing cache and reports an error.";
@@ -75,7 +75,7 @@ preserves the existing cache and reports an error.";
 
                 container asn {
                     config false;
-                    ze:command "ze-update:firewall-irr-asn";
+                    ze:command "ze-firewall:update-irr-asn";
                     description "Queries the IRR server and saves resolved prefixes
 to the zefs cache. Creates the cache entry if it does not exist.";
                     ze:help "Fetch or refresh IRR prefix-list for an ASN.";
@@ -90,7 +90,7 @@ The cache key is the decimal spelling with an AS prefix, so 1.10 and 65546 name 
 
                 container as-set {
                     config false;
-                    ze:command "ze-update:firewall-irr-as-set";
+                    ze:command "ze-firewall:update-irr-as-set";
                     description "Queries the IRR server and saves resolved prefixes
 to the zefs cache.";
                     ze:help "Fetch or refresh IRR prefix-list for an AS-SET.";
@@ -132,7 +132,7 @@ ASN or AS-SET that no longer exists upstream.";
 
                 container asn {
                     config false;
-                    ze:command "ze-clear:firewall-irr-asn";
+                    ze:command "ze-firewall:clear-irr-asn";
                     description "Drops the entry from memory and from the persisted
 cache, then re-applies the firewall tables. Config that still references the
 ASN fails to verify until it is fetched again with
@@ -149,7 +149,7 @@ The entry purged is the one the update command stored under the decimal spelling
 
                 container as-set {
                     config false;
-                    ze:command "ze-clear:firewall-irr-as-set";
+                    ze:command "ze-firewall:clear-irr-as-set";
                     description "Drops the entry from memory and from the persisted
 cache, then re-applies the firewall tables.";
                     ze:help "Remove the cached IRR prefix-list for an AS-SET.";

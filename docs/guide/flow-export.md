@@ -2,7 +2,7 @@
 
 <!-- source: internal/plugins/flowexport/exporter.go -- newExporter, collectorState, ProtocolEncoder, per-collector senders -->
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- YANG config -->
-<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
+<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-flowexport:show-flow-export RPC -->
 <!-- source: internal/plugins/flowexport/metrics.go -- ze_flowexport_* Prometheus metrics -->
 
 Ze exports interface counters and per-flow records to external collectors over

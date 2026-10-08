@@ -7,7 +7,7 @@ import (
 
 func TestStorageCmdSchemaOwnsShowCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:storage-smart"`,
+		`ze:command "ze-storage:show-smart"`,
 		`clishowcmd:show`,
 		"container storage",
 	} {

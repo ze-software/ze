@@ -1,8 +1,8 @@
 // Design: docs/architecture/core-design.md, cross-cutting operational report bus
 //
 // Package report is the single place where Ze subsystems push operator-visible
-// warnings and errors. It is consumed by the show verb (ze-show:warnings,
-// ze-show:errors) and by the login banner.
+// warnings and errors. It is consumed by the show verb (ze-cmd:show-warnings,
+// ze-cmd:show-errors) and by the login banner.
 //
 // Warnings are state-based: a warning represents a current condition that may
 // resolve. Producers raise it when the condition starts and clear it when the

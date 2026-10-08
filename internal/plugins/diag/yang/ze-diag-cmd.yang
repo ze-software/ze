@@ -12,7 +12,7 @@ module ze-diag-cmd {
 
         container tcp-check {
             config false;
-            ze:command "ze-show:tcp-check";
+            ze:command "ze-diag:show-tcp-check";
             description "Tries to open a TCP connection and reports success or failure with the
 connection time. Use 'source <IP>' to bind a specific local address. Quick way
 to verify a peer's BGP port is reachable.";
@@ -49,7 +49,7 @@ default is 5s.";
 
         container capture {
             config false;
-            ze:command "ze-show:capture";
+            ze:command "ze-diag:show-capture";
             ze:rpc "ze-cli-show-api:capture";
             description "Returns protocol messages you previously enabled capture for. Without a
 protocol keyword, shows all protocols. Use this to debug session establishment
@@ -89,7 +89,7 @@ alike.";
 
             container raw {
                 config false;
-                ze:command "ze-show:capture-raw";
+                ze:command "ze-diag:show-capture-raw";
                 description "Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols:
 l2tp, bgp. Output formats: pcap (for Wireshark), json. Limit with count <N>.";
                 ze:help "Control raw byte capture for protocol debugging.";
@@ -131,7 +131,7 @@ protocol. Absent or 0, every captured message is returned.";
 
             container interface {
                 config false;
-                ze:command "ze-show:capture-interface";
+                ze:command "ze-diag:show-capture-interface";
                 description "Uses AF_PACKET for zero-copy capture. Filter by protocol and port. Limit with
 count or duration. Output as pcap (for Wireshark) or text. Snap-len controls
 how many bytes per packet are captured.";

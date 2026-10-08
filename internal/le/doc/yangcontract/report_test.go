@@ -89,7 +89,7 @@ func TestValidationTextRendersEverySection(t *testing.T) {
 		OrphanHandlers:      []string{"c:d"},
 		OrphanLocalHandlers: []string{"show thing"},
 		OrphanRPCs:          []RPCDeclaration{{WireMethod: "e:f", Module: "e-api", RPC: "f"}},
-		SkippedHandlers:     []string{"ze-editor:mode-command", "ze-editor:mode-edit"},
+		SkippedHandlers:     []string{"ze-cli:editor-mode-command", "ze-cli:editor-mode-edit"},
 		Total:               1, TotalHandlers: 1, TotalLocal: 1,
 		Warnings: []string{"ze-ghost-cmd"},
 	}
@@ -116,8 +116,8 @@ func TestValidationTextRendersEverySection(t *testing.T) {
 		"\n## Skipped handlers (editor-internal)\n\n" +
 		"| WireMethod | Reason |\n" +
 		"|------------|--------|\n" +
-		"| ze-editor:mode-command | run -- editor mode switch |\n" +
-		"| ze-editor:mode-edit | edit -- editor mode switch |\n"
+		"| ze-cli:editor-mode-command | run -- editor mode switch |\n" +
+		"| ze-cli:editor-mode-edit | edit -- editor mode switch |\n"
 	if got := result.Text(); got != want {
 		t.Fatalf("the validation result renders\n%q\nwant\n%q", got, want)
 	}

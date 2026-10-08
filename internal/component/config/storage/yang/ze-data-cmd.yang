@@ -16,7 +16,7 @@ module ze-data-cmd {
 
             container backup {
                 config false;
-                ze:command "ze-data:backup";
+                ze:command "ze-config:data-backup";
                 description "Copies every key of the store into one blob artifact while the daemon runs. A
 commit that lands meanwhile is in the backup whole or not at all. The file holds
 credentials and private keys and is written 0600.";
@@ -46,7 +46,7 @@ owns.";
 
             container restore {
                 config false;
-                ze:command "ze-data:restore";
+                ze:command "ze-config:data-restore";
                 description "Stages the artifact's config as the candidate and runs the same reload a SIGHUP
 runs. The config becomes active only when the reload accepts it; a refused
 config leaves the active config and its pointers untouched. Nothing else in the

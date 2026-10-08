@@ -188,7 +188,7 @@ up and advertised nothing: it separates a hold that is working from a daemon tha
 
             container health {
                 config false;
-                ze:command "ze-show:bgp-health";
+                ze:command "ze-bgp:show-health";
                 ze:rpc "ze-cli-show-api:bgp-health";
                 description "Lists every peer with address, state, ASN, and uptime. Reports how
 many are not Established. Much faster than 'show bgp peer *' when
@@ -350,7 +350,7 @@ command under it.";
             container peer {
                 config false;
 
-                ze:command "ze-delete:bgp-peer";
+                ze:command "ze-bgp:delete-peer";
                 ze:rpc "ze-cli-delete-api:bgp-peer";
                 description "Tears down the TCP session and deletes the peer from the running
 configuration. Does not modify the config file on disk.";
@@ -395,7 +395,7 @@ glob, or * for every peer. 'prefix' refreshes the maximums of each peer it match
 
                 container prefix {
                     config false;
-                    ze:command "ze-update:bgp-peer-prefix";
+                    ze:command "ze-bgp:update-peer-prefix";
                     description "Queries PeeringDB for each matched peer's ASN, applies the configured
 margin, and writes the result to the config draft. Run 'config commit'
 to apply.";
@@ -514,7 +514,7 @@ the moment a peer's plugin process finished its startup.";
 
                     container ready {
                         config false;
-                        ze:command "ze-plugin:session-peer-ready";
+                        ze:command "ze-bgp:plugin-session-peer-ready";
                         ze:rpc "ze-plugin-api:session-peer-ready";
                         description "The daemon closes this sending process's share of the peer's
 live-forward replay fence only for the captured peer-UP session token.

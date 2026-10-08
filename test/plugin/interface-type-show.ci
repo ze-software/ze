@@ -1,5 +1,5 @@
 # Test: `show interface type <t>` filters, and rejects an unknown type
-# Exercises: dispatch-command -> ze-show:interface-type -> handleShowInterfaceType
+# Exercises: dispatch-command -> ze-iface:show-interface-type -> handleShowInterfaceType
 #            -> showInterfaceByType (internal/component/iface/cmd/show_interface.go)
 # VALIDATES: the filtered set equals the interfaces of that type in the full list,
 #            and an unknown type is REJECTED with the valid types derived from the

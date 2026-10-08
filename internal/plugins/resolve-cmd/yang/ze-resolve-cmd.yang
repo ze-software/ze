@@ -182,7 +182,7 @@ the cache. The cache commands under it only read.";
 
             container lookup {
                 config false;
-                ze:command "ze-show:dns-lookup";
+                ze:command "ze-resolve:show-dns-lookup";
                 description "Resolves <hostname> using the daemon's DNS resolver (falls back to the system
 resolver if no DNS component is configured). Default type is A. Returns
 records, TTL, and query time. Supports A, AAAA, MX, NS, TXT, CNAME, and PTR.";
@@ -219,7 +219,7 @@ generated references show distinct read-only actions.";
 
                 container stats {
                     config false;
-                    ze:command "ze-show:dns-cache-stats";
+                    ze:command "ze-resolve:show-dns-cache-stats";
                     description "It reads the counters and does not change the
 cache contents.";
                     ze:help "Show the DNS cache hit, miss, eviction, expiry, and hit-rate counters.";
@@ -227,7 +227,7 @@ cache contents.";
 
                 container list {
                     config false;
-                    ze:command "ze-show:dns-cache-list";
+                    ze:command "ze-resolve:show-dns-cache-list";
                     description "An entry whose TTL has run out is left out rather than reported
 as expired. The count beside the list is the number of entries reported.";
                     ze:help "List all non-expired DNS cache entries, sorted by shortest TTL first.";
@@ -235,7 +235,7 @@ as expired. The count beside the list is the number of entries reported.";
 
                 container record {
                     config false;
-                    ze:command "ze-show:dns-cache-record";
+                    ze:command "ze-resolve:show-dns-cache-record";
                     description "The name must match the cache key exactly, and a reverse lookup
 is held under its in-addr.arpa or ip6.arpa name. A name that is not cached answers an empty
 list and a count of zero.";
@@ -259,7 +259,7 @@ update resolve is what refreshes it.";
 
             container rir {
                 config false;
-                ze:command "ze-show:resolve-rir";
+                ze:command "ze-resolve:show-rir";
                 description "Reads the RIR delegation table that ships with the binary, or the newer
 copy an earlier 'update resolve rir' stored. Reaches no network. Reports the
 registry, its whois server, and the delegated range that holds the AS number.
@@ -289,7 +289,7 @@ stays in place.";
 
             container rir {
                 config false;
-                ze:command "ze-update:resolve-rir";
+                ze:command "ze-resolve:update-rir";
                 description "Fetches the delegation file of each of the five Regional Internet
 Registries, parses them, and stores one table under the meta/rir/delegation key.
 All-or-nothing: a run in which any fetch or parse fails stores nothing and
@@ -310,7 +310,7 @@ available without it. Nothing here reaches the network.";
 
             container cache {
                 config false;
-                ze:command "ze-clear:dns-cache";
+                ze:command "ze-resolve:clear-dns-cache";
                 ze:rpc "ze-cli-clear-api:dns-cache";
                 description "The entries and the four counters go together. Use clear dns cache
 stats to zero the counters and keep the entries, or clear dns cache record to evict one
@@ -319,7 +319,7 @@ name.";
 
                 container record {
                     config false;
-                    ze:command "ze-clear:dns-cache-record";
+                    ze:command "ze-resolve:clear-dns-cache-record";
                     description "Add type <record-type> after the name to evict one type, and
 give no other tail. An unknown type is reported inside the answer rather than as an error.";
                     ze:help "Evict DNS cache entries for one record name, or one name and type when a type is provided.";
@@ -348,7 +348,7 @@ the other types of the name in place. The answer reports found true or false.";
 
                 container stats {
                     config false;
-                    ze:command "ze-clear:dns-cache-stats";
+                    ze:command "ze-resolve:clear-dns-cache-stats";
                     description "The cached entries stay, so the next lookup is still served
 from the cache. Only the hit, miss, eviction and expiry counters go to zero.";
                     ze:help "Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.";

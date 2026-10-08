@@ -23,27 +23,27 @@ func init() {
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:pki-certificates",
+			WireMethod: "ze-pki:show-certificates",
 			Handler:    handleShowPKICertificates,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:pki-certificate",
+			WireMethod: "ze-pki:show-certificate",
 			Handler:    handleShowPKICertificate,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:pki-certificate-pem",
+			WireMethod: "ze-pki:show-certificate-pem",
 			Handler:    handleShowPKICertificatePEM,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:pki-certificate-bundle-pem",
+			WireMethod: "ze-pki:show-certificate-bundle-pem",
 			Handler:    handleShowPKICertificateBundlePEM,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:pki-certificate-fingerprint",
+			WireMethod: "ze-pki:show-certificate-fingerprint",
 			Handler:    handleShowPKICertificateFingerprint,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:pki-local-ca-pem",
+			WireMethod: "ze-pki:show-local-ca-pem",
 			Handler:    handleShowPKILocalCAPEM,
 		},
 	)

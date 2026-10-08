@@ -1,7 +1,7 @@
 # Test: the peer-to-process delivery graph the config produces is inspectable
 #       from outside the daemon.
 # Exercises: config load -> Reactor.publishDeliveryGraphLocked -> the plugin
-#            server's index -> dispatch-command -> ze-show:event-delivery ->
+#            server's index -> dispatch-command -> ze-cmd:show-event-delivery ->
 #            handleShowEventDelivery.
 # VALIDATES: the index names exactly the processes each peer attaches, with the
 #            direction each token grants, and names no process for a peer that

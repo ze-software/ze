@@ -1,5 +1,5 @@
 # Test: show system profile heap returns base64-encoded pprof data
-# Exercises: dispatch-command -> ze-show:system-profile -> handleShowSystemProfile
+# Exercises: dispatch-command -> ze-cmd:show-system-profile -> handleShowSystemProfile
 # Verifies AC-13: returns base64-encoded pprof heap profile
 
 # ze-peer: accepts connection

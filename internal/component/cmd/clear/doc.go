@@ -5,9 +5,9 @@
 // generic clear verb tree schema; every owner-specific clear handler lives in
 // its owning component's cmd/ package:
 //
-//   - ze-clear:dns-cache         -> internal/component/resolve/cmd
-//   - ze-clear:vpn-ipsec-sa      -> internal/component/ike/cmd
-//   - ze-clear:interface-counters -> internal/component/iface/cmd
+//   - ze-resolve:clear-dns-cache         -> internal/component/resolve/cmd
+//   - ze-ike:clear-vpn-ipsec-sa      -> internal/component/ike/cmd
+//   - ze-iface:clear-interface-counters -> internal/component/iface/cmd
 //
 // Removing an owner removes its clear subcommand; the generic verb shell here
 // keeps working.

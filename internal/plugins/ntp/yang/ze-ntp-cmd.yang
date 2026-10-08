@@ -23,11 +23,11 @@ module ze-ntp-cmd {
                              present only after a synchronization has happened.";
                 ze:help "NTP clock synchronization status.";
 
-                ze:command "ze-show:system-ntp";
+                ze:command "ze-ntp:show-system-ntp";
 
                 container peers {
                     config false;
-                    ze:command "ze-show:system-ntp-peers";
+                    ze:command "ze-ntp:show-system-ntp-peers";
                     description "Tells you whether your clock is synced and how far off each NTP server thinks
 you are.";
                     ze:help "Show NTP peers with offset, RTT, stratum, and reachability.";

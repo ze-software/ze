@@ -17,7 +17,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:anomaly",
+			WireMethod: "ze-anomaly:show-anomaly",
 			Handler:    handleShowAnomaly,
 		},
 	)

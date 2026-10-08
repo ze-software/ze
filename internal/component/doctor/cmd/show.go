@@ -18,7 +18,7 @@ const (
 	maxDiagnosticsPerCheck = 64
 )
 
-// HandleShowDoctor is the RPC handler for ze-show:doctor.
+// HandleShowDoctor is the RPC handler for ze-doctor:show-doctor.
 // Registration is deferred until the central show.go entry is removed.
 func HandleShowDoctor(cmdCtx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	var configPath string

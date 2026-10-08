@@ -21,7 +21,7 @@ module ze-ddos-local-cmd {
 
             container local {
                 config false;
-                ze:command "ze-show:ddos-local";
+                ze:command "ze-ddos:show-local";
                 description "The answer states whether an nft drop rule is installed
 now, and the target vector it covers: prefix, protocol, or port.";
                 ze:help "Show the on-host DDoS mitigation status.";

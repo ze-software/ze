@@ -58,63 +58,63 @@ const (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:version",
+			WireMethod: "ze-cmd:show-version",
 			Handler:    handleShowVersion,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:uptime",
+			WireMethod: "ze-cmd:show-uptime",
 			Handler:    handleShowUptime,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:warnings",
+			WireMethod: "ze-cmd:show-warnings",
 			Handler:    handleShowWarnings,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:audit",
+			WireMethod: "ze-cmd:show-audit",
 			Handler:    handleShowAudit,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:errors",
+			WireMethod: "ze-cmd:show-errors",
 			Handler:    handleShowErrors,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-memory",
+			WireMethod: "ze-cmd:show-system-memory",
 			Handler:    handleShowSystemMemory,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-cpu",
+			WireMethod: "ze-cmd:show-system-cpu",
 			Handler:    handleShowSystemCPU,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-date",
+			WireMethod: "ze-cmd:show-system-date",
 			Handler:    handleShowSystemDate,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-subsystem-list",
+			WireMethod: "ze-cmd:show-system-subsystem-list",
 			Handler:    handleShowSystemSubsystemList,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-platform",
+			WireMethod: "ze-cmd:show-system-platform",
 			Handler:    handleShowSystemPlatform,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:metrics-query",
+			WireMethod: "ze-cmd:show-metrics-query",
 			Handler:    handleShowMetricsQuery,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:event-recent",
+			WireMethod: "ze-cmd:show-event-recent",
 			Handler:    handleShowEventRecent,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:event-namespaces",
+			WireMethod: "ze-cmd:show-event-namespaces",
 			Handler:    handleShowEventNamespaces,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:event-delivery",
+			WireMethod: "ze-cmd:show-event-delivery",
 			Handler:    handleShowEventDelivery,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:health",
+			WireMethod: "ze-cmd:show-health",
 			Handler:    handleShowHealth,
 		},
 	)

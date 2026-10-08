@@ -130,7 +130,7 @@ bounds the label cardinality.
 
 `show geodns` is owned by the plugin through container merge: the plugin's
 command YANG declares `container show { container geodns { ze:command
-"ze-show:geodns" } }` and the handler reads the same atomic snapshot the server
+"ze-geodns:show-geodns" } }` and the handler reads the same atomic snapshot the server
 reads.
 
 <!-- source: internal/plugins/geodns/show.go -- show handler -->

@@ -65,8 +65,8 @@ should migrate to it.
 
 ## Wire method naming
 
-The wire methods are `ze-show:traffic-stat` and `ze-monitor:traffic-stat`.
-`ze-show:traffic` was already taken by the QoS traffic-control component, and the
+The wire methods are `ze-trafficstat:show-traffic-stat` and `ze-trafficstat:monitor-traffic-stat`.
+`ze-traffic:show-traffic` was already taken by the QoS traffic-control component, and the
 collision was found at compile time.
 
 ## Consequences

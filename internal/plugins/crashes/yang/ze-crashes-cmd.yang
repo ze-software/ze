@@ -13,7 +13,7 @@ module ze-crashes-cmd {
 
         container crashes {
             config false;
-            ze:command "ze-show:crashes";
+            ze:command "ze-crashes:show-crashes";
             description "Without arguments, lists every stored report with its kind: 'panic' for a Go
 panic this daemon caught, 'kernel' for a kernel fault recovered from the
 reserved region on the following boot. The listing also carries a readiness

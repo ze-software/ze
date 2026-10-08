@@ -16,11 +16,11 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:neighbor",
+			WireMethod: "ze-iface:show-neighbor",
 			Handler:    handleShowNeighbor,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:arp",
+			WireMethod: "ze-iface:show-arp",
 			Handler:    handleShowArp,
 		},
 	)

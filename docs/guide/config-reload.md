@@ -173,7 +173,7 @@ deadline.
 
 `commit` in the config editor and `ze signal reload` reach the same reload, so
 the order below is the same for both. The editor sends the
-`ze-system:daemon-reload` request over the daemon socket, and the daemon runs
+`ze-plugin:system-daemon-reload` request over the daemon socket, and the daemon runs
 the reload that SIGHUP runs.
 <!-- source: internal/component/cli/reload.go -- newSocketReloadNotifier -->
 <!-- source: cmd/ze/hub/main.go -- reloadAfterCommitContext -->

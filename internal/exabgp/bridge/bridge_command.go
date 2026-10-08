@@ -195,7 +195,7 @@ var ErrLineNotTranslated = errors.New("the ExaBGP bridge does not translate this
 
 // bridgePassthrough is the ONE ExaBGP line that still reaches ze's dispatcher
 // unchanged. `help` is the bridge's own word rather than a route, ze declares it
-// as ze-bgp:help, and it is the single member bridgeSurface keeps
+// as ze-meta:bgp-help, and it is the single member bridgeSurface keeps
 // (internal/component/command/grammar/checker.go).
 const bridgePassthrough = "help"
 
@@ -301,11 +301,11 @@ func (t Translator) Line(line string) (Translation, error) {
 // Each mapping is to a command ze declares, checked against the live registry
 // rather than assumed:
 //
-//	clear adj-rib in|out        -> clear bgp rib in|out       (ze-rib-api:clear-in/out)
+//	clear adj-rib in|out        -> clear bgp rib in|out       (ze-bgp:rib-clear-in/out)
 //	flush adj-rib [in|out]      -> request peer <sel> flush   (ze-bgp:peer-flush)
 //	announce watchdog <name>    -> request bgp watchdog announce <name>
 //	withdraw watchdog <name>    -> request bgp watchdog withdraw <name>
-//	shutdown, request shutdown  -> request shutdown           (ze-system:daemon-shutdown)
+//	shutdown, request shutdown  -> request shutdown           (ze-plugin:system-daemon-shutdown)
 //	enable-ack, disable-ack, silence-ack -> answered by the bridge itself
 //
 // The watchdog forms are read BEFORE convertRoute although they start with the

@@ -18,7 +18,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestHandleSystemDispatch verifies ze-system:dispatch routes text commands
+// TestHandleSystemDispatch verifies ze-plugin:system-dispatch routes text commands
 // through the standard dispatcher, enabling API socket clients to reach
 // plugin-registered commands.
 //

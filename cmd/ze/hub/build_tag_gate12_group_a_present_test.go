@@ -53,9 +53,9 @@ func TestBuildTag_Gate12GroupA_Present(t *testing.T) {
 // built-in RPC surface.
 func TestBuildTag_Gate12GroupA_MPLSPresent(t *testing.T) {
 	for _, reg := range pluginserver.AllBuiltinRPCs() {
-		if reg.WireMethod == "ze-show:mpls-forwarding" {
+		if reg.WireMethod == "ze-mpls:show-forwarding" {
 			return
 		}
 	}
-	t.Fatal("ze_mpls build: ze-show:mpls-forwarding RPC not registered")
+	t.Fatal("ze_mpls build: ze-mpls:show-forwarding RPC not registered")
 }

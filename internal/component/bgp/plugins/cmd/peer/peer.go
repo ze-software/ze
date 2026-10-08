@@ -137,8 +137,8 @@ func init() {
 		// own YANG module declares: peer-add is declared in ze-bgp-api.yang and
 		// peer-remove is served under the delete verb's prefix.
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", Handler: handleBgpPeerAdd, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: handleBgpPeerRemove, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:delete-peer", Handler: handleBgpPeerRemove, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:update-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
 		// `update bgp config` writes the running peer set to the configuration
 		// file. No selector: the absence of a peer is half of what it
 		// persists, and a selector cannot name a peer that is gone (save.go).

@@ -118,8 +118,8 @@ func TestDeclaredCommandsResolveFromArgv(t *testing.T) {
 		}
 		// A second registration may declare `show <path>` outright, which then
 		// occupies the same node of the show tree. `system subsystem list`
-		// (ze-system:subsystem-list) and `show system subsystem list`
-		// (ze-show:system-subsystem-list) are the live pair. Dispatching to the
+		// (ze-plugin:system-subsystem-list) and `show system subsystem list`
+		// (ze-cmd:show-system-subsystem-list) are the live pair. Dispatching to the
 		// declared show-rooted command is right there; prefixing `show` onto a
 		// path nothing declares is the inversion this walk exists to catch.
 		if declared[got] && got == "show "+path {
@@ -624,8 +624,8 @@ func declaredChildlessNode(t *testing.T) []string {
 // Both live fallbacks cover a DECLARED path and reach Dispatchable through its
 // Declared branch instead:
 //
-//	`show host`    internal/plugins/host/register.go     -> ze-show:host-all
-//	`show crashes` internal/plugins/crashes/register.go  -> ze-show:crashes
+//	`show host`    internal/plugins/host/register.go     -> ze-host:show-all
+//	`show crashes` internal/plugins/crashes/register.go  -> ze-crashes:show-crashes
 //
 // The fallback branch of Resolution.Dispatchable is therefore unreachable from
 // today's registrations. It is kept as insurance for the next plugin that

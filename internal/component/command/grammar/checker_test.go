@@ -107,7 +107,7 @@ func TestCheckNodeKeywordBeforeValue(t *testing.T) { // R5
 func TestCheckNodeIgnoresModifierGroupsForR6(t *testing.T) { // R6
 	group := &command.Node{
 		Name:       "peer",
-		WireMethod: "ze-show:policy-chain",
+		WireMethod: "ze-bgp:show-policy-chain",
 		ArgDefs:    []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
 		Children: map[string]*command.Node{
 			"direction": {Name: "direction", Modifier: command.ModifierChoice},
@@ -119,7 +119,7 @@ func TestCheckNodeIgnoresModifierGroupsForR6(t *testing.T) { // R6
 
 	action := &command.Node{
 		Name:       "peer",
-		WireMethod: "ze-show:policy-chain",
+		WireMethod: "ze-bgp:show-policy-chain",
 		ArgDefs:    []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
 		Children: map[string]*command.Node{
 			"direction": {Name: "direction", Modifier: command.ModifierChoice},
@@ -144,9 +144,9 @@ func TestCheckNodeValueBeforeKeyword(t *testing.T) { // R6
 	// An OPTIONAL value coexisting with subcommands is NOT a violation.
 	okFork := &command.Node{
 		Name:       "route",
-		WireMethod: "ze-show:route",
+		WireMethod: "ze-iface:show-route",
 		ArgDefs:    []command.ArgDef{{Name: "prefix", Kind: command.ArgString, Mandatory: false}},
-		Children:   map[string]*command.Node{"lookup": {Name: "lookup", WireMethod: "ze-show:route-lookup"}},
+		Children:   map[string]*command.Node{"lookup": {Name: "lookup", WireMethod: "ze-iface:show-route-lookup"}},
 	}
 	if f := CheckNode("show route", okFork); hasRule(f, "R6") {
 		t.Errorf("optional value + subcommand fork wrongly flagged R6: %v", f)
@@ -267,11 +267,11 @@ func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namesp
 
 func TestExemptCategory(t *testing.T) {
 	cases := map[string]string{
-		"ze-bgp:help":            "bridge",
+		"ze-meta:bgp-help":            "bridge",
 		"ze-plugin:command-list": "wire-protocol",
-		"ze-system:command-list": "wire-protocol",
-		"ze-bgp:plugin-encoding": "wire-protocol",
-		"ze-editor:mode-command": "editor",
+		"ze-plugin:system-command-list": "wire-protocol",
+		"ze-meta:bgp-plugin-encoding": "wire-protocol",
+		"ze-cli:editor-mode-command": "editor",
 	}
 	for wm, wantCat := range cases {
 		cat, ok := ExemptCategory(wm)
@@ -280,8 +280,8 @@ func TestExemptCategory(t *testing.T) {
 		}
 	}
 	// A normal operator command is not exempt.
-	if _, ok := ExemptCategory("ze-show:interface"); ok {
-		t.Errorf("ze-show:interface should not be exempt")
+	if _, ok := ExemptCategory("ze-iface:show-interface"); ok {
+		t.Errorf("ze-iface:show-interface should not be exempt")
 	}
 	// The nine BGP send methods left E1 on 2026-09-05 and are CHECKED now. Each
 	// answers at `send bgp <selector> <form>`, under a verb command.Verbs holds,

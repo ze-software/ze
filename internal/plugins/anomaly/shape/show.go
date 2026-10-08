@@ -13,7 +13,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:anomaly-shape",
+			WireMethod: "ze-anomaly:show-shape",
 			Handler:    handleShowAnomalyShape,
 		},
 	)

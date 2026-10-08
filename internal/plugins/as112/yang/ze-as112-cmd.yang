@@ -19,7 +19,7 @@ module ze-as112-cmd {
 
         container as112 {
             config false;
-            ze:command "ze-show:as112";
+            ze:command "ze-as112:show-as112";
             description "Enabled, address-family, hostname/facility/location, allow-from count,
 served zone count, and the current SOA serial.";
             ze:help "AS112 node status.";

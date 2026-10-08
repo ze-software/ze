@@ -10,7 +10,7 @@ module ze-gnmi-cmd {
     augment "/clishowcmd:show" {
         container gnmi {
             config false;
-            ze:command "ze-show:gnmi";
+            ze:command "ze-gnmi:show-gnmi";
             description "Returns listen address, TLS details, authentication mode, and the number of
 active streaming subscribers.";
             ze:help "Show whether the gNMI server is running and how it is configured.";

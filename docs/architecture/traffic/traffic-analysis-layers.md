@@ -30,7 +30,7 @@ reuse. The public `Snapshot` and `SubscribeRates` API stayed byte-identical, and
 the existing `window_test.go` ran unchanged as a characterization harness before
 and after.
 
-**Flat names.** `internal/component/traffic` and the `ze-show:traffic` wire
+**Flat names.** `internal/component/traffic` and the `ze-traffic:show-traffic` wire
 method already belong to QoS and traffic control, so a `traffic/stat` child
 would have nested the stat layer under QoS. `trafficstat` kept its name and
 `trafficfeature` was added beside it.

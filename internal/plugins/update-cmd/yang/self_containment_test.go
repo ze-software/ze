@@ -11,8 +11,8 @@ import (
 // See ai/rules/plugins.md.
 func TestUpdateShowCmdSchemaOwnsSystemUpdate(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:system-update"`,
-		`ze:command "ze-show:system-update-history"`,
+		`ze:command "ze-update:show-system-update"`,
+		`ze:command "ze-update:show-system-update-history"`,
 		"container update",
 		"container history",
 	} {

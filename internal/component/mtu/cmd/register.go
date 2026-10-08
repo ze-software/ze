@@ -22,7 +22,7 @@ import (
 // wireMethodShowMTU is the one RPC this module registers. The YANG node
 // ze:command in ze-mtu-cmd.yang names the same string, which is how the
 // dispatcher maps `show mtu` onto handleShowMTU.
-const wireMethodShowMTU = "ze-show:mtu"
+const wireMethodShowMTU = "ze-mtu:show-mtu"
 
 // commandPathShowMTU is the CLI path the answer shape is declared under.
 const commandPathShowMTU = "show mtu"

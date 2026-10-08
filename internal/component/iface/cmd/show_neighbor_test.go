@@ -12,13 +12,13 @@ import (
 )
 
 // TestShowNeighbor_RegisteredWireMethods verifies the object-rooted
-// `ze-show:neighbor` and `ze-show:arp` RPCs are installed and the pre-reorg
+// `ze-iface:show-neighbor` and `ze-iface:show-arp` RPCs are installed and the pre-reorg
 // `ze-show:ip-arp` / `ze-show:neighbors` methods are gone.
 func TestShowNeighbor_RegisteredWireMethods(t *testing.T) {
-	want := map[string]bool{"ze-show:neighbor": false, "ze-show:arp": false}
+	want := map[string]bool{"ze-iface:show-neighbor": false, "ze-iface:show-arp": false}
 	for _, r := range pluginserver.AllBuiltinRPCs() {
 		switch r.WireMethod {
-		case "ze-show:neighbor", "ze-show:arp":
+		case "ze-iface:show-neighbor", "ze-iface:show-arp":
 			require.NotNil(t, r.Handler, "%s handler must not be nil", r.WireMethod)
 			want[r.WireMethod] = true
 		case "ze-show:ip-arp", "ze-show:neighbors":

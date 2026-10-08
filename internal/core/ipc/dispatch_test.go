@@ -214,13 +214,13 @@ func TestRPCDispatchHasMethod(t *testing.T) {
 func TestRPCDispatchNilResult(t *testing.T) {
 	d := NewRPCDispatcher()
 
-	err := d.Register("ze-system:daemon-shutdown", func(_ string, _ json.RawMessage) (any, error) {
+	err := d.Register("ze-plugin:system-daemon-shutdown", func(_ string, _ json.RawMessage) (any, error) {
 		return map[string]string{"status": "done"}, nil
 	})
 	require.NoError(t, err)
 
 	req := &rpc.Request{
-		Method: "ze-system:daemon-shutdown",
+		Method: "ze-plugin:system-daemon-shutdown",
 		ID:     7,
 	}
 

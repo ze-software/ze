@@ -2020,13 +2020,13 @@ options: `ze_api.wait_for_event` / `wait_for_shutdown` / `wait_for_post_startup`
 
 For "I changed something, now assert its downstream effect", use the **quiesce
 barrier**: `ze_api.quiesce()` (or the `request quiesce` command) sends
-`ze-system:quiesce`, which blocks until every registered subsystem has drained
+`ze-plugin:system-quiesce`, which blocks until every registered subsystem has drained
 its pending async work (the BGP forward pool among them) and then replies. So
 `send(route); quiesce()` guarantees the route is on the peer wire with no sleep.
 See `docs/architecture/api/commands.md` "Quiesce Barrier".
 
 <!-- source: internal/test/fixture/misc_fixture_observers.go -- quiesce -->
-<!-- source: internal/component/plugin/server/quiesce.go -- ze-system:quiesce handler -->
+<!-- source: internal/component/plugin/server/quiesce.go -- ze-plugin:system-quiesce handler -->
 
 Plugin registration readiness is not BGP establishment. Before requesting
 shutdown, an observer waits for the peer state or sent-payload counter its wire

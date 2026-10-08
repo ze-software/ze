@@ -606,7 +606,7 @@ show ospf border-routers
 
 `show ospf` is the process summary (router-id, ABR/ASBR status, areas, and the active stub-router / max-metric state). `show ospf database` lists every LSA; the per-type subviews filter to one LS Type (1/2/3/4/5/7). `show ospf route` reports area, prefix, metric, route type, origin router, and next-hop set. `show ospf spf` reports per-area last run, duration, node count, pending state, and current throttle delay. `show ospf border-routers` reports reachable ABRs and ASBRs with their area, metric, and next-hop set.
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
-<!-- source: internal/plugins/ospf/cmd_show.go -- ze-show:ospf-* RPC proxies -->
+<!-- source: internal/plugins/ospf/cmd_show.go -- ze-ospf:show-* RPC proxies -->
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
 
 The runtime can be reset without reconfiguring via `clear ospf process` (tear down adjacencies and re-run SPF), `clear ospf neighbor` (re-form adjacencies), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.

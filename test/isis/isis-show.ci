@@ -2,7 +2,7 @@
 #
 # VALIDATES: spec-isis-13 -- the operator-facing `show isis <noun>` and
 #            `clear isis <action>` commands answer through the plugin dispatcher
-#            and the cmd_show.go proxy (ze-show:isis-* / ze-clear:isis-*). With a
+#            and the cmd_show.go proxy (ze-isis:show-* / ze-isis:clear-*). With a
 #            NET configured and only a passive interface (no raw circuit to open,
 #            so the engine starts cleanly without CAP_NET_RAW), the engine
 #            originates its own LSP, so:

@@ -93,7 +93,7 @@ func TestParseKernelLogArgsBounds(t *testing.T) {
 // descriptor with the runtime netpoller on Linux; a pollable descriptor never
 // surfaces EAGAIN, it parks the goroutine until the fd is readable again. On
 // /dev/kmsg that is "until the kernel logs a new message", so the drained case
-// blocked forever, the ze-show:system-kernel-log RPC never answered, and
+// blocked forever, the ze-host:show-system-kernel-log RPC never answered, and
 // test/plugin/system-kernel-log-show.ci timed out on any host privileged enough
 // to open the device. Both exits are covered here: a drained non-blocking
 // descriptor (EAGAIN) and one whose writer has closed (0, nil).

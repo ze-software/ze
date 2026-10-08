@@ -37,7 +37,7 @@ ze help command bgp          # filter to BGP-related commands
 ze help command --json       # machine-readable JSON (for tooling, wiki generation)
 ze help ai                   # AI-oriented summary with recipes and context
 ze help ai --json            # machine-readable JSON reference
-ze help ai api               # daemon API endpoints (ze-show:*, ze-set:*, ...)
+ze help ai api               # daemon API endpoints (ze-bgp:*, ze-iface:*, ...)
 ```
 
 Generates a command reference from the live binary. The output is assembled

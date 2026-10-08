@@ -17,8 +17,8 @@ canonical metric set, and registers two config-sanity diagnostic codes.
 
 ## Decision: show and clear are dispatcher proxies
 
-Each command is registered as a central-namespace RPC (`ze-show:isis-*`,
-`ze-clear:isis-*`) carrying a plugin-command declaration, so the engine can claim
+Each command is registered as a central-namespace RPC (`ze-isis:show-*`,
+`ze-isis:clear-*`) carrying a plugin-command declaration, so the engine can claim
 the same command name without a builtin conflict. Each handler forwards through
 `ForwardToPlugin`.
 

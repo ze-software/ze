@@ -1,5 +1,5 @@
 # Test: show traceroute to localhost returns single hop
-# Exercises: dispatch-command -> ze-show:traceroute -> handleTraceroute
+# Exercises: dispatch-command -> ze-traceroute:show-traceroute -> handleTraceroute
 # Verifies AC-1: returns JSON with per-hop: hop, addr, rtt-ms, ttl
 
 # ze-peer: accepts connection

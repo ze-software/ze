@@ -4,9 +4,9 @@
 // One feature, spread across several verbs, lives here instead of scattered
 // across the central verb packages:
 //
-//   - show ping       (local + ze-show:ping)     batch ICMP echo             -- ping.go
-//   - monitor ping    (local + ze-monitor:ping)  continuous streaming ping   -- monitor.go / stream.go
-//   - resolve ping    (ze-resolve:ping)           ICMP ping with source bind -- resolve.go
+//   - show ping       (local + ze-ping:show-ping)     batch ICMP echo             -- ping.go
+//   - monitor ping    (local + ze-ping:monitor-ping)  continuous streaming ping   -- monitor.go / stream.go
+//   - resolve ping    (ze-ping:resolve-ping)           ICMP ping with source bind -- resolve.go
 //
 // The shared low-level ICMP primitives (echo-packet building, target
 // resolution) live in internal/core/probe so this module does not depend on a

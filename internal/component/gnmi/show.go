@@ -10,7 +10,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:gnmi",
+			WireMethod: "ze-gnmi:show-gnmi",
 			Handler:    handleShowGNMI,
 		},
 	)

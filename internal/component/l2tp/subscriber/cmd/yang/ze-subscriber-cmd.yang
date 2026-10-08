@@ -15,7 +15,7 @@ module ze-subscriber-cmd {
     augment "/clishowcmd:show" {
         container subscriber {
             config false;
-            ze:command "ze-subscriber-api:summary";
+            ze:command "ze-l2tp:subscriber-summary";
             description "Counts by access type (PPPoE, L2TP, IPoE) with totals. It
 is the quick way to see how many subscribers are online.";
             ze:help "Show a summary of all subscriber sessions.";
@@ -28,7 +28,7 @@ is the quick way to see how many subscribers are online.";
 
                 container detail {
                     config false;
-                    ze:command "ze-subscriber-api:detail";
+                    ze:command "ze-l2tp:subscriber-detail";
                     description "Pass the session ID. Returns access type, assigned
 addresses, authentication state, uptime, and traffic counters.";
                     ze:help "Show everything about one subscriber session.";

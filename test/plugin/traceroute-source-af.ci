@@ -1,5 +1,5 @@
 # Test: the source address of `resolve traceroute` decides the destination family
-# Exercises: dispatch-command -> ze-resolve:traceroute -> handleResolveTraceroute -> probe.ResolveTarget
+# Exercises: dispatch-command -> ze-traceroute:resolve-traceroute -> handleResolveTraceroute -> probe.ResolveTarget
 # VALIDATES: spec-traceroute-source-af AC-1, AC-2, AC-3 -- a dual-stack name traced
 #   from an IPv6 source reaches its IPv6 address, from an IPv4 source its IPv4
 #   address, and a target with no address in the source's family is refused with

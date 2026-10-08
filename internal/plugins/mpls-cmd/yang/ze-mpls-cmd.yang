@@ -18,7 +18,7 @@ module ze-mpls-cmd {
 
             container forwarding {
                 config false;
-                ze:command "ze-show:mpls-forwarding";
+                ze:command "ze-mpls:show-forwarding";
                 description "Each entry shows the incoming label, swap/push/pop operation, and outgoing
 next-hop. Pass 'limit N' to cap large tables. Linux only.";
                 ze:help "Show MPLS forwarding entries installed in the kernel.";

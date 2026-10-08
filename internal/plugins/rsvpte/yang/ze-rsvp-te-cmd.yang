@@ -18,7 +18,7 @@ module ze-rsvp-te-cmd {
 
             container lsp {
                 config false;
-                ze:command "ze-show:rsvp-te-lsp";
+                ze:command "ze-rsvpte:show-rsvp-te-lsp";
                 description "Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out
 labels for each LSP.";
                 ze:help "Show RSVP-TE label-switched paths.";
@@ -26,7 +26,7 @@ labels for each LSP.";
 
             container interface {
                 config false;
-                ze:command "ze-show:rsvp-te-interface";
+                ze:command "ze-rsvpte:show-rsvp-te-interface";
                 description "Returns reserved, available, and maximum bandwidth for each TE-enabled
 interface.";
                 ze:help "Show RSVP-TE bandwidth allocation per interface.";
@@ -34,14 +34,14 @@ interface.";
 
             container tunnel {
                 config false;
-                ze:command "ze-show:rsvp-te-tunnel";
+                ze:command "ze-rsvpte:show-rsvp-te-tunnel";
                 description "Returns tunnel name, endpoints, signaling state, and active LSP.";
                 ze:help "Show configured RSVP-TE tunnels and their current state.";
             }
 
             container fast-reroute {
                 config false;
-                ze:command "ze-show:rsvp-te-fast-reroute";
+                ze:command "ze-rsvpte:show-rsvp-te-fast-reroute";
                 description "Returns each configured facility-backup bypass LSP and each protected LSP with
 its armed bypass, mode, and whether local protection is available and in use.";
                 ze:help "Show RSVP-TE Fast Reroute (RFC 4090) protection state.";

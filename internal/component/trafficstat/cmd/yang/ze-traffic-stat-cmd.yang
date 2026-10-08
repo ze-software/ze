@@ -16,7 +16,7 @@ module ze-traffic-stat-cmd {
 
             container stat {
                 config false;
-                ze:command "ze-show:traffic-stat";
+                ze:command "ze-trafficstat:show-traffic-stat";
                 description "Without arguments, shows all interfaces. With
 'name <interface>', filters to one interface.";
                 ze:help "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).";
@@ -42,7 +42,7 @@ the snapshot. A name in no row leaves the answer empty.";
 
             container stat {
                 config false;
-                ze:command "ze-monitor:traffic-stat";
+                ze:command "ze-trafficstat:monitor-traffic-stat";
                 description "Without arguments, shows all interfaces. With
 'name <interface>', filters to one interface.";
                 ze:help "Start streaming traffic monitor (per-second snapshots).";

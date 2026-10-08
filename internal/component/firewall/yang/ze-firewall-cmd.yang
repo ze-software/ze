@@ -19,7 +19,7 @@ module ze-firewall-cmd {
             ze:help "Firewall rules and groups (nftables).";
             container ruleset {
                 config false;
-                ze:command "ze-show:firewall-ruleset";
+                ze:command "ze-firewall:show-ruleset";
                 ze:backend "nft";
                 description "Joins applied desired state with kernel counters from
 the nft backend.";
@@ -35,7 +35,7 @@ tables applied.";
             }
             container group {
                 config false;
-                ze:command "ze-show:firewall-group";
+                ze:command "ze-firewall:show-group";
                 ze:backend "nft";
                 description "Without arguments, lists all known groups. With a name,
 shows the set elements. Reads from the last applied config, not the
@@ -48,7 +48,7 @@ kernel.";
             config false;
             container conntrack {
                 config false;
-                ze:command "ze-show:system-conntrack";
+                ze:command "ze-firewall:show-system-conntrack";
                 ze:backend "nft";
                 description "Returns conntrack entry count, table size, timeouts,
 and loaded modules. Requires the nft backend. Check this when you suspect

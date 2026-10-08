@@ -1,5 +1,5 @@
 # Test: show mpls forwarding returns the kernel MPLS forwarding table via dispatch-command
-# Exercises: dispatch-command -> ze-show:mpls-forwarding -> handleShowMPLSForwarding -> dumpMPLSRoutes
+# Exercises: dispatch-command -> ze-mpls:show-forwarding -> handleShowMPLSForwarding -> dumpMPLSRoutes
 #            (internal/component/mpls/show_forwarding.go:45, forwarding_linux.go).
 # Verifies: the command is WIRED and returns a structured forwarding table: a JSON
 #           object whose "entries" field is a list. On a host with no installed MPLS

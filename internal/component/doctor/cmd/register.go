@@ -9,7 +9,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:doctor",
+			WireMethod: "ze-doctor:show-doctor",
 			Handler:    HandleShowDoctor,
 		},
 	)

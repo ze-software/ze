@@ -1,6 +1,6 @@
 # Test: diag capture + capture raw control-plane handler round-trip via dispatch-command
-# Exercises: dispatch-command -> ze-show:capture     -> HandleShowCapture (capture.go:13)
-#            dispatch-command -> ze-show:capture-raw  -> HandleCaptureRaw start/dump/stop
+# Exercises: dispatch-command -> ze-diag:show-capture     -> HandleShowCapture (capture.go:13)
+#            dispatch-command -> ze-diag:show-capture-raw  -> HandleCaptureRaw start/dump/stop
 # Command tree (ze-diag-cmd.yang): `show capture` and nested `show capture raw <action>`.
 # In-process control-plane rings (NOT kernel-gated), so this runs unprivileged.
 # The plugin-test reactor does not implement the BGP capture providers, so the

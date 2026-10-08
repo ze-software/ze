@@ -17,7 +17,7 @@ import (
 
 var errResolveTargetEmpty = errors.New("target must not be empty")
 
-// handleResolvePing is the RPC handler for `resolve ping` (ze-resolve:ping):
+// handleResolvePing is the RPC handler for `resolve ping` (ze-ping:resolve-ping):
 // ICMP echo requests with optional source binding, count, and payload size.
 func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	target, errResp := requireResolveArg(args, "target")

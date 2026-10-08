@@ -24,7 +24,7 @@ func init() {
 	pluginserver.RegisterStreamingHandler("monitor interface rate", streamInterfaceRate)
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-monitor:interface-rate",
+			WireMethod: "ze-iface:monitor-interface-rate",
 			Handler:    handleMonitorInterfaceRate,
 		},
 	)

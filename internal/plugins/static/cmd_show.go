@@ -15,7 +15,7 @@ const cmdShowStatic = "show static"
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:static",
+			WireMethod:    "ze-static:show-static",
 			Handler:       forwardShowStatic,
 			PluginCommand: cmdShowStatic,
 		},

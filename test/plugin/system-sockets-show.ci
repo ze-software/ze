@@ -1,5 +1,5 @@
 # Test: show system sockets tcp returns socket state
-# Exercises: dispatch-command -> ze-show:system-sockets -> handleShowSystemSockets
+# Exercises: dispatch-command -> ze-cmd:show-system-sockets -> handleShowSystemSockets
 # Verifies AC-1: returns JSON with sockets and count (Linux-only; accepts platform error)
 
 # ze-peer: accepts connection

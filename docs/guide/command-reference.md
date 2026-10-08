@@ -725,7 +725,7 @@ omitted before the first poll). The answer is rendered in the format
 full pipe operator set applies.
 See the [Flow Export guide](flow-export.md).
 
-<!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
+<!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-flowexport:show-flow-export -->
 <!-- source: internal/plugins/flowexport/exporter.go -- newExporter, exporter.status -->
 
 ### show traffic stat
@@ -755,7 +755,7 @@ monitor traffic stat name <interface> # One interface by name
 ```
 
 ### show traffic feature
-<!-- source: internal/component/trafficfeature/cmd/traffic_feature.go -- handleShowTrafficFeature, ze-show:traffic-feature -->
+<!-- source: internal/component/trafficfeature/cmd/traffic_feature.go -- handleShowTrafficFeature, ze-trafficfeature:show-traffic-feature -->
 
 Neutral per-source traffic feature signals (facts, not verdicts): fan-out
 (distinct destinations), out/in byte ratio (exfiltration), destination-port
@@ -771,7 +771,7 @@ show traffic feature name <address>   # One source by address
 ```
 
 ### show anomaly detect
-<!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-show:anomaly -->
+<!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-anomaly:show-anomaly -->
 
 Recent behavioral anomaly incidents from the report-only `anomaly-detect` plugin.
 Returns `{"enabled": bool, "incidents": [{entity, cohort, score, severity,
@@ -784,7 +784,7 @@ show anomaly detect                   # Recent anomaly incidents
 ```
 
 ### show anomaly observe
-<!-- source: internal/plugins/anomaly/observe/show.go -- handleShowAnomalyObserve, ze-show:anomaly-observe -->
+<!-- source: internal/plugins/anomaly/observe/show.go -- handleShowAnomalyObserve, ze-anomaly:show-observe -->
 
 The incident lifecycle held by the `anomaly-observe` plugin, newest first. Returns
 `{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort,
@@ -801,7 +801,7 @@ show anomaly observe                  # Incident lifecycle, newest first
 ```
 
 ### show anomaly shape
-<!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-show:anomaly-shape -->
+<!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-anomaly:show-shape -->
 
 Status of the shadow-first anomaly responder. Returns `{"enabled": bool, "mode":
 "shadow"|"armed", "action": "limit"|"drop", "kill-switch": bool, "armed-count": N,
@@ -829,7 +829,7 @@ rendered in the format `environment cli format default` names, whose registered
 value is `text`. The full pipe operator set applies. See the
 [Traffic Usage guide](traffic-usage.md).
 
-<!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-show:traffic-usage -->
+<!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-trafficusage:show-traffic-usage -->
 
 ### show route / show neighbor
 
@@ -961,7 +961,7 @@ ze show isis spf-log                    # Recent SPF runs: timestamp, level, tri
 The neighbour and database views are also available in the web UI at `/isis`
 and `/isis/database`, with live updates over SSE.
 
-<!-- source: internal/plugins/isis/cmd_show.go -- ze-show:isis-* RPC proxies -->
+<!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:show-* RPC proxies -->
 <!-- source: internal/plugins/isis/show.go -- hostname/interface/spf-log render -->
 <!-- source: internal/plugins/isis/yang/ze-isis-cmd.yang -- show/clear command tree -->
 
@@ -981,7 +981,7 @@ circuit is not closed. `clear isis counters` clears the SPF-run history surfaced
 by `show isis spf-log`; the monotonic Prometheus series are process counters and
 are not reset (resetting them mid-process breaks `rate()`).
 
-<!-- source: internal/plugins/isis/cmd_show.go -- ze-clear:isis-* RPC proxies -->
+<!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:clear-* RPC proxies -->
 <!-- source: internal/plugins/isis/show.go -- clearAdjacencies/clearCounters -->
 
 ### IS-IS (Offline Tools)

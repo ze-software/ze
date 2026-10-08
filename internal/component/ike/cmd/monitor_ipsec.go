@@ -19,7 +19,7 @@ func init() {
 	pluginserver.RegisterStreamingHandler("monitor vpn ipsec", streamIPsecMonitor)
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-monitor:vpn-ipsec",
+			WireMethod: "ze-ike:monitor-vpn-ipsec",
 			Handler:    handleMonitorIPsec,
 		},
 	)

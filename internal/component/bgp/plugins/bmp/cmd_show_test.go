@@ -1,6 +1,8 @@
 package bmp
 
 import (
+	"strings"
+
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +15,7 @@ func TestShowBMPRPCRegistration(t *testing.T) {
 
 	var found []string
 	for _, reg := range allRPCs {
-		if len(reg.WireMethod) > 9 && reg.WireMethod[:9] == "ze-show:b" && reg.WireMethod[9:12] == "mp-" {
+		if strings.HasPrefix(reg.WireMethod, "ze-bgp:show-bmp-") {
 			found = append(found, reg.WireMethod)
 		}
 	}
@@ -26,10 +28,10 @@ func TestShowBMPRPCRegistration(t *testing.T) {
 	}
 
 	for _, wire := range []string{
-		"ze-show:bmp-sessions",
-		"ze-show:bmp-peers",
-		"ze-show:bmp-collectors",
-		"ze-show:bmp-rib",
+		"ze-bgp:show-bmp-sessions",
+		"ze-bgp:show-bmp-peers",
+		"ze-bgp:show-bmp-collectors",
+		"ze-bgp:show-bmp-rib",
 	} {
 		assert.True(t, byWire[wire], "missing RPC: %s", wire)
 	}
@@ -39,10 +41,10 @@ func TestShowBMPPluginCommands(t *testing.T) {
 	allRPCs := pluginserver.AllBuiltinRPCs()
 
 	expected := map[string]string{
-		"ze-show:bmp-sessions":   "show bmp sessions",
-		"ze-show:bmp-peers":      "show bmp peers",
-		"ze-show:bmp-collectors": "show bmp collectors",
-		"ze-show:bmp-rib":        "show bmp rib",
+		"ze-bgp:show-bmp-sessions":   "show bmp sessions",
+		"ze-bgp:show-bmp-peers":      "show bmp peers",
+		"ze-bgp:show-bmp-collectors": "show bmp collectors",
+		"ze-bgp:show-bmp-rib":        "show bmp rib",
 	}
 
 	for _, reg := range allRPCs {

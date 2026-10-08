@@ -15,9 +15,9 @@ import (
 // dispatch time (the project's recurring "unwired" defect).
 func TestRSVPTEShowRPCsRegistered(t *testing.T) {
 	want := []string{
-		"ze-show:rsvp-te-lsp",
-		"ze-show:rsvp-te-interface",
-		"ze-show:rsvp-te-tunnel",
+		"ze-rsvpte:show-rsvp-te-lsp",
+		"ze-rsvpte:show-rsvp-te-interface",
+		"ze-rsvpte:show-rsvp-te-tunnel",
 	}
 	byMethod := make(map[string]pluginserver.RPCRegistration)
 	for _, r := range pluginserver.AllBuiltinRPCs() {

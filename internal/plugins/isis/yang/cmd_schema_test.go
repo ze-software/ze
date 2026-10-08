@@ -3,7 +3,7 @@
 // Related: ze-isis-cmd.yang -- the owner command tree these tests assert.
 //
 // VALIDATES: the IS-IS command YANG (owned by the isis component) declares every
-// ze-show:isis-* show token and every ze-clear:isis-* clear token, so removing
+// ze-isis:show-* show token and every ze-isis:clear-* clear token, so removing
 // the isis component removes the whole show/clear surface together with the
 // handlers (the owner half of ai/rules/plugins.md). The central
 // show/clear schemas assert the matching central-guard half (none of these
@@ -22,14 +22,14 @@ import (
 // `show isis ...` command tokens and the containers that scaffold them.
 func TestISISCmdSchemaOwnsShowISIS(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:isis-neighbor"`,
-		`ze:command "ze-show:isis-database"`,
-		`ze:command "ze-show:isis-database-detail"`,
-		`ze:command "ze-show:isis-route"`,
-		`ze:command "ze-show:isis-route-ipv6"`,
-		`ze:command "ze-show:isis-interface"`,
-		`ze:command "ze-show:isis-hostname"`,
-		`ze:command "ze-show:isis-spf-log"`,
+		`ze:command "ze-isis:show-neighbor"`,
+		`ze:command "ze-isis:show-database"`,
+		`ze:command "ze-isis:show-database-detail"`,
+		`ze:command "ze-isis:show-route"`,
+		`ze:command "ze-isis:show-route-ipv6"`,
+		`ze:command "ze-isis:show-interface"`,
+		`ze:command "ze-isis:show-hostname"`,
+		`ze:command "ze-isis:show-spf-log"`,
 		"container isis",
 		"container database",
 		"container spf-log",
@@ -44,8 +44,8 @@ func TestISISCmdSchemaOwnsShowISIS(t *testing.T) {
 // `clear isis ...` command tokens.
 func TestISISCmdSchemaOwnsClearISIS(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-clear:isis-adjacency"`,
-		`ze:command "ze-clear:isis-counters"`,
+		`ze:command "ze-isis:clear-adjacency"`,
+		`ze:command "ze-isis:clear-counters"`,
 		"container clear",
 		"container adjacency",
 		"container counters",

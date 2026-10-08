@@ -24,7 +24,7 @@ module ze-vpp-cmd {
 
                 container start {
                     config false;
-                    ze:command "ze-show:vpp-trace-start";
+                    ze:command "ze-iface:show-vpp-trace-start";
                     description "Default input node is dpdk-input, default count is 100 (max 10000). After
 starting, use 'show vpp trace show' to retrieve the captured packets. Requires
 the VPP backend.";
@@ -33,14 +33,14 @@ the VPP backend.";
 
                 container show {
                     config false;
-                    ze:command "ze-show:vpp-trace-show";
+                    ze:command "ze-iface:show-vpp-trace-show";
                     description "Shows per-packet VPP graph node traversal. Requires the VPP backend.";
                     ze:help "Retrieve packets captured since the last trace start.";
                 }
 
                 container clear {
                     config false;
-                    ze:command "ze-show:vpp-trace-clear";
+                    ze:command "ze-iface:show-vpp-trace-clear";
                     description "Clears all packets so you can start a fresh trace. Requires the VPP backend.";
                     ze:help "Discard the captured VPP trace buffer.";
                 }
@@ -48,7 +48,7 @@ the VPP backend.";
 
             container runtime {
                 config false;
-                ze:command "ze-show:vpp-runtime";
+                ze:command "ze-iface:show-vpp-runtime";
                 description "Returns per-node packet counts, vectors, clocks, and suspends. Helps you find
 which node is the bottleneck. Requires the VPP backend.";
                 ze:help "Show VPP graph node processing statistics.";

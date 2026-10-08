@@ -20,8 +20,8 @@ var errRegistryUnavailable = errors.New("subscriber: registry not available")
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-subscriber-api:summary", Handler: handleSummary},
-		pluginserver.RPCRegistration{WireMethod: "ze-subscriber-api:detail", Handler: handleDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:subscriber-summary", Handler: handleSummary},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:subscriber-detail", Handler: handleDetail},
 	)
 }
 

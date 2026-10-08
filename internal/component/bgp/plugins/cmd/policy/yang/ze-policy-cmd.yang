@@ -28,7 +28,7 @@ shows is the one left after group inheritance is resolved.";
 
                 container peer {
                     config false;
-                    ze:command "ze-show:policy-chain";
+                    ze:command "ze-bgp:show-policy-chain";
                     description "The selector
 (IP, name, as<N>) and the optional direction are parsed by the handler.
 Shows the effective chain after group inheritance is resolved. Without
@@ -67,7 +67,7 @@ forwarded and no route is installed, so the command is safe on a live router.";
 
                 container peer {
                     config false;
-                    ze:command "ze-show:policy-test";
+                    ze:command "ze-bgp:show-policy-test";
                     description "Feed a hex-encoded BGP UPDATE through a peer's filter chain and see
 the accept/reject result plus attribute modifications at each stage.
 Read-only: no routes are actually forwarded. Great for validating

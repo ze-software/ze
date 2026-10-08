@@ -21,9 +21,9 @@ const (
 // The caller is responsible for passing these to pluginserver.RegisterRPCs.
 func RPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
-		{WireMethod: "ze-bgp:log-levels", Handler: handleLogLevels},
-		{WireMethod: "ze-bgp:log-set", Handler: handleLogSet},
-		{WireMethod: "ze-bgp:log-recent", Handler: handleLogRecent},
+		{WireMethod: "ze-log:bgp-log-levels", Handler: handleLogLevels},
+		{WireMethod: "ze-log:bgp-log-set", Handler: handleLogSet},
+		{WireMethod: "ze-log:bgp-log-recent", Handler: handleLogRecent},
 	}
 }
 

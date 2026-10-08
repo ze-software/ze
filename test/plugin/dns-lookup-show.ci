@@ -1,5 +1,5 @@
 # Test: show dns lookup resolves localhost
-# Exercises: dispatch-command -> ze-show:dns-lookup -> handleDNSLookup
+# Exercises: dispatch-command -> ze-resolve:show-dns-lookup -> handleDNSLookup
 # Verifies AC-10: returns structured JSON with records, query-time-ms
 
 # ze-peer: accepts connection

@@ -11,7 +11,7 @@ import (
 
 func registerShowKernelLog() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:system-kernel-log", Handler: handleShowSystemKernelLog},
+		pluginserver.RPCRegistration{WireMethod: "ze-host:show-system-kernel-log", Handler: handleShowSystemKernelLog},
 	)
 }
 

@@ -11,7 +11,7 @@ import (
 // words. Dropping the module removes the whole surface. See ai/rules/plugins.md.
 func TestMTUCmdSchemaOwnsShowMTU(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:mtu"`,
+		`ze:command "ze-mtu:show-mtu"`,
 		"container mtu",
 		"leaf host",
 		"type zt:ip-address",

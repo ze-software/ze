@@ -39,8 +39,8 @@ func TestAdminNavFromYANGTree(t *testing.T) {
 			"show": {
 				Name: "show",
 				Children: map[string]*command.Node{
-					"version":  {Name: "version", WireMethod: "ze-show:version"},
-					"warnings": {Name: "warnings", WireMethod: "ze-show:warnings"},
+					"version":  {Name: "version", WireMethod: "ze-cmd:show-version"},
+					"warnings": {Name: "warnings", WireMethod: "ze-cmd:show-warnings"},
 				},
 			},
 			"overview": {Name: "overview", WireMethod: "ze-bgp:overview"},
@@ -97,8 +97,8 @@ func TestAdminNavDeepNesting(t *testing.T) {
 				Children: map[string]*command.Node{
 					"system": {
 						Children: map[string]*command.Node{
-							"memory": {WireMethod: "ze-show:system-memory"},
-							"cpu":    {WireMethod: "ze-show:system-cpu"},
+							"memory": {WireMethod: "ze-cmd:show-system-memory"},
+							"cpu":    {WireMethod: "ze-cmd:show-system-cpu"},
 						},
 					},
 				},

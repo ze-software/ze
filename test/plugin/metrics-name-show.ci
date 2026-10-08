@@ -1,6 +1,6 @@
 # Test: show metrics name <name> dispatches to the metrics-query handler, and
 # the bare form is refused for the name the model requires
-# Exercises: dispatch-command -> ze-show:metrics-query -> handleShowMetricsQuery
+# Exercises: dispatch-command -> ze-cmd:show-metrics-query -> handleShowMetricsQuery
 # Verifies the R9 rename `show metrics name <name>` (was `show metrics-query`)
 # resolves to its handler end-to-end. The plugin harness has no Prometheus
 # registry, so the handler returns "metrics not available"; with a registry the

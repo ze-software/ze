@@ -17,7 +17,7 @@ func registerShowHost() {
 	for _, name := range names {
 		section := name
 		regs = append(regs, pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-" + section,
+			WireMethod: "ze-host:show-" + section,
 			Handler: func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 				return dispatchHostSection(section)
 			},

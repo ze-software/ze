@@ -15,7 +15,7 @@ module ze-aaa-cmd {
             ze:help "Authentication, authorization, and accounting state.";
             container accounting {
                 config false;
-                ze:command "ze-show:aaa-accounting";
+                ze:command "ze-aaa:show-accounting";
                 description "Tells you whether TACACS+ accounting is working or if records are being lost
 due to server unreachability.";
                 ze:help "Show AAA accounting counters and any dropped records.";

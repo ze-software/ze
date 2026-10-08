@@ -43,7 +43,7 @@ On gokrazy there is no systemd, no process supervisor, no `/etc/init.d`: whateve
 
 **(Q) Readback: what's actually in VPP vs. what ze thinks it installed.** `ListKernelRoutes` (`iface/vpp/fib.go`) dumps VPP's FIB via `ip_route_v2_dump` and `ListNeighbors` (`iface/vpp/neighbor.go`) dumps the ARP/ND cache via `ip_neighbor_dump`, both resolving `SwIfIndex` back to ze interface names through the same name map `ifacevpp.go` maintains. These feed `show route`/`show neighbor` CLI output and are independent of `fib-vpp`'s in-memory `installed` map (N), the map is ze's bookkeeping of what it pushed, this is a live read of VPP's own state, so the two can be compared to catch drift.
 
-**(R) The third channel: CLI socket diagnostics.** Separately from the binary API and stats connections, `execCLI` dials the VPP CLI socket directly (`/run/vpp/cli.sock`, overridable via `ze.test.vpp.cli.socket` for tests) and writes a raw text command, reading the response until an idle timeout (`internal/component/vpp/trace_linux.go`). `TraceStart`/`TraceShow`/`TraceClear`/`ShowRuntime` wrap `trace add`/`show trace`/`clear trace`/`show runtime` (`trace_linux.go`); on non-Linux builds these are stubbed to return `errTraceNotAvailable` (`internal/component/vpp/trace_other.go`). `iface-vpp`'s `cmd_show.go` registers these as `ze-show:vpp-trace-start`/`vpp-trace-show`/`vpp-trace-clear`/`vpp-runtime` RPC handlers (`iface/vpp/cmd_show.go`) so operators can start a packet trace and inspect per-node runtime counters from the ze CLI without a separate `vppctl` session.
+**(R) The third channel: CLI socket diagnostics.** Separately from the binary API and stats connections, `execCLI` dials the VPP CLI socket directly (`/run/vpp/cli.sock`, overridable via `ze.test.vpp.cli.socket` for tests) and writes a raw text command, reading the response until an idle timeout (`internal/component/vpp/trace_linux.go`). `TraceStart`/`TraceShow`/`TraceClear`/`ShowRuntime` wrap `trace add`/`show trace`/`clear trace`/`show runtime` (`trace_linux.go`); on non-Linux builds these are stubbed to return `errTraceNotAvailable` (`internal/component/vpp/trace_other.go`). `iface-vpp`'s `cmd_show.go` registers these as `ze-iface:show-vpp-trace-start`/`vpp-trace-show`/`vpp-trace-clear`/`vpp-runtime` RPC handlers (`iface/vpp/cmd_show.go`) so operators can start a packet trace and inspect per-node runtime counters from the ze CLI without a separate `vppctl` session.
 
 ## Key files
 | File | Role |
@@ -67,7 +67,7 @@ On gokrazy there is no systemd, no process supervisor, no `/etc/init.d`: whateve
 | `internal/plugins/iface/vpp/query.go` | `SwInterfaceDump` queries; seeds the name↔`SwIfIndex` map |
 | `internal/plugins/iface/vpp/fib.go` | `ListKernelRoutes` readback of VPP's FIB via `ip_route_v2_dump` |
 | `internal/plugins/iface/vpp/neighbor.go` | `ListNeighbors` readback of VPP's ARP/ND cache via `ip_neighbor_dump` |
-| `internal/plugins/iface/vpp/cmd_show.go` | Wires `ze-show:vpp-trace-*`/`vpp-runtime` RPCs to the CLI-socket trace API |
+| `internal/plugins/iface/vpp/cmd_show.go` | Wires `ze-iface:show-vpp-trace-*`/`show-vpp-runtime` RPCs to the CLI-socket trace API |
 | `internal/plugins/iface/vpp/health.go` | VPP API-socket health check (missing socket = healthy/not-deployed) |
 | `internal/plugins/fib/vpp/register.go` | fib-vpp plugin registration; `OnStarted` backend init + vpp-ready resubscription |
 | `internal/plugins/fib/vpp/fibvpp.go` | Subscribes `(sysrib, best-change)`, dispatches install/replace/remove/MPLS/SRv6, tracks installed state |

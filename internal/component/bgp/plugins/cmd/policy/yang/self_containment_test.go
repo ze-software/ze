@@ -13,8 +13,8 @@ import (
 // See ai/rules/plugins.md.
 func TestPolicyCmdSchemaOwnsPolicyChainTest(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:policy-chain"`,
-		`ze:command "ze-show:policy-test"`,
+		`ze:command "ze-bgp:show-policy-chain"`,
+		`ze:command "ze-bgp:show-policy-test"`,
 		"container show",
 		"container policy",
 		"container chain",

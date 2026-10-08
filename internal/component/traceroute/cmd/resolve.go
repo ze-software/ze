@@ -29,7 +29,7 @@ type tracerouteRequest struct {
 }
 
 // handleResolveTraceroute is the RPC handler for `resolve traceroute`
-// (ze-resolve:traceroute): ICMP traceroute with optional source binding.
+// (ze-traceroute:resolve-traceroute): ICMP traceroute with optional source binding.
 func handleResolveTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	target, errResp := requireResolveArg(args, "target")
 	if errResp != nil {

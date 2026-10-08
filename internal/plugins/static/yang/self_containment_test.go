@@ -7,7 +7,7 @@ import (
 
 func TestStaticCmdSchemaOwnsShowStatic(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:static"`,
+		`ze:command "ze-static:show-static"`,
 		"container static",
 	} {
 		if !strings.Contains(ZeStaticCmdYANG, want) {

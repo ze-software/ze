@@ -7,11 +7,11 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-update",
+			WireMethod: "ze-update:show-system-update",
 			Handler:    handleShowSystemUpdate,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-update-history",
+			WireMethod: "ze-update:show-system-update-history",
 			Handler:    handleShowSystemUpdateHistory,
 		},
 		pluginserver.RPCRegistration{

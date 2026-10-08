@@ -32,8 +32,8 @@ const (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ldp-neighbor", Handler: forwardShowNeighbor, PluginCommand: cmdShowNeighbor},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ldp-binding", Handler: forwardShowBinding, PluginCommand: cmdShowBinding},
+		pluginserver.RPCRegistration{WireMethod: "ze-ldp:show-neighbor", Handler: forwardShowNeighbor, PluginCommand: cmdShowNeighbor},
+		pluginserver.RPCRegistration{WireMethod: "ze-ldp:show-binding", Handler: forwardShowBinding, PluginCommand: cmdShowBinding},
 	)
 }
 

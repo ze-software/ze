@@ -94,9 +94,9 @@ type Resolution struct {
 //
 // NO PRODUCTION REGISTRATION REACHES THE SECOND BRANCH TODAY (checked
 // 2026-08-08). Both offline fallbacks cover a declared path: `show host`
-// (internal/plugins/host/register.go) declares ze-show:host-all and
+// (internal/plugins/host/register.go) declares ze-host:show-all and
 // `show crashes` (internal/plugins/crashes/register.go) declares
-// ze-show:crashes. The branch is kept for the next plugin that registers a
+// ze-crashes:show-crashes. The branch is kept for the next plugin that registers a
 // fallback before declaring its path, and
 // TestSyntheticOfflineFallbackBeatsGroupingContainer keeps it working from a
 // synthetic registration. `show host` was that case until it was declared: with

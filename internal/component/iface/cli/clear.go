@@ -14,7 +14,7 @@ import (
 
 // cmdClear implements `ze interface clear <subject>`. Today only
 // `counters` is supported -- the same subject accepted by the daemon
-// RPC `ze-clear:interface-counters`. Extension points (flush addresses,
+// RPC `ze-iface:clear-interface-counters`. Extension points (flush addresses,
 // flush neighbors, ...) slot in under the same switch.
 func cmdClear(args []string) int {
 	if len(args) == 0 {

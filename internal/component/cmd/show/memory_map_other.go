@@ -12,7 +12,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:system-memory-map", Handler: handleShowSystemMemoryMap},
+		pluginserver.RPCRegistration{WireMethod: "ze-cmd:show-system-memory-map", Handler: handleShowSystemMemoryMap},
 	)
 }
 

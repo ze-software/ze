@@ -17,7 +17,7 @@ module ze-rr-cmd {
 
             container status {
                 config false;
-                ze:command "ze-show:rr-status";
+                ze:command "ze-bgp:show-rr-status";
                 description "Returns cluster ID, running state, and summary statistics
 (reflected routes, client count).";
                 ze:help "Show whether the route reflector is active.";
@@ -25,7 +25,7 @@ module ze-rr-cmd {
 
             container peers {
                 config false;
-                ze:command "ze-show:rr-peers";
+                ze:command "ze-bgp:show-rr-peers";
                 description "Lists each RR client with session state and reflected route counts.";
                 ze:help "Show route reflector client peers.";
             }

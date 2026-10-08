@@ -1,8 +1,8 @@
 // Package cmd owns the whole path MTU diagnostic surface as a dedicated
 // feature module (ai/rules/plugins.md, "Dedicated feature modules"):
 //
-//   - show mtu               (ze-show:mtu)  measure every IPsec peer -- mtu.go
-//   - show mtu host <addr>   (ze-show:mtu)  measure one address      -- mtu.go
+//   - show mtu               (ze-mtu:show-mtu)  measure every IPsec peer -- mtu.go
+//   - show mtu host <addr>   (ze-mtu:show-mtu)  measure one address      -- mtu.go
 //
 // The module imports neither the IKE engine nor the interface backend. IPsec
 // state arrives through the registered inventory snapshot, and the probes go

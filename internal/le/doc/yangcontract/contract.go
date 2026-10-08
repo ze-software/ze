@@ -83,8 +83,8 @@ const (
 
 // skippedWireMethods are handlers that need no YANG command tree entry.
 var skippedWireMethods = map[string]bool{
-	"ze-editor:mode-command": true,
-	"ze-editor:mode-edit":    true,
+	"ze-cli:editor-mode-command": true,
+	"ze-cli:editor-mode-edit":    true,
 }
 
 // skipReason says why a skipped handler is skipped, for the table Text prints.
@@ -207,6 +207,7 @@ func Validate(root string) (ValidationResult, error) {
 		OrphanHandlers:      orphanHandlers,
 		OrphanLocalHandlers: orphanLocalHandlers,
 		OrphanRPCs:          unservedRPCs(declarations, served),
+		ForeignPrefixes:     foreignPrefixes(rpcs),
 		SkippedHandlers:     skipped,
 		Total:               len(commands),
 		TotalHandlers:       len(handlers),
@@ -325,7 +326,34 @@ func contractSatisfied(result *ValidationResult) bool {
 	if len(result.OrphanLocalHandlers) > 0 {
 		return false
 	}
-	return len(result.OrphanRPCs) == 0
+	if len(result.OrphanRPCs) > 0 {
+		return false
+	}
+	return len(result.ForeignPrefixes) == 0
+}
+
+// foreignPrefixes names every registration whose wire-method prefix is not the
+// one pluginserver.OwnerPrefix derives from the package that registered it,
+// and every registration from a package that owns no prefix at all. The
+// derivation is the whole rule: there is no table of owners to keep, so a
+// subsystem cannot declare under another's prefix and a clash between two
+// subsystems cannot be written (AC-10).
+func foreignPrefixes(rpcs []pluginserver.RPCRegistration) []string {
+	var violations []string
+	for _, rpc := range rpcs {
+		owned, err := pluginserver.OwnerPrefix(rpc.Registrar)
+		if err != nil {
+			violations = append(violations, rpc.WireMethod+" ("+err.Error()+")")
+			continue
+		}
+		prefix, _, _ := strings.Cut(rpc.WireMethod, ":")
+		if prefix == owned {
+			continue
+		}
+		violations = append(violations, rpc.WireMethod+" (registered by "+rpc.Registrar+
+			", which owns "+owned+")")
+	}
+	return violations
 }
 
 // yangPathToCLIPath turns the tree path into the words an operator types.

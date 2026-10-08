@@ -12,7 +12,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:l2tp-health", Handler: handleShowL2TPHealth},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:show-health", Handler: handleShowL2TPHealth},
 	)
 }
 

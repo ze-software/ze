@@ -15,7 +15,7 @@ const cmdShowPolicyRoutes = "show policy routes"
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:policy-routes",
+			WireMethod:    "ze-policyroute:show-policy-routes",
 			Handler:       forwardShowPolicyRoutes,
 			PluginCommand: cmdShowPolicyRoutes,
 		},

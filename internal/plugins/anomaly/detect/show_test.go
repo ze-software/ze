@@ -1,5 +1,5 @@
 // VALIDATES: AC-9, the `show anomaly detect` RENDER contract across all three
-// entity kinds, driven through the real ze-show:anomaly handler rather than
+// entity kinds, driven through the real ze-anomaly:show-anomaly handler rather than
 // through entityLabel alone.
 // PREVENTS: the vacuity that hid this surface's shape. test/plugin/anomaly-show.ci
 // asserts `incidents` is a LIST and never reads a row, so it passes whatever the

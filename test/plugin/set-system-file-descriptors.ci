@@ -1,5 +1,5 @@
 # Test: set system file-descriptors raises FD soft limit
-# Exercises: dispatch-command -> ze-set:system-file-descriptors -> handleSetSystemFD
+# Exercises: dispatch-command -> ze-host:set-system-file-descriptors -> handleSetSystemFD
 # Verifies: max keyword sets soft limit to hard limit, returns previous/current/hard-limit
 
 # ze-peer: accepts connection

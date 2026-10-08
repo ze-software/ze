@@ -13,7 +13,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
-		WireMethod: "ze-show:ddos-flowspec",
+		WireMethod: "ze-ddos:show-flowspec",
 		Handler:    handleShowDdosFlowspec,
 	})
 }

@@ -36,12 +36,12 @@ const (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:help", Handler: handleBgpHelp},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-list", Handler: handleBgpCommandList},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-help", Handler: handleBgpCommandHelp},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-complete", Handler: handleBgpCommandComplete},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:event-list", Handler: handleBgpEventList},
-		pluginserver.RPCRegistration{WireMethod: "ze-event:monitor", Handler: handleEventMonitor},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-help", Handler: handleBgpHelp},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-command-list", Handler: handleBgpCommandList},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-command-help", Handler: handleBgpCommandHelp},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-command-complete", Handler: handleBgpCommandComplete},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-event-list", Handler: handleBgpEventList},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:event-monitor", Handler: handleEventMonitor},
 	)
 }
 

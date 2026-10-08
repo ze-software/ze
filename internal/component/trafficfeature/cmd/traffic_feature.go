@@ -17,7 +17,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:traffic-feature",
+			WireMethod: "ze-trafficfeature:show-traffic-feature",
 			Handler:    handleShowTrafficFeature,
 		},
 	)

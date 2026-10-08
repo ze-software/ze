@@ -10,9 +10,9 @@ import (
 // this package MUST. See ai/rules/plugins.md.
 func TestRSVPTECmdSchemaOwnsShowRSVPTE(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:rsvp-te-lsp"`,
-		`ze:command "ze-show:rsvp-te-interface"`,
-		`ze:command "ze-show:rsvp-te-tunnel"`,
+		`ze:command "ze-rsvpte:show-rsvp-te-lsp"`,
+		`ze:command "ze-rsvpte:show-rsvp-te-interface"`,
+		`ze:command "ze-rsvpte:show-rsvp-te-tunnel"`,
 		"container rsvp-te",
 	} {
 		if !strings.Contains(ZeRSVPTECmdYANG, want) {

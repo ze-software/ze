@@ -15,7 +15,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-conntrack",
+			WireMethod: "ze-firewall:show-system-conntrack",
 			Handler:    handleShowSystemConntrack,
 		},
 	)

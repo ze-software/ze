@@ -21,7 +21,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:reload-status",
+			WireMethod: "ze-cmd:show-reload-status",
 			Handler:    handleShowReloadStatus,
 		},
 	)

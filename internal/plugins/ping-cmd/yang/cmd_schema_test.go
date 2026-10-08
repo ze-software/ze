@@ -12,9 +12,9 @@ import (
 // ai/rules/plugins.md.
 func TestPingCmdSchemaOwnsPing(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:ping"`,
-		`ze:command "ze-monitor:ping"`,
-		`ze:command "ze-resolve:ping"`,
+		`ze:command "ze-ping:show-ping"`,
+		`ze:command "ze-ping:monitor-ping"`,
+		`ze:command "ze-ping:resolve-ping"`,
 		"container ping",
 	} {
 		if !strings.Contains(ZePingCmdYANG, want) {

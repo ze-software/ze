@@ -1,6 +1,6 @@
 # Test: `show storage smart` RPC dispatches through the plugin engine
 # VALIDATES: spec-smart-management AC-8 -- configured daemon returns
-#            StatusDone with a `devices` list via ze-show:storage-smart.
+#            StatusDone with a `devices` list via ze-storage:show-smart.
 # PREVENTS:  regression where the show RPC is unregistered or the manager
 #            pointer is never wired, breaking `show storage smart`.
 

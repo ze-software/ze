@@ -20,7 +20,7 @@ func SetStorageManager(m *Manager) {
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:storage-smart",
+			WireMethod: "ze-storage:show-smart",
 			Handler:    handleShowStorageSmart,
 		},
 	)

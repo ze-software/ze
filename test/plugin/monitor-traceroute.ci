@@ -1,7 +1,7 @@
 # Test: monitor traceroute + show probe-round to localhost via dispatch-command
-# Exercises: dispatch-command -> ze-monitor:traceroute -> handleMonitorTraceroute (monitor.go:16)
+# Exercises: dispatch-command -> ze-traceroute:monitor-traceroute -> handleMonitorTraceroute (monitor.go:16)
 #              -> HandleProbeRound (probe_round.go:26)
-#            dispatch-command -> ze-show:probe-round -> HandleProbeRound -> doProbeRound (raw ICMP)
+#            dispatch-command -> ze-traceroute:show-probe-round -> HandleProbeRound -> doProbeRound (raw ICMP)
 # Verifies: when privileged, JSON hops[] each have ttl/addr/rtt-ms (built at
 #           probe_round.go:191-203) and the first hop reaches 127.0.0.1 at ttl 1.
 #           When the daemon lacks CAP_NET_RAW (unprivileged runner) the handler

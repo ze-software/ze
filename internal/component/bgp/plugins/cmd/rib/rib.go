@@ -80,19 +80,19 @@ func init() {
 
 	pluginserver.RegisterRPCs(
 		// Read-only commands (exposed via "ze show")
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:status", Handler: forwardRibStatus, PluginCommand: cmdRibStatus},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:routes", Handler: forwardRibRoutes, PluginCommand: cmdRibShow},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-status", Handler: forwardRibStatus, PluginCommand: cmdRibStatus},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-routes", Handler: forwardRibRoutes, PluginCommand: cmdRibShow},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-rib", Handler: forwardRibRoutes, PluginCommand: cmdRibShow, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best", Handler: forwardRibBest, PluginCommand: cmdRibBest},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best-status", Handler: forwardRibBestStatus, PluginCommand: cmdRibBestStatus},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-best", Handler: forwardRibBest, PluginCommand: cmdRibBest},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-best-status", Handler: forwardRibBestStatus, PluginCommand: cmdRibBestStatus},
 		// Write commands (exposed via "ze run" only)
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-in", Handler: forwardRibClearIn, PluginCommand: cmdRibClearIn},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:inject", Handler: forwardRibInject, PluginCommand: cmdRibInject},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:withdraw", Handler: forwardRibWithdraw, PluginCommand: cmdRibWithdraw},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:rpf", Handler: forwardRibRPF, PluginCommand: cmdRibRPF},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:protocol", Handler: forwardRibProtocol, PluginCommand: cmdRibProtocol},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:fastpath", Handler: forwardRibFastpath, PluginCommand: cmdRibFastpath},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-in", Handler: forwardRibClearIn, PluginCommand: cmdRibClearIn},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-inject", Handler: forwardRibInject, PluginCommand: cmdRibInject},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-withdraw", Handler: forwardRibWithdraw, PluginCommand: cmdRibWithdraw},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-rpf", Handler: forwardRibRPF, PluginCommand: cmdRibRPF},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-protocol", Handler: forwardRibProtocol, PluginCommand: cmdRibProtocol},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-fastpath", Handler: forwardRibFastpath, PluginCommand: cmdRibFastpath},
 	)
 }
 

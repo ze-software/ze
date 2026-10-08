@@ -25,8 +25,8 @@
 # handleCommand, cmd_show.go) and gets the documented envelope back:
 #   AC-8 -- `show vrrp` -> {"vrrp": [...]}, `show vrrp interface name <if>` ->
 #   the same shape filtered to one parent, `show vrrp statistics` ->
-#   {"vrrp-statistics": [...]}. Every wire method (ze-show:vrrp,
-#   ze-show:vrrp-interface, ze-show:vrrp-statistics) is registered on the daemon
+#   {"vrrp-statistics": [...]}. Every wire method (ze-vrrp:show-vrrp,
+#   ze-vrrp:show-interface, ze-vrrp:show-statistics) is registered on the daemon
 #   and the proxy FORWARDS rather than re-dispatching (no recursion).
 #   AC-9 -- `clear vrrp statistics` -> {"cleared": N} reports how many instances
 #   it cleared.

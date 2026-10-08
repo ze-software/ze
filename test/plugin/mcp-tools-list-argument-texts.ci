@@ -3,7 +3,7 @@
 # from its description.
 #
 # VALIDATES: AC-6 of spec-both-help-texts-reach-every-surface. The `name`
-# input leaf of `ze-system:command-help` (internal/core/ipc/yang/ze-system-api.yang)
+# input leaf of `ze-plugin:system-command-help` (internal/core/ipc/yang/ze-system-api.yang)
 # declares both texts, and `system command help` is the command it reaches,
 # so the `ze_system_command` tool carries both on its `name` property.
 #

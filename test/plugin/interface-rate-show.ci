@@ -1,5 +1,5 @@
 # Test: show interface rate command dispatch and error paths
-# Exercises: dispatch-command -> ze-show:interface-rate -> handleShowInterfaceRateCmd -> handleShowInterfaceRate
+# Exercises: dispatch-command -> ze-iface:show-interface-rate -> handleShowInterfaceRateCmd -> handleShowInterfaceRate
 # Verifies: the bare form is wired and reports the rate tracker is down, and
 #           the named form `show interface rate <name>` carries the name through
 #           to the lookup and refuses an unknown one with a message naming it

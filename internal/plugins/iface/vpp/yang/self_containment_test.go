@@ -7,10 +7,10 @@ import (
 
 func TestVPPCmdSchemaOwnsShowVPP(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:vpp-trace-start"`,
-		`ze:command "ze-show:vpp-trace-show"`,
-		`ze:command "ze-show:vpp-trace-clear"`,
-		`ze:command "ze-show:vpp-runtime"`,
+		`ze:command "ze-iface:show-vpp-trace-start"`,
+		`ze:command "ze-iface:show-vpp-trace-show"`,
+		`ze:command "ze-iface:show-vpp-trace-clear"`,
+		`ze:command "ze-iface:show-vpp-runtime"`,
 		"container vpp",
 		"container trace",
 		"container runtime",

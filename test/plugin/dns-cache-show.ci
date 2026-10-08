@@ -1,5 +1,5 @@
 # Test: show dns cache split commands return cache statistics and entries
-# Exercises: dispatch-command -> ze-show:dns-cache-stats/list/record
+# Exercises: dispatch-command -> ze-resolve:show-dns-cache-stats/list/record
 # Verifies: split DNS cache commands dispatch end to end and preserve response shapes
 
 # ze-peer: accepts connection

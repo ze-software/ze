@@ -26,14 +26,14 @@ module ze-cli-show-cmd {
 
         container version {
             config false;
-            ze:command "ze-show:version";
+            ze:command "ze-cmd:show-version";
             description "You can verify which release is deployed on this box.";
             ze:help "Show the running Ze version and build date.";
         }
 
         container uptime {
             config false;
-            ze:command "ze-show:uptime";
+            ze:command "ze-cmd:show-uptime";
             description "Returns the start time and elapsed uptime. Handy after a maintenance
 window to confirm the process restarted.";
             ze:help "Show how long the daemon has been running.";
@@ -41,7 +41,7 @@ window to confirm the process restarted.";
 
         container reload-status {
             config false;
-            ze:command "ze-show:reload-status";
+            ze:command "ze-cmd:show-reload-status";
             description "Returns a generation counter, the outcome of the most recent reload
 (applied or failed), and when it finished. The counter advances on every
 processed reload, including one that rejected or changed nothing, so you
@@ -59,7 +59,7 @@ running config alone.";
 
             container memory {
                 config false;
-                ze:command "ze-show:system-memory";
+                ze:command "ze-cmd:show-system-memory";
                 description "Returns allocated bytes, heap in-use, total allocations, GC cycles, and
 last GC pause duration. Compare over time to spot leaks. For the OS-level
 process memory (RSS/VSZ) use 'show system memory'.";
@@ -75,7 +75,7 @@ process memory (RSS/VSZ) use 'show system memory'.";
 
             container memory {
                 config false;
-                ze:command "ze-show:system-memory-map";
+                ze:command "ze-cmd:show-system-memory-map";
                 description "Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status
 (Linux only). This is what the operating system reports the process is
 using. For the Go runtime allocator view (heap, GC), use
@@ -85,7 +85,7 @@ using. For the Go runtime allocator view (heap, GC), use
 
             container cpu {
                 config false;
-                ze:command "ze-show:system-cpu";
+                ze:command "ze-cmd:show-system-cpu";
                 description "Returns goroutine count, logical CPU count, and GOMAXPROCS setting.
 Useful when the box feels sluggish and you want to see if Ze is
 hogging threads.";
@@ -94,7 +94,7 @@ hogging threads.";
 
             container date {
                 config false;
-                ze:command "ze-show:system-date";
+                ze:command "ze-cmd:show-system-date";
                 description "Useful for correlating log timestamps when the box is in a
 different timezone than you are.";
                 ze:help "Show the daemon's current wall-clock time and timezone.";
@@ -102,7 +102,7 @@ different timezone than you are.";
 
             container platform {
                 config false;
-                ze:command "ze-show:system-platform";
+                ze:command "ze-cmd:show-system-platform";
                 description "Reports whether this is gokrazy, systemd, container, plain-linux, or
 darwin, along with platform-specific capabilities.";
                 ze:help "Show what kind of platform the daemon is running on.";
@@ -117,7 +117,7 @@ darwin, along with platform-specific capabilities.";
 
                 container list {
                     config false;
-                    ze:command "ze-show:system-subsystem-list";
+                    ze:command "ze-cmd:show-system-subsystem-list";
                     description "Shows you which components (bgp, dns, web, l2tp, etc.) are active,
 stopped, or failed.";
                     ze:help "List every registered subsystem and whether it is running.";
@@ -135,7 +135,7 @@ stopped, or failed.";
 
             container sockets {
                 config false;
-                ze:command "ze-show:system-sockets";
+                ze:command "ze-cmd:show-system-sockets";
                 description "Every filter is optional and they combine. States use
 kernel names (ESTABLISHED, LISTEN, TIME_WAIT).
 Linux only. Good for confirming listeners or spotting stuck connections.";
@@ -170,7 +170,7 @@ list is not filtered.";
 
             container goroutines {
                 config false;
-                ze:command "ze-show:system-goroutines";
+                ze:command "ze-cmd:show-system-goroutines";
                 description "Modes: summary (groups by state), blocked (only lock/channel waiters),
 full (all stacks). Default: summary. Share the output with support
 when the daemon stops responding.";
@@ -190,7 +190,7 @@ full dump is one text block of up to 16 MB, so keep it for a hang.";
 
             container file-descriptors {
                 config false;
-                ze:command "ze-show:system-file-descriptors";
+                ze:command "ze-cmd:show-system-file-descriptors";
                 description "Summary mode: totals by type (socket, pipe, file). Detail mode: every
 fd with its path and type. Linux only (reads /proc/self/fd). Check
 this when you suspect fd exhaustion.";
@@ -208,7 +208,7 @@ and appends the descriptor rows, so the output grows with the number of open fil
 
             container profile {
                 config false;
-                ze:command "ze-show:system-profile";
+                ze:command "ze-cmd:show-system-profile";
                 description "Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs
 (instant snapshots). Output is pprof format you can open with
 'go tool pprof'. Send the file to support for deep analysis.";
@@ -248,7 +248,7 @@ is 10s. Only a cpu profile reads it. A second cpu profile is refused while one r
 
         container warnings {
             config false;
-            ze:command "ze-show:warnings";
+            ze:command "ze-cmd:show-warnings";
             ze:rpc "ze-cli-show-api:bgp-warnings";
             description "Displays any conditions that need your attention (degraded peers,
 resource limits approaching, etc.). Use 'source <name>' to filter
@@ -265,7 +265,7 @@ to a single subsystem.";
 
         container audit {
             config false;
-            ze:command "ze-show:audit";
+            ze:command "ze-cmd:show-audit";
             description "Returns audit log entries with timestamps, actors, and actions.
 Filters (all optional, combinable): action <type>, actor <name>,
 surface <name> (cli, web, api), since/until <RFC3339>, count <N>.
@@ -311,7 +311,7 @@ matching entries, oldest first. Absent, every matching entry is shown.";
 
         container errors {
             config false;
-            ze:command "ze-show:errors";
+            ze:command "ze-cmd:show-errors";
             description "This is the first place to look when something goes wrong. Filter
 with source <name> to narrow to one subsystem, count <N> to limit
 output.";
@@ -323,7 +323,7 @@ output.";
 
         container health {
             config false;
-            ze:command "ze-show:health";
+            ze:command "ze-cmd:show-health";
             ze:rpc "ze-cli-show-api:health";
             description "Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.)
 plus an overall status. Each component reports healthy, degraded, or
@@ -343,7 +343,7 @@ outcome each plugin recorded once, before main(), when it set itself up.";
 
             container name {
                 config false;
-                ze:command "ze-show:metrics-query";
+                ze:command "ze-cmd:show-metrics-query";
                 ze:rpc "ze-cli-show-api:metrics-query";
                 description "Returns matching time series from the internal registry. Multiple label
 filters are ANDed. More targeted than the full metrics dump.";
@@ -392,7 +392,7 @@ line, so it MUST be spelled the way the exporter wrote it.";
 
             container recent {
                 config false;
-                ze:command "ze-show:event-recent";
+                ze:command "ze-cmd:show-event-recent";
                 ze:rpc "ze-cli-show-api:event-recent";
                 description "Each event includes timestamp, namespace, and type. Filter with
 namespace <name> to focus on one area, count <N> to limit output.
@@ -402,7 +402,7 @@ Useful for reconstructing what happened before an incident.";
 
             container namespaces {
                 config false;
-                ze:command "ze-show:event-namespaces";
+                ze:command "ze-cmd:show-event-namespaces";
                 ze:rpc "ze-cli-show-api:event-namespaces";
                 description "Tells you which subsystems are generating events and how active
 they are.";
@@ -411,7 +411,7 @@ they are.";
 
             container delivery {
                 config false;
-                ze:command "ze-show:event-delivery";
+                ze:command "ze-cmd:show-event-delivery";
                 ze:rpc "ze-cli-show-api:event-delivery";
                 description "One block per peer, one row per `attach process` block on it: the
 event types that process is fed, and the message types it may send
@@ -453,7 +453,7 @@ see nothing from this peer'.";
 
             container list {
                 config false;
-                ze:command "ze-show:policy-list";
+                ze:command "ze-cmd:show-policy-list";
                 description "Shows each filter type and its implementing plugin. Check here
 when building a new policy chain to see what filters you can use.";
                 ze:help "List all available filter types and named instances.";

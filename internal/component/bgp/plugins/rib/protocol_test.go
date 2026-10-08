@@ -64,7 +64,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "show bgp rib best")
 	assert.Contains(t, commandNames, "show bgp rib best status")
 	// RPF lookup. Declared here or the engine's command registry cannot route
-	// it: the handler, the CLI proxy (ze-rib-api:rpf) and the YANG container
+	// it: the handler, the CLI proxy (ze-bgp:rib-rpf) and the YANG container
 	// all existed from the start, so it tab-completed while every dispatch
 	// failed with "plugin command not registered". test/plugin/rpf-multicast.ci
 	// covers the runtime path.

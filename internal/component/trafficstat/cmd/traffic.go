@@ -23,11 +23,11 @@ func init() {
 	})
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:traffic-stat",
+			WireMethod: "ze-trafficstat:show-traffic-stat",
 			Handler:    handleShowTraffic,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-monitor:traffic-stat",
+			WireMethod: "ze-trafficstat:monitor-traffic-stat",
 			Handler:    handleMonitorTraffic,
 		},
 	)

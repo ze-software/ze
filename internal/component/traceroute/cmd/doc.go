@@ -4,10 +4,10 @@
 // One feature, spread across several verbs, lives here instead of scattered
 // across the central verb packages:
 //
-//   - show traceroute   (local + ze-show:traceroute)  sequential ICMP path trace   -- traceroute.go
-//   - show probe-round  (ze-show:probe-round)         one parallel probe round     -- probe_round.go
-//   - monitor traceroute(local + ze-monitor:traceroute)continuous mtr-style stream  -- monitor.go / stream.go
-//   - resolve traceroute(ze-resolve:traceroute)        ICMP traceroute with options -- resolve.go
+//   - show traceroute   (local + ze-traceroute:show-traceroute)  sequential ICMP path trace   -- traceroute.go
+//   - show probe-round  (ze-traceroute:show-probe-round)         one parallel probe round     -- probe_round.go
+//   - monitor traceroute(local + ze-traceroute:monitor-traceroute)continuous mtr-style stream  -- monitor.go / stream.go
+//   - resolve traceroute(ze-traceroute:resolve-traceroute)        ICMP traceroute with options -- resolve.go
 //
 // All paths use the internal ICMP engine (no external traceroute binary).
 // The shared low-level ICMP primitives (echo-packet building, target

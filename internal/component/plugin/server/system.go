@@ -32,19 +32,19 @@ const messageConfigReloaded = "configuration reloaded"
 
 func init() {
 	RegisterRPCs(
-		RPCRegistration{WireMethod: "ze-system:help", Handler: handleSystemHelp},
-		RPCRegistration{WireMethod: "ze-system:version-software", Handler: handleSystemVersionSoftware},
-		RPCRegistration{WireMethod: "ze-system:version-api", Handler: handleSystemVersionAPI},
-		RPCRegistration{WireMethod: "ze-system:daemon-shutdown", Handler: handleDaemonShutdown},
-		RPCRegistration{WireMethod: "ze-system:daemon-reboot", Handler: handleDaemonReboot},
-		RPCRegistration{WireMethod: "ze-system:daemon-quit", Handler: handleDaemonQuit},
-		RPCRegistration{WireMethod: "ze-system:daemon-status", Handler: handleDaemonStatus},
-		RPCRegistration{WireMethod: "ze-system:daemon-reload", Handler: handleDaemonReload},
-		RPCRegistration{WireMethod: "ze-system:subsystem-list", Handler: handleSystemSubsystemList},
-		RPCRegistration{WireMethod: "ze-system:command-list", Handler: handleSystemCommandList},
-		RPCRegistration{WireMethod: "ze-system:command-help", Handler: handleSystemCommandHelp},
-		RPCRegistration{WireMethod: "ze-system:command-complete", Handler: handleSystemCommandComplete},
-		RPCRegistration{WireMethod: "ze-system:dispatch", Handler: handleSystemDispatch},
+		RPCRegistration{WireMethod: "ze-plugin:system-help", Handler: handleSystemHelp},
+		RPCRegistration{WireMethod: "ze-plugin:system-version-software", Handler: handleSystemVersionSoftware},
+		RPCRegistration{WireMethod: "ze-plugin:system-version-api", Handler: handleSystemVersionAPI},
+		RPCRegistration{WireMethod: "ze-plugin:system-daemon-shutdown", Handler: handleDaemonShutdown},
+		RPCRegistration{WireMethod: "ze-plugin:system-daemon-reboot", Handler: handleDaemonReboot},
+		RPCRegistration{WireMethod: "ze-plugin:system-daemon-quit", Handler: handleDaemonQuit},
+		RPCRegistration{WireMethod: "ze-plugin:system-daemon-status", Handler: handleDaemonStatus},
+		RPCRegistration{WireMethod: "ze-plugin:system-daemon-reload", Handler: handleDaemonReload},
+		RPCRegistration{WireMethod: "ze-plugin:system-subsystem-list", Handler: handleSystemSubsystemList},
+		RPCRegistration{WireMethod: "ze-plugin:system-command-list", Handler: handleSystemCommandList},
+		RPCRegistration{WireMethod: "ze-plugin:system-command-help", Handler: handleSystemCommandHelp},
+		RPCRegistration{WireMethod: "ze-plugin:system-command-complete", Handler: handleSystemCommandComplete},
+		RPCRegistration{WireMethod: "ze-plugin:system-dispatch", Handler: handleSystemDispatch},
 	)
 }
 

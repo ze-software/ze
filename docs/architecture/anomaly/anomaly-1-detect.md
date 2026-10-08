@@ -87,10 +87,10 @@ Two failures this prevents:
 
 ## The report surface
 
-<!-- source: internal/plugins/anomaly/detect/show.go -- ze-show:anomaly handler -->
+<!-- source: internal/plugins/anomaly/detect/show.go -- ze-anomaly:show-anomaly handler -->
 
 Plugins run in-process, so the detector sets a package global with
-`setGlobalDetector`, and the `ze-show:anomaly` handler, registered with
+`setGlobalDetector`, and the `ze-anomaly:show-anomaly` handler, registered with
 `pluginserver.RegisterRPCs` in the same package, reads it. No cross-process
 plumbing exists on this path.
 

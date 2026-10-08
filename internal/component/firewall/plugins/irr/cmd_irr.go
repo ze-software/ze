@@ -27,37 +27,37 @@ const (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:firewall-irr-status",
+			WireMethod:    "ze-firewall:show-irr-status",
 			Handler:       forwardShowIRR,
 			PluginCommand: cmdShowIRR,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-show:firewall-irr-prefix",
+			WireMethod:    "ze-firewall:show-irr-prefix",
 			Handler:       forwardShowIRRPrefix,
 			PluginCommand: cmdShowIRRPrefix,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-update:firewall-irr-all",
+			WireMethod:    "ze-firewall:update-irr-all",
 			Handler:       forwardUpdateIRRAll,
 			PluginCommand: cmdUpdateIRRAll,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-update:firewall-irr-asn",
+			WireMethod:    "ze-firewall:update-irr-asn",
 			Handler:       forwardUpdateIRRAsn,
 			PluginCommand: cmdUpdateIRRAsn,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-update:firewall-irr-as-set",
+			WireMethod:    "ze-firewall:update-irr-as-set",
 			Handler:       forwardUpdateIRRAsSet,
 			PluginCommand: cmdUpdateIRRAsSet,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-clear:firewall-irr-asn",
+			WireMethod:    "ze-firewall:clear-irr-asn",
 			Handler:       forwardClearIRRAsn,
 			PluginCommand: cmdClearIRRAsn,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:    "ze-clear:firewall-irr-as-set",
+			WireMethod:    "ze-firewall:clear-irr-as-set",
 			Handler:       forwardClearIRRAsSet,
 			PluginCommand: cmdClearIRRAsSet,
 		},

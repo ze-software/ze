@@ -13,9 +13,9 @@ import (
 // See ai/rules/plugins.md.
 func TestResolveCmdSchemaOwnsClearDNSCache(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-clear:dns-cache"`,
-		`ze:command "ze-clear:dns-cache-record"`,
-		`ze:command "ze-clear:dns-cache-stats"`,
+		`ze:command "ze-resolve:clear-dns-cache"`,
+		`ze:command "ze-resolve:clear-dns-cache-record"`,
+		`ze:command "ze-resolve:clear-dns-cache-stats"`,
 		"container clear",
 	} {
 		if !strings.Contains(ZeResolveCmdYANG, want) {
@@ -32,10 +32,10 @@ func TestResolveCmdSchemaOwnsClearDNSCache(t *testing.T) {
 // See ai/rules/plugins.md.
 func TestResolveCmdSchemaOwnsShowDNS(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:dns-lookup"`,
-		`ze:command "ze-show:dns-cache-stats"`,
-		`ze:command "ze-show:dns-cache-list"`,
-		`ze:command "ze-show:dns-cache-record"`,
+		`ze:command "ze-resolve:show-dns-lookup"`,
+		`ze:command "ze-resolve:show-dns-cache-stats"`,
+		`ze:command "ze-resolve:show-dns-cache-list"`,
+		`ze:command "ze-resolve:show-dns-cache-record"`,
 		"container show",
 	} {
 		if !strings.Contains(ZeResolveCmdYANG, want) {

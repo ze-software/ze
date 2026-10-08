@@ -8,7 +8,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// handleMonitorPing is the RPC handler for `monitor ping` (ze-monitor:ping).
+// handleMonitorPing is the RPC handler for `monitor ping` (ze-ping:monitor-ping).
 // The live, continuously-refreshing ping view is driven client-side by the CLI
 // model through NewPingSession (see stream.go); this RPC only acknowledges the
 // non-streaming dispatch path.

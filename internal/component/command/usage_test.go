@@ -62,7 +62,7 @@ func TestUsagePlacesValueAfterDeclaringKeyword(t *testing.T) {
 func TestUsageRendersOptionalLeafWithKeyword(t *testing.T) {
 	node := &Node{
 		Name:       "sockets",
-		WireMethod: "ze-show:system-sockets",
+		WireMethod: "ze-cmd:show-system-sockets",
 		ArgDefs: []ArgDef{
 			{Name: "protocol", Kind: ArgEnum, EnumValues: []string{"tcp", "udp"}},
 			{Name: "state", Kind: ArgString},
@@ -82,7 +82,7 @@ func TestUsageRendersOptionalLeafWithKeyword(t *testing.T) {
 func TestUsageRendersMandatoryBeforeOptional(t *testing.T) {
 	node := &Node{
 		Name:       "ping",
-		WireMethod: "ze-resolve:ping",
+		WireMethod: "ze-ping:resolve-ping",
 		ArgDefs: []ArgDef{
 			{Name: "count", Kind: ArgUint, UintBits: 32},
 			{Name: "target", Kind: ArgString, Mandatory: true},
@@ -127,7 +127,7 @@ func TestUsageRendersEnumValueSet(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			node := &Node{Name: "sockets", WireMethod: "ze-show:system-sockets", ArgDefs: []ArgDef{tc.def}}
+			node := &Node{Name: "sockets", WireMethod: "ze-cmd:show-system-sockets", ArgDefs: []ArgDef{tc.def}}
 			if got := UsageLine(Usage([]string{"show", "system", "sockets"}, node)); got != tc.want {
 				t.Errorf("the line reads %q, want %q", got, tc.want)
 			}
@@ -182,7 +182,7 @@ func TestUsageGrammarRendersToUsageString(t *testing.T) {
 func TestUsageGrammarRoundTripsEveryKind(t *testing.T) {
 	node := &Node{
 		Name:       "opaque",
-		WireMethod: "ze-debug:ospf-inject",
+		WireMethod: "ze-ospf:debug-inject",
 		ArgDefs:    []ArgDef{{Name: "instance", Kind: ArgString, Mandatory: true}, {Name: "area", Kind: ArgString}},
 		Children: map[string]*Node{
 			"scope": {
@@ -382,7 +382,7 @@ func TestUsageRendersModifierGroup(t *testing.T) {
 func TestUsageKeepsARequiredGroupInDeclarationOrder(t *testing.T) {
 	node := &Node{
 		Name:       "peer",
-		WireMethod: "ze-show:policy-test",
+		WireMethod: "ze-bgp:show-policy-test",
 		ArgDefs: []ArgDef{
 			{Name: "selector", Kind: ArgString, Mandatory: true, Anchor: "peer"},
 			{Name: "direction", Kind: ArgEnum, EnumValues: []string{"import", "export"}, Mandatory: true},
@@ -446,7 +446,7 @@ func TestUsageRendersModifierGroupsInDeclarationOrder(t *testing.T) {
 func TestUsageRendersRequiredModifierGroup(t *testing.T) {
 	node := &Node{
 		Name:       "opaque",
-		WireMethod: "ze-debug:ospf-inject",
+		WireMethod: "ze-ospf:debug-inject",
 		Children: map[string]*Node{
 			"scope": {
 				Name: "scope", Modifier: ModifierRequired, ModifierOrder: 1,
@@ -476,7 +476,7 @@ func TestUsageRendersRequiredModifierGroup(t *testing.T) {
 func TestUsageRendersValuelessGroupAsAFlag(t *testing.T) {
 	node := &Node{
 		Name:       "name",
-		WireMethod: "ze-show:pki-certificate",
+		WireMethod: "ze-pki:show-certificate",
 		ArgDefs:    []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true}},
 		Children: map[string]*Node{
 			"pem": {Name: "pem", Modifier: ModifierOnce, ModifierOrder: 1},
@@ -497,7 +497,7 @@ func TestUsageRendersValuelessGroupAsAFlag(t *testing.T) {
 func TestUsageRendersBareChoice(t *testing.T) {
 	node := &Node{
 		Name:       "peer",
-		WireMethod: "ze-show:policy-chain",
+		WireMethod: "ze-bgp:show-policy-chain",
 		ArgDefs:    []ArgDef{{Name: "selector", Kind: ArgString, Mandatory: true}},
 		Children: map[string]*Node{
 			"direction": {
@@ -518,7 +518,7 @@ func TestUsageRendersBareChoice(t *testing.T) {
 func TestUsageChoiceWithoutAValueSetRendersItsKeyword(t *testing.T) {
 	node := &Node{
 		Name:       "peer",
-		WireMethod: "ze-show:policy-chain",
+		WireMethod: "ze-bgp:show-policy-chain",
 		Children: map[string]*Node{
 			"direction": {Name: "direction", Modifier: ModifierChoice, ModifierOrder: 1},
 		},

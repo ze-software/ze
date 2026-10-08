@@ -402,7 +402,10 @@ removes after moving its two unique facts.
 | `TestDispatcherRefusesADuplicateName` | `internal/component/plugin/server/command_test.go` | A second builtin is refused rather than overwriting | green (phase 5); red with the refusal removed |
 | `TestCommandRegistryRefusesOnEachGround` | `internal/component/plugin/server/command_registry_test.go` | The three existing refusals cannot regress | green (phase 5); builtin and held subtests red with those two checks removed |
 | `TestNoOwnerHoldsAnotherOwnersName` | `internal/component/plugin/server/all_import_test.go` | No collision across the whole linked set | green (phase 5): zero collisions in the linked set |
-| `TestEverySubsystemDeclaresUnderItsOwnPrefix` | `internal/le/doc/yangcontract/published_test.go` | A prefix cannot be spelled by a subsystem that does not own it | not written: needs the Q4 derivation (prefix owner from the handler's package) |
+| `TestEverySubsystemDeclaresUnderItsOwnPrefix` | `internal/le/doc/yangcontract/published_test.go` | A prefix cannot be spelled by a subsystem that does not own it | red with 302 violations before the renames, green after (phase 6) |
+| `TestForeignPrefixesNamesEachGround`, `TestAForeignPrefixFailsTheVerdict` | `internal/le/doc/yangcontract/published_test.go` | The gate names a foreign prefix and a package with no subsystem root, and fails on either | phase 6 |
+| `TestOwnerPrefixFollowsThePackage`, `TestRegisterRPCsStampsTheRegistrar` | `internal/component/plugin/server/owner_prefix_test.go` | The derivation, and a registrar stamped from the caller rather than the struct | red (undefined) at write, green (phase 6) |
+| (status of the rows above) | | `TestPublishedMethodHasAHandler` landed as `TestEveryPublishedMethodHasAHandler` (phase 4); `TestOrphanLocalHandlerFailsTheGate` as `TestAnOrphanLocalHandlerFailsTheVerdict` (949091e15a); `TestPluginIPCMethodsKeepTheirSpelling` green (55e1d3bd4c); `TestHandlerMethodIsPublished` and `TestRPCDocsCarryParameters` not confirmed by this agent | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -415,8 +418,8 @@ removes after moving its two unique facts.
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `cli-schema-methods` | `test/parse/cli-schema-methods.ci` | The printed method is the one the daemon answers | |
-| `reference-methods-answer` | `test/mcp/` | Every method `ze_reference` names resolves | |
+| `cli-schema-methods` | `test/parse/cli-schema-methods.ci` | The printed method is the one the daemon answers | phase 7: the stale `ze-rib:show`/`ze-rib:best` expectations (the defect this spec names) replaced by `ze-bgp:rib-routes`/`ze-bgp:rib-best`, plus a `ze-l2tp-api` case rejecting the module spelling |
+| `help-ai-json-methods-answer` | `test/ui/help-ai-json-methods-answer.ci` | The `ze help ai --json` RPCs array, which `ze_reference` hands an MCP client, carries handler methods only. No `test/mcp/` suite exists, so it sits beside the other `help ai --json` tests | phase 7 |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -528,6 +531,9 @@ removes after moving its two unique facts.
    - Tests: the gate from phase 1 stays green after each commit
    - Files: the `-cmd` modules of one subsystem, and the handler literals beside them
    - Verify: 249 verb-prefixed declarations reach an owner prefix, the 49 that still carry `-api` are corrected, and no prefix is left with two owners
+   - Status (2026-10-08): Q4 derivation done. `RegisterRPCs` stamps `RPCRegistration.Registrar` with the caller's package, and `OwnerPrefix` (`internal/component/plugin/server/rpc_register.go`) answers `ze-` plus the directory directly under `internal/component/` or `internal/plugins/`, `-cmd` dropped. The gate's `foreignPrefixes` (`contract.go`) fails the run on any other prefix. 302 of 374 registered methods moved in one mechanical pass (map: session scratch `p6/map.tsv`). A verb prefix becomes the first word of the name with the owner word dropped (`ze-show:ospf-neighbors` to `ze-ospf:show-neighbors`); a foreign owner prefix becomes a qualifier (`ze-rib-api:routes` to `ze-bgp:rib-routes`, `ze-system:help` to `ze-plugin:system-help`, `ze-bgp:log-levels` to `ze-log:bgp-log-levels`). One commit rather than one per subsystem, because the check is all-or-nothing over the linked set.
+   - Open: 52 `ze:command` methods with no builtin handler keep their old prefix: local CLI handlers in `internal/plugins/{env,config-cli,config-schema,config-storage,config-yang,debug,diag,explain,skills,support}` and `internal/component/{plugin,bgp/cli}`, and the external fake plugins under `internal/test/plugins/`. No registrar exists for them, so their owner needs a second derivation source (the package that declares the `-cmd` module), and the gate does not judge them yet.
+-> Decision: the verb or foreign-owner qualifier keeps every renamed method unique; the prefix is derived and checked, the name after it is a convention.
 7. **Phase: Correct the surfaces and the pages** -- one name for each command
    - Tests: `test/parse/cli-schema-methods.ci`, `test/mcp/reference-methods-answer.ci`
    - Files: `internal/component/aihelp/aihelp.go`, `cmd/ze/help_ai.go`, `internal/component/config/schema/cli/main.go`, `internal/component/config/yang/cli/tree.go`, the three `docs/architecture/api/` pages

@@ -1,5 +1,5 @@
 # Test: show geodns returns GeoDNS server status.
-# Exercises: dispatch-command -> ze-show:geodns -> handleShowGeoDNS
+# Exercises: dispatch-command -> ze-geodns:show-geodns -> handleShowGeoDNS
 # Verifies: spec-geodns-3 AC-1 - returns JSON with enabled + listeners fields
 # from the live resolver snapshot the geodns engine published on configure.
 #

@@ -86,7 +86,7 @@ func TestRuntimeBuiltinSurfaceGrammar(t *testing.T) {
 		t.Fatalf("audited too few builtin command paths (%d); builtin registration or YANG map is broken", checked)
 	}
 	// The exemption branch must be exercised on real data. The bridge surface is
-	// ONE member since 2026-09-05: `ze-bgp:help`, the bridge's own word, spelled
+	// ONE member since 2026-09-05: `ze-meta:bgp-help`, the bridge's own word, spelled
 	// the same on both sides of the line protocol. The eight BGP methods that
 	// used to sit beside it answer at `send bgp <selector> <form>` and are
 	// checked rather than exempt, so a floor of 2 here would demand an exemption

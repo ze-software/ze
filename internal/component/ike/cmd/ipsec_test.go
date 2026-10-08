@@ -15,13 +15,13 @@ import (
 func TestClearIPsecSA_RegisteredWireMethod(t *testing.T) {
 	found := false
 	for _, r := range pluginserver.AllBuiltinRPCs() {
-		if r.WireMethod == "ze-clear:vpn-ipsec-sa" {
+		if r.WireMethod == "ze-ike:clear-vpn-ipsec-sa" {
 			require.NotNil(t, r.Handler)
 			found = true
 			break
 		}
 	}
-	require.True(t, found, "ze-clear:vpn-ipsec-sa not registered")
+	require.True(t, found, "ze-ike:clear-vpn-ipsec-sa not registered")
 }
 
 func TestClearIPsecSA_AllNoEngine(t *testing.T) {

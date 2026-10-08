@@ -19,7 +19,7 @@ module ze-bmp-cmd {
 
             container sessions {
                 config false;
-                ze:command "ze-show:bmp-sessions";
+                ze:command "ze-bgp:show-bmp-sessions";
                 description "Lists each session with connection state and message counters.
 Check here to confirm your BMP collector is receiving data.";
                 ze:help "Show active BMP receiver sessions.";
@@ -27,14 +27,14 @@ Check here to confirm your BMP collector is receiving data.";
 
             container peers {
                 config false;
-                ze:command "ze-show:bmp-peers";
+                ze:command "ze-bgp:show-bmp-peers";
                 description "Lists peers reported via BMP with their state and route statistics.";
                 ze:help "Show BGP peers as seen through BMP monitoring.";
             }
 
             container collectors {
                 config false;
-                ze:command "ze-show:bmp-collectors";
+                ze:command "ze-bgp:show-bmp-collectors";
                 description "Lists configured collectors with connection state, sent message
 counts, and error statistics. Check here if your collector is
 not receiving data.";
@@ -43,7 +43,7 @@ not receiving data.";
 
             container rib {
                 config false;
-                ze:command "ze-show:bmp-rib";
+                ze:command "ze-bgp:show-bmp-rib";
                 description "Returns the BMP RIB content. Use this to verify what your
 collector is seeing from remote peers.";
                 ze:help "Show routes received via BMP monitoring sessions.";

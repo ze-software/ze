@@ -1,6 +1,6 @@
 # Test: show anomaly reaches the enabled anomaly-detect plugin
 # Exercises: config anomaly-detect{enabled} -> RunEngine -> setGlobalDetector,
-#            then dispatch-command -> ze-show:anomaly -> handleShowAnomaly.
+#            then dispatch-command -> ze-anomaly:show-anomaly -> handleShowAnomaly.
 # Verifies AC-9 (the wire method resolves) and that enabling the plugin wires the
 # detector to the process-global the show handler reads (enabled=true, empty ring
 # with no traffic). The emit/score/confirm path is covered by the unit lifecycle

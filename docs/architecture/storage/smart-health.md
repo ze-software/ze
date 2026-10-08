@@ -10,7 +10,7 @@ per-device view, which delegates to the same core library.
 <!-- source: internal/component/storage/manager.go -- Manager, poll loop, thresholds, self-test scheduling -->
 <!-- source: internal/component/storage/config.go -- Config, TemperatureConfig, SelfTestConfig -->
 <!-- source: internal/component/storage/discover_linux.go -- sysfs device enumeration -->
-<!-- source: internal/component/storage/show.go -- ze-show:storage-smart -->
+<!-- source: internal/component/storage/show.go -- ze-storage:show-smart -->
 
 ## The decisions
 

@@ -24,10 +24,10 @@ import (
 
 func TestShowVPP_RegisteredWireMethods(t *testing.T) {
 	wanted := map[string]bool{
-		"ze-show:vpp-trace-start": false,
-		"ze-show:vpp-trace-show":  false,
-		"ze-show:vpp-trace-clear": false,
-		"ze-show:vpp-runtime":     false,
+		"ze-iface:show-vpp-trace-start": false,
+		"ze-iface:show-vpp-trace-show":  false,
+		"ze-iface:show-vpp-trace-clear": false,
+		"ze-iface:show-vpp-runtime":     false,
 	}
 	for _, r := range pluginserver.AllBuiltinRPCs() {
 		if _, ok := wanted[r.WireMethod]; ok {

@@ -18,7 +18,7 @@ module ze-anomaly-cmd {
 
             container detect {
                 config false;
-                ze:command "ze-show:anomaly";
+                ze:command "ze-anomaly:show-anomaly";
                 description "Each incident carries the source entity, the cohort, the fired
 features with their deviation z-scores, the combined score, and the severity.
 The detector only reports. The anomaly shape responder (Spec 2b) acts on the

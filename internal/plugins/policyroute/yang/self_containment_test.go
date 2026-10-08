@@ -7,7 +7,7 @@ import (
 
 func TestPolicyrouteCmdSchemaOwnsShowPolicyRoutes(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:policy-routes"`,
+		`ze:command "ze-policyroute:show-policy-routes"`,
 		"container policy",
 		"container routes",
 	} {

@@ -4,7 +4,7 @@
 # ABR status and stub-router (max-metric) state (AC-10); the six show lists dispatch
 # (AC-2..7); the six database subviews filter by LS type (AC-4); the three clear actions
 # return a clearResult (AC-9).
-# PREVENTS: package-level CLI tests passing while the ze-show:ospf-* / ze-clear:ospf-*
+# PREVENTS: package-level CLI tests passing while the ze-ospf:show-* / ze-ospf:clear-*
 # command path is not registered or the configured daemon cannot answer it.
 
 # Live FRR/QEMU kernel convergence remains owned by the spec-ospf-13 interop scenarios.

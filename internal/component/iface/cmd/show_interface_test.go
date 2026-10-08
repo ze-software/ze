@@ -129,7 +129,7 @@ func TestHandleShowInterfaceErrorsShape(t *testing.T) {
 }
 
 // TestHandleShowInterfaceRateNamedFormUsesTheName drives the handler the
-// dispatcher registers for `ze-show:interface-rate` with the named form, which
+// dispatcher registers for `ze-iface:show-interface-rate` with the named form, which
 // nothing exercised before: test/plugin/interface-rate-show.ci and
 // test/plugin/iface-rate-json.ci both send the bare `show interface rate`.
 //

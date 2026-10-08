@@ -134,12 +134,12 @@ func TestNewServerRefusesABuiltinCollision(t *testing.T) {
 
 	var held RPCRegistration
 	for _, reg := range saved {
-		if reg.WireMethod == "ze-system:daemon-reload" {
+		if reg.WireMethod == "ze-plugin:system-daemon-reload" {
 			held = reg
 		}
 	}
 	if held.WireMethod == "" {
-		t.Fatal("ze-system:daemon-reload is not linked; the test needs a registration the server package owns")
+		t.Fatal("ze-plugin:system-daemon-reload is not linked; the test needs a registration the server package owns")
 	}
 	registeredRPCs = append(append([]RPCRegistration(nil), saved...), held)
 

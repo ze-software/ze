@@ -26,10 +26,10 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:traceroute", Handler: handleTraceroute},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:probe-round", Handler: HandleProbeRound},
-		pluginserver.RPCRegistration{WireMethod: "ze-monitor:traceroute", Handler: handleMonitorTraceroute},
-		pluginserver.RPCRegistration{WireMethod: "ze-resolve:traceroute", Handler: handleResolveTraceroute},
+		pluginserver.RPCRegistration{WireMethod: "ze-traceroute:show-traceroute", Handler: handleTraceroute},
+		pluginserver.RPCRegistration{WireMethod: "ze-traceroute:show-probe-round", Handler: HandleProbeRound},
+		pluginserver.RPCRegistration{WireMethod: "ze-traceroute:monitor-traceroute", Handler: handleMonitorTraceroute},
+		pluginserver.RPCRegistration{WireMethod: "ze-traceroute:resolve-traceroute", Handler: handleResolveTraceroute},
 	)
 
 	registry.MustRegisterLocalMeta("show traceroute", showTracerouteLocal, registry.Meta{

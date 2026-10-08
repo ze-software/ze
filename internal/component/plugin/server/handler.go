@@ -223,4 +223,9 @@ type RPCRegistration struct {
 	Handler          Handler // Handler function
 	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
 	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
+	// Registrar is the import path of the package that called RegisterRPCs.
+	// RegisterRPCs writes it and overwrites any value the caller set, so a
+	// package cannot claim another's identity. OwnerPrefix derives from it the
+	// only wire-method prefix that package may declare.
+	Registrar string
 }

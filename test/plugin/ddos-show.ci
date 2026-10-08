@@ -2,7 +2,7 @@
 # ddos-flowspec plugins.
 # Exercises: config ddos{detect,observe,local,flowspec} -> RunEngine ->
 #            activeStore / activeResponder set, then dispatch-command ->
-#            ze-show:ddos{,-incidents,-local,-flowspec} -> the show handlers.
+#            ze-ddos:show-{status,incidents,local,flowspec} -> the show handlers.
 # Verifies the wire methods resolve and that loading each plugin wires it to the
 # process-global its show handler reads (enabled=true; empty ring / not-active
 # with no traffic). The emit/mitigate path is covered by the plugins' unit tests

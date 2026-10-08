@@ -16,8 +16,8 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-show:resolve-rir", Handler: handleRIRASN},
-		pluginserver.RPCRegistration{WireMethod: "ze-update:resolve-rir", Handler: handleRIRRefresh},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:show-rir", Handler: handleRIRASN},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:update-rir", Handler: handleRIRRefresh},
 	)
 
 	// The delegation sources the refresh reads travel with it, so removing

@@ -1,6 +1,8 @@
 package rr
 
 import (
+	"strings"
+
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +15,7 @@ func TestShowRRRPCRegistration(t *testing.T) {
 
 	var found []string
 	for _, reg := range allRPCs {
-		if len(reg.WireMethod) > 9 && reg.WireMethod[:9] == "ze-show:r" && reg.WireMethod[9:11] == "r-" {
+		if strings.HasPrefix(reg.WireMethod, "ze-bgp:show-rr-") {
 			found = append(found, reg.WireMethod)
 		}
 	}
@@ -26,8 +28,8 @@ func TestShowRRRPCRegistration(t *testing.T) {
 	}
 
 	for _, wire := range []string{
-		"ze-show:rr-status",
-		"ze-show:rr-peers",
+		"ze-bgp:show-rr-status",
+		"ze-bgp:show-rr-peers",
 	} {
 		assert.True(t, byWire[wire], "missing RPC: %s", wire)
 	}
@@ -37,8 +39,8 @@ func TestShowRRPluginCommands(t *testing.T) {
 	allRPCs := pluginserver.AllBuiltinRPCs()
 
 	expected := map[string]string{
-		"ze-show:rr-status": "show rr status",
-		"ze-show:rr-peers":  "show rr peers",
+		"ze-bgp:show-rr-status": "show rr status",
+		"ze-bgp:show-rr-peers":  "show rr peers",
 	}
 
 	for _, reg := range allRPCs {

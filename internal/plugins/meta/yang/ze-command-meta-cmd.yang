@@ -8,7 +8,7 @@ module ze-command-meta-cmd {
 
     container help {
         config false;
-        ze:command "ze-bgp:help";
+        ze:command "ze-meta:bgp-help";
         ze:rpc "ze-bgp-api:help";
         description "Lists every registered command verb with a brief description.";
         ze:help "Show available commands at this level.";
@@ -27,7 +27,7 @@ module ze-command-meta-cmd {
 
             container list {
                 config false;
-                ze:command "ze-bgp:event-list";
+                ze:command "ze-meta:bgp-event-list";
                 ze:rpc "ze-bgp-api:event-list";
                 description "Shows event name, category, and payload structure. Use this to discover what
 events are available before subscribing.";
@@ -44,7 +44,7 @@ events are available before subscribing.";
 
             container list {
                 config false;
-                ze:command "ze-bgp:command-list";
+                ze:command "ze-meta:bgp-command-list";
                 ze:rpc "ze-bgp-api:command-list";
                 description "Returns dispatch key and description for each. Useful for scripting or
 discovering commands not shown in the top-level help.";
@@ -53,7 +53,7 @@ discovering commands not shown in the top-level help.";
 
             container help {
                 config false;
-                ze:command "ze-bgp:command-help";
+                ze:command "ze-meta:bgp-command-help";
                 ze:rpc "ze-bgp-api:command-help";
                 description "Gives you the full description, expected arguments, and usage pattern for one
 command.";
@@ -62,7 +62,7 @@ command.";
 
             container complete {
                 config false;
-                ze:command "ze-bgp:command-complete";
+                ze:command "ze-meta:bgp-command-complete";
                 ze:rpc "ze-bgp-api:command-complete";
                 description "Returns possible completions for the given input. Used internally by the CLI
 editor, but also callable for scripting.";
@@ -79,7 +79,7 @@ editor, but also callable for scripting.";
 
         container encoding {
             config false;
-            ze:command "ze-bgp:plugin-encoding";
+            ze:command "ze-meta:bgp-plugin-encoding";
             ze:rpc "ze-bgp-api:plugin-encoding";
             description "Controls how events are serialized in this session. JSON is structured and
 parseable; text is more compact.";
@@ -88,7 +88,7 @@ parseable; text is more compact.";
 
         container format {
             config false;
-            ze:command "ze-bgp:plugin-format";
+            ze:command "ze-meta:bgp-plugin-format";
             ze:rpc "ze-bgp-api:plugin-format";
             description "hex and base64 are compact wire representations. parsed decodes attributes
 into structured fields. full includes both wire bytes and parsed content.";
@@ -97,7 +97,7 @@ into structured fields. full includes both wire bytes and parsed content.";
 
         container ack {
             config false;
-            ze:command "ze-bgp:plugin-ack";
+            ze:command "ze-meta:bgp-plugin-ack";
             ze:rpc "ze-bgp-api:plugin-ack";
             description "sync: Ze waits for your plugin to acknowledge each event before sending the
 next one. Safer but slower. async: events fire without waiting, giving higher

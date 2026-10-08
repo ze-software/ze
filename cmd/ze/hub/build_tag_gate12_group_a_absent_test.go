@@ -78,8 +78,8 @@ func TestBuildTag_Gate12GroupA_AbsentRejectsConfig(t *testing.T) {
 // (not a plugin-registry entry): the show-forwarding wire method must be gone.
 func TestBuildTag_Gate12GroupA_MPLSAbsent(t *testing.T) {
 	for _, reg := range pluginserver.AllBuiltinRPCs() {
-		if reg.WireMethod == "ze-show:mpls-forwarding" {
-			t.Fatal("bare build: ze-show:mpls-forwarding RPC unexpectedly registered (not compiled out)")
+		if reg.WireMethod == "ze-mpls:show-forwarding" {
+			t.Fatal("bare build: ze-mpls:show-forwarding RPC unexpectedly registered (not compiled out)")
 		}
 	}
 }

@@ -13,11 +13,11 @@ import (
 // command, so the command is reachable rather than 404ing at dispatch time.
 func TestShowPolicyRoutesRPCRegistered(t *testing.T) {
 	for _, r := range pluginserver.AllBuiltinRPCs() {
-		if r.WireMethod == "ze-show:policy-routes" {
-			assert.NotNil(t, r.Handler, "ze-show:policy-routes must have a handler")
+		if r.WireMethod == "ze-policyroute:show-policy-routes" {
+			assert.NotNil(t, r.Handler, "ze-policyroute:show-policy-routes must have a handler")
 			assert.Equal(t, "show policy routes", r.PluginCommand)
 			return
 		}
 	}
-	require.Fail(t, "ze-show:policy-routes RPC is not registered")
+	require.Fail(t, "ze-policyroute:show-policy-routes RPC is not registered")
 }

@@ -1,5 +1,5 @@
 # Test: `show system date` reports the daemon wall clock in three agreeing forms
-# Exercises: dispatch-command -> ze-show:system-date -> handleShowSystemDate
+# Exercises: dispatch-command -> ze-cmd:show-system-date -> handleShowSystemDate
 #            (internal/component/cmd/show/system.go)
 # VALIDATES: time / unix / unix-nano / timezone / utc-offset-secs are all produced,
 #            agree with each other, and track the observer's own clock.

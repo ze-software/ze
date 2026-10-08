@@ -1,5 +1,5 @@
 # Test: show gnmi returns server status via dispatch-command
-# Exercises: dispatch-command -> ze-show:gnmi -> handleShowGNMI -> gnmi.LookupServer
+# Exercises: dispatch-command -> ze-gnmi:show-gnmi -> handleShowGNMI -> gnmi.LookupServer
 # Verifies: returns JSON with enabled field (false when gNMI is not started)
 
 # ze-peer: accepts connection

@@ -40,7 +40,7 @@ func TestProtocolAndFastpathStateTheirArguments(t *testing.T) {
 	for _, reg := range pluginserver.AllBuiltinRPCs() {
 		registered[reg.WireMethod] = true
 	}
-	for _, method := range []string{"ze-rib-api:protocol", "ze-rib-api:fastpath"} {
+	for _, method := range []string{"ze-bgp:rib-protocol", "ze-bgp:rib-fastpath"} {
 		assert.True(t, registered[method], "%s is not registered, so a command the model declares reaches no handler", method)
 	}
 

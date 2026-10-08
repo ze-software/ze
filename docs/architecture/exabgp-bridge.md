@@ -179,7 +179,7 @@ rate-limit extended community.
 
 A line the translator reads becomes a ze command. Every other line is REFUSED,
 and the refusal quotes the line the script wrote. `help` is the one exception: it
-is the bridge's own word rather than a route, ze declares it as `ze-bgp:help`,
+is the bridge's own word rather than a route, ze declares it as `ze-meta:bgp-help`,
 and it is spelled the same on both sides.
 
 The passthrough used to be wider, and what it carried is gone. ze declared a bare
@@ -208,7 +208,7 @@ before the narrowing landed).
 | `peer-update` | translator output, from `neighbor <address> announce` | one edit in the translator, done: the translator writes `send bgp <selector> update text ...` |
 | `peer-raw` | neither, because the translator never writes the word `raw` | one edit, done |
 
-`ze-bgp:help` is the one member `bridgeSurface` keeps, so the eight BGP methods
+`ze-meta:bgp-help` is the one member `bridgeSurface` keeps, so the eight BGP methods
 above it are checked by the verb-first grammar gate rather than exempted from it.
 
 <!-- source: internal/component/command/grammar/checker.go -- bridgeSurface, ExemptCategory -->

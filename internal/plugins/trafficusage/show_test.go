@@ -17,12 +17,12 @@ import (
 
 func TestShowTrafficUsageRegistered(t *testing.T) {
 	for _, r := range pluginserver.AllBuiltinRPCs() {
-		if r.WireMethod == "ze-show:traffic-usage" {
-			assert.NotNil(t, r.Handler, "ze-show:traffic-usage must have a handler")
+		if r.WireMethod == "ze-trafficusage:show-traffic-usage" {
+			assert.NotNil(t, r.Handler, "ze-trafficusage:show-traffic-usage must have a handler")
 			return
 		}
 	}
-	require.Fail(t, "ze-show:traffic-usage RPC is not registered")
+	require.Fail(t, "ze-trafficusage:show-traffic-usage RPC is not registered")
 }
 
 func TestShowTrafficUsageNotConfigured(t *testing.T) {

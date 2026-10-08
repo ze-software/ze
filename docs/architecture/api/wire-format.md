@@ -47,14 +47,28 @@ declared once: a `ze:command` node declares it and points at the rpc that
 documents it with `ze:rpc`, and an rpc no node reaches declares its own with
 `ze:method`. No method is derived from a module's file name.
 
+The prefix of a builtin command method names its owner, and the owner is where
+the registering package lives: `ze-` and the directory directly under
+`internal/component/` or `internal/plugins/`, with a `-cmd` suffix dropped. A
+package nested deeper takes its root's prefix, so every BGP plugin declares
+`ze-bgp:`, the plugin server `ze-plugin:` and `internal/plugins/host-cmd`
+`ze-host:`. A verb is part of the name, never the prefix: `ze-ospf:show-neighbors`,
+`ze-isis:clear-adjacency`. `RegisterRPCs` stamps each registration with the
+caller's package, `OwnerPrefix` derives the prefix from it, and the
+command-contract gate (`./le doc yang-contract command-contract`) refuses a
+method under any other prefix. There is no table of owners, so one subsystem
+cannot declare under another's prefix.
+<!-- source: internal/component/plugin/server/rpc_register.go -- RegisterRPCs, OwnerPrefix -->
+<!-- source: internal/le/doc/yangcontract/contract.go -- foreignPrefixes -->
+
 | Wire Method | Declaration | Kind |
 |-------------|-------------|------|
 | `ze-bgp:peer-list` | `ze-peer-cmd` node, documented by `ze-bgp-api` peer-list | Command method |
-| `ze-bgp:subscribe` | `ze-cli-subscribe-cmd` node, documented by `ze-bgp-api` subscribe | Command method for `request subscribe` |
-| `ze-system:daemon-status` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
-| `ze-system:version-software` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
-| `ze-system:command-list` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
-| `ze-rib-api:routes` | `ze-rib-cmd` node, documented by `ze-rib-api` show | Command method |
+| `ze-cmd:bgp-subscribe` | `ze-cli-subscribe-cmd` node, documented by `ze-bgp-api` subscribe | Command method for `request subscribe` |
+| `ze-plugin:system-daemon-status` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
+| `ze-plugin:system-version-software` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
+| `ze-plugin:system-command-list` | `ze-system-cmd` node, documented by `ze-system-api` | Command method |
+| `ze-bgp:rib-routes` | `ze-rib-cmd` node, documented by `ze-rib-api` show | Command method |
 | `ze-plugin:session-ready` | `ze-plugin-cmd` node, documented by `ze-plugin-api` | Command method |
 | `ze-plugin-engine:subscribe-events` | `ze:method` on the `ze-plugin-engine` rpc | Plugin SDK RPC |
 
@@ -71,7 +85,7 @@ documents it with `ze:rpc`, and an rpc no node reaches declares its own with
 ```
 #42 ze-bgp:peer-list {"selector":"10.0.0.1"}
 #43 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/unicast","mode":"both"}]}
-#44 ze-bgp:subscribe {"args":["bgp","event","update"]}
+#44 ze-cmd:bgp-subscribe {"args":["bgp","event","update"]}
 ```
 
 | Component | Description |

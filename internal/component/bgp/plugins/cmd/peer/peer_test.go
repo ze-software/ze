@@ -20,12 +20,12 @@ import (
 func TestBgpHandlerRPCs(t *testing.T) {
 	rpcs := pluginserver.AllBuiltinRPCs()
 
-	// Count BGP handler RPCs (ze-bgp:* + ze-plugin:session-peer-ready)
+	// Count BGP handler RPCs (ze-bgp:* + ze-bgp:plugin-session-peer-ready)
 	// RIB meta-commands (ze-rib:*) are now in the server package.
 	var bgpCount int
 	wireMethodsSeen := make(map[string]bool)
 	for _, reg := range rpcs {
-		if !strings.HasPrefix(reg.WireMethod, "ze-bgp:") && reg.WireMethod != "ze-plugin:session-peer-ready" {
+		if !strings.HasPrefix(reg.WireMethod, "ze-bgp:") && reg.WireMethod != "ze-bgp:plugin-session-peer-ready" {
 			continue
 		}
 
@@ -37,8 +37,8 @@ func TestBgpHandlerRPCs(t *testing.T) {
 	}
 
 	// 6 peer ops (teardown/pause/resume/flush/list/detail) + 3 summary/caps/stats + 1 session-peer-ready = 10
-	// Moved: add/save to ze-set:*, remove to ze-delete:*, prefix-update to ze-update:*
-	// Removed: ze-bgp:warnings (replaced by report bus + ze-show:warnings, see plan/spec-report-bus.md)
+	// Moved: add/save out of this package; remove is ze-bgp:delete-peer, prefix-update is ze-bgp:update-peer-prefix
+	// Removed: ze-bgp:warnings (replaced by report bus + ze-cmd:show-warnings, see plan/spec-report-bus.md)
 	assert.GreaterOrEqual(t, bgpCount, 10, "expected at least 10 BGP handler RPCs from peer package")
 }
 

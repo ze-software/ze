@@ -17,7 +17,7 @@ module ze-host-set-cmd {
 
             container file-descriptors {
                 config false;
-                ze:command "ze-set:system-file-descriptors";
+                ze:command "ze-host:set-system-file-descriptors";
                 description "Pass a number or 'max' to go to the hard limit. Takes effect immediately.
 Check current limits with 'show system file-descriptors'.";
                 ze:help "Raise the file descriptor limit for the daemon process.";

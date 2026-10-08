@@ -18,7 +18,7 @@ or l2vpn.";
 
             container rib {
                 config false;
-                ze:command "ze-rib-api:routes";
+                ze:command "ze-bgp:rib-routes";
                 ze:rpc "ze-rib-api:show";
                 ze:task-support required;
                 description "Look at received or advertised routes with flexible filters: peer,
@@ -29,7 +29,7 @@ route inspection command.";
 
                 container best {
                     config false;
-                    ze:command "ze-rib-api:best";
+                    ze:command "ze-bgp:rib-best";
                     ze:rpc "ze-rib-api:best";
                     description "Same filters as 'show bgp rib'. Use '| reason' to see why each
 path was selected (local-pref, AS path length, MED, etc.).";
@@ -37,7 +37,7 @@ path was selected (local-pref, AS path length, MED, etc.).";
 
                     container status {
                         config false;
-                        ze:command "ze-rib-api:best-status";
+                        ze:command "ze-bgp:rib-best-status";
                         ze:rpc "ze-rib-api:best-status";
                         description "Reports idle, pending, or running, plus the last run duration.";
                         ze:help "Check whether best-path computation is still running.";
@@ -46,7 +46,7 @@ path was selected (local-pref, AS path length, MED, etc.).";
 
                 container status {
                     config false;
-                    ze:command "ze-rib-api:status";
+                    ze:command "ze-bgp:rib-status";
                     ze:rpc "ze-rib-api:status";
                     description "Shows total peers, received/accepted/advertised route counts, and
 per-family breakdowns. Use this to confirm convergence after a
@@ -56,7 +56,7 @@ peer comes up.";
 
                 container rpf {
                     config false;
-                    ze:command "ze-rib-api:rpf";
+                    ze:command "ze-bgp:rib-rpf";
                     description "Performs a longest-prefix-match and returns the best-path entry.
 Use this to verify RPF checks would pass for a given source.";
                     ze:help "Reverse-path forwarding lookup in the Loc-RIB.";
@@ -64,7 +64,7 @@ Use this to verify RPF checks would pass for a given source.";
 
                 container protocol {
                     config false;
-                    ze:command "ze-rib-api:protocol";
+                    ze:command "ze-bgp:rib-protocol";
                     description "Answers the same rows as show bgp rib, limited to the Adj-RIB-In
 tables one protocol feeds. bgp reads the BGP peers. Every other protocol, bmp for
 example, reads the tables its monitored peers fill. The pipeline words after the
@@ -102,7 +102,7 @@ name the protocol registry does not hold and names the registered ones.";
 
                 container in {
                     config false;
-                    ze:command "ze-rib-api:clear-in";
+                    ze:command "ze-bgp:rib-clear-in";
                     ze:rpc "ze-rib-api:clear-in";
                     ze:task-support forbidden;
                     description "Wipes the Adj-RIB-In for matched peers. They will need to
@@ -113,7 +113,7 @@ Selector: IP, name, AS pattern, glob, or *.";
 
                 container out {
                     config false;
-                    ze:command "ze-rib-api:clear-out";
+                    ze:command "ze-bgp:rib-clear-out";
                     ze:rpc "ze-rib-api:clear-out";
                     ze:task-support forbidden;
                     description "Triggers a full Adj-RIB-Out replay to the selected peers. Useful
@@ -143,7 +143,7 @@ down the session. Selector: IP, name, AS pattern, glob, or *.";
 
                 container inject {
                     config false;
-                    ze:command "ze-rib-api:inject";
+                    ze:command "ze-bgp:rib-inject";
                     ze:rpc "ze-rib-api:inject";
                     ze:task-support forbidden;
                     description "Behaves as if the route was received from a peer. Use this for
@@ -153,7 +153,7 @@ testing policy filters or simulating route announcements.";
 
                 container withdraw {
                     config false;
-                    ze:command "ze-rib-api:withdraw";
+                    ze:command "ze-bgp:rib-withdraw";
                     ze:rpc "ze-rib-api:withdraw";
                     ze:task-support forbidden;
                     description "Removes a previously injected or received route from a peer's
@@ -163,7 +163,7 @@ Adj-RIB-In, triggering best-path recomputation.";
 
                 container fastpath {
                     config false;
-                    ze:command "ze-rib-api:fastpath";
+                    ze:command "ze-bgp:rib-fastpath";
                     ze:task-support forbidden;
                     description "The fast path hands a forward handle to the Loc-RIB consumer
 without copying the route. enable and disable switch it, and status reports the

@@ -17,7 +17,7 @@ module ze-pki-cmd {
             ze:help "TLS certificates and CA trust store.";
             container certificates {
                 config false;
-                ze:command "ze-show:pki-certificates";
+                ze:command "ze-pki:show-certificates";
                 ze:rpc "ze-pki-api:certificates";
                 description "Shows name, type (CA or device), subject, issuer, expiry, and validity status.
 Check here to find certificates approaching expiration.";
@@ -31,7 +31,7 @@ Check here to find certificates approaching expiration.";
                 ze:help "The certificate authority this daemon issues its own components' certificates from.";
                 container pem {
                     config false;
-                    ze:command "ze-show:pki-local-ca-pem";
+                    ze:command "ze-pki:show-local-ca-pem";
                     description "Give this text to each client that must trust this node, in its
                                  `pki ca <name> certificate` block. The output holds the certificate only:
                                  the root private key never leaves the daemon.";
@@ -46,7 +46,7 @@ Check here to find certificates approaching expiration.";
                 ze:help "Inspect a specific certificate in detail or export forms.";
                 container name {
                     config false;
-                    ze:command "ze-show:pki-certificate";
+                    ze:command "ze-pki:show-certificate";
                     ze:rpc "ze-pki-api:certificate";
                     description "Each export form is a command of its own.";
                     ze:help "Inspect a specific certificate in detail.";
@@ -60,7 +60,7 @@ Check here to find certificates approaching expiration.";
 
                     container pem {
                         config false;
-                        ze:command "ze-show:pki-certificate-pem";
+                        ze:command "ze-pki:show-certificate-pem";
                         description "Use this form to give the certificate to another system.";
                         ze:help "Export the certificate, and any intermediate it carries, as PEM.";
                         leaf name {
@@ -81,7 +81,7 @@ Check here to find certificates approaching expiration.";
 
                         container pem {
                             config false;
-                            ze:command "ze-show:pki-certificate-bundle-pem";
+                            ze:command "ze-pki:show-certificate-bundle-pem";
                             description "Device certificates only: a CA certificate in the store holds no private key.";
                             ze:help "Export the certificate, its intermediates and its private key as one PEM stream.";
                             leaf name {
@@ -97,7 +97,7 @@ Check here to find certificates approaching expiration.";
 
                     container fingerprint {
                         config false;
-                        ze:command "ze-show:pki-certificate-fingerprint";
+                        ze:command "ze-pki:show-certificate-fingerprint";
                         description "Without an algorithm, SHA-256.";
                         ze:help "Show the hash of the certificate, to verify its identity against the one another system reports.";
                         leaf name {

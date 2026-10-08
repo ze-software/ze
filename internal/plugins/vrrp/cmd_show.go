@@ -45,10 +45,10 @@ const (
 
 // Wire methods, kebab-case per ai/patterns/cli-command.md.
 const (
-	wireShowVRRP           = "ze-show:vrrp"
-	wireShowVRRPInterface  = "ze-show:vrrp-interface"
-	wireShowVRRPStatistics = "ze-show:vrrp-statistics"
-	wireClearVRRPStats     = "ze-clear:vrrp-statistics"
+	wireShowVRRP           = "ze-vrrp:show-vrrp"
+	wireShowVRRPInterface  = "ze-vrrp:show-interface"
+	wireShowVRRPStatistics = "ze-vrrp:show-statistics"
+	wireClearVRRPStats     = "ze-vrrp:clear-statistics"
 )
 
 func init() {

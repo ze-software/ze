@@ -1,5 +1,5 @@
 # Test: show system file-descriptors summary returns FD counts
-# Exercises: dispatch-command -> ze-show:system-file-descriptors -> handleShowSystemFD
+# Exercises: dispatch-command -> ze-cmd:show-system-file-descriptors -> handleShowSystemFD
 # Verifies AC-8: returns JSON with FD count by type and soft/hard limits (Linux-only; accepts platform error)
 
 # ze-peer: accepts connection

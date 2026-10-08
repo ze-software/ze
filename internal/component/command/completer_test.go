@@ -488,7 +488,7 @@ func TestCompleterArgDefsEnumSuggestions(t *testing.T) {
 				Children: map[string]*Node{
 					"goroutines": {
 						Name:       "goroutines",
-						WireMethod: "ze-show:system-goroutines",
+						WireMethod: "ze-cmd:show-system-goroutines",
 						ArgDefs: []ArgDef{
 							{Name: "mode", Kind: ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
 						},
@@ -524,7 +524,7 @@ func TestCompleterArgDefsKeywordSuggestions(t *testing.T) {
 				Children: map[string]*Node{
 					"audit": {
 						Name:       "audit",
-						WireMethod: "ze-show:audit",
+						WireMethod: "ze-cmd:show-audit",
 						ArgDefs: []ArgDef{
 							{Name: "action", Kind: ArgString},
 							{Name: "count", Kind: ArgUint, UintBits: 32},
@@ -558,7 +558,7 @@ func TestCompleterArgDefsPrefixFilter(t *testing.T) {
 				Children: map[string]*Node{
 					"goroutines": {
 						Name:       "goroutines",
-						WireMethod: "ze-show:system-goroutines",
+						WireMethod: "ze-cmd:show-system-goroutines",
 						ArgDefs: []ArgDef{
 							{Name: "mode", Kind: ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
 						},
@@ -777,7 +777,7 @@ func TestChoiceGroupCompletesItsWordsNotItsName(t *testing.T) {
 		Children: map[string]*Node{
 			"chain": {
 				Name:       "chain",
-				WireMethod: "ze-show:policy-chain",
+				WireMethod: "ze-bgp:show-policy-chain",
 				Children: map[string]*Node{
 					"direction": {
 						Name:     "direction",
