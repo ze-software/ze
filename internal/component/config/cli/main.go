@@ -151,7 +151,7 @@ func usage() {
 				{Name: "activate <file> <path>", Desc: "Clear the inactive flag on a node"},
 			}},
 			{Title: "Storage", Entries: []helpfmt.HelpEntry{
-				{Name: "import [--dir folder] [--name n] <file>...", Desc: "Import files into an initialized store"},
+				{Name: "import [--dir folder] [--name n] [--yes] <file>...", Desc: "Import files into an initialized store; an existing config is replaced only when confirmed (--yes, or y on a terminal)"},
 				{Name: "rename <old> <new>", Desc: "Rename a stored config"},
 				{Name: "list [--backup <artifact>]", Desc: "List stored and loose configs, or an artifact's"},
 				{Name: "cat <key>", Desc: "Print a stored entry"},
@@ -183,6 +183,7 @@ func usage() {
 			"ze config edit",
 			"ze config import router.conf",
 			"ze config import --name production.conf /etc/ze/router.conf",
+			"ze config import --yes --name router.conf candidate.conf",
 			"ze config import --dir /etc/ze /tmp/router.conf",
 			"ze config validate router.conf",
 			"ze config show router.conf bgp peer edge1",

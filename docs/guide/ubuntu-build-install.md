@@ -249,7 +249,7 @@ EOF
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo systemctl stop ze.service
-sudo -u ze env ZE_CONFIG_DIR=/etc/ze /usr/local/bin/ze config import --name edge-01.conf - < "$CONFIG_IMPORT"
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze /usr/local/bin/ze config import --yes --name edge-01.conf - < "$CONFIG_IMPORT"
 sudo systemctl start ze.service
 ```
 

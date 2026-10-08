@@ -1,0 +1,25 @@
+# Test: ze config import refuses an existing config without confirmation.
+# VALIDATES: importing onto a name the store already holds, with no terminal and
+#            no --yes, asks nothing, exits 2, and names --yes as the way to
+#            confirm (cmd_import.go, confirmImportReplace).
+# PREVENTS: a script hanging on a prompt, or replacing a config nobody confirmed.
+# ISOLATION: the destination is the per-test working directory.
+tmpfs=small.conf:terminator=EOF_FILE
+system {
+	host importhost
+}
+EOF_FILE
+
+tmpfs=replacement.conf:terminator=EOF_REPLACEMENT
+system {
+	host replacedhost
+}
+EOF_REPLACEMENT
+
+option=env:var=ze.config.dir:value=.
+
+cmd=foreground:seq=1:exec=le test fixture storage/empty-tree:exit=0
+cmd=foreground:seq=2:exec=ze config import small.conf:exit=0
+cmd=foreground:seq=3:exec=ze config import --name small.conf replacement.conf:exit=2
+expect=exit:code=2
+expect=stderr:contains=destination config small.conf already exists; rerun with --yes to replace it

@@ -54,6 +54,7 @@ func init() {
 	registry.RegisterCommandFlags("config import", []registry.FlagSpec{
 		{Name: "--name", Description: "destination config name (one input only)", ValueHint: registry.FlagValueNone},
 		{Name: "--dir", Description: "destination store folder", ValueHint: registry.FlagValueFile},
+		{Name: "--yes", Description: "replace existing destination configs without asking", ValueHint: registry.FlagValueNone},
 	})
 
 	// Read-only shortcuts read their explicit candidate/running config source.

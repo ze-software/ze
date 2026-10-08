@@ -153,6 +153,7 @@ skipped at apply time. See `docs/guide/config-deactivate.md`.
 ```
 ze config import <file>...       # Import files into the database
 ze config import --name <n> <file>  # Import under a different name
+ze config import --yes <file>...  # Replace existing configs without asking
 ze config rename <old> <new>     # Rename a config in the database
 ze config list [prefix]          # List files in database
 ze config list --backup <artifact>  # List the configs inside a backup

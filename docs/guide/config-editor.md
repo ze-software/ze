@@ -139,9 +139,16 @@ An offline writer refuses while the daemon owns that store.
 `ze config import --dir <folder> <file>...` selects a destination independently
 of its input files. Without `--dir`, the destination follows `ze.config.dir`
 and then the default config folder. `--name` supplies the destination name for
-one input, including stdin. Duplicate basenames and existing destination names
-are refused before any input is written.
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
+one input, including stdin. Duplicate basenames are refused before any input is
+written. A destination name the store already holds is replaced only once
+confirmed: on a terminal the command names the configs it would replace and asks,
+and `y` or `yes` replaces them while any other answer writes nothing and exits
+non-zero. Without a terminal, including when the input is stdin, it asks nothing
+and refuses, naming `--yes`; `--yes` confirms in advance. A replaced config is
+committed as a new active version and the previous one becomes its rollback, so
+`ze config rollback` restores it.
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, confirmImportReplace, importOne -->
+<!-- source: internal/component/config/storage/restore.go -- RestoreConfig -->
 
 ## Editing Modes
 
