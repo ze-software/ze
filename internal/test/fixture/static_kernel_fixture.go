@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -147,4 +148,50 @@ func kernelEntries(ctx context.Context, prefix string) []string {
 		}
 	}
 	return entries
+}
+
+// staticKernelDistanceReload proves the owner decision of 2026-10-08 at the
+// kernel: the RIB owns administrative distance, so a reload that changes only
+// `rib { distance { static } }` re-ranks the static route ALREADY installed.
+// The scenario starts at `static 5`, waits for the kernel to forward on the
+// static next-hop, rewrites the config to `static 250`, sends SIGHUP, and waits
+// for the kernel to move to the BGP next-hop with no second entry left behind.
+func staticKernelDistanceReload(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := staticKernelDistanceWinner(protocolStatic, kernelStaticGateway)(ctx, plugin); err != nil {
+		return fmt.Errorf("before the reload: %w", err)
+	}
+	pid, err := waitDaemon(ctx, 200)
+	if err != nil {
+		return err
+	}
+	config, err := os.ReadFile("ze-bgp.conf")
+	if err != nil {
+		return fmt.Errorf("reading the daemon config to rewrite it: %w", err)
+	}
+	raised := strings.Replace(string(config), "static 5", "static 250", 1)
+	if raised == string(config) {
+		return fmt.Errorf("the daemon config holds no `static 5` to raise: %q", config)
+	}
+	if err := os.WriteFile("ze-bgp.conf", []byte(raised), 0o600); err != nil {
+		return err
+	}
+	if err := signalProcess(pid, syscall.SIGHUP); err != nil {
+		return err
+	}
+
+	var entries []string
+	if !Poll(ctx, kernelPolls, 100*time.Millisecond, func() bool {
+		entries = kernelEntries(ctx, arbitratedPrefix)
+		return len(entries) == 1 &&
+			strings.Contains(entries[0], "proto 250") &&
+			strings.Contains(entries[0], "via "+kernelBGPGateway+" ")
+	}) {
+		return fmt.Errorf("after the reload to static 250: want exactly one kernel entry, proto 250 via %s; ip route show table all: %q",
+			kernelBGPGateway, entries)
+	}
+	if winner, seen := ribWinner02(ctx, plugin, arbitratedPrefix); winner != "bgp" {
+		return fmt.Errorf("after the reload to static 250: system RIB winner is %q, want bgp; show rib: %s", winner, seen)
+	}
+	fmt.Fprintln(os.Stderr, "OK: reload re-ranked "+arbitratedPrefix+", kernel now via "+kernelBGPGateway)
+	return nil
 }

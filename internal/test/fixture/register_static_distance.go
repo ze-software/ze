@@ -31,6 +31,8 @@ func init() {
 		observer02("static-kernel-test", staticKernelDistanceWinner(protocolStatic, kernelStaticGateway)))
 	Register("static/static-kernel-distance-bgp-wins",
 		observer02("static-kernel-test", staticKernelDistanceWinner("bgp", kernelBGPGateway)))
+	Register("static/static-kernel-distance-reload",
+		observer02("static-kernel-test", staticKernelDistanceReload))
 	Register("static/static-kernel-weighted-multipath",
 		observer02("static-kernel-test", staticKernelWeightedMultipath))
 	Register("static/static-kernel-interface-nexthop",

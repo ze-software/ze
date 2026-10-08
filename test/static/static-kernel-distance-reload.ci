@@ -1,0 +1,109 @@
+# Test: a reload that changes only `rib { distance { static } }` re-ranks the
+#       static route ALREADY installed, and the kernel follows.
+# VALIDATES: spec-connected-static-reach-the-locrib AC-20 -- the daemon starts at
+#            `static 5` with the kernel forwarding 10.0.0.0/8 via the static
+#            next-hop 192.0.2.1; the fixture rewrites the config to `static 250`
+#            and sends SIGHUP; the kernel then holds exactly one entry for the
+#            prefix, proto 250, via the BGP next-hop 198.51.100.1, and the system
+#            RIB winner is bgp.
+# PREVENTS: a distance that is stamped once when the route enters the Loc-RIB,
+#           so a distance-only reload changes the config and leaves the
+#           installed route ranked by the old number.
+#
+# The siblings static-kernel-distance-static-wins.ci and
+# static-kernel-distance-bgp-wins.ci hold each distance from the start; this one
+# moves from the first to the second inside one daemon run.
+#
+# The budget is 45s, not the siblings' 30s: this run waits for two kernel
+# states in sequence, each bounded at ten seconds by the fixture, so a red must
+# end on the fixture's own "after the reload" message rather than on the
+# harness timeout.
+#
+# Requires Linux and CAP_NET_ADMIN: the setup creates a dummy link carrying both
+# gateway subnets, and fib-kernel programs the winner through netlink.
+option=needs-linux:caps=net-admin
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=45s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external static-kernel-test {
+		run "le test fixture static/static-kernel-distance-reload"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal rib {
+		use rib
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+
+rib {
+	distance {
+		static 5
+	}
+}
+
+static {
+	table default {
+		route 10.0.0.0/8 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 2
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+option=env:var=ze.log.rib:value=info
+
+cmd=foreground:seq=1:exec=le test fixture static/static-kernel-setup
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
+expect=exit:code=0
+expect=stderr:contains=OK: kernel holds one entry for 10.0.0.0/8, proto 250 via 192.0.2.1
+expect=stderr:contains=OK: reload re-ranked 10.0.0.0/8, kernel now via 198.51.100.1
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
