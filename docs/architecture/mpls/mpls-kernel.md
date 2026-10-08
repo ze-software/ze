@@ -200,6 +200,17 @@ skips on "absent" or "unknown" with the answer in the skip message. The other
 patch-only cases skip only on "absent": they fragment at budgets of 1280 bytes
 and above, which always leave a whole fragment quantum.
 A capability skip leaves the behaviour unverified.
+
+Evidence, 2026-10-08: `./le test qemu run` booted the runtime kernel
+(`tmp/kernel/build/vmlinuz`, `uname -r` 7.2.0, `CONFIG_MPLS_IP_MTU=y`) and ran
+`go test -tags integration -run TestMPLSIntegration ./internal/plugins/fib/kernel/`
+in the guest. The probe answered "present" and the transit routes carried MTU
+1400. `TestMPLSIntegration_PathMTU` (all four cases),
+`TestMPLSIntegration_FragmentProgress` (all three),
+`TestMPLSIntegration_TransitIPv4Options` (both) and
+`TestMPLSIntegration_TransitPathMTUFollowsTheProbe` passed with no skip.
+`TestMPLSIntegration_EgressPopNoNextHop` failed in the same run, which is
+recorded in `plan/journal/kernel-refuses-what-the-installer-sends.md`.
 `TestMPLSIntegration_TransitPathMTUFollowsTheProbe` runs on any kernel: it
 installs a transit swap and pop carrying a path MTU, requires the probe to
 answer, checks each route carries the MTU exactly when the answer is "present",
