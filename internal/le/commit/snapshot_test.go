@@ -521,9 +521,10 @@ func TestAFailedBlockDeletesNothing(t *testing.T) {
 	}
 }
 
-// TestARemovedDirectoryIsKeptAndTheScriptFinishes covers a `remove` naming a
-// directory, which `validateRemovePath` accepts because `git ls-files` matches
-// the files under it. Staging the directory answers one entry per file, and
+// TestARemovedDirectoryIsKeptAndTheScriptFinishes covers a removed file that a
+// directory replaced after preparation. (A `remove` naming a directory used to
+// reach here too; validateRemovePath now refuses it at create time.) Staging
+// the directory answers one entry per file, and
 // `grep -F` reads a multi-line pattern as one pattern per line, so a single
 // matching file proved the whole directory; `rm -f` then failed on it under
 // `set -e` and stopped the script after its commit. A directory is never one
@@ -532,14 +533,21 @@ func TestARemovedDirectoryIsKeptAndTheScriptFinishes(t *testing.T) {
 	root := newCommitRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "removal-directory-fixture")
 	configureCommitAuthor(t, root)
-	writeCommitFixture(t, root, "notes/a.txt", "a\n")
-	writeCommitFixture(t, root, "notes/b.txt", "b\n")
+	writeCommitFixture(t, root, "notes", "a file when the commit is prepared\n")
 	runCommitGit(t, root, "add", "--", "notes")
 	runCommitGit(t, root, "commit", "-q", "-m", "notes")
 	prepared, err := Create(root, &Options{Subject: "remove notes", Remove: []string{"notes"}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Create refuses a directory (TestARemovePathMustNameOneTrackedFileLiterally),
+	// so the directory reaches the script the other way: the removed file is
+	// replaced by one between preparation and the run.
+	if err := os.Remove(filepath.Join(root, "notes")); err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, "notes/a.txt", "a\n")
+	writeCommitFixture(t, root, "notes/b.txt", "b\n")
 	output := runCommitScript(t, root, prepared.Script)
 	for _, name := range []string{"notes/a.txt", "notes/b.txt"} {
 		if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(name))); err != nil {

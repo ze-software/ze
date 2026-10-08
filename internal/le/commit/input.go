@@ -95,14 +95,28 @@ func validateAddPath(root, path string) error {
 }
 
 func validateRemovePath(root, path string) error {
-	code, err := gitExit(root, "ls-files", "--error-unmatch", "--", path)
+	// The script removes the path with a literal `update-index --force-remove`,
+	// which matches one index entry by its exact name. The check reads the
+	// path the same way: --literal-pathspecs turns off glob matching, and the
+	// answer must be exactly one entry equal to the argument. A pathspec read
+	// would accept a directory or a glob that the script then matches nothing
+	// with, and the commit would remove nothing, silently.
+	listing, err := gitOutput(root, "--literal-pathspecs", "ls-files", "-z", "--", path)
 	if err != nil {
 		return fmt.Errorf("check tracked removal %s: %w", path, err)
 	}
-	if code != 0 {
+	entries := strings.Split(strings.TrimSuffix(listing, "\x00"), "\x00")
+	if listing == "" {
+		if strings.ContainsAny(path, "*?[") {
+			return fmt.Errorf("remove path is not tracked: %s (it is read literally, never as a glob; name each file)", path)
+		}
 		return fmt.Errorf("remove path is not tracked: %s", path)
 	}
-	return nil
+	if len(entries) == 1 && entries[0] == path {
+		return nil
+	}
+	return fmt.Errorf("remove path %s is a directory holding %d tracked file(s); name each file, or list them with remove-list",
+		path, len(entries))
 }
 
 // expandLists answers the paths named directly beside the paths every list file

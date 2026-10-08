@@ -37,7 +37,7 @@ to an author who had been warned about those exact files minutes beforehand.
 | `body` | yes | One body chunk, wrapped to 72 characters without breaking a word. Two chunks run together, so a paragraph break is an empty `body ""` between them |
 | `file` | yes | One explicit file to stage. Never a directory |
 | `file-list` | yes | A file holding one path to stage per line. Blank lines and `#` comments are skipped |
-| `remove` | yes | One tracked path to delete. The commit removes it from Git, then the script deletes the working-tree copy when that copy is what the commit removed. Leave the file in place: no `rm` beforehand |
+| `remove` | yes | One tracked file to delete, named exactly: a directory or a glob is refused at create time, because the script removes one index entry by its literal name. The commit removes it from Git, then the script deletes the working-tree copy when that copy is what the commit removed. Leave the file in place: no `rm` beforehand |
 | `remove-list` | yes | A file holding one tracked path to delete per line, each handled as `remove` handles one |
 | `replace` | no | Start a fresh script. Use it for the first commit of a session |
 | `append` | no | Add another commit block to a script that already exists |
@@ -181,8 +181,8 @@ them. One commit block holds, in order:
    (`renderWorkingTreeRemoval`). Each removed path's copy is staged into a
    throwaway index, and the copy is deleted only when its entry line is one of
    the lines step 5 captured. A copy whose content or mode differs, a copy Git
-   cannot read or stage, a path HEAD never held, and a directory (a `remove`
-   naming a tracked directory, a removed file replaced by one, or a submodule)
+   cannot read or stage, a path HEAD never held, and a directory (a removed
+   file replaced by one, or a submodule)
    each leave the path in place and print `NOTE: kept <path>: ...` on stderr,
    because that content is in no commit and somebody has to decide about it. A path already absent is
    skipped in silence. The step runs after `git commit` under `set -e`, so a
