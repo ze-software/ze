@@ -293,6 +293,7 @@ func TestStaticApplyWithoutSectionOwnsNoUndo(t *testing.T) {
 	var mu sync.Mutex
 	var current []staticRoute
 	var pending pendingSection
+	tx := staticTx{pending: &pending, rm: rm, mu: &mu, current: &current}
 
 	boot := []staticRoute{fwd("10.0.0.0/8", "192.0.2.1"), fwd("172.16.0.0/12", "192.0.2.1")}
 	if err := rm.applyRoutes(boot); err != nil {
@@ -300,20 +301,21 @@ func TestStaticApplyWithoutSectionOwnsNoUndo(t *testing.T) {
 	}
 	current = boot
 
-	// T1 removes 172.16.0.0/12 and commits.
+	// T1 removes 172.16.0.0/12 and commits. Its undo set stays held, as in
+	// the plugin, because a commit reaches no static handler.
 	pending.set([]staticRoute{fwd("10.0.0.0/8", "192.0.2.1")})
-	if _, err := applyStaticSection(&pending, rm, &mu, &current); err != nil {
+	if err := tx.apply(); err != nil {
 		t.Fatalf("T1 apply: %v", err)
 	}
 	committed := staticLocRIBSnapshot(loc)
 
-	// T2 delivers no static section, is accepted, and is rolled back.
-	j, err := applyStaticSection(&pending, rm, &mu, &current)
-	if err != nil {
+	// T2 delivers no static section, is accepted, and is rolled back through
+	// the same holder the plugin's handlers use.
+	if err := tx.apply(); err != nil {
 		t.Fatalf("T2 apply: %v", err)
 	}
-	if errs := j.Rollback(); len(errs) > 0 {
-		t.Fatalf("T2 rollback: %v", errs)
+	if err := tx.rollback(); err != nil {
+		t.Fatalf("T2 rollback: %v", err)
 	}
 	if after := staticLocRIBSnapshot(loc); !maps.Equal(after, committed) {
 		t.Errorf("after rolling back an apply with no section the Loc-RIB holds %v, want the committed %v", after, committed)

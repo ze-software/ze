@@ -1,0 +1,94 @@
+# Test: a reload that fails before static applies leaves static on the
+#       configuration the previous reload committed.
+#
+# The daemon boots with two static routes. The first reload removes
+# 172.16.0.0/12 and commits. The second reload changes static again and also
+# changes rsvp-te, which a fixture participant declares and refuses to apply.
+# Section applies run in sorted participant order, and the failer sorts before
+# static, so the transaction fails before static's apply runs and the engine
+# broadcasts config-rollback to every participant, static included.
+#
+# VALIDATES: static runs no rollback for a transaction it never applied in: the
+#            SDK closes the rollback gate on the first reload's
+#            config-committed, so the second reload's rollback is a no-op for
+#            static (pkg/plugin/sdk/config_tx_gate.go).
+# PREVENTS: static replaying the undo it kept from the first, committed reload,
+#           which re-installed 172.16.0.0/12 and returned the Loc-RIB to the
+#           boot configuration, two commits back (journal row
+#           rollback-forgets-partial-apply).
+#
+# The driver reads the kernel table after the second reload's generation
+# advanced: 10.0.0.0/8 alone must be installed, the set the first reload
+# committed. A replayed first-reload undo puts 172.16.0.0/12 back, and the
+# driver then reports ZE-OBSERVER-FAIL instead of its OK line.
+#
+# The log assertion is static's own production log line. "static routes rolled
+# back" is written only by the undo applyRouteSet records
+# (internal/plugins/static/register.go), so it appears exactly when static
+# replays a journal. "config apply partial failure" proves the second reload
+# was the failed transaction the rollback belongs to.
+#
+# DISCRIMINATION: remove the rollbackOwed check from OnConfigRollback
+# (pkg/plugin/sdk/sdk_callbacks.go). Static's handler then replays the first
+# reload's journal and the rejected line is written.
+#
+# The driver runs as a plugin: it fences each reload on the `show reload-status`
+# generation, which advances only after the candidate is promoted, so the
+# second config is never written over a staged candidate. It also reads the
+# kernel table to check the first reload removed the route, which needs a Linux
+# kernel and CAP_NET_ADMIN.
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external config-apply-ordering-mixed-rollback-failer {
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-failer"
+		encoder json
+	}
+	external static-rollback-driver {
+		run "le test fixture static/static-rollback-keeps-committed"
+		encoder json
+	}
+}
+
+rsvp-te {
+	router-id 10.0.0.1
+	refresh-period 30
+	interface lo {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+		address 127.0.0.1/8
+	}
+}
+
+static {
+	table default {
+		route 10.0.0.0/8 {
+			next {
+				hop 192.168.1.1 { }
+			}
+		}
+		route 172.16.0.0/12 {
+			next {
+				hop 10.0.0.1 { }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+
+# The external failer connects back over TLS on 127.0.0.1, which a fresh
+# network namespace leaves down.
+cmd=foreground:seq=1:exec=ip link set lo up
+cmd=foreground:seq=2:exec=le test fixture static/static-reload-remove-setup
+cmd=background:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
+
+await=stderr:contains=OK: static kept the committed routes after the refused reload
+await=stderr:contains=OK: mixed rollback: the failing participant refused its section apply
+
+expect=exit:code=0
+expect=stderr:contains=static routes reloaded
+expect=stderr:contains=config apply partial failure
+reject=stderr:contains=static routes rolled back

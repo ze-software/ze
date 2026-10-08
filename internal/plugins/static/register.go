@@ -302,28 +302,9 @@ func runStaticPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	var activeJournal *sdk.Journal
-
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		j, err := applyStaticSection(&pending, rm, &mu, &currentRoutes)
-		if err != nil {
-			return err
-		}
-		activeJournal = j
-		return nil
-	})
-
-	p.OnConfigRollback(func(_ string) error {
-		j := activeJournal
-		activeJournal = nil
-		if j == nil {
-			return nil
-		}
-		if errs := j.Rollback(); len(errs) > 0 {
-			return fmt.Errorf("static rollback: %d errors", len(errs))
-		}
-		return nil
-	})
+	tx := staticTx{pending: &pending, rm: rm, mu: &mu, current: &currentRoutes}
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return tx.apply() })
+	p.OnConfigRollback(func(_ string) error { return tx.rollback() })
 
 	p.OnStarted(func(_ context.Context) error {
 		if svc := bfdapi.GetService(); svc != nil {
@@ -394,6 +375,43 @@ func applyStaticSection(pending *pendingSection, rm *routeManager, mu *sync.Mute
 	oldRoutes := *current
 	mu.Unlock()
 	return applyRouteSet(rm, mu, current, oldRoutes, newRoutes)
+}
+
+// staticTx holds the undo set the open transaction's apply owns, between
+// OnConfigApply and the OnConfigRollback the SDK runs when that transaction
+// fails. Every accepted apply replaces it, including an apply that received no
+// static section, so a rollback never replays an undo kept from an earlier,
+// committed transaction. Not safe for concurrent use: the SDK delivers apply
+// and rollback one at a time.
+type staticTx struct {
+	pending *pendingSection
+	rm      *routeManager
+	mu      *sync.Mutex
+	current *[]staticRoute
+	active  *sdk.Journal
+}
+
+// apply applies this transaction's section and keeps the undo set it owns.
+func (t *staticTx) apply() error {
+	j, err := applyStaticSection(t.pending, t.rm, t.mu, t.current)
+	if err != nil {
+		return err
+	}
+	t.active = j
+	return nil
+}
+
+// rollback replays the undo set the open transaction's apply owns, once.
+func (t *staticTx) rollback() error {
+	j := t.active
+	t.active = nil
+	if j == nil {
+		return nil
+	}
+	if errs := j.Rollback(); len(errs) > 0 {
+		return fmt.Errorf("static rollback: %d errors", len(errs))
+	}
+	return nil
 }
 
 // applyRouteSet applies newRoutes and returns the journal whose undo re-applies
