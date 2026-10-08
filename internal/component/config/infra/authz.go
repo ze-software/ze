@@ -197,26 +197,28 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 
 // ExtractAuthzStore extracts authorization profiles and user assignments from a
 // parsed config tree. Returns nil when no system.authorization profiles exist.
-func ExtractAuthzStore(tree *config.Tree) *authz.Store {
+func ExtractAuthzStore(tree *config.Tree) (*authz.Store, error) {
 	return extractAuthzConfig(tree)
 }
 
 // Returns a populated Store if system.authorization is present with profiles, nil otherwise.
 // User-to-profile assignments come from system.authentication.user[*].profile (leaf-list).
-func extractAuthzConfig(tree *config.Tree) *authz.Store {
+// The error is the YANG loader's, when the command set the match entries are
+// checked against cannot be loaded.
+func extractAuthzConfig(tree *config.Tree) (*authz.Store, error) {
 	sys := tree.GetContainer("system")
 	if sys == nil {
-		return nil
+		return nil, nil //nolint:nilnil // no system block: no authz store, and nothing failed
 	}
 
 	authzContainer := sys.GetContainer("authorization")
 	if authzContainer == nil {
-		return nil
+		return nil, nil //nolint:nilnil // no authorization block: no authz store, and nothing failed
 	}
 
 	profiles := authzContainer.GetList("profile")
 	if len(profiles) == 0 {
-		return nil
+		return nil, nil //nolint:nilnil // no profile: no authz store, and nothing failed
 	}
 
 	store := authz.NewStore()
@@ -248,20 +250,27 @@ func extractAuthzConfig(tree *config.Tree) *authz.Store {
 
 	// Warn about match entries that don't match any known builtin command (AC-9).
 	// Warning only — plugins may register commands dynamically at runtime.
-	validateMatchEntries(store)
-
-	if !store.HasProfiles() {
-		return nil
+	if err := validateMatchEntries(store); err != nil {
+		return nil, err
 	}
 
-	return store
+	if !store.HasProfiles() {
+		return nil, nil //nolint:nilnil // no profile: no authz store, and nothing failed
+	}
+
+	return store, nil
 }
 
 // validateMatchEntries warns about profile match entries that don't match
 // any known builtin command prefix. This is a best-effort check because
-// plugins register commands dynamically at runtime.
-func validateMatchEntries(store *authz.Store) {
-	loader, _ := yang.DefaultLoader()
+// plugins register commands dynamically at runtime. A YANG loader failure is
+// returned, not treated as an empty command set: an empty set would warn on
+// every entry and hide the cause.
+func validateMatchEntries(store *authz.Store) error {
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return fmt.Errorf("authorization match entries: YANG loader: %w", err)
+	}
 	wireToPaths := yang.WireMethodToPaths(loader)
 
 	var cmds []string
@@ -284,6 +293,7 @@ func validateMatchEntries(store *authz.Store) {
 		infraLogger().Warn("authz match entry does not match any known command",
 			"profile", profileName, "section", section, "match", e.Match)
 	})
+	return nil
 }
 
 // extractAuthzSection extracts a run or edit authorization section from the config tree.

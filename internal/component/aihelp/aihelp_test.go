@@ -48,7 +48,8 @@ func TestReferenceJSONShape(t *testing.T) {
 // registries without panicking and always returns a non-nil dispatch-keys map
 // (so the JSON has a stable {} rather than null).
 func TestBuildRunsAndInitializesDispatchKeys(t *testing.T) {
-	ref := Build()
+	ref, err := Build()
+	require.NoError(t, err)
 	require.NotNil(t, ref.DispatchKeys, "DispatchKeys must be initialized (never nil) for stable JSON")
 
 	data, err := json.Marshal(ref)
@@ -144,7 +145,9 @@ func init() {
 // which is where it stopped before this test existed.
 func TestBuildCarriesEveryRegisteredRPCHelpText(t *testing.T) {
 	published := make(map[string]RPC)
-	for _, rpc := range Build().RPCs {
+	ref, err := Build()
+	require.NoError(t, err)
+	for _, rpc := range ref.RPCs {
 		published[rpc.WireMethod] = rpc
 	}
 
@@ -187,7 +190,9 @@ func TestBuildCarriesEveryRegisteredRPCHelpText(t *testing.T) {
 // reads.
 func TestCLISubcommandModeMatchesTheVerbRegistry(t *testing.T) {
 	byName := make(map[string]CLICommand)
-	for _, cmd := range CLISubcommands() {
+	commands, err := CLISubcommands()
+	require.NoError(t, err)
+	for _, cmd := range commands {
 		byName[cmd.Name] = cmd
 	}
 	require.NotEmpty(t, byName, "the reference must publish at least one subcommand")

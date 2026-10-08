@@ -62,7 +62,10 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		// and plugin commands are merged in lazily from the live dispatcher, so a
 		// plugin registered (or gone) since the daemon started is reflected in the
 		// next session's completion without a rebuild dance.
-		cmdTree := buildCommandTree()
+		cmdTree, err := buildCommandTree()
+		if err != nil {
+			return nil, fmt.Errorf("command tree: %w", err)
+		}
 		mergePluginCommands(cmdTree, params)
 		cmdCompleter := cli.NewCommandCompleter(cmdTree)
 
@@ -173,11 +176,18 @@ func sessionTranscript(username, remoteAddr string) *cli.TranscriptWriter {
 	return cli.NewTranscriptWriter(cli.OpenTranscriptFile(tag), username, remoteAddr)
 }
 
-func buildCommandTree() *command.Node {
-	loader, _ := yang.DefaultLoader()
+// buildCommandTree builds the operational command tree an SSH session
+// completes against. A loader failure, such as a misspelled extension, is
+// returned with its cause, so the session refuses to start rather than run
+// with a nil tree.
+func buildCommandTree() (*command.Node, error) {
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, fmt.Errorf("YANG loader: %w", err)
+	}
 	tree := yang.BuildCommandTree(loader)
 	command.WireValueHints(tree)
-	return tree
+	return tree, nil
 }
 
 // mergePluginCommands injects plugin-registered commands into the completion

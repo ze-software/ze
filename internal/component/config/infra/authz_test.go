@@ -71,7 +71,8 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := infra.ExtractAuthzStore(tree)
+	store, err := infra.ExtractAuthzStore(tree)
+	require.NoError(t, err)
 	require.NotNil(t, store, "store should not be nil when profiles exist")
 	assert.True(t, store.HasProfiles(), "store should have profiles")
 }
@@ -119,7 +120,8 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := infra.ExtractAuthzStore(tree)
+	store, err := infra.ExtractAuthzStore(tree)
+	require.NoError(t, err)
 	require.NotNil(t, store)
 	assert.Equal(t, authz.Allow, store.Authorize("operator", "peer set", false))
 }
@@ -152,7 +154,8 @@ bgp {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := infra.ExtractAuthzStore(tree)
+	store, err := infra.ExtractAuthzStore(tree)
+	require.NoError(t, err)
 	assert.Nil(t, store, "no system block means no authz store")
 }
 
@@ -192,7 +195,8 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := infra.ExtractAuthzStore(tree)
+	store, err := infra.ExtractAuthzStore(tree)
+	require.NoError(t, err)
 	assert.Nil(t, store, "no authorization block means no authz store")
 }
 
@@ -259,7 +263,8 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := infra.ExtractAuthzStore(tree)
+	store, err := infra.ExtractAuthzStore(tree)
+	require.NoError(t, err)
 	require.NotNil(t, store)
 	assert.True(t, store.HasProfiles())
 	assert.Equal(t, authz.Allow, store.Authorize("operator", "show bgp", true), "noc assignment should be extracted")
@@ -317,7 +322,8 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := infra.ExtractAuthzStore(tree)
+	store, err := infra.ExtractAuthzStore(tree)
+	require.NoError(t, err)
 	require.NotNil(t, store)
 
 	// Operator can run "peer show" (allowed by entry 10)
@@ -384,7 +390,8 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := infra.ExtractAuthzStore(tree)
+	store, err := infra.ExtractAuthzStore(tree)
+	require.NoError(t, err)
 	require.NotNil(t, store)
 
 	assert.Equal(t, authz.Allow, store.Authorize("boss", "restart", true))
@@ -447,7 +454,8 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	store := infra.ExtractAuthzStore(tree)
+	store, err := infra.ExtractAuthzStore(tree)
+	require.NoError(t, err)
 	require.NotNil(t, store)
 
 	// Entry 10 (allow "peer show") comes before entry 30 (deny "peer").

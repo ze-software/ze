@@ -122,7 +122,11 @@ func TestHelpAIUsesOwnerRegistry(t *testing.T) {
 	}, registry.Meta{ShortHelp: desc, Mode: "offline", Subs: "alpha, beta"})
 
 	found := false
-	for _, c := range aihelp.CLISubcommands() {
+	commands, err := aihelp.CLISubcommands()
+	if err != nil {
+		t.Fatalf("aihelp.CLISubcommands: %v", err)
+	}
+	for _, c := range commands {
 		if c.Name == name {
 			found = true
 			if c.ShortHelp != desc {
@@ -152,7 +156,11 @@ func TestHelpAIUsesOwnerRegistry(t *testing.T) {
 // no resolve module.
 func TestHelpAIPublishesTheRegistryRole(t *testing.T) {
 	published := make(map[string]string)
-	for _, c := range aihelp.CLISubcommands() {
+	commands, err := aihelp.CLISubcommands()
+	if err != nil {
+		t.Fatalf("aihelp.CLISubcommands: %v", err)
+	}
+	for _, c := range commands {
 		published[c.Name] = c.Mode
 	}
 

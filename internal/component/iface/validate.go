@@ -39,6 +39,10 @@ const (
 var (
 	reservedIfaceNames     = map[string]string{}
 	reservedIfaceNamesOnce sync.Once
+	// reservedIfaceNamesErr is the YANG loader failure, cached with the map:
+	// without the command tree the reserved set is unknown, and an empty map
+	// would accept every reserved name.
+	reservedIfaceNamesErr error
 )
 
 // loadReservedIfaceNames walks the merged YANG command tree and
@@ -50,7 +54,8 @@ var (
 // blank-import the relevant schema packages.
 func loadReservedIfaceNames() {
 	loader, err := yang.DefaultLoader()
-	if err != nil || loader == nil {
+	if err != nil {
+		reservedIfaceNamesErr = fmt.Errorf("iface: reserved CLI keywords unavailable: YANG loader: %w", err)
 		return
 	}
 	tree := yang.BuildCommandTree(loader)
@@ -112,6 +117,9 @@ func ValidateIfaceName(name string) error {
 		return fmt.Errorf("iface: name %q contains path traversal sequence", name)
 	}
 	reservedIfaceNamesOnce.Do(loadReservedIfaceNames)
+	if reservedIfaceNamesErr != nil {
+		return reservedIfaceNamesErr
+	}
 	if usage, reserved := reservedIfaceNames[name]; reserved {
 		return fmt.Errorf("iface: name %q is a reserved CLI keyword (used by %q); rename the interface",
 			name, usage)

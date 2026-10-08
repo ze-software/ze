@@ -505,7 +505,21 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		}
 		var candidateStore *authz.Store
 		if parsedTree != nil {
-			candidateStore = infra.ExtractAuthzStore(parsedTree)
+			var authzErr error
+			candidateStore, authzErr = infra.ExtractAuthzStore(parsedTree)
+			if authzErr != nil {
+				err := fmt.Errorf("reload: candidate authorization config: %w", authzErr)
+				if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
+					if clearErr := clearCandidate(); clearErr != nil {
+						return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+					}
+					return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
+				}
+				if clearErr := clearCandidate(); clearErr != nil {
+					return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
+				}
+				return err
+			}
 		}
 		// An absent API block leaves an environment- or flag-started listener
 		// running, so retain its accepted token. A present block re-resolves

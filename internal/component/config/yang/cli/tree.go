@@ -70,7 +70,9 @@ func buildUnifiedTree() (*AnalysisNode, error) {
 		return nil, fmt.Errorf("config nodes: %w", err)
 	}
 
-	addCommandNodes(root)
+	if err := addCommandNodes(root); err != nil {
+		return nil, fmt.Errorf("command nodes: %w", err)
+	}
 
 	return root, nil
 }
@@ -159,14 +161,19 @@ func walkYANGEntry(parent *AnalysisNode, name string, entry *gyang.Entry) {
 }
 
 // addCommandNodes builds the command tree from YANG -cmd modules and merges it.
-func addCommandNodes(root *AnalysisNode) {
-	loader, _ := yang.DefaultLoader()
+// A loader failure is returned: a nil loader has no command tree to merge.
+func addCommandNodes(root *AnalysisNode) error {
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return fmt.Errorf("YANG loader: %w", err)
+	}
 	cmdTree := yang.BuildCommandTree(loader)
 	if cmdTree == nil || cmdTree.Children == nil {
-		return
+		return nil
 	}
 
 	walkCommandNode(root, cmdTree)
+	return nil
 }
 
 // walkCommandNode recursively merges command.Node entries into the analysis tree.

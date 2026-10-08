@@ -248,7 +248,10 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	}
 
 	// Extract authz profiles from config (independent of SSH).
-	authzStore := infra.ExtractAuthzStore(tree)
+	authzStore, err := infra.ExtractAuthzStore(tree)
+	if err != nil {
+		return nil, fmt.Errorf("authorization config: %w", err)
+	}
 
 	// Infrastructure setup: SSH server, authz, CLI wiring.
 	// Delegated to the hub-provided hook to avoid bgpconfig importing

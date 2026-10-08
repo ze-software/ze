@@ -3,6 +3,7 @@
 package yang
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/callsite"
@@ -27,6 +28,19 @@ var modules []Module
 // Order of registration does not matter — goyang resolves imports during Resolve().
 func RegisterModule(name, content string) {
 	modules = append(modules, Module{Name: name, Content: content, Registrar: callsite.Package(2)})
+}
+
+// RegisterModuleForTest registers one more YANG module for the duration of a
+// test and returns the function that restores the registry as it was. A test
+// in another package uses it to make DefaultLoader fail, for example with a
+// misspelled extension, and to prove its caller surfaces that error.
+// MUST be paired with a call to the returned restore, typically through
+// t.Cleanup. Not safe for concurrent use: a test that calls it MUST NOT run
+// in parallel with another test that loads YANG.
+func RegisterModuleForTest(name, content string) (restore func()) {
+	saved := modules
+	modules = append(slices.Clone(saved), Module{Name: name, Content: content, Registrar: callsite.Package(2)})
+	return func() { modules = saved }
 }
 
 // Modules returns all registered YANG modules.

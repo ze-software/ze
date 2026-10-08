@@ -78,7 +78,11 @@ func renderAIHelp(w io.Writer, args []string) int {
 	}
 
 	if showCLI {
-		printCLICommands(rw)
+		if err := printCLICommands(rw); err != nil {
+			var tb textbuf.Buffer
+			tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+			return 1
+		}
 	}
 	if showAPI {
 		printAPICommands(rw)
@@ -148,7 +152,7 @@ func printSummary(rw *helpfmt.RenderWriter) {
 	rw.Line("  Help:    ze help ai all")
 }
 
-func printCLICommands(rw *helpfmt.RenderWriter) {
+func printCLICommands(rw *helpfmt.RenderWriter) error {
 	rw.Line("## CLI Subcommands")
 	rw.Line("")
 	rw.Line("  ze [global-flags] <command> [options]")
@@ -169,7 +173,10 @@ func printCLICommands(rw *helpfmt.RenderWriter) {
 
 	// CLI tree. The subcommand list is static text that matches the dispatcher
 	// in cmd/ze/main.go. It changes rarely and is verified by functional tests.
-	cmds := aihelp.CLISubcommands()
+	cmds, err := aihelp.CLISubcommands()
+	if err != nil {
+		return err
+	}
 	for _, c := range cmds {
 		var tb textbuf.Buffer
 		tb.Str("  ze ").PadRight(c.Name, 14).Str(" [").PadRight(c.Mode, 7).Str("] ").Str(c.ShortHelp)
@@ -181,6 +188,7 @@ func printCLICommands(rw *helpfmt.RenderWriter) {
 		}
 	}
 	rw.Line("")
+	return nil
 }
 
 func printAPICommands(rw *helpfmt.RenderWriter) {
@@ -637,7 +645,13 @@ func printAIHelpJSON(w io.Writer) int {
 	rw := helpfmt.NewRenderWriter(w)
 	enc := json.NewEncoder(rw)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(aihelp.Build()); err != nil {
+	ref, err := aihelp.Build()
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+		return 1
+	}
+	if err := enc.Encode(ref); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // one-shot error to stderr
 		return 1
 	}

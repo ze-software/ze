@@ -755,9 +755,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if apiTokenEnv != "" && apiCfg.Token == "" {
 		apiCfg.Token = apiTokenEnv
 	}
+	bootAuthz, bootAuthzErr := infra.ExtractAuthzStore(loadResult.Tree)
+	if bootAuthzErr != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: authorization config: ").Err(bootAuthzErr).Byte('\n')
+		tb.StdErr() //nolint:errcheck // the process is exiting on the next line
+		logStartupFailure("authorization config", bootAuthzErr)
+		return 1
+	}
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(
 		bootUsers,
-		infra.ExtractAuthzStore(loadResult.Tree),
+		bootAuthz,
 		resolveCandidateUsers,
 		apiCfg.Token,
 	))

@@ -31,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ephemeralPollInterval is the interval between SSH port readiness checks.
@@ -201,9 +202,13 @@ func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials, username,
 const createPromptTimeout = 10 * time.Second
 
 // buildEditorCommandTree builds a command.Node tree from YANG command modules.
-func buildEditorCommandTree() *command.Node {
-	loader, _ := yang.DefaultLoader()
-	return yang.BuildCommandTree(loader)
+// A loader failure, such as a misspelled extension, is returned with its cause.
+func buildEditorCommandTree() (*command.Node, error) {
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, fmt.Errorf("YANG loader: %w", err)
+	}
+	return yang.BuildCommandTree(loader), nil
 }
 
 // promptCreateConfig asks the user whether to create a missing config file.
@@ -565,7 +570,13 @@ func runBackupModel(ed *cli.Editor) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
-	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
+	cmdTree, err := buildEditorCommandTree()
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output, the editor is not starting
+		return exitError
+	}
+	m.SetCommandCompleter(cli.NewCommandCompleter(cmdTree))
 	return runEditorProgram(&m)
 }
 
@@ -639,7 +650,13 @@ func runEditor(ed *cli.Editor, configPath, user string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
-	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
+	cmdTree, err := buildEditorCommandTree()
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output, the editor is not starting
+		return exitError
+	}
+	m.SetCommandCompleter(cli.NewCommandCompleter(cmdTree))
 	if credsErr == nil {
 		if tw := wireSSHCommandExecutor(&m, creds, os.Getenv("USER"), net.JoinHostPort(creds.Host, creds.Port)); tw != nil {
 			defer tw.Close() //nolint:errcheck // Best effort transcript.

@@ -110,9 +110,24 @@ those declarations, so a module that declares its own extension, as
 `ErrUndeclaredExtension` and names the module, the file location and the
 statement. `DefaultLoader`, which discards the other registered-module and
 import errors as best-effort, returns this one, so the daemon, the CLI and the
-`./le` tools all refuse the same schema.
+`./le` tools all refuse the same schema. These callers return the error with
+its cause and never work from the nil loader: an SSH session and the config
+editor refuse to build their completion tree, `ze help ai` and the MCP
+`ze_reference` tool fail, `ze yang` fails, interface-name validation fails
+rather than accept a reserved CLI keyword, and authorization profile
+extraction fails at daemon start and on reload instead of checking match
+entries against an empty command set. Two callers still discard it, recorded
+in `plan/journal/discarded-error-becomes-destructive.md`: the API and MCP
+command metadata (`commandMetaSource`) and the `ze cli` client's package-init
+loader.
 
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildCommandTree -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- buildEditorCommandTree -->
+<!-- source: internal/component/aihelp/aihelp.go -- CLISubcommands, Build -->
+<!-- source: internal/component/config/yang/cli/tree.go -- addCommandNodes -->
+<!-- source: internal/component/config/infra/authz.go -- validateMatchEntries -->
+<!-- source: internal/component/iface/validate.go -- loadReservedIfaceNames -->
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- all extension definitions -->
 

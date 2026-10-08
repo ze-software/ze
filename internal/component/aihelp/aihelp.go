@@ -13,6 +13,7 @@
 package aihelp
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -138,16 +139,18 @@ type ServiceRef struct {
 // Verb commands that also appear as root commands (duplicates) are
 // de-duplicated: the root-command metadata wins because it carries a richer
 // description and sub-path hint.
-func CLISubcommands() []CLICommand {
+//
+// A YANG loader failure, such as a misspelled extension, is returned: without
+// the verb tree the list would silently lose every YANG verb.
+func CLISubcommands() ([]CLICommand, error) {
 	seen := map[string]bool{}
 	var cmds []CLICommand
 
 	loader, err := yang.DefaultLoader()
-	var yangTree *command.Node
-	if err == nil {
-		yangTree = yang.BuildCommandTree(loader)
+	if err != nil {
+		return nil, fmt.Errorf("YANG loader: %w", err)
 	}
-	if yangTree != nil {
+	if yangTree := yang.BuildCommandTree(loader); yangTree != nil {
 		for _, name := range sortedChildren(yangTree) {
 			child := yangTree.Children[name]
 			desc := child.ShortHelp
@@ -187,7 +190,7 @@ func CLISubcommands() []CLICommand {
 		})
 	}
 
-	return cmds
+	return cmds, nil
 }
 
 // sortedChildren returns sorted child names of a command node.
@@ -341,8 +344,14 @@ func Services() []Service {
 
 // Build assembles the full machine-readable reference from the live registries
 // and YANG schemas. The result is identical to `ze help ai --json`.
-func Build() Reference {
-	ref := Reference{Commands: CLISubcommands()}
+// A YANG loader failure is returned with its cause: the reference would
+// otherwise publish no YANG verb and an empty dispatch-key map.
+func Build() (Reference, error) {
+	commands, err := CLISubcommands()
+	if err != nil {
+		return Reference{}, err
+	}
+	ref := Reference{Commands: commands}
 
 	schemaReg := SchemaRegistry()
 	for _, rpc := range schemaReg.ListRPCs("") {
@@ -365,9 +374,11 @@ func Build() Reference {
 		ref.RPCs = append(ref.RPCs, RPC{WireMethod: brpc.WireMethod})
 	}
 
-	if loader, err := yang.DefaultLoader(); err == nil {
-		ref.DispatchKeys = yang.WireMethodToPath(loader)
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return Reference{}, fmt.Errorf("YANG loader: %w", err)
 	}
+	ref.DispatchKeys = yang.WireMethodToPath(loader)
 	if ref.DispatchKeys == nil {
 		ref.DispatchKeys = map[string]string{}
 	}
@@ -392,5 +403,5 @@ func Build() Reference {
 		ref.Services = append(ref.Services, ServiceRef{Name: svc.Name, Leaves: leafNames})
 	}
 
-	return ref
+	return ref, nil
 }

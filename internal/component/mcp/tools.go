@@ -944,7 +944,11 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 	// from the same source as `ze help ai --json` (internal/component/aihelp),
 	// so an MCP client can discover this instance's capabilities on connect.
 	"ze_reference": func(_ *server, _ json.RawMessage) map[string]any {
-		data, err := json.MarshalIndent(aihelp.Build(), "", "  ")
+		ref, err := aihelp.Build()
+		if err != nil {
+			return ErrResult(err.Error())
+		}
+		data, err := json.MarshalIndent(ref, "", "  ")
 		if err != nil {
 			return ErrResult("could not marshal AI reference")
 		}
