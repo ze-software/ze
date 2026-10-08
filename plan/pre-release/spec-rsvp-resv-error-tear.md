@@ -124,7 +124,7 @@ Wire bytes in, wire bytes out through the transport; admission controller and FI
 
 ### Documentation Update Checklist
 
-- [ ] No page describes behavior this work changed: no producer code changed
+- [ ] Producer changes made during review and interop carry their page edits: `pathTearIgnored` (1d457b0d52) in `docs/architecture/rsvpte/mpls-rsvp-te.md`, the ResvTear FLOWSPEC (9b8bfe250c) in the same page, the interop scenarios (23ec2ebd51) in `docs/architecture/testing/interop.md`; the RFC 2205 public row (`rfc/short/rfc2205.md` Support coverage and remaining) names the reservation-control coverage and the freeRouter evidence (closure)
 
 ### Deliverables Checklist
 
@@ -262,3 +262,136 @@ the red runs used a copy of the tree with the producer broken, run with
 
 All four Closure Review interop items now have a passing scenario. Closure
 itself stays with the spec's close phase.
+
+## Implementation Summary
+
+### What Was Implemented
+- Twelve tagged RFC 2205 tests (`internal/plugins/rsvpte/rfc2205_resv_error_test.go`, 6ad44e4ee0) with twelve revert-route records in `rfc/discrimination/rfc2205.json` (re-recorded in f3f77ffbf2); six rows lose `{gap}` in `rfc/short/rfc2205.md`.
+- Source-check tests `internal/plugins/rsvpte/resv_control_source_test.go` (603b939a68).
+- Interop: scenarios `transit-resv-increase-refused-in-place`, `ingress-resv-error-relayed`, `transit-resv-tear-relayed`, `transit-ff-resv-unknown-sender` in `test/interop-rsvpte/scenarios/`, checkers in `internal/le/interoplab/rsvpte/checkers.go` (3d9a305b1d, 5947c4577e, 23ec2ebd51).
+
+### Bugs Found/Fixed
+- A PathTear with an unknown-C-Type SENDER_TSPEC or ADSPEC was rejected whole (`wire.go::DecodeMessage` ran `knownCType` first); fixed by `message_validation.go::pathTearIgnored` in 1d457b0d52, covered by `TestPathTearUnknownCTypeObjectsIgnored`.
+- Ze omitted the optional FLOWSPEC in ResvTear and ADSPEC in PathErr, which freeRouter discards; 9b8bfe250c writes them (`reservation_build.go::buildReservationControl`, `build.go::buildPathErr`), covered by `error_descriptor_test.go` and `transit-resv-tear-relayed`.
+
+### Documentation Updates
+- `docs/architecture/rsvpte/mpls-rsvp-te.md` (PathTear ignored objects, ResvTear FLOWSPEC) and `docs/architecture/testing/interop.md` (rsvpte suite, freeRouter patch), in the commits above.
+- Closure: `rfc/short/rfc2205.md` Support coverage names the reservation-control producers and the freeRouter scenarios; the last Support remaining sentence no longer reads as if no independent-peer evidence exists. `./le rfc index-update` regenerated the ignored `docs/features/rfc-status.md`.
+- `./le doc check verify`: exit 1 on 820 wire-method catalog drift rows (`command "show ..." is missing wire method`), none naming an rsvpte page or `rfc2205`; they belong to the in-flight RPC published-name work.
+
+### Deviations from Plan
+- Producer code changed (1d457b0d52, 9b8bfe250c) although the plan said proof only: a review defect and an interop finding, both above.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The RFC 2205 public row described only the codec after six reservation-control rows were proven and freeRouter evidence landed | A newly proven behavior updates the RFC public row in the same work (`/ze-close` step 4, RFC status) | Closure step 4 | Fixed in closure commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| RFC2205-2-8 | Done | `reservation.go::handleResvErr` | AC-1 |
+| RFC2205-3-13 | Done | `message_validation.go::pathTearIgnored`, `wire.go::DecodeMessage` | AC-2 |
+| RFC2205-3-17 | Done | `reservation.go::handleResvTear`, `removeReservation` | AC-3 |
+| RFC2205-3-18 | Done | `reservation.go::acceptReservation` | AC-4 |
+| RFC2205-3-19 | Done | `reservation_build.go::buildReservationControl`, `rejectReservation` | AC-5 |
+| RFC2205-3-20 | Done | `reservation.go::acceptReservation` (`old != nil` sets InPlace) | AC-6 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC2205ResvErrRelayedToReceiver`, `TestRFC2205ResvErrForOtherSenderNotRelayed` | |
+| AC-2 | Done | `TestRFC2205PathTearObjectsIgnored`, `TestRFC2205PathTearTSpecNotUsed` | |
+| AC-3 | Done | `TestRFC2205ResvTearRoutedLikeResv`, `TestRFC2205ResvTearForOtherHopNotRouted` | |
+| AC-4 | Done | `TestRFC2205FixedFilterErrorPerDescriptor`, `TestRFC2205FixedFilterGoodDescriptorKept` | |
+| AC-5 | Done | `TestRFC2205ResvErrCarriesErrorAndRoute`, `TestRFC2205ResvErrWrongStyleNotRouted` | |
+| AC-6 | Done | `TestRFC2205FailedIncreaseLeavesReservationInPlace`, `TestRFC2205FailedFirstReservationNotInPlace` | |
+| AC-7 | Done | `rfc/short/rfc2205.md` | 0 `{gap}` on the six rows; 43 MUST gaps |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The twelve `TestRFC2205*` of the TDD plan | Done | `internal/plugins/rsvpte/rfc2205_resv_error_test.go` | each tagged, each with a revert record |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/rsvpte/rfc2205_resv_error_test.go` | Done | 12 tags |
+| `rfc/discrimination/rfc2205.json` | Done | 12 records name this file |
+| `rfc/short/rfc2205.md` | Done | plus the closure Support cell edit |
+
+### Audit Summary
+- **Total items:** 6 requirements, 7 ACs, 12 tests, 3 files
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** producer code changed (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| ResvErr reaches the responsible receiver | interop + unit | `ingress-resv-error-relayed` PASS (freeRouter relays Ze's ResvErr, code 1/2 intact; red with the code changed, `rsvpte-disc-run10.log`); AC-1 tests |
+| ResvTear routed like the Resv, mismatched tears ignored | interop + unit | `transit-resv-tear-relayed` PASS (`rsvpte-run9.log`, red in `rsvpte-run8.log`); AC-3 tests; `TestResvTearFromWrongSourceIgnored`, red with `samePeer` removed (re-observed at closure by Go overlay) |
+| FF descriptors processed independently | interop + unit | `transit-ff-resv-unknown-sender` PASS (`rsvpte-ff-run1.log`, red `rsvpte-ff-disc.log`); AC-4 tests |
+| A failed increase keeps the reservation, InPlace on | interop + unit | `transit-resv-increase-refused-in-place` PASS (`rsvpte-inplace-run4.log`, red `rsvpte-inplace-disc3.log`); AC-6 tests |
+| Whole suite | interop | `rsvpte-full-run.log` 7 passed; a later run `close-review-rsvpte-run2.log` 6/7 on a `docker run -d` timeout, the failed scenario green on re-run in `close-review-rsvpte-run3.log`. Logs in `tmp/session/2026-10-07-450bc92b-6ac1-4190-bd40-b427ecba17bf/scratch/` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None in scope. Multicast merge fan-out and WF style are absent RFC 2205 features outside this scope (Risks & Assumptions, Scope) and stay `{gap}` rows | not authorized scope | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rsvp-resv-error-tear-450bc92b-6ac1-4190-bd40-b427ecba17bf.md` (8 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 2 (round 2 covered only the closure edit to `rfc/short/rfc2205.md`) |
+| Reviewer lenses used | logic+wiring over `acceptReservation`, `handleResvErr`, `handleResvTear`, `removeReservation`, `buildReservationControl`, `pathTearIgnored`; security (source checks re-proven by overlay mutation); RFC and docs |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | RFC 2205 public row described only the codec and implied no independent-peer evidence | `rfc/short/rfc2205.md` Meta | Support coverage and remaining edited in closure |
+
+NOTEs: the Deliverables command names `-tags ze_rsvpte`, a tag no file uses (harmless); `./le rfc check` reports five SHIFTED rfc3209 verdicts left by 9b8bfe250c's test-file shifts, which the session holding `rfc/audit/rfc3209.json` is re-judging in its working tree; `./le repo check` and `./le commit audit base origin/main` findings all name other sessions' BGP files, none rsvpte.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/rsvpte/rfc2205_resv_error_test.go` | yes | `grep -c "RFC requirement: RFC2205-"` prints 12 |
+| `internal/plugins/rsvpte/resv_control_source_test.go` | yes | its four tests PASS (`close-rsvpte-v.log`) |
+| `test/interop-rsvpte/scenarios/` | yes | lists the four Closure Review scenarios |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-6 | the twelve tests pass | `go test -count=1 -v -run 'TestRFC2205\|TestPathTearUnknownCTypeObjectsIgnored\|TestResvErrFrom\|TestResvTearFrom' ./internal/plugins/rsvpte/`: 0 FAIL (`close-rsvpte-v.log`); full package ok (`close-rsvpte-test.log`) |
+| AC-7 | six rows carry no `{gap}`, 43 MUST gaps | the two Deliverables greps print 0 and 43 |
+| records | 12 records, none stale | `rfc/discrimination/rfc2205.json` names all twelve units; `./le rfc check` prints no rfc2205 line (`close-rfccheck2.log`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `engine.handlePacket` | none: unit tests drive encoded bytes through `handlePacket`; the daemon path is the interop suite | `TestResvErrFromWrongSourceIgnored` red with `samePeer` removed from `handleResvErr`, `TestResvTearFromWrongSourceIgnored` red with it removed from `handleResvTear` (Go overlay at closure, `close-mutA.log`, `close-mutB.log`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| Scope | confirmed | `handleResvErr` and `acceptReservation` walk explicit descriptors only; no WF path exists |
+| Revert route | confirmed | the records plus the overlay mutations under Acceptance Criteria |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| PathTear objects ignored | `message_validation.go::pathTearIgnored` runs before `knownCType` in `wire.go::DecodeMessage` | yes |
+| ResvTear carries FLOWSPEC | `reservation_build.go::buildReservationControl` writes FLOWSPEC for every kind; `removeReservation` passes the RSB FLOWSPEC | yes |
+| RFC 2205 Support coverage | `checkers.go::checkIncreaseInPlace`, `checkFFUnknownSender`, `checkResvErrRelayed`, `checkResvTearRelayed` | yes |
