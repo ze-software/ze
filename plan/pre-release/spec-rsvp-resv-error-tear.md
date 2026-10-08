@@ -213,9 +213,30 @@ scratch `rsvpte-run8.log` (3 passed, 2 failed) before commit 9b8bfe250c, and
 
 | Needed (Closure Review) | Scenario | Result |
 |-------------------------|----------|--------|
-| (1) Ze ResvErr with InPlace on an increase | none | Not covered: freeRouter re-signals a new LSP-ID on a bandwidth change (`clntMplsTeP2p.workDoer`), so no peer drives an in-place increase |
+| (1) Ze ResvErr with InPlace on an increase | `transit-resv-increase-refused-in-place` | PASS (`rsvpte-inplace-run4.log`). Patched freeRouter egress (see below): the ingress signals 10 Mbit/s, Ze's eth0 reserves 100 Mbit/s, and the egress's second RESV raises the same session, sender and LSP-ID to 1 Gbit/s. The egress captures Ze's ResvErr naming the transit, code 1 value 2, ERROR_SPEC flags `0x01`; the swap stays installed and the ingress never receives the raised rate. Discrimination (`rsvpte-inplace-disc3.log`): with `old != nil` replaced by `false` in the admission-failure `rejectReservation` call of `acceptReservation`, the check goes red ("ResvErr for a failed increase does not carry InPlace (0x01)", captured `Flags: [0x00]`); restored, it passes |
 | (2) a ResvErr relayed across a peer | `ingress-resv-error-relayed` | PASS. The Ze ingress refuses the RESV freeRouter relays (admission), freeRouter captures its ResvErr, and the Ze egress captures it as freeRouter relays it, error node, code 1 and value 2 intact. Discrimination: with the admission refusal in `acceptReservation` sending Traffic Control instead, the check goes red ("relayed ResvErr carries Error Code 22, want 1 Admission Control failure"); restored, it passes |
 | (3) a ResvTear reaching the ingress | `transit-resv-tear-relayed` | PASS (`rsvpte-run9.log`). With the Ze egress frozen (`SIGSTOP`), the Ze transit's reservation times out, its ResvTear is in freeRouter's capture, and the Ze ingress captures it as freeRouter relays it. Red in `rsvpte-run8.log` while Ze omitted the optional FLOWSPEC, which `packRsvp.parseDatResTer` requires (RFC 2205 Section 3.1.6: "FLOWSPEC objects in the flow descriptor list of a ResvTear message will be ignored and may be omitted."). Since 9b8bfe250c `buildReservationControl` writes the torn-down reservation's FLOWSPEC, per the owner's decision of 2026-10-08 |
-| (4) FF Resv with an unknown sender | none | Not covered: every freeRouter RESV names its own one sender |
+| (4) FF Resv with an unknown sender | `transit-ff-resv-unknown-sender` | PASS (`rsvpte-ff-run1.log`). Patched freeRouter egress: every RESV is fixed-filter with a second descriptor naming LSP-ID+1 of the same sender, which has no PATH. The egress captures one ResvErr from the transit naming only the unknown LSP-ID, Error Code 4 No sender information, and none naming the real sender; the ingress receives a labeled FF RESV naming only the real sender and the swap is installed. Discrimination (`rsvpte-ff-disc.log`): with the `!found` branch of `acceptReservation` returning before `rejectReservation`, the check goes red ("egress receives the Ze transit's ResvErr" timed out, with the two-descriptor FF RESV in the egress's capture); restored, it passes |
 
-Not ready for closure: the owner decides how (1) and (4) are proven.
+How (1) and (4) are driven (owner decision 2026-10-08: patch freeRouter, no
+separate spec): the pinned freeRouter can neither raise a reservation in place
+nor name a sender it has no path for, so `Dockerfile.freertr` applies
+`test/interop-rsvpte/freertr/ze-interop-resv.patch` to the pinned revision. It
+adds two knobs to the RESV a freeRouter egress originates, each off unless its
+environment variable is set, which a scenario sets in `egress-env.txt`
+(`docs/architecture/testing/interop.md`). The five earlier scenarios set
+neither and run the upstream behavior. RFC 2205 Section 3.1.8: "If the error is
+an admission control failure while attempting to increase an existing
+reservation, then the existing reservation must be left in place and the
+InPlace flag bit must be on in the ERROR_SPEC of the ResvErr message." and
+"Each flow descriptor in a FF-style Resv message must be processed
+independently, and a separate ResvErr message must be generated for each one
+that is in error." Appendix B, Error Code 04: "There is path state for this
+session, but it does not include the sender matching some flow descriptor
+contained in the Resv message." No Ze defect was found on either item. Logs are
+in session scratch `tmp/session/2026-10-07-450bc92b-6ac1-4190-bd40-b427ecba17bf/scratch/`;
+the red runs used a copy of the tree with the producer broken, run with
+`ZE_REPO_ROOT=<copy>`. Full suite after the change: `rsvpte-full-run.log`.
+
+All four Closure Review interop items now have a passing scenario. Closure
+itself stays with the spec's close phase.

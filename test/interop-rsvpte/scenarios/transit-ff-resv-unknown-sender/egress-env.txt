@@ -1,0 +1,3 @@
+# Every RESV this egress originates is fixed-filter and carries a second flow
+# descriptor naming LSP-ID+1 of the same sender, which never signalled a PATH.
+FREERTR_ZE_RESV_FF_EXTRA_SENDER=1

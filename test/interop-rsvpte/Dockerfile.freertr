@@ -4,14 +4,22 @@
 # (internal/le/interoplab/rsvpte): Java 21, the jar, rawInt.bin bound to the
 # container's eth0, and tcpdump, which records the RSVP the peer receives.
 # `--target export` writes /peer for the root-only guest carrier instead.
-# freeRouter and its unchanged interface helpers are CC BY-SA 4.0; retain
-# /peer/NOTICE and /peer/source.tar.gz when redistributing these artifacts.
+# freeRouter, patched by freertr/ze-interop-resv.patch, and its unchanged
+# interface helpers are CC BY-SA 4.0; retain /peer/NOTICE, /peer/source.tar.gz
+# and /peer/ze-interop-resv.patch when redistributing these artifacts.
 FROM alpine:3.21.3 AS build
 RUN apk add --no-cache ca-certificates curl openjdk21-jdk build-base linux-headers zip
 WORKDIR /src/freertr
 RUN curl --fail --location --output /tmp/source.tar.gz \
     https://codeload.github.com/mc36/freeRtr/tar.gz/6c295d8ae79c834ef631d3d21d373c335fb05328 \
     && tar -xzf /tmp/source.tar.gz --strip-components=1
+# The one source change: freertr/ze-interop-resv.patch adds two test knobs to
+# the RESV an egress originates, each off unless its environment variable is
+# set (FREERTR_ZE_RESV_RATE_AT, FREERTR_ZE_RESV_FF_EXTRA_SENDER). The unpatched
+# jar has no way to raise a reservation in place or to name a sender it has no
+# path for, which the scenarios proving Ze's reaction to both need.
+COPY freertr/ze-interop-resv.patch /tmp/ze-interop-resv.patch
+RUN patch -p1 < /tmp/ze-interop-resv.patch
 # Upstream src/compiler.txt selects --release 21 and compiles router.java's
 # dependencies. src/cp.sh packages binOut with the upstream manifest.
 WORKDIR /src/freertr/src
@@ -24,6 +32,7 @@ RUN mkdir -p /peer \
     && cc -O2 -static -pthread -o /peer/rawInt.bin misc/iface/rawInt.c \
     && cp src/rtr.jar /peer/rtr.jar \
     && cp /tmp/source.tar.gz /peer/source.tar.gz \
+    && cp /tmp/ze-interop-resv.patch /peer/ze-interop-resv.patch \
     && cp readme.md /peer/upstream-readme.md \
     && cp src/org/freertr/util/version.java /peer/upstream-version.java \
     && printf '%s\n' 6c295d8ae79c834ef631d3d21d373c335fb05328 > /peer/REVISION

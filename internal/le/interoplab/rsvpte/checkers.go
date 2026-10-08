@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,6 +23,19 @@ const (
 	scenarioStrictForwarded = "transit-strict-hop-forwarded"
 	scenarioStrictRefused   = "transit-strict-hop-outside-refused"
 	scenarioResvTearRelayed = "transit-resv-tear-relayed"
+	scenarioIncreaseInPlace = "transit-resv-increase-refused-in-place"
+	scenarioFFUnknownSender = "transit-ff-resv-unknown-sender"
+
+	// raisedRate is how tcpdump prints the FLOWSPEC rate the patched egress
+	// asks once in transit-resv-increase-refused-in-place: 125000000 bytes/s
+	// (egress-env.txt), 1 Gbit/s, ten times what the Ze transit's eth0 reserves.
+	raisedRate = "1000 Mbps"
+
+	// freeRtrRefresh is the pinned freeRouter's PATH refresh period
+	// (ipFwd.untriggeredRecomputation, 120 s, not configurable). A freeRouter
+	// egress originates a RESV only when a PATH arrives, so its second RESV
+	// follows the ingress's first refresh by up to this long.
+	freeRtrRefresh = 120 * time.Second
 
 	captureFile = "/run/fr/rsvp.txt"
 
@@ -343,6 +357,160 @@ func checkResvTearRelayed(ctx context.Context, lab interoplab.CheckerLab, timeou
 		return isMessage(message, addressFreeRtrRelay, addressZeIngress, "ResvTear Message")
 	})
 	return err
+}
+
+// checkIncreaseInPlace proves RFC 2205 Section 3.1.8 for an in-place increase
+// at a Ze transit: freeRouter ingress, Ze transit, patched freeRouter egress.
+// The ingress signals 10 Mbit/s. Once the LSP is up the egress's second RESV,
+// answering the ingress's first PATH refresh, raises its reservation to
+// 1 Gbit/s, same session, sender and LSP-ID, past the 100 Mbit/s Ze's eth0
+// reserves. Ze MUST send the egress a ResvErr naming itself, Admission Control
+// failure (1) / requested bandwidth unavailable (2), with the InPlace flag on,
+// MUST NOT relay the raised request upstream, and MUST keep the reservation it
+// holds: its swap stays installed.
+func checkIncreaseInPlace(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	if _, err := waitMessage(ctx, lab, peerIngress, "ingress receives Ze's RESV", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressFreeRtrIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
+	}); err != nil {
+		return err
+	}
+	if err := waitSwap(ctx, lab, addressFreeRtrEgress, timeout); err != nil {
+		return err
+	}
+	// The positive control: the stimulus crossed the wire. Without it a
+	// missing ResvErr would read the same as a knob that never fired.
+	if _, err := waitMessage(ctx, lab, peerTransit, "Ze transit receives the raised RESV", timeout+freeRtrRefresh, func(message rsvpMessage) bool {
+		return isMessage(message, addressFreeRtrEgress, addressZeTransit, "Resv Message") && strings.Contains(message.text, raisedRate)
+	}); err != nil {
+		return err
+	}
+	refusal, err := waitMessage(ctx, lab, peerEgress, "egress receives the Ze transit's ResvErr", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressFreeRtrEgress, "ResvErr Message") && strings.Contains(message.text, errorFrom(addressZeTransit))
+	})
+	if err != nil {
+		return err
+	}
+	code, value, err := errorSpec(refusal.text)
+	if err != nil {
+		return err
+	}
+	if code != "1" {
+		return fmt.Errorf("ResvErr carries Error Code %s, want 1 Admission Control failure:\n%s", code, refusal.text)
+	}
+	if value != "2" {
+		return fmt.Errorf("ResvErr carries Error Value %s, want 2 requested bandwidth unavailable:\n%s", value, refusal.text)
+	}
+	// RFC 2205 Appendix A.5: InPlace is flag 0x01 of the ERROR_SPEC.
+	if !strings.Contains(refusal.text, errorFrom(addressZeTransit)+" Flags: [0x01]") {
+		return fmt.Errorf("ResvErr for a failed increase does not carry InPlace (0x01):\n%s", refusal.text)
+	}
+	if err := waitSwap(ctx, lab, addressFreeRtrEgress, timeout); err != nil {
+		return fmt.Errorf("the reservation in place lost its swap after the refused increase: %w", err)
+	}
+	capture, err := lab.Query(ctx, peerIngress, []string{"cat", captureFile}, nil)
+	if err != nil {
+		return err
+	}
+	for _, message := range parseCapture(capture) {
+		if isMessage(message, addressZeTransit, addressFreeRtrIngress, "Resv Message") && strings.Contains(message.text, raisedRate) {
+			return fmt.Errorf("the Ze transit relayed the refused increase upstream:\n%s", message.text)
+		}
+	}
+	return nil
+}
+
+// checkFFUnknownSender proves RFC 2205 Section 3.1.8 for a fixed-filter RESV
+// at a Ze transit: freeRouter ingress, Ze transit, patched freeRouter egress.
+// Every RESV the egress sends is fixed-filter and carries a second flow
+// descriptor naming LSP-ID+1, a sender with no path state. Ze MUST send the
+// egress a ResvErr for that descriptor alone (one FILTER_SPEC, the unknown
+// LSP-ID, No sender information (4)), MUST NOT name the known sender in any
+// ResvErr, and MUST bring the known sender's LSP up: a labeled RESV naming
+// only that sender reaches the ingress and the swap is installed.
+func checkFFUnknownSender(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	path, err := waitMessage(ctx, lab, peerEgress, "egress receives Ze's PATH", timeout, func(message rsvpMessage) bool {
+		return strings.Contains(message.text, "Path Message") && strings.Contains(message.text, hopFrom(addressZeTransit))
+	})
+	if err != nil {
+		return err
+	}
+	senders := lspIDs(path.text)
+	if len(senders) != 1 {
+		return fmt.Errorf("PATH names LSP-IDs %q, want one sender:\n%s", senders, path.text)
+	}
+	known := senders[0]
+	// The positive control: the stimulus crossed the wire.
+	stimulus, err := waitMessage(ctx, lab, peerTransit, "Ze transit receives the two-sender FF RESV", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressFreeRtrEgress, addressZeTransit, "Resv Message") && strings.Contains(message.text, "Fixed Filter") &&
+			len(lspIDs(message.text)) == 2
+	})
+	if err != nil {
+		return err
+	}
+	unknown := ""
+	for _, id := range lspIDs(stimulus.text) {
+		if id != known {
+			unknown = id
+		}
+	}
+	if unknown == "" {
+		return fmt.Errorf("FF RESV names no sender beside the known LSP-ID %s:\n%s", known, stimulus.text)
+	}
+	refusal, err := waitMessage(ctx, lab, peerEgress, "egress receives the Ze transit's ResvErr", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressFreeRtrEgress, "ResvErr Message") && strings.Contains(message.text, errorFrom(addressZeTransit))
+	})
+	if err != nil {
+		return err
+	}
+	if named := lspIDs(refusal.text); !slices.Equal(named, []string{unknown}) {
+		return fmt.Errorf("ResvErr names LSP-IDs %q, want only the unknown sender %s:\n%s", named, unknown, refusal.text)
+	}
+	code, _, err := errorSpec(refusal.text)
+	if err != nil {
+		return err
+	}
+	// RFC 2205 Appendix B: Error Code 4, "No sender information for this
+	// Resv message"; the session has path state, only this sender has none.
+	if code != "4" {
+		return fmt.Errorf("ResvErr carries Error Code %s, want 4 No sender information:\n%s", code, refusal.text)
+	}
+	relayed, err := waitMessage(ctx, lab, peerIngress, "ingress receives Ze's RESV", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressFreeRtrIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
+	})
+	if err != nil {
+		return err
+	}
+	if named := lspIDs(relayed.text); !slices.Equal(named, []string{known}) {
+		return fmt.Errorf("RESV Ze relays names LSP-IDs %q, want only the known sender %s:\n%s", named, known, relayed.text)
+	}
+	if err := waitSwap(ctx, lab, addressFreeRtrEgress, timeout); err != nil {
+		return err
+	}
+	capture, err := lab.Query(ctx, peerEgress, []string{"cat", captureFile}, nil)
+	if err != nil {
+		return err
+	}
+	for _, message := range parseCapture(capture) {
+		if isMessage(message, addressZeTransit, addressFreeRtrEgress, "ResvErr Message") && slices.Contains(lspIDs(message.text), known) {
+			return fmt.Errorf("a ResvErr names the known sender %s:\n%s", known, message.text)
+		}
+	}
+	return nil
+}
+
+// lspIDs answers every LSP-ID tcpdump prints in one message, in order: one per
+// SENDER_TEMPLATE or FILTER_SPEC of an LSP tunnel.
+func lspIDs(text string) []string {
+	var ids []string
+	for line := range strings.SplitSeq(text, "\n") {
+		_, rest, found := strings.Cut(line, "LSP-ID: ")
+		if !found {
+			continue
+		}
+		id, _, _ := strings.Cut(rest, ",")
+		ids = append(ids, strings.TrimSpace(id))
+	}
+	return ids
 }
 
 // explicitRoute answers the subobject lines of a PATH's EXPLICIT_ROUTE object,

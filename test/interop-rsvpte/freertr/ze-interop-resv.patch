@@ -1,0 +1,78 @@
+diff -ru a/src/org/freertr/pack/packRsvp.java b/src/org/freertr/pack/packRsvp.java
+--- a/src/org/freertr/pack/packRsvp.java
++++ b/src/org/freertr/pack/packRsvp.java
+@@ -239,6 +239,12 @@
+     public int labelVal;
+ 
+     /**
++     * ze interop test only: append a second fixed-filter flow descriptor
++     * naming LSP-ID sndrId+1, a sender that has no path state
++     */
++    public boolean zeExtraSender;
++
++    /**
+      * path request
+      */
+     public final static int typPathReq = 1;
+@@ -1432,6 +1438,13 @@
+         createFlwSpc(pck, true);
+         createSndrTmp(pck, true);
+         createLabel(pck);
++        if (zeExtraSender) {
++            sndrId++;
++            createFlwSpc(pck, true);
++            createSndrTmp(pck, true);
++            createLabel(pck);
++            sndrId--;
++        }
+         createS2Lsub(pck);
+         createRecRout(pck);
+     }
+diff -ru a/src/org/freertr/rtr/rtrRsvpIface.java b/src/org/freertr/rtr/rtrRsvpIface.java
+--- a/src/org/freertr/rtr/rtrRsvpIface.java
++++ b/src/org/freertr/rtr/rtrRsvpIface.java
+@@ -28,6 +28,36 @@
+ public class rtrRsvpIface implements ipPrt {
+ 
+     /**
++     * ze interop test only: RESVs this node originated as an egress
++     */
++    private static int zeResvCount;
++
++    /**
++     * ze interop test only: alter a RESV this node originates as an egress.
++     * FREERTR_ZE_RESV_RATE_AT=n:rate sends only the n-th RESV with its
++     * FLOWSPEC rate (bytes/s) raised in place, same session and sender.
++     * FREERTR_ZE_RESV_FF_EXTRA_SENDER=1 sends fixed-filter RESVs carrying a
++     * second flow descriptor for a sender that has no path state.
++     *
++     * @param pck packet to alter
++     */
++    private static void zeInteropResv(packRsvp pck) {
++        zeResvCount++;
++        String v = System.getenv("FREERTR_ZE_RESV_RATE_AT");
++        if (v != null) {
++            int i = v.indexOf(':');
++            if (zeResvCount == Integer.parseInt(v.substring(0, i))) {
++                pck.flwSpcRate = Float.parseFloat(v.substring(i + 1));
++                logger.info("ze interop: resv " + zeResvCount + " raised to " + pck.flwSpcRate);
++            }
++        }
++        if (System.getenv("FREERTR_ZE_RESV_FF_EXTRA_SENDER") != null) {
++            pck.styleVal = 10;
++            pck.zeExtraSender = true;
++        }
++    }
++
++    /**
+      * counter
+      */
+     public counter cntr = new counter();
+@@ -266,6 +296,7 @@
+                         pckRvp.hopAdr = ntry.srcIfc.addr.copyBytes();
+                         pckRvp.styleVal = 18;
+                         pckRvp.labelVal = ntry.locLab.label;
++                        zeInteropResv(pckRvp);
+                         pckRvp.createDatResReq(pckBin);
+                         pckRvp.createHeader(pckBin);
+                         fwdCore.protoPack(ntry.srcIfc, ntry.srcHop, pckBin);

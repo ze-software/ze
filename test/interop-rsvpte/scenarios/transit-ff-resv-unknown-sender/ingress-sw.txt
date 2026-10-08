@@ -1,0 +1,25 @@
+hostname ingress
+vrf definition v1
+ rd 1:1
+ exit
+interface loopback0
+ vrf forwarding v1
+ ipv4 address 198.51.100.2 255.255.255.255
+ mpls rsvp4
+ exit
+interface ethernet1
+ vrf forwarding v1
+ ipv4 address 172.29.81.12 255.255.255.0
+ mpls enable
+ mpls rsvp4
+ exit
+ipv4 route v1 198.51.100.4 255.255.255.255 172.29.81.3
+interface tunnel1
+ tunnel source loopback0
+ tunnel destination 198.51.100.4
+ tunnel domain-name 172.29.81.3
+ tunnel vrf v1
+ tunnel mode p2pte
+ vrf forwarding v1
+ ipv4 address 10.254.0.1 255.255.255.252
+ exit

@@ -1,0 +1,4 @@
+# The 2nd RESV this egress originates, answering the ingress's first PATH
+# refresh, asks 125000000 bytes/s (1 Gbit/s) in place of the 10 Mbit/s the
+# ingress signals: same session, same sender, same LSP-ID.
+FREERTR_ZE_RESV_RATE_AT=2:125000000

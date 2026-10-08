@@ -64,7 +64,7 @@ func TestParseCaptureAndExplicitRoute(t *testing.T) {
 // VALIDATES: every scenario directory has a checker and the catalog resolves
 // through Discover. PREVENTS: a scenario directory the runner would refuse.
 func TestScenarioCatalog(t *testing.T) {
-	if got := ScenarioNames(); !slices.Equal(got, []string{scenarioResvErrRelayed, scenarioLooseExpansion, scenarioResvTearRelayed, scenarioStrictForwarded, scenarioStrictRefused}) {
+	if got := ScenarioNames(); !slices.Equal(got, []string{scenarioResvErrRelayed, scenarioFFUnknownSender, scenarioLooseExpansion, scenarioIncreaseInPlace, scenarioResvTearRelayed, scenarioStrictForwarded, scenarioStrictRefused}) {
 		t.Fatalf("scenario names %q", got)
 	}
 }
@@ -80,7 +80,10 @@ func TestScenarioPlanRolesFromFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	plan := scenarioPlan("t", interoplab.ScenarioSource{Name: "s", Directory: directory})
+	plan, err := scenarioPlan("t", interoplab.ScenarioSource{Name: "s", Directory: directory})
+	if err != nil {
+		t.Fatal(err)
+	}
 	var got []string
 	for _, peer := range plan.Peers {
 		got = append(got, peer.Name+"="+peer.Image)
@@ -91,6 +94,60 @@ func TestScenarioPlanRolesFromFiles(t *testing.T) {
 	}
 	if len(plan.Containers) != len(plan.Peers) {
 		t.Fatalf("containers %q for %d peers", plan.Containers, len(plan.Peers))
+	}
+}
+
+// VALIDATES: a freeRouter role's <role>-env.txt reaches that container as its
+// environment, comments and blank lines skipped, and a line that is not
+// NAME=value refuses the plan. PREVENTS: a mistyped knob that silently runs a
+// scenario against an unaltered peer.
+func TestScenarioPlanFreeRtrEnvironment(t *testing.T) {
+	directory := t.TempDir()
+	for _, name := range []string{"egress-hw.txt", "egress-sw.txt", "transit.conf", "transit-setup.sh"} {
+		if err := os.WriteFile(filepath.Join(directory, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	env := filepath.Join(directory, "egress-env.txt")
+	if err := os.WriteFile(env, []byte("# knob\n\nFREERTR_ZE_RESV_RATE_AT=4:125000000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := scenarioPlan("t", interoplab.ScenarioSource{Name: "s", Directory: directory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []interoplab.EnvironmentVariable{{Name: "FREERTR_ZE_RESV_RATE_AT", Value: "4:125000000"}}
+	for _, peer := range plan.Peers {
+		switch peer.Name {
+		case peerEgress:
+			if !slices.Equal(peer.Environment, want) {
+				t.Fatalf("egress environment %v, want %v", peer.Environment, want)
+			}
+		case peerTransit:
+			for _, variable := range peer.Environment {
+				if variable.Name == "FREERTR_ZE_RESV_RATE_AT" {
+					t.Fatal("the Ze transit received the freeRouter egress's knob")
+				}
+			}
+		}
+	}
+	if err := os.WriteFile(env, []byte("FREERTR_ZE_RESV_FF_EXTRA_SENDER\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := scenarioPlan("t", interoplab.ScenarioSource{Name: "s", Directory: directory}); err == nil {
+		t.Fatal("a line that is not NAME=value was accepted")
+	}
+}
+
+// TestLSPIDs proves the checker reads every LSP-ID tcpdump prints, in order,
+// so the FF scenario can tell the known sender from the unknown one.
+func TestLSPIDs(t *testing.T) {
+	text := "\t    Source Address: 198.51.100.2, LSP-ID: 0x0001\n\t  Label Object (16)\n\t    Source Address: 198.51.100.2, LSP-ID: 0x0002\n"
+	if got := lspIDs(text); !slices.Equal(got, []string{"0x0001", "0x0002"}) {
+		t.Fatalf("lspIDs %q", got)
+	}
+	if got := lspIDs("\t  Label Object (16)\n"); got != nil {
+		t.Fatalf("a message with no sender answered %q", got)
 	}
 }
 

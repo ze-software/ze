@@ -922,6 +922,8 @@ logs as sent counts for nothing until the peer's capture holds it.
 | `transit-strict-hop-outside-refused` | Ze ingress, freeRouter relay, Ze transit. The last strict hop's native route at the transit runs through a node outside both abstract nodes, so the transit sends PathErr Routing Problem / Bad strict node (24/2) and never forwards the PATH (RFC 3209 Section 4.3.3.1). The Ze ingress captures that PathErr as freeRouter relays it, naming the transit as the error node |
 | `ingress-resv-error-relayed` | Ze ingress, freeRouter relay, Ze egress. The ingress interface reserves less than the tunnel asks, so the ingress refuses the RESV freeRouter relays and sends a ResvErr naming itself, Error Code 1 Admission Control failure, value 2. The Ze egress captures that ResvErr from freeRouter with the error node, code and value intact (RFC 2205 Sections 2.5 and 3.1.8) |
 | `transit-resv-tear-relayed` | Ze ingress, freeRouter relay, Ze transit, Ze egress. Once the LSP is up the egress is frozen with `SIGSTOP`, so the transit's reservation times out while its path state is refreshed; the transit sends a ResvTear upstream, and the Ze ingress captures it as freeRouter relays it (RFC 2205 Section 3.1.6) |
+| `transit-resv-increase-refused-in-place` | freeRouter ingress, Ze transit, patched freeRouter egress. The ingress tunnel signals 10 Mbit/s (`bandwidth 10000`) and the transit's `eth0` reserves 100 Mbit/s. The egress's second RESV, answering the ingress's first PATH refresh (freeRouter refreshes every 120 s), raises its reservation in place to 1 Gbit/s, same session, sender and LSP-ID. The transit captures that RESV, and the egress captures Ze's ResvErr naming the transit, Error Code 1 value 2, ERROR_SPEC flags `0x01` (InPlace). The transit's swap stays installed and the ingress never receives the raised rate (RFC 2205 Section 3.1.8) |
+| `transit-ff-resv-unknown-sender` | freeRouter ingress, Ze transit, patched freeRouter egress. Every RESV the egress sends is fixed-filter, with a second flow descriptor naming LSP-ID+1 of the same sender, which never signalled a PATH. The egress captures one ResvErr from the transit naming only that LSP-ID, Error Code 4 No sender information, and no ResvErr naming the real sender. The ingress receives a labelled RESV naming only the real sender, and the transit holds its swap (RFC 2205 Section 3.1.8) |
 
 The checker compares the ERROR_SPEC code and value as the numbers tcpdump
 prints in parentheses, because tcpdump names no code for every value: it prints
@@ -931,13 +933,24 @@ The pinned freeRouter originates only PATH, PathTear and RESV. It relays
 PathErr, ResvErr and ResvTear but never originates them, encodes every ERO
 subobject it originates as loose (`clntMplsTeP2p.workDoer`,
 `ipFwdTab.fillRsvpPack`), signals one fixed bandwidth for the life of an LSP,
-and sends only fixed-filter RESVs naming its own sender. The suite runs the
-image unpatched, so in every scenario where Ze originates a message freeRouter
-is the independent implementation that parses it, keeps the state it needs to
-relay it, and re-encodes it toward the next Ze node: the evidence is that
-freeRouter accepts and relays what Ze originates, not that freeRouter
-originates strict hops, ResvErr, ResvTear or PathErr itself. No scenario here
-covers an in-place bandwidth increase or a multi-sender fixed-filter RESV.
+and sends only shared-explicit RESVs naming its own sender. In every scenario
+where Ze originates a message, freeRouter is the independent implementation
+that parses it, keeps the state it needs to relay it, and re-encodes it toward
+the next Ze node: the evidence is that freeRouter accepts and relays what Ze
+originates, not that freeRouter originates strict hops, ResvErr, ResvTear or
+PathErr itself.
+
+The image is built with one patch, `test/interop-rsvpte/freertr/ze-interop-resv.patch`,
+because the pinned jar can neither raise a reservation in place nor name a
+sender it has no path for. The patch adds two knobs to the RESV a freeRouter
+egress originates, each off unless its environment variable is set, so every
+scenario that sets neither runs the upstream behavior. A scenario sets them in
+`<role>-env.txt`, one `NAME=value` per line, which the lab passes to that
+freeRouter container and refuses when a line is not `NAME=value`.
+`FREERTR_ZE_RESV_RATE_AT=n:rate` sends only the n-th RESV with its FLOWSPEC
+rate (bytes per second) raised; `FREERTR_ZE_RESV_FF_EXTRA_SENDER=1` makes every
+RESV fixed-filter and appends a second flow descriptor (FLOWSPEC, FILTER_SPEC
+with LSP-ID+1, LABEL).
 
 Two scenarios depend on objects RFC 2205 makes optional and freeRouter's parser
 requires. `packRsvp.parseDatPatErr` refuses a PathErr without an ADSPEC, which
@@ -953,6 +966,8 @@ capture held Ze's message and freeRouter never relayed it.
 <!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- the suite, its topology and its MPLS preflight -->
 <!-- source: internal/le/interoplab/rsvpte/checkers.go -- every observation, read from a peer's capture -->
 <!-- source: test/interop-rsvpte/run-freertr.sh -- freeRouter on eth0 through rawInt.bin -->
+<!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the two test-only RESV knobs -->
+<!-- source: internal/le/interoplab/rsvpte/rsvpte.go -- freeRtrEnvironment reads <role>-env.txt -->
 
 ### Typed checker operations
 

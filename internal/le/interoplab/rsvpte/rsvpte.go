@@ -12,7 +12,9 @@ package rsvpte
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -65,6 +67,8 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioStrictForwarded: checker(checkStrictForwarded, timeout),
 		scenarioStrictRefused:   checker(checkStrictRefused, timeout),
 		scenarioResvTearRelayed: checker(checkResvTearRelayed, timeout),
+		scenarioIncreaseInPlace: checker(checkIncreaseInPlace, timeout),
+		scenarioFFUnknownSender: checker(checkFFUnknownSender, timeout),
 	}
 }
 
@@ -109,7 +113,11 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 	}
 	plans := make([]interoplab.ScenarioPlan, 0, len(sources))
 	for _, source := range sources {
-		plans = append(plans, scenarioPlan(environment.Suffix, source))
+		plan, err := scenarioPlan(environment.Suffix, source)
+		if err != nil {
+			return interoplab.Suite{}, err
+		}
+		plans = append(plans, plan)
 	}
 	labRoot := filepath.Join(root, labDirectory)
 	return interoplab.Suite{
@@ -142,7 +150,7 @@ func containerName(role, suffix string) string {
 // scenarioPlan starts every role the scenario fills, downstream first. A role
 // with <role>.conf is a Ze node and one with <role>-sw.txt a freeRouter node;
 // a role with neither is absent from the scenario.
-func scenarioPlan(suffix string, source interoplab.ScenarioSource) interoplab.ScenarioPlan {
+func scenarioPlan(suffix string, source interoplab.ScenarioSource) (interoplab.ScenarioPlan, error) {
 	plan := interoplab.ScenarioPlan{
 		Source: source,
 		Network: interoplab.NetworkSpec{
@@ -156,14 +164,48 @@ func scenarioPlan(suffix string, source interoplab.ScenarioSource) interoplab.Sc
 		case fileExists(filepath.Join(source.Directory, role.name+".conf")):
 			peer = zePeer(role.name, role.host, suffix, source.Directory)
 		case fileExists(filepath.Join(source.Directory, role.name+"-sw.txt")):
+			environment, err := freeRtrEnvironment(filepath.Join(source.Directory, role.name+"-env.txt"))
+			if err != nil {
+				return interoplab.ScenarioPlan{}, err
+			}
 			peer = freeRtrPeer(role.name, role.host, suffix, source.Directory)
+			peer.Environment = environment
 		default:
 			continue
 		}
 		plan.Containers = append(plan.Containers, peer.Container)
 		plan.Peers = append(plan.Peers, peer)
 	}
-	return plan
+	return plan, nil
+}
+
+// freeRtrEnvironment reads the optional <role>-env.txt of a freeRouter role:
+// one NAME=value per line, which the container receives as its environment.
+// This is how a scenario turns on a test knob of
+// test/interop-rsvpte/freertr/ze-interop-resv.patch. A missing file means no
+// knob; a line that is not NAME=value is refused rather than skipped, so a
+// typo cannot silently run the scenario against an unaltered peer.
+func freeRtrEnvironment(path string) ([]interoplab.EnvironmentVariable, error) {
+	content, err := os.ReadFile(path) //nolint:gosec // a scenario file in the checkout under test
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read freeRouter environment %s: %w", path, err)
+	}
+	var environment []interoplab.EnvironmentVariable
+	for line := range strings.SplitSeq(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		name, value, found := strings.Cut(line, "=")
+		if !found || name == "" {
+			return nil, fmt.Errorf("freeRouter environment %s: line %q is not NAME=value", path, line)
+		}
+		environment = append(environment, interoplab.EnvironmentVariable{Name: name, Value: value})
+	}
+	return environment, nil
 }
 
 func fileExists(path string) bool {

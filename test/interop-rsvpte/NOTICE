@@ -5,10 +5,15 @@ Revision: 6c295d8ae79c834ef631d3d21d373c335fb05328
 Project: http://www.freertr.org/
 License: https://creativecommons.org/licenses/by-sa/4.0/
 
-The build uses the upstream Java sources and misc/iface/tapInt.c without
-source modifications. The compiler and packaging commands are in
-Dockerfile.freertr. The exported source.tar.gz contains the original source
-and attribution; upstream-version.java preserves the original license text.
+The build modifies the upstream Java sources with one patch,
+freertr/ze-interop-resv.patch (exported as /peer/ze-interop-resv.patch). It
+changes src/org/freertr/pack/packRsvp.java and
+src/org/freertr/rtr/rtrRsvpIface.java to add two test-only RESV knobs, each
+inactive unless its environment variable is set. misc/iface/tapInt.c and
+misc/iface/rawInt.c are unmodified. The compiler and packaging commands are in
+Dockerfile.freertr. The exported source.tar.gz contains the original,
+unpatched source and attribution; upstream-version.java preserves the original
+license text.
 The peer artifacts are separate from Ze and retain their upstream license.
 
 The following notice is from src/org/freertr/util/version.java:
