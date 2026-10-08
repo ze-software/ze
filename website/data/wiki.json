@@ -297,7 +297,7 @@
         {
           "title": "Graceful Restart",
           "slug": "graceful-restart",
-          "summary": "Graceful Restart (RFC 4724) and Long-Lived Graceful Restart (RFC 9494) let a BGP session preserve forwarding state across a restart of one side, instead of dropping every route and waiting for..."
+          "summary": "Graceful Restart (RFC 4724) and Long-Lived Graceful Restart (RFC 9494) let a helper retain stale routes for forwarding during a peer's restart window."
         },
         {
           "title": "BGP Role",
@@ -412,7 +412,7 @@
         {
           "title": "Upgrade and Restart",
           "slug": "upgrade-and-restart",
-          "summary": "The point of this page is one thing: how to replace the binary, reload the config, or restart the daemon without dropping your BGP sessions or black-holing traffic."
+          "summary": "This page explains how to reload configuration, replace the binary, and restart the daemon."
         }
       ]
     },
@@ -477,17 +477,12 @@
         {
           "title": "bgp-rib",
           "slug": "bgp-rib",
-          "summary": "The main BGP RIB store and best-path selection engine."
+          "summary": "The mandatory BGP RIB store and best-path selection engine."
         },
         {
           "title": "bgp-adj-rib-in",
           "slug": "bgp-adj-rib-in",
           "summary": "Per-peer Adj-RIB-In store with raw hex replay for forensic analysis and route server convergence."
-        },
-        {
-          "title": "bgp-persist",
-          "slug": "bgp-persist",
-          "summary": "In-memory sent-route cache with replay on peer reconnect."
         },
         {
           "title": "bgp-rs",
