@@ -248,6 +248,35 @@ external input.
 
 #### One type per lifecycle state
 
+**Ze wants this pattern, and it is the first design to reach for.** Rust attaches
+an operation to the type a value holds, so a function that needs initialized
+data cannot be called until the value is initialized; a tagged enum then
+toggles between the states. Go has no tagged enum, but it has the half that
+matters: an operation that is a method of the validated type, or that takes the
+validated type as its parameter, cannot be called with anything else. When Ze
+controls the transition, write that type instead of a state field and an `if`
+at the top of each operation. A type turns a forgotten check into a compile
+error; a runtime check finds it only on the path a test happens to run.
+
+In Go, write a progression of states (loaded, then resolved; parsed, then
+validated) as distinct named types, each holding only its own methods. Keep the
+sealed interface of "One state, one variant" for a value that really is one of
+several variants at runtime, such as an outcome, because a Go type switch is a
+weaker tagged union than Rust's.
+
+In this illustrative API, only a successful `Resolve` yields a `Schema`, and the
+command tree accepts only a `Schema`, so no caller can build a tree from a
+module set that failed its checks:
+
+```go
+type Loader struct{ /* modules added, not yet checked */ }
+type Schema struct{ /* every module resolved and checked */ }
+
+func (l *Loader) Resolve() (*Schema, error)
+func BuildCommandTree(s *Schema) *command.Node
+```
+<!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- state-specific operations -->
+
 Distinct state types restrict which operations a caller can name. For example,
 a `ParsedConfig` has validation operations, while an apply API accepts only a
 `ValidatedConfig`. This separates raw data from data that passed validation.
