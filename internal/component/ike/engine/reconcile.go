@@ -135,6 +135,14 @@ type PeerSession struct {
 	childRekeyHoldUntil time.Time
 	ikeRekeyHoldUntil   time.Time
 
+	// childRekeyRefusedUntil and ikeRekeyRefusedUntil are the instants before which a
+	// rekey the peer refused with an error notify is not resent (rekeyRefusedBackoff,
+	// established.go). They are kept apart from the TEMPORARY_FAILURE holds above
+	// because the path probe reads those as "the peer is mid-rekey" (probe.go), and a
+	// peer that refused a proposal is not busy. Owned by the maintainSA loop.
+	childRekeyRefusedUntil time.Time
+	ikeRekeyRefusedUntil   time.Time
+
 	// pendingProbe is the padded path probe that holds the request window, with the
 	// channel its outcome is answered on (probe.go). Owned by the maintainSA loop,
 	// like pendingRekey.

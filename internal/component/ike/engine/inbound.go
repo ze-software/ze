@@ -295,6 +295,21 @@ func (ps *PeerSession) respondInnerParseError(sa *SA, msg *wire.Message, err err
 		wire.NotifyInvalidSyntax, nil, tr, log)
 }
 
+// holdRefusedRekey holds back the rekey of the given kind for rekeyRefusedBackoff,
+// after the peer refused it. The two kinds hold separately, as the TEMPORARY_FAILURE
+// holds do, so a refused IKE SA rekey does not stop a Child SA rekey.
+func (ps *PeerSession) holdRefusedRekey(kind rekeyKind) {
+	until := time.Now().Add(rekeyRefusedBackoff)
+	switch kind {
+	case rekeyChild:
+		ps.childRekeyRefusedUntil = until
+	case rekeyIKE:
+		ps.ikeRekeyRefusedUntil = until
+	default:
+		panic("BUG: unknown pending IKE rekey kind")
+	}
+}
+
 // handleCreateChildSAOwned drives Child SA and IKE SA rekeys. As initiator it
 // completes our pending rekey (Child: install new + make-before-break Delete of the
 // old; IKE: derive the new SA + Delete the old). As Child rekey responder it
@@ -331,7 +346,10 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		// The rekey is that request.
 		// An unrecognized error type therefore ends it.
 		// The walk below never reads a response that carries no keys.
+		// The request failed, so it is held like any refused rekey: the soft lifetime is
+		// a level trigger and would otherwise resend it on the next tick.
 		if err := failIfUnrecognizedErrorNotify(inner, ps.peerName, log); err != nil {
+			ps.holdRefusedRekey(p.kind)
 			p.clear()
 			ps.pendingRekey = nil
 			return ownedOutcome{}
@@ -340,6 +358,7 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		case rekeyChild:
 			newChild, err := applyChildRekeyResponse(sa, p, inner, dp, log)
 			if err != nil {
+				var refused *rekeyRefusedError
 				// RFC 7296 §2.25: a TEMPORARY_FAILURE answer means wait. The soft
 				// lifetime is a level trigger. Without this hold the next one-second
 				// tick retries against a peer that just asked for a delay.
@@ -357,9 +376,30 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 						"peer", ps.peerName)
 					ps.pendingRekey = nil
 					return ownedOutcome{reestablish: true}
+				case errors.As(err, &refused) && refused.notify == wire.NotifyChildSANotFound:
+					// RFC 7296 Section 2.25: "A peer that receives a CHILD_SA_NOT_FOUND
+					// notification SHOULD silently delete the Child SA (if it still
+					// exists) and send a request to create a new Child SA from scratch
+					// (if the Child SA does not yet exist)." Re-establishment is ze's
+					// path that deletes the Child SA and builds a new one, the same exit
+					// NO_ADDITIONAL_SAS takes above. A retried rekey of an SA the peer
+					// does not hold can never succeed.
+					log.Info("child-sa: rekey refused with CHILD_SA_NOT_FOUND, re-establishing",
+						"peer", ps.peerName)
+					p.clear()
+					ps.pendingRekey = nil
+					return ownedOutcome{reestablish: true}
+				case errors.As(err, &refused):
+					// RFC 7296 Section 1.3.1: "A failed attempt to create a Child SA
+					// SHOULD NOT tear down the IKE SA". The old Child SA stays in use and
+					// the rekey waits out rekeyRefusedBackoff before it is tried again.
+					ps.holdRefusedRekey(rekeyChild)
+					log.Warn("child-sa: rekey refused, keeping the current Child SA",
+						"peer", ps.peerName, "error", err, "retry-after", rekeyRefusedBackoff)
 				default:
 					log.Warn("ike: child rekey response failed", "peer", ps.peerName, "error", err)
 				}
+				p.clear()
 				ps.pendingRekey = nil
 				return ownedOutcome{}
 			}
@@ -381,6 +421,7 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		case rekeyIKE:
 			newSA, err := applyIKERekeyResponse(sa, p, inner, log)
 			if err != nil {
+				var refused *rekeyRefusedError
 				// RFC 7296 §2.25, as on the Child SA path above.
 				switch {
 				case errors.Is(err, errTemporaryFailure):
@@ -394,6 +435,12 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 					p.clear()
 					ps.pendingRekey = nil
 					return ownedOutcome{reestablish: true}
+				case errors.As(err, &refused):
+					// As on the Child SA path above: the current IKE SA stays in use and
+					// the rekey waits out rekeyRefusedBackoff.
+					ps.holdRefusedRekey(rekeyIKE)
+					log.Warn("ike-sa: rekey refused, keeping the current IKE SA",
+						"peer", ps.peerName, "error", err, "retry-after", rekeyRefusedBackoff)
 				default:
 					log.Warn("ike: IKE rekey response failed", "peer", ps.peerName, "error", err)
 				}

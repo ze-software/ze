@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
@@ -28,8 +29,9 @@ import (
 var errTemporaryFailure = errors.New("ike: peer answered with TEMPORARY_FAILURE")
 
 // hasTemporaryFailure reports whether a payload chain carries a TEMPORARY_FAILURE
-// notify. RFC 7296 Section 2.25 keys the wait on this notification alone, so an
-// exchange that fails any other way is retried on the next tick as before.
+// notify. RFC 7296 Section 2.25 keys its wait on this notification alone. Another
+// error notify is a refusal (rekeyRefusal), held by its own timer, and a response
+// that fails without any notify is retried on the next tick.
 func hasTemporaryFailure(inner []wire.PayloadEntry) bool {
 	for i := range inner {
 		if n, ok := inner[i].Payload.(*wire.PayloadNotify); ok &&
@@ -60,6 +62,56 @@ func hasNoAdditionalSAs(inner []wire.PayloadEntry) bool {
 		}
 	}
 	return false
+}
+
+// rekeyRefusedError reports a rekey the peer refused with an error notify that
+// carries no instruction of its own, unlike TEMPORARY_FAILURE and NO_ADDITIONAL_SAS.
+// NO_PROPOSAL_CHOSEN is the common one. The caller keeps the SA the rekey would have
+// replaced and holds the retry (rekeyRefusedBackoff, established.go).
+type rekeyRefusedError struct {
+	notify uint16
+}
+
+func (e *rekeyRefusedError) Error() string {
+	text := []byte("ike: peer refused the rekey with ")
+	text = append(text, wire.NotifyTypeName(e.notify)...)
+	text = append(text, " ("...)
+	text = strconv.AppendUint(text, uint64(e.notify), 10)
+	text = append(text, ')')
+	return string(text)
+}
+
+// rekeyRefusal reads a CREATE_CHILD_SA response for an error notify, and returns the
+// error that names it, or nil when the response carries none.
+//
+// RFC 7296 Section 3.10.1: "Types in the range 0 - 16383 are intended for reporting
+// errors. An implementation receiving a Notify payload with one of these types that
+// it does not recognize in a response MUST assume that the corresponding request has
+// failed entirely." A recognized error type in a response fails the request just the
+// same: such a response carries the notify alone, so the payload walk that follows
+// would otherwise report a missing Nr, and the operator would read a refusal as a
+// malformed response.
+//
+// It runs before that walk on both rekey paths. TEMPORARY_FAILURE and
+// NO_ADDITIONAL_SAS are named first because Sections 2.25 and 4 each give the
+// initiator a specific answer to them.
+func rekeyRefusal(inner []wire.PayloadEntry) error {
+	if hasTemporaryFailure(inner) {
+		return errTemporaryFailure
+	}
+	if hasNoAdditionalSAs(inner) {
+		return errNoAdditionalSAs
+	}
+	for i := range inner {
+		n, ok := inner[i].Payload.(*wire.PayloadNotify)
+		if !ok {
+			continue
+		}
+		if wire.NotifyIsError(n.NotifyMsgType) {
+			return &rekeyRefusedError{notify: n.NotifyMsgType}
+		}
+	}
+	return nil
 }
 
 // initiatorFlag returns the header Initiator flag for messages this side sends.
@@ -278,18 +330,14 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 // mandatory (RFC 7296 §1.3.3) and a response without them is refused. The replacement is
 // then installed with the selectors the response announced, never with the retired pair's.
 func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.PayloadEntry, dp dataplane.Dataplane, log *slog.Logger) (*ChildSA, error) {
-	// RFC 7296 Section 2.25: a TEMPORARY_FAILURE answer means the peer is busy, not that
-	// the response is malformed. It is read before the payload walk, because such a
-	// response carries the notify alone and the walk below would report a missing Nr.
-	if hasTemporaryFailure(inner) {
-		return nil, errTemporaryFailure
-	}
-	// RFC 7296 Section 4: a NO_ADDITIONAL_SAS answer is refusal, not delay. It is read
-	// here for the same reason as the notify above, and reported distinctly so the
-	// caller can take the delete-and-create fallback the section makes mandatory
-	// instead of retrying an exchange this peer will never accept.
-	if hasNoAdditionalSAs(inner) {
-		return nil, errNoAdditionalSAs
+	// RFC 7296 Section 3.10.1: an error notify in the response means the rekey failed,
+	// not that the response is malformed. It is read before the payload walk, because
+	// such a response carries the notify alone and the walk below would report a
+	// missing Nr. TEMPORARY_FAILURE (Section 2.25), NO_ADDITIONAL_SAS (Section 4) and
+	// CHILD_SA_NOT_FOUND (Section 2.25) come back distinct, so the caller can give
+	// each the answer its section names.
+	if err := rekeyRefusal(inner); err != nil {
+		return nil, err
 	}
 	var nr []byte
 	var outSPI uint32
@@ -919,14 +967,10 @@ func initiateIKERekey(oldSA *SA, ikeGroup ipsec.IKEGroup) ([]byte, *pendingRekey
 // returns the replacement IKE SA (message-ID counters reset to 0, §2.8). The old
 // SA's Child SAs continue to apply to the new IKE SA unchanged.
 func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.PayloadEntry, log *slog.Logger) (*SA, error) {
-	// RFC 7296 Section 2.25, as in applyChildRekeyResponse: the peer is busy, so the
-	// caller waits rather than retrying at once.
-	if hasTemporaryFailure(inner) {
-		return nil, errTemporaryFailure
-	}
-	// RFC 7296 Section 4, as on the Child SA path: refusal, not delay.
-	if hasNoAdditionalSAs(inner) {
-		return nil, errNoAdditionalSAs
+	// RFC 7296 Section 3.10.1, as in applyChildRekeyResponse: an error notify fails the
+	// rekey, and is reported as itself rather than as a missing payload.
+	if err := rekeyRefusal(inner); err != nil {
+		return nil, err
 	}
 	var nr, ker []byte
 	var newResponderSPI [8]byte
