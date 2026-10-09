@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // StreamingHandler handles streaming commands (e.g., monitor).
@@ -107,46 +109,65 @@ func UnregisterStreamingHandler(prefix string) {
 	streamingHandlersMu.Unlock()
 }
 
-// GetStreamingHandlerForCommand returns the handler and extracted args for a command.
-// Matches the longest registered prefix. Returns (nil, nil) if no prefix matches.
-func GetStreamingHandlerForCommand(input string) (StreamingHandler, []string) {
+// GetStreamingHandlerForCommand answers the handler for a streaming command and
+// the arguments after its prefix, judged against the leaves the model declares
+// for that prefix (route R8). Matches the longest registered prefix. handler is
+// nil when no prefix matches, and when the arguments are refused: the refusal
+// is then err, and the caller MUST report it rather than run anything. A caller
+// MUST invoke the handler only with the tokens of the value answered.
+func GetStreamingHandlerForCommand(input string) (StreamingHandler, command.ValidatedArgs, error) {
+	handler, prefix, args := matchStreamingCommand(input)
+	if handler == nil {
+		return nil, command.ValidatedArgs{}, nil
+	}
+	validated, err := command.ValidateModelArgs(prefix, args, nil)
+	if err != nil {
+		return nil, command.ValidatedArgs{}, err
+	}
+	return handler, validated, nil
+}
+
+// matchStreamingCommand answers the handler registered at the longest prefix
+// of input, that prefix as registered (lowercased), and the raw words after it.
+// It judges nothing: it answers whether a command IS a streaming command, and
+// GetStreamingHandlerForCommand judges the words before anything runs.
+func matchStreamingCommand(input string) (handler StreamingHandler, prefix string, args []string) {
 	trimmed := strings.TrimSpace(input)
 	lower := strings.ToLower(trimmed)
 
 	streamingHandlersMu.RLock()
 	defer streamingHandlersMu.RUnlock()
 
-	var bestPrefix string
-	var bestHandler StreamingHandler
-
-	for prefix, handler := range streamingHandlers {
-		if lower == prefix || strings.HasPrefix(lower, prefix+" ") {
-			if len(prefix) > len(bestPrefix) {
-				bestPrefix = prefix
-				bestHandler = handler
+	for candidate, h := range streamingHandlers {
+		if lower == candidate || strings.HasPrefix(lower, candidate+" ") {
+			if len(candidate) > len(prefix) {
+				prefix = candidate
+				handler = h
 			}
 		}
 	}
 
-	if bestHandler == nil {
-		return nil, nil
+	if handler == nil {
+		return nil, "", nil
 	}
 
 	// Extract args after the matched prefix from the original trimmed input
 	// (not the lowered version) to preserve case of peer selectors and arguments.
-	if len(trimmed) <= len(bestPrefix) {
-		return bestHandler, nil
+	if len(trimmed) <= len(prefix) {
+		return handler, prefix, nil
 	}
-	rest := strings.TrimSpace(trimmed[len(bestPrefix):])
+	rest := strings.TrimSpace(trimmed[len(prefix):])
 	if rest == "" {
-		return bestHandler, nil
+		return handler, prefix, nil
 	}
-	return bestHandler, strings.Fields(rest)
+	return handler, prefix, strings.Fields(rest)
 }
 
-// IsStreamingCommand returns true if the input matches any registered streaming prefix.
+// IsStreamingCommand returns true if the input matches any registered streaming
+// prefix, whatever its arguments: a refused argument is reported by the
+// streaming route, not by a fall-through to another one.
 func IsStreamingCommand(input string) bool {
-	h, _ := GetStreamingHandlerForCommand(input)
+	h, _, _ := matchStreamingCommand(input)
 	return h != nil
 }
 

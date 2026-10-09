@@ -142,11 +142,17 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 			if !d.IsAuthorized(cmdCtx, input, true) {
 				return pluginserver.ErrUnauthorized
 			}
-			handler, handlerArgs := pluginserver.GetStreamingHandlerForCommand(input)
+			// Route R8: the arguments are judged against the model's leaves
+			// before the stream starts, and the handler runs on the judged
+			// tokens only.
+			handler, validated, argErr := pluginserver.GetStreamingHandlerForCommand(input)
+			if argErr != nil {
+				return argErr
+			}
 			if handler == nil {
 				return fmt.Errorf("unknown streaming command: %q", input)
 			}
-			return handler(ctx, apiServer, w, username, handlerArgs)
+			return handler(ctx, apiServer, w, username, validated.Tokens())
 		}
 	})
 	sshSrv.SetMonitorFactory(func(ctx context.Context, args []string) (*contract.MonitorSession, error) {

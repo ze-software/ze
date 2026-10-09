@@ -65,7 +65,8 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// This route once called no validator at all, so a declared length,
 	// pattern or range constrained nothing here: `show env get` with a
 	// 129-character name reached the handler although the leaf says 1..128.
-	if argErr := validateLocalArgs(words, args); argErr != nil {
+	validated, argErr := validateLocalArgs(words, args)
+	if argErr != nil {
 		writeLocalRefusal(argErr)
 		return "", 1, true
 	}
@@ -76,7 +77,7 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// handler that returns both MUST have both honored. A handler with nothing
 	// to say has already written its reason to stderr and returns a nil
 	// payload.
-	payload, code := handler(args)
+	payload, code := handler(validated.Tokens())
 	if payload == nil {
 		return "", code, true
 	}
@@ -104,42 +105,56 @@ type ArgDefSource func(path string) ([]ArgDef, error)
 // this one and so this one cannot import it.
 var argDefSource ArgDefSource
 
-// RegisterArgDefSource installs the source ServeLocal reads argument
-// definitions from, and installs the same judgment on the plain local handler
-// registry.RegisterLocalData builds, which `ze <verb>` runs without passing
-// through ServeLocal. One call covers both routes, so neither can be left
-// unvalidated. Called from init(); not safe for concurrent use with either
-// route.
+// RegisterArgDefSource installs the source every route outside the daemon
+// dispatcher reads argument definitions from (ValidateModelArgs), and installs
+// the same judgment in the local-handler registry, which cannot import this
+// package: the plain local handler registry.RegisterLocalData builds, and the
+// `ze <verb>` and offline-fallback routes (registry.ValidateLocalArgs). One
+// call covers every route, so none can be left unvalidated. Called from init();
+// not safe for concurrent use with any route.
 func RegisterArgDefSource(source ArgDefSource) {
 	argDefSource = source
-	registry.RegisterLocalDataArgCheck(checkLocalArgs)
+	registry.RegisterLocalArgCheck(validatedLocalTokens)
 }
 
 // validateLocalArgs judges the arguments of a local-data command.
 //
 // words is the command as typed and args the tail LookupLocalData left after
 // the registered path, so the path is the words before that tail.
-func validateLocalArgs(words, args []string) error {
-	return checkLocalArgs(strings.Join(words[:len(words)-len(args)], " "), args)
+func validateLocalArgs(words, args []string) (ValidatedArgs, error) {
+	return ValidateModelArgs(strings.Join(words[:len(words)-len(args)], " "), args, nil)
 }
 
-// checkLocalArgs judges args against the leaves the model declares for the
-// registered path. A process with no source registered refuses rather than
-// skipping the check, because a skipped check and a passed one look the same
-// to the operator.
-func checkLocalArgs(path string, args []string) error {
+// validatedLocalTokens is the judgment the local-handler registry runs: the
+// tokens of the value ValidateModelArgs returned, so a registry route hands its
+// handler what was judged and nothing else.
+func validatedLocalTokens(path string, args []string) ([]string, error) {
+	validated, err := ValidateModelArgs(path, args, nil)
+	if err != nil {
+		return nil, err
+	}
+	return validated.Tokens(), nil
+}
+
+// ValidateModelArgs judges args against the leaves the model declares for the
+// command path, through ValidateArgs, and is how every route that holds no
+// definitions of its own validates: the local routes, SSH streaming, the
+// RPC wrapper and plugin forwarding. preMatched is ValidateArgs's: the values
+// a route already bound by keyword or selector, or nil.
+//
+// A path the model declares nothing for is validated against no definitions,
+// which passes its tokens through. A process with no source registered refuses
+// rather than skipping the check, because a skipped check and a passed one
+// look the same to the operator.
+func ValidateModelArgs(path string, args []string, preMatched map[string]string) (ValidatedArgs, error) {
 	if argDefSource == nil {
-		return errNoArgDefSource
+		return ValidatedArgs{}, errNoArgDefSource
 	}
 	defs, err := argDefSource(path)
 	if err != nil {
-		return fmt.Errorf("argument definitions of %q: %w", path, err)
+		return ValidatedArgs{}, fmt.Errorf("argument definitions of %q: %w", path, err)
 	}
-	if len(defs) == 0 {
-		return nil
-	}
-	_, err = ValidateArgs(args, defs, nil)
-	return err
+	return ValidateArgs(args, defs, preMatched)
 }
 
 // errNoArgDefSource is the refusal of a process that registered no argument

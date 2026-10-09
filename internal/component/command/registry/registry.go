@@ -350,30 +350,37 @@ func longestLocalPrefix(words []string) (LocalHandler, int) {
 // localDataHandlers holds the commands that answer with data in this process.
 var localDataHandlers = make(map[string]LocalDataHandler)
 
-// localDataArgCheck judges the arguments of a data command against the leaves
-// its YANG declares. The command package installs it (RegisterLocalDataArgCheck),
-// because that package imports this one. Nil means nothing can judge, and the
-// plain handler then refuses rather than running unvalidated.
-var localDataArgCheck func(path string, args []string) error
+// localArgCheck judges the arguments of a local command against the leaves its
+// YANG declares, and answers the tokens it judged. The command package installs
+// it (RegisterLocalArgCheck), because that package imports this one. Nil means
+// nothing can judge, and every local route then refuses rather than running
+// unvalidated.
+var localArgCheck func(path string, args []string) ([]string, error)
 
-// errLocalDataArgCheckMissing is the refusal of a process that installed no
+// errLocalArgCheckMissing is the refusal of a process that installed no
 // argument check.
-var errLocalDataArgCheckMissing = errors.New("argument definitions are not loaded in this process")
+var errLocalArgCheckMissing = errors.New("argument definitions are not loaded in this process")
 
-// RegisterLocalDataArgCheck installs the argument judgment every plain handler
-// RegisterLocalData builds runs before its data handler. Called from init();
-// not safe for concurrent use with a handler call.
-func RegisterLocalDataArgCheck(check func(path string, args []string) error) {
-	localDataArgCheck = check
+// RegisterLocalArgCheck installs the argument judgment every local route runs
+// before its handler: the plain handler RegisterLocalData builds, and the
+// callers of LookupLocal and LookupOfflineFallback through ValidateLocalArgs.
+// The check MUST answer only tokens it judged (command.ValidateArgs's value).
+// Called from init(); not safe for concurrent use with a handler call.
+func RegisterLocalArgCheck(check func(path string, args []string) ([]string, error)) {
+	localArgCheck = check
 }
 
-// checkLocalDataArgs runs the installed argument check, or refuses when none is
+// ValidateLocalArgs judges args against the leaves the model declares for the
+// registered path and answers the judged tokens, the only ones a local handler
+// may be called with. Every caller of LookupLocal and LookupOfflineFallback
+// MUST call it with the path it matched and every token it will pass, and
+// MUST invoke the handler with what it answers. It refuses when no check is
 // installed.
-func checkLocalDataArgs(path string, args []string) error {
-	if localDataArgCheck == nil {
-		return errLocalDataArgCheckMissing
+func ValidateLocalArgs(path string, args []string) ([]string, error) {
+	if localArgCheck == nil {
+		return nil, errLocalArgCheckMissing
 	}
-	return localDataArgCheck(path, args)
+	return localArgCheck(path, args)
 }
 
 // RegisterLocalData registers a command that answers with structured data in
@@ -399,7 +406,8 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta Meta, render 
 		// judges them on the `ze cli -c` route. This route once ran the
 		// handler directly, so `ze show env get` with a 129-character key
 		// reached it although the leaf declares 1..128.
-		if err := checkLocalDataArgs(path, args); err != nil {
+		validated, err := ValidateLocalArgs(path, args)
+		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			return 1
 		}
@@ -407,7 +415,7 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta Meta, render 
 		// nonzero on, not an error with nothing to say: `validate config`
 		// renders the diagnostics of a config it rejects and exits 1. The
 		// renderer's own failure wins, because then nothing was printed.
-		payload, code := handler(args)
+		payload, code := handler(validated)
 		if payload == nil {
 			return code
 		}

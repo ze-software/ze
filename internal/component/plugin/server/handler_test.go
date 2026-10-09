@@ -28,15 +28,15 @@ func TestStreamingHandlerRegistry(t *testing.T) {
 	RegisterStreamingHandler("monitor event", handlerA)
 	RegisterStreamingHandler("monitor bgp", handlerB)
 
-	h, args := GetStreamingHandlerForCommand("monitor event peer 10.0.0.1")
+	h, args := streamingLookup(t, "monitor event peer 10.0.0.1")
 	require.NotNil(t, h, "should match 'monitor event' prefix")
 	require.Equal(t, []string{"peer", "10.0.0.1"}, args)
 
-	h, args = GetStreamingHandlerForCommand("monitor bgp")
+	h, args = streamingLookup(t, "monitor bgp")
 	require.NotNil(t, h, "should match 'monitor bgp' prefix")
 	require.Nil(t, args, "no args after prefix")
 
-	h, _ = GetStreamingHandlerForCommand("unknown command")
+	h, _ = streamingLookup(t, "unknown command")
 	require.Nil(t, h, "should return nil for unregistered prefix")
 }
 
@@ -63,13 +63,13 @@ func TestStreamingHandlerPrefixMatch(t *testing.T) {
 		return nil
 	})
 
-	h, args := GetStreamingHandlerForCommand("monitor event include update")
+	h, args := streamingLookup(t, "monitor event include update")
 	require.NotNil(t, h, "should match 'monitor event' prefix")
 	_ = h(context.Background(), nil, nil, "", nil)
 	require.Equal(t, "monitor event", matched, "longest prefix should win")
 	require.Equal(t, []string{"include", "update"}, args)
 
-	h, args = GetStreamingHandlerForCommand("monitor something")
+	h, args = streamingLookup(t, "monitor something")
 	require.NotNil(t, h, "should match 'monitor' prefix")
 	_ = h(context.Background(), nil, nil, "", nil)
 	require.Equal(t, "monitor", matched, "should match shorter prefix")
@@ -97,4 +97,16 @@ func TestIsStreamingCommand(t *testing.T) {
 	require.True(t, IsStreamingCommand("MONITOR EVENT"), "should be case-insensitive")
 	require.False(t, IsStreamingCommand("bgp peer list"))
 	require.False(t, IsStreamingCommand("monitorvent"), "no space should not match")
+}
+
+// streamingLookup is GetStreamingHandlerForCommand for a test that expects the
+// arguments to be accepted: it fails the test on a refusal and answers the
+// judged tokens.
+func streamingLookup(t *testing.T, input string) (StreamingHandler, []string) {
+	t.Helper()
+	handler, validated, err := GetStreamingHandlerForCommand(input)
+	if err != nil {
+		t.Fatalf("GetStreamingHandlerForCommand(%q): %v", input, err)
+	}
+	return handler, validated.Tokens()
 }

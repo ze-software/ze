@@ -180,16 +180,18 @@ daemon dispatcher calls. A refused argument is written to stderr and exits 1, an
 the handler is never called. The definitions come from the YANG package, which
 registers itself as the source (`command.RegisterArgDefSource`); a process with
 no source registered refuses every local command rather than skipping the check.
-<!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, checkLocalArgs -->
+The handler runs on the tokens of the value `ValidateArgs` returned, never on
+the raw words.
+<!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, ValidateModelArgs -->
 <!-- source: internal/component/config/yang/command.go -- commandArgDefs -->
 
 `ze <verb>` does not pass through `ServeLocal`: it runs the plain local handler
 that `registry.RegisterLocalData` builds from the same data handler. That
-handler runs the same judgment first (`registry.RegisterLocalDataArgCheck`,
+handler runs the same judgment first (`registry.ValidateLocalArgs`, the check
 which `command.RegisterArgDefSource` installs), so `ze show env get <key>` and
 `ze cli -c "show env get <key>"` refuse the same values with the same message.
 <!-- source: internal/component/command/local_data.go -- RegisterArgDefSource -->
-<!-- source: internal/component/command/registry/registry.go -- RegisterLocalData, checkLocalDataArgs -->
+<!-- source: internal/component/command/registry/registry.go -- RegisterLocalData, ValidateLocalArgs -->
 
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
@@ -1443,6 +1445,53 @@ Operational commands declare their argument types as YANG leaves inside
 2. **Dispatcher** (`plugin/server/command.go`): validates args against ArgDefs
    between tokenize and handler call (two-phase: keyword extraction, then
    positional matching).
+
+#### Every route validates
+
+`command.ValidateArgs` answers a `command.ValidatedArgs`: a copy of the tokens
+it judged and the leaf a lone spare positional token filled. Its fields are
+private, so only a successful call builds a non-zero value; the zero value means
+no tokens and no binding. `Tokens` answers a copy, so neither the route nor the
+handler can change what was judged. A call that leaves a mandatory leaf unfilled
+is refused with a `*command.MissingArgumentError` (`required argument missing:
+<leaf>`), which still reports the lone binding, because the dispatcher adopts a
+positional selector before it reports the missing leaf.
+
+Every route that invokes a handler calls the validator, including for a path
+whose model declares no definition: that call passes the tokens through
+unchanged. Each route then invokes the handler only with the tokens of the
+value it got. A route that holds no definitions of its own judges against the
+model through `command.ValidateModelArgs`.
+
+| Route | Where | Definitions |
+|-------|-------|-------------|
+| R1 daemon dispatcher | `Dispatcher.Dispatch` | the matched command's `ArgDefs`, inline selectors pre-matched |
+| R2 in-process local data (`ze cli -c`) | `command.ServeLocal` | the model, by path |
+| R3 the plain handler `RegisterLocalData` builds | `registry.RegisterLocalData` | the model, through `registry.ValidateLocalArgs` |
+| R4 RPC wrapper | `Server.wrapHandler` | the model, the params' selector pre-matched |
+| R5 ensure-exists steps | `wrapWithEnsureChain` | the ancestor node's `ArgDefs`, the dispatcher's selectors pre-matched |
+| R6 `ze <verb>` local handlers | `cmd/ze` dispatch, `cmdutil.matchLocalHandler` | the model, through `registry.ValidateLocalArgs` |
+| R7 offline fallback | `client.runOfflineFallback` | the model, through `registry.ValidateLocalArgs` |
+| R8 streaming (`monitor ...`) | `GetStreamingHandlerForCommand` | the model, by the streaming prefix |
+| R9 plugin process and forked subsystem | `Dispatcher.routeToProcess`, `Dispatcher.dispatchSubsystem` | the model, by the plugin's command, the dispatcher's selectors pre-matched |
+
+The model is the one compiled into the daemon, so an external plugin's command
+is judged only at a path that model declares. Every shipped plugin command that
+declares an argument is also served by a builtin, which judges first (R1);
+`test/ui/cli-argument-refused-plugin-route.ci` reaches R9 alone through a test
+plugin serving `show config cat`, which no daemon builtin serves.
+
+The local-handler registry cannot import `command`, so `RegisterArgDefSource`
+installs the judgment there too (`registry.RegisterLocalArgCheck`); a process
+that installed none refuses every local route. Handler signatures still take a
+token slice; the routes pass `ValidatedArgs.Tokens()`.
+<!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
+<!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource -->
+<!-- source: internal/component/command/registry/registry.go -- ValidateLocalArgs, RegisterLocalArgCheck -->
+<!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
+<!-- source: internal/component/plugin/server/server.go -- wrapHandler -->
+<!-- source: internal/component/plugin/server/ensure.go -- wrapWithEnsureChain -->
+<!-- source: internal/component/plugin/server/handler.go -- GetStreamingHandlerForCommand -->
 
 A `type empty` leaf is a flag (`ArgFlag`): the keyword alone is the argument,
 in any position, and no value follows it. `ValidateArgs` consumes it in

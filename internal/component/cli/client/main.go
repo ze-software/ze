@@ -309,11 +309,19 @@ func runOfflineFallback(command string) (int, bool) {
 	if command == "" {
 		return 0, false
 	}
-	handler, fallbackArgs := registry.LookupOfflineFallback(strings.Fields(command))
+	words := strings.Fields(command)
+	handler, fallbackArgs := registry.LookupOfflineFallback(words)
 	if handler == nil {
 		return 0, false
 	}
-	return handler(fallbackArgs), true
+	// Route R7: the fallback runs on the tokens the model's leaves judged, as
+	// the daemon would have.
+	judged, err := registry.ValidateLocalArgs(strings.Join(words[:len(words)-len(fallbackArgs)], " "), fallbackArgs)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1, true
+	}
+	return handler(judged), true
 }
 
 func runBGP(args []string) int {

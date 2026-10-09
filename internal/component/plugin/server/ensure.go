@@ -17,7 +17,11 @@ import (
 // descendant command can execute. Built at registration time from the
 // YANG command tree's ze:ensure-exists annotations.
 type EnsureStep struct {
-	Handler         Handler // Creation handler (idempotent: succeeds if resource exists)
+	Handler Handler // Creation handler (idempotent: succeeds if resource exists)
+	// ArgDefs are the leaves the model declares for the ancestor command the
+	// creation handler serves. The step is called with no tokens: its leaves
+	// arrive as the selectors the dispatcher bound, and are judged as such.
+	ArgDefs         []command.ArgDef
 	RollbackHandler Handler // Deletion handler for undo on descendant failure
 	WireMethod      string  // Creation handler's wire method, for contract errors
 }
@@ -38,7 +42,20 @@ func wrapWithEnsureChain(leaf Handler, chain []EnsureStep) Handler {
 		var rollbacks []func()
 
 		for _, step := range chain {
-			resp, err := step.Handler(ctx, nil)
+			// Route R5: the step's leaves, bound by the dispatcher as
+			// selectors, are judged against the ancestor's definitions before
+			// its handler runs. The rollback undoes exactly this creation, so it
+			// runs on the same judged (empty) tokens.
+			var bound map[string]string
+			if ctx != nil {
+				bound = ctx.Selectors
+			}
+			validated, argErr := command.ValidateArgs(nil, step.ArgDefs, bound)
+			if argErr != nil {
+				runRollbacks(rollbacks)
+				return nil, argErr
+			}
+			resp, err := step.Handler(ctx, validated.Tokens())
 			if err != nil {
 				runRollbacks(rollbacks)
 				return nil, err
@@ -58,7 +75,7 @@ func wrapWithEnsureChain(leaf Handler, chain []EnsureStep) Handler {
 			if created {
 				rb := step.RollbackHandler
 				rollbacks = append(rollbacks, func() {
-					if _, rbErr := rb(ctx, nil); rbErr != nil {
+					if _, rbErr := rb(ctx, validated.Tokens()); rbErr != nil {
 						logger().Warn("ensure-exists rollback failed", "error", rbErr)
 					}
 				})
@@ -140,6 +157,7 @@ func buildEnsureChain(tree *command.Node, path string, wireToHandler map[string]
 					Handler:         createHandler,
 					RollbackHandler: rollbackHandler,
 					WireMethod:      child.WireMethod,
+					ArgDefs:         child.ArgDefs,
 				})
 			}
 		}

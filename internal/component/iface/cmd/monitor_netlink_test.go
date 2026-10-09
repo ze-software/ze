@@ -10,7 +10,7 @@ import (
 )
 
 func TestNetlinkMonitor_Wiring(t *testing.T) {
-	h, args := pluginserver.GetStreamingHandlerForCommand("monitor system netlink route")
+	h, args := streamingLookup(t, "monitor system netlink route")
 	if h == nil {
 		t.Fatal("monitor system netlink not registered as streaming handler")
 	}
@@ -20,7 +20,7 @@ func TestNetlinkMonitor_Wiring(t *testing.T) {
 }
 
 func TestNetlinkMonitorLink_Wiring(t *testing.T) {
-	h, args := pluginserver.GetStreamingHandlerForCommand("monitor system netlink link")
+	h, args := streamingLookup(t, "monitor system netlink link")
 	if h == nil {
 		t.Fatal("monitor system netlink not registered as streaming handler")
 	}
@@ -30,7 +30,7 @@ func TestNetlinkMonitorLink_Wiring(t *testing.T) {
 }
 
 func TestNetlinkMonitorAll_Wiring(t *testing.T) {
-	h, _ := pluginserver.GetStreamingHandlerForCommand("monitor system netlink")
+	h, _ := streamingLookup(t, "monitor system netlink")
 	if h == nil {
 		t.Fatal("monitor system netlink not registered as streaming handler")
 	}
@@ -69,4 +69,16 @@ func TestNetlinkMonitorInvalidGroup(t *testing.T) {
 	if err.Error() != "unknown netlink group (valid: route, link, address, all)" {
 		t.Errorf("unexpected error: %v", err)
 	}
+}
+
+// streamingLookup is GetStreamingHandlerForCommand for a test that expects the
+// arguments to be accepted: it fails the test on a refusal and answers the
+// judged tokens.
+func streamingLookup(t *testing.T, input string) (pluginserver.StreamingHandler, []string) {
+	t.Helper()
+	handler, validated, err := pluginserver.GetStreamingHandlerForCommand(input)
+	if err != nil {
+		t.Fatalf("GetStreamingHandlerForCommand(%q): %v", input, err)
+	}
+	return handler, validated.Tokens()
 }

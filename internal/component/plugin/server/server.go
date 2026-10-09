@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -185,7 +186,20 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 			return nil, rpc.NewCodedError("unauthorized", plugin.UnauthorizedMessage)
 		}
 
-		resp, err := handler(ctx, rpcParams.Args)
+		// Route R4: the params' tokens are judged against the leaves the model
+		// declares for the command, with the selector the params named bound
+		// as the dispatcher binds an inline one, and the handler runs only on
+		// the judged tokens.
+		var bound map[string]string
+		if rpcParams.Selector != "" {
+			bound = map[string]string{selectorLeaf: rpcParams.Selector}
+		}
+		validated, argErr := command.ValidateModelArgs(cliCommand, rpcParams.Args, bound)
+		if argErr != nil {
+			return nil, rpc.NewCodedError("invalid-params", argErr.Error())
+		}
+
+		resp, err := handler(ctx, validated.Tokens())
 		if err != nil {
 			// Use CLI-facing command name, not internal plugin command name
 			if errors.Is(err, ErrUnknownCommand) {

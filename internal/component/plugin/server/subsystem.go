@@ -538,6 +538,29 @@ func findHandlerByCommand(handlers map[string]*SubsystemHandler, command string)
 	return nil
 }
 
+// matchCommand answers the longest command this subsystem declares that
+// prefixes input on a word boundary, lowercased as the model keys it, and the
+// input that follows it. path is empty when none matches; the tokens are then
+// judged against no definitions.
+func (h *SubsystemHandler) matchCommand(input string) (path, rest string) {
+	trimmed := strings.TrimSpace(input)
+	lower := strings.ToLower(trimmed)
+	for _, cmd := range h.Commands() {
+		key := strings.ToLower(strings.TrimSpace(cmd))
+		if len(key) <= len(path) {
+			continue
+		}
+		if lower == key {
+			path, rest = key, ""
+			continue
+		}
+		if strings.HasPrefix(lower, key+" ") {
+			path, rest = key, trimmed[len(key)+1:]
+		}
+	}
+	return path, rest
+}
+
 // allCommands returns all commands from all subsystems.
 func (m *SubsystemManager) allCommands() []string {
 	m.mu.RLock()

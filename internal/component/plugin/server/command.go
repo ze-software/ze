@@ -1086,11 +1086,11 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// check, so the message an operator sees is unchanged: a command typed
 		// with no arguments at all is still told it "requires a selector"
 		// rather than that leaf "selector" is missing.
-		var argErr error
-		var positional map[string]string
-		if len(matchedCmd.ArgDefs) > 0 {
-			positional, argErr = command.ValidateArgs(args, matchedCmd.ArgDefs, selectors)
-		}
+		//
+		// It runs for every matched command, including one whose model declares
+		// no definitions: that call passes the tokens through, and the handler
+		// is invoked only with the value a successful call returned.
+		validated, argErr := command.ValidateArgs(args, matchedCmd.ArgDefs, selectors)
 
 		// Adopt the trailing positional as the peer selector, under three fences
 		// that together mean no command which resolves today changes meaning:
@@ -1101,7 +1101,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// a command that also carries `leaf selector mandatory` -- from taking
 		// the prefix as the destination.
 		if matchedCmd.RequiresSelector && selectors[selectorLeaf] == "" && (ctx == nil || ctx.Peer == "") {
-			if value, found := positional[selectorLeaf]; found {
+			if value, found := adoptablePositional(validated, argErr); found {
 				if selectors == nil {
 					selectors = make(map[string]string, 1)
 				}
@@ -1167,7 +1167,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
 
-		resp, handlerErr := matchedCmd.Handler(ctx, args)
+		resp, handlerErr := matchedCmd.Handler(ctx, validated.Tokens())
 		d.recordCommandAudit(ctx, input, resp, handlerErr)
 		return resp, handlerErr
 	}
@@ -1209,6 +1209,21 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		return d.dispatchSubsystem(ctx, subsystemHandler, input)
 	}
 	return d.dispatchPlugin(ctx, pluginInput, pluginLower, peerSelector)
+}
+
+// adoptablePositional answers the value command.ValidateArgs bound to the
+// selector leaf from a lone spare token: from the value it returned, or from
+// its refusal when the call left another mandatory leaf missing, so that call
+// is still told which leaf is missing rather than that it "requires a
+// selector". Any other refusal binds nothing.
+func adoptablePositional(validated command.ValidatedArgs, argErr error) (string, bool) {
+	if argErr == nil {
+		return validated.Positional(selectorLeaf)
+	}
+	if missing, ok := errors.AsType[*command.MissingArgumentError](argErr); ok {
+		return missing.Positional(selectorLeaf)
+	}
+	return "", false
 }
 
 // selectorLeaf is the YANG leaf name every peer-scoped command uses for its
@@ -1272,7 +1287,20 @@ func auditActionForCommand(input string) string {
 }
 
 // dispatchSubsystem routes a command to a forked subsystem process.
+//
+// The subsystem receives the command as typed, one string, so the judgment is
+// over the tokens after the command the subsystem declared, against the leaves
+// the model declares for it, and a refused call never reaches the process. The
+// string sent is the one whose tokens were judged.
 func (d *Dispatcher) dispatchSubsystem(ctx *CommandContext, handler *SubsystemHandler, input string) (*plugin.Response, error) {
+	path, rest := handler.matchCommand(input)
+	args, err := tokenize(rest)
+	if err != nil {
+		return nil, err
+	}
+	if _, argErr := command.ValidateModelArgs(path, args, nil); argErr != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: argErr.Error()}, argErr
+	}
 	return handler.Handle(ctx.Context(), input)
 }
 
@@ -1359,6 +1387,20 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 // Every other answer is one document and becomes the plugin.RawJSON payload it
 // has always been.
 func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredCommand, args []string, peerSelector string) (*plugin.Response, error) {
+	// Route R9, every plugin-process command: the tokens are judged against
+	// the leaves the model declares for the plugin's command, before any
+	// process is asked, and only the judged tokens are sent. A builtin proxy
+	// forwarding here is judged again for the plugin's path, with the
+	// selectors the dispatcher already bound.
+	var bound map[string]string
+	if cmdCtx != nil {
+		bound = cmdCtx.Selectors
+	}
+	validated, argErr := command.ValidateModelArgs(cmd.LowerName, args, bound)
+	if argErr != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: argErr.Error()}, argErr
+	}
+
 	proc := cmd.Process
 	if proc == nil || !proc.Running() {
 		return nil, ErrPluginProcessNotRunning
@@ -1380,7 +1422,7 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 	// releases it before it returns.
 	rpcCtx, cancel := context.WithTimeout(parentCtx, cmd.Timeout)
 
-	input := &rpc.ExecuteCommandInput{Command: cmd.Name, Args: args, Peer: peerSelector}
+	input := &rpc.ExecuteCommandInput{Command: cmd.Name, Args: validated.Tokens(), Peer: peerSelector}
 	answer, err := conn.SendExecuteCommandAnswer(rpcCtx, input)
 	if err != nil {
 		cancel()

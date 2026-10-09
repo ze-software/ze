@@ -53,6 +53,23 @@ func matchLocalHandler(words, values []string) (LocalHandler, []string, error) {
 	return handler, append(args, values...), nil
 }
 
+// invokeLocalHandler runs a handler matchLocalHandler answered (route R6).
+// Every token the handler will see, the argv values included, is judged
+// against the leaves the model declares for the matched path first, and the
+// handler runs on the judged tokens only. args is matchLocalHandler's answer
+// for words and values, so the matched path is the words its tail did not
+// take.
+func invokeLocalHandler(handler LocalHandler, words, values, args []string) int {
+	path := strings.Join(words[:len(words)-(len(args)-len(values))], " ")
+	judged, err := registry.ValidateLocalArgs(path, args)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
+		return 1
+	}
+	return handler(judged)
+}
+
 // Resolution is what one argv resolves to against one verb's command tree.
 //
 // Every path field is ABSOLUTE, verb included, because the local-handler
@@ -259,7 +276,7 @@ func RunCommand(args []string, cmdName string) int {
 		return 1
 	}
 	if handler != nil {
-		return handler(handlerArgs)
+		return invokeLocalHandler(handler, res.Local, res.LocalValues, handlerArgs)
 	}
 	if !ok {
 		return -1 // signal caller to show usage

@@ -19,11 +19,11 @@ import (
 func TestLocalDataPlainHandlerJudgesArguments(t *testing.T) {
 	ResetForTest()
 	ResetLocalDataForTest()
-	saved := localDataArgCheck
+	saved := localArgCheck
 	t.Cleanup(func() {
 		ResetForTest()
 		ResetLocalDataForTest()
-		localDataArgCheck = saved
+		localArgCheck = saved
 	})
 
 	var ran []string
@@ -44,7 +44,7 @@ func TestLocalDataPlainHandlerJudgesArguments(t *testing.T) {
 		t.Fatal("no plain handler registered for show thing get")
 	}
 
-	localDataArgCheck = nil
+	localArgCheck = nil
 	if code := plain(args); code != 1 {
 		t.Errorf("no check installed: exit %d, want 1", code)
 	}
@@ -53,9 +53,9 @@ func TestLocalDataPlainHandlerJudgesArguments(t *testing.T) {
 	}
 
 	var seenPath string
-	RegisterLocalDataArgCheck(func(path string, _ []string) error {
+	RegisterLocalArgCheck(func(path string, _ []string) ([]string, error) {
 		seenPath = path
-		return errors.New("length 129 out of range 1..128")
+		return nil, errors.New("length 129 out of range 1..128")
 	})
 	if code := plain(args); code != 1 {
 		t.Errorf("refused argument: exit %d, want 1", code)
@@ -67,11 +67,41 @@ func TestLocalDataPlainHandlerJudgesArguments(t *testing.T) {
 		t.Errorf("check saw path %q, want %q", seenPath, "show thing get")
 	}
 
-	RegisterLocalDataArgCheck(func(string, []string) error { return nil })
+	// The check answers tokens that differ from the raw ones, so the handler
+	// running with them proves the route invokes it with what was judged.
+	RegisterLocalArgCheck(func(string, []string) ([]string, error) { return []string{"judged"}, nil })
 	if code := plain(args); code != 0 {
 		t.Errorf("accepted argument: exit %d, want 0", code)
 	}
-	if len(ran) != 1 || ran[0] != "x" {
-		t.Errorf("handler ran with %v, want [x]", ran)
+	if len(ran) != 1 || ran[0] != "judged" {
+		t.Errorf("handler ran with %v, want the judged [judged]", ran)
+	}
+}
+
+// VALIDATES: ValidateLocalArgs, the judgment the R6 (`ze <verb>`) and R7
+// (offline fallback) callers run, refuses when no check is installed and
+// otherwise answers exactly what the installed check judged, for the path the
+// caller names.
+// PREVENTS: a process that loaded no model running a local handler on
+// unjudged tokens.
+func TestValidateLocalArgsAnswersTheJudgedTokens(t *testing.T) {
+	saved := localArgCheck
+	t.Cleanup(func() { localArgCheck = saved })
+
+	localArgCheck = nil
+	if _, err := ValidateLocalArgs("show host", []string{"cpu"}); !errors.Is(err, errLocalArgCheckMissing) {
+		t.Fatalf("no check installed: err = %v, want errLocalArgCheckMissing", err)
+	}
+	var seenPath string
+	RegisterLocalArgCheck(func(path string, args []string) ([]string, error) {
+		seenPath = path
+		return append([]string{"judged"}, args...), nil
+	})
+	got, err := ValidateLocalArgs("show host", []string{"cpu"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seenPath != "show host" || len(got) != 2 || got[0] != "judged" {
+		t.Errorf("path %q tokens %v, want the check's answer for show host", seenPath, got)
 	}
 }

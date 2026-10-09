@@ -184,7 +184,11 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 		// RFC 8907 Section 8.3: account for "every command entered,
 		// irrespective of how the commands were authorized."
 		stopAccounting := d.BeginAccounting(cmdCtx, command)
-		handler, args := pluginserver.GetStreamingHandlerForCommand(command)
+		handler, validated, argErr := pluginserver.GetStreamingHandlerForCommand(command)
+		if argErr != nil {
+			stopAccounting()
+			return nil, nil, argErr
+		}
 		if handler == nil {
 			stopAccounting()
 			return nil, nil, fmt.Errorf("unknown streaming command: %q", command)
@@ -208,7 +212,7 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 					writer.close(fmt.Errorf("streaming handler panic: %v", r))
 				}
 			}()
-			err := handler(streamCtx, s, writer, caller.Username, args)
+			err := handler(streamCtx, s, writer, caller.Username, validated.Tokens())
 			writer.close(err)
 		}()
 

@@ -1,6 +1,10 @@
 package command
 
-import "testing"
+import (
+	"errors"
+	"slices"
+	"testing"
+)
 
 // socketFilterDefs are the three optional filters `show system sockets`
 // declares. They are the case R-1 of spec-generated-command-usage names:
@@ -78,15 +82,12 @@ func TestPositionalBindingIsOrderIndependent(t *testing.T) {
 	} {
 		t.Run(tc.arg, func(t *testing.T) {
 			for i, defs := range permutations(socketFilterDefs()) {
-				lone, err := ValidateArgs([]string{tc.arg}, defs, nil)
+				validated, err := ValidateArgs([]string{tc.arg}, defs, nil)
 				if err != nil {
 					t.Fatalf("ordering %d refused %q: %v", i, tc.arg, err)
 				}
-				if len(lone) != 1 {
-					t.Fatalf("ordering %d bound %q to %d leaves: %v", i, tc.arg, len(lone), lone)
-				}
-				if lone[tc.want] != tc.arg {
-					t.Errorf("ordering %d bound %q to %v, want the %s leaf", i, tc.arg, lone, tc.want)
+				if value, found := validated.Positional(tc.want); !found || value != tc.arg {
+					t.Errorf("ordering %d bound %q to leaf %q, want the %s leaf", i, tc.arg, validated.bound, tc.want)
 				}
 			}
 		})
@@ -105,5 +106,64 @@ func TestPositionalDefKeepsTheMandatoryTierFirst(t *testing.T) {
 	def := positionalDef("up", defs, map[string]bool{})
 	if def == nil || def.name != "mode" {
 		t.Fatalf("a required leaf was not offered the token first: %v", def)
+	}
+}
+
+// VALIDATES: AC-23 and A-7. A path whose model declares no argument definition
+// passes every token through ValidateArgs unchanged, in order, binds no leaf,
+// and refuses nothing, so a route that now validates such a path changes no
+// answer.
+// PREVENTS: the validate-on-every-route change (D-3) refusing a command that
+// worked because its leaves are not modeled.
+// METHOD: arbitrary tokens, flag-shaped and keyword-shaped included, against
+// nil and an empty definition list; then the ownership contract (AC-6): a write
+// to the input after the call, and to what Tokens answers, changes nothing.
+func TestValidateArgsEmptyDefinitionsPassTokens(t *testing.T) {
+	for _, defs := range [][]ArgDef{nil, {}} {
+		args := []string{"anything", "--flag", "name", "x y", ""}
+		validated, err := ValidateArgs(args, defs, nil)
+		if err != nil {
+			t.Fatalf("defs %v refused %q: %v", defs, args, err)
+		}
+		want := slices.Clone(args)
+		if got := validated.Tokens(); !slices.Equal(got, want) {
+			t.Fatalf("Tokens() = %q, want %q", got, want)
+		}
+		if _, found := validated.Positional("name"); found {
+			t.Errorf("no definition declared, yet a leaf was bound")
+		}
+		args[0] = "changed"
+		validated.Tokens()[1] = "changed"
+		if got := validated.Tokens(); !slices.Equal(got, want) {
+			t.Errorf("a write to the input or to Tokens() reached the value: %q", got)
+		}
+	}
+	if got := (ValidatedArgs{}).Tokens(); len(got) != 0 {
+		t.Errorf("zero ValidatedArgs carries tokens %q", got)
+	}
+}
+
+// VALIDATES: a refusal for a missing mandatory leaf is a *MissingArgumentError
+// with the operator-facing text, and it reports the lone binding the call made.
+// PREVENTS: the dispatcher losing the positional selector it adopts before it
+// reports the missing leaf (plugin/server Dispatch).
+func TestValidateArgsMissingMandatoryReportsBinding(t *testing.T) {
+	defs := []ArgDef{
+		mustArgDef(NewEnumArg("selector", []string{"peer-a"}, ArgOptions{Mandatory: true})),
+		mustArgDef(NewStringArg("label", nil, nil, ArgOptions{Mandatory: true})),
+	}
+	validated, err := ValidateArgs([]string{"peer-a"}, defs, nil)
+	var missing *MissingArgumentError
+	if !errors.As(err, &missing) {
+		t.Fatalf("err = %v, want *MissingArgumentError", err)
+	}
+	if err.Error() != "required argument missing: label" {
+		t.Errorf("text = %q", err.Error())
+	}
+	if value, found := missing.Positional("selector"); !found || value != "peer-a" {
+		t.Errorf("binding = %q %v, want peer-a", value, found)
+	}
+	if len(validated.Tokens()) != 0 {
+		t.Errorf("a refused call answered tokens %q", validated.Tokens())
 	}
 }

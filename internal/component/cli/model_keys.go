@@ -471,7 +471,12 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		if isMonitorCommand(args) {
-			cmd := m.startMonitorSessionFromInput(extractMonitorCmdArgs(args), args)
+			monitorArgs, argErr := extractMonitorCmdArgs(args)
+			if argErr != nil {
+				m.statusMessage = argErr.Error()
+				return m, nil
+			}
+			cmd := m.startMonitorSessionFromInput(monitorArgs, args)
 			return m, cmd
 		}
 		m.statusMessage = "running..."
@@ -611,7 +616,12 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		if isMonitorCommand(input) {
-			cmd := m.startMonitorSessionFromInput(extractMonitorCmdArgs(input), input)
+			monitorArgs, argErr := extractMonitorCmdArgs(input)
+			if argErr != nil {
+				m.statusMessage = argErr.Error()
+				return m, nil
+			}
+			cmd := m.startMonitorSessionFromInput(monitorArgs, input)
 			return m, cmd
 		}
 		m.statusMessage = "running..."

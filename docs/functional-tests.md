@@ -2219,7 +2219,8 @@ plugin {
 }
 ```
 
-It registers six commands, and each one is one property of the record path.
+It registers seven commands. Six are each one property of the record path, and
+the seventh is one property of the plugin route's argument judgment.
 
 | Command | What it produces |
 |---------|------------------|
@@ -2229,15 +2230,16 @@ It registers six commands, and each one is one property of the record path.
 | `show test engine answer` | what the plugin read from the engine's own streamed answer to `system command list` |
 | `show test records table` | 300 rows against a declared column schema, so the head says `tab` and each row is a positional array |
 | `show test records object` | the same 300 rows with no schema declared, so the head says `map` and each row carries its own names |
-<!-- source: internal/test/cli/cmd_record_plugin.go -- CmdRecordPlugin, recordRows, recordColumnRows, recordTableColumns, engineAnswerReader -->
+| `show config cat` | `record-plugin received: ` and the arguments it was sent. The model declares a mandatory `id` of 1..128 characters at this path and no daemon builtin serves it, so the engine's plugin route (`Dispatcher.routeToProcess`) is the only judge of what reaches the plugin |
+<!-- source: internal/test/cli/cmd_record_plugin.go -- CmdRecordPlugin, recordRows, recordColumnRows, recordTableColumns, engineAnswerReader, recordArgumentCommand -->
 
-The last two are a PAIR, and neither means anything alone. They answer the same
+`records object` and `records table` are a PAIR, and neither means anything alone. They answer the same
 data through handlers that differ only in `plugin.Records.Fields`, so the
 document an operator receives from one is the document they receive from the
 other. That equality is what says the head carried the column names and the
 consumer zipped each positional row against them.
 
-Six `.ci` files drive it from the operator's seat over `ze cli`.
+Seven `.ci` files drive it from the operator's seat over `ze cli`.
 
 | Test | Proves |
 |------|--------|
@@ -2247,6 +2249,7 @@ Six `.ci` files drive it from the operator's seat over `ze cli`.
 | `test/plugin/plugin-command-document-too-wide.ci` | a collapsed document no line can carry is rejected by name, and the answer still reaches its terminator |
 | `test/plugin/answer-payload-unchanged.ci` | every row an operator receives, on both wire shapes, is byte for byte the bytes `recordRow.AppendTo` wrote |
 | `test/plugin/stream-answer-renders-table.ci` | a declared column schema reaches the head, the rows travel as values alone, and the operator renders them as a table |
+| `test/ui/cli-argument-refused-plugin-route.ci` | the plugin route refuses an over-long or missing `id` before the plugin is asked, and an `id` at the bound reaches the plugin |
 
 `answer-payload-unchanged.ci` is the one that reads the PAYLOAD rather than the
 frame. `recordRow.AppendTo` writes each row with no marshaler, so the test builds

@@ -270,6 +270,20 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 	return args, 0
 }
 
+// invokeRootLocalHandler runs a handler the root fallback of zeDispatch
+// matched (route R6). remaining is the tail registry.LookupLocal left after the
+// registered path, so the path is the words of args before it. The tail is
+// judged against the leaves the model declares for that path, and the handler
+// runs on the judged tokens only: a refused tail exits 1 and never reaches it.
+func invokeRootLocalHandler(handler registry.LocalHandler, args, remaining []string) int {
+	judged, err := registry.ValidateLocalArgs(strings.Join(args[:len(args)-len(remaining)], " "), remaining)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	return handler(judged)
+}
+
 func zeDispatch(args []string) int {
 	pprofAddr := zeFlags.pprofAddr
 	if pprofAddr == "" {
@@ -400,7 +414,7 @@ func zeDispatch(args []string) int {
 		return reportDispatchError(err)
 	}
 	if handler != nil {
-		return handler(remaining)
+		return invokeRootLocalHandler(handler, args, remaining)
 	}
 
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)

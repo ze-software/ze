@@ -13,9 +13,86 @@ package command
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// ValidatedArgs is a command's argument tokens after ValidateArgs judged them
+// against the definitions the model declares for the command's path.
+//
+// Only a successful ValidateArgs builds a non-zero value, because its fields
+// are private: a route outside this package that holds one has called the
+// validator. The zero value is legitimate and means "no tokens, no binding";
+// it is what ValidateArgs returns for an empty call against no definitions,
+// and a route that hands a handler a zero literal instead of calling the
+// validator is visible as that literal.
+//
+// The value owns its token slice: ValidateArgs copies its input, and Tokens
+// answers a copy, so neither the route nor a handler can change what was
+// judged after the judgment. Safe for concurrent use: it is never written
+// after ValidateArgs returns it.
+type ValidatedArgs struct {
+	tokens []string
+	// bound and boundValue are the lone spare positional token ValidateArgs
+	// bound to a leaf. bound is empty when it bound none.
+	bound      string
+	boundValue string
+}
+
+// Tokens answers a copy of the judged tokens, in the order they were typed. A
+// handler that writes into the copy changes nothing the value holds.
+func (v ValidatedArgs) Tokens() []string {
+	return slices.Clone(v.tokens)
+}
+
+// Positional answers the value a LONE spare positional token filled for leaf.
+// found is false when the call left several spare tokens, none, or bound the
+// one it left to a different leaf: which token is the value is then a guess,
+// and the caller must not make it.
+func (v ValidatedArgs) Positional(leaf string) (value string, found bool) {
+	if v.bound == "" {
+		return "", false
+	}
+	if v.bound != leaf {
+		return "", false
+	}
+	return v.boundValue, true
+}
+
+// MissingArgumentError is ValidateArgs's refusal of a call that left a
+// mandatory definition unfilled.
+//
+// It carries the lone positional binding the call DID make, because the daemon
+// dispatcher chooses between two refusals on it: a command whose selector
+// arrived positionally is told which other leaf is missing, not that it
+// "requires a selector". The binding answers only that choice; a refused call
+// yields no ValidatedArgs, so no handler can run on it.
+type MissingArgumentError struct {
+	// Leaf is the first mandatory definition, in declaration order, that no
+	// token filled.
+	Leaf       string
+	bound      string
+	boundValue string
+}
+
+// Error answers the refusal text every route prints.
+func (e *MissingArgumentError) Error() string {
+	var tb textbuf.Buffer
+	return tb.Str("required argument missing: ").Str(e.Leaf).String()
+}
+
+// Positional answers the value a lone spare positional token filled for leaf
+// in the refused call, with the same fences as ValidatedArgs.Positional.
+func (e *MissingArgumentError) Positional(leaf string) (value string, found bool) {
+	if e.bound == "" {
+		return "", false
+	}
+	if e.bound != leaf {
+		return "", false
+	}
+	return e.boundValue, true
+}
 
 // ValidateArgs implements two-phase validation of command arguments
 // against YANG-declared ArgDefs.
@@ -32,20 +109,27 @@ import (
 // call, while a token no definition accepts is a bad value only if the
 // dispatcher can say which definition it was typed for.
 //
-// It returns the leaf a LONE spare positional token filled, keyed by leaf name,
-// or nil. The daemon dispatcher needs that answer for the terminal-noun selector shape (see
-// the fences there), and this is the only place a positional token is bound to a
-// leaf, so reporting it is cheaper and safer than a second matcher that would
-// drift. "Lone" is the point: when a command leaves several tokens unconsumed,
-// which of them is the value is a guess, and the caller must not make it.
+// It answers the ValidatedArgs every route hands a handler: a copy of args,
+// and the leaf a LONE spare positional token filled (ValidatedArgs.Positional).
+// The daemon dispatcher needs that binding for the terminal-noun selector shape
+// (see the fences there), and this is the only place a positional token is
+// bound to a leaf, so reporting it is cheaper and safer than a second matcher
+// that would drift. "Lone" is the point: when a command leaves several tokens
+// unconsumed, which of them is the value is a guess, and the caller must not
+// make it. A call that left a mandatory definition unfilled is refused with a
+// *MissingArgumentError, which carries that binding for the same reason.
+//
+// No definitions is a legitimate answer from the model, not a skipped check:
+// every phase iterates the definitions, so the tokens pass through unchanged.
+// Every route calls this function, including for a path that declares none.
 //
 // A definition no constructor built, the zero ArgDef among them, is refused
 // before any token is read (ErrArgDef): it is a Ze defect, and accepting it as
 // an unrestricted string would fail open.
-func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (map[string]string, error) {
+func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (ValidatedArgs, error) {
 	for i := range defs {
 		if !defs[i].constructed {
-			return nil, fmt.Errorf("%w: argument %d (%q) was not built by a constructor", ErrArgDef, i, defs[i].name)
+			return ValidatedArgs{}, fmt.Errorf("%w: argument %d (%q) was not built by a constructor", ErrArgDef, i, defs[i].name)
 		}
 	}
 	consumed := make([]bool, len(args))
@@ -68,7 +152,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 			continue
 		}
 		if err := ValidateArgString(value, &defs[i]); err != nil {
-			return nil, err
+			return ValidatedArgs{}, err
 		}
 	}
 
@@ -79,7 +163,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 			continue
 		}
 		if matched[def.name] {
-			return nil, fmt.Errorf("duplicate keyword %q", args[i])
+			return ValidatedArgs{}, fmt.Errorf("duplicate keyword %q", args[i])
 		}
 		consumed[i] = true
 		if def.kind == ArgFlag {
@@ -88,12 +172,12 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 			continue
 		}
 		if i+1 >= len(args) {
-			return nil, fmt.Errorf("%s requires a value", args[i])
+			return ValidatedArgs{}, fmt.Errorf("%s requires a value", args[i])
 		}
 		i++
 		consumed[i] = true
 		if err := ValidateArgString(args[i], def); err != nil {
-			return nil, err
+			return ValidatedArgs{}, err
 		}
 		matched[def.name] = true
 	}
@@ -110,7 +194,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 	// a bad value or a keyword the handler reads is a question the definitions
 	// alone cannot answer, and a later token can still fill a definition this
 	// one could not.
-	var lone map[string]string
+	var bound, boundValue string
 	unplaced := make([]string, 0, len(args))
 	for i, arg := range args {
 		if consumed[i] {
@@ -123,7 +207,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 		}
 		matched[def.name] = true
 		if spare == 1 {
-			lone = map[string]string{def.name: arg}
+			bound, boundValue = def.name, arg
 		}
 	}
 
@@ -137,23 +221,23 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 	// missing mandatory argument below is what is certainly wrong with the call.
 	open := unmatchedDefCount(defs, matched)
 	if len(unplaced) > 0 && open > 0 && len(unplaced) <= open {
-		return nil, positionalError(unplaced[0], defs, matched)
+		return ValidatedArgs{}, positionalError(unplaced[0], defs, matched)
 	}
 
 	// Phase 3: mandatory check.
 	for i := range defs {
 		if defs[i].mandatory && !matched[defs[i].name] {
-			return lone, fmt.Errorf("required argument missing: %s", defs[i].name)
+			return ValidatedArgs{}, &MissingArgumentError{Leaf: defs[i].name, bound: bound, boundValue: boundValue}
 		}
 	}
 
 	// Every mandatory definition is filled, so a token left over is the only
 	// fault the call has, and naming it is the whole answer.
 	if len(unplaced) > 0 && open > 0 {
-		return nil, positionalError(unplaced[0], defs, matched)
+		return ValidatedArgs{}, positionalError(unplaced[0], defs, matched)
 	}
 
-	return lone, nil
+	return ValidatedArgs{tokens: slices.Clone(args), bound: bound, boundValue: boundValue}, nil
 }
 
 // positionalDef picks the ArgDef a positional token fills, or nil when none

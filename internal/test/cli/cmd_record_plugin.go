@@ -7,7 +7,8 @@
 // reads an engine answer as one. It exists because the record path has two
 // halves and only a running daemon joins them. A plugin's own rows travel to an
 // operator through execute-command. An engine command's rows travel back
-// through dispatch-command. Five .ci files under test/plugin/ drive it.
+// through dispatch-command. Six .ci files under test/plugin/ drive it, and
+// test/ui/cli-argument-refused-plugin-route.ci drives recordArgumentCommand.
 
 package cli
 
@@ -46,7 +47,25 @@ const (
 	recordEngineCommand   = "show test engine answer"
 	recordTableCommand    = "show test records table"
 	recordObjectCommand   = "show test records object"
+	recordArgumentCommand = "show config cat"
 )
+
+// recordArgumentMarker opens the answer to recordArgumentCommand. No refusal
+// the engine writes contains it, so its presence is the plugin's answer.
+const recordArgumentMarker = "record-plugin received: "
+
+// recordArgumentCommand is a command whose arguments the model declares, so the
+// engine judges them before it asks this plugin (route R9, routeToProcess in
+// internal/component/plugin/server/command.go). The engine reads argument
+// definitions from the model compiled into it, so an external plugin's command
+// is judged only at a path that model declares. Every shipped plugin command
+// that declares an argument is also served by a builtin RPC, which judges the
+// arguments first, so none of them can show R9 refusing. `show config cat`
+// declares a mandatory id of 1..128 characters (internal/plugins/config-cli/
+// yang) and no builtin serves it in the daemon: `ze show config cat` runs in
+// the client. A plugin command MUST start with a verb, which rules out a root
+// such as `explain`. The plugin answers recordArgumentMarker and the arguments
+// it was given, which proves an accepted value reached the process.
 
 // recordTableCommand and recordObjectCommand answer ONE table in the two forms
 // a handler can produce it, and the pair is what makes the difference
@@ -146,7 +165,7 @@ func CmdRecordPlugin(_ []string) int {
 
 	reader := &engineAnswerReader{done: make(chan struct{})}
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
 		switch command {
 		case recordWalkCommand:
 			return rpc.StatusDone, sdk.Records{
@@ -176,6 +195,8 @@ func CmdRecordPlugin(_ []string) int {
 			}, nil
 		case recordEngineCommand:
 			return reader.answer()
+		case recordArgumentCommand:
+			return rpc.StatusDone, recordArgumentMarker + strings.Join(args, " "), nil
 		}
 		return rpc.StatusError, nil, fmt.Errorf("record-plugin: unknown command %q", command)
 	})
@@ -197,6 +218,7 @@ func CmdRecordPlugin(_ []string) int {
 			{Name: recordEngineCommand, ShortHelp: "What the plugin read from a streamed engine answer"},
 			{Name: recordTableCommand, ShortHelp: "Walk whose head declares its columns"},
 			{Name: recordObjectCommand, ShortHelp: "The same walk with no column schema"},
+			{Name: recordArgumentCommand, ShortHelp: "The arguments the engine judged and sent"},
 		},
 	}
 	if runErr := p.Run(ctx, registration); runErr != nil {

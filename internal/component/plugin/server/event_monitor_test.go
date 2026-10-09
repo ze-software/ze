@@ -339,7 +339,7 @@ func TestGetStreamingHandlerPreservesArgCase(t *testing.T) {
 	handler := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error { return nil }
 	RegisterStreamingHandler("monitor event", handler)
 
-	_, args := GetStreamingHandlerForCommand("monitor event peer MyRouter-1")
+	_, args := streamingLookup(t, "monitor event peer MyRouter-1")
 	require.Equal(t, []string{"peer", "MyRouter-1"}, args, "args should preserve original case")
 }
 

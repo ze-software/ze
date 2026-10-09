@@ -1,0 +1,79 @@
+# Test: a plugin-process command's arguments are judged against the leaves the
+# model declares before the engine asks the plugin, and only judged tokens reach
+# it.
+# VALIDATES: route R9 (Dispatcher.routeToProcess, internal/component/plugin/
+# server/command.go) through the real entry point: `ze cli -c` over SSH to a
+# daemon that forwards the command to an external SDK plugin process.
+#   - `le test record-plugin` declares `show config cat`. The model declares a
+#     mandatory id of 1..128 characters for it (internal/plugins/config-cli/
+#     yang), and no builtin RPC serves it in the daemon (`ze show config cat`
+#     runs in the client), so the plugin route is the only one that can judge
+#     it. Every shipped plugin command that declares an argument
+#     is also served by a builtin, which judges first (route R1), so none of
+#     them can show this route refusing.
+#   - The plugin answers "record-plugin received: " and the arguments it was
+#     given, which no engine refusal contains, so the marker proves an accepted
+#     value reached the process and its absence that a refused one did not.
+# PREVENTS: a declared bound that constrains nothing on the plugin route. R9
+# once forwarded every token unjudged, so a 129-character id, or no id at all,
+# reached the plugin process.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI dials.
+
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=plugin-route.conf:terminator=EOF_CONF
+plugin {
+	external record-plugin {
+		run "le test record-plugin"
+		encoder json
+	}
+}
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start plugin-route.conf:name=daemon:ready=Ze running.
+
+# 129 characters: one past the bound, refused before the plugin is asked.
+cmd=foreground:seq=3:exec=ze cli -c "show config cat ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+expect=stderr:contains=length 129 out of range 1..128
+reject=stdout:contains=record-plugin received
+
+# No id: the mandatory leaf is missing, refused before the plugin is asked.
+cmd=foreground:seq=4:exec=ze cli -c "show config cat"
+expect=stderr:contains=required argument missing: id
+reject=stdout:contains=record-plugin received
+
+# 128 characters: at the bound, the id reaches the plugin.
+cmd=foreground:seq=5:exec=ze cli -c "show config cat cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+expect=stdout:contains=record-plugin received: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+reject=stderr:contains=out of range
+
+cmd=stop:seq=6:name=daemon:signal=term

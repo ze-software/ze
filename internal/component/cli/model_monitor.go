@@ -42,10 +42,16 @@ func isMonitorCommand(input string) bool {
 	return pluginserver.IsStreamingCommand(input)
 }
 
-// extractMonitorCmdArgs extracts the keyword arguments after the matched streaming prefix.
-func extractMonitorCmdArgs(input string) []string {
-	_, args := pluginserver.GetStreamingHandlerForCommand(input)
-	return args
+// extractMonitorCmdArgs answers the keyword arguments after the matched
+// streaming prefix, judged against the leaves the model declares for it, the
+// same judgment the SSH streaming route applies. A refused argument starts no
+// session.
+func extractMonitorCmdArgs(input string) ([]string, error) {
+	_, validated, err := pluginserver.GetStreamingHandlerForCommand(input)
+	if err != nil {
+		return nil, err
+	}
+	return validated.Tokens(), nil
 }
 
 // startMonitorSessionFromInput creates a monitor session. It first checks
