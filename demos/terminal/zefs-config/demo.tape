@@ -95,7 +95,9 @@ Wait+Screen /router-id/
 Sleep 7s
 Type "ze cli -c 'show bgp | text'"
 Enter
-Wait+Screen /router-id/
+# The table above prints router-id inside a cell; only the text rendering
+# starts a line with it, so the table still on screen cannot satisfy this.
+Wait+Screen /(?m)^router-id\s+\S/
 Sleep 7s
 Type "clear"
 Enter
