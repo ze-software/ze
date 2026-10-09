@@ -26,7 +26,7 @@ See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit
    | New/changed wire format | `docs/architecture/wire/` updated |
    | New/changed web endpoint | docs or inline help updated |
    | New/changed plugin behavior | `docs/guide/plugins.md` updated |
-   | New feature | `features/<id>.md` declaration |
+   | New feature | `features/<id>.md` declaration, its level read from `./le feature report` |
    | New/changed API | `docs/architecture/api/commands.md` updated |
    | New/changed skill | canonical `ai/skills/` source exists |
    | New/changed `.claude/` rule | `ai/INSTRUCTIONS.md` pointer if needed |

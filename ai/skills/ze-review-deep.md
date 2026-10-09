@@ -347,7 +347,7 @@ Check these specific doc locations against changes:
 - Wire format changes -> `docs/architecture/wire/`
 - Plugin changes -> `docs/guide/plugins.md`, `docs/plugin-development/`
 - API/RPC changes -> `docs/architecture/api/commands.md`
-- New features -> `features/<id>.md` (renders `docs/features.md`)
+- New features -> `features/<id>.md` (renders `docs/features.md`; `./le feature report` shows its level)
 
 Also check:
 - `// Design:` comments in changed .go files: do they reference correct architecture docs?

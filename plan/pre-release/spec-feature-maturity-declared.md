@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-10-07 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -336,6 +336,7 @@ Row 126's ledger finding is an `rfc/short/rfc7947.md` correction owed under
 -> Decision (implementer, 2026-10-07, Phase 4): `features/development-activity.md` (Kind dev-tool) backs the Development Activity card, because D-9 refuses a card that no declaration backs. Its bullet "Built from git history each time" is true: `renderActivityPage` calls `MeasureActivity` on every site build. The "Live data" chip is open for the owner: the page is a static build, so the data is as of the last publish.
 -> Decision (implementer, 2026-10-07, Phase 4): no feature is Supported yet, so every card renders experimental. A section that holds no card is not published (`featuresBody` in `datapages.go`, `writeLLMSFeatures` in `derived.go`), so the page does not show a core heading with nothing under it. The count is still the cards kept.
 -> Decision (implementer, 2026-10-07, Phase 5): `docs/features.md` is untracked, so a tracked Markdown link to it 404s on GitHub. Links now point at the published page, `https://ze-software.net/reference/feature-status/`. A code-span mention of the path stays, which is how `docs/features/rfc-status.md` is cited.
+-> Constraint (closure audit, 2026-10-09): closure is BLOCKED. (1) `fullStages` in `internal/le/verify/engine/stages.go` holds no `feature check` stage and `TestStagesIncludeFeatureCheck` does not exist, so the gate gates nothing; `docs/architecture/testing/verify-freshness-scope.md` names no such stage either. (2) `./le feature check` on the real tree exits non-zero: 58 Doc review staleness refusals (`staleDocReview`, `internal/le/feature/staleness.go`) because shared pages (`docs/guide/configuration.md`, `docs/guide/command-reference.md`, `docs/guide/config-reload.md`, ...) and 12 declarations changed on 2026-10-08/09 after the 2026-10-07 reviews, plus `backup-and-restore` declared supported above its ceiling (S5: journal `identity-default-hides-a-mapping` row 2026-10-08 names `internal/plugins/init`). Adding the stage as is reds every session's verify; a date-keyed review of a shared page re-fires on every edit to it (R-3 in S4 form). Owner question: which way does stale Doc review behave: refuse (redo ~52 reviews now and after each shared-page edit), or warn like run staleness (owner ruling 2026-10-08) and refuse only a recorded false sentence. (3) `TestMigrationDescriptionsVerbatim` (AC-20) does not exist. AC-24 surfaces now name `./le feature report` (2026-10-09).
 -> Decision (implementer, 2026-10-07): observed red for the Phase 4 tests, each restored GREEN. CardShipped level check removed: TestASiteCardIsShippedOnlyWhenEveryFeatureItNamesIs RED. Unknown id skipped: TestAFactTheTreeCannotAnswerStopsTheBuild/a_feature_card_no_declaration_backs RED. Scope-gaps label changed: TestFeaturesPageRendersEveryDeclaration RED. feedsPage subdirectory check removed: TestTheDerivedFeaturePageFollowsTheDeclarations RED. place() inverted: TestFeaturesProducerDerivesCardState RED. Count read from the core section: TestFactsFeatureCountFromDeclarations RED.
 
 ## Risks & Assumptions

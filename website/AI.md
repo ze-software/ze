@@ -484,7 +484,8 @@ this before considering the update done.
    `features/*.md` declarations it describes. A card moves from Experimental
    to shipped only when every declaration it names is complete and
    supported, so a level change is made in the declaration, never in the
-   card (`docs/contributing/feature-maturity.md`). The intro paragraph's
+   card (`docs/contributing/feature-maturity.md`); `./le feature report`
+   lists each declaration's level and what the next level lacks. The intro paragraph's
    count is computed from the data at render time, nothing to hand-update. If the week is a
    genuine landmark (a whole protocol or subsystem's first appearance, not a
    routine improvement), also add one node to `data/milestones.json` so the

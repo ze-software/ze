@@ -121,7 +121,7 @@ spec and any fixes, documentation, or warranted lesson records) and commit B
    - Answer Yes or No. Every Yes MUST name the file and the update, and MUST point at the commit or diff hunk that already made it.
    - Every No MUST be backed by source-aware evidence. At minimum, grep `docs/` for source anchors pointing at changed files and check the category does not apply.
    - Do NOT say "update the docs." Name the specific file, the specific section, and what to add.
-   - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
+   - Categories: feature list (the `features/<id>.md` declaration, its level read from `./le feature report`, never a hand edit of `docs/features.md`), user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
    - If the spec has no Documentation Update Checklist, use `ai/rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
    - If config syntax changed, verify examples against the actual YANG/parser before writing docs.
    - If CLI/API/RPC changed, verify docs against the actual handler or RPC type, not the spec.
