@@ -565,7 +565,10 @@ func pathExpectsImplicitSelector(current *cli.Command, remaining []string) bool 
 func hasImplicitSelectorArg(node *cli.Command) bool {
 	for i := range node.ArgDefs {
 		def := node.ArgDefs[i]
-		if def.Kind() != cmd.ArgString || !def.Mandatory() {
+		if def.Kind() != cmd.ArgString {
+			continue
+		}
+		if !def.Mandatory() {
 			continue
 		}
 		if !strings.EqualFold(def.Name(), node.Name) {

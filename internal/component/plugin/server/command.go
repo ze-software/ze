@@ -858,7 +858,10 @@ func anchoredDef(keyTok string, defs []command.ArgDef, matched map[string]string
 		if _, ok := matched[def.Name()]; ok {
 			continue
 		}
-		if def.Anchor() == "" || !strings.EqualFold(def.Anchor(), keyTok) {
+		if def.Anchor() == "" {
+			continue
+		}
+		if !strings.EqualFold(def.Anchor(), keyTok) {
 			continue
 		}
 		if found != nil {
@@ -877,7 +880,10 @@ func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[
 		if _, ok := matched[def.Name()]; ok {
 			continue
 		}
-		if def.Kind() != command.ArgString || !def.Mandatory() {
+		if def.Kind() != command.ArgString {
+			continue
+		}
+		if !def.Mandatory() {
 			continue
 		}
 		if keyTokenPresent(keyTokens, def.Name()) {

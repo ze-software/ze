@@ -183,7 +183,10 @@ func positionalDef(arg string, defs []ArgDef, matched map[string]bool) *ArgDef {
 		bestRank := ConstraintUnspecified
 		for i := range defs {
 			def := &defs[i]
-			if matched[def.name] || def.mandatory != wantMandatory {
+			if matched[def.name] {
+				continue
+			}
+			if def.mandatory != wantMandatory {
 				continue
 			}
 			if ValidateArgString(arg, def) != nil {
@@ -247,7 +250,10 @@ func positionalError(arg string, defs []ArgDef, matched map[string]bool) error {
 		return ValidateArgString(arg, open[0])
 	}
 	for _, def := range open {
-		if def.kind == ArgEnum || def.kind == ArgUnion {
+		if def.kind == ArgEnum {
+			return ValidateArgString(arg, def)
+		}
+		if def.kind == ArgUnion {
 			return ValidateArgString(arg, def)
 		}
 	}

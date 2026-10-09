@@ -214,7 +214,10 @@ func Usage(path []string, node *Node) []UsageToken {
 		tokens = append(tokens, UsageToken{Text: segment, Kind: UsageKeyword})
 		for i := range node.ArgDefs {
 			def := &node.ArgDefs[i]
-			if anchored[def.name] || usageAnchor(def) != segment {
+			if anchored[def.name] {
+				continue
+			}
+			if usageAnchor(def) != segment {
 				continue
 			}
 			anchored[def.name] = true
@@ -250,7 +253,10 @@ func appendLeafTokens(tokens []UsageToken, node *Node, anchored map[string]bool,
 	}
 	for i := range node.ArgDefs {
 		def := &node.ArgDefs[i]
-		if anchored[def.name] || def.mandatory != wantMandatory {
+		if anchored[def.name] {
+			continue
+		}
+		if def.mandatory != wantMandatory {
 			continue
 		}
 		tokens = append(tokens, usageToken(def, usageLeafKind(def, kind)))
