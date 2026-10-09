@@ -46,9 +46,50 @@ Swept and NOT the class (no change):
 Goal: each of the six works in session mode against the running daemon, records
 what it changed as the same tracked change entries `set`/`delete` produce (so
 `show | compare`, `show | changes`, blame and conflict detection see it), and
-`commit` applies it to the running daemon. `commit confirmed` auto-reverts even
+`commit now` applies it to the running daemon. `commit confirmed` auto-reverts even
 when the SSH session that issued it is gone, because that is the lockout the
 command exists to survive.
+
+Owner decision (2026-10-10): the commit grammar is replaced. Every way to commit
+is a `commit` subcommand, and confirming is always an explicit act:
+
+| Command | Outside a window | During a window, user who started it | During a window, other users |
+|---------|------------------|--------------------------------------|------------------------------|
+| `commit now [force]` | applies the candidate | refused, pointing to `commit accept`, `commit abort`, `commit confirmed <seconds>` | refused |
+| `commit confirmed <seconds> [force]` | applies with a countdown; the time is required | adds the new changes under a fresh countdown; the revert target stays the state before the first unconfirmed commit | refused |
+| `commit accept` | refused, no window | stops the countdown and keeps the applied config; uncommitted candidate edits stay pending and are not applied | refused |
+| `commit abort` | refused, no window | reverts now | refused |
+| `commit verify` | validates the candidate, applies nothing (Junos `commit check`) | same | same |
+| `commit` alone | error naming the subcommands | same | same |
+
+`force` is not a verb (owner amendment 2026-10-10: "we can have force as an
+adapter for all command instead"). It is a trailing modifier on the two
+subcommands that apply a candidate: it applies despite validation warnings and
+is still refused on errors (owner: "an emergency commit if commit now failed and
+we accept potential issue"). On `accept`, `abort` and `verify` it has nothing to
+override and is an error. `confirm` and `confirm abort` are removed. A window
+belongs to the user who started it, from any of that user's sessions (AC-17).
+
+Owner clarification (2026-10-10): `force` applies to "all relevant" commands,
+with one meaning everywhere: proceed despite validation warnings or a safety
+refusal, never despite an error. Where it means nothing it is an error. Owner
+answer (2026-10-10, "yes, every editor"): the grammar and the modifier apply to
+the SSH session editor, `ze config edit -f` file mode and the web terminal, and
+plain `commit` is removed everywhere with no alias. The sweep of the editor's
+commands found these gates:
+
+| Command | Gate today (source) | Kind | With `force` |
+|---------|---------------------|------|--------------|
+| `commit now`, `commit confirmed <seconds>` | validation warnings block the commit (`model_commands_commit.go`, "Both errors and warnings block commit") | warning | applies; errors still refuse (AC-12) |
+| `copy <list> <src> to <dst>`, `rename <list> <old> to <new>` | destination entry exists (`config/meta.go`, "already exists in") | safety refusal | replaces the destination, recorded as change entries (AC-30) |
+| `exit`, `quit` with pending changes | prompt "Pending changes ... type y to force exit" (`model_keys.go` `handleEnter`) | safety refusal | leaves as answering `y` does today, no prompt (AC-31) |
+| commit with a LIVE or STALE conflict; write-through "pending change conflict with" (`editor_commit.go`, `editor_draft.go`) | another user's change | treated as an error | refused as without `force`: overriding it destroys another user's work (AC-32) |
+| `commit accept`, `commit abort`, `commit verify`, `rollback <N>`, `discard`, `disconnect`, `who`, `top`, `up` | no warning or safety gate | none | error: nothing to override (AC-28) |
+| `set`, `delete`, `edit`, `show`, `load`, `activate`, `deactivate`, `insert` | only errors (type, unknown path, parse, not inactive) | none | not reserved: these take a value or a path of any length last, so `force` there is an operand, and `set ... description force` keeps storing `force` (AC-28) |
+
+Whether a verb accepts `force` is declared by the verb itself where it
+registers, and the "nothing to override" error and completion read that
+declaration; no central list of force-capable verbs is written.
 
 ## Required Reading
 
@@ -73,7 +114,10 @@ command exists to survive.
   → Constraint: config content MUST be manipulated as a parsed YANG tree or as `set` lines; "Raw text surgery, a custom merge function that parses config syntax outside the config system" MUST NOT be used. File mode's `mergeConfigs`, `mergeAtContext`, `replaceAtContext` (`model_load.go`) are line-and-brace text surgery, so the session path cannot reuse them
   → Decision: load parses the input with the schema parser into a tree, merges or replaces at the tree level, and that ONE path serves both modes; the text functions are deleted (`ai/rules/no-layering.md`)
 - [ ] `ai/rules/cli.md` - command grammar and errors
-  → Constraint: no new verb or flag; the existing grammar is kept. Every error says what failed, why, and what to do next
+  → Constraint: every error says what failed, why, and what to do next; a refusal during a window names the window, the user who started it and the seconds left
+  → Decision: the commit grammar changes by owner decision (Task table): `commit now|confirmed <seconds>|accept|abort|verify`, `force` as a trailing modifier, `confirm` removed
+- [ ] `docs/architecture/cli/command-namespacing.md`, `docs/architecture/config/syntax.md`, `docs/architecture/testing/ci-format.md`, `docs/architecture/web-interface.md` - declared by files this spec changes (the editor dispatch, `config/meta.go`, the fixtures, the web terminal)
+  → Constraint: each is read at implementation and updated where it names the editor's `commit`, `confirm` or copy/rename behavior; otherwise named unaffected with the reason
 - [ ] `ai/rules/goroutine-lifecycle.md` - the confirm-window timer
   → Constraint: the daemon-owned deadline is one long-lived worker started with the daemon, never a goroutine per commit
 
@@ -86,7 +130,8 @@ command exists to survive.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/cli/model_commands.go` - dispatch; commit arm refuses `confirmed` when `HasSession()`, routes plain commit to `cmdCommitSession`
+- [ ] `internal/component/cli/model_commands.go` - dispatch; commit arm parses a leading `force` (`commit force [confirmed <N>]`), refuses `confirmed` when `HasSession()`, routes plain commit to `cmdCommitSession`; a separate `confirm` arm takes `confirm` and `confirm abort`
+- [ ] `internal/component/cli/model.go` - verb words `cmdConfirm`, `cmdConfirmed`, `cmdAbort`
 - [ ] `internal/component/cli/model_load.go` - `cmdCommitConfirmed` (validate with `ValidateTransition`, require history, `saveLive`, `CommitSession` or `Save`, `tryReload`, newest backup becomes the rollback target, tick countdown), `cmdConfirm`, `cmdAbort`, `rollbackConfirmed`, `handleConfirmCountdown`; `cmdLoadNew` refuses in session mode; `applyLoadAbsolute`/`applyLoadRelative` call the text merge functions and `setWorkingContent`
 - [ ] `internal/component/cli/model_commands_commit.go` - `cmdCommitSession` (validate, `CommitSessionCandidate` when a reload notifier exists, `NotifyReload`, `ClearCandidate` on failure, `MarkCommittedContent`), `cmdCommitForce` refuses in session mode, `cmdRollback` calls `Editor.Rollback`
 - [ ] `internal/component/cli/editor_commands.go` - `CopyListEntry`, `DeactivateLeaf`, `ActivateLeaf`, `DeactivatePath`, `ActivatePath` refuse when `e.session != nil`; `RenameListEntry` and the leaf-list member ops route to write-through
@@ -102,8 +147,8 @@ command exists to survive.
 - [ ] `test/editor/session/load-blocked.et` - asserts the refusal this spec removes
 
 **Behavior to preserve:**
-- File-mode results for every verb: same status messages, same `commit confirmed` messages and countdown, same boundary errors (1 to 3600 seconds), same history requirement (`errCommitConfirmedNeedsHistory`)
-- The grammar of `load`, `copy`, `deactivate`, `activate`, `commit [force] [confirmed <seconds>]`, `confirm`, `confirm abort`
+- File-mode results for `load`, `copy`, `deactivate`, `activate`: same status messages; for `commit confirmed`: same countdown, same boundary errors (1 to 3600 seconds), same history requirement (`errCommitConfirmedNeedsHistory`)
+- The grammar of `load`, `copy`, `deactivate`, `activate`, `rollback <N>`
 - Session commit semantics: conflict detection, `CommitSessionCandidate` + `NotifyReload` transactional path, `ClearCandidate` on reload failure
 - Offline `ze config deactivate|activate` and their stdin pipeline form
 - Other users' pending change files are never touched by load, copy or the confirm revert
@@ -112,6 +157,7 @@ command exists to survive.
 - The six refusals are removed and each verb writes through in session mode
 - File-mode load moves from text surgery to the tree path (same observable result, see A-2)
 - `commit confirmed` in session mode is owned by the daemon
+- The commit grammar becomes the Task table: `commit now`, `commit confirmed <seconds>`, `commit accept`, `commit abort`, `commit verify`, `force` as a trailing modifier; plain `commit`, `commit force`, `confirm` and `confirm abort` are removed (AC-12, AC-24 to AC-29)
 - `test/editor/session/load-blocked.et` is replaced by tests of the new behavior (the owner changed the behavior; this is not weakening a test)
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -128,8 +174,8 @@ command exists to survive.
 5. Write all entries to the change file in ONE lock hold and one write, then update the in-memory tree and meta (all or nothing)
 6. Copy: one `copy-entry` structural op, applied at save before leaf edits, and in memory
 7. Deactivate/activate leaf or path: a structural op recorded in the change file, applied at commit, and in memory
-8. Commit (plain, force, confirmed): `CommitSessionCandidate` then `NotifyReload` to the running daemon
-9. Confirmed: the daemon records a pending-confirm record (deadline, rollback revision, user, session) in the store and arms its one deadline worker; `confirm` or a plain `commit` from the owning session clears it (the commit also applying any further changes); other sessions are refused; abort or deadline restages the rollback revision as a candidate and reloads
+8. Commit (`commit now`, `commit confirmed`, each with or without `force`): `CommitSessionCandidate` then `NotifyReload` to the running daemon; `commit verify` runs the same validation and stops before `CommitSessionCandidate`
+9. Confirmed: the daemon records a pending-confirm record (deadline, rollback revision, user who started it) in the store and arms its one deadline worker. During the window, from any session of that user: `commit accept` clears the record and leaves pending candidate edits pending; a nested `commit confirmed <seconds>` applies more changes and restarts the countdown while keeping the first revert target; `commit abort` reverts now; `commit now` is refused. Every applying, accepting or aborting subcommand from another user is refused; `commit verify` is allowed to all. Abort or deadline restages the rollback revision as a candidate and reloads
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -143,7 +189,7 @@ command exists to survive.
 - `writeThroughSet`/`writeThroughDelete`/`writeThroughCreate` - the entry shapes load and copy emit; a batched form takes many entries under one lock
 - `config.StructuralOp` and `SerializeChangeFile`/`ParseChangeFile` - new op types for leaf/path deactivate and activate
 - `applyStructuralOps` (`editor_draft.go`) - applies the new ops at save and commit
-- `CommitSessionCandidate` - shared by plain, force and confirmed session commits
+- `CommitSessionCandidate` - shared by `commit now` and `commit confirmed`, with or without `force`
 - `storage/pointer.go` - home of the pending-confirm record beside `candidate` and `rollback`
 
 ### Architectural Verification
@@ -153,7 +199,7 @@ command exists to survive.
 | No unintended coupling (components stay isolated) | No | the confirm worker lives with the daemon's config ownership, the CLI Model only asks it |
 | No duplicated functionality (extends existing, does not recreate) | No | one load path for both modes; write-through helpers reused |
 | Zero-copy preserved where applicable (refs, not copies) | No | N-A for wire; trees are cloned once per load |
-| Registration over hardcoding, outbound | No | no new command; new structural ops join the existing token set |
+| Registration over hardcoding, outbound | No | the commit subcommands replace the commit and confirm arms of the existing dispatch, with completion derived from the same word list; new structural ops join the existing token set |
 | Registration over hardcoding, inbound | No | lists to search at implementation: `StructuralOpType` constants, `ChangeFile*Token`, `PendingChangeKind`, `applyStructuralOps` switch, `filterStructuralOps`, the change-file parser |
 
 ## Risks & Assumptions
@@ -172,7 +218,8 @@ command exists to survive.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | SSH drops during a confirm window and nothing reverts (today's file-mode behavior, carried over) | disconnect `.ci` keeps the trial config | the window is daemon-owned (AC-15) |
-| R-2 | A second commit lands inside a window and the revert erases it | another session commits during the window | other sessions' commits are refused (AC-18); the owner's own `commit` confirms first, so the revert never runs over it (AC-23) |
+| R-2 | A second commit lands inside a window and the revert erases it | another user commits during the window | `commit now` from anyone and every applying subcommand from another user are refused (AC-18); a nested `commit confirmed` from the user who started the window is itself reverted with the first, so no unconfirmed change survives (AC-23) |
+| R-10 | The grammar change leaves a caller, test, completion or page on plain `commit` or `confirm` | old word still accepted or still documented | `commit` alone and `confirm` are errors (AC-27); the sweep greps tests, completion and docs for the old forms (AC-22, AC-29) |
 | R-3 | Daemon restarts during a window and starts on the unconfirmed config | restart `.ci` | the pending record is read at start and reverts before apply (AC-19) |
 | R-4 | A partial load leaves half the entries written | parse or schema error mid-way | parse and diff complete before the lock; one write (AC-5) |
 | R-5 | Load replace deletes structure another user has pending edits under | conflict at commit | deletes carry `Previous`; commit's LIVE/STALE detection reports them (AC-6) |
@@ -187,6 +234,7 @@ command exists to survive.
 |----------|--------|
 | What breaks if this is wrong? | A session commit applies the wrong config to a running router, or a confirm window fails to revert and leaves an operator locked out |
 | How is it reverted? | single commit revert; no config format migration (the change file gains op tokens only a newer editor writes) |
+| Operator-visible break | plain `commit`, `commit force`, `confirm`, `confirm abort` stop working in every editor; each refusal names the new form (AC-27) |
 | Who else touches this path? | `plan/spec-terminal-demo-showcase.md` depends on it (its old AC-13/AC-14); the web editor; any spec touching `editor_draft.go` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -198,39 +246,51 @@ command exists to survive.
 | SSH `load file absolute replace <path>` | → | replace diff to delete entries | `test/plugin/session-editor-load-replace.ci` |
 | SSH `copy` | → | `CopyListEntry` write-through | `test/plugin/session-editor-copy.ci` |
 | SSH `deactivate`/`activate` leaf and path | → | new structural ops | `test/plugin/session-editor-deactivate-activate.ci` |
-| SSH `commit force` | → | session force commit | `test/plugin/session-editor-commit-force.ci` |
-| SSH `commit confirmed <s>` + `confirm` | → | daemon confirm record | `test/plugin/session-editor-commit-confirmed-confirm.ci` |
-| SSH `commit confirmed <s>`, no confirm | → | daemon deadline worker | `test/plugin/session-editor-commit-confirmed-timeout.ci` |
+| SSH `commit now force` | → | session commit, warnings skipped | `test/plugin/session-editor-commit-force.ci` |
+| SSH `commit verify` | → | session validation, nothing applied | `test/plugin/session-editor-commit-verify.ci` |
+| SSH `commit confirmed <s>` + `commit accept` | → | daemon confirm record | `test/plugin/session-editor-commit-confirmed-accept.ci` |
+| SSH `commit confirmed <s>`, no accept | → | daemon deadline worker | `test/plugin/session-editor-commit-confirmed-timeout.ci` |
 | SSH `commit confirmed <s>`, client killed | → | daemon deadline worker | `test/plugin/session-editor-commit-confirmed-disconnect.ci` |
 | Web terminal `copy`/`deactivate`/`activate` | → | same `Editor` methods | `test/web/cli-session-copy-deactivate.wb` |
+| Web terminal `commit now`, `commit confirmed`, `commit accept`, `force` | → | the same commit dispatch | `test/web/cli-commit-grammar.wb` |
+| File mode `ze config edit -f` commit subcommands and `force` | → | the same commit dispatch | `test/editor/lifecycle/commit-grammar.et` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | SSH editor on a running daemon; `load file absolute merge <path>` with a file adding two leaves and changing one | `show \| changes` lists exactly three set entries attributed to the session user; `show \| compare` lists exactly those three leaves; leaves equal to the current value produce no entry; `commit` applies them and the running daemon reports the new values |
-| AC-2 | SSH editor at context `bgp peer peer1`; `load terminal relative merge`, paste, Ctrl-D | entries are rooted under `bgp peer peer1`; nothing outside it changes; `commit` applies |
-| AC-3 | SSH editor; `load file absolute replace <path>` where the file omits a leaf and a list entry the config holds | `show \| changes` lists a delete for the leaf and a delete-entry for the list entry plus sets for the differences; after `commit` the running config equals the file |
+| AC-1 | SSH editor on a running daemon; `load file absolute merge <path>` with a file adding two leaves and changing one | `show \| changes` lists exactly three set entries attributed to the session user; `show \| compare` lists exactly those three leaves; leaves equal to the current value produce no entry; `commit now` applies them and the running daemon reports the new values |
+| AC-2 | SSH editor at context `bgp peer peer1`; `load terminal relative merge`, paste, Ctrl-D | entries are rooted under `bgp peer peer1`; nothing outside it changes; `commit now` applies |
+| AC-3 | SSH editor; `load file absolute replace <path>` where the file omits a leaf and a list entry the config holds | `show \| changes` lists a delete for the leaf and a delete-entry for the list entry plus sets for the differences; after `commit now` the running config equals the file |
 | AC-4 | SSH editor at a context path; `load ... relative replace` | the replace is scoped to the context subtree; siblings outside it are untouched |
 | AC-5 | SSH editor; load input with a syntax error or an unknown key | refused with the parser's error naming the line and the closest valid key; the change file, draft and in-memory tree are unchanged |
 | AC-6 | Two SSH sessions; session B has a pending set on a leaf; session A loads a value for the same leaf and commits | session A's commit reports the LIVE conflict exactly as it does for `set` |
 | AC-7 | File mode (`ze config edit -f`) `load` merge and replace, absolute and relative | results equal today's for every existing file-mode load test; the text merge functions no longer exist |
-| AC-8 | SSH editor; `copy <list> <src> to <dst>` | `show \| changes` lists ONE copy change attributed to the user, and `show \| compare` shows the new entry; `commit` applies and the running daemon holds both entries; a destination that exists is refused as in file mode |
-| AC-9 | SSH editor; `deactivate` on a leaf and on a path | `show \| changes` lists each as a deactivate; `commit` applies; the running daemon treats them as absent; `show` marks them inactive |
-| AC-10 | SSH editor; `activate` on a leaf and a path that are inactive in the committed config | `show \| changes` lists each as an activate; after `commit` the daemon uses them again; activating an active node gives the existing `ErrLeafNotInactive`/`ErrPathNotInactive` message |
-| AC-11 | Web terminal (session editor) `copy`, `deactivate`, `activate` | each succeeds and shows in pending changes; commit applies |
-| AC-12 | SSH editor with a change that raises only warnings; `commit force` | the warnings are skipped, the change applies to the running daemon; with an error, `commit force` is blocked naming the error |
-| AC-13 | SSH editor; `commit confirmed 60` then `confirm` within 60 s | the change applies to the running daemon at once; status says to confirm within 60 s; after `confirm` it stays applied, and no revert happens after 60 s |
-| AC-14 | SSH editor; `commit confirmed 5`, no `confirm` | after 5 s the daemon restores the previous revision and the running daemon reports the previous values; an attached session shows the file editor's timeout message |
+| AC-8 | SSH editor; `copy <list> <src> to <dst>` | `show \| changes` lists ONE copy change attributed to the user, and `show \| compare` shows the new entry; `commit now` applies and the running daemon holds both entries; a destination that exists is refused, the message naming `force` (AC-30) |
+| AC-9 | SSH editor; `deactivate` on a leaf and on a path | `show \| changes` lists each as a deactivate; `commit now` applies; the running daemon treats them as absent; `show` marks them inactive |
+| AC-10 | SSH editor; `activate` on a leaf and a path that are inactive in the committed config | `show \| changes` lists each as an activate; after `commit now` the daemon uses them again; activating an active node gives the existing `ErrLeafNotInactive`/`ErrPathNotInactive` message |
+| AC-11 | Web terminal (session editor) `copy`, `deactivate`, `activate` | each succeeds and shows in pending changes; `commit now` applies |
+| AC-12 | SSH editor with a change that raises only warnings: `commit now`, then `commit now force`; in a second run `commit confirmed 60 force` | `commit now` is refused, listing the warnings and naming `commit now force`. `commit now force` applies to the running daemon and the status says how many warnings it skipped. `commit confirmed 60 force` applies the same way and opens a window. With an error in the candidate, both forms with `force` are refused naming the error |
+| AC-13 | SSH editor; `commit confirmed 60` then `commit accept` within 60 s | the change applies to the running daemon at once; the status says to run `commit accept` within 60 s; after `commit accept` it stays applied, and no revert happens after 60 s |
+| AC-14 | SSH editor; `commit confirmed 5`, no `commit accept` | after 5 s the daemon restores the previous revision and the running daemon reports the previous values; an attached session shows the file editor's timeout message |
 | AC-15 | SSH editor; `commit confirmed 5`, then the SSH client is killed | the daemon still reverts after 5 s; the running daemon reports the previous values |
-| AC-16 | SSH editor; `commit confirmed 60` then `confirm abort` | the previous revision is applied at once; message as in file mode |
-| AC-17 | SSH session reconnects (same user, so a new session) during a window | the editor shows the pending window, its owner session and seconds left; this session is not the owner, so its `confirm`, `confirm abort` and `commit` are refused as in AC-18, and the window reverts at its deadline (owner decision 2026-10-10: only the session that ran `commit confirmed` confirms it) |
-| AC-18 | During a pending window any OTHER session runs `commit`, `commit confirmed`, `confirm` or `confirm abort` | refused, naming the pending window, its owner session and seconds left, and saying to wait for the deadline or have the owner session confirm or abort |
-| AC-23 | The session that ran `commit confirmed 60` runs a plain `commit` within 60 s, first with no further changes, then (in a second run) with further uncommitted changes in its candidate | with no further changes: the window is confirmed exactly as `confirm` does it (same message, no revert at 60 s). With further changes: the window is confirmed AND the new changes are committed and applied to the running daemon in the same step, as Junos does; neither the confirmed change nor the new one is reverted at 60 s. If the new changes fail validation or conflict, the commit is refused as any commit is, and the window stays pending with its deadline unchanged (owner decision 2026-10-10, option A) |
+| AC-16 | SSH editor; `commit confirmed 60` then `commit abort` | the previous revision is applied at once; the message is the file-mode abort message |
+| AC-17 | User U runs `commit confirmed 60`, U's SSH client is killed, and U opens a new SSH session within 60 s; a session of another user V is also open | U's new session behaves as a reconnection: its editor shows the pending window and the seconds left, and it may run `commit accept`, `commit abort` and `commit confirmed <seconds>` on the window as the session that started it could. V's session shows the window, and V's `commit accept`, `commit abort`, `commit now` and `commit confirmed` are refused as in AC-18 (b). The window belongs to the user, not to the SSH session (owner decision 2026-10-10: "the new session should behave like a reconnection") |
+| AC-18 | During a pending window: (a) any session of the user who started the window runs `commit now` or `commit now force`; (b) a session of any other user runs `commit now`, `commit confirmed <seconds>`, `commit accept` or `commit abort`, each with and without `force` where the grammar allows it; (c) any user runs `commit verify` | (a) refused, the message saying a confirmed commit is pending and to use `commit accept` to keep it, `commit abort` to revert, or `commit confirmed <seconds>` to add changes; nothing is committed and the window and its deadline are unchanged. (b) refused, naming the pending window, the user who started it and the seconds left, and saying to wait for the deadline or have that user accept or abort. (c) runs as AC-26 (owner decision 2026-10-10) |
 | AC-19 | Daemon restarted during a pending window | at start the daemon finds the pending record, restores the rollback revision before applying config, and logs that it reverted an unconfirmed commit |
-| AC-20 | `commit confirmed 0`, `3601`, `abc`, and no argument in session mode | the file-mode errors: at least 1, at most 3600, invalid seconds, usage |
+| AC-20 | `commit confirmed 0`, `commit confirmed 3601`, `commit confirmed abc`, and `commit confirmed` with no time, in session mode | the file-mode errors: at least 1, at most 3600, invalid seconds, and the usage naming the required time |
 | AC-21 | Session `commit confirmed` on a daemon store with no history | refused before writing, as `errCommitConfirmedNeedsHistory` |
-| AC-22 | `docs/guide/config-editor.md` | the blocked-command table and "Use file mode for these operations" are gone; the modes table and the Commit Confirmed section state that the daemon owns the window and survives a dropped session |
+| AC-22 | `docs/guide/config-editor.md` and every page in Files to Modify that names the editor's commit | the blocked-command table and "Use file mode for these operations" are gone; the command table lists `commit now`, `commit confirmed <seconds>`, `commit accept`, `commit abort`, `commit verify` and the `force` modifier, and no `commit` alone, `commit force`, `confirm` or `confirm abort`; the Commit Confirmed section states that the daemon owns the window, that it survives a dropped session, and that it belongs to the user |
+| AC-23 | The user who ran `commit confirmed 60` makes further changes and runs `commit confirmed 30` inside the window | the new changes apply to the running daemon and the countdown restarts at 30 s. `commit accept` keeps both commits. With no `commit accept`, at 30 s the revert restores the state from BEFORE the FIRST unconfirmed commit, so neither commit survives; `commit abort` does the same at once. If the new changes fail validation or conflict, the nested commit is refused as any commit is and the first window keeps its deadline (owner decision 2026-10-10) |
+| AC-24 | During a window the user who started it makes further edits, does not commit them, and runs `commit accept` | the window ends and the applied config is kept; the further edits stay pending (`show \| changes` still lists them) and the running daemon does not have them |
+| AC-25 | No window pending; `commit accept`, then `commit abort` | each is refused, saying no confirmed commit is pending; nothing changes |
+| AC-26 | Candidate clean, then with a warning, then with an error; `commit verify` each time, also during a window and from another user | the result lists the same errors and warnings `commit now` would report, or says the candidate is valid; nothing is applied, the running daemon and the window are unchanged, and the candidate and its pending changes are unchanged |
+| AC-27 | `commit` alone; `commit bogus`; `commit force`; `confirm`; `confirm abort` | `commit` alone and `commit bogus` are refused naming `now`, `confirmed <seconds>`, `accept`, `abort`, `verify` and the `force` modifier; `commit force` is refused saying `force` is a modifier that follows `commit now` or `commit confirmed <seconds>`; `confirm` and `confirm abort` are unknown commands; completion offers the five subcommands and never `confirm` |
+| AC-28 | `commit accept force`, `commit abort force`, `commit verify force`, `rollback 1 force`, `discard all force`; and `set <path> description force` | each of the first five is refused, saying `force` overrides validation warnings or a safety refusal and this command has neither; nothing runs. `set ... description force` stores the value `force`: on a command whose last operand is a value or a path, `force` stays an operand |
+| AC-29 | File mode (`ze config edit -f <file>`) and the web terminal each run AC-12, AC-13, AC-16, AC-20, AC-25 to AC-28, AC-30 and AC-31 | each gives the result and message the SSH editor gives; plain `commit`, `commit force`, `confirm` and `confirm abort` are refused there as in AC-27; file mode keeps its in-process countdown (Known Limitations) (owner decision 2026-10-10: "yes, every editor") |
+| AC-30 | `copy <list> <src> to <dst>` and `rename <list> <old> to <new>` where the destination exists; then each with a trailing `force` | without `force`: refused as today, the message naming `force`. With `force`: the destination is replaced by the source; `show \| changes` lists the replacement as change entries attributed to the user, and `commit now` applies it |
+| AC-31 | Pending changes; `exit`, then `exit force`; in a second run `quit force` | `exit` prompts as today, and the prompt names `commit now`, `discard all` and `exit force`. `exit force` and `quit force` leave with no prompt, with the result answering `y` gives today (file mode saves the `.edit` snapshot; session mode keeps the change file) |
+| AC-32 | Candidate with a LIVE conflict, then one with a STALE conflict, against another user's change; `commit now force` | refused exactly as `commit now` is, naming the conflict; `force` never overrides another user's change |
 
 ## End-to-End User Stories
 
@@ -253,10 +313,19 @@ command exists to survive.
 | `TestSessionCopyWritesThrough` | `internal/component/cli/editor_draft_test.go` | AC-8, R-7 | |
 | `TestSessionDeactivateActivateLeafAndPath` | same | AC-9, AC-10 | |
 | `TestChangeFileDeactivateOpsRoundTrip` | `internal/component/config/change_file_test.go` | A-1 | |
-| `TestSessionCommitForce` | `internal/component/cli/model_commands_commit_test.go` | AC-12 | |
+| `TestCommitForceModifier` | `internal/component/cli/model_commands_commit_test.go` | AC-12, AC-32: `commit now force` and `commit confirmed <s> force` skip warnings, refuse errors and conflicts, in session and file mode | |
+| `TestCommitGrammar` | `internal/component/cli/model_commands_test.go` | AC-20, AC-27: every subcommand parses; `commit` alone, unknown subcommand, `commit force`, missing time; `confirm` unknown | |
+| `TestForceModifierDeclaredPerVerb` | same | AC-28: `force` refused where the verb declares no gate; kept as an operand on `set`; completion offers it only where declared | |
+| `TestCommitVerifyAppliesNothing` | `internal/component/cli/model_commands_commit_test.go` | AC-26 | |
+| `TestCopyRenameForceReplacesDestination` | `internal/component/cli/editor_draft_test.go` | AC-30, session and file mode | |
+| `TestExitForceSkipsPrompt` | `internal/component/cli/model_test.go` | AC-31 | |
 | `TestConfirmWindowWorkerRevertsAtDeadline` | owning package of the worker | AC-14, AC-15 | |
-| `TestConfirmWindowRefusesCommitWhilePending` | same | AC-17, AC-18 | |
-| `TestConfirmWindowOwnerCommitConfirms` | same | AC-23, with and without further changes, and a failing commit leaving the window pending | |
+| `TestConfirmWindowOwnerIsTheUser` | same | AC-17: a new session of the user who started the window is its owner; a session of another user is not | |
+| `TestConfirmWindowRefusesOtherUsers` | same | AC-17, AC-18 (b), (c) | |
+| `TestConfirmWindowCommitNowRefused` | same | AC-18 (a): `commit now` refused, window and deadline unchanged | |
+| `TestConfirmWindowNestedRevertsToFirst` | same | AC-23: nested `commit confirmed` restarts the countdown; revert and abort restore the state before the first unconfirmed commit; a failing nested commit leaves the first deadline | |
+| `TestConfirmWindowAcceptKeepsCandidateEdits` | same | AC-24 | |
+| `TestConfirmWindowAcceptAbortWithoutWindow` | same | AC-25 | |
 | `TestConfirmWindowRevertsOnStart` | same | AC-19 | |
 
 ### Boundary Tests (numeric inputs)
@@ -276,14 +345,26 @@ command exists to survive.
 | `session-editor-deactivate-activate` | `test/plugin/session-editor-deactivate-activate.ci` | AC-9, AC-10 | |
 | `cli-session-copy-deactivate` | `test/web/cli-session-copy-deactivate.wb` | AC-11 | |
 | `session-editor-commit-force` | `test/plugin/session-editor-commit-force.ci` | AC-12 | |
-| `session-editor-commit-confirmed-confirm` | `test/plugin/session-editor-commit-confirmed-confirm.ci` | AC-13, AC-17 | |
+| `session-editor-commit-force-conflict` | `test/plugin/session-editor-commit-force-conflict.ci` | AC-32 | |
+| `session-editor-commit-verify` | `test/plugin/session-editor-commit-verify.ci` | AC-26 | |
+| `session-editor-commit-grammar` | `test/plugin/session-editor-commit-grammar.ci` | AC-25, AC-27, AC-28 | |
+| `session-editor-copy-rename-force` | `test/plugin/session-editor-copy-rename-force.ci` | AC-30 | |
+| `session-editor-exit-force` | `test/plugin/session-editor-exit-force.ci` | AC-31 | |
+| `session-editor-commit-confirmed-accept` | `test/plugin/session-editor-commit-confirmed-accept.ci` | AC-13 | |
+| `session-editor-commit-confirmed-accept-keeps-candidate` | `test/plugin/session-editor-commit-confirmed-accept-keeps-candidate.ci` | AC-24 | |
 | `session-editor-commit-confirmed-timeout` | `test/plugin/session-editor-commit-confirmed-timeout.ci` | AC-14 | |
 | `session-editor-commit-confirmed-disconnect` | `test/plugin/session-editor-commit-confirmed-disconnect.ci` | AC-15 | |
-| `session-editor-commit-confirmed-abort` | `test/plugin/session-editor-commit-confirmed-abort.ci` | AC-16, AC-18 | |
-| `session-editor-commit-confirmed-commit-confirms` | `test/plugin/session-editor-commit-confirmed-commit-confirms.ci` | AC-23: owner's plain `commit` confirms, with and without further changes | |
+| `session-editor-commit-confirmed-abort` | `test/plugin/session-editor-commit-confirmed-abort.ci` | AC-16 | |
+| `session-editor-commit-confirmed-commit-now-refused` | `test/plugin/session-editor-commit-confirmed-commit-now-refused.ci` | AC-18 (a): `commit now` refused naming `commit accept`, `commit abort`, `commit confirmed <seconds>`; the window still reverts at its deadline | |
+| `session-editor-commit-confirmed-other-user` | `test/plugin/session-editor-commit-confirmed-other-user.ci` | AC-18 (b), (c): user V's applying, accepting and aborting subcommands refused; V's `commit verify` runs | |
+| `session-editor-commit-confirmed-nested` | `test/plugin/session-editor-commit-confirmed-nested.ci` | AC-23: nested `commit confirmed` applies, restarts the countdown, and on timeout reverts to before the first commit; a second run accepts and keeps both | |
+| `session-editor-commit-confirmed-reconnect` | `test/plugin/session-editor-commit-confirmed-reconnect.ci` | AC-17: user U starts a window and the client is killed; U's new SSH session shows the window and seconds left and is accepted as its owner; a session of user V is refused; the running daemon reports the state the owner's action produces | |
 | `session-editor-commit-confirmed-restart` | `test/plugin/session-editor-commit-confirmed-restart.ci` | AC-19 | |
 | `session-editor-commit-confirmed-boundary` | `test/plugin/session-editor-commit-confirmed-boundary.ci` | AC-20, AC-21 | |
 | replaces `load-blocked.et` | `test/editor/session/load-merge.et` | AC-1 at model level | |
+| `commit-grammar` (file mode) | `test/editor/lifecycle/commit-grammar.et` | AC-29 for file mode: AC-12, AC-13, AC-16, AC-20, AC-25 to AC-28, AC-30, AC-31 | |
+| `cli-commit-grammar` (web terminal) | `test/web/cli-commit-grammar.wb` | AC-29 for the web terminal | |
+| existing editor tests | every file in Files to Modify, "Surfaces that type the old grammar" | AC-29: moved to the new grammar with the same assertions; `confirm-without-pending.et` and `abort-without-pending.et` become AC-25's `commit accept` and `commit abort` cases | |
 
 Each `.ci` drives `ze config edit` over SSH against the running daemon through a
 fixture modelled on `driveEditor04` (`internal/test/fixture/plugin_fixture_04_cli.go`),
@@ -296,8 +377,29 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 ## Files to Modify
 - `internal/component/cli/model_load.go` - session load path, tree-based load for both modes, delete `mergeConfigs`/`mergeAtContext`/`replaceAtContext`; `cmdCommitConfirmed` session branch asks the daemon window
 - `internal/component/cli/model_keys.go` - paste-mode end uses the same load path
-- `internal/component/cli/model_commands.go` - remove the confirmed refusal
-- `internal/component/cli/model_commands_commit.go` - session `commit force`; commit refused while a window is pending
+- `internal/component/cli/model_commands.go`, `internal/component/cli/model.go` - commit subcommands replace the commit and `confirm` arms; remove the confirmed refusal; `force` read as a trailing modifier on verbs that declare a gate
+- `internal/component/cli/model_commands_commit.go` - `commit now`, `commit verify`, the `force` modifier in both modes; refusals while a window is pending
+- `internal/component/cli/model_keys.go` - `exit force`/`quit force`; the pending-changes prompt names `commit now`
+- `internal/component/cli/completer.go` - completes the subcommands and `force` where declared
+- `internal/component/config/meta.go` - copy and rename with `force` replace the destination
+- `internal/component/command/verbs.go` - the `commit` verb word, if it carries the editor grammar (confirm at implementation; the BGP `commit` plugin and `./le commit` are other commands)
+- `internal/component/web/handler.go`, `internal/component/web/cli.go`, `internal/component/web/cli_terminal.go` - web terminal grammar; the web commit button runs `commit now`
+- `internal/component/config/cli/cmd_edit.go` - file-mode help or messages naming `commit`
+- `internal/test/cli/cmd_editor.go`, `internal/test/fixture/constants.go`, `internal/test/fixture/plugin_fixture_04_cli.go` - fixtures that type `commit`
+- `internal/le/site/terminaldemo/validate_runtime.go` - demo validation that names `commit`
+
+Surfaces that type the old grammar (from `grep -rlE 'text=(commit|confirm)\b|Type "(commit|confirm)\b' test demos` and a grep of Go tests and `docs/` for the editor's `commit`, 2026-10-10; rerun the grep at implementation and move every hit, no alias):
+
+| Surface | Files |
+|---------|-------|
+| `test/editor/lifecycle/` | `abort-without-pending.et`, `commit-blocked-errors.et`, `commit-blocked-missing-leak-filter.et`, `commit-confirm-abort.et`, `commit-confirm-boundary-high.et`, `commit-confirm-boundary-low.et`, `commit-confirm-boundary-valid-high.et`, `commit-confirm-boundary-valid-low.et`, `commit-confirm-missing-arg.et`, `commit-confirm-success.et`, `commit-confirm-timeout.et`, `commit-creates-backup.et`, `commit-reload-fail.et`, `commit-reload-standalone.et`, `commit-reload-success.et`, `commit-set-format.et`, `commit-valid.et`, `commit-zefs-blob.et`, `confirm-without-pending.et`, `exit-after-commit.et`, `history-dedup.et`, `history-list.et`, `rollback-restore.et` |
+| `test/editor/session/` | `commit-delete-container.et`, `commit-delete-peer.et`, `commit-ssh.et`, `commit.et`, `conflict-live.et`, `conflict-stale.et`, `edit-backup.et`, `leaflist-add-member.et`, `leaflist-commit-reload.et`, `leaflist-delete-member.et`, `leaflist-insert-deactivate.et`, `leaflist-set-commit.et`, `set-format-migration.et` |
+| `test/editor/workflow/` | `workflow-add-peer.et`, `workflow-delete-leaf.et`, `workflow-delete-peer.et`, `workflow-multiple-changes.et`, `workflow-peer-lifecycle.et`, `workflow-set-container-leaf.et`, `workflow-update-peer.et` |
+| `test/editor/pipe/`, `test/editor/completion/` | `show-compare-rollback.et`; `root-commands.et` and any completion test listing `confirm` |
+| `test/web/` (typed terminal commands only; the commit button is not typed) | `cli-set-commit.wb`, `scenario-interface-cli.wb`, and each of `commit-flow.wb`, `commit-smoke.wb`, `commit-empty.wb`, `scenario-router-setup.wb`, `scenario-interface-setup.wb`, `workbench-bgp-change-verify.wb`, `oob-order.wb`, `list-add-entry-submit.wb` that types `commit` |
+| demo tapes | `demos/terminal/commit-confirmed/demo.tape`, `demos/terminal/zefs-config/demo.tape` |
+| Go unit tests | `internal/component/cli/model_commands_test.go`, `model_test.go`, `model_dispatch_race_test.go`, `history_test.go`, `model_commands_edit_secret_test.go`, `model_mode_test.go`, `model_load_test.go`; `internal/component/web/cli_test.go`, `handler_test.go`, `golden_test.go`, `handler_tools_test.go`; `internal/component/command/verbs_test.go` |
+| docs | `docs/guide/config-editor.md`, `docs/guide/cli.md`, `docs/guide/command-reference.md`, `docs/guide/command-catalogue.md`, `docs/guide/configuration.md`, `docs/guide/config-reload.md`, `docs/guide/config-archive.md`, `docs/guide/web-interface.md`, `docs/guide/authorization.md`, `docs/guide/authentication.md`, `docs/guide/bfd.md`, `docs/guide/bgp-role.md`, `docs/guide/ddos-mitigation.md`, `docs/guide/rsvp-te.md`, `docs/guide/irr-filtering.md`, `docs/guide/vrrp.md`, `docs/features/cli-commands.md`, `docs/contributing/terminal-demos.md`, `docs/architecture/cli/command-verbs.md`, `docs/architecture/config/transaction-protocol.md`, `docs/architecture/config/apply-ordering.md`, `docs/architecture/config/yang-config-design.md`, `docs/architecture/resolve.md`, `docs/architecture/firewall/firewall-irr.md`, `docs/architecture/diagnostics/debug-filtering.md`, `docs/architecture/testing/runner-architecture.md`, `docs/comparison.md`; `ai/digests/cli-editor.md`, `ai/INDEX.md`, `ai/patterns/web-endpoint.md`. A hit that names another `commit` (BGP transaction, `./le commit`) is left alone; `docs/architecture/config/vyos-research.md` quotes VyOS and is left alone |
 - `internal/component/cli/editor_commands.go` - copy, deactivate, activate write through; remove the four sentinel errors
 - `internal/component/cli/editor_draft.go` - batched write-through; apply the new structural ops
 - `internal/component/cli/editor.go` - session confirm helpers; `HasPendingLive` wired or deleted
@@ -318,7 +420,7 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 - `internal/component/cli/model_load_session_test.go`
 - the confirm-window worker and its test, in the package Phase 1 chooses
 - `internal/test/fixture/plugin_fixture_NN_session_editor.go` - SSH editor driver with one mode per `.ci`
-- the 16 `.ci` files and one `.wb` file named in the Functional Tests table
+- the 24 `.ci` files, two `.wb` files and `test/editor/lifecycle/commit-grammar.et` named in the Functional Tests table
 - `test/editor/session/load-merge.et`
 
 ### Integration Checklist
@@ -327,9 +429,9 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 | YANG schema (new RPCs/config) | No | no new RPC or leaf |
 | YANG validation constraints | N-A | no leaf |
 | YANG custom validators | N-A | no leaf |
-| CLI commands/flags | No | grammar unchanged |
-| CLI grammar (keyword before value) | No | unchanged |
-| Editor autocomplete | Yes | `completer.go`: stop hiding the six in session mode if it filters them |
+| CLI commands/flags | Yes | commit subcommands and the `force` modifier replace `commit`, `commit force`, `confirm`, `confirm abort` (Task) |
+| CLI grammar (keyword before value) | Yes | `commit confirmed <seconds> [force]`: the keyword before its value, the modifier last |
+| Editor autocomplete | Yes | `completer.go`: stop hiding the six in session mode if it filters them; offer the subcommands and `force` where the verb declares a gate; never `confirm` |
 | Functional test for new RPC/API | Yes | the `.ci` files above |
 | Pipe completeness | N-A | no new output command |
 | Env var registration | No | none |
@@ -342,7 +444,7 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the editor's `features/<id>.md` if it records session-mode limits (check `./le feature report`) |
 | 2 | Config syntax changed? | No | none |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` if it marks the six as file-mode only |
+| 3 | CLI command added/changed? | Yes | every page in Files to Modify, "Surfaces that type the old grammar", docs row: the commit subcommands and `force` |
 | 4 | API/RPC added/changed? | No | none |
 | 5 | Plugin added/changed? | No | none |
 | 6 | Has a user guide page? | Yes | `docs/guide/config-editor.md` |
@@ -367,9 +469,10 @@ N-A: no wire-visible change; the editor applies config through the existing relo
    - Tests: `TestChangeFileDeactivateOpsRoundTrip`, `TestSessionDeactivateActivateLeafAndPath`, `TestSessionCopyWritesThrough`, AC-8 to AC-11 `.ci`/`.wb`
 3. **Phase: Load** -- tree-based load for both modes, diff to entries, one-write batch; delete text merge
    - Tests: AC-1 to AC-7
-4. **Phase: Commit force** -- AC-12
-5. **Phase: Daemon confirm window** -- pending record, worker, refusal while pending, revert on start, session Model shows remaining time
-   - Tests: AC-13 to AC-21
+4. **Phase: Commit grammar and `force`** -- subcommands in every editor, `force` declared per verb, copy/rename/exit force, old forms removed with every test, tape, fixture and page in the surfaces table moved in the same phase
+   - Tests: AC-12, AC-20, AC-25 to AC-32
+5. **Phase: Daemon confirm window** -- pending record, worker, refusals while pending, accept, abort, nested, revert on start, session Model shows remaining time
+   - Tests: AC-13 to AC-19, AC-21, AC-23, AC-24
 6. **Phase: Docs** -- AC-22 and the checklist rows, each in the phase that changed the behavior
 
 ### Critical Review Checklist
@@ -388,13 +491,14 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 |-------------|---------------------|
 | six refusals gone | grep for the six sentinel error names returns nothing |
 | text merge gone | grep for `mergeConfigs`, `mergeAtContext`, `replaceAtContext` returns nothing |
-| functional tests | the 16 `.ci` and 1 `.wb` pass, each observed red first |
+| functional tests | the 24 `.ci`, 2 `.wb` and the new `.et` files pass, each observed red first |
+| old grammar gone | the Files to Modify grep returns no editor `commit` alone, `commit force`, `confirm` or `confirm abort` in tests, tapes, fixtures or docs |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | loaded content goes through the schema parser; unknown keys refused |
-| Authorization | load, copy and deactivate pass the same authz `set`/`delete` pass, per leaf; `confirm` and `confirm abort` require commit authorization |
+| Authorization | load, copy and deactivate pass the same authz `set`/`delete` pass, per leaf; every `commit` subcommand requires commit authorization; window ownership is checked against the authenticated user, never a name the client supplies |
 | Secrets | copied and loaded secret leaves are masked as `set` masks them (R-7) |
 | Resource exhaustion | a pasted load is bounded by the existing paste limit |
 
@@ -413,6 +517,7 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 ## Design Insights
 
 - Junos `commit confirmed <minutes>` (default 10) is owned by `mgd`, not the CLI session: the rollback happens with the session gone, and any later `commit` confirms. VyOS `commit-confirm <minutes>` schedules the revert as a system job. Both survive the session; Ze's file-mode tick does not. Reference only.
+- Junos `commit check` validates without applying; `commit verify` is its counterpart.
 - Junos `load merge|replace|override [relative] terminal|<file>` loads into the candidate, and `show | compare` then lists the per-statement differences. That is the model AC-1 to AC-4 follow.
 
 ## Key Design Decisions
@@ -422,11 +527,16 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 | Load builds the target tree and diffs it into change entries written in one batch | replay each loaded leaf through `writeThroughSet` (one lock per leaf, no deletes for replace, partial on failure); a single "load" structural op holding the subtree (blame, compare and per-leaf conflict detection lose sight of it) | per-leaf entries are what session mode reads everywhere; one batch is atomic |
 | One tree-based load path for both modes; delete the text merge | keep text merge for file mode and add a tree path for session | `ai/rules/config.md` bans text surgery; `ai/rules/no-layering.md` bans keeping both. Owner decision 2026-10-10: "one path" |
 | The confirm window is owned by the daemon with a stored pending record | keep the Model tick in session mode | the tick dies with the SSH channel, which is the case the command exists for. Owner decision 2026-10-10: "correct" |
-| The owning session confirms with `confirm` or a plain `commit`; a plain `commit` carrying further changes confirms the window and commits them in one step; every other session's commit, confirm and abort are refused during the window | refuse every commit during the window; let any session confirm | Owner decision 2026-10-10, option A (Junos behavior for the owner's `commit`). Another operator cannot silently confirm or clobber a window they do not own; `confirm abort` stays |
+| Commit grammar: `commit now`, `commit confirmed <seconds>`, `commit accept`, `commit abort`, `commit verify`; `commit` alone is an error; no `confirm` verb | Junos: a plain `commit` confirms (option A, withdrawn); `confirm` / `confirm abort` (withdrawn: "confirm alone should not be an option") | Owner decisions 2026-10-10. Confirming is always an explicit act |
+| `force` is a trailing modifier, one meaning: past warnings or a safety refusal, never past an error; an error where it means nothing; an operand on value- or path-final verbs | a `commit force` verb (withdrawn: "force as an adapter for all command instead"); reserving `force` everywhere (would change what `set ... force` stores) | Owner decisions 2026-10-10; the operand rule is the spec's reading of "where force would mean nothing" |
+| `force` does not override a LIVE or STALE conflict | let `force` win | the conflict is another user's change, and overriding it destroys that work (`ai/rules/never-destroy-work.md`); the spec's reading of "never despite errors" |
+| Every editor (SSH, file mode, web terminal) takes the grammar; plain `commit` removed everywhere with no alias | session mode only; an alias for `commit` | Owner answer 2026-10-10: "yes, every editor"; `ai/rules/no-layering.md` |
+| A nested `commit confirmed` reverts to the state before the FIRST unconfirmed commit | revert only the latest commit to the state the first commit produced | nothing unconfirmed survives a revert; matches the owner's "revert target stays the state before the first unconfirmed commit" |
+| A window belongs to the user who started it: any new SSH session of that user is its owner, as a reconnection; sessions of other users are refused (AC-17) | only the SSH session that ran `commit confirmed` owns it, so a dropped client leaves the operator waiting for the deadline | Owner decision 2026-10-10: "the new session should behave like a reconnection" |
 | Seconds, 1 to 3600, kept | switch to minutes like Junos/VyOS | the unit is the existing contract; changing it is scope the owner did not ask for |
 
 ## Known Limitations
-- The web terminal has no `load` or `commit confirmed` verb at all (absent, not refused); not this class. Copy, deactivate and activate reach it through the shared `Editor` and are covered (AC-11).
+- The web terminal has no `load` verb at all (absent, not refused); not this class. Copy, deactivate and activate reach it through the shared `Editor` and are covered (AC-11). It gains the commit subcommands, `commit confirmed` included, and the `force` modifier (AC-29).
 - File mode keeps its in-process countdown: with no daemon there is nothing else to own it. An orphaned `.live.conf` is journaled, not fixed here (`plan/journal/unwired-feature.md`).
 
 ## Checklist
