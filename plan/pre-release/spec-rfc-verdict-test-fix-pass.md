@@ -105,27 +105,62 @@ The child retains the checkpoint evidence and owns the resumed acceptance;
 shared-image execution and canonical RFC writes stay serialized. No push is
 authorized, and neither spec's closure criteria are reduced.
 
-Progress, 2026-10-08: BGP source landed as `d3e5b4a770`, followed by
-`a0c1e93bf5`, `0ce4fccd27`, `1e2a0f25c9` and `411d8136e1`.
-Plan checkpoint `f3b2eb3c65` landed; subsequent historical-transfer and SR owner
-reconciliation remains uncommitted. Both specs remain open.
+Progress, 2026-10-09: BGP source landed as `d3e5b4a770`, followed by the
+independently completed attribute, wire, Loc-RIB ownership, interop-recorder and
+BFD observer repairs recorded in the child. Both specs remain open.
 
-The owner selected "Use Docker" on 2026-10-08. Earlier Docker-free limits are
-history, not a current blocker. The authorized ADD-PATH collision job
-`03279611` stopped at `docker info` setup with a deadline error. It ran no
-scenario assertions. Main is diagnosing endpoint/service setup; no push is
-authorized.
+The owner's 2026-10-08 "Use Docker" decision is active; no push is authorized.
+Restored structured Docker proof `9631a78e` passes the named ADD-PATH collision
+and IPv6 joint-subnet scenarios. The complete FRR capture fence passes in
+`b69d6620`; replacement replay and joint matrix each completed eighty physical
+runs. Their old endpoint/deadline/empty-capture limitations are historical.
 
-The child's "Acceptance evidence, 2026-10-08" and "Remaining closure obligations,
-2026-10-08" retain the exact proof boundaries. Four shared-subnet writer bindings
-are recorded, but producer halts do not prove whole-clause semantics. Replay
-RFC2545-3-1 is recorded;3-2 remains unfinished after the SSH deadline.
-Both FRR JSON cases pass, but Main found no test UPDATEs in the complete PCAP.
-The repaired capture fence still owes execution and wire/history proof.
-Replacement replay and the joint matrix each owe fresh eighty-run qualification.
-The streamed race job bg199, final freshness checks, independent shared-subnet
-judgments, evidence retention and retirement publication remain open.
-No current conformance totals or full-spec closure are claimed.
+The child's "Acceptance evidence, 2026-10-09" and "Remaining closure obligations,
+2026-10-09" retain exact proof boundaries. All seven guest records, twenty IPv6
+unit records and37 other writer records completed with observed reds. Actual
+ordinary SDK and raw-export SDK old/final workflows passed their restored
+wire assertions. Independent RFC2545 judgments now retain3-3 as partial,
+3-4 enforced and the absent third-party address source as an explicit gap.
+No address-discovery feature was commissioned.
+
+Post-SRv6 immutable reactor race20 now passes2445 roots/48900 results with no
+skips, failures or races (`033bf172`). Actual SRv6 SDK/FRR old/fixed proof and
+configured VPNv6 wrong-global/nonzero-RD discrimination are complete. Ten family
+and thirteen tunnel judgments are stamped; SRv6 allocation, ASBR service and VPN
+pair origination remain explicit gaps, not new implementation scope.
+
+The later framing review reproduced a parsed splitter fabricating IPv6 EOR
+from mixed input. Producer and cached-worker old/fixed proof, full message
+race20, and actual FRR old/fixed proof now complete (`96e6c367`/`db0bba59`);
+the complete captures and bounded repair have independent acceptance.
+All ten remaining native claim bindings recorded in `8381327b`. Seven framing
+judgments are stamped in `8338b5fb`, and four residual judgments in `3f7574f9`.
+Postcommit `4d6f376d` exposes sixteen committed BGP record drifts and one
+mechanical RFC4659 shift, beside the seven foreign findings. The precommit
+error text omitted uncommitted drift; it did not prove complete freshness.
+Native `bdd77596` renews all sixteen and reseals RFC4659. Final review's
+eight missing judgments and three narrowing defects are resolved through
+twelve first judgments (`e71102d3`, `11f306b4`), including the restored
+downstream ESI-label row. Conditional discard logging and per-session
+tunnel filtering have race20 and selective semantic proof (`2bf9854a`).
+Projection and wiring proof complete in `e50a6d98`; its check still reports
+the seven foreign violations, not whole-corpus green. Source/evidence
+landed as `fb3251e5b597`; all five committed build flavors pass `02da6c39`.
+Final-source reactor race20 completes with48919 passes and one recursive
+AIGP wire-readiness failure, no race report (`2a6f2ef4`). A controlled
+stale-completion schedule reproduces it; exact-wire readiness and complete
+transition assertions pass that schedule20 and both normal recursive roots20
+(`5173b7f5`/`bfa85e8a`). Independent review, four renewed bindings and two
+whole-row rejudgments accompany the separate correction `fa54c8e59d`.
+Postcommit `c58edbb0` compiles all five flavors at descendant `1f796eee10e4`;
+structured RFC checking has eight foreign findings, including concurrent
+RFC7950 drift, with no uncommitted record drift or changed unproven units.
+The held compatibility fixture and explicit setup/CI dependencies land as
+`0b3c569cac`, with the already-observed real-kernel setup-consumer transitions,
+both unchanged live wire assertions, native bindings and independent reviews.
+Durable retention, current whole verification and retirement publication
+remain open.
+Both specs remain open; no push or whole-corpus green claim is made.
 
 | Stays in the parent | Why |
 |---------------------|-----|

@@ -1239,9 +1239,7 @@
     {
       "id": "9.2.2.2:4",
       "quote": "Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "the EGP arm is the second clause of the aggregated ORIGIN rule, and the row states both arms",
+      "disposition": "mapped",
       "mapped-to": "RFC4271-9.2.2.2-2"
     },
     {

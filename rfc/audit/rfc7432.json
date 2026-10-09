@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-05",
+  "audited": "2026-10-09",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -37,6 +37,12 @@
         "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "71d4a350cee06a12"
       },
       "verdict": "enforced"
+    },
+    "RFC7432-11.2-7": {
+      "no_code_path": "The selected BGP control-plane role does not manage P-multicast trees or aggregate EVIs onto them. parseConfigRoute, l2vpnRouteToEVPNParams and BuildEVPN originate supplied routes, not aggregation-triggered re-advertisements. Ordinary propagation, opaque carriage and explicit replacement do not instantiate the Section 11.2 condition.",
+      "note": "RFC 7432 Section 11.2 permits aggregation of two or more EVIs onto one P-multicast tree and then requires re-advertisement of the existing routes. Its restored second sentence states: \"The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute.\" Both duties are conditional on that optional aggregation transition; preservation is not a universal constraint on every explicit replacement. Configured/command producers build individually supplied routes. BuildEVPN has no EVI-to-tree binding or aggregation transition, and the selected role/system-FIB boundary does not delegate one.",
+      "requirement_sha": "cce421b9c914d47b",
+      "verdict": "not-applicable"
     },
     "RFC7432-5-1": {
       "note": "row now quotes the \u00a78.1.1 sentence that the ESI MUST be the 10-octet value of \u00a75 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width",
@@ -102,6 +108,12 @@
       },
       "verdict": "enforced"
     },
+    "RFC7432-8.2.1-11": {
+      "no_code_path": "Neither Ze nor its delegated system-FIB boundary fills this conditional ingress-replicating EVPN PE role. parseConfigRoute and l2vpnRouteToEVPNParams construct supplied advertisements; rib_bestchange excludes non-CIDR routes from Loc-RIB mirroring and sysrib.processEvent skips NLRI-only events rather than installing an EVPN forwarding service. Byte carriage proves no downstream label assignment.",
+      "note": "RFC 7432 Section 8.2.1 states: \"This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs.\" Its antecedent is the ESI label, not the NLRI label. The condition binds a PE receiving BUM using ingress replication, not every speaker carrying an explicitly configured ESI Label. The selected role in docs/architecture/wire/nlri-evpn.md is BGP origination/propagation without Ethernet/BUM forwarding or service-label allocation. Route producers carry supplied bytes without instantiating that PE procedure.",
+      "requirement_sha": "f76801defb87be3b",
+      "verdict": "not-applicable"
+    },
     "RFC7432-8.2.1-2": {
       "code": {
         "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination": "dc8d03ac09d4d978",
@@ -123,6 +135,14 @@
         "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "c572ee169d6adc54"
       },
       "verdict": "enforced"
+    },
+    "RFC7432-8.2.1-4": {
+      "code": {
+        "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination": "dc8d03ac09d4d978"
+      },
+      "note": "RFC 7432 Section 8.2.1 states: \"If All-Active redundancy mode is desired, then the \"Single-Active\" bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value.\" Both signaling conditions remain gaps. Registered configured/command originators carry supplied extended communities through l2vpnRouteToEVPNParams. ValidateEVPNOrigination recognizes ESI Label type/subtype and checks presence on MAX-ET Type1 advertisements, but inspects neither its flag nor embedded label against independent All-Active intent. NLRI label-width and zero-label guards constrain a different field. Missing autonomous multihoming does not make configured signaling conformant or excluded; no new PE feature is commissioned.",
+      "requirement_sha": "16947c2316921816",
+      "verdict": "unimplemented"
     },
     "RFC7432-8.2.1-9": {
       "note": "RFC 7432 \u00a78.2.1: \"This section describes the procedures used to construct the Ethernet A-D per ES route, which is used for fast convergence (as discussed above) and for advertising the ESI label used for split-horizon filtering (as discussed in Section 8.3). Support of this route is REQUIRED.\" Within the established explicit BGP control-plane role, current positive carriers demonstrate actual route support rather than only malformed-label rejection: internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute checks the entire MAX-ET Type-1 NLRI plus configured RT/ESI Label bytes; internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD checks the complete NLRI in an actual UPDATE MP_REACH and decodes it; internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel requires exact unchanged ingress NLRI and action None. Producers evpn/config.go::parseConfigRoute, encode.go::EncodeRoute/l2vpnRouteToEVPNParams, message/update_build_evpn.go::BuildEVPN/ValidateEVPNOrigination and session_validation.go::enforceRFC7606 support those paths. Removing the route or changing its layout fails these assertions. Current single-polarity annotation is semantically justified: malformed label/RD cases are neighboring obligations, not a negative of route support. It does not waive any runtime proof, invent an owner exception, or claim PE fast-convergence, split-horizon, automatic ESI/label allocation or undisclosed whole EVPN support.",

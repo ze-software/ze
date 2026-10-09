@@ -826,6 +826,43 @@ type PathAttributes struct {
 
 **Extended Next Hop (RFC 5549/8950):** Cross-family next-hop (e.g., IPv6 next-hop for IPv4 NLRI) allowed when `peer.sendCtx.ExtendedNextHopFor(family) != 0`.
 
+Ordinary route sends (API batches, queued initial/drain routes and named commits)
+apply the recipient's export policy at the Session write gate, then normalize the
+effective plain IPv6 next-hop field against RFC 2545 Section 3. This also runs
+when no export filters are active. A speaker-owned global address gains the
+configured speaker link-local address only when one connected subnet contains
+both the global next-hop entity and the recipient. A valid supplied global plus
+link-local pair stays intact on that common subnet; otherwise only its global
+half is sent, with the NLRI unchanged. Ze does not discover a third party's
+link-local address.
+
+Normalization does not repair invalid address roles or field widths: those bytes
+remain subject to the ordinary writer's final admission. Standalone link-local
+and IPv4-mapped forms, capability 77, RFC 8950 negotiation and peer-own next-hop
+refusal retain their existing rules. VPN and independently defined next-hop
+layouts are not converted into plain IPv6 fields. End-of-RIB and already-filtered
+forward/route-server/replay writes bypass this ordinary callback; their existing
+forwarding normalization is separate.
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody, normalizeOrdinaryNextHop -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated, writeUpdatePreFiltered -->
+
+Named-commit announcement and withdrawal results count the final writer's accepted
+UPDATEs and route directions, not the offered input families. Export policy can
+replace a withdrawal with announcements or grow one input into several messages.
+If a later split section is refused, earlier accepted messages remain in both
+the peer row and aggregate totals. Withdrawal build refusals retain
+`withdraw-refused`; errors sending a built withdrawal retain `send-failed`.
+Announcement shortfall is judged against its own send results, not announcements
+produced by the withdrawal half.
+
+The batch API retains final splitter encoding refusals (NLRI, attributes or MP
+overhead too large). They are not the soft warning that no peer negotiated the
+family; unrelated transport and soft-error classification is unchanged.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- AnnounceNLRIBatch, commitToPeer, sendWithdrawals -->
+<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- commitUpdateSender -->
+<!-- test: internal/component/bgp/reactor/ordinary_withdraw_result_test.go TestOrdinaryWithdrawalFinalResult -->
+<!-- test: internal/component/bgp/reactor/ordinary_withdraw_result_test.go TestOrdinaryBatchRetainsFinalSplitRefusal -->
+
 ## Update Text Parser
 
 The `ParseUpdateText` function parses the "update text" command format for batch route operations:

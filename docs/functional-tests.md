@@ -765,6 +765,113 @@ of the Link-Local-only one, then a control route
 (draft-ietf-idr-linklocal-capability Section 4).
 <!-- source: internal/test/fixture/plugin_fixture_clamped_path_linux.go -- parseNetnsRunArgs, wireIPv6, runWithPeers -->
 
+`plugin/rfc2545-joint-subnet case <name>` takes the same `netns`, `peer`,
+`peer-after` and `run` arguments for a fixed three-namespace BGP matrix:
+`same-link`, `split-link`, `entity-off-link` and `recipient-off-link`.
+Here `sender` is speaker S, `router` is recipient P and `far` is announcer N.
+The positive joins S's two veth ports through a bridge; the split case gives S
+separate A/B prefixes, and each routed negative places one entity behind the
+other. Before starting traffic the fixture reads back address ownership, prefix
+lengths, veth peer indices and bridge attachments. S never owns N's advertised
+Global or Link-Local. These are configured topology facts, not ND or liveness
+requirements.
+
+Both peer scripts MUST use `option=linger:value=true`. The source starts after
+P's establishment marker, and P checks the complete MP_REACH field for the
+subject and a subsequent different-MED control route. The control prevents a
+timeout from standing in for completion; its different attributes prevent
+coalescing with the subject. A bounded output observer reads the peer's existing
+success and rejection markers, keeps both sessions open until completion, and
+joins all children and output copiers before accepting the verdict. An internal
+80-second deadline leaves ten seconds below the carrier's hard command deadline
+for joining children and removing namespaces. Setup or deadline failures are not
+protocol violations. This fixture does not exercise third-party origination's
+missing Link-Local source, RFC2545-3-6.
+<!-- source: internal/test/fixture/plugin_fixture_rfc2545_joint_subnet_linux.go -- jointSubnetDriver, configure, assertOwnership -->
+<!-- source: internal/test/fixture/plugin_fixture_rfc2545_joint_subnet_process_linux.go -- runJointSubnetPeers, jointSubnetOutput -->
+
+The closed `case replay` uses the same common-link construction with
+S=`2001:db8::254`, N=`2001:db8::1`/`fe80::1` and P=`2001:db8::2`.
+Its replay carrier retains the original complete live and replay UPDATE
+assertions, rather than replacing the pair with a global-only expectation.
+The plugin observer requests replay after the live sent counter advances, then
+holds until teardown; only both peers' completed wire assertions release the
+namespace fixture. This avoids treating the daemon's sent counter as proof that
+the recipient has consumed either copy.
+<!-- source: internal/test/fixture/plugin_fixture_01_adj_rib.go -- plugin01ReplayRFC2545 -->
+
+`plugin/rfc2545-joint-subnet-frr` is a separate, fixture-specific independent
+recipient for `same-link` and `split-link`; it does not replace the native
+exact-wire carrier. Its ordered arguments are
+`case NAME netns PREFIX port PORT runtime DIR output DIR ze PATH le PATH zebra PATH bgpd PATH vtysh PATH tcpdump PATH`.
+The execution owner supplies a leased nonzero port, installed executable paths,
+a fresh short local runtime directory for Unix sockets, and a fresh retained
+output directory. The CLI parser converts the case token to a local numeric
+scenario and the port to a 16-bit value. Capture/oracle checks use those typed
+values directly; text is rendered only for human output and command/config or
+legacy topology boundaries. Missing and unknown scenarios never select
+split-link behavior. The fixture reuses the same S/P/N topology and ownership
+readback, starts zebra and bgpd in P, and disables bgpd's learned-route kernel
+installation with `-n`. It waits for the FRR recipient to establish and receive
+an initial UPDATE before starting the lingering injector.
+Socket existence alone is not configuration readiness: FRR 10.2.1 queues
+configuration loading separately, and its neighbor query returns `{}` while
+the default BGP instance does not exist. That documented state remains pending
+under the existing deadline; it is never evidence of establishment. An explicit
+`bgpNoSuchNeighbor: true` response is a recipient configuration/setup failure,
+whereas null, unknown nonempty responses or missing/wrongly typed neighbor
+fields fail as unsupported schemas. Injection still requires the configured
+neighbor's `Established` state and a positive received-UPDATE count.
+<!-- source: internal/test/fixture/plugin_fixture_rfc2545_joint_subnet_frr_oracle_linux.go -- jointSubnetFRRNeighborReady -->
+
+The FRR oracle queries the subject and a separate completion prefix carrying
+exactly community `65001:7`, requiring one path from S and exactly the expected
+global address, plus `fe80::9` only in the common-link case. The control uses
+RFC 1997's optional-transitive COMMUNITIES attribute: received MED cannot be
+this external-hop marker because RFC 4271 Section 5.1.4 forbids propagating it
+to another neighboring AS. FRR 10.2.1 reports the marker in
+`paths[].community.list`; the object, list and singleton string must be present,
+non-null and correctly typed, with exactly the explicit nondefault value.
+These are received BGP fields, not next-hop reachability or FIB claims.
+The parser follows FRR's documented
+JSON and `bgp_route.c`/`bgp_vty.c` fields. Required fields must be present,
+non-null and correctly typed before semantic checks; only an empty JSON object
+means route absence. Unsupported installed schemas are setup failures, not RFC
+failures. Version, raw JSON, generated configs, daemon logs and recipient PCAP
+remain in the evidence directory. Capture uses tcpdump's `--immediate-mode`
+for kernel delivery and `-U` for per-record savefile flushing; `-U` alone does
+not drain libpcap's kernel queue. After JSON receipt, a separate capture-state
+fence reads only changed, bounded savefile snapshots (at most 1 MiB), reuses
+the existing TCP sequence reassembler, and requires one contiguous S-to-P
+stream from OPEN through complete subject and control UPDATEs. It checks the
+complete MP_REACH fields and exact control community, not marker substrings.
+Incomplete PCAP records, partial BGP frames or TCP holes cannot pass; malformed
+frames (including the OPEN version/length envelope and completion attribute
+flags), capture truncation limits and unexpected withdrawals fail. Reordered
+segments and identical retransmissions use TCP sequence reassembly, not arrival
+order. The existing deadline bounds this fence without a sleep or extra traffic.
+
+Only after that fence may the successful path stop capture. Long-lived children
+are detached from execution-context cancellation: only the fixture's bounded
+cleanup owner signals and joins them, rather than `exec.CommandContext` issuing
+an automatic SIGKILL. Short-lived query commands retain their command deadlines.
+Every exit path signals capture with SIGINT and allows three seconds to flush and join,
+then forces termination with a further two-second join bound. Cleanup failures
+retain the original oracle/setup error and are separately reported; a forced
+capture termination cannot produce a passing evidence verdict. The execution
+owner must additionally inspect the complete capture for exact wire fields and
+absence of scoped withdrawals: the retained-route oracle alone cannot prove
+that historical property. A queued child exit or an expired deadline cannot be
+overridden by a ready predicate. Normal teardown joins children before removing
+namespaces; non-capture children receive SIGTERM with a three-second join bound,
+then SIGKILL with a further two-second bound if necessary. Forced termination or
+a failed join is an evidence failure. The execution deadline is 90 seconds plus
+bounded capture and child cleanup; the passing sentinel is emitted only after
+both, and cancellation during either cleanup stage still makes the verdict fail.
+<!-- source: internal/test/fixture/plugin_fixture_rfc2545_joint_subnet_frr_linux.go -- jointSubnetFRRDriver, runJointSubnetFRR -->
+<!-- source: internal/test/fixture/plugin_fixture_rfc2545_joint_subnet_frr_oracle_linux.go -- jointSubnetFRRReady, jointSubnetFRRReceived, assertJointSubnetFRRRoute -->
+<!-- source: internal/test/fixture/plugin_fixture_rfc2545_joint_subnet_frr_capture_linux.go -- jointSubnetFRRCaptureReady, jointSubnetFRRCaptured, jointSubnetFRRCapturedUpdate -->
+
 The six `show mtu` tests use the same fixture, each with its own namespace
 prefix and config names because the runner writes every test's `tmpfs=`
 files into one directory. `test/plugin/show-mtu-host.ci` measures the far
@@ -2038,6 +2145,13 @@ Ze's initial-sync marker.
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR -->
 
+BFD log observers own their stderr pipe independently of `exec.Cmd.Wait`.
+After requesting shutdown they reap the child and join the scanner through
+EOF, including late forbidden lines. A pipe that stays open after child exit
+has a bounded drain and reports failure; an early reader close is not accepted
+as successful teardown.
+<!-- source: internal/test/fixture/plugin_fixture_03_bfd.go -- runZeUntilLogsRejecting03 -->
+
 #### Payload-predicate waits
 
 When the wait is "block until an *observed payload* matches a condition" (not a
@@ -2893,6 +3007,27 @@ migrated Ze client. Use `--server ID --port N` and `--client ID --port N` for
 split-terminal debugging.
 <!-- source: internal/le/interoplab/bgp/exabgp_server.go -- wire server and PORT readiness -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- waitExaBGPPort and split debug modes -->
+
+The RFC2545 pair `conf-llnh-update` / `conf-llnh-lla-only` needs explicit
+loopback provisioning: `fd00::2/128`, `fd00::3/127`, and `fe80::1/128` on the
+same interface. `./le setup install` and the verify workflow provision it;
+`./le setup check` checks ownership, exact prefixes, and bindability. See
+[developer setup](guide/developer-setup.md#linux) for the privileged commands.
+The connected `fd00::2/127` contains the speaker/next-hop owner `fd00::2`
+and peer `fd00::3`; the owned `fe80::1` is the second address in the positive's
+exact 32-byte next-hop field. Separate host routes for `fd00::2` and `::1`
+do not meet that condition. The negative uses identical session addresses,
+link-local configuration and capability 77, changing only the global next hop
+to off-link `2001:db8::ffff`, and asserts exactly 16 bytes. Neither fixture
+proves neighbor discovery, liveness, or forwarding.
+
+The native `le test exabgp` compatibility runner has its own discovery/parser:
+it does **not** support `--draft` or provision `option=netns-link`. Do not use
+those ordinary `.ci` runner features here. For a comment-only `.ci` correction,
+stage it under `test/draft/exabgp-compat/encoding/`, exercise the unchanged live
+wire assertions against the corrected config and explicitly provisioned
+environment, then promote the comments after proof. The mock listener's
+existing wildcard bind and OS-assigned port are unchanged.
 
 `conf-vpn` explicitly enables `ipv4 mpls-vpn` before checking its expected
 VPN UPDATE frames. This does not test ExaBGP's implicit family default:

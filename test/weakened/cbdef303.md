@@ -2,11 +2,6 @@
 
 | Test | Reason |
 |------|--------|
-| TestEgressNextHopGlobalHalf | Retire the old predicate's strip flags. All eight cases now assert the encoded MP_REACH next-hop bytes after the shared normalizer and attribute handler, including pair preservation, off-link trimming, VPN RD preservation and effective policy rewrites. Thirteen counted assertion sites become ten because one helper also checks attribute emission and presence; no case leaves. |
-| TestRFC8654TreatAsWithdrawRemovesInstalledRoutes | Retire the invalid requirement that every selected-path event own raw ForwardBytes. Exact ORIGIN1/MED17 must reach both recovered prefixes in Adj-RIB-In and recipient TCP; Metric17 must reach actual Loc-RIB publication and lookup. Length refusal, withdrawal, same-session and no-NOTIFICATION observations remain. The renewed native records and independent whole-clause judgment cover this causal oracle. |
-| TestPrefixSIDUnknownTLVSurvivesANextHopChange | Retire four assertions over the accumulator's Remove operation. The replacement calls rfc9252EffectiveNextHopCase on cached and route-server rails and inspects actual recipient UPDATEs: only Service TLVs disappear after a changed effective next hop, while the route and non-Service/unknown TLV bytes survive. Assertions live in the shared wire reader rather than the root's syntax. |
-| TestPrefixSIDPropagationNextHop | Retire the two operation-list subtests. A nested two-rail, three-case table now checks actual Session output for unchanged, explicit-equal and self-changed next hops. The shared wire reader asserts Service TLVs, Reserved/unknown bytes and surviving route/non-Service data. Both historical semantic defects have actual SDK/FRR old/fixed proof; absent local SID allocation remains partial rather than being counted as implemented. |
-| adj-rib-in-replay-rfc2545-next-hop | Move process ownership into the real three-namespace fixture; do not remove a wire oracle. Both live and stored replay UPDATEs remain independently byte-exact at the recipient, with explicit source/destination fences. Eleven counted directives become eight because the fixture owns launch and shutdown. The replacement passed eighty physical runs and both tagged replay bindings have native records. |
 
 ## Reviewed fixture corrections
 

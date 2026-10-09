@@ -348,7 +348,8 @@ draft's second condition is a `{not-applicable}` row,
 `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`. An
 explicit next hop naming another router, even one on the shared link, is sent
 as its Global alone, length 16. RFC 2545 would want that router's own
-Link-Local there, which Ze never learns: a recorded gap, `RFC2545-3-6`.
+Link-Local there, which Ze never learns: a recorded gap in the whole
+`RFC2545-3-3` condition as well as `RFC2545-3-6`.
 
 A relayed route under `next-hop unchanged` or `auto` keeps its effective next
 hop only if its wire form is usable. For a 32-octet pair (or a 48-octet VPN-IPv6
@@ -361,22 +362,33 @@ causes a native withdrawal. Capability 77 does not legalize such a pair.
 The trimming boundary leaves an invalid pair intact for the shared withholding
 gate; it cannot silently turn it into a valid single-address form.
 
-For a valid pair, the implemented scope predicates require the destination and
-the global address each to belong to a locally connected prefix. If either
-predicate fails, the link-local half is dropped and the global goes alone,
-length 16 (24 with the RD). A filter-written pair is judged after the rewrite.
-Both forward rails apply these decisions without changing the cached input.
-The source peer's prefix does not establish the received next-hop entity's
-adjacency. These prefix-membership predicates and their tests do not establish
-whole RFC2545-3-3 entity adjacency: the scope snapshot has no identity linking a
-received global and link-local to an adjacent router, including one whose
-global identifier belongs to another interface. The separate third-party
-link-local discovery gap on locally constructed routes remains unchanged.
-<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf -->
+For a valid pair, one locally connected prefix must contain both the recipient
+and the effective global address. Separate memberships in S's A and B prefixes
+do not establish a common subnet for all three entities. If no such prefix
+exists, the link-local half is dropped and the global goes alone, length 16
+(24 with the RD). Next-hop-self construction uses the same joint predicate.
+A filter-written field is judged after the rewrite, including `auto` and
+`unchanged`: a valid 16-octet speaker-owned global receives the configured
+speaker Link-Local when that same joint predicate permits it. The new pair is
+copied into the existing operation accumulator; trimming an existing pair
+aliases its global half. Both forward rails preserve cached input and do not
+rerun policy. The source peer's prefix cannot substitute for the effective
+next-hop address.
+
+The immutable session snapshot retains the recipient address and connected
+prefixes. The per-UPDATE check scans that bounded slice without allocating or
+reading the kernel. RFC 2545 Section 2 defines directly connected routes by a
+common subnet prefix; this check adds no ND, probing or liveness requirement.
+Real-topology fixtures independently establish who owns the advertised pair.
+The separate absent Link-Local source for third-party origination remains
+a gap; received-pair preservation does not implement it.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSubnetConditions -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSecondAddressValidated -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairFirstAddressValidated -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545EffectivePairPolicyAndMixedSibling -->
+<!-- test: internal/component/bgp/reactor/rfc2545_joint_subnet_test.go TestRFC2545JointSubnetWriter -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go TestRFC2545ForwardPolicyOwnGlobalJointSubnet -->
 
 These checks judge the effective pair after policy. A valid replacement of
 obsolete malformed input is announced; a malformed replacement of valid input
@@ -506,7 +518,7 @@ O(current peers + selected destinations), without a membership map allocation.
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildWithdrawalPayload -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- withdrawalBySection -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- fwdWithdrawal -->
-<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope -->
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- applyLinkLocalNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- nextHopOwners.classify -->

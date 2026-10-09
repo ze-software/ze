@@ -231,14 +231,17 @@ Routing a suite also un-skips its `option=netns-link` tests. Outside this mode
 the runner SKIPS them (`applyNetnsLinkGate`, `internal/test/runner/caps.go`),
 so eight `test/ospf` and three `test/ospfv3` tests ran in no VM phase at all.
 The `plugin` suite stays in the guest root namespace under `all-tests`; its
-`netns-link` cases are therefore skipped there. The separate
+ASPA `netns-link` cases are therefore skipped there. The separate
 `netns-test suites plugin` selection runs the seven ASPA validation and policy
 cases with their declared `eth1` address, `10.0.0.254/24`. Their received
 NEXT_HOP, `10.0.0.1`, is then nonlocal, on-link and syntactically valid.
-It also runs `adj-rib-in-replay-rfc2545-next-hop` with a dummy interface at
-`2001:db8::254/64`, making its received global next hop `2001:db8::1` genuinely
-on-link. Both live forwarding and replay must retain the complete global and
-link-local pair. The selector does not move the whole plugin suite into namespaces.
+The selection also includes `adj-rib-in-replay-rfc2545-next-hop`. That carrier
+owns three distinct namespaces for the speaker, recipient and next-hop entity,
+connected by real veth/bridge links; it no longer requests a dummy `netns-link`.
+The fixture checks address ownership and attachment before traffic. Both live
+forwarding and replay must retain the complete global/link-local pair on that
+common subnet. The fixture owns shutdown after both recipient assertions.
+The selector does not move the whole plugin suite into namespaces.
 
 `./le test qemu netns-test suites <names>` is the same launcher over a named subset,
 and it also asserts the guest root nft ruleset is unchanged by the run. It is

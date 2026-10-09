@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-09",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -159,6 +159,14 @@
       },
       "verdict": "enforced"
     },
+    "RFC8669-4.1-15": {
+      "code": {
+        "internal/component/bgp/message/rfc7606.go::validatePrefixSIDAttr": "5468d93cff1cffa5"
+      },
+      "note": "RFC 8669 Section 4.1 states: \"In the case of an \"invalid\" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. A BGP speaker SHOULD log an error for further analysis.\" The same section requires an attribute received without a Label-Index TLV to be considered invalid. validatePrefixSIDAttr checks TLV framing and SRv6 Service TLVs, but does not require Label-Index on labeled-unicast routes or compute that invalid state. Its registered receive path is reachable; the generic discard logger does not supply the absent trigger. This is the disclosed SR-MPLS invalid-state gap, distinct from conflicting-attribute warnings, EBGP boundary logging and conditional logging upon an actual discard. No missing SR-MPLS implementation is commissioned.",
+      "requirement_sha": "be03dc7f94b681b5",
+      "verdict": "unimplemented"
+    },
     "RFC8669-6-1": {
       "note": "Malformed via TLV overrun: message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised asserts discard and absence after ApplyAttrDiscard; trailing bytes: TestRFC8669TrailingBytesDiscarded asserts discard only, not removal. Unasserted clauses: (1) 'invalid' (no Label-Index TLV, per 4.1) is never computed, so an invalid attribute is kept and advertised and no tagged unit goes red; (2) 'a TLV length that doesn't conform to the length constraints for the TLV' is not checked by validatePrefixSIDAttr (a Label-Index TLV of length 6 or an SRGB TLV of length 3 is accepted), and no test drives it; (3) 'not meeting the minimum attribute length' (e.g. a zero-length attribute) is accepted and untested.",
       "requirement_sha": "66fc373820ba8477",
@@ -190,6 +198,19 @@
         "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "2dbf4c7d7668f4c5",
         "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "de30de36da1c2ceb",
         "test/plugin/prefixsid-duplicate-tlv-relay.ci": "edd3f723202b52c7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8669-6-4": {
+      "note": "RFC 8669 Section 6 states: \"When discarding an attribute, a BGP speaker SHOULD log an error for further analysis.\" TestRFC8669MalformedPrefixSIDDiscardDiagnostic exercises isolated TLV-overrun and trailing-byte inputs through actual Session receive enforcement. Both produce AttributeDiscard, remove code 40, preserve the announced route and unrelated attributes without withdrawal, and emit an attribute-discard diagnostic identifying attribute 40 and the exact original UPDATE. TestRFC8669CleanPrefixSIDNoDiscardDiagnostic proves ActionNone, byte-identical publication with one valid Label-Index attribute, and no matching discard diagnostic. The current pair passes twenty race iterations. Selectively suppressing both code-40 diagnostic calls makes the malformed cases fail while the clean control passes; selectively adding a discard diagnostic on ActionNone makes the clean control fail while the malformed cases pass. The semantic cuts and restored race pass are recorded in job-bgp-final-new-claim-discrimination-2bf9854a.log. Both tagged units also have native revert bindings to session_validation.go::applyRFC7606; these producer-halting failures are not substituted for the selective semantic failures. Independent review accepted this conditional logging proof. The requirement prescribes neither exact human-readable wording nor a slog severity enum. This verdict establishes logging when the exercised discard occurs, not complete malformed/invalid-state detection, missing discard initiation, downstream advertisement, or SR-MPLS functionality. Those missing triggers remain separately disclosed by RFC8669-6-1 and RFC8669-4.1-15.",
+      "requirement_sha": "e42ca2867b6700fd",
+      "tests": {
+        "internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go::TestRFC8669CleanPrefixSIDNoDiscardDiagnostic": "6f87329ccb9bcaca",
+        "internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go::TestRFC8669MalformedPrefixSIDDiscardDiagnostic": "6f87329ccb9bcaca"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go::TestRFC8669CleanPrefixSIDNoDiscardDiagnostic": "4db07eb488c77296",
+        "internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go::TestRFC8669MalformedPrefixSIDDiscardDiagnostic": "42b7b6a58766bcd3"
       },
       "verdict": "enforced"
     }

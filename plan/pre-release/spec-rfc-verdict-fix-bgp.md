@@ -7,7 +7,7 @@
 | Depends | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the BGP group before any row edit, parent R-11) |
 | Phase | 2/48 |
 | Handoff | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -474,7 +474,7 @@ The parent's Method table governs every phase and is not copied here. The rules 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | the parent's `mode rejudge` has landed before the first re-judge here | parent Implementation Steps 1 and 2 | a re-judge has no route but hand deletion, which P-2 bans | native `audit-stamp mode rejudge` stamped both RFC8050 findings in `14698ed9c4` | confirmed 2026-10-05 |
-| A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | each package's author agent names any verdict it cannot move without a producer fix another spec owns | unvalidated |
+| A-2 | the blocked-by list is complete for this scope | the parent's code-defect and overlap tables, each id checked in `rfc/audit/` or the R-7 table on 2026-09-28 | the child cannot reach AC-C1 | FinalAcceptanceOwnership mapped every current member to a receiving AC; Main read those ACs. Native `e50a6d98` derives 30 weak, zero wrong, all in that mapped set. Separate partial and unimplemented dispositions retain their existing owners. | confirmed 2026-10-09 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -920,7 +920,7 @@ not grant export authority globally or add durable restart storage.
 The session state retains exact commands, logs and remaining boundaries. No
 whole-tree verification or closure is claimed.
 
-### Acceptance evidence, 2026-10-08
+### Acceptance evidence, 2026-10-08–09
 
 | Surface | Observed result and remaining boundary |
 |---------|----------------------------------------|
@@ -938,20 +938,23 @@ whole-tree verification or closure is claimed.
 | Canonical tunnel accounting | New RFC9012-13-21 restores first-occurrence consumer duty as an explicit gap and maps extraction13:7 without reusing retired13-7. The separate consumer spec owns AC-7; no implementation was added. False default-filtering support prose was corrected toward the observed gaps. Endpoint/filter judgments and the 13-16 unimplemented verdict are canonical. The completed 13-10 processing-equivalence proof below does not implement those absent consumers. |
 | Numeric emission | Four emission mutations produced exact-wire failures, including RFC-relevant four-octet output for values256/65535 and two-octet ICMP code; four reception mutations rejected legal wider encodings. Restored emission, compatibility and recipient-forwarding roots passed race in `job-flowspec-numeric-restored-after-mutations-c672abd1.log`. Legal-wide reception is not emission-negative evidence. Canonical RFC8955-4.2.2.5-1/6-1/8-1/10-1 and packet-zero7.2-3 judgments are enforced. Final record freshness remains to be checked. |
 | BGP-LS object placement | Complete parallel-link descriptors and competing same-prefix OSPF route classes pass all five native/exporter roots under race in `job-bgpls-complete-object-identity-after-9a6e8f72.log`. Independent bounded rejudgment accepts both conditional placement clauses. RFC9085-2.2-1 and2.3-1 are canonical enforced, not pending stamps. Final record freshness remains to be checked. Absent optional TLV producers remain feature gaps. |
-| IPv6 ordinary and effective forwarding | Ordinary and effective-width package runs passed in `4d2ac14f` and `220a4b89`; later repairs landed in `d3e5b4a770`. Final multi-package race20 attempts `8efbf851` and `0b61ad28` exited143, not PASS. Main observed native admission terminate pid3317610 for `0b61ad28` after its log stayed unchanged1978s against the1800s stall window. That receipt was outer admission output, not the replay recorder log. The older `8efbf851` sender remains unproven. JSON-streaming replacement bg199 remains pending. |
+| IPv6 ordinary and effective forwarding | Attribute registration repair landed as `5fbaeef99a`; Loc-RIB scoped-lock repair landed as `734e263737`. Latest immutable full-reactor race20 `job-reactor-final-reviewed-srv6-race20-033bf172.log` passes2445 roots/48900 results with no skips, failures or races. It contains the own-global policy and SRv6 identity repairs, but predates the subsequently found parsed-empty-MP split defect and its new recipient proof. Its retained census states that boundary; earlier exit143/CWD/race failures remain failures. |
 | Finite next-hop family census | Initial repairs passed 17 roots under race in `3aaee687`. Independent review then rejected blanket mapped-AFI2 refusal. Before `e2adc846` failed all three real-path mapped roots; corrected admission passed 28 selected reactor/message/SR Policy roots in `e55e9097` and independent review. Explicit sixteen-byte mapped fields remain supported; native four-byte AFI2 fields remain invalid. No automatic mapping, discovery or new dataplane was added. |
-| Native fixture promotions | Nineteen drafts were promoted in the earlier wave, including IPv6 replay. Its `33025abc` eighty-run proof and `cbdf24da` isolation proof predate the new distinct-node replacement and do not qualify it. The new four-case matrix and replacement replay each passed once in `cccf06c2`; fresh eighty-run qualification remains owed. Each VPN draft completed eighty memory-backed native runs in `7b6b6231`; complete withdrawn identities remain exact. |
-| Live suite and valid input | `f304b83b` passed 790 fixtures and skipped 82 of 872 using the frozen family binary before final compatibility corrections. Six final-fields API workflows passed `56f77022`. The full encode run passed 60/63; both corrected ASN4 fixtures passed `6801839d`, and mapped extended-next-hop wire/API/JSON assertions passed `8a8870b2`. These targeted results are not a repeated final whole-suite pass. |
-| IPv6 claim records | Ordinary covers reached36/36 in `74c0f6a2`; finite-family/API and actual-Session records followed in `5fed32bd` and `6fb39425`. All33 mapped-field renewals completed in `53bc2065`. `job-rfc2545-recorder-native-session-ownership-11daa9c5.log` records RFC2545-3-1 positive replay through `buildRelayUpdate`. RFC2545-3-2 did not finish before the1800s SSH deadline and still owes its record. The disposable guest-native session mount preserves real ownership checks. Canonical `rfc/discrimination/rfc2545.json` contains the3-1 replay receipt, not3-2. |
+| Native fixture promotions | Nineteen drafts were promoted in the earlier wave. Fresh kernel7.2 qualification now covers the distinct-node replacement: matrix `bgp-plugin-draft-rfc2545-joint-subnet-20261009-003905.log` and replay `bgp-plugin-draft-adj-rib-in-replay-rfc2545-next-hop-20261009-012434.log` each contain80 consecutive successful physical invocations,240 passing named steps and80 inside-parent markers under `tmp/stress-repro/`. Their machine censuses are retained. The exact matrix draft was published after D15 approval. Wrapper exit-contract/JSON mistakes happened after qualification and did not invalidate or repeat80. Each VPN draft retains its earlier eighty-run evidence in `7b6b6231`. |
+| Live suite and valid input | Latest immutable plugin run `job-final-integrated-live-plugin-all-six-9bd1dc3a.log` completes789 passing,1 failure and83 host skips,873 total. The original BFD and PATHS-LIMIT workflows both pass at the original six-way concurrency without the diagnostic readiness overlay. The remaining MCP literal-namespace assertion is separately journaled. This binary predates the later own-global/SRv6 repairs; neither a whole-green nor a final-source suite pass is claimed. BFD pipe-lifetime repair landed as `aeb7e2f4d4` with all five committed flavors passing. |
+| IPv6 claim records | All seven guest records completed, including RFC2545-3-2 replay and the compatibility/matrix claims. `job-ipv6-final-unit-native-records-728ac315.log` records all20 final IPv6 bindings with20 observed reds; `job-ordinary-writer-non2545-native-records-a8bd24c8.log` records the other37 writer bindings with37 reds. Their population manifests/censuses are retained. The later native freshness census identifies additional stale records; only its unfinished entries are being renewed, not completed qualifications. |
 | Source landing | `d3e5b4a770` landed309 coupled files; MRT landed as `9f89c5fac43a`. Later completed clauses landed independently: unknown-sub-TLV processing `a0c1e93bf5`, FlowSpec advertisement judgment `0ce4fccd27`, present-empty AS_PATH `1e2a0f25c9`, and mapped-self oracle `411d8136e1`. All five committed build flavors passed after the last two Go commits. Earlier concurrent-producer and CLI-return-arity reds remain journaled rather than rewritten as historical passes. |
 | Retirement publication | Canonical wiki cutover landed as `328c4dc`, including the retired page removal and regenerated aggregates. Native wiki snapshot `fc3b90b7` derived the site's input from committed wiki HEAD. Private site build `f20febfa` wrote 994 published pages; Chromium showed zero catalog matches and a404 former detail for bgp-persist, the bgp-rib detail, and the rendered in-memory reconnect/migration guide. Final publication landing remains owed; historical parity fixtures stay pinned. |
-| Docker authorization | On 2026-10-08 the owner selected "Use Docker". This lifts the current Docker prohibition, not the no-push restriction. `job-addpath-collision-docker-authorized-03279611.log` reports `docker info` exit124, context deadline exceeded, and zero passed/failed scenarios. No scenario assertion ran. Main is diagnosing Docker endpoint/service setup. Earlier no-Docker limits remain historical evidence, not a current authorization blocker. |
-| Shared-subnet condition | `TestRFC2545JointSubnetWriter` reproduced four split-link failures in `d6f18d6b`. The common-prefix repair passes that root, and `cccf06c2` passes the real four-case matrix and replacement replay once under kernel7.2. `job-joint-subnet-writer-four-native-bindings-090c3a3b.log` records positive/negative bindings for RFC2545-3-3 and3-4 through `sharesNextHopSubnet`. These producer halts establish binding, not whole-clause semantics. Both FRR JSON cases pass `job-joint-subnet-frr-community-positive-4a106f07.log`, but Main's entire-PCAP inspection found no test UPDATEs. Complete wire/history proof is not established. The new capture fence is under source repair and owes execution. Fresh eighty-run qualifications and final judgments remain owed; canonical3-3/3-4 stay weak. |
+| Docker authorization | The owner's 2026-10-08 "Use Docker" decision authorizes these scenarios, not pushing. Restored structured `job-final-restored-named-docker-pair-9631a78e.log` reports both repaired IPv6 joint-subnet and ADD-PATH collision scenarios passed1/failed0 against fresh Ze images and FRR10.3.1 after the mutations. Earlier endpoint/no-Docker limits are historical, not current authorization blockers. |
+| Shared-subnet condition | Restored complete FRR capture `b69d6620`, replacement replay80 and matrix80 are observed. Ordinary SDK old/final proof traverses actual `sdk.UpdateRoute` through batch/queue/commit: old common-link16 fails, final common32/off-link16 passes. Reviewed final-size, per-family ADD-PATH, directional-count and typed-error repairs pass their focused race populations and native records. A later review found own-global policy writes under auto/unchanged omitted an available own LL; all eight common-link before cases fail, repaired65 roots pass20 times, and actual public raw-export SDK old/final proof completes in `forward-owned-policy-smoke/actual-sdk-service-receipt.txt`. Independent whole-clause judgments now stamp RFC2545-3-3 partial (tested portions retained, absent third-party discovery receives zero whole-row credit) and3-4 enforced;3-6 remains unimplemented. |
 | Unknown sub-TLV processing | The27-combination recipient/RIB root passed under race. Selective legal-unknown suppression failed at actual recipient and stored-route observations in `57c0b4d1`; restored roots passed `e19c2917`, both native bindings recorded in `918cb771`, and independent whole-clause rejudgment accepted RFC9012-13-10. The proof and canonical records landed as `a0c1e93bf5`; absent attribute-driven consumers remain separate. |
 | Present-empty AS_PATH | The new actual-Session root explicitly supplies `40 02 00`, checks exact external prepend bytes at both ASN widths and both rails, and retains empty internal/RS controls. Selective empty-only suppression fails all four external cases while eight controls pass (`ecbbbd92`); restored proof passes `91fea142`, native binding is `b6c62391`, and independent whole-clause stamp is `db59547a`. Landed as `1e2a0f25c9`; the absent-attribute helper retains its body without the false tag. |
 | Configured IPv4 self | `TestForwardConfiguredIPv4MPNextHopFamily` now expects the existing sixteen-byte mapped self for IPv6 unicast and native IPv4 for IPv4/SR Policy. Exact recipient fields and no-withdrawal assertions passed twenty race repetitions in `a3bde1e3`; independent review confirmed received native-four-byte AFI2 rejection remains. Oracle/comment correction landed as `411d8136e1`; no mapping behavior was added. |
+| SRv6 effective identity | Final focused core proof passes23 roots×20. Actual SDK/FRR old daemon produces both intended equal-identity stripping and changed-identity retention failures under auto and unchanged in `job-srv6-terminal-old-live-proof-99014c5c.log`. The fixed daemon passes both in `job-srv6-terminal-fixed-live-proof-ebcd04cb.log`; both retained proof files show three Modify receipts followed by one exact unchanged Accept EOR, no failure. Nine current bindings recorded in `3bf999f3`; independent family stamps retain3.3-1 enforced and3.3-2 partial for absent local SID allocation/rebuilding. |
+| Configured VPNv6 originator | Native configured self/explicit × grouping proof passes all four runtime-kernel cases. Selective wrong-global and nonzero-RD variants each fail all four in `job-vpn6-configured-selective-kernel-2b3e67f5.log`; restored cases pass. Its native producer-halt binding completed in `7b4c75a2`, separate from those semantic mutations. Originator identity is enforced; new8-5 and3.2.1.1-3 first judgments retain integrated ASBR and 48-octet/iff gaps without commissioning features. |
+| Parsed mixed withdrawal meaning | Producer red/green and complete message race20 pass527 roots. Cached-worker/Session proof `9cf70a04` reproduces the old cross-context extra EOR, preserves the raw control, and passes both fixed contexts race20. Actual old FRR proof `96e6c367` fails specifically on the fabricated phase2 EOR; fixed `db0bba59` passes with the real withdrawal and later genuine EOR preserved. Complete captures/tables are retained and independently reviewed. Earlier OPEN failures were missing IPv6 fixture addressing, not discrimination. Final reactor repetition includes this repair; its separate AIGP fixture failure is accounted for below. |
 
-### Remaining closure obligations, 2026-10-08
+### Remaining closure obligations, 2026-10-09
 
 This is a bounded reconciliation, not a fresh conformance or freshness census.
 The logs above locate session evidence; Main still owes durable retention of
@@ -959,14 +962,14 @@ new receipts and immutable inputs. No result is inferred from a pending job.
 
 | Class | Exact obligation |
 |-------|------------------|
-| Native replay record | RFC2545-3-2 positive, `test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci`, producer `reactor_api_relay.go::buildRelayUpdate`. Resume the unfinished record, not the completed3-1 binding. |
-| Native interop record | RFC7911-2-2 positive, `internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision`, producer `forward_path_id.go::generatePath`, scenario `bgp-addpath-readvertise-collision-frr`. Docker setup must succeed before scenario proof or recording. |
-| Independent judgments | RFC2545-3-3 and3-4 need whole-clause decisions after the shared-subnet proof. RFC2545-3-1/3-2 are already canonical enforced. Renew changed claims where the final native freshness check requires it, not because an old pending filename exists. |
+| Native replay record | The previously unfinished RFC2545-3-2 positive replay record is complete in the seven-record guest receipt. Do not rerun the completed3-1/3-2 bindings merely because an older pending manifest names them. |
+| Native interop record | RFC7911-2-2 positive completed in `job-addpath-unframed-source-native-discrimination-f9530497.log`, through `forward_path_id.go::generate` and named scenario `bgp-addpath-readvertise-collision-frr`. Both sources negotiate no ADD-PATH; the earlier `generatePath` halt stayed green and recorded nothing. The correct producer halt records binding, not selective collision semantics. Restored named structured proof is complete in `9631a78e`. |
+| Independent judgments | RFC2545 retains its declared partial/enforced/gap boundaries. Prior34 judgments are stamped in `7b4c75a2`, `36f47b1a`, `8338b5fb` and `3f7574f9`. Final review's eight missing judgments and three narrowing defects are now resolved through twelve first stamps in `e71102d3` and `11f306b4`, including the restored RFC7432 downstream ESI-label row. FinalClauseReconciliationReview independently accepts the canonical clauses, mappings and bounded proof claims. No absent feature is commissioned. |
 | Completed judgments | RFC9012-13-10, RFC4271-5.1.2-3 and RFC8955-4-3 are canonical enforced. Their earlier census requests for decisions or a first stamp are obsolete. RFC9012-13-16 is canonical unimplemented, not a pending rejudge. |
-| Physical and independent-receiver proof | Qualify the replacement replay and joint matrix with fresh eighty-run evidence. Execute the repaired FRR capture fence and prove complete test UPDATE history and discrimination. JSON route state alone does not supply that proof. |
-| Final execution | Obtain bg199's streamed race result and resolve any reported failure. The draft receive-only two-octet RIB diagnostic still lacks an export carrier. Earlier targeted results are not a final whole-suite pass. |
-| Mechanical freshness | After canonical writers stop, Main runs `./le rfc reseal`, `./le rfc index-update` and `./le rfc check`. Reuse accepted judgments for unchanged claims; route actual semantic refusals to bounded independent review. No current missing/stale count is asserted here. |
-| Landing and closure | Commit the retained ownership reconciliation, retain new evidence outside session scratch, finish retirement publication, and satisfy AC-C1–AC-C7 and the independent Review Gate. Both specs remain open. No push is authorized. |
+| Physical and independent-receiver proof | Replay80, matrix80, restored FRR capture, ordinary SDK, public raw-export SDK, actual SRv6 SDK/FRR old/fixed and configured VPNv6 selective proofs are complete. Parsed-empty-MP producer, cached-worker and native FRR old/fixed proof are now observed and independently accepted. Preserve all newer receipts and immutable inputs outside scratch; completed qualifications are not repeated because an old wrapper misunderstood their result. |
+| Final execution | Final-source immutable reactor race20 `2a6f2ef4` contains2446 roots,48919 root passes and one AIGP readiness failure, with no skips or race warning. The controlled stale-completion schedule reproduces that failure in `5173b7f5`; corrected exact-wire readiness and complete transition assertions pass the same schedule20 and both normal recursive roots20 under race in `bfa85e8a`. No production change or full-suite-green claim follows. The original PATHS-LIMIT live workflow passed in `9bd1dc3a`. The preserved two-octet draft remains ineligible: received-RIB storage publishes best-path events, named commits consume separately queued routes, and outbound resend reads Adj-RIB-Out; no received-RIB-to-commit producer reaches its oracle. |
+| Mechanical freshness | All original and later owned claim renewals are recorded, including the sixteen committed-drift repairs and RFC4659 reseal in `bdd77596`, four new diagnostic/filter bindings in `2bf9854a`, and four corrected AIGP bindings in `391566bc`. Structured native `c6c59f23` stamps the two independently rejudged AIGP rows and regenerates projections. Postcommit `c58edbb0` reports eight foreign findings, no uncommitted discrimination drift, zero changed unproven units and zero missing records. Six tagless historical records are reported as removable and receive no proof credit. This is not whole-corpus green; the final reconciliation still owes its postcommit C5 check. |
+| Landing and closure | Commit completed scoped repairs and canonical reconciliation, retain all newer evidence, finish retirement publication, and satisfy AC-C1–AC-C7 and the independent Review Gate. Both specs remain open. No push is authorized. |
 
 Gap accounting is separate from these evidence obligations. The canonical
 partial rows RFC9086-7-1 and RFC9514-7.2-5/-6 receive no whole-row enforcement
@@ -979,6 +982,38 @@ features. RFC7606-5.1-1 also remains canonically unimplemented; its recorded
 MP attribute-ordering deviation is not an optional-feature exemption.
 
 
+
+### Final acceptance reconciliation scope, 2026-10-09
+
+The source/evidence landing is `fb3251e5b597`; its committed-source build passes
+all five flavors in `02da6c39`. Final reactor repetition completes with one
+readiness failure, not a race. The independently accepted fixture correction
+lands separately as `fa54c8e59d`, retaining the full original red and the
+controlled before/after evidence. Four new final-clause proof roots have their
+own race20 and selective-semantic receipts; they were added after the immutable
+full-reactor binary was compiled.
+
+The held RFC2545 compatibility topology and its explicit setup/CI dependencies
+land as `0b3c569cac`. The retained kernel qualification proves missing/check-only,
+installation, present/no-op and conflicting-prefix preservation, then both live
+compatibility wire assertions. The proof does not claim macOS runtime or the
+complete setup CLI. Its two independent source reviews and native bindings
+accompany the landing; no completed qualification is rerun.
+
+Two independent read-only lenses check the remaining acceptance bookkeeping:
+AC-C1/C4/C7 compare the derived weak/wrong listing and declared transfers with
+the receiving specs; AC-C2/C3/C5/C6 compare the completed independent judgments,
+native records and correction dispositions with canonical inputs. Neither lens
+reopens accepted producer reviews, reruns completed proofs, manufactures a
+current conformance total, or commissions absent features. Any unresolved
+acceptance obligation remains explicit; this section is not a clean Review Gate.
+
+The ownership lens confirms A-2: the actual derived query in `e50a6d98`
+returns30 weak and zero wrong, all mapped to receiving acceptance criteria.
+The named wiring test passes in that same receipt. The twelve final first
+judgments, corrected extraction sites and bounded public claims have an
+independent clean reconciliation review. Current whole verification, durable
+retention and final retirement publication remain separate obligations.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

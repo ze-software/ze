@@ -109,12 +109,16 @@ exact NLRI on both rails, with dedup-disabled controls.
 **Stopping a cache scan does not release cached ownership.** `RecentUpdateCache.Stop`
 only stops its background scanner. A fixture that keeps a consumer outstanding
 must unregister that consumer at cleanup; the cache then returns adopted buffers
-after the last worker retain is released. The fan-out fixtures stop their workers
-before unregistering. Direct `buildFwdBody` callers must also return the result's
-`transcodeBuf`, including same-context ADD-PATH rewrites whose split output has
-already copied the bytes.
+after the last worker retain is released. The fan-out and initial-sync replay
+fixtures stop their workers before unregistering their named fixture consumer.
+The initial-sync cleanup also requires an empty cache, and
+`TestSyncOrderFixtureReleasesAdoptedBuffers` checks that its adopted read-pool
+buffer returns to the shared pool. Direct `buildFwdBody` callers must also return
+the result's `transcodeBuf`, including same-context ADD-PATH rewrites whose split
+output has already copied the bytes.
 <!-- source: internal/component/bgp/reactor/recent_cache.go -- Stop, UnregisterConsumer -->
 <!-- source: internal/component/bgp/reactor/forward_dedup_test.go -- newFanoutHarnessWith, newReflectorHarness -->
+<!-- source: internal/component/bgp/reactor/forward_initial_sync_order_test.go -- newSyncOrderRailWith, TestSyncOrderFixtureReleasesAdoptedBuffers -->
 
 ### B. attrpool Handle — never copies
 Attribute bytes are interned once and shared (refcounted) across thousands of

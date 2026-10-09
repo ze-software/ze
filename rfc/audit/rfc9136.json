@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-09",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -36,6 +36,15 @@
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09"
       },
       "verdict": "enforced"
+    },
+    "RFC9136-3.1-4": {
+      "code": {
+        "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "d57e5fbc42380b0c",
+        "internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType5": "078ab02914cc8a1d"
+      },
+      "note": "RFC 9136 Section 3.1 states: \"The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of \"Overlay Index\" in Section 3.2). It MUST be all bytes zero otherwise.\" parseEVPNType5 copies the ten ESI octets and EVPNType5.WriteTo copies them back; EVPNType5 has no Overlay Index selection state. The reachable l2vpnRouteToEVPNParams originator likewise carries explicitly supplied ESI bytes without that selection. Byte preservation establishes neither conditional semantic obligation. Retain the existing overlay-index gap without commissioning its implementation. This verdict does not require an intermediate propagating speaker to perform IP-VRF recursive resolution or clear received ESI merely because it does not locally resolve it.",
+      "requirement_sha": "3cf966565b9fd6a4",
+      "verdict": "unimplemented"
     },
     "RFC9136-3.1-5": {
       "note": "(a) forbidden: accepting an IP Prefix Length above 128; (b) TestEVPNType5PrefixLengthTooLong/ipv6 require.ErrorIs(err, ErrEVPNInvalidPrefix) on length 129 goes red if parseEVPNType5 accepts it; positive TestEVPNType5IPv6 decodes 64. The send side cannot exceed 128 (netip.Prefix). The ipv4 subtest's tag (33 > 32) proves the non-normative 'can be set to a value between 0 and 32' sentence, not this MUST NOT: a misplaced tag, listed as a finding.",

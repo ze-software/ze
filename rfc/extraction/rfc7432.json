@@ -655,10 +655,8 @@
     {
       "id": "8.2.1:9",
       "quote": "This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Restates the downstream assigned ESI label that the All-Active sentence in the same section states, which RFC7432-8.2.1-4 carries.",
-      "mapped-to": "RFC7432-8.2.1-4"
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-11"
     },
     {
       "id": "8.2.1:10",
@@ -1007,9 +1005,7 @@
     {
       "id": "11.2:5",
       "quote": "The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Restates the re-advertisement obligation in the preceding sentence, which RFC7432-11.2-7 carries in full.",
+      "disposition": "mapped",
       "mapped-to": "RFC7432-11.2-7"
     },
     {

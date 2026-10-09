@@ -24,6 +24,28 @@
       "break": "body of genericCommunityHandler replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9012-11-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9012_session_filter_test.go::TestRFC9012TunnelFilterDoesNotAffectOtherSession",
+      "unit-sha": "1b9ae822ae25621b",
+      "claim-sha": "23dd79eda7163948",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
+      "producer-sha": "a7c94874d6a3be22",
+      "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9012-11-7",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9012_session_filter_test.go::TestRFC9012TunnelFilterSelectedSession",
+      "unit-sha": "6a67a6d26ede7d25",
+      "claim-sha": "4583c65c74ce116d",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
+      "producer-sha": "a7c94874d6a3be22",
+      "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9012-11-9",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress",

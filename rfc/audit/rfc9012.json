@@ -21,6 +21,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC9012-11-7": {
+      "note": "RFC 9012 \u00a711 says, \u201cIn addition, any BGP speaker that understands the attribute MUST be able to filter the attribute from outgoing BGP UPDATE messages. This filtering SHOULD be possible on a per-BGP-session basis.\u201d This identity owns the per-session SHOULD, not the preceding capability MUST or default EBGP filtering. TestRFC9012TunnelFilterSelectedSession and TestRFC9012TunnelFilterDoesNotAffectOtherSession pass one valid received attribute-23 announcement through production Session receipt, dispatch, the recent-update cache and one ForwardUpdate fanout to two established-session unit fixtures. Each destination has independently populated ExportFilters and refreshed forwarding facts; the second test swaps which destination strips the attribute. The external-plugin transport fixture transforms the actual raw request produced by policyFilterFunc, removing only attribute 23 rather than returning a precomputed expected body. Production PolicyFilterChain, runEgressPolicyChainASN4 and the destination-specific forwarding loop apply its response. Both production session writers write through recordingConn, and the captured bodies are consumed by downstream Session.processMessage. Exact assertions require removal only for the configured destination, full original attribute-23 preservation for its sibling, unchanged NLRI and unrelated attribute encodings except mandatory IBGP LOCAL_PREF, no synthesized withdrawal, exactly one downstream dispatch, unchanged downstream payloads, and preservation of both the retained cached source and original receive buffer. Both unchanged tagged tests passed twenty race-enabled iterations. A selective omission of the raw replacement for destination 192.0.2.2 failed the selected-session test's actual output and downstream attribute-23 removal assertions while the swapped test passed; a separate selective substitution of the stripping chain for that destination failed the swapped test's sibling-preservation assertions while the selected-session test passed. These observed semantic failures demonstrate removal and session isolation separately. Both exact tags also have native revert records in rfc/discrimination/rfc9012.json bound to filter_ordered.go::runEgressPolicyChainASN4; their producer-halting failures establish binding and are not substituted for the semantic cuts. Evidence is bounded to production unit-level session-writer/downstream-receive paths using recordingConn and a simulated external-plugin transport: it is not a live external plugin, daemon, TCP-socket, FRR interoperability or tunnel-dataplane result.",
+      "requirement_sha": "eab088361a8151ac",
+      "tests": {
+        "internal/component/bgp/reactor/rfc9012_session_filter_test.go::TestRFC9012TunnelFilterDoesNotAffectOtherSession": "505f7382cbcaffcc",
+        "internal/component/bgp/reactor/rfc9012_session_filter_test.go::TestRFC9012TunnelFilterSelectedSession": "505f7382cbcaffcc"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc9012_session_filter_test.go::TestRFC9012TunnelFilterDoesNotAffectOtherSession": "2b67c8e01f2972f1",
+        "internal/component/bgp/reactor/rfc9012_session_filter_test.go::TestRFC9012TunnelFilterSelectedSession": "3b5e4e302f149715"
+      },
+      "verdict": "enforced"
+    },
     "RFC9012-11-9": {
       "note": "RFC 9012 Section 11 says: Any BGP speaker that understands it MUST be able to filter it from incoming BGP UPDATE messages. TestRFC9012ConfiguredEncapsulationECIngress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Established Session receipt reaches the registered ingressFilter, applyIngressFilter and ingressStripCommunities; reactor_notify consumes the replacement payload. The removal case asserts both Encapsulation ECs are absent before dispatch, in cached ForwardUpdate socket output and after downstream Session receipt, while the unrelated RT, ORIGIN, AS_PATH, NEXT_HOP and NLRI survive. A populated no-match policy preserves the identical two Encapsulation ECs through those boundaries, distinguishing configured removal from unconditional stripping or blanket attribute removal. Both named cases passed in the retained f688dd08 race run. This proves configurable ingress filtering, not the separate default-EBGP requirement.",
       "requirement_sha": "9109888f2e96067d",
@@ -364,6 +377,12 @@
       },
       "verdict": "enforced"
     },
+    "RFC9012-3.2.1-1": {
+      "no_code_path": "Neither parseConfigRoute nor internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap originates a VXLAN or NVGRE Encapsulation sub-TLV whose reserved Flags bits this row constrains. Receiving and re-advertising peer-supplied bytes is a different role.",
+      "note": "RFC 9012 Sections 3.2.1 and 3.2.2 state: \"The remaining bits in the 8-bit Flags field are reserved for further use. They MUST always be set to 0 by the originator of the sub-TLV.\" The supported SR Policy originator emits type15, not VXLAN type8 or NVGRE type9 Encapsulation sub-TLVs. Existing SR Policy field tests and intermediate-router propagation of received VXLAN/NVGRE bytes do not fill this originator role.",
+      "requirement_sha": "ed56879f1826495b",
+      "verdict": "not-applicable"
+    },
     "RFC9012-3.2.1-2": {
       "note": "Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 \u00a7\u00a73.2.1/3.2.2: \"Intermediate routers MUST propagate them without modification.\" Both VXLAN type8 and NVGRE type9 occur with V/M held fixed and reserved R bits zero or set. Exact actual received and downstream values prevent masking those bits; codec round trips supplement the two cached export modes. No tunnel-header interpretation or origination is inferred. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.",
       "requirement_sha": "159921325e956116",
@@ -381,6 +400,12 @@
       },
       "verdict": "enforced"
     },
+    "RFC9012-3.2.5-1": {
+      "no_code_path": "No supported BGP path originates an MPLS-in-GRE Encapsulation sub-TLV: internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap emits SR Policy type15, so the optional GRE-key advertisement decision constrained by Section 3.2.5 does not arise.",
+      "note": "RFC 9012 Section 3.2.5 states: \"Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present.\" This is the MPLS-in-GRE originator condition, distinct from GRE in Section 3.2.4. The supported parseConfigRoute/buildTunnelEncap boundary emits SR Policy tunnel type15 and its own sub-TLVs, not tunnel type11 or its Encapsulation sub-TLV. Generic serialization and received-attribute propagation are not that originator role; no receive or tunnel-consumption credit is claimed.",
+      "requirement_sha": "4c6d9fb207aeda13",
+      "verdict": "not-applicable"
+    },
     "RFC9012-3.5-3": {
       "note": "Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 \u00a73.5: \"In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TLV before the route is propagated.\" Embedded Label Handling1/2 under GRE on unlabeled IPv4 unicast supplies the applicable ignored condition. Single and duplicate inputs retain every byte through actual receipt and both cached export modes. Label interpretation/realization remains outside this non-stripping claim. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.",
       "requirement_sha": "0dca9bfc4e076796",
@@ -397,6 +422,25 @@
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped#2": "c9496f99d8afd74f"
       },
       "verdict": "enforced"
+    },
+    "RFC9012-3.7-2": {
+      "code": {
+        "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c43894606dafdb4c",
+        "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelTLVLayout": "f5585ad13f73f3ad",
+        "internal/core/bgp/attribute/tunnel_encap.go::SubTLVs": "c2a120d98ccff785"
+      },
+      "note": "RFC 9012 Section 3.7 limits Prefix-SID sub-TLV inclusion to address families defined by RFC8669, namely IPv4/IPv6 labeled unicast, and states: \"If included in a BGP UPDATE for any other address family, it MUST be ignored.\" The subject is type11 inside attribute23, not standalone attribute40. SubTLVs preserves its opaque bytes; tunnelTLVLayout processes framing, carriers and endpoints but does not implement Prefix-SID family-conditioned consumer semantics. checkRouteBestChange obtains labeled-unicast labels from the winning NLRI and SRv6 information from attribute40, not attribute23. Opaque receipt and propagation are not evidence of the missing consumer. Retain the gap under plan/spec-bgp-tunnel-encapsulation-consumption.md without an exclusion or new implementation authorization.",
+      "requirement_sha": "67155b9bc6553dff",
+      "verdict": "unimplemented"
+    },
+    "RFC9012-4.2-1": {
+      "code": {
+        "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c43894606dafdb4c",
+        "internal/core/bgp/attribute/tunnel_encap.go::SubTLVs": "c2a120d98ccff785"
+      },
+      "note": "RFC 9012 Section 4.2 states: \"In case of such a conflict, the information in the Router's MAC Extended Community MUST be used.\" The conflict is between that community and a different router MAC in a VXLAN/NVGRE Encapsulation sub-TLV. Received values can disagree even when stored opaquely. SubTLVs retains tunnel bytes, and the receive/forwarding boundary does not compare or select these MAC sources. checkRouteBestChange exports next-hop, metrics, NLRI labels and attribute40 SRv6 information, not an attribute23-derived encapsulation MAC. This is an absent consumer, not an impossible input or another role. Preserve the explicit gap under plan/spec-bgp-tunnel-encapsulation-consumption.md AC-3/AC-6; no opaque-propagation test establishes selected forwarding MAC or packet headers.",
+      "requirement_sha": "f487da5fee2161d6",
+      "verdict": "unimplemented"
     },
     "RFC9012-4.3-2": {
       "note": "Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 \u00a74.3 requires the Color Extended Community Flags value not to change during propagation. Exact downstream equality includes Flags0x3fa5, not merely the Color Value, through default export and MED rebuilding. ParseExtendedCommunities and ExtendedCommunities.WriteTo copy all eight octets; actual zero/nonzero Flags round trips supplement the consumer. Origination is not credited. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.",

@@ -110,6 +110,18 @@ func NewNLRIIterator(data []byte, addPath bool) *NLRIIterator
 func NewASPathIterator(data []byte, asn4 bool) *ASPathIterator
 ```
 
+An UPDATE splitter cannot use one ADD-PATH boolean for a mixed-family body.
+`Splitter.Split` and `SplitCompliant` accept a synchronous per-family selector:
+legacy sections ask for IPv4 unicast, while each parsed MP section asks for its
+own AFI/SAFI. The final ordinary writer and parsed relay borrow the destination
+encoding context's selector; homogeneous builders supply their fixed mode.
+This adds no context copy or registry, no route walk, and no selector call on
+the unchanged size-fit path. The splitter does not retain either callback.
+
+<!-- source: internal/component/bgp/message/update_split.go -- Split, SplitCompliant, splitByShape, splitUpdateWithMP -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeOrdinaryUpdateBody -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- fwdSplitParsedUpdate -->
+
 ### 5. Direct Formatting (No Intermediate Structs)
 
 ```go
@@ -455,7 +467,7 @@ none of them is a defect until this table names the new trigger.
 | A per-destination attribute rewrite | Filter output, AS-path intent and ASN4, AS override, or next hop change the attributes. With no free `peerPool` slot, the `sync.Pool` fallback copies twice | `buildModifiedPayload` |
 | Ordinary opaque-attribute treatment changes shared input | RFC 4271 Section 5 drops unknown non-transitive attributes and stamps unknown transitive attributes Partial. Shared bytes copy once into an adopted read buffer; an already-owned materialization compacts in place before dedup | `fwdParseCache.forwardWire`, `forwardOpaquePayload` |
 | An announce becomes a withdrawal | LLGR or a destination withhold gate converts all named routes, retaining existing withdrawals as well as announcements. Legacy NLRI and matching-family MP NLRI move into a new payload; incompatible MP families are refused by this builder | `buildWithdrawalPayload` |
-| The UPDATE does not fit | RFC 7606 Section 5.1 and the message size (4096, or 65535 with Extended Message) split one UPDATE into several | `SplitWireUpdate`, and `fwdSplitParsedUpdate` for the cross-context branch |
+| The UPDATE does not fit | RFC 7606 Section 5.1 and the message size (4096, or 65535 with Extended Message) split one UPDATE into several; ordinary policy or next-hop growth is sized again before final writer admission | `SplitWireUpdate`, `fwdSplitParsedUpdate`, `(*Session).writeOrdinaryUpdateBody` |
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
 
@@ -464,6 +476,7 @@ none of them is a defect until this table names the new trigger.
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdRegenerateRawPathIDs -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload, buildWithdrawalPayload -->
 <!-- source: internal/component/bgp/wireu/split.go -- SplitWireUpdate -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeOrdinaryUpdateBody -->
 <!-- source: internal/component/bgp/reactor/session_read.go -- Session.collapseASPathFamily -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect -->
 

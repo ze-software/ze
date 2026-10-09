@@ -241,7 +241,7 @@
       "claim-sha": "a2a50965a7e39b77",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_split.go::splitUpdateWithMP",
-      "producer-sha": "ade7d0a417866f98",
+      "producer-sha": "5e65ce7152fc4e16",
       "break": "body of splitUpdateWithMP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -307,7 +307,7 @@
       "claim-sha": "aad3b860673562c0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "4ed8e03c68ec2ffa",
+      "producer-sha": "27e031c963ac4b00",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -329,7 +329,7 @@
       "claim-sha": "dbeb1b27ab055f3a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "4ed8e03c68ec2ffa",
+      "producer-sha": "27e031c963ac4b00",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -340,7 +340,7 @@
       "claim-sha": "d4b1767cc7186788",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "4ed8e03c68ec2ffa",
+      "producer-sha": "27e031c963ac4b00",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2322,7 +2322,7 @@
       "claim-sha": "fece4d1c3bab23bf",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "4ed8e03c68ec2ffa",
+      "producer-sha": "27e031c963ac4b00",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

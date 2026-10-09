@@ -18,7 +18,7 @@ need.
 | `./le test deployment docker-pppoe-accel-test` | `evidence-nightly.yml`, job `pppoe-interop` | schedule | advisory |
 | `./le test qemu all-tests`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
 | The LDP, IS-IS and VRRP protocol labs, each inside `./le test qemu run` | `qemu-nightly.yml`, job `protocol-labs` | schedule | advisory |
-| The L2TP appliance proof, the PPPoE labs, the seven-case ASPA plugin namespace subset, and the traffic-usage eBPF proof | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
+| The L2TP appliance proof, the PPPoE labs, the ASPA and RFC 2545 plugin namespace subset, and the traffic-usage eBPF proof | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
 | `./le perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
 | `./le verify deps vulnerability` | `govulncheck.yml` | schedule `37 5 * * *` | advisory |
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
@@ -28,12 +28,15 @@ red suite reports without marking the run failed. The nightly may run under TCG
 emulation, so it is slower than the merge gate and reports rather than blocks.
 Run the QEMU target locally when you add a test, and say so.
 
-The ASPA cases run through `qemu netns-test suites plugin`, whose closed
-selection contains only the seven `rpki-aspa-*` validation and policy carriers.
+The ASPA and RFC 2545 replay cases run through `qemu netns-test suites plugin`,
+whose closed selection contains the seven `rpki-aspa-*` validation and policy
+carriers plus `adj-rib-in-replay-rfc2545-next-hop`.
 It uses per-test namespaces and the existing functional registry's `bgp plugin`
 command prefix. `all-tests` still runs the full plugin suite in the guest root
-namespace, where these cases' `netns-link` prerequisite causes a skip; that run
-does not replace the separate scheduled subset.
+namespace, where the ASPA cases' `netns-link` prerequisite causes a skip.
+The replay carrier instead owns distinct speaker, recipient and next-hop
+namespaces and has no `netns-link` prerequisite. It can run when its Linux
+privilege requirements are met; the separately scheduled subset remains.
 
 ## Why the privileged suites are on GitHub
 

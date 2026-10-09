@@ -77,12 +77,40 @@ and block connection cleanup.
 <!-- source: internal/component/bgp/reactor/session_aigp.go -- writeUpdateWithoutAIGP -->
 
 When an UPDATE exceeds the destination's send limit, `sendUpdateWithSplit`
-partitions its NLRI into independently encoded UPDATEs. That cannot make an
-indivisible attribute set fit: a payload the splitter cannot represent within
-the destination's limit is rejected rather than sent oversized.
+partitions its NLRI into independently encoded UPDATEs. The ordinary session
+writer checks again after export policy, next-hop normalization and AIGP
+stripping: growth can make an initially legal chunk need another split.
+That final split does not rerun export policy. Every resulting message enters
+the same ownership, duplicate and PATHS-LIMIT admission as an unsplit message.
+Explicit raw injection and already-filtered forwarding keep their separate
+write paths. An indivisible attribute set that cannot fit is rejected rather
+than sent oversized.
+
+The shared splitter receives a synchronous per-family ADD-PATH selector.
+Legacy withdrawn routes and trailing NLRI use IPv4 unicast's send mode;
+MP_REACH and MP_UNREACH each use the AFI/SAFI in that attribute. A raw export
+replacement can mix those modes, so the first MP attribute cannot determine
+framing for the whole UPDATE. The ordinary final writer and parsed relay pass
+the destination's immutable encoding context; homogeneous pre-policy builders
+pass their fixed encoding mode. The size-fit fast path does not call the
+selector, and splitting neither retains it nor walks routes to select framing.
+
+`TestOrdinaryIPv6GrowthAsymmetricFraming` exercises both asymmetric directions,
+legacy and MP withdrawals, exact final wire and commit counters. Its 4,093-octet
+replacement requires the complete plain withdrawal to leave before a grown
+indivisible IPv6 announcement is refused, with healthy subsequent delivery.
+
+Ordinary next-hop normalization can materialize a bounded intermediate body
+above the wire limit: adding a link-local address costs sixteen octets and can
+also widen the attribute's length header by one octet. Only that normalization
+call permits this extra space. The final writer splits it before emission;
+forwarding rebuilds retain their existing wire-size ceiling.
 
 <!-- source: internal/component/bgp/reactor/peer_send.go -- sendUpdateWithSplit -->
 <!-- source: internal/component/bgp/message/update_split.go -- Splitter.Split -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated, writeOrdinaryUpdateBody -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- normalizeOrdinaryNextHop -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload, buildModifiedPayloadWithLimit -->
 
 ## Invalid lengths and cleanup
 
@@ -130,6 +158,11 @@ See [the Established FSM](../behavior/fsm-established.md) and
   and AGGREGATOR against their valid counterparts through both readers.
   `TestRFC8654TreatAsWithdrawRemovesInstalledRoutes` observes actual RIB
   removal, downstream withdrawal and recovery after a malformed extended UPDATE.
+  Its recovery UPDATE changes ORIGIN and MED: both prefixes must carry the
+  exact new attributes in Adj-RIB-In and recipient TCP, and the recovered MED
+  must appear in both Loc-RIB publications and selected paths. This observes
+  the selected-path contract without requiring an optional UPDATE handle from
+  a control-plane re-election.
 - `TestRFC8654ExtendedDuplicateAttributes` compares the exact consumer attribute
   section after removing later recognized and unrecognized duplicates.
   `TestRFC8654ExtendedDuplicateMPResets` checks the MP exception: one occurrence

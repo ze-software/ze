@@ -197,6 +197,26 @@ unchanged-propagation rule applies specifically to Originator SRGB: its bytes
 are never normalized on relay.
 <!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
 
+Forwarding compares the received next-hop entity with the effective address
+after export policy, configured rewriting and Link-Local scope normalization.
+An explicit third-party A-to-A rewrite keeps the Service TLVs, including their
+Reserved octets and unknown nested fields. A policy-only A-to-B rewrite removes
+them even with next-hop `auto` or `unchanged`, including raw-policy export and
+the route-server export fallback. Only the route's actual legacy or MP field
+participates: unused companion rewrite operations do not imply a change.
+IPv4-mapped and native IPv4 forms identify the same address, as do a Global
+address with or without its optional Link-Local half. For the VPN exception
+whose Global is unspecified, the Link-Local is the entity.
+RFC 9252 service carriers use MP_REACH. In a mixed UPDATE its MP next hop governs
+the Service TLVs; a legacy sibling's independent NEXT_HOP cannot change that
+decision. Legacy-only input retains the same propagation safeguard, without
+implying support for originating SRv6 services on a legacy carrier.
+When a raw export result has an empty or undecodable MP next-hop field and a
+configured rewrite repairs it before admission, the repaired address still
+governs this comparison. The MP carrier did not disappear with its intermediate
+address, and policy is not run again.
+<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- applyEgressPrefixSIDNextHop -->
+
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
 
 ### The API and readvertise announce rail
@@ -279,8 +299,8 @@ the VPP dispatch logic.
 | SID Structure Sub-Sub-TLV | 3.2.1 | Implemented |
 | Transposition reconstruction | 3.2.1 | Implemented (VPN/EVPN) |
 | LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Implemented (errata 7817) |
-| NH unchanged: preserve TLVs | 3.3 | Implemented (zero-copy forward) |
-| NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented (the Service TLVs leave because Ze allocates no local SRv6 SID; the Prefix-SID handler rewrites the attribute per route) |
+| NH unchanged: preserve TLVs | 2 | Implemented: effective address identity, including explicit A-to-A; Reserved and unknown nested bytes are retained |
+| NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented removal after policy and configured rewrites, including policy-only changes under `auto` or `unchanged`. Local SID allocation/rebuilding remains unimplemented |
 | Malformed Service TLV: treat-as-withdraw | 7 | Partial: a Service TLV overrunning the attribute gets attribute-discard instead (spec D2) |
 | Path ineligibility (no valid SID) | 7 | Partial: invalid SID Structure parameters and transposition widths can still pass best-path admission (spec D3, D4) |
 | SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |

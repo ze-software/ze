@@ -13,7 +13,8 @@ path or re-parse.
 **`ForwardHandle` is an interface in locrib, not a concrete reactor type.**
 locrib is core; the reactor buffer type satisfies the interface. The reactor
 imports core and not the reverse, so an interface avoids the cycle. A non-BGP
-producer leaves `Forward == nil`.
+producer leaves `Forward == nil`; a BGP control-plane re-election with no source
+UPDATE also leaves it nil.
 
 **Refcounting copies once, through `sync.Once`.** The first `AddRef` copies
 `RawMessage.RawBytes` under the locrib write lock, which is cheap and bounded.
@@ -28,6 +29,19 @@ Change for `ChangeAdd` and `ChangeUpdate` only. `ChangeRemove` carries
 **The two-trigger model stays.** The receive-path trigger fires per received
 UPDATE for forwarders. `OnChange` fires per best change for state trackers.
 The full reasoning is in `docs/architecture/rib/unified-locrib.md`.
+
+A received UPDATE inserts its routes into Adj-RIB-In before publishing their
+best-path changes. The AIGP reselection worker can elect one of those inserted
+routes first, with no source UPDATE handle. The receive handler's later mirror
+of the identical path is a Loc-RIB no-op, not a second byte-carrying event.
+Consumers therefore observe `Change.Best` for the selected path and treat
+`Change.Forward` as optional even for BGP. Tests needing a causal recovery marker
+use a changed path field, such as the MED carried as `Best.Metric`, and check the
+wire attributes separately in storage and on recipient TCP.
+<!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- handleReceivedStructured -->
+<!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- reselectAIGPRoutes -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange -->
+<!-- source: internal/core/rib/locrib/manager.go -- insert -->
 
 **`Change.Forward` is state-tracker infrastructure.** The route server and the
 route reflector will never use it.
