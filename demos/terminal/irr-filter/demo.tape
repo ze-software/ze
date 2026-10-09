@@ -53,7 +53,7 @@ Enter
 Type "ze config cat ze.conf | grep -E 'bgp-filter-irr|AS-TEST|127.0.0.1:4343'"
 Enter
 # An output line of the stored config: indented, and holding the leaf name.
-Wait+Screen /(?m)^\s+as-set AS-TEST/
+Wait+Screen /(?m)^\s+irr as-set AS-TEST/
 Sleep 7s
 
 Hide
