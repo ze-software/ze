@@ -69,7 +69,7 @@ func checkZeAccessConcentratorEmptyServiceName(
 	if err := pppdDial(ctx, check.Lab, pppdPassword, ""); err != nil {
 		return err
 	}
-	sessions, err := waitZeSession(ctx, check.Lab, 45*time.Second)
+	sessions, err := waitZeSession(ctx, check.Lab)
 	if err != nil {
 		return err
 	}

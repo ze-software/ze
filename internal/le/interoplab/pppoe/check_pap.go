@@ -65,7 +65,7 @@ const (
 // exchange it carried. request holds the bytes of the first
 // Authenticate-Request, so the checker can replay that frame. requestSession
 // and ackSession are the PPPoE SESSION_IDs the first request and the last Ack
-// travelled on, so a checker can tie both to the session Ze reports.
+// traveled on, so a checker can tie both to the session Ze reports.
 type papObservation struct {
 	requests       int
 	acks           int
@@ -124,7 +124,7 @@ func dialPAPSession(ctx context.Context, lab interoplab.CheckerLab) (papObservat
 	if err := pppdDialRefusing(ctx, lab, pppdPassword, pppoeService, refuseCHAP); err != nil {
 		return papObservation{}, 0, err
 	}
-	sessions, err := waitZeSession(ctx, lab, 45*time.Second)
+	sessions, err := waitZeSession(ctx, lab)
 	if err != nil {
 		return papObservation{}, 0, err
 	}
@@ -135,7 +135,7 @@ func dialPAPSession(ctx context.Context, lab interoplab.CheckerLab) (papObservat
 	if err != nil {
 		return papObservation{}, 0, err
 	}
-	ping, err := exec(ctx, lab, clientImageName, []string{"ping", "-c", "3", "-W", "3", "-I", iface, zeGateway})
+	ping, err := exec(ctx, lab, clientImageName, []string{pingCommand, "-c", "3", "-W", "3", "-I", iface, zeGateway})
 	if err != nil {
 		return papObservation{}, 0, fmt.Errorf("data: ping Ze gateway %s: %w", zeGateway, err)
 	}
@@ -173,14 +173,14 @@ func dialPAPSession(ctx context.Context, lab interoplab.CheckerLab) (papObservat
 }
 
 // checkPAPSession requires the request and the Ack in observed to have
-// travelled on the PPPoE session Ze reports, so an Ack on another session
+// traveled on the PPPoE session Ze reports, so an Ack on another session
 // cannot stand in for this one's.
 func checkPAPSession(observed papObservation, sessionID int) error {
 	if int(observed.requestSession) != sessionID {
-		return fmt.Errorf("PAP Authenticate-Request travelled on PPPoE session %d, Ze reports session %d", observed.requestSession, sessionID)
+		return fmt.Errorf("PAP Authenticate-Request traveled on PPPoE session %d, Ze reports session %d", observed.requestSession, sessionID)
 	}
 	if int(observed.ackSession) != sessionID {
-		return fmt.Errorf("PAP Authenticate-Ack travelled on PPPoE session %d, Ze reports session %d", observed.ackSession, sessionID)
+		return fmt.Errorf("PAP Authenticate-Ack traveled on PPPoE session %d, Ze reports session %d", observed.ackSession, sessionID)
 	}
 	return nil
 }

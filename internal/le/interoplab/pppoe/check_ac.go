@@ -24,8 +24,13 @@ const (
 	pppdLogPath     = "/var/log/ppp/dial.log"
 	refusePAP       = "refuse-pap"
 	refuseCHAP      = "refuse-chap"
+	pingCommand     = "ping"
 	zeRESTPort      = 9099
 	zeRESTToken     = "ze-pppoe-interop" // #nosec G101 -- fixed fixture token authenticates only the isolated interop Docker network.
+
+	// zeSessionTimeout bounds how long a checker waits for Ze to report a
+	// PPPoE session after the client dials.
+	zeSessionTimeout = 45 * time.Second
 )
 
 type zeSession struct {
@@ -70,7 +75,7 @@ func checkZeAccessConcentrator(
 	if err := pppdDial(ctx, check.Lab, pppdPassword, pppoeService); err != nil {
 		return err
 	}
-	sessions, err := waitZeSession(ctx, check.Lab, 45*time.Second)
+	sessions, err := waitZeSession(ctx, check.Lab)
 	if err != nil {
 		return err
 	}
@@ -86,7 +91,7 @@ func checkZeAccessConcentrator(
 		ctx,
 		check.Lab,
 		clientImageName,
-		[]string{"ping", "-c", "3", "-W", "3", "-I", iface, zeGateway},
+		[]string{pingCommand, "-c", "3", "-W", "3", "-I", iface, zeGateway},
 	)
 	if err != nil {
 		return fmt.Errorf("data: ping Ze gateway %s: %w", zeGateway, err)
@@ -362,13 +367,9 @@ func waitZeRESTReady(ctx context.Context, lab interoplab.CheckerLab) error {
 	return nil
 }
 
-func waitZeSession(
-	ctx context.Context,
-	lab interoplab.CheckerLab,
-	timeout time.Duration,
-) ([]zeSession, error) {
+func waitZeSession(ctx context.Context, lab interoplab.CheckerLab) ([]zeSession, error) {
 	observation, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout:     timeout,
+		Timeout:     zeSessionTimeout,
 		Interval:    time.Second,
 		Description: "Ze PPPoE session allocation",
 	}, func(probeCtx context.Context) (clientObservation, error) {

@@ -65,7 +65,7 @@ func TestObservePAPFramesCountsOnlyPAP(t *testing.T) {
 	if observed.requestSession != 7 || observed.ackSession != 7 {
 		t.Fatalf("request/ack SESSION_ID = %d/%d, want 7/7", observed.requestSession, observed.ackSession)
 	}
-	if string(observed.request) != string(request) {
+	if !bytes.Equal(observed.request, request) {
 		t.Fatal("observed request is not the first Authenticate-Request's bytes")
 	}
 
@@ -200,6 +200,7 @@ func newPAPReplayLab(t *testing.T, restSID int, reply func(sent []byte) [][]byte
 // lab answers the capture, REST and link probes. Each case waits out the real
 // replay bound, so the cases run in parallel.
 func TestCheckPAPReanswerJudgesTheReply(t *testing.T) {
+	t.Parallel()
 	const sid = 7
 	request := papFrameOnSession(sid, papCodeAuthRequest, 9)
 	first := papObservation{requests: 1, acks: 1, request: request, requestID: 9, requestSession: sid, ackID: 9, ackSession: sid}
@@ -234,7 +235,7 @@ func TestCheckPAPReanswerJudgesTheReply(t *testing.T) {
 		}, "2 Acks"},
 		{"ack on another session", sid, func(sent []byte) [][]byte {
 			return [][]byte{echo(sent), papFrameOnSession(sid+1, papCodeAuthAck, sent[papIdentifierOffset])}
-		}, "Ack travelled on PPPoE session 8"},
+		}, "Ack traveled on PPPoE session 8"},
 		{"replay not on the wire", sid, func(sent []byte) [][]byte {
 			return [][]byte{ackWith(sent[papIdentifierOffset])}
 		}, "0 PAP Authenticate-Requests"},

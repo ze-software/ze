@@ -109,7 +109,7 @@ func checkZeClient(ctx context.Context, check *interoplab.CheckContext) (err err
 		return check.Lab.Exec(
 			probeCtx,
 			zeImageName,
-			[]string{"ping", "-c", "3", "-W", "3", accelGateway},
+			[]string{pingCommand, "-c", "3", "-W", "3", accelGateway},
 			nil,
 		)
 	}, func(result interoplab.CommandResult) bool {

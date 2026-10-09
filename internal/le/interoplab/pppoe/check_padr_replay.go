@@ -124,7 +124,7 @@ func dialFirstSessionAndCapturePADR(
 	if err := pppdDial(ctx, lab, pppdPassword, pppoeService); err != nil {
 		return 0, nil, err
 	}
-	sessions, err := waitZeSession(ctx, lab, 45*time.Second)
+	sessions, err := waitZeSession(ctx, lab)
 	if err != nil {
 		return 0, nil, err
 	}
