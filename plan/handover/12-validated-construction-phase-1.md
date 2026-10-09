@@ -7,6 +7,30 @@ in the repo: `tmp/` is gitignored and never leaves the machine it was written on
 **Resume here.** Read this file, then the spec's Phase 1 section, before any
 code. Update the batch log below in the same commit as each batch.
 
+## Next action (Linux session ended 2026-10-09, tokens exhausted)
+
+Nothing is in flight and nothing is uncommitted from this work. HEAD carries
+batches 1 to 4c. In order:
+
+1. `./le spec claim spec spec-validated-construction-and-state-types.md` (a new
+   session holds no claim; the WIP cap may need `ZE_SPEC_WIP_CAP=35`, which the
+   owner approved on 2026-10-09).
+2. Batch 4d (C-T2d): `LocalHandler` and its registry move into `command`, the
+   same move 4c made (batch row 4c and its note). About 38 registrations; R6/R7
+   routes; delete the `[]string` signature.
+3. Batch 4e (C-T2e): `pluginserver.Handler` with `EnsureStep` and
+   `RollbackHandler`, one commit, under the owner exception below. Its row in
+   `TestHandlerTypesTakeValidatedArguments` is a second subtest (the package
+   declares the name once).
+4. Scoped lint owed from 4c: config/yang/cli, config/schema/cli,
+   config/storage/cli, le/verify/dispatch, le/cli/grammar, component/plugin
+   (`./le go lint run scope ./<pkg>/...`).
+5. `./le --update`, then `./le verify worktree` (never run over any batch).
+6. Close: `/ze-review` until 0 BLOCKER / 0 ISSUE, then the two closure commits.
+
+An RFC-tagged test that changes needs `./le rfc approve unit <u> reason
+"<owner's words>"` before `./le commit create`; ask the owner per unit.
+
 ## Owner decisions (2026-10-09, verbatim)
 
 | D | Answer | Reading in force |
