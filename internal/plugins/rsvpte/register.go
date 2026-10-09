@@ -330,8 +330,8 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 			m := entry.data
 			tc := tunnelConfig{
 				Name:          entry.key,
-				SetupPriority: 7,
-				HoldPriority:  7,
+				SetupPriority: defaultLSPPriority,
+				HoldPriority:  defaultLSPPriority,
 			}
 			if v, ok := m["name"].(string); ok && v != "" {
 				tc.Name = v
@@ -418,6 +418,10 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 // name-hash key space is 4096 (12 bits over the reserved tunnel-id range), so
 // well before that, collisions force a rename; this is a coarse upper guard.
 const maxBypasses = 1024
+
+// defaultLSPPriority is the setup and holding priority (RFC 3209 Section 4.7.1,
+// 0 highest, 7 lowest) of a tunnel that configures none, and of every bypass.
+const defaultLSPPriority uint8 = 7
 
 // validateBypasses rejects too many bypasses and any two bypasses whose name hash
 // to the same reserved lspKey (which would make them indistinguishable).
@@ -920,6 +924,7 @@ func setupBypass(log *slog.Logger, lspTable *lspTable, bc bypassConfig, cfg rsvp
 			MaxPacketSize:  65535,
 		},
 		LabelRequest:  labelRequest{L3PID: 0x0800},
+		SessionAttr:   bypassSessionAttr(bc.Name),
 		RefreshPeriod: cfg.RefreshPeriod,
 		LastRefresh:   time.Now(),
 	}
@@ -932,6 +937,26 @@ func setupBypass(log *slog.Logger, lspTable *lspTable, bc bypassConfig, cfg rsvp
 		}
 	}
 	log.Info("rsvp-te: bypass configured", "name", bc.Name, "merge-point", bc.MergePoint, "node-protection", bc.NodeProtection)
+}
+
+// bypassSessionAttr encodes the SESSION_ATTRIBUTE a bypass LSP's PATH carries:
+// C-Type 7, the priorities an ordinary tunnel defaults to, no flag set, and the
+// configured bypass name. The protection flags stay clear because the bypass
+// is the protection; nothing protects it in turn. Owner decision 2026-10-09:
+// freeRtr refuses a PATH without the object, and the PATH grammar of RFC 3209
+// Section 3.1 permits it ("[ <SESSION_ATTRIBUTE> ]"), so a freeRtr merge point
+// accepts the bypass only when it is present.
+func bypassSessionAttr(name string) []byte {
+	buf := make([]byte, maxSessionAttrLen)
+	// RFC 3209 Section 4.7.1: "The priority of the session with respect to
+	// taking resources, in the range of 0 to 7." and "Session Name: A null
+	// padded string of characters."
+	n := encodeSessionAttr(buf, sessionAttribute{
+		SetupPrio: defaultLSPPriority,
+		HoldPrio:  defaultLSPPriority,
+		Name:      name,
+	})
+	return buf[:n]
 }
 
 // eroEqual reports whether two explicit routes are identical (same hops in the

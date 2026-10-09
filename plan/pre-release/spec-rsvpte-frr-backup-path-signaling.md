@@ -73,3 +73,14 @@ signaling. `TestRSVPFreeRouterInterop` runs against freeRtr but configures no
 bypass. `TestEngineZeToZeFRRLocalRepair` is ze-to-ze, so it is not another
 implementation. Building one needs the freeRtr lab, which needs Docker. The
 owner decides how the scenario is built or homed.
+
+-> Decision (owner, 2026-10-09): option A. Ze's bypass tunnel PATH carries a
+SESSION_ATTRIBUTE (RFC 3209 Section 4.7, C-Type 7): protection flags clear,
+setup and holding priority 7 (the default of an ordinary tunnel), session name
+the configured bypass name. Reason: freeRtr's `packRsvp.parseSesAtr` refuses a
+PATH with no SESSION_ATTRIBUTE, and the PATH grammar permits the object
+(RFC 3209 Section 3.1, "[ <SESSION_ATTRIBUTE> ]"; the decision as dictated cited
+Section 4.3.1, which is ERO applicability). Producer:
+`register.go::bypassSessionAttr`, called from `setupBypass`; unit
+`TestBypassPathCarriesSessionAttribute` (red with the field removed, green
+restored, 2026-10-09).

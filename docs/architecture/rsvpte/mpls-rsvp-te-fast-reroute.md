@@ -25,6 +25,16 @@ Bypass LSPs key into the same LSP table as protected tunnels. The top 4096 tunne
 IDs are reserved for them (`bypassTunnelIDBase = 0xF000`), so a bypass can never
 collide with a protected tunnel to the same destination.
 
+The bypass PATH carries a SESSION_ATTRIBUTE (C-Type 7) whose session name is
+the configured bypass name, whose setup and holding priorities are 7, the
+default of an ordinary tunnel, and whose flags are all clear: the bypass is the
+protection and asks nobody to protect it in turn. RFC 3209 section 3.1 makes the
+object optional in PATH, but freeRtr refuses a PATH without it, so a freeRtr
+merge point accepts the bypass only when it is present (owner decision,
+2026-10-09).
+
+<!-- source: internal/plugins/rsvpte/register.go -- setupBypass, bypassSessionAttr -->
+
 A bypass reserves no bandwidth of its own, so it never guarantees a protected
 LSP's bandwidth. The point of local repair therefore never sets the RRO
 "bandwidth protection" bit (0x04), whatever the head-end asked for (RFC 4090
