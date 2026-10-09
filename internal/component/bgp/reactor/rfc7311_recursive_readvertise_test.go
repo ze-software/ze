@@ -39,14 +39,16 @@ func TestRFC7311RecursiveAIGPChangeReachesWire(t *testing.T) {
 	f.waitBatch(t)
 	assertMetric := func(want uint64) {
 		t.Helper()
-		bodies := aigpSocketBodies(t, f.conn)
-		if len(bodies) == 0 {
-			t.Fatal("no AIGP advertisement")
-		}
-		got, present := aigpReceivedMetric(t, bodies[len(bodies)-1])
-		if !present || got != want {
-			t.Fatalf("wire metric = %d present=%v, want %d", got, present, want)
-		}
+		// A batch completion does not identify the Loc-RIB revision that
+		// caused it. Observe the requested value on the destination wire.
+		lowEventually(t, func() bool {
+			bodies := aigpSocketBodies(t, f.conn)
+			if len(bodies) == 0 {
+				return false
+			}
+			got, present := aigpReceivedMetric(t, bodies[len(bodies)-1])
+			return present && got == want
+		}, "exact recursive AIGP on the destination wire")
 	}
 	assertMetric(307)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,13 +58,22 @@ func TestRFC7311RecursiveAIGPChangeReachesWire(t *testing.T) {
 	for _, metric := range []uint64{^uint64(0) - 5, 400, ^uint64(0) - 50, 400} {
 		recursive.AIGP = metric
 		loc.Insert(family.IPv4Unicast, prefix, recursive)
-		f.waitBatch(t)
 		want := ^uint64(0)
 		if metric == 400 {
 			want = 507
 		}
 		assertMetric(want)
 	}
+	var transitions []uint64
+	for _, body := range aigpSocketBodies(t, f.conn) {
+		metric, present := aigpReceivedMetric(t, body)
+		require.True(t, present)
+		if len(transitions) == 0 || transitions[len(transitions)-1] != metric {
+			transitions = append(transitions, metric)
+		}
+	}
+	require.Equal(t, []uint64{307, ^uint64(0), 507, ^uint64(0), 507}, transitions,
+		"all observed wire transitions must use the original received metric")
 }
 
 // TestRFC7311ReceivedRecursiveAIGPChangeReachesWire enters the selected-route
