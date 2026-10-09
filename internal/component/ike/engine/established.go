@@ -485,26 +485,26 @@ const rekeyRetransmitTimeout = 3 * time.Second
 // already requires.
 const temporaryFailureBackoff = 60 * time.Second
 
-// rekeyRefusedBackoff is how long a rekey waits after the peer refused it with an error
-// notify that names no answer of its own, NO_PROPOSAL_CHOSEN being the common one
-// (rekeyRefusedError, rekey.go).
+// rekeyRefusedWait is how long a rekey waits once the peer has refused every proposal
+// the operator configured for it (refuseRekey, inbound.go). The wait is taken less
+// lifetimeJitter's up-to-10% (13.5 to 15 seconds), so two ends refused at the same
+// moment do not retry in step.
 //
 // RFC 7296 names no wait here. Section 1.3.1 rules out the heavier answer: "A failed
 // attempt to create a Child SA SHOULD NOT tear down the IKE SA: there is no reason to
 // lose the work done to set up the IKE SA." So the SA the rekey would have replaced
-// stays in use until its hard lifetime, and the rekey is tried again later.
-// strongSwan does the same: child_rekey.c schedule_delayed_rekey keeps the old Child
-// SA and retries after RETRY_INTERVAL less a jitter, 5 to 15 seconds.
+// stays in use until its hard lifetime. strongSwan waits about as long:
+// child_rekey.c schedule_delayed_rekey keeps the old Child SA and retries after
+// RETRY_INTERVAL (15) less a jitter of up to 10 seconds.
 //
-// The number is chosen. A refusal is a policy answer and rarely changes within
-// seconds, so one attempt a minute is enough to recover once either side's
-// configuration is corrected, and it leaves several attempts inside the gap a default
-// lifetime keeps between the soft and the hard time. Without any hold the soft
-// lifetime, a level trigger, resent the refused rekey on every one-second tick.
-const rekeyRefusedBackoff = 60 * time.Second
+// A refusal that leaves a configured proposal unrefused does not wait at all: the
+// next tick sends it. Without any wait once all are refused, the soft lifetime, a
+// level trigger, would resend the refused rekey on every one-second tick.
+const rekeyRefusedWait = 15 * time.Second
 
 // rekeyHeld reports whether an answer from the peer is still holding a rekey back:
-// TEMPORARY_FAILURE (RFC 7296 §2.25) or a refusal (rekeyRefusedBackoff). A zero
+// TEMPORARY_FAILURE (RFC 7296 §2.25) or a refusal of every configured proposal
+// (rekeyRefusedWait). A zero
 // instant means no answer has ever held it.
 func rekeyHeld(until, now time.Time) bool {
 	return !until.IsZero() && now.Before(until)
@@ -528,7 +528,7 @@ func (ps *PeerSession) startChildRekey(sa *SA, tr *transport.UDPTransport, log *
 			"peer", ps.peerName, "until", ps.childRekeyHoldUntil)
 		return
 	}
-	// The peer refused an earlier attempt (rekeyRefusedBackoff). The old Child SA stays
+	// The peer refused every configured proposal (rekeyRefusedWait). The old Child SA stays
 	// in use, and a tick after the hold raises the rekey again.
 	if rekeyHeld(ps.childRekeyRefusedUntil, time.Now()) {
 		log.Debug("child-sa: rekey held, the peer refused the last attempt",

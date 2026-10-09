@@ -410,27 +410,35 @@ A CREATE_CHILD_SA response that answers a rekey with an error notify carries the
 notify alone. `rekeyRefusal` (`rekey.go`) reads it before either rekey path walks
 the payloads, so the refusal is reported as itself and never as a missing Nr
 (RFC 7296 Section 3.10.1). The soft lifetime is a level trigger: each answer
-below that does not end the SA arms a hold, or the one-second ticker would resend
-the refused rekey on every tick until the hard lifetime.
+below that does not end the SA either changes what the next attempt sends or arms
+a hold, or the one-second ticker would resend the refused rekey on every tick until
+the hard lifetime.
 
 | Answer | What ze does | Source |
 |--------|--------------|--------|
 | TEMPORARY_FAILURE | keeps the SA, holds the rekey for `temporaryFailureBackoff` (60 s); the path probe also waits | RFC 7296 Section 2.25 |
 | NO_ADDITIONAL_SAS | re-establishes: the delete-and-create fallback | RFC 7296 Section 4 |
 | CHILD_SA_NOT_FOUND, on a Child SA rekey | re-establishes, which deletes the Child SA and builds a new one | RFC 7296 Section 2.25 |
-| any other error notify, recognized or not (NO_PROPOSAL_CHOSEN, INVALID_KE_PAYLOAD, TS_UNACCEPTABLE, ...) | keeps the SA, holds the rekey for `rekeyRefusedBackoff` (60 s) and logs the notify | RFC 7296 Sections 1.3.1 and 3.10.1 |
+| INVALID_KE_PAYLOAD naming a group the operator configured for this peer (a DH group in its ike-group proposals) that the peer has not refused for this SA, on a request that carried KEi | keeps the SA, retries on the next tick with KEi in that group | RFC 7296 Section 1.3 |
+| any other error notify, recognized or not (NO_PROPOSAL_CHOSEN, TS_UNACCEPTABLE, an unusable INVALID_KE_PAYLOAD, ...) | keeps the SA; every configured proposal is now refused, so the rekey waits `rekeyRefusedWait` (15 s less up to 10% jitter), then the record is cleared and the cycle restarts | RFC 7296 Sections 1.3.1 and 3.10.1 |
 | a response with no notify that lacks a payload | retries on the next tick | |
 
-The two kinds hold separately (`childRekeyRefusedUntil`, `ikeRekeyRefusedUntil`
-in `reconcile.go`), so a refused IKE SA rekey does not stop a Child SA rekey.
-A refusal does not hold the path probe, because a peer that refused a proposal is
-not mid-rekey. Ze does not yet retry an INVALID_KE_PAYLOAD answer in the group the
-peer names, which RFC 7296 Section 1.3 says the initiator "will probably" do: the
-retry goes out in the configured group after the hold.
+`rekeyRefusalRecord` (`rekey.go`), one per rekey kind on the SA, records what the
+peer refused, and no refused group is offered again on that SA, so no answer can
+loop. Ze sends every configured proposal in one SA payload, so a refusal that names
+no group refuses all of them at once; the group of the KEi is the only part of an
+offer ze can change and send again. Ze never picks a group the operator did not
+configure, and a request that carried no KEi (PFS disabled) is not given one. A
+successful rekey clears the record.
 
-<!-- source: internal/component/ike/engine/rekey.go -- rekeyRefusal, rekeyRefusedError -->
-<!-- source: internal/component/ike/engine/inbound.go -- handleCreateChildSAOwned, holdRefusedRekey -->
-<!-- source: internal/component/ike/engine/established.go -- rekeyRefusedBackoff, startChildRekey, startIKERekey -->
+The waits are separate per kind (`childRekeyRefusedUntil`, `ikeRekeyRefusedUntil`
+in `reconcile.go`), so a refused IKE SA rekey does not stop a Child SA rekey. A
+refusal does not hold the path probe, because a peer that refused a proposal is not
+mid-rekey.
+
+<!-- source: internal/component/ike/engine/rekey.go -- rekeyRefusal, rekeyRefusedError, rekeyRefusalRecord, initiateChildRekey, initiateIKERekey -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleCreateChildSAOwned, refuseRekey -->
+<!-- source: internal/component/ike/engine/established.go -- rekeyRefusedWait, startChildRekey, startIKERekey -->
 
 ## The padded path probe
 

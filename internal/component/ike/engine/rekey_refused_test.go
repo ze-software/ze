@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -70,7 +71,7 @@ func (r *refusedRig) answerChildRekey(t *testing.T, inner []wire.PayloadEntry) o
 func (r *refusedRig) answerIKERekey(t *testing.T, inner []wire.PayloadEntry) ownedOutcome {
 	t.Helper()
 	log := slogutil.DiscardLogger()
-	r.ps.startIKERekey(r.sa, testIKEGroup(), r.myTr, log)
+	r.ps.startIKERekey(r.sa, r.sa.IKEGroup, r.myTr, log)
 	if rtxRecv(t, r.peerTr) == nil {
 		t.Fatal("the IKE SA rekey request never reached the peer")
 	}
@@ -273,4 +274,78 @@ func unrecognizedErrorType(t *testing.T) uint16 {
 	}
 	t.Fatal("every error notify type is registered")
 	return 0
+}
+
+// refusedRigTwoGroups is newRefusedRig with a second IKE proposal configured in group
+// 19, so the operator's proposals for this peer name two Diffie-Hellman groups: 14
+// (the first, which every rekey starts with) and 19, and enables PFS for the Child SA.
+func refusedRigTwoGroups(t *testing.T) *refusedRig {
+	t.Helper()
+	r := newRefusedRig(t)
+	extra := r.sa.IKEGroup.Proposals[0]
+	extra.Number++
+	extra.DHGroup = 19
+	r.sa.IKEGroup.Proposals = append(r.sa.IKEGroup.Proposals, extra)
+	// testESPGroup disables PFS, and a Child SA rekey without a KEi has no group to
+	// change. The operator enables it here, so the Child SA rekey carries KEi.
+	r.old.ESPGroup.PFS = ipsec.PFSEnable
+	return r
+}
+
+// VALIDATES: a Child SA rekey answered INVALID_KE_PAYLOAD naming a group the operator
+// configured is retried at once in that group, and a group already refused for this SA
+// is never offered again. When every configured group has been refused, the rekey
+// waits, then the record is cleared and the cycle starts over from the first group.
+// The method reads the group of the KEi each request carries (pendingRekey.dh).
+// PREVENTS: a fixed wait where a usable proposal remains, and a resend of a refused
+// proposal, which is the loop the first fix stopped with a delay.
+func TestChildRekeyInvalidKERetriesInConfiguredGroup(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	r := refusedRigTwoGroups(t)
+	remote := r.sa.remoteUDPAddr()
+
+	r.answerChildRekey(t, refusedNotify(wire.NotifyInvalidKEPayload, []byte{0, 19}))
+	r.ps.startChildRekey(r.sa, r.myTr, log)
+	if rtxRecv(t, r.peerTr) == nil {
+		t.Fatal("the rekey was not retried at once in the group the peer named")
+	}
+	if got := r.ps.pendingRekey.dh.GroupID; got != 19 {
+		t.Fatalf("the retry carried KEi in group %d, want the named group 19", got)
+	}
+	respMsg := &wire.Message{Header: wire.Header{MessageID: r.ps.pendingRekey.messageID}}
+	// The peer now names group 14, which it already refused for this SA.
+	r.ps.handleCreateChildSAOwned(r.sa, respMsg, refusedNotify(wire.NotifyInvalidKEPayload, []byte{0, 14}),
+		true, r.myTr, r.dp, log)
+	r.sa.releaseRequestWindow()
+
+	r.ps.startChildRekey(r.sa, r.myTr, log)
+	rtxExpectSilence(t, r.peerTr, r.myTr, remote, "a rekey resent in a group the peer already refused")
+
+	r.ps.childRekeyRefusedUntil = time.Now().Add(-time.Second)
+	r.ps.startChildRekey(r.sa, r.myTr, log)
+	if rtxRecv(t, r.peerTr) == nil {
+		t.Fatal("the rekey never went out after the wait")
+	}
+	if got := r.ps.pendingRekey.dh.GroupID; got != 14 {
+		t.Fatalf("after the wait the rekey carried group %d, want the first configured group 14", got)
+	}
+	r.ps.pendingRekey.clear()
+}
+
+// VALIDATES: the same rule on the IKE SA rekey path: the named configured group is
+// used at once.
+// PREVENTS: the IKE SA rekey waiting, or resending in the refused group.
+func TestIKERekeyInvalidKERetriesInConfiguredGroup(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	r := refusedRigTwoGroups(t)
+
+	r.answerIKERekey(t, refusedNotify(wire.NotifyInvalidKEPayload, []byte{0, 19}))
+	r.ps.startIKERekey(r.sa, r.sa.IKEGroup, r.myTr, log)
+	if rtxRecv(t, r.peerTr) == nil {
+		t.Fatal("the IKE SA rekey was not retried at once in the group the peer named")
+	}
+	if got := r.ps.pendingRekey.dh.GroupID; got != 19 {
+		t.Fatalf("the retry carried KEi in group %d, want the named group 19", got)
+	}
+	r.ps.pendingRekey.clear()
 }

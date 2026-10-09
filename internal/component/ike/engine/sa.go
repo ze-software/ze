@@ -62,6 +62,13 @@ type SA struct {
 	IKEGroup ipsec.IKEGroup
 	ESPGroup ipsec.ESPGroup
 
+	// childRekeyRefusal and ikeRekeyRefusal record what the peer refused for the rekey
+	// of this SA's Child SA and of this SA itself (rekeyRefusalRecord, rekey.go). Owned
+	// by the maintainSA loop. A successful rekey clears its record; a rekeyed IKE SA
+	// starts with an empty one.
+	childRekeyRefusal rekeyRefusalRecord
+	ikeRekeyRefusal   rekeyRefusalRecord
+
 	InitiatorSPI [8]byte
 	ResponderSPI [8]byte
 	IsInitiator  bool

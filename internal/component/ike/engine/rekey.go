@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net"
+	"slices"
 	"strconv"
 	"time"
 
@@ -67,9 +68,74 @@ func hasNoAdditionalSAs(inner []wire.PayloadEntry) bool {
 // rekeyRefusedError reports a rekey the peer refused with an error notify that
 // carries no instruction of its own, unlike TEMPORARY_FAILURE and NO_ADDITIONAL_SAS.
 // NO_PROPOSAL_CHOSEN is the common one. The caller keeps the SA the rekey would have
-// replaced and holds the retry (rekeyRefusedBackoff, established.go).
+// replaced and records the refusal (rekeyRefusalRecord) before it decides when to retry.
 type rekeyRefusedError struct {
 	notify uint16
+	// named is the group an INVALID_KE_PAYLOAD answer names, and dhGroupNone for every
+	// other answer or for a notify whose data is not the two octets Section 1.3 gives it.
+	named crypto.DHGroupID
+}
+
+// rekeyRefusalRecord is what the peer has refused for the rekey of one SA, so that no
+// refused proposal is ever offered again on it.
+//
+// Ze sends every configured proposal in one SA payload (wireESPOffer, wireIKEOffer), so
+// a refusal that names nothing refuses all of them at once, and the only part of an
+// offer ze can change and send again is the group of its KEi. The record therefore
+// holds groups. The zero value is "nothing refused, start from the configured group".
+type rekeyRefusalRecord struct {
+	// next is the group the next attempt carries its KEi in, or dhGroupNone for the
+	// group the configuration picks.
+	next crypto.DHGroupID
+	// refused lists the groups the peer refused for this SA, in the order it did.
+	refused []crypto.DHGroupID
+}
+
+// refuse records that the peer refused the attempt whose KEi was in group sent, and
+// picks the next attempt. It reports true when an unrefused configured proposal is
+// left, which the caller sends at once. It reports false when every configured
+// proposal has been refused, and the record is then cleared, so the cycle starts over
+// from the configured group after the caller's wait.
+//
+// RFC 7296 Section 1.3: "In the case of such a rejection, the CREATE_CHILD_SA exchange
+// fails, and the initiator will probably retry the exchange with a Diffie-Hellman
+// proposal and KEi in the group that the responder gave in the INVALID_KE_PAYLOAD
+// Notify payload." Ze retries in that group only when the operator configured it for
+// this peer, and never in a group the peer already refused.
+func (rec *rekeyRefusalRecord) refuse(sent, named crypto.DHGroupID, configured ipsec.IKEGroup) bool {
+	if sent != dhGroupNone {
+		rec.refused = append(rec.refused, sent)
+	}
+	retry := rec.retryGroup(sent, named, configured)
+	if retry == dhGroupNone {
+		*rec = rekeyRefusalRecord{}
+		return false
+	}
+	rec.next = retry
+	return true
+}
+
+// retryGroup is the group refuse retries in, or dhGroupNone when none is left.
+func (rec *rekeyRefusalRecord) retryGroup(sent, named crypto.DHGroupID, configured ipsec.IKEGroup) crypto.DHGroupID {
+	// No group named: the answer refused the whole offer, which held every configured
+	// proposal.
+	if named == dhGroupNone {
+		return dhGroupNone
+	}
+	// The request carried no KEi, so the operator configured no Diffie-Hellman exchange
+	// for it, and ze does not add one the configuration did not ask for.
+	if sent == dhGroupNone {
+		return dhGroupNone
+	}
+	if slices.Contains(rec.refused, named) {
+		return dhGroupNone
+	}
+	for i := range configured.Proposals {
+		if crypto.DHGroupID(configured.Proposals[i].DHGroup) == named {
+			return named
+		}
+	}
+	return dhGroupNone
 }
 
 func (e *rekeyRefusedError) Error() string {
@@ -107,9 +173,16 @@ func rekeyRefusal(inner []wire.PayloadEntry) error {
 		if !ok {
 			continue
 		}
-		if wire.NotifyIsError(n.NotifyMsgType) {
-			return &rekeyRefusedError{notify: n.NotifyMsgType}
+		if !wire.NotifyIsError(n.NotifyMsgType) {
+			continue
 		}
+		refused := &rekeyRefusedError{notify: n.NotifyMsgType}
+		// RFC 7296 Section 1.3: "There are two octets of data associated with this
+		// notification: the accepted Diffie-Hellman group number in big endian order."
+		if n.NotifyMsgType == wire.NotifyInvalidKEPayload && len(n.NotificationData) == 2 {
+			refused.named = crypto.DHGroupID(binary.BigEndian.Uint16(n.NotificationData))
+		}
+		return refused
 	}
 	return nil
 }
@@ -237,6 +310,15 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 	group, err := childRekeyDHGroup(sa, oldChild.ESPGroup)
 	if err != nil {
 		return nil, nil, err
+	}
+	// RFC 7296 Section 1.3: after INVALID_KE_PAYLOAD "the initiator will probably retry
+	// the exchange with a Diffie-Hellman proposal and KEi in the group that the
+	// responder gave". rekeyRefusalRecord.refuse set next only to a configured group the
+	// peer has not refused, and only when this request carries a KEi at all.
+	if group != dhGroupNone {
+		if next := sa.childRekeyRefusal.next; next != dhGroupNone {
+			group = next
+		}
 	}
 	ni, err := GenerateNonce(nonceLen)
 	if err != nil {
@@ -918,6 +1000,11 @@ func initiateIKERekey(oldSA *SA, ikeGroup ipsec.IKEGroup) ([]byte, *pendingRekey
 		return nil, nil, err
 	}
 	dhGroupID := crypto.DHGroupID(ikeGroup.Proposals[0].DHGroup)
+	// RFC 7296 Section 1.3, as in initiateChildRekey: the group an INVALID_KE_PAYLOAD
+	// answer named, when the operator configured it and the peer has not refused it.
+	if next := oldSA.ikeRekeyRefusal.next; next != dhGroupNone {
+		dhGroupID = next
+	}
 	dh, err := crypto.NewDHExchange(dhGroupID)
 	if err != nil {
 		return nil, nil, err
