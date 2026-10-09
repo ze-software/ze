@@ -42,7 +42,7 @@ func (l *Loader) checkStructure() error {
 	for _, mod := range mods {
 		errs = append(errs, moduleLengthErrors(mod)...)
 		errs = append(errs, moduleEnumErrors(mod)...)
-		errs = append(errs, moduleExtensionSubstatementErrors(mod, l.modules.sources)...)
+		errs = append(errs, moduleExtensionSubstatementErrors(l.modules.source(mod))...)
 	}
 	return errors.Join(errs...)
 }
@@ -379,8 +379,8 @@ func substatementKeyword(f reflect.StructField) string {
 }
 
 // moduleExtensionSubstatementErrors returns one error for each statement
-// under an extension statement of mod that breaks the Section 14 grammar.
-// sources holds the module texts the loader parsed, by file name, for the
+// under an extension statement of source's module that breaks the Section
+// 14 grammar. source carries the text the module was parsed from, for the
 // block a statement's rule requires and goyang does not record.
 //
 // RFC 7950 Section 7.19: "Syntactically, the substatements MUST be YANG
@@ -389,7 +389,8 @@ func substatementKeyword(f reflect.StructField) string {
 // Section 14." Each statement under an extension is resolved to the Section
 // 14 rule its parent's block names, and then checked against that rule
 // (extensionSubstatementError).
-func moduleExtensionSubstatementErrors(mod *yang.Module, sources map[string]string) []error {
+func moduleExtensionSubstatementErrors(source moduleSource) []error {
+	mod := source.module
 	if mod.Source == nil {
 		return nil
 	}
@@ -430,7 +431,7 @@ func moduleExtensionSubstatementErrors(mod *yang.Module, sources map[string]stri
 			continue
 		}
 		// RFC 7950 Section 7.19
-		if err := extensionSubstatementError(grammar, current.production, statement, children, sources); err != nil {
+		if err := extensionSubstatementError(grammar, current.production, statement, children, source); err != nil {
 			errs = append(errs, fmt.Errorf("%w: module %s: %s: %w",
 				ErrExtensionSubstatement, mod.Name, statement.Location(), err))
 		}
@@ -534,7 +535,7 @@ func argumentError(production *statementProduction, statement *yang.Statement) e
 // "deviate-not-supported-stmt / 1*(deviate-add-stmt / ...)" and the
 // alternatives of type-body-stmts are decided.
 func extensionSubstatementError(grammar *yangGrammar, production *statementProduction, statement *yang.Statement,
-	children []*statementProduction, sources map[string]string) error {
+	children []*statementProduction, source moduleSource) error {
 	block := production.block
 	counts := make(childCounts, len(block.slots))
 	for _, child := range children {
@@ -544,7 +545,7 @@ func extensionSubstatementError(grammar *yangGrammar, production *statementProdu
 		counts[block.slots[child]]++
 	}
 	if production.form == blockRequired && block.emptyAccepted && len(statement.SubStatements()) == 0 {
-		hasBlock, err := statementHasBlock(sources, statement)
+		hasBlock, err := statementHasBlock(source, statement)
 		if err != nil {
 			return fmt.Errorf("%s: %w", production.rule, err)
 		}

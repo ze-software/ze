@@ -163,8 +163,12 @@ exactly one), and the counts together must form one reading of the block, so
 `deviate not-supported` cannot sit beside `deviate add`, and a `type` holds
 the restrictions of one alternative of `type-body-stmts` only. goyang records
 no block for a statement with no substatement, so where an empty block would
-match a rule that requires one (`refine-stmt` alone), the module text the
-loader recorded is read to tell `refine x;` from `refine x {}`.
+match a rule that requires one (`refine-stmt` alone), the text the
+statement's module was parsed from is read to tell `refine x;` from
+`refine x {}`. The loader binds each text to the modules its parse added,
+never to the file name, so two texts loaded under one name each answer for
+their own modules. A module goyang read from disk itself, resolving an
+import, has no bound text, and the question is refused rather than guessed.
 
 The ABNF does not decide which alternative of `type-body-stmts` a base type
 takes: the grammar accepts `type int8 { length "1"; }`, because
@@ -187,6 +191,7 @@ rather than checked against a guessed span.
 <!-- source: internal/component/config/yang/loader_abnf.go -- parseYANGGrammar, rfc7950Grammar -->
 <!-- source: internal/component/config/yang/loader_grammar.go -- argumentCheckers, checkURI, checkPathArg -->
 <!-- source: internal/component/config/yang/loader_source.go -- statementHasBlock -->
+<!-- source: internal/component/config/yang/loader.go -- sourcedModules.Parse, sourcedModules.source -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
 <!-- source: internal/component/cli/client/main.go -- loadYANGState, buildYANGState -->
 <!-- source: internal/component/cli/client/verb_tree.go -- IsDeclaredCommand -->

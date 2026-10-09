@@ -13,21 +13,23 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 )
 
-// statementHasBlock reports whether statement, in the module text sources
-// holds for its file, closes with a "{" block rather than ";". goyang's
-// parser returns the same Statement for "refine x;" and "refine x {}", so
-// the text is read again from the statement's keyword: the keyword, the
-// argument when there is one (quoted strings joined by "+", or one unquoted
-// string), then ";" or "{" (RFC 7950 Section 6.1.3 and Section 14,
+// statementHasBlock reports whether statement, in the text source's module
+// was parsed from, closes with a "{" block rather than ";". statement MUST be
+// under source.module.Source, so its position is a position in source.text.
+// goyang's parser returns the same Statement for "refine x;" and "refine x
+// {}", so the text is read again from the statement's keyword: the keyword,
+// the argument when there is one (quoted strings joined by "+", or one
+// unquoted string), then ";" or "{" (RFC 7950 Section 6.1.3 and Section 14,
 // stmtend). A text it cannot follow is an error, never a guess.
-func statementHasBlock(sources map[string]string, statement *yang.Statement) (bool, error) {
-	file, line, col, err := statementPosition(statement.Location())
+func statementHasBlock(source moduleSource, statement *yang.Statement) (bool, error) {
+	if !source.parsed {
+		return false, fmt.Errorf("module %s was read by goyang, not parsed by the loader, so its block cannot be read",
+			source.module.Name)
+	}
+	text := source.text
+	line, col, err := statementPosition(statement.Location())
 	if err != nil {
 		return false, err
-	}
-	text, recorded := sources[file]
-	if !recorded {
-		return false, fmt.Errorf("the text of %q was not recorded, so its block cannot be read", file)
 	}
 	at, err := runeOffset(text, line, col)
 	if err != nil {
@@ -56,30 +58,31 @@ func statementHasBlock(sources map[string]string, statement *yang.Statement) (bo
 	return false, fmt.Errorf("%s: %q follows the argument, not ';' or '{'", statement.Location(), text[scan.at])
 }
 
-// statementPosition splits a goyang Statement.Location, "file:line:col" or
-// "line L:C" for a text parsed with no name, into its parts.
-func statementPosition(location string) (file string, line, col int, err error) {
+// statementPosition answers the line and column of a goyang
+// Statement.Location, "file:line:col" or "line L:C" for a text parsed with no
+// name. The file is not read: the text comes with the statement's module.
+func statementPosition(location string) (line, col int, err error) {
 	rest := location
 	if after, unnamed := strings.CutPrefix(location, "line "); unnamed {
 		rest = ":" + after
 	}
 	colAt := strings.LastIndexByte(rest, ':')
 	if colAt < 0 {
-		return "", 0, 0, fmt.Errorf("location %q names no position", location)
+		return 0, 0, fmt.Errorf("location %q names no position", location)
 	}
 	lineAt := strings.LastIndexByte(rest[:colAt], ':')
 	if lineAt < 0 {
-		return "", 0, 0, fmt.Errorf("location %q names no line", location)
+		return 0, 0, fmt.Errorf("location %q names no line", location)
 	}
 	line, err = strconv.Atoi(rest[lineAt+1 : colAt])
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("location %q: %w", location, err)
+		return 0, 0, fmt.Errorf("location %q: %w", location, err)
 	}
 	col, err = strconv.Atoi(rest[colAt+1:])
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("location %q: %w", location, err)
+		return 0, 0, fmt.Errorf("location %q: %w", location, err)
 	}
-	return rest[:lineAt], line, col, nil
+	return line, col, nil
 }
 
 // runeOffset answers the byte offset of line and col, both 1-based, in text.

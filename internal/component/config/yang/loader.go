@@ -48,28 +48,73 @@ type Loader struct {
 	modules *sourcedModules
 }
 
-// sourcedModules is goyang's module set, keeping the text of each module it
-// parses. goyang's Statement records no block when a statement has no
+// sourcedModules is goyang's module set, keeping the text each module was
+// parsed from. goyang's Statement records no block when a statement has no
 // substatement, so "refine x;" and "refine x {}" parse alike; the text is
 // what tells them apart (statementHasBlock). Not safe for concurrent use, as
 // yang.Modules is not.
 type sourcedModules struct {
 	*yang.Modules
-	// sources is each parsed module text, by the file name goyang's
-	// Statement.Location reports for it.
-	sources map[string]string
+	// texts is the text of each module and submodule Parse added, keyed by
+	// the module goyang built from it. A file name cannot be the key: two
+	// texts parsed under one name would share it, and the second would
+	// answer for the first. A module goyang read from disk itself, resolving
+	// an import, has no entry.
+	texts map[*yang.Module]string
 }
 
-// Parse records data as the text of name, then parses it into the module set.
+// Parse parses data into the module set, then binds every module and
+// submodule that parse added to data. goyang adds a module before it parses
+// the next one in the same text, so a parse that fails part way still binds
+// the modules it added.
 func (m *sourcedModules) Parse(data, name string) error {
-	m.sources[name] = data
-	return m.Modules.Parse(data, name)
+	held := m.held()
+	err := m.Modules.Parse(data, name)
+	for mod := range m.held() {
+		if !held[mod] {
+			m.texts[mod] = data
+		}
+	}
+	return err
+}
+
+// held answers every module and submodule in the set. goyang stores a
+// revisioned module under two keys, so the set is of modules, not of names.
+func (m *sourcedModules) held() map[*yang.Module]bool {
+	held := make(map[*yang.Module]bool, len(m.Modules.Modules)+len(m.Modules.SubModules))
+	for _, mod := range m.Modules.Modules {
+		held[mod] = true
+	}
+	for _, mod := range m.Modules.SubModules {
+		held[mod] = true
+	}
+	return held
+}
+
+// source answers mod and the text it was parsed from. Only this method
+// builds a moduleSource, from the binding Parse made, so its text is the
+// text of its module and of no other parse.
+func (m *sourcedModules) source(mod *yang.Module) moduleSource {
+	text, parsed := m.texts[mod]
+	return moduleSource{module: mod, text: text, parsed: parsed}
+}
+
+// moduleSource is one module or submodule and the text it was parsed from.
+// Every statement under module.Source was parsed from text, so a position
+// goyang reports for one of them is a position in text.
+type moduleSource struct {
+	module *yang.Module
+	text   string
+	// parsed is false for a module goyang read from disk itself, resolving
+	// an import: the loader never saw its text, so text is empty, and
+	// statementHasBlock refuses to answer rather than read it.
+	parsed bool
 }
 
 // NewLoader creates a new YANG module loader.
 func NewLoader() *Loader {
 	return &Loader{
-		modules: &sourcedModules{Modules: yang.NewModules(), sources: map[string]string{}},
+		modules: &sourcedModules{Modules: yang.NewModules(), texts: map[*yang.Module]string{}},
 	}
 }
 
