@@ -38,6 +38,8 @@ review and closure gates. There is no `Handoff: verify` declaration, so
 | A-4 | CONFIRMED in the modular (Alpine) guest: `mpls_router` loaded, `mpls_iptunnel` NOT loaded, and `modprobe` shimmed on PATH so the test's `loadMPLSModules` could not load it. `TestMPLSIntegration_BGPLabeledUnicastPush` (ze's `buildMPLSEncap` path) PASSED, and `mpls_iptunnel` was then listed in `/proc/modules`: the kernel autoloaded it on the first encap route, so not gating it is correct | `kcg-guest-modular.out`, `QEMU VM: PASS` in `kcg-qemu-modular.log` |
 | AC-15 | OPEN. Needs an appliance image boot with an MPLS seed config. The harness to extend is the `vpp-hugepages-test` driver (`internal/le/test/qemu/hugepages.go` + `boot.go`): `buildImage` would write `<appliance>/ze.conf` (seed overlay, read by `resolveSeedConfig` in `internal/appliance/cmd_assemble.go`) holding `gokrazy/ze/ze.conf` plus `set fib kernel` and `set ldp` (checked: with an empty procfs root `ze config validate` refuses it naming mpls, so the seed puts MPLS in use). The appliance answering SSH proves the gate passed; a positive query is still to choose | - |
 
+-> Decision (owner, 2026-10-09): the appliance kernel carries MPLS. A boot on 2026-10-09 found `ze appliance build` ships the pinned stock `github.com/rtr7/kernel` 6.19.11, whose embedded config reads `# CONFIG_MPLS is not set`; only a `./le build gokrazy` image given `ze.gok.kernel-package` runs ze's runtime kernel (`gokrazy/kernel/runtime.config`). AC-15 is therefore proven on the default appliance image after it ships a kernel built with MPLS, not on the custom-kernel route alone.
+
 ## Amendment, 2026-08-31: the plugin setup registry now exists
 
 `spec-plugin-registration-result` added a separate startup refusal. The
@@ -611,13 +613,6 @@ N-A. No RFC governs kernel capability detection.
 
 ### Closure
 - [ ] Review Gate 0 BLOCKER / 0 ISSUE
-
-## Review Gate
-
-### Run 1
-| Severity | Finding | Location | Fixed by |
-|----------|---------|----------|----------|
-| | | | |
 
 ## Progress, 2026-09-06
 
