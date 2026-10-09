@@ -77,9 +77,7 @@ and backend parity under AC-15.
 | Recursive NH tracker lives in sysrib | sysrib already resolves cross-protocol best. NH resolution is a second phase after prefix best-path. Keeps RIB plugins (bgp-rib) unchanged | Same pattern as FRR zebra NHT / BIRD recursive |
 | BestChangeEntry gains rich fields | Add RouteType, Metric, Weight, TableID, Labels (already present), SRv6SID, ECMPGroup fields | FIB backends need this data; wire it through the event, not via side-channel lookups |
 | ECMP via nexthop groups | Multiple equal-cost paths publish as a single change with an ECMPGroup containing []NextHop rather than N separate changes | Matches Linux kernel nexthop group API (5.3+), VPP multi-path FibPath, and avoids transient single-path states |
-| Kernel backend uses nexthop objects | Linux 5.3+ `ip nexthop` API for NH groups rather than per-route multipath expansion | Atomic failover, shared NH state across routes, matches FRR/iproute2 direction |
 | IGP cost comes from Loc-RIB metric | bgp-rib queries sysrib for the IGP metric of the resolved next-hop prefix. No OSPF/IS-IS internal coupling | Loc-RIB Path.Metric is exactly this: the IGP cost for internal next-hops |
-| VRF table wired through BestChangeEntry.TableID | FIB backends use this to program into the correct kernel table or VPP table | Unblocks vrf-0-umbrella FIB programming without changing backend interfaces |
 | Route types: unicast, blackhole, unreachable, prohibit | Static plugin already models blackhole/unreachable. Extend to FIB event so backends handle it | Linux RTN_BLACKHOLE/RTN_UNREACHABLE/RTN_PROHIBIT, VPP drop/unreach adjacencies |
 | Consistent Linux/VPP semantics | Both backends must produce identical forwarding behavior for the same BestChangeEntry | Test via le test functional comparisons |
 
@@ -95,8 +93,6 @@ and backend parity under AC-15.
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc4271.md` -- BGP Decision Process Section 9.1.2.2 (step 6: IGP cost)
   → Constraint: IGP cost comparison applies only between iBGP paths after eBGP-over-iBGP
-- [ ] `rfc/short/rfc4364.md` -- BGP/MPLS IP VPNs (VRF route installation)
-  → Constraint: VPN routes install into per-VRF tables identified by RD
 - [ ] `rfc/short/rfc7911.md` -- ADD-PATH (multiple paths per prefix)
   → Constraint: ECMP selection happens post-ADD-PATH receive, not before
 - [ ] `rfc/short/rfc8277.md` -- MPLS label encoding in BGP
@@ -214,20 +210,14 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 | `TestECMPGrouping` | `internal/plugins/sysrib/ecmp_test.go` | Equal-cost paths grouped into one entry | |
 | `TestECMPMemberWithdraw` | `internal/plugins/sysrib/ecmp_test.go` | NH failure removes from group, not prefix | |
 | `TestKernelRouteType` | `internal/plugins/fib/kernel/fibkernel_test.go` | Blackhole/unreachable/prohibit mapped | |
-| `TestKernelMetric` | `internal/plugins/fib/kernel/fibkernel_test.go` | Priority field set | |
-| `TestKernelTable` | `internal/plugins/fib/kernel/fibkernel_test.go` | Route in specified table | |
-| `TestKernelNexhopGroup` | `internal/plugins/fib/kernel/fibkernel_test.go` | ECMP via nexthop objects | |
 | `TestKernelMPLSEncap` | `internal/plugins/fib/kernel/fibkernel_test.go` | MPLS lwtunnel encap | |
 | `TestVPPMultiPath` | `internal/plugins/fib/vpp/fibvpp_test.go` | NPaths > 1 with correct FibPaths | |
 | `TestVPPRouteType` | `internal/plugins/fib/vpp/fibvpp_test.go` | Drop/unreach adjacency | |
-| `TestVPPTable` | `internal/plugins/fib/vpp/fibvpp_test.go` | Per-change table override | |
 | `TestBestChangeEntryJSON` | `internal/plugins/sysrib/events/events_test.go` | New fields serialize with omitempty | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| TableID | 0-4294967295 | 4294967295 | N/A (0=default) | N/A (uint32) |
-| Metric | 0-4294967295 | 4294967295 | N/A (0=best) | N/A (uint32) |
 | Weight | 1-256 | 256 | 0 (invalid) | 257 |
 | ECMPPaths count | 1-128 | 128 | 0 (single path) | 129 (Linux ECMP limit) |
 | Labels (kernel) | 1-3 | 3 | 0 (no MPLS) | 4 (kernel limit) |
@@ -255,16 +245,15 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 - `internal/plugins/sysrib/sysrib.go` -- NH resolution phase, ECMP grouping
 - `internal/component/bgp/plugins/rib/bestpath.go` -- implement step 6
 - `internal/plugins/fib/kernel/fibkernel.go` -- rich route processing
-- `internal/plugins/fib/kernel/backend_linux.go` -- netlink nexthop objects, route types, table, metric, MPLS
+- `internal/plugins/fib/kernel/backend_linux.go` -- route types, MPLS (nexthop objects, table and metric moved with AC-4, AC-8 and AC-9 to `spec-fib-nexthop-objects-vpp-metric.md`)
 - `internal/plugins/fib/vpp/fibvpp.go` -- multi-path processing, route types
-- `internal/plugins/fib/vpp/backend.go` -- multi-path FibPath, table override
+- `internal/plugins/fib/vpp/backend.go` -- multi-path FibPath (table override moved with AC-9 to `spec-fib-nexthop-objects-vpp-metric.md`)
 
 ### Files to Create
 - `internal/plugins/sysrib/nhresolver.go` -- recursive NH resolution and tracking
 - `internal/plugins/sysrib/nhresolver_test.go` -- unit tests
 - `internal/plugins/sysrib/ecmp.go` -- ECMP grouping logic
 - `internal/plugins/sysrib/ecmp_test.go` -- unit tests
-- `internal/plugins/fib/kernel/nexthop_linux.go` -- Linux nexthop object management
 - `test/bgp/fib-ecmp.ci` -- functional test
 - `test/bgp/fib-recursive.ci` -- functional test
 - `test/bgp/fib-blackhole.ci` -- functional test
@@ -359,10 +348,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `internal/plugins/sysrib/ecmp.go`, `ecmp_test.go`
    - Verify: N equal paths produce one BestChangeEntry with ECMPPaths
 
-5. **Phase: Kernel backend depth** -- nexthop objects, route type, metric, table, MPLS
-   - Tests: `TestKernelRouteType`, `TestKernelMetric`, `TestKernelTable`, `TestKernelNexhopGroup`, `TestKernelMPLSEncap`
-   - Files: `internal/plugins/fib/kernel/backend_linux.go`, `nexthop_linux.go`, `fibkernel.go`
-   - Verify: mock netlink handle receives correct route/nexthop structures
+5. **Phase: Kernel backend depth** -- route type, MPLS (nexthop objects, metric and table moved to `spec-fib-nexthop-objects-vpp-metric.md`)
+   - Tests: `TestKernelRouteType`, `TestKernelMPLSEncap`
+   - Files: `internal/plugins/fib/kernel/backend_linux.go`, `fibkernel.go`
+   - Verify: mock netlink handle receives correct route structures
 
 6. **Phase: VPP backend depth** -- multi-path, route type, table override
    - Tests: `TestVPPMultiPath`, `TestVPPRouteType`, `TestVPPTable`
@@ -400,7 +389,6 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | NH resolver resolves recursive NH | `go test ./internal/plugins/sysrib/ -run TestRecursiveNH` |
 | ECMP grouping produces multi-path entries | `go test ./internal/plugins/sysrib/ -run TestECMP` |
 | bestpath step 6 implemented | `grep -n "Step 6" internal/component/bgp/plugins/rib/bestpath.go` shows code, not comment |
-| Kernel backend creates nexthop objects | `grep -rn "nexthop" internal/plugins/fib/kernel/` shows implementation |
 | VPP backend multi-path | `grep "NPaths" internal/plugins/fib/vpp/backend.go` shows >1 |
 | Functional tests exist | `ls test/bgp/fib-*.ci` |
 | BestChangeEntry has new fields | `grep "RouteType\|ECMPPaths\|TableID" internal/plugins/sysrib/events/events.go` |
@@ -409,10 +397,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | TableID from untrusted BGP peer must be ignored (only config/sysrib sets it) |
 | Resource exhaustion | NH resolution depth limit (prevent infinite recursion) |
 | Resource exhaustion | ECMP group size bounded (max 128 paths) |
-| Privilege | Nexthop object creation requires CAP_NET_ADMIN (already held by fib-kernel) |
 | Label validation | MPLS labels validated (20-bit range) before kernel programming |
 
 ### Failure Routing
@@ -431,7 +417,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 This proposed split predates the recorded implementations. It is retained for
 scope provenance, not as a list of new implementations to schedule. The
-current accounting above governs the remainder and retains every original AC.
+current accounting above governs the remainder and retains every original AC
+except AC-4, AC-8 and AC-9, which moved to
+`plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` (owner, 2026-10-08).
 
 | Sub-spec | Scope | Depends |
 |----------|-------|---------|

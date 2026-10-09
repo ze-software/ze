@@ -68,6 +68,11 @@ route identity; backend TableID consumption alone does not satisfy AC-9."
 ### Architecture Docs
 - [ ] `docs/architecture/<doc>.md` - [chosen at design time]
 
+### RFC Summaries
+Moved verbatim from `plan/immediate/spec-fib-depth.md` (2026-10-09):
+- [ ] `rfc/short/rfc4364.md` -- BGP/MPLS IP VPNs (VRF route installation)
+  → Constraint: VPN routes install into per-VRF tables identified by RD
+
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (the design phase reads each before writing this section)
@@ -95,6 +100,20 @@ route identity; backend TableID consumption alone does not satisfy AC-9."
 
 [written at design time]
 
+Design decisions moved verbatim from `plan/immediate/spec-fib-depth.md` (2026-10-09):
+
+| Decision | Detail | Rationale |
+|----------|--------|-----------|
+| Kernel backend uses nexthop objects | Linux 5.3+ `ip nexthop` API for NH groups rather than per-route multipath expansion | Atomic failover, shared NH state across routes, matches FRR/iproute2 direction |
+| VRF table wired through BestChangeEntry.TableID | FIB backends use this to program into the correct kernel table or VPP table | Unblocks vrf-0-umbrella FIB programming without changing backend interfaces |
+
+Security review rows moved verbatim from `plan/immediate/spec-fib-depth.md` (2026-10-09):
+
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | TableID from untrusted BGP peer must be ignored (only config/sysrib sets it) |
+| Privilege | Nexthop object creation requires CAP_NET_ADMIN (already held by fib-kernel) |
+
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
@@ -107,7 +126,21 @@ route identity; backend TableID consumption alone does not satisfy AC-9."
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| [written at design time] | | | |
+| `TestKernelMetric` | `internal/plugins/fib/kernel/fibkernel_test.go` | Priority field set | |
+| `TestKernelTable` | `internal/plugins/fib/kernel/fibkernel_test.go` | Route in specified table | |
+| `TestKernelNexhopGroup` | `internal/plugins/fib/kernel/fibkernel_test.go` | ECMP via nexthop objects | |
+| `TestVPPTable` | `internal/plugins/fib/vpp/fibvpp_test.go` | Per-change table override | |
+| [rest written at design time] | | | |
+
+The four rows above moved verbatim from `plan/immediate/spec-fib-depth.md` (2026-10-09).
+
+### Boundary Tests
+Moved verbatim from `plan/immediate/spec-fib-depth.md` (2026-10-09):
+
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| TableID | 0-4294967295 | 4294967295 | N/A (0=default) | N/A (uint32) |
+| Metric | 0-4294967295 | 4294967295 | N/A (0=best) | N/A (uint32) |
 
 ### Functional Tests
 Moved verbatim from `plan/immediate/spec-fib-depth.md` with AC-9 (2026-10-09):
@@ -118,7 +151,17 @@ Moved verbatim from `plan/immediate/spec-fib-depth.md` with AC-9 (2026-10-09):
 
 ## Files to Modify
 - `test/bgp/fib-vrf-table.ci` -- functional test (moved from `spec-fib-depth` with AC-9)
+- `internal/plugins/fib/kernel/nexthop_linux.go` -- Linux nexthop object management (moved verbatim from `spec-fib-depth` Files to Create, 2026-10-09)
+- `internal/plugins/fib/kernel/backend_linux.go` -- netlink nexthop objects, table, metric (split from `spec-fib-depth`, which keeps route types and MPLS)
+- `internal/plugins/fib/vpp/backend.go` -- table override (split from `spec-fib-depth`, which keeps multi-path FibPath)
+- `internal/plugins/fib/kernel/fibkernel_test.go`, `internal/plugins/fib/vpp/fibvpp_test.go` -- `TestKernelMetric`, `TestKernelTable`, `TestKernelNexhopGroup`, `TestVPPTable`
 - [rest written at design time]
+
+Deliverable check moved verbatim from `spec-fib-depth` (2026-10-09):
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Kernel backend creates nexthop objects | `grep -rn "nexthop" internal/plugins/fib/kernel/` shows implementation |
 
 ### Integration Checklist
 - [written at design time]
