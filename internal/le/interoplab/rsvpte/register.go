@@ -1,7 +1,6 @@
 package rsvpte
 
 import (
-	"context"
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -16,7 +15,5 @@ func init() {
 		Scenarios: func(root string) ([]interoplab.ScenarioSource, error) {
 			return interoplab.Discover(filepath.Join(root, labDirectory, "scenarios"), "", scenarioCheckerMap(interoplab.ReadEnvironment(interoplab.EnvironmentOptions{}).SessionTimeout))
 		},
-		RunScenario: func(ctx context.Context, root, scenario string) interoplab.SuiteReport {
-			return RunAt(ctx, root, scenario)
-		}})
+		RunScenario: RunAt})
 }

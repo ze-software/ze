@@ -53,7 +53,7 @@ polarities, and a discrimination record per polarity.
 | AC-4 | RFC4090-6.4-3 | same two units; both recorded |
 | AC-5 | RFC4090-7.1-1 | `TestRFC4090ProtectedPathSurvivesRepair` (positive) and `TestRFC4090DifferentPathsDoNotMerge` (negative) pass; both recorded |
 | AC-6 | RFC4090-7.1-2 | same two units; both recorded |
-| AC-7 | interop (`ai/rules/interop-and-goal-validation.md`) | a scenario against another RSVP-TE implementation in which Ze's PLR signals the backup PATH to a merge point |
+| AC-7 | interop (`ai/rules/interop-and-goal-validation.md`) | a scenario against another RSVP-TE implementation in which Ze's PLR signals the backup PATH to a merge point: `test/interop-rsvpte/scenarios/plr-backup-path-to-egress-merge-point` against freeRtr, checker `internal/le/interoplab/rsvpte/checkers.go::checkBackupPathToMP` |
 
 ### Validation status (2026-10-08)
 
@@ -84,3 +84,29 @@ Section 4.3.1, which is ERO applicability). Producer:
 `register.go::bypassSessionAttr`, called from `setupBypass`; unit
 `TestBypassPathCarriesSessionAttribute` (red with the field removed, green
 restored, 2026-10-09).
+
+### Validation status, AC-7 (2026-10-09)
+
+AC-7 is met by `plr-backup-path-to-egress-merge-point`: Ze ingress, Ze PLR,
+freeRtr relay on the bypass, freeRtr egress as merge point. After `prot0` goes
+down the egress captures, through the bypass, a labelled PATH whose sender and
+RSVP_HOP are the PLR and whose ERO is `10.0.14.14` alone; the PLR captures at
+least two labelled RESVs from the egress for its backup sender and sends no
+ResvErr for the protected session.
+
+freeRtr answers from its eth0 address 172.29.81.14, not from the merge point
+10.0.14.14, and Ze accepts an alternate merge-point source only when a live
+native IGP database ties it to the same node. The lab therefore runs OSPF
+between the PLR and the egress (freeRtr router-id 10.0.14.14), and the checker
+waits for a Full adjacency on the PLR (`show ospf neighbor`) before it cuts
+`prot0`. -> Decision (main thread, 2026-10-09): Ze's acceptance rule is
+unchanged; the lab supplies the identity proof a real deployment would. Without
+OSPF the PLR refused the RESV with ResvErr code 4 (session scratch `run5.log`).
+
+Red/green, run with `RSVPTE_INTEROP_SCENARIO=plr-backup-path-to-egress-merge-point
+./le --name rsvpfrr test integration interop-rsvpte`, which rebuilds the Ze
+image from the tree: green (`interop: 1 passed, 0 failed`, scratch `run6.log`);
+forced red with `frr.go::backupPath` keeping the protected sender instead of
+the PLR's (RFC 4090 Section 6.1): `FAIL: wait for freeRouter egress receives
+the PLR's backup PATH timed out` after the OSPF wait passed (scratch
+`run7-red.log`); restored, green again (scratch `run8-green.log`).

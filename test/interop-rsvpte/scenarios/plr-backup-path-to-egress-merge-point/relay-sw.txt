@@ -1,0 +1,11 @@
+hostname relay
+vrf definition v1
+ rd 1:1
+ exit
+interface ethernet1
+ vrf forwarding v1
+ ipv4 address 172.29.81.15 255.255.255.0
+ mpls enable
+ mpls rsvp4
+ exit
+ipv4 route v1 10.0.14.0 255.255.255.0 172.29.81.14

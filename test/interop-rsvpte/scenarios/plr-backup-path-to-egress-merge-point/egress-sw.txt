@@ -1,0 +1,22 @@
+hostname egress
+vrf definition v1
+ rd 1:1
+ exit
+router ospf4 1
+ vrf v1
+ router 10.0.14.14
+ area 0 ena
+ exit
+interface ethernet1
+ vrf forwarding v1
+ ipv4 address 172.29.81.14 255.255.255.0
+ mpls enable
+ mpls rsvp4
+ router ospf4 1 ena
+ exit
+interface ethernet1.100
+ vrf forwarding v1
+ ipv4 address 10.0.14.14 255.255.255.0
+ mpls enable
+ mpls rsvp4
+ exit

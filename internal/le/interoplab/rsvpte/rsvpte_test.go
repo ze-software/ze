@@ -40,7 +40,7 @@ func TestParseCaptureAndExplicitRoute(t *testing.T) {
 		t.Fatalf("PATH addresses %q > %q", messages[0].source, messages[0].target)
 	}
 	if !isMessage(messages[1], addressFreeRtrEgress, addressZeTransit, "Resv Message") {
-		t.Fatalf("RESV not recognised: %+v", messages[1])
+		t.Fatalf("RESV not recognized: %+v", messages[1])
 	}
 	if isMessage(messages[0], addressFreeRtrEgress, addressZeTransit, "Resv Message") {
 		t.Fatal("PATH matched as the egress RESV")
@@ -61,10 +61,33 @@ func TestParseCaptureAndExplicitRoute(t *testing.T) {
 	}
 }
 
+// labeledSample is an MPLS-labeled PATH as tcpdump -vvv prints it: the label
+// stack line and the IP header line come before the addresses.
+const labeledSample = `07:08:21.000000 MPLS (label 16, tc 0, [S], ttl 63)
+	IP (tos 0xc0, ttl 63, id 0, offset 0, flags [none], proto RSVP (46), length 204, options (RA))
+    172.29.81.3 > 10.0.14.14: 
+	RSVPv1 Path Message (1), Flags: [none], length: 180, ttl: 63, checksum: 0x0
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 172.29.81.3, Logical Interface Handle: 0x00000000
+`
+
+// VALIDATES: a labeled packet's addresses are read from the line after its
+// IP header. PREVENTS: the backup PATH a bypass carries being dropped from the
+// capture because its second line is the IP header, not "source > target".
+func TestParseCaptureLabeled(t *testing.T) {
+	messages := parseCapture(labeledSample)
+	if len(messages) != 1 {
+		t.Fatalf("got %d messages, want 1", len(messages))
+	}
+	if messages[0].source != addressZeTransit || messages[0].target != addressProtectedMP {
+		t.Fatalf("labeled PATH addresses %q > %q", messages[0].source, messages[0].target)
+	}
+}
+
 // VALIDATES: every scenario directory has a checker and the catalog resolves
 // through Discover. PREVENTS: a scenario directory the runner would refuse.
 func TestScenarioCatalog(t *testing.T) {
-	if got := ScenarioNames(); !slices.Equal(got, []string{scenarioResvErrRelayed, scenarioFFUnknownSender, scenarioLooseExpansion, scenarioIncreaseInPlace, scenarioResvTearRelayed, scenarioStrictForwarded, scenarioStrictRefused}) {
+	if got := ScenarioNames(); !slices.Equal(got, []string{scenarioResvErrRelayed, scenarioBackupPathToMP, scenarioFFUnknownSender, scenarioLooseExpansion, scenarioIncreaseInPlace, scenarioResvTearRelayed, scenarioStrictForwarded, scenarioStrictRefused}) {
 		t.Fatalf("scenario names %q", got)
 	}
 }
@@ -182,5 +205,25 @@ func TestErrorSpec(t *testing.T) {
 	}
 	if _, _, err := errorSpec("\t    Error Code: garbled\n"); err == nil {
 		t.Error("an ERROR_SPEC line with no numbers answered a code")
+	}
+}
+
+// TestSenderIs proves the checker finds a sender in both forms tcpdump prints
+// it: a PATH's SENDER_TEMPLATE and a RESV's FILTER_SPEC (lines verbatim from a
+// plr-backup-path-to-egress-merge-point capture), and refuses another address,
+// including one the wanted address is a prefix of.
+func TestSenderIs(t *testing.T) {
+	template := "\t    IPv4 Tunnel Sender Address: 172.29.81.3, LSP-ID: 0x0001\n"
+	filter := "\t    Source Address: 172.29.81.3, LSP-ID: 0x0001\n"
+	for _, text := range []string{template, filter} {
+		if !senderIs(text, "172.29.81.3") {
+			t.Errorf("sender 172.29.81.3 not found in %q", text)
+		}
+		if senderIs(text, "172.29.81.2") {
+			t.Errorf("sender 172.29.81.2 found in %q", text)
+		}
+		if senderIs(text, "172.29.81.") {
+			t.Errorf("a prefix of the sender matched in %q", text)
+		}
 	}
 }

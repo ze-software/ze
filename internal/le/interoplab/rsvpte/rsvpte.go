@@ -69,6 +69,7 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioResvTearRelayed: checker(checkResvTearRelayed, timeout),
 		scenarioIncreaseInPlace: checker(checkIncreaseInPlace, timeout),
 		scenarioFFUnknownSender: checker(checkFFUnknownSender, timeout),
+		scenarioBackupPathToMP:  checker(checkBackupPathToMP, timeout),
 	}
 }
 
@@ -248,7 +249,7 @@ func zePeer(role string, host uint8, suffix, directory string) interoplab.PeerCo
 		Arguments:   []string{privilegedArgument},
 		Environment: []interoplab.EnvironmentVariable{{Name: "ze.log.rsvp-te", Value: "debug"}},
 		Command: []string{"sh", "-c", "mkdir -p /run/fr; " +
-			"tcpdump -i eth0 -nn -l -vvv 'ip proto 46' > " + captureFile + " 2> /run/fr/tcpdump.err & " +
+			"tcpdump -i eth0 -nn -l -vvv 'ip proto 46 or mpls' > " + captureFile + " 2> /run/fr/tcpdump.err & " +
 			"exec sh /etc/ze/setup.sh"},
 		Ready: &interoplab.ReadyProbe{
 			// Ze listens on a raw IPv4 socket for protocol 46 once RSVP-TE runs.

@@ -8,6 +8,7 @@ package rsvpte
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -25,6 +26,7 @@ const (
 	scenarioResvTearRelayed = "transit-resv-tear-relayed"
 	scenarioIncreaseInPlace = "transit-resv-increase-refused-in-place"
 	scenarioFFUnknownSender = "transit-ff-resv-unknown-sender"
+	scenarioBackupPathToMP  = "plr-backup-path-to-egress-merge-point"
 
 	// raisedRate is how tcpdump prints the FLOWSPEC rate the patched egress
 	// asks once in transit-resv-increase-refused-in-place: 125000000 bytes/s
@@ -38,6 +40,8 @@ const (
 	freeRtrRefresh = 120 * time.Second
 
 	captureFile = "/run/fr/rsvp.txt"
+	// catCommand reads a peer's capture file.
+	catCommand = "cat"
 
 	// A Ze node answers on its container address, a freeRouter node on its
 	// own address beside it (rsvpte.go, labRole).
@@ -48,6 +52,16 @@ const (
 	addressFreeRtrEgress  = "172.29.81.14"
 	addressFreeRtrRelay   = "172.29.81.15"
 	loopbackEgress        = "198.51.100.4"
+
+	// addressProtectedMP is the freeRouter egress on VLAN 100, the far end of
+	// the PLR's protected link prot0 and the merge point of its bypass, in
+	// plr-backup-path-to-egress-merge-point.
+	addressProtectedMP = "10.0.14.14"
+	// protectedTunnel is how tcpdump prints that scenario's protected session.
+	protectedTunnel = "Tunnel ID: 0x0001"
+	// ospfNeighborFull is the state `show ospf neighbor` prints for a Full
+	// adjacency (internal/plugins/ospf/neighbor).
+	ospfNeighborFull = "full"
 )
 
 type scenarioCheck func(context.Context, interoplab.CheckerLab, time.Duration) error
@@ -76,16 +90,22 @@ type rsvpMessage struct {
 }
 
 // parseCapture splits tcpdump text into packets. A packet starts at an
-// unindented line; its second line carries "source > target:".
+// unindented line. Its "source > target:" line is the second line of a plain
+// IP packet, and the third of an MPLS-labeled one, whose label stack line and
+// IP header line come first: the first indented line that opens with an address
+// is the one.
 func parseCapture(capture string) []rsvpMessage {
 	var messages []rsvpMessage
 	var current []string
 	flush := func() {
-		if len(current) < 2 {
-			current = nil
-			return
+		addresses := ""
+		for _, line := range current[min(1, len(current)):] {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" && trimmed[0] >= '0' && trimmed[0] <= '9' && strings.Contains(trimmed, " > ") {
+				addresses = trimmed
+				break
+			}
 		}
-		addresses := strings.TrimSpace(current[1])
 		source, rest, found := strings.Cut(addresses, " > ")
 		if !found {
 			current = nil
@@ -112,7 +132,7 @@ func parseCapture(capture string) []rsvpMessage {
 func waitMessage(ctx context.Context, lab interoplab.CheckerLab, peer, description string, timeout time.Duration, match func(rsvpMessage) bool) (rsvpMessage, error) {
 	found, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: description},
 		func(ctx context.Context) (rsvpMessage, error) {
-			capture, err := lab.Query(ctx, peer, []string{"cat", captureFile}, nil)
+			capture, err := lab.Query(ctx, peer, []string{catCommand, captureFile}, nil)
 			if err != nil {
 				return rsvpMessage{}, err
 			}
@@ -180,16 +200,17 @@ func checkLooseExpansion(ctx context.Context, lab interoplab.CheckerLab, timeout
 	}); err != nil {
 		return err
 	}
-	return waitSwap(ctx, lab, addressFreeRtrEgress, timeout)
+	return waitSwap(ctx, lab, timeout)
 }
 
-// waitSwap polls the Ze transit's MPLS table until a label forwards toward next.
-func waitSwap(ctx context.Context, lab interoplab.CheckerLab, next string, timeout time.Duration) error {
+// waitSwap polls the Ze transit's MPLS table until a label forwards toward the
+// freeRouter egress, the only downstream every swap-checking scenario names.
+func waitSwap(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "Ze installs the transit swap"},
 		func(ctx context.Context) (string, error) {
 			return lab.Query(ctx, peerTransit, []string{"ip", "-f", "mpls", "route", "show"}, nil)
 		},
-		func(table string) bool { return strings.Contains(table, "via inet "+next) })
+		func(table string) bool { return strings.Contains(table, "via inet "+addressFreeRtrEgress) })
 	return err
 }
 
@@ -270,7 +291,7 @@ func errorSpec(text string) (code, value string, err error) {
 // an independent relay: Ze ingress, freeRouter, Ze transit, freeRouter egress.
 // The ingress names every hop strict. The PATH the freeRouter egress receives
 // from Ze MUST carry the ERO shortened to the egress alone, still strict, and
-// the LSP MUST come up: the Ze ingress receives a labelled RESV through
+// the LSP MUST come up: the Ze ingress receives a labeled RESV through
 // freeRouter and the Ze transit holds a swap toward the egress.
 func checkStrictForwarded(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
 	path, err := waitMessage(ctx, lab, peerEgress, "freeRouter egress receives Ze's PATH", timeout, func(message rsvpMessage) bool {
@@ -291,7 +312,7 @@ func checkStrictForwarded(ctx context.Context, lab interoplab.CheckerLab, timeou
 	}); err != nil {
 		return err
 	}
-	return waitSwap(ctx, lab, addressFreeRtrEgress, timeout)
+	return waitSwap(ctx, lab, timeout)
 }
 
 // checkStrictRefused proves RFC 3209 Section 4.3.3.1 across an independent
@@ -322,13 +343,13 @@ func checkStrictRefused(ctx context.Context, lab interoplab.CheckerLab, timeout 
 	if value != "2" {
 		return fmt.Errorf("relayed PathErr carries Error Value %s, want 2 Bad strict node:\n%s", value, refusal.text)
 	}
-	capture, err := lab.Query(ctx, peerTransit, []string{"cat", captureFile}, nil)
+	capture, err := lab.Query(ctx, peerTransit, []string{catCommand, captureFile}, nil)
 	if err != nil {
 		return err
 	}
 	for _, message := range parseCapture(capture) {
 		if strings.Contains(message.text, "Path Message") && strings.Contains(message.text, hopFrom(addressZeTransit)) {
-			return fmt.Errorf("Ze transit forwarded the refused PATH:\n%s", message.text)
+			return fmt.Errorf("the Ze transit forwarded the refused PATH:\n%s", message.text)
 		}
 	}
 	return nil
@@ -374,7 +395,7 @@ func checkIncreaseInPlace(ctx context.Context, lab interoplab.CheckerLab, timeou
 	}); err != nil {
 		return err
 	}
-	if err := waitSwap(ctx, lab, addressFreeRtrEgress, timeout); err != nil {
+	if err := waitSwap(ctx, lab, timeout); err != nil {
 		return err
 	}
 	// The positive control: the stimulus crossed the wire. Without it a
@@ -404,10 +425,10 @@ func checkIncreaseInPlace(ctx context.Context, lab interoplab.CheckerLab, timeou
 	if !strings.Contains(refusal.text, errorFrom(addressZeTransit)+" Flags: [0x01]") {
 		return fmt.Errorf("ResvErr for a failed increase does not carry InPlace (0x01):\n%s", refusal.text)
 	}
-	if err := waitSwap(ctx, lab, addressFreeRtrEgress, timeout); err != nil {
+	if err := waitSwap(ctx, lab, timeout); err != nil {
 		return fmt.Errorf("the reservation in place lost its swap after the refused increase: %w", err)
 	}
-	capture, err := lab.Query(ctx, peerIngress, []string{"cat", captureFile}, nil)
+	capture, err := lab.Query(ctx, peerIngress, []string{catCommand, captureFile}, nil)
 	if err != nil {
 		return err
 	}
@@ -483,10 +504,10 @@ func checkFFUnknownSender(ctx context.Context, lab interoplab.CheckerLab, timeou
 	if named := lspIDs(relayed.text); !slices.Equal(named, []string{known}) {
 		return fmt.Errorf("RESV Ze relays names LSP-IDs %q, want only the known sender %s:\n%s", named, known, relayed.text)
 	}
-	if err := waitSwap(ctx, lab, addressFreeRtrEgress, timeout); err != nil {
+	if err := waitSwap(ctx, lab, timeout); err != nil {
 		return err
 	}
-	capture, err := lab.Query(ctx, peerEgress, []string{"cat", captureFile}, nil)
+	capture, err := lab.Query(ctx, peerEgress, []string{catCommand, captureFile}, nil)
 	if err != nil {
 		return err
 	}
@@ -511,6 +532,184 @@ func lspIDs(text string) []string {
 		ids = append(ids, strings.TrimSpace(id))
 	}
 	return ids
+}
+
+// senderIs reports whether a PATH's SENDER_TEMPLATE or a RESV's FILTER_SPEC
+// names address. tcpdump prints the LSP_TUNNEL_IPv4 SENDER_TEMPLATE as
+// "IPv4 Tunnel Sender Address: X, LSP-ID" and the FILTER_SPEC as
+// "Source Address: X, LSP-ID".
+func senderIs(text, address string) bool {
+	return strings.Contains(text, "Tunnel Sender Address: "+address+",") ||
+		strings.Contains(text, "Source Address: "+address+",")
+}
+
+// ospfNeighbor is the part of one `show ospf neighbor` entry the PLR check reads.
+type ospfNeighbor struct {
+	RouterID string `json:"router-id"`
+	State    string `json:"state"`
+}
+
+// waitOSPFFull waits until the Ze PLR holds a Full OSPF adjacency with the
+// freeRouter egress. That adjacency is what attributes the egress's eth0
+// address to the merge point, so a backup RESV refused for want of it reads as
+// a lab failure here rather than as a Ze defect later.
+func waitOSPFFull(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	command := []string{"ze", "cli", "-c", "show ospf neighbor", "--user", "interop", "--format", "json"}
+	environment := []interoplab.EnvironmentVariable{{Name: "ZE_SSH_PASSWORD", Value: "testpass"}}
+	last := ""
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: 2 * time.Second, Description: "Ze PLR holds a Full OSPF adjacency with the freeRouter egress " + addressProtectedMP},
+		// Wait retries a probe error: the CLI answers only once the SSH server
+		// and the OSPF plugin run.
+		func(ctx context.Context) (bool, error) {
+			answer, err := lab.Query(ctx, peerTransit, command, environment)
+			if err != nil {
+				return false, err
+			}
+			last = answer
+			var neighbors []ospfNeighbor
+			if err := json.Unmarshal([]byte(answer), &neighbors); err != nil {
+				return false, fmt.Errorf("decode `show ospf neighbor` reply %q: %w", answer, err)
+			}
+			for _, neighbor := range neighbors {
+				if neighbor.RouterID == addressProtectedMP && neighbor.State == ospfNeighborFull {
+					return true, nil
+				}
+			}
+			return false, nil
+		},
+		func(full bool) bool { return full })
+	if err != nil {
+		return fmt.Errorf("%w; last `show ospf neighbor` answer: %s", err, last)
+	}
+	return nil
+}
+
+// isBackupPath reports whether message is the PLR's backup PATH for the
+// protected tunnel: the PLR is both its sender (RFC 4090 Section 6.1) and its
+// RSVP_HOP, because the PATH crosses the bypass LSP labeled and the relay
+// never processes it. The bypass's own PATH reaches the egress with the relay
+// as its RSVP_HOP and under a bypass tunnel ID, so it cannot match.
+func isBackupPath(message rsvpMessage) bool {
+	return strings.Contains(message.text, "Path Message") &&
+		strings.Contains(message.text, hopFrom(addressZeTransit)) &&
+		senderIs(message.text, addressZeTransit) &&
+		strings.Contains(message.text, protectedTunnel)
+}
+
+// checkBackupPathToMP proves RFC 4090 Sections 6.4 and 6.1 at a Ze PLR
+// against a freeRouter merge point: Ze ingress, Ze PLR, freeRouter relay on
+// the bypass, freeRouter egress. The ingress asks facility protection for a
+// tunnel whose protected hop is the PLR's prot0 (VLAN 100) to the egress, and
+// the PLR holds a configured bypass through the relay that merges at the same
+// egress. Before the failure the egress MUST NOT see a backup PATH. Once prot0
+// goes down the PLR MUST send the egress, through the bypass, a PATH whose
+// sender and RSVP_HOP are the PLR and whose ERO is the merge point alone, and
+// freeRouter MUST answer it: the PLR captures labeled RESVs from the egress
+// naming the PLR's sender, refreshed, not a one-off.
+func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	if _, err := waitMessage(ctx, lab, peerIngress, "Ze ingress receives the PLR's labeled RESV", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressZeTransit, addressZeIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
+	}); err != nil {
+		return err
+	}
+	if _, err := waitMessage(ctx, lab, peerTransit, "Ze PLR receives the bypass RESV freeRouter relays", timeout, func(message rsvpMessage) bool {
+		return isMessage(message, addressFreeRtrRelay, addressZeTransit, "Resv Message") && strings.Contains(message.text, "Label Object")
+	}); err != nil {
+		return err
+	}
+	if err := waitOSPFFull(ctx, lab, timeout); err != nil {
+		return err
+	}
+	early, err := lab.Query(ctx, peerEgress, []string{catCommand, captureFile}, nil)
+	if err != nil {
+		return err
+	}
+	for _, message := range parseCapture(early) {
+		if isBackupPath(message) {
+			return fmt.Errorf("freeRouter egress holds a backup PATH before the protected link failed:\n%s", message.text)
+		}
+	}
+	if _, err := lab.Query(ctx, peerTransit, []string{"sh", "-c", "ip link set prot0 down && echo down"}, nil); err != nil {
+		return fmt.Errorf("take the protected link down: %w", err)
+	}
+	backup, err := waitMessage(ctx, lab, peerEgress, "freeRouter egress receives the PLR's backup PATH", timeout, isBackupPath)
+	if err != nil {
+		return err
+	}
+	ero, err := explicitRoute(backup.text)
+	if err != nil {
+		return err
+	}
+	if len(ero) != 1 || !strings.Contains(ero[0], addressProtectedMP+"/32") {
+		return fmt.Errorf("backup PATH carries ERO %q, want the merge point %s alone", ero, addressProtectedMP)
+	}
+	answers := func(message rsvpMessage) bool {
+		if !strings.HasPrefix(message.target, addressZeTransit) || !strings.Contains(message.text, "Resv Message") {
+			return false
+		}
+		if !strings.HasPrefix(message.source, addressFreeRtrEgress) && !strings.HasPrefix(message.source, addressProtectedMP) {
+			return false
+		}
+		return strings.Contains(message.text, "Label Object") && senderIs(message.text, addressZeTransit) && strings.Contains(message.text, protectedTunnel)
+	}
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "Ze PLR receives two labeled RESVs from the merge point for its backup sender"},
+		func(ctx context.Context) (int, error) {
+			capture, err := lab.Query(ctx, peerTransit, []string{catCommand, captureFile}, nil)
+			if err != nil {
+				return 0, err
+			}
+			count := 0
+			for _, message := range parseCapture(capture) {
+				if answers(message) {
+					count++
+				}
+			}
+			return count, nil
+		},
+		func(count int) bool { return count >= 2 })
+	if err != nil {
+		return protectedSessionTrace(ctx, lab, err)
+	}
+	// RFC 4090 Section 6.4.3: "The MP sends Resv, ResvTear, and PathErr
+	// messages by sending them directly to the address in the RSVP_HOP
+	// object". freeRouter does, from its eth0 address; the PLR MUST take that
+	// RESV as the merge point's and so MUST NOT refuse it with a ResvErr.
+	capture, err := lab.Query(ctx, peerTransit, []string{catCommand, captureFile}, nil)
+	if err != nil {
+		return err
+	}
+	for _, message := range parseCapture(capture) {
+		if strings.HasPrefix(message.source, addressZeTransit) && strings.Contains(message.text, "ResvErr Message") && strings.Contains(message.text, protectedTunnel) {
+			return protectedSessionTrace(ctx, lab, fmt.Errorf("the Ze PLR refused the merge point's RESV for its backup sender:\n%s", message.text))
+		}
+	}
+	return nil
+}
+
+// protectedSessionTrace appends the last messages of the protected session each
+// of the PLR and the egress captured, which the capture tails diagnosticError
+// prints are usually too short to reach once the bypass refreshes.
+func protectedSessionTrace(ctx context.Context, lab interoplab.CheckerLab, cause error) error {
+	var report strings.Builder
+	report.WriteString(cause.Error())
+	for _, peer := range []string{peerTransit, peerEgress} {
+		capture, err := lab.Query(ctx, peer, []string{catCommand, captureFile}, nil)
+		if err != nil {
+			report.WriteString("\n--- " + peer + " capture unreadable: " + err.Error())
+			continue
+		}
+		var session []rsvpMessage
+		for _, message := range parseCapture(capture) {
+			if strings.Contains(message.text, protectedTunnel) {
+				session = append(session, message)
+			}
+		}
+		report.WriteString("\n--- " + peer + " protected-session messages, last 6 ---")
+		for _, message := range session[max(0, len(session)-6):] {
+			report.WriteString("\n" + message.text)
+		}
+	}
+	return errors.New(report.String())
 }
 
 // explicitRoute answers the subobject lines of a PATH's EXPLICIT_ROUTE object,

@@ -938,7 +938,9 @@ where Ze originates PATH, ResvErr, ResvTear, PathErr and strict hops and
 freeRouter is the independent implementation that parses, relays and
 re-encodes them. A Ze head-end tunnel in this suite requests `fast-reroute`,
 because freeRouter's `packRsvp.parseDatPatReq` refuses a PATH without
-SESSION_ATTRIBUTE and Ze emits that object only for a protected tunnel. Each freeRouter owns its own IPv4 stack
+SESSION_ATTRIBUTE and Ze emits that object only for a protected tunnel and a
+bypass. A third shape puts Ze at the point of local repair: Ze ingress, Ze
+PLR, freeRouter relay on the bypass, freeRouter egress as the merge point. Each freeRouter owns its own IPv4 stack
 and MAC: `test/interop-rsvpte/run-freertr.sh` makes the container's `eth0`
 promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
 suite needs Docker and privileged containers, never host root, a TAP device or
@@ -946,13 +948,15 @@ a network namespace. Ze's container is privileged because it programs MPLS
 labels; the preflight loads `mpls_router` and refuses a host kernel without it.
 
 Every assertion reads what a peer received. Every container, Ze or freeRouter,
-runs `tcpdump -vvv` on its `eth0` into `/run/fr/rsvp.txt`, and the checker
-parses that text: a message Ze
+runs `tcpdump -vvv` on its `eth0` into `/run/fr/rsvp.txt`, RSVP and every
+MPLS-labelled frame, because a PATH carried through a bypass LSP is labelled.
+The checker parses that text: a message Ze
 logs as sent counts for nothing until the peer's capture holds it.
 
 | Scenario | What the peers observe |
 |----------|------------------------|
 | `transit-loose-ero-expansion` | freeRouter ingress, Ze transit, freeRouter egress. The ingress names Ze and the egress loopback as loose hops and prepends its own next hop, Ze, as a strict subobject (`ipFwdTab.fillRsvpFrst`), so it signals `[Ze strict, Ze loose, egress loopback loose]`. Ze's native route to the loopback runs through `.14`, which no subobject names, so the PATH the egress captures carries `.14` ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label, and Ze's MPLS table holds a swap via `.14` |
+| `plr-backup-path-to-egress-merge-point` | Ze ingress, Ze PLR, freeRouter relay `.15`, freeRouter egress `.14`. The ingress asks facility protection for a tunnel whose protected hop is the PLR's `prot0`, VLAN 100 to the egress at `10.0.14.14`; the PLR's configured bypass runs untagged through the relay and merges at that egress. Before the fault the egress holds no backup PATH. The checker takes `prot0` down, and the egress captures, through the bypass, a PATH whose sender and RSVP_HOP are the PLR and whose ERO is `10.0.14.14` alone; the PLR captures at least two labelled RESVs from the egress naming its own sender and answers none with a ResvErr (RFC 4090 Sections 6.1 and 6.4). The egress answers from its `eth0` address `.14`, not from `10.0.14.14`, and Ze accepts an alternate merge-point source only when a live native IGP database attributes it to the same node, so the PLR and the egress run OSPF on `eth0` (freeRouter router-id `10.0.14.14`) and the checker waits for a Full adjacency, read through `show ospf neighbor` on the PLR, before it takes `prot0` down. freeRouter is the merge point only as an egress: it keys the backup PATH by sender and LSP-ID as a new LSP, and has no transit merge |
 | `transit-strict-hop-forwarded` | Ze ingress, freeRouter relay `.15`, Ze transit, freeRouter egress `.14`. The Ze ingress names every hop strict. The PATH the egress captures from Ze carries the ERO shortened to strict `.14` alone, the Ze ingress captures a labelled RESV relayed by freeRouter, and the Ze transit holds a swap via `.14` |
 | `transit-strict-hop-outside-refused` | Ze ingress, freeRouter relay, Ze transit. The last strict hop's native route at the transit runs through a node outside both abstract nodes, so the transit sends PathErr Routing Problem / Bad strict node (24/2) and never forwards the PATH (RFC 3209 Section 4.3.3.1). The Ze ingress captures that PathErr as freeRouter relays it, naming the transit as the error node |
 | `ingress-resv-error-relayed` | Ze ingress, freeRouter relay, Ze egress. The ingress interface reserves less than the tunnel asks, so the ingress refuses the RESV freeRouter relays and sends a ResvErr naming itself, Error Code 1 Admission Control failure, value 2. The Ze egress captures that ResvErr from freeRouter with the error node, code and value intact (RFC 2205 Sections 2.5 and 3.1.8) |
