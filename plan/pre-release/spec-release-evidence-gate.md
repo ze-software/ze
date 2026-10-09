@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-09 |
 
 The historical Make matrix implementation landed at `d0e9d388c`, but the native
 cutover retired its composite runner (`internal/le/completeness_record_test.go`,

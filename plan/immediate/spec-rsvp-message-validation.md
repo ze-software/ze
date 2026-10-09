@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | design |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-23 |
+| Updated | 2026-10-09 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
 
@@ -43,3 +43,64 @@ The started implementation now validates object placement, flow descriptors, ses
 | RFC2205-3-16 | "Matching reservation state must match the SESSION, STYLE, and FILTER_SPEC objects as well as the LIH in the RSVP_HOP object." (§3) | `reservation.go::handleResvTear` compares the matched descriptor's style, hop and peer before removing the reservation |
 | RFC2205-3-35 | "The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type." (§3) | Forwardable unknown objects are retained separately from the ordered flow descriptors; receive validation and the message builders must be verified together |
 | RFC2205-4-1 | "This field must be non-zero." (Appendix A.1, SESSION DestAddress; stable historical ID) | `wire.go::decodeSessionIPv4` rejects an unspecified endpoint |
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/rsvpte/mpls-rsvp-te.md` - the design page the RSVP-TE code declares
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfc2205.md` - the rows in the requirement table above
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (named by the requirement table above; read before the next edit)
+- [ ] `internal/plugins/rsvpte/message_validation.go` - `checkObjectPlacement`, `appendFlowSpec`, `appendFilter`
+- [ ] `internal/plugins/rsvpte/wire.go` - `DecodeMessage`, `decodeSessionIPv4`
+- [ ] `internal/plugins/rsvpte/engine.go` - `handlePacket`, `handlePathTear`, `pathTearLocked`
+- [ ] `internal/plugins/rsvpte/reservation.go` - `acceptReservation`, `handleResvTear`
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- Not yet written: owed by the next implementation pass on this spec.
+
+### Transformation Path
+1. Not yet written.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| RSVP neighbor → Engine | received PATH, RESV, PathTear and ResvTear messages | No |
+
+### Integration Points
+- Not yet written.
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| Not yet written | → | `DecodeMessage`, `handlePacket` | Not yet written |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| Not yet written | | the requirement rows above | |
+
+## Files to Modify
+- Not yet written: the tests for the rows above, and any producer a forced red shows to be wrong
+
+## Implementation Steps
+1. Not yet written.
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] `./le verify worktree` passes
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
