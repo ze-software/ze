@@ -462,3 +462,17 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Evidence recorded 2026-10-09 (continuation agent)
+
+Logs are under `tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/scratch/`. Every forced red ran in a `git archive HEAD` export (`grred/e*`), never the shared tree.
+
+| Item | Result | Evidence |
+|------|--------|----------|
+| Phase 5 (b) `send-unicast-reaches-the-wire` | GREEN in HEAD export e0 (PASS 18.4s). RED in export e2, where `handleAnnounceUnicast` answers done without calling `announceAndTrack`: `ZE-OBSERVER-FAIL: the peer did not receive the announced 10.0.0.0/24` | `grred/out.log` |
+| Phase 5 (c) `send-withdraw-by-tag` | GREEN in e0 (PASS 4.2s). RED in export e3, where `withdrawByTag` skips `reg.withdrawTagKey`: `withdraw tag maint did not report one removal: withdrawn 0`. A first break of `reg.withdrawTag` (the key-and-value branch) stayed GREEN, because the test withdraws by key alone | `grred/out.log`, `grred/out2.log` |
+| Phase 5 (a) `api-announce-flowspec-extra-token` | NOT GREEN at HEAD: TIME in export e0 (96s) and in the working tree (`./le --name bk12d`, 16s), "received messages: 0", "server likely failed to start or crashed". Load average was 44-55 during both runs. Its forced red cannot be judged until it is green; the cause is not yet found | `grred/out2.log`, `extra-token-tree.log` |
+| AC-2 corpus diff, `ec0907344e^` against `ec0907344e`, daemon feature tags | Not met as worded. Beyond the `announce flowspec` line and its new `action` wrapper nodes, the same commit removed every `peer announce ...` and `peer withdraw ...` node and changed `withdraw all` to `withdraw all [selector <selector>]`. The first capture, without feature tags, loaded no plugin YANG and proved nothing; `ac2/run2.sh` passes the `feature-gates.txt` tags | `ac2/diff.txt`, `ac2/out2.log` |
+| `docs/architecture/api/commands.md` | Still carries another session's uncommitted hunks, so its one-of edit (modifier paragraph near line 1500) was not made. It is the one doc not updated, owed once that session commits | `git status` |
+
+Remaining before closure: get `api-announce-flowspec-extra-token` green and walk its red; a ruling on the AC-2 deviation (were the `peer announce` / `peer withdraw` removals and the `withdraw all` selector meant to ride in `ec0907344e`, and which spec owns them); the commands.md edit; `./le doc check verify`; the generated catalogs; closure sections, independent review, commits A and B.
