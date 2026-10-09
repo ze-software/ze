@@ -314,9 +314,9 @@
     "zefs-config": {
       "assets": {
         "cast": {
-          "bytes": 42151,
+          "bytes": 42230,
           "path": "zefs-config.cast",
-          "sha256": "f1701fef68228cd96d195a1734d211563c9779aaaa31122923aad9337a0b4b55"
+          "sha256": "bd9dbca818b0d9866cba093f16fbaba3c5cfa40b3b4a62903554218fa5202af8"
         },
         "transcript": {
           "bytes": 2504,
@@ -324,10 +324,10 @@
           "sha256": "586e5c6adab2dbf37b97f201793a08ceccc75a03ad71be330e30717e84a5a884"
         }
       },
-      "binary-sha256": "a279d67087cb040c4a51e20d3ac5b7f64d937ca9f709f3678b2c05651fbfcb1c",
-      "definition-sha256": "2840fb8bdaa5d95536eee7a0c9175ab0598b9fe835c17b82be7155a0ccf918bd",
+      "binary-sha256": "9abe314a6ecf05f3d4943d6743d123f3bc3632eab8f45a238d34c2f5148196fd",
+      "definition-sha256": "b402800b69b3f05c77f9daf326379b47e5303d1f99dc1a49d4a62c7e808c0a11",
       "release": "26.10.09",
-      "source-sha256": "b9aab1c444ed82f5dcf1b837ff646ebb9467d61581b7b94b4b75dda2134dffa7"
+      "source-sha256": "13a12cf918827894261fbcb4e08d2e13e8bb3296c92b348af77e09c460207512"
     }
   },
   "renderer": {
