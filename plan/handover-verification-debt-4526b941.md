@@ -189,6 +189,6 @@ none of it a substitute for the native verification the rows ask for:
 - RADIUS accounting-only is unconfigurable: configuring a server for accounting
   also claims the single auth slot. Row in
   `plan/journal/unwired-feature.md`. Another session is taking it.
-- `plan/spec-fixit-flap-test-cannot-build-its-own-stimulus.md` is resolved but
+- `spec-fixit-flap-test-cannot-build-its-own-stimulus` is resolved but
   not closed. `./le commit create` refuses a `remove` of a spec with no
   independent-review artifact.

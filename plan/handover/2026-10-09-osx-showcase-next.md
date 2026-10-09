@@ -78,7 +78,7 @@ Follow-ups outside Phase 1, each already recorded:
 
 ## Open: closing the link-flap test spec
 
-`plan/spec-fixit-flap-test-cannot-build-its-own-stimulus.md` is `in-progress`.
+`spec-fixit-flap-test-cannot-build-its-own-stimulus` is `in-progress`.
 Its "Evidence 2026-10-09" section (`a7ca55d1bf`) records one green run of
 `iface-link-flap-during-commit` on an amd64 KVM guest against `98ee050ee9`, and
 a forced red that proves the overlap guard. Resume file:

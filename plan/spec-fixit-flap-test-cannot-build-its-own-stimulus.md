@@ -80,8 +80,12 @@ was 40 to 77 throughout, from parallel sessions.
 | green 3 | none | `26.7s 1/1 PASS 383 iface-link-flap-during-commit`; another session's IPsec interop run was up during it |
 | red D, receive buffer | `monitorReceiveBufferBytes = 1 << 12` | `2.8s 1/1 FAIL 383`: `round 0: kernel dropped 465 netlink notifications by the end of the burst`, load average 4.8, no interop containers up |
 
-Three greens on arm64 HVF and the amd64 KVM green above make four runs on two
-architectures with zero drops. Red D is the same break as red B: the drops
+The three greens on arm64 HVF are the runs that prove zero drops after every
+burst: they are the only greens of `51aa6d291d`. The amd64 KVM green above ran
+`98ee050ee9`, before the fix, and read the drops once at the end through the old
+`netlinkDrops08`, which answered -1 for an unreadable table. It proves the
+collision happens and the metric is reached on amd64, and it proves nothing
+about drops. Red D is the same break as red B: the drops
 check now fires first and names the loss. Red A still holds for the overlap guard:
 `51aa6d291d` changed no line of the overlap logic.
 
@@ -457,12 +461,12 @@ question 1 before touching a constant.
 | Current Linux/QEMU evidence, not historical counts | Done | "Evidence 2026-10-09" and "Evidence 2026-10-09 evening" | |
 | Overlap guard discriminated | Done | Red A | |
 | Zero-drops check discriminated | Done | Red D | |
-| Clean independent review | Pending | Review Gate | |
+| Clean independent review | Done | Review Gate | 0 BLOCKER, 0 ISSUE, 3 NOTE |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Done | greens 1-3 (arm64) and the amd64 green | |
+| AC-1 | Done | greens 1-3 (arm64, `51aa6d291d`) | the amd64 green ran `98ee050ee9` with the old end-of-run drops read, so it counts for the collision, not for zero drops |
 | AC-2 | Done | red A | |
 | AC-3 | Done | red D | |
 | AC-4 | Done | `TestSumNetlinkDrops08ReadsTheDropsColumnOrRefuses`, red under two mutations | |
@@ -482,7 +486,7 @@ question 1 before touching a constant.
 
 ### Audit Summary
 - **Total items:** 5 requirements, 4 ACs
-- **Done:** all but the review
+- **Done:** all
 - **Partial:** none
 - **Skipped:** none
 - **Changed:** see Deviations
@@ -491,7 +495,7 @@ question 1 before touching a constant.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| A link flapping during a commit that holds `dhcpMu` reaches the live-carrier metric without self-heal | functional, QEMU guest | `iface-link-flap-during-commit` PASS three times on arm64 HVF (`33.2s`, `27.3s`, `26.7s`) and once on amd64 KVM (`67.5s`), each asserting the metric, coalescing, zero resyncs and zero drops per round |
+| A link flapping during a commit that holds `dhcpMu` reaches the live-carrier metric without self-heal | functional, QEMU guest | `iface-link-flap-during-commit` PASS three times on arm64 HVF at `51aa6d291d` (`33.2s`, `27.3s`, `26.7s`), each asserting the metric, coalescing, zero resyncs and zero drops after every burst. The amd64 KVM PASS (`67.5s`) ran `98ee050ee9`, before the fix: it shows the burst collides with the commit's hold and reaches the metric on amd64, and it is not drops evidence, because it read the drops once at the end through the old reader that answered -1 |
 | The test cannot go vacuous: a burst that misses the hold fails | forced red | red A: `only 0 of 3 wanted rounds overlapped a commit in 6 attempts` |
 | No notification loss is hidden | forced red | red D (`monitorReceiveBufferBytes = 1 << 12`): `round 0: kernel dropped 465 netlink notifications by the end of the burst`, where red B with the same break had failed on the coalescing check |
 
@@ -505,14 +509,22 @@ question 1 before touching a constant.
 
 | Field | Value |
 |-------|-------|
-| Artifact | REVIEW-PENDING |
-| `./le spec review check` | not run |
-| Rounds | REVIEW-PENDING |
-| Reviewer lenses used | REVIEW-PENDING |
+| Artifact | `tmp/review/fixit-flap-test-cannot-build-its-own-stimulus-5620b26f-603e-4d57-826d-6ef92b7fcd64.md`, verdict clean |
+| `./le spec review check` | `review_gate: OK (3 code files, clean, hashes match ...)` |
+| Rounds | 1: 0 BLOCKER, 0 ISSUE, 3 NOTE |
+| Reviewer lenses used | independent `/ze-review` subagent over `51aa6d291d` and `8c42df35ab`: producer read of `ifaceLinkFlap08`, `netlinkDrops08`, `sumNetlinkDrops08`; unit test re-run; both mutation logs; red D clone provenance; `./le commit audit base origin/main` clean |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| none | | no BLOCKER or ISSUE | | |
+
+### Notes recorded
+| # | Note | Action |
+|---|------|--------|
+| 1 | Goal Validation row 1 and "Evidence 2026-10-09 evening" counted the amd64 KVM green (`98ee050ee9`, one end-of-run read through the old -1 reader) as zero-drops-per-round evidence | Record fixed in this closure: the amd64 green is cited for the collision only; per-burst zero drops rest on the three arm64 greens |
+| 2 | Green 3 overlapped another session's IPsec containers (host load 42-52). Load slows the monitor's reads, which makes drops likelier, and the run still read zero; red D failed at load 4.8 with no containers, so the red does not depend on contention | Strengthens the evidence; no change |
+| 3 | `/proc/net/netlink` Drops is per network namespace, so a drop on any socket in the guest's namespace fails the round under a message naming the burst. That fails red rather than green and predates this change (red C: the counter socket at 4 KiB did not drop) | Recorded; no change |
 
 ## Pre-Commit Verification
 
