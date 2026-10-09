@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | 5/6 |
+| Phase | closure |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -186,12 +186,12 @@ Steps 2 and 4 are the two halves that disagree. They share no code, which is why
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The `one-of` modifier has exactly one user in the repository today | A grep for a second handler enforcing a choose-one rule found none. Everything else found was "keyword requires a value" or "requires a selector" | The vocabulary word is justified by one command, which `ai/rules/simplicity.md` treats as a warning sign. Raised with the owner at the scope gate and confirmed | Re-run the grep at review and record the result | unvalidated |
-| A-2 | Nesting the three action containers does not disturb `component_parity_test.go` | `augmentedContainerNames` parses the FLOWSPEC augment file, and the action containers live in the ANNOUNCE module | The parity guard goes red or, worse, silently reads a smaller set | Run that test before and after the YANG change | unvalidated |
+| A-1 | The `one-of` modifier has exactly one user in the repository today | A grep for a second handler enforcing a choose-one rule found none. Everything else found was "keyword requires a value" or "requires a selector" | The vocabulary word is justified by one command, which `ai/rules/simplicity.md` treats as a warning sign. Raised with the owner at the scope gate and confirmed | Re-run the grep at review and record the result | broken (two users, see Assumptions Resolved) |
+| A-2 | Nesting the three action containers does not disturb `component_parity_test.go` | `augmentedContainerNames` parses the FLOWSPEC augment file, and the action containers live in the ANNOUNCE module | The parity guard goes red or, worse, silently reads a smaller set | Run that test before and after the YANG change | confirmed |
 | A-3 | No stored artifact holds a serialized usage grammar that a new `UsageKind` word would fail to round-trip | Traced every hop. `internal/le/wikicatalog` is typed as `[]command.UsageToken`, so `UsageKind.UnmarshalJSON` runs on the live bytes, but producer and consumer share `usageKindNames`, so one table gains one row. `internal/le/site/catalog.go` and `internal/le/docvalid/command_surfaces.go` both carry `Kind` as a plain string. No golden file and no `testdata/` holds a grammar | Nothing. The rework risk is one table row and two republished sibling artifacts | Re-run `./le doc yang-contract` after the renderer change | confirmed |
 | A-4 | A `.ci` can drive `ze announce` as argv against a live daemon | BROKEN, and known so before implementation. The daemon publishes its ephemeral SSH address at start into the file named by `ZE_SSH_EPHEMERAL`, so only a Go fixture can read it and set `ZE_SSH_HOST` and `ZE_SSH_PORT` on the client. `option=env` is static, and no `.ci` in `test/ui/` or `test/plugin/` sets `ZE_SSH_*` | The argv-level coverage needs a Go fixture, which is now in Files to Create rather than discovered mid-implementation | `internal/test/fixture/ui_fixture_cli_verb_daemon_dispatch.go` is the working precedent | broken |
-| A-6 | A single fixture can start a daemon over SSH AND a `le test peer`, so one test proves argv reaches the wire | No precedent found. `runCLIVerbDaemonDispatch` writes its own config and starts the daemon itself, so a `.ci`-launched `le test peer --port $PORT` is not in that config | The argv proof and the wire proof split into two tests: argv reaches the handler, and the handler reaches the wire. That is weaker than one end-to-end chain and must be stated as such rather than papered over | Write the fixture as a draft under `test/draft/` first and see whether the peer can be started from it | unvalidated |
-| A-5 | Refusing an unclaimed trailing token breaks no existing caller | This spec refuses more input than before, and no `.ci` exercises any announce form | A caller somewhere passes a trailing token that works by accident today | Grep every `.ci`, `.et` and unit test for announce invocations, then run the unit suite | unvalidated |
+| A-6 | A single fixture can start a daemon over SSH AND a `le test peer`, so one test proves argv reaches the wire | No precedent found. `runCLIVerbDaemonDispatch` writes its own config and starts the daemon itself, so a `.ci`-launched `le test peer --port $PORT` is not in that config | The argv proof and the wire proof split into two tests: argv reaches the handler, and the handler reaches the wire. That is weaker than one end-to-end chain and must be stated as such rather than papered over | Write the fixture as a draft under `test/draft/` first and see whether the peer can be started from it | confirmed |
+| A-5 | Refusing an unclaimed trailing token breaks no existing caller | This spec refuses more input than before, and no `.ci` exercises any announce form | A caller somewhere passes a trailing token that works by accident today | Grep every `.ci`, `.et` and unit test for announce invocations, then run the unit suite | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -522,3 +522,147 @@ Remaining before closure (superseded in part by the fourth-agent table above): g
 | Scoped lint | `./le go lint run scope` over the three packages, every flavor: 0 issues | `scratch/sublint.log` |
 | Site mirror | `subcommandsMirror` (`internal/le/site/equivalentdetail.go`) reads the catalog's `subcommands`, so it follows with no edit; the gh-pages data refreshes at the next `./le site build` | read |
 | Wiki catalog | Not republished: stale tree-wide, journal row in `plan/journal/stale-artifact-reused.md` (2026-10-09) | journal |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The model states the obligation: `ModifierOneOf` and `UsageGroupOneOf` join `modifierNames` and `usageKindNames` (`internal/component/command/usage.go`); `usageOneOfToken` and `writeOneOfMembers` render a required alternation; `modifierChildren` recurses only into a one-of. `ze-cli-announce-cmd.yang` wraps `community`, `rate-limit` and `discard` in an `action` container carrying `ze:modifier "one-of"`; `ze-extensions.yang` names the new occurrence in both places.
+- Completion and help agree: `listedChildren` (`help.go`) and the completer list the members, never the wrapper. `command.SubcommandNames` (08a720ad7c) makes both catalogs (`ze help command --json`, the wiki catalog) read the same answer; the two duplicate `extractSubcommands` were deleted.
+- The handler enforces: `parseTrailingOpts` (`internal/component/bgp/plugins/cmd/announce/announce.go`) answers `errTrailingOptUnclaimed` naming the word, for the unicast, blackhole and flowspec forms.
+- First functional coverage of the send verbs: `test/ui/send-unicast-reaches-the-wire.ci`, `test/ui/send-withdraw-by-tag.ci` (fixture `internal/test/fixture/ui_fixture_send_bgp.go`), `test/plugin/api-announce-flowspec-extra-token.ci`, `test/ui/test-announce-forms-are-separate-commands.ci`.
+
+### Bugs Found/Fixed
+- The catalogs published `action`, the one-of wrapper the handler rejects, under `send bgp flowspec` subcommands: fixed in 08a720ad7c, covered by `TestCatalogListsTheOneOfMembersNotTheWrapper` (red on the old output).
+
+### Documentation Updates
+- 3bef01bf07: `docs/architecture/api/commands.md` (one-of paragraph, anchored to `ModifierOneOf`, `usageOneOfToken`, `writeOneOfMembers`, `parseTrailingOpts`), `docs/architecture/bgp/on-demand-origination.md` (the imprecise "no command declares one-of" paragraph sharpened), `docs/architecture/config/yang-config-design.md` (ze:modifier row gains one-of), `docs/guide/command-reference.md` (send bgp origination forms), `ai/INDEX.md` (grammar row).
+- `./le doc check verify`: no finding in this spec's pages (`scratch/doccheck-close.log`).
+
+### Deviations from Plan
+- Command paths moved under the `send bgp` migration (`send bgp <selector> unicast|flowspec|withdraw ...`), so the planned `ze announce ...` test names are carried by the files listed in the audit below.
+- AC-2 was measured with the YANG corpus held fixed and the renderer swapped (main-thread decision recorded above), because `ec0907344e` also carried the `send bgp` migration's node removals.
+- `TestAnnounceRefusesAnUnclaimedTrailingToken` is named `TestAnnounceRefusesAWordAfterTheOptions`; `cli-announce-refuses-a-second-action` is `test/plugin/api-announce-flowspec-extra-token.ci`; `test-announce-forms-state-their-action` is `test/ui/test-announce-forms-are-separate-commands.ci`; the joint fixture is `ui_fixture_send_bgp.go`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 said the one-of modifier has exactly one user | `internal/plugins/skills/yang/ze-skills-cmd.yang` declares a second one-of (`action` over `list`/`get`, e3559aae37, 2026-10-08) | grep at closure | Recorded; the second user removes the single-user simplicity warning |
+| approach | The extra-token `.ci` read as TIME and was nearly diagnosed as this spec's defect | Default-port concurrency, the existing row 2026-09-08 in `plan/journal/gate-verdict-depends-on-the-machine.md` | Fourth agent: 7/7 green, red forced on a private port base | None new |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The line states the action as required | Done | `usageOneOfToken`, `writeOneOfMembers` (`usage.go`) | |
+| The handler refuses unclaimed trailing words | Done | `parseTrailingOpts` default arm (`announce.go`) | all three forms |
+| A functional test drives the real entry point | Done | the four `.ci` files above | forced reds recorded above |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | the flowspec usage expectation in `test/ui/test-announce-forms-are-separate-commands.ci`, `TestUsageRendersARequiredOneOfGroup` | |
+| AC-2 | Done | `scratch/ac2/run3.sh`: old YANG identical, new YANG differs on `announce flowspec` only | measured per the main-thread decision |
+| AC-3 | Done | `api-announce-flowspec-extra-token.ci` GREEN 7/7, forced RED in `xred` (`scratch/xred2.log`) | |
+| AC-4 | Done | `TestAnnounceRefusesAWordAfterTheOptions` subtests unicast, blackhole, flowspec | |
+| AC-5 | Done | `TestCompletionOffersTheActionsNotTheWrapper`, `TestHelpListsTheOneOfMembersNotTheWrapper` | |
+| AC-6 | Done | `send-unicast-reaches-the-wire.ci` GREEN, RED with `announceAndTrack` skipped (`grred/out.log`) | |
+| AC-7 | Done | `send-withdraw-by-tag.ci` GREEN, RED with `withdrawTagKey` skipped (`grred/out2.log`) | |
+| AC-8 | Done | `TestParseModifierReadsTheOneOfWord`, `TestUsageKindReadsBackFromItsWord` | |
+| AC-9 | Done | the `extension modifier` description and the comment table in `ze-extensions.yang` both name one-of; `grep 'four occurrences'` empty | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParseModifierReadsTheOneOfWord` | Done | `usage_test.go` | |
+| `TestUsageKindReadsBackFromItsWord` | Done | `usage_test.go` | |
+| `TestUsageRendersARequiredOneOfGroup` | Done | `usage_test.go` | |
+| `TestModifierChildrenRecursesOnlyIntoTheOneOf` | Done | `usage_test.go` | |
+| `TestCompletionOffersTheActionsNotTheWrapper` | Done | `completer_test.go` | |
+| `TestAnnounceRefusesAnUnclaimedTrailingToken` | Changed | `TestAnnounceRefusesAWordAfterTheOptions`, `announce_test.go` | renamed |
+| `TestAnnounceFlowspecUsageStatesTheComponents` | Done | `internal/component/plugin/server/usage_model_test.go` | |
+| functional rows | Changed | names in Deviations | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `usage.go`, `completer.go`, `help.go`, `ze-extensions.yang`, `ze-cli-announce-cmd.yang`, `announce.go`, `usage_model_test.go` | Done | |
+| `internal/test/fixture/ui_fixture_cli_announce.go` | Changed | carried by `ui_fixture_send_bgp.go` |
+| docs (six) | Done | 3bef01bf07; `docs/functional-tests.md` needed no row (no new suite) |
+
+### Audit Summary
+- **Total items:** 9 AC, 3 requirements, 8 test rows, 3 file rows
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (names only, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The line an operator reads states the obligation | functional | `test-announce-forms-are-separate-commands.ci` pins `(community <value>\|rate-limit <bytes-per-second>\|discard)`; AC-2 corpus diff shows no other line moved |
+| The handler accepts exactly that grammar | functional, forced red | `api-announce-flowspec-extra-token.ci`: FAIL `status=done data=map[announced:1], want an error naming rate-limit` with the default arm reverted (`scratch/xred2.log`), PASS restored |
+| A functional test drives the real entry point to the wire | functional, forced red | `send-unicast-reaches-the-wire.ci` (`ZE-OBSERVER-FAIL: the peer did not receive the announced 10.0.0.0/24` with the handler broken), `send-withdraw-by-tag.ci` (`withdrawn 0` with the registry removal broken) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none in scope | Every AC is met. The `.ci` coverage gate's blind spot and the unstated "at least one match component" are outside this spec by owner decision (Known Limitations); the wiki catalog republish is tree-wide (journal row) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/announce-grammar-stated-and-enforced-12d06ccf-2460-42c7-a707-30bb0a427796.md` (10 files, verdict=clean) |
+| `./le spec review check` | `review_gate: OK (10 code files, clean, hashes match ...)` |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring over 08a720ad7c (`SubcommandNames` reads `listedChildren`, all four call sites switched, no dead copy left), the refusal path (`parseTrailingOpts` fails closed for every form), style pass over the changed Go (no panic, no discarded error, comments are sentences) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none above NOTE | - | - |
+
+NOTEs: (1) the refusal echoes the operator's word unbounded, but `dispatch.go` already logs the whole command line at the same point, so it adds no exposure; (2) `writeOneOfMembers` prints the wrapper name for a member-less one-of, pinned deliberately by `TestUsageOneOfWithoutMembersRendersItsKeyword`, reachable only from a malformed module; (3) `TestCatalogListsTheOneOfMembersNotTheWrapper` fails without the feature tags, which the unit runner always passes (`fixtureTags`).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ui/send-unicast-reaches-the-wire.ci`, `test/ui/send-withdraw-by-tag.ci`, `test/ui/test-announce-forms-are-separate-commands.ci`, `test/plugin/api-announce-flowspec-extra-token.ci`, `internal/test/fixture/ui_fixture_send_bgp.go` | yes | `ls test/ui`, `ls test/plugin`, `grep -rl send-unicast-reaches-the-wire internal/test/fixture` (2026-10-09) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-4, AC-5, AC-8 | unit carriers pass | `go test -tags <feature tags>` over `command`, `cmd/announce`, `nlri/flowspec`, `le/cli/catalog`: all `ok` (`scratch/job-gr-close-a24881ef.log`, 2026-10-09 20:44) |
+| AC-9 | no stale count | `grep 'four occurrences' ze-extensions.yang`: empty |
+| AC-3, AC-6, AC-7, AC-2 | functional and corpus | recorded in the evidence sections above, red and green each |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `send bgp * unicast` argv against a daemon and peer | `send-unicast-reaches-the-wire.ci` runs `le test fixture ui/send-unicast-reaches-the-wire` | read |
+| `withdraw tag` after announce | `send-withdraw-by-tag.ci` | read |
+| `send bgp * flowspec ... discard rate-limit 500` | `api-announce-flowspec-extra-token.ci` | read, daemon log shows the refusal |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | two one-of users: `ze-cli-announce-cmd.yang` (`action`) and `ze-skills-cmd.yang` (`action`), grep 2026-10-09. Harmless: the second user strengthens the vocabulary word |
+| A-2 | confirmed | `component_parity_test.go` (`componentContainerNames` over the flowspec module) passes, and `ze-flowspec-cmd.yang` holds no `action` or one-of (grep count 0) |
+| A-3 | confirmed | as recorded |
+| A-4 | broken | as recorded; the Go fixture carries the argv proof |
+| A-5 | confirmed | 14 `.ci` invocations of `send bgp ... unicast/blackhole/flowspec` in `test/`; the unit suites above pass, and the fourth agent's `test bgp plugin` runs passed `api-announce-unicast` beside the extra-token test |
+| A-6 | confirmed | `ui_fixture_send_bgp.go` starts the daemon over ephemeral SSH and the `le test peer` in one fixture; `send-unicast-reaches-the-wire` GREEN and RED |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| commands.md one-of paragraph | `ModifierOneOf`, `usageOneOfToken`, `writeOneOfMembers`, `parseTrailingOpts` exist as named | yes |
+| catalogs | `SubcommandNames` is the single reader; gh-pages data refreshes at the next `./le site build` | yes |

@@ -428,7 +428,7 @@ with the action-move scope.
 |----------|--------|
 | What breaks if this is wrong? | Every operator command line, every script that calls `ze`, every `.ci` fixture that types a converted or moved command, every documentation example, and every recorded terminal demo. No action command loses its selector, so no wrong pipe can widen a side effect: the narrowing reaches display commands alone, and the worst display failure is an answer that shows too many rows. |
 | How is it reverted? | A single commit revert restores the YANG and the registrations. No config migration and no on-disk state is involved: the command tree is built at startup from the schema. |
-| Who else touches this path? | `spec-cli-pipe-operator-coverage` (closed 2026-09-05), `spec-cli-show-bgp-answer-shapes`, `plan/immediate/spec-announce-grammar-stated-and-enforced.md` and `plan/spec-cli-root-namespace-grammar-deferred-gate-reach.md` all work the command grammar or the pipe layer. `plan/journal/command-takes-an-untyped-positional-value.md` and `plan/journal/helper-bypassed-by-an-open-coded-copy.md` collect rows in this area. |
+| Who else touches this path? | `spec-cli-pipe-operator-coverage` (closed 2026-09-05), `spec-cli-show-bgp-answer-shapes`, `spec-announce-grammar-stated-and-enforced` (closed 2026-10-09) and `plan/spec-cli-root-namespace-grammar-deferred-gate-reach.md` all work the command grammar or the pipe layer. `plan/journal/command-takes-an-untyped-positional-value.md` and `plan/journal/helper-bypassed-by-an-open-coded-copy.md` collect rows in this area. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
