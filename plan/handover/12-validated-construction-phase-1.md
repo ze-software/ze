@@ -49,6 +49,17 @@ Batch 1 notes for the next batch:
 - Open after batch 1: `./le rfc check` reports RFC7950-9.6.4.2-1 SHIFTED. The audit fingerprint is file-level, and batch 1 had to edit `config/yang/rfc7950_enum_value_test.go` (one untagged line, `def.EnumValues` no longer compiles); the four tagged units are byte-identical. Do not run `./le rfc reseal` (it rewrites every RFC's audit file); clear it with an independent `ze-rfc-audit` re-judge of that one verdict (`mode rejudge`), folded into the next batch that touches rfc7950.
 - `test/weakened/<session>.md` holds only the rows the next commit owes: `./le commit create` drops rows whose text HEAD already has (`docs/contributing/testing.md`). An empty table after a commit is correct; do not "restore" landed rows. The prepared script `tmp/commit-f93f1d5f-d-8a429f.sh` did that and was deliberately not run. The other seven `rfc check` findings (L2TP/EAP naming, RFC8907 stale and discrimination) predate batch 1.
 
+## Owner exception, 2026-10-09
+
+Owner, verbatim: "I give you an exception for the rule". It answers the question
+about batch 5 (C-T2e, the `pluginserver.Handler` change across 69 directories):
+for that batch, the rewriter MAY edit a file that holds another session's
+uncommitted hunks (`.claude/rules/foreign-files.md` waived for C-T2e only).
+Still owed: rewrite only the handler-signature lines the batch needs, leave the
+foreign hunks byte-identical, and name in the commit body every file whose
+foreign hunks rode along (`ai/rules/git-safety.md`, judged against HEAD). The
+RFC-tagged-test approval is NOT covered: it is still asked per unit.
+
 ## What the next session needs to know
 
 - Already committed: the YANG loader returns its errors (ac6c5ce12d, a5b3180063, 40db22a585), plus its structural and grammar checks (12f339513b, 6c06cb43af, 037cc25e29, a812b18c41, 7070e5861a). `./le rfc check` reports no RFC 7950 finding after 9cbf26548c.
