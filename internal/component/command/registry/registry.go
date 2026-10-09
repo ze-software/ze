@@ -29,7 +29,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"sync"
 
@@ -52,27 +51,6 @@ var (
 
 // LocalHandler runs a CLI command in-process (no daemon required).
 type LocalHandler func(args []string) int
-
-// LocalDataHandler answers a command with structured DATA instead of printing
-// text, so the answer can go through the pipe layer like any other.
-//
-// A LocalHandler prints and returns an exit code, which is why 38 commands
-// reached no pipe layer on any surface: by the time RunCommand had a result
-// there was nothing left but an int, and `ze cli -c "show env list | json"`
-// answered `unknown command` because the daemon serves no such method. A data
-// handler returns the payload, and the caller renders it.
-//
-// The value MUST be structured data a JSON encoder can take: a map, a slice, or
-// a struct. It MUST NOT be text a renderer already formatted, for the reason
-// ai/rules/cli.md gives for every other handler: `| json`, `| yaml` and
-// `| table` are three renderings of ONE payload.
-//
-// The two results are INDEPENDENT. The payload says whether there is an answer
-// to render, the code says what the process exits with, and a command MAY have
-// both: `validate config` answers the diagnostics of a config it rejects and
-// exits 1. A handler with nothing to say MUST write its reason to stderr and
-// return a nil payload.
-type LocalDataHandler func(args []string) (any, int)
 
 // RootHandler runs an owner-backed root command in-process. It receives the
 // process RuntimeContext built by cmd/ze/main.go after global flag parsing,
@@ -347,9 +325,6 @@ func longestLocalPrefix(words []string) (LocalHandler, int) {
 	return nil, 0
 }
 
-// localDataHandlers holds the commands that answer with data in this process.
-var localDataHandlers = make(map[string]LocalDataHandler)
-
 // localArgCheck judges the arguments of a local command against the leaves its
 // YANG declares, and answers the tokens it judged. The command package installs
 // it (RegisterLocalArgCheck), because that package imports this one. Nil means
@@ -362,8 +337,8 @@ var localArgCheck func(path string, args []string) ([]string, error)
 var errLocalArgCheckMissing = errors.New("argument definitions are not loaded in this process")
 
 // RegisterLocalArgCheck installs the argument judgment every local route runs
-// before its handler: the plain handler RegisterLocalData builds, and the
-// callers of LookupLocal and LookupOfflineFallback through ValidateLocalArgs.
+// before its handler: the callers of LookupLocal and LookupOfflineFallback,
+// through ValidateLocalArgs.
 // The check MUST answer only tokens it judged (command.ValidateArgs's value).
 // Called from init(); not safe for concurrent use with a handler call.
 func RegisterLocalArgCheck(check func(path string, args []string) ([]string, error)) {
@@ -381,89 +356,6 @@ func ValidateLocalArgs(path string, args []string) ([]string, error) {
 		return nil, errLocalArgCheckMissing
 	}
 	return localArgCheck(path, args)
-}
-
-// RegisterLocalData registers a command that answers with structured data in
-// this process, so its answer reaches the pipe layer.
-//
-// It ALSO registers a plain local handler, built from the same data handler, so
-// `ze <verb>` prints exactly what it printed before and the two forms of one
-// command cannot drift apart. That drift is real: `ze show interface` took the
-// local path and `ze cli -c "show interface"` took the daemon's, and only the
-// second honored a pipe.
-func RegisterLocalData(path string, handler LocalDataHandler, meta Meta, render func(string, any) int) error {
-	if path == "" {
-		return errRegisterLocalEmptyPath
-	}
-	if handler == nil {
-		return fmt.Errorf("registry.RegisterLocalData: nil handler for %q", path)
-	}
-	if render == nil {
-		return fmt.Errorf("registry.RegisterLocalData: nil renderer for %q", path)
-	}
-	if err := RegisterLocalMeta(path, func(args []string) int {
-		// The arguments are judged before the handler runs, as ServeLocal
-		// judges them on the `ze cli -c` route. This route once ran the
-		// handler directly, so `ze show env get` with a 129-character key
-		// reached it although the leaf declares 1..128.
-		validated, err := ValidateLocalArgs(path, args)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
-			return 1
-		}
-		// A nonzero code with a payload is an ANSWER the command exits
-		// nonzero on, not an error with nothing to say: `validate config`
-		// renders the diagnostics of a config it rejects and exits 1. The
-		// renderer's own failure wins, because then nothing was printed.
-		payload, code := handler(validated)
-		if payload == nil {
-			return code
-		}
-		if renderCode := render(path, payload); renderCode != 0 {
-			return renderCode
-		}
-		return code
-	}, meta); err != nil {
-		return err
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	localDataHandlers[path] = handler
-	return nil
-}
-
-// MustRegisterLocalData is RegisterLocalData, and panics rather than letting a
-// command register half.
-func MustRegisterLocalData(path string, handler LocalDataHandler, meta Meta, render func(string, any) int) {
-	err := RegisterLocalData(path, handler, meta, render)
-	if err == nil {
-		return
-	}
-	// The detail goes to stderr and the panic value is a literal. A registration
-	// failure is a programming error at init, so the process must stop, and the
-	// error already names the path that could not register.
-	fmt.Fprintln(os.Stderr, "BUG: registry.MustRegisterLocalData:", err)
-	panic("BUG: registry.MustRegisterLocalData")
-}
-
-// LookupLocalData answers the data handler for a command path, by longest
-// registered prefix, with the words that follow it as its arguments.
-func LookupLocalData(words []string) (LocalDataHandler, []string) {
-	mu.RLock()
-	defer mu.RUnlock()
-	for i := len(words); i > 0; i-- {
-		if handler, ok := localDataHandlers[textbuf.Join(words[:i], " ")]; ok {
-			return handler, words[i:]
-		}
-	}
-	return nil, nil
-}
-
-// ResetLocalDataForTest clears every registered data handler.
-func ResetLocalDataForTest() {
-	mu.Lock()
-	defer mu.Unlock()
-	localDataHandlers = make(map[string]LocalDataHandler)
 }
 
 // RegisterOfflineFallback registers an in-process handler for a read-only

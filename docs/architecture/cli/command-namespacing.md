@@ -286,7 +286,7 @@ third: `show bgp neighbor ipv6`, not `--family ipv6`.
 |----------|-----|-------------|
 | A command name | A flag that dispatches is a verb in disguise. It enters no tree, so completion, `ze help command` and the grammar feeders never see it | a registered root, or a path under a read verb |
 | One of a mutually exclusive set | Several booleans, exactly one legal, is a closed keyword set the type system does not check | one keyword slot |
-| A second spelling of a pipe operator | `--json` and `\| json` are one job under two names. Only the operator composes. One shape is allowed: a session default that lowers into the operator, as `commandWithFormat` does | `\| json`, over an answer registered through `registry.MustRegisterLocalData` |
+| A second spelling of a pipe operator | `--json` and `\| json` are one job under two names. Only the operator composes. One shape is allowed: a session default that lowers into the operator, as `commandWithFormat` does | `\| json`, over an answer registered through `command.MustRegisterLocalData` |
 | A filter that exists as grammar elsewhere | The operator learns one concept twice, and the two surfaces then disagree about it | the keyword |
 | Silently ignored when unknown | The operator's intent is dropped and the exit code reports it was honored | name the token in the error and exit non-zero |
 

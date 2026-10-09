@@ -158,9 +158,14 @@ the answer cannot vary with the health of the box being diagnosed.
 
 A local-data command never asks a daemon. Its handler reads a registry that
 `init()` filled in this process, so the answer exists before `main()` does. It
-registers with `cmdregistry.MustRegisterLocalData(path, handler, meta,
+registers with `command.MustRegisterLocalData(path, handler, meta,
 command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
-`| yaml` and `| table` be three renderings of one payload.
+`| yaml` and `| table` be three renderings of one payload. The handler
+(`command.LocalDataHandler`) takes the `command.ValidatedArgs` the validator
+returned, never a token slice, and reads `Tokens()` or `Positional(leaf)`. The
+data-handler registry lives in package `command` rather than in the
+local-handler registry, because that registry cannot import `command` and so
+cannot name the value.
 
 The handler returns a payload AND an exit code, and the two are independent. The
 code carries the verdict, the payload carries the evidence, and `validate config`
@@ -172,7 +177,7 @@ which prints nothing. The one local result stdout never sees is a pipe error,
 which is a diagnostic about the operator's own chain rather than an answer to
 their question.
 <!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
-<!-- source: internal/component/command/registry/registry.go -- LocalDataHandler -->
+<!-- source: internal/component/command/local_data.go -- LocalDataHandler, RegisterLocalData, LookupLocalData -->
 
 Before the handler runs, `ServeLocal` judges the arguments against the leaves
 the command's YANG declares, with `command.ValidateArgs`, the same validator the
@@ -180,18 +185,25 @@ daemon dispatcher calls. A refused argument is written to stderr and exits 1, an
 the handler is never called. The definitions come from the YANG package, which
 registers itself as the source (`command.RegisterArgDefSource`); a process with
 no source registered refuses every local command rather than skipping the check.
-The handler runs on the tokens of the value `ValidateArgs` returned, never on
-the raw words.
+The handler runs on the value `ValidateArgs` returned, never on the raw words.
 <!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, ValidateModelArgs -->
 <!-- source: internal/component/config/yang/command.go -- commandArgDefs -->
 
 `ze <verb>` does not pass through `ServeLocal`: it runs the plain local handler
-that `registry.RegisterLocalData` builds from the same data handler. That
-handler runs the same judgment first (`registry.ValidateLocalArgs`, the check
-which `command.RegisterArgDefSource` installs), so `ze show env get <key>` and
-`ze cli -c "show env get <key>"` refuse the same values with the same message.
-<!-- source: internal/component/command/local_data.go -- RegisterArgDefSource -->
-<!-- source: internal/component/command/registry/registry.go -- RegisterLocalData, ValidateLocalArgs -->
+that `command.RegisterLocalData` builds from the same data handler and registers
+in the local-handler registry. That handler runs the same judgment first
+(`command.ValidateModelArgs`) and hands the data handler the value it got, so
+`ze show env get <key>` and `ze cli -c "show env get <key>"` refuse the same
+values with the same message.
+<!-- source: internal/component/command/local_data.go -- RegisterLocalData, plainLocalData, ValidateModelArgs -->
+
+An `le` tool registers through the same call (`leroot.Register`), and `le`'s
+own dispatcher (`leroot.Run`) is a route too: an `le` tool declares no
+argument definitions, since its words are its own grammar, so `Run` judges them
+against none with `command.ValidateArgs` and runs the registered handler on that
+value. The tool's own `leroot.Answer` keeps the token slice and reads the judged
+tokens.
+<!-- source: internal/le/le/root/leroot.go -- Register, toolHandler, Run -->
 
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
@@ -1467,7 +1479,7 @@ model through `command.ValidateModelArgs`.
 |-------|-------|-------------|
 | R1 daemon dispatcher | `Dispatcher.Dispatch` | the matched command's `ArgDefs`, inline selectors pre-matched |
 | R2 in-process local data (`ze cli -c`) | `command.ServeLocal` | the model, by path |
-| R3 the plain handler `RegisterLocalData` builds | `registry.RegisterLocalData` | the model, through `registry.ValidateLocalArgs` |
+| R3 the plain handler `RegisterLocalData` builds | `command.plainLocalData` | the model, through `command.ValidateModelArgs` |
 | R4 RPC wrapper | `Server.wrapHandler` | the model, the params' selector pre-matched |
 | R5 ensure-exists steps | `wrapWithEnsureChain` | the ancestor node's `ArgDefs`, the dispatcher's selectors pre-matched |
 | R6 `ze <verb>` local handlers | `cmd/ze` dispatch, `cmdutil.matchLocalHandler` | the model, through `registry.ValidateLocalArgs` |
@@ -1482,16 +1494,20 @@ declares an argument is also served by a builtin, which judges first (R1);
 plugin serving `show config cat`, which no daemon builtin serves.
 
 The local-handler registry cannot import `command`, so `RegisterArgDefSource`
-installs the judgment there too (`registry.RegisterLocalArgCheck`); a process
-that installed none refuses every local route.
+installs the judgment there too (`registry.RegisterLocalArgCheck`) for R6 and
+R7; a process that installed none refuses both.
 
-A streaming handler (`pluginserver.StreamingHandler`) takes the
-`command.ValidatedArgs` itself, so no route can declare or invoke one with a
-token slice: R8 hands it the value `GetStreamingHandlerForCommand` answered, and
-the handler reads `Tokens()` or `Positional(leaf)`. The other handler types still
-take a token slice, and their routes pass `ValidatedArgs.Tokens()`.
+A streaming handler (`pluginserver.StreamingHandler`) and a data handler
+(`command.LocalDataHandler`) take the `command.ValidatedArgs` itself, so no route
+can declare or invoke one with a token slice: R8 hands a streaming handler the
+value `GetStreamingHandlerForCommand` answered, R2 and R3 hand a data handler
+the value they judged, and the handler reads `Tokens()` or `Positional(leaf)`. A
+test that calls a handler directly builds its value with `commandtest.Args`,
+which goes through `ValidateArgs`. The other handler types still take a token
+slice, and their routes pass `ValidatedArgs.Tokens()`.
 <!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
-<!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource -->
+<!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource, LocalDataHandler -->
+<!-- source: internal/component/command/commandtest/commandtest.go -- Args -->
 <!-- source: internal/component/command/registry/registry.go -- ValidateLocalArgs, RegisterLocalArgCheck -->
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
 <!-- source: internal/component/plugin/server/server.go -- wrapHandler -->

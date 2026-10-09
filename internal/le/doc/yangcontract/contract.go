@@ -82,6 +82,11 @@ const (
 	pkgCmdRegistry = "cmdregistry"
 )
 
+// pkgCommand is the identifier package command is imported under. A data
+// handler registers there, because its handler type takes the validated
+// arguments only that package can build.
+const pkgCommand = "command"
+
 // skippedWireMethods are handlers that need no YANG command tree entry.
 var skippedWireMethods = map[string]bool{
 	"ze-cli:editor-mode-command": true,
@@ -506,8 +511,8 @@ func vanished(path string) bool {
 // Most callers use the bare `registry` name; help_ai.go aliases it as
 // `cmdregistry` to avoid a collision with plugin/registry, so both are
 // accepted. A command that answers with DATA registers a local handler too:
-// RegisterLocalData builds one from the data handler so `ze <verb>` and
-// `ze cli -c` render through one path. Omitting those names reported twelve
+// command.RegisterLocalData builds one from the data handler so `ze <verb>`
+// and `ze cli -c` render through one path (localRegistrar). Omitting those names reported twelve
 // YANG commands as having no handler on the day they were converted, when
 // every one of them had gained one.
 func collectLocalHandlersFromFile(path string, paths map[string]bool) error {
@@ -526,14 +531,7 @@ func collectLocalHandlersFromFile(path string, paths map[string]bool) error {
 		if !ok {
 			return true
 		}
-		pkg, ok := selector.X.(*ast.Ident)
-		if !ok || (pkg.Name != pkgCmdRegistry && pkg.Name != pkgRegistry) {
-			return true
-		}
-		switch selector.Sel.Name {
-		case "MustRegisterLocal", "MustRegisterLocalMeta", "RegisterLocal", "RegisterLocalMeta",
-			"MustRegisterLocalData", "RegisterLocalData":
-		default:
+		if !localRegistrar(selector) {
 			return true
 		}
 		literal, ok := call.Args[0].(*ast.BasicLit)

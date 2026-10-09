@@ -22,6 +22,8 @@ import (
 	"sort"
 
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // Row and field keys of the answers below. register.go declares the column
@@ -40,7 +42,7 @@ func writeSchemaError(err error) {
 }
 
 // dataList answers `show schema list`: every registered module.
-func dataList(_ []string) (any, int) {
+func dataList(command.ValidatedArgs) (any, int) {
 	registry, err := buildSchemaRegistry(nil)
 	if err != nil {
 		writeSchemaError(err)
@@ -70,7 +72,7 @@ func dataList(_ []string) (any, int) {
 // dataHandlers answers `show schema handlers` as ROWS rather than as the
 // path-to-module map the deleted rendering option emitted. A map keyed by path
 // carries the same facts, and rows are what a row operator can act on.
-func dataHandlers(_ []string) (any, int) {
+func dataHandlers(command.ValidatedArgs) (any, int) {
 	registry, err := buildSchemaRegistry(nil)
 	if err != nil {
 		writeSchemaError(err)
@@ -91,7 +93,8 @@ func dataHandlers(_ []string) (any, int) {
 }
 
 // dataMethods answers `show schema methods [module]`.
-func dataMethods(args []string) (any, int) {
+func dataMethods(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	return schemaEntryRows(args, "methods", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
 		rpcs := reg.ListRPCs(module)
 		entries := make([]schemaEntry, len(rpcs))
@@ -103,7 +106,8 @@ func dataMethods(args []string) (any, int) {
 }
 
 // dataEvents answers `show schema events [module]`.
-func dataEvents(args []string) (any, int) {
+func dataEvents(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	return schemaEntryRows(args, "events", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
 		notifs := reg.ListNotifications(module)
 		entries := make([]schemaEntry, len(notifs))
@@ -148,7 +152,7 @@ func schemaEntryRows(args []string, key string,
 // dataProtocol answers `show schema protocol`. It is ONE document rather than
 // rows, and it declares that shape, so the row operators are refused by name
 // over it instead of answering something plausible.
-func dataProtocol(_ []string) (any, int) {
+func dataProtocol(command.ValidatedArgs) (any, int) {
 	return map[string]any{
 		subProtocol: "Hub Architecture",
 		"version":   "1.0",

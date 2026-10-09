@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -32,7 +32,7 @@ func dispatch(
 	root string,
 	identity verifyengine.Identity,
 	owns func(string) bool,
-	lookup func(string) registry.LocalDataHandler,
+	lookup func(string) command.LocalDataHandler,
 	resolveRoot func() (string, error),
 ) (result verifyengine.ActionResult) {
 	identity.Args = slices.Clone(identity.Args)
@@ -101,7 +101,7 @@ func dispatch(
 	output.Reset()
 	result.Code = leroot.Run(
 		identity.Command,
-		leroot.Answer(handler),
+		handler,
 		slices.Clone(identity.Args),
 		&output,
 		&output,

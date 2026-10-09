@@ -432,7 +432,7 @@ See `ai/patterns/registration.md` "Binary Personality Registration" section.
 | `registry.RootHandler` = `func(rctx *RuntimeContext, args []string) int` | Owner root handler signature; ignore `rctx` if no process deps needed |
 | `registry.RuntimeContext` | Process-entry deps built by `main.go` (plugin list, config override, version printer, web/MCP flags). It carries no store: a command opens the store itself (see "Storage-dependent commands") |
 | `registry.RegisterLocal` / `MustRegisterLocal` / `RegisterLocalMeta` / `MustRegisterLocalMeta` | Path-keyed local handler (`"show bgp decode"`) for offline shortcuts. The handler returns an exit code and prints for itself |
-| `registry.RegisterLocalData` / `MustRegisterLocalData` | Path-keyed local handler that returns DATA (`func(args []string) (any, int)`) and a renderer, normally `command.RenderLocalAnswer`. Use it whenever the command answers rows or an object, because the pipe layer then renders `\| json`, `\| yaml` and `\| table` from one payload |
+| `command.RegisterLocalData` / `MustRegisterLocalData` | Path-keyed local handler that returns DATA (`func(args command.ValidatedArgs) (any, int)`, the arguments already judged against the YANG leaves) and a renderer, normally `command.RenderLocalAnswer`. Use it whenever the command answers rows or an object, because the pipe layer then renders `\| json`, `\| yaml` and `\| table` from one payload |
 | `registry.LookupRoot(name)` / `LookupLocal(words)` | Dispatch lookups used by `main.go` |
 | `registry.ListLocal()` / `ListRoot()` / `ListRootBySection()` | Enumerate everything; used by `help ai` |
 | `registry.HasLocal` / `HasRootHandler` / `ResetForTest` | Test helpers (do not `ResetForTest` from `cmd/ze` tests -- it wipes init-registered roots; use sentinel names) |
@@ -455,7 +455,7 @@ together, and the last one is enforced by a gate.
 
 | Declaration | Call | Why |
 |-------------|------|-----|
-| The command and its handler | `cmdregistry.MustRegisterLocalData(path, handler, meta, command.RenderLocalAnswer)` | The path MUST be a string literal at the call: `./le doc yang-contract command-contract` parses this file and reads literals, so a `const` identifier reaches it as no path at all |
+| The command and its handler | `command.MustRegisterLocalData(path, handler, meta, command.RenderLocalAnswer)` | The path MUST be a string literal at the call: `./le doc yang-contract command-contract` parses this file and reads literals, so a `const` identifier reaches it as no path at all |
 | The answer shape | `command.RegisterShape([]string{path}, command.ShapeTab)` | The published pipe catalog can then say which operators apply before the command runs |
 | The column order | `command.RegisterColumns([]string{path}, command.ColumnOrder{...})` | Without it `\| table` orders columns alphabetically |
 | The runtime evidence | One row in `internal/test/localdatacoverage.Evidence()`, plus an assertion in the same package's walk | `TestEveryLocalDataRegistrationHasAFunctionalCase` (`internal/component/command/registry`) derives production registrations from the Go AST and fails when one has no row. The row's command MUST carry a real pipe |

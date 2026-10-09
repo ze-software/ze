@@ -26,11 +26,11 @@ func init() {
 	// list and registered answer with DATA, so their answers reach the pipe
 	// layer. They printed a table and returned an exit code, while YANG
 	// declared a wire method for each that no daemon handler implements.
-	registry.MustRegisterLocalData("show data list", dataList, registry.Meta{
+	command.MustRegisterLocalData("show data list", dataList, registry.Meta{
 		ShortHelp: "List every matching store key recursively, optionally narrowed by prefix.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show data registered", dataRegistered, registry.Meta{
+	command.MustRegisterLocalData("show data registered", dataRegistered, registry.Meta{
 		ShortHelp: "The key patterns the code declares, and what each one holds.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)

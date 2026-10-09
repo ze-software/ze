@@ -62,18 +62,18 @@ func init() {
 	// and no command carries a rendering flag of its own. They printed and
 	// returned an exit code before, which is why
 	// `ze cli -c "show config dump x.conf | json"` answered `unknown command`.
-	registry.MustRegisterLocalData("show config dump", dataDump, registry.Meta{
+	command.MustRegisterLocalData("show config dump", dataDump, registry.Meta{
 		ShortHelp: "Show the fully resolved config tree. What you see is exactly what the daemon uses.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show config diff", dataDiff, registry.Meta{
+	command.MustRegisterLocalData("show config diff", dataDiff, registry.Meta{
 		ShortHelp: "Show what changed between the running and candidate configurations.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config fmt", func(args []string) int {
 		return Run(append([]string{"fmt"}, args...))
 	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."})
-	registry.MustRegisterLocalData("validate config", dataValidate, registry.Meta{
+	command.MustRegisterLocalData("validate config", dataValidate, registry.Meta{
 		ShortHelp: "Check a config for errors without applying it.",
 		Description: "Both the grammar of the file and the meaning of its values are checked, and each " +
 			"problem is reported with the diagnostic code that explains it.",
@@ -89,11 +89,11 @@ func init() {
 	})
 
 	// History shortcuts resolve the store lazily after parsing arguments.
-	registry.MustRegisterLocalData("show config history", dataHistory, registry.Meta{
+	command.MustRegisterLocalData("show config history", dataHistory, registry.Meta{
 		ShortHelp: "List config snapshots with timestamps and commit messages.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show config list", dataList, registry.Meta{
+	command.MustRegisterLocalData("show config list", dataList, registry.Meta{
 		ShortHelp: "List stored config snapshots and loose config files.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)

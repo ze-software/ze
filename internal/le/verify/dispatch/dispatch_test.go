@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/env"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -120,7 +121,7 @@ func TestDispatchRefusesUnownedMissingAndMismatchedRoots(t *testing.T) {
 	root := t.TempDir()
 	identity := verifyengine.Identity{Name: "ze-refusal", Command: "refusal-probe", Args: []string{"exact"}}
 	resolve := func() (string, error) { return root, nil }
-	missing := func(string) registry.LocalDataHandler { return nil }
+	missing := func(string) command.LocalDataHandler { return nil }
 
 	unowned := dispatch(context.Background(), root, identity,
 		func(string) bool { return false }, missing, resolve)
@@ -167,7 +168,8 @@ func TestDispatchSerializesRootOverrides(t *testing.T) {
 	var overlap atomic.Int32
 	var active atomic.Int32
 
-	handler := func(args []string) (any, int) {
+	handler := func(validated command.ValidatedArgs) (any, int) {
+		args := validated.Tokens()
 		if active.Add(1) > 1 {
 			overlap.Store(1)
 		}
@@ -183,7 +185,7 @@ func TestDispatchSerializesRootOverrides(t *testing.T) {
 		close(secondEntered)
 		return nil, 12
 	}
-	lookup := func(string) registry.LocalDataHandler { return handler }
+	lookup := func(string) command.LocalDataHandler { return handler }
 	owns := func(string) bool { return true }
 
 	var first, second verifyengine.ActionResult

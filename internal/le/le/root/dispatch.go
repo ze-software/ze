@@ -16,6 +16,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -73,7 +74,7 @@ const commandWordsMax = 2
 //
 // The pipe word ends the candidate span, so `le verify list | json` offers the
 // matcher `verify list` and never the chain.
-func resolve(args []string) (string, registry.LocalDataHandler, []string) {
+func resolve(args []string) (string, command.LocalDataHandler, []string) {
 	span := min(len(args), commandWordsMax)
 	for index := range args[:span] {
 		if args[index] == pipeWord {
@@ -89,7 +90,7 @@ func resolve(args []string) (string, registry.LocalDataHandler, []string) {
 	words = append(words, "le")
 	words = append(words, args[:span]...)
 
-	handler, trailing := registry.LookupLocalData(words)
+	handler, trailing := command.LookupLocalData(words)
 	if handler == nil {
 		return "", nil, nil
 	}
@@ -130,7 +131,7 @@ func Dispatch(program string, args []string) int {
 	// page a reader has always seen. `le` asked a question rather than making a
 	// mistake, so the answer goes to stdout and the code is 0.
 	if own, _ := splitChain(args); len(own) == 0 {
-		return Run("", func([]string) (any, int) { return manifestOf(program), 0 }, args, os.Stdout, os.Stderr)
+		return Run("", func(command.ValidatedArgs) (any, int) { return manifestOf(program), 0 }, args, os.Stdout, os.Stderr)
 	}
 	if isHelpArg(args[0]) {
 		if len(args) == 1 {
@@ -151,7 +152,7 @@ func Dispatch(program string, args []string) int {
 		if asksForUsage(name, own) {
 			return helpTrailing(program, name, own)
 		}
-		return Run(name, Answer(handler), toolArgs, os.Stdout, os.Stderr)
+		return Run(name, handler, toolArgs, os.Stdout, os.Stderr)
 	}
 
 	// A namespace token is not an unknown command, it is a question: what does

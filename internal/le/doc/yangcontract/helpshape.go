@@ -603,16 +603,37 @@ func mainPackageLocalCommands(root string) ([]registry.LocalCommandEntry, error)
 	return out, nil
 }
 
-// localRegistrars names the registry functions that publish a local command.
-// contract.go reads the same set for the same reason, and a name missing here
-// is a registration the gate does not see.
+// localRegistrars names the command registry functions that publish a local
+// command, and localDataRegistrars the package command functions that publish
+// a data command, which register its plain local handler too. contract.go
+// reads the same sets for the same reason, and a name missing here is a
+// registration the gate does not see.
 var localRegistrars = map[string]bool{
 	"RegisterLocal":         true,
 	"MustRegisterLocal":     true,
 	"RegisterLocalMeta":     true,
 	"MustRegisterLocalMeta": true,
+}
+
+var localDataRegistrars = map[string]bool{
 	"RegisterLocalData":     true,
 	"MustRegisterLocalData": true,
+}
+
+// localRegistrar reports whether a call's function publishes a local command,
+// under the package identifier that function lives in.
+func localRegistrar(selector *ast.SelectorExpr) bool {
+	pkg, ok := selector.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	switch pkg.Name {
+	case pkgRegistry, pkgCmdRegistry:
+		return localRegistrars[selector.Sel.Name]
+	case pkgCommand:
+		return localDataRegistrars[selector.Sel.Name]
+	}
+	return false
 }
 
 // localCommandsInFile answers every local command the file at path registers.
@@ -631,11 +652,10 @@ func localCommandsInFile(path string) ([]registry.LocalCommandEntry, error) {
 			return true
 		}
 		selector, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || !localRegistrars[selector.Sel.Name] {
+		if !ok {
 			return true
 		}
-		pkg, ok := selector.X.(*ast.Ident)
-		if !ok || (pkg.Name != pkgRegistry && pkg.Name != pkgCmdRegistry) {
+		if !localRegistrar(selector) {
 			return true
 		}
 

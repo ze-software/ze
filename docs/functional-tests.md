@@ -2711,7 +2711,7 @@ ze bgp decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
 
 ### Adding a local-data command
 
-A command registered with `cmdregistry.MustRegisterLocalData` owes runtime
+A command registered with `command.MustRegisterLocalData` owes runtime
 evidence, and `TestEveryLocalDataRegistrationHasAFunctionalCase`
 (`internal/component/command/registry`) enforces it: the test derives every
 production registration from the Go AST and fails when one has no row. Four

@@ -20,6 +20,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -56,19 +57,20 @@ const keyVariables = "variables"
 
 // dataList answers `show env list`. The rows carry their effective values,
 // because a reader asking a machine for the list wants what is in force.
-func dataList(_ []string) (any, int) {
+func dataList(command.ValidatedArgs) (any, int) {
 	return map[string]any{keyVariables: envRows(true)}, 0
 }
 
 // dataRegistered answers `show env registered`: what the code declares, with no
 // effective value, which is the difference between the two commands.
-func dataRegistered(_ []string) (any, int) {
+func dataRegistered(command.ValidatedArgs) (any, int) {
 	return map[string]any{keyVariables: envRows(false)}, 0
 }
 
 // dataGet answers `show env get <key>` with the one variable, or refuses by
 // name. It answers the same row shape as the list, so a caller parses one thing.
-func dataGet(args []string) (any, int) {
+func dataGet(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		writeErr("error: show env get requires a key")
 		return nil, 1

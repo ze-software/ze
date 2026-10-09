@@ -93,7 +93,7 @@ gate collects the populations they judge by parsing every Go source under
 |------|-----------|----------------|
 | F1 | a registered root whose name is a flag | a flag that dispatches enters no tree, so completion, `ze help command` and every grammar feeder are blind to it. `--version`, `-V`, `--help` and `-h` are the stated exception |
 | F2 | a string literal that names a daemon command path and carries a flag | `(*Dispatcher).Dispatch` refuses a flag-shaped token before any handler runs, so the command fails on every invocation while its client half and its daemon-side parser both read as finished code |
-| F3 | a rendering flag on any command of the `ze` surface: `--json`, `--ndjson`, `--table`, `--text`, `--yaml`, `--raw`, `--format` and `--no-header` | rendering is the pipe layer's job. Where the answer is served by `registry.MustRegisterLocalData` the flag is a second spelling of `\| json` and only the operator composes; where it is not, the missing registration is the defect the finding names |
+| F3 | a rendering flag on any command of the `ze` surface: `--json`, `--ndjson`, `--table`, `--text`, `--yaml`, `--raw`, `--format` and `--no-header` | rendering is the pipe layer's job. Where the answer is served by `command.MustRegisterLocalData` the flag is a second spelling of `\| json` and only the operator composes; where it is not, the missing registration is the defect the finding names |
 | F4 | a flag the parser reads that `registry.RegisterCommandFlags` never declared, or a declared flag no parser reads | completion offers what the registry holds, and prose drifts from the parser in both directions |
 
 `FlagShaped` is the same predicate the daemon refuses by, called from
@@ -113,7 +113,7 @@ declared flag as undeclared on 2026-09-17.
 
 ## Decision: F3 asks about the flag, never about the registration
 
-F3 first fired only where `registry.MustRegisterLocalData` served the path, so
+F3 first fired only where `command.MustRegisterLocalData` served the path, so
 the commands that reach no pipe layer at all were the ones it passed. That
 condition read the accident as the rule: whether a command reaches the pipe
 layer is a fact about how it was registered, and `command.ServeLocal` renders

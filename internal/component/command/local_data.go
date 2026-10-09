@@ -30,10 +30,143 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// LocalDataHandler answers a command with structured DATA instead of printing
+// text, so the answer can go through the pipe layer like any other.
+//
+// It takes the value ValidateArgs returned, never a token slice: only a
+// successful judgment of the arguments against the leaves the command's YANG
+// declares builds one, so no route can run a data handler on tokens nobody
+// judged. Both routes that run one, ServeLocal and the plain local handler
+// RegisterLocalData builds, call the validator first.
+//
+// A registry.LocalHandler prints and returns an exit code, which is why 38
+// commands reached no pipe layer on any surface: by the time RunCommand had a
+// result there was nothing left but an int, and `ze cli -c "show env list |
+// json"` answered `unknown command` because the daemon serves no such method.
+// A data handler returns the payload, and the caller renders it.
+//
+// The value MUST be structured data a JSON encoder can take: a map, a slice, or
+// a struct. It MUST NOT be text a renderer already formatted, for the reason
+// ai/rules/cli.md gives for every other handler: `| json`, `| yaml` and
+// `| table` are three renderings of ONE payload.
+//
+// The two results are INDEPENDENT. The payload says whether there is an answer
+// to render, the code says what the process exits with, and a command MAY have
+// both: `validate config` answers the diagnostics of a config it rejects and
+// exits 1. A handler with nothing to say MUST write its reason to stderr and
+// return a nil payload.
+type LocalDataHandler func(args ValidatedArgs) (any, int)
+
+// localData holds the commands that answer with data in this process. It lives
+// here rather than in the registry package because its handler type names
+// ValidatedArgs, which only this package can build, and the registry cannot
+// import this package. Safe for concurrent use.
+var localData = struct {
+	sync.RWMutex
+	handlers map[string]LocalDataHandler
+}{handlers: make(map[string]LocalDataHandler)}
+
+// errLocalDataEmptyPath is the refusal of a data handler registered with no
+// command path.
+var errLocalDataEmptyPath = errors.New("command.RegisterLocalData: empty path")
+
+// RegisterLocalData registers a command that answers with structured data in
+// this process, so its answer reaches the pipe layer.
+//
+// It ALSO registers a plain local handler (registry.RegisterLocalMeta), built
+// from the same data handler, so `ze <verb>` prints exactly what it printed
+// before and the two forms of one command cannot drift apart. That drift is
+// real: `ze show interface` took the local path and `ze cli -c "show
+// interface"` took the daemon's, and only the second honored a pipe.
+func RegisterLocalData(path string, handler LocalDataHandler, meta registry.Meta, render func(string, any) int) error {
+	if path == "" {
+		return errLocalDataEmptyPath
+	}
+	if handler == nil {
+		return fmt.Errorf("command.RegisterLocalData: nil handler for %q", path)
+	}
+	if render == nil {
+		return fmt.Errorf("command.RegisterLocalData: nil renderer for %q", path)
+	}
+	if err := registry.RegisterLocalMeta(path, plainLocalData(path, handler, render), meta); err != nil {
+		return err
+	}
+	localData.Lock()
+	defer localData.Unlock()
+	localData.handlers[path] = handler
+	return nil
+}
+
+// plainLocalData builds the `ze <verb>` form of a data command: judge the
+// arguments, run the handler on the judged value, render its payload.
+func plainLocalData(path string, handler LocalDataHandler, render func(string, any) int) registry.LocalHandler {
+	return func(args []string) int {
+		// The arguments are judged before the handler runs, as ServeLocal
+		// judges them on the `ze cli -c` route. This route once ran the
+		// handler directly, so `ze show env get` with a 129-character key
+		// reached it although the leaf declares 1..128.
+		validated, err := ValidateModelArgs(path, args, nil)
+		if err != nil {
+			writeLocalRefusal(err)
+			return 1
+		}
+		// A nonzero code with a payload is an ANSWER the command exits
+		// nonzero on, not an error with nothing to say: `validate config`
+		// renders the diagnostics of a config it rejects and exits 1. The
+		// renderer's own failure wins, because then nothing was printed.
+		payload, code := handler(validated)
+		if payload == nil {
+			return code
+		}
+		if renderCode := render(path, payload); renderCode != 0 {
+			return renderCode
+		}
+		return code
+	}
+}
+
+// MustRegisterLocalData is RegisterLocalData, and panics rather than letting a
+// command register half.
+func MustRegisterLocalData(path string, handler LocalDataHandler, meta registry.Meta, render func(string, any) int) {
+	err := RegisterLocalData(path, handler, meta, render)
+	if err == nil {
+		return
+	}
+	// The detail goes to stderr and the panic value is a literal. A registration
+	// failure is a programming error at init, so the process must stop, and the
+	// error already names the path that could not register.
+	writeLocalRefusal(err)
+	panic("BUG: command.MustRegisterLocalData")
+}
+
+// LookupLocalData answers the data handler for a command path, by longest
+// registered prefix, with the words that follow it as its arguments. The
+// caller MUST judge those arguments (ValidateModelArgs, with the registered
+// path) and MUST invoke the handler only with the value that judgment
+// returned.
+func LookupLocalData(words []string) (LocalDataHandler, []string) {
+	localData.RLock()
+	defer localData.RUnlock()
+	for i := len(words); i > 0; i-- {
+		if handler, ok := localData.handlers[textbuf.Join(words[:i], " ")]; ok {
+			return handler, words[i:]
+		}
+	}
+	return nil, nil
+}
+
+// ResetLocalDataForTest clears every registered data handler.
+func ResetLocalDataForTest() {
+	localData.Lock()
+	defer localData.Unlock()
+	localData.handlers = make(map[string]LocalDataHandler)
+}
 
 // ServeLocal answers a command in this process when a local data handler covers
 // it, rendering the answer through the pipe chain the operator typed.
@@ -47,7 +180,7 @@ import (
 func ServeLocal(input, sessionFormat string) (answer string, code int, served bool) {
 	path, _ := parsePipeChain(input)
 	words := strings.Fields(path)
-	handler, args := registry.LookupLocalData(words)
+	handler, args := LookupLocalData(words)
 	if handler == nil {
 		return "", 0, false
 	}
@@ -77,7 +210,7 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// handler that returns both MUST have both honored. A handler with nothing
 	// to say has already written its reason to stderr and returns a nil
 	// payload.
-	payload, code := handler(validated.Tokens())
+	payload, code := handler(validated)
 	if payload == nil {
 		return "", code, true
 	}
@@ -108,9 +241,9 @@ var argDefSource ArgDefSource
 // RegisterArgDefSource installs the source every route outside the daemon
 // dispatcher reads argument definitions from (ValidateModelArgs), and installs
 // the same judgment in the local-handler registry, which cannot import this
-// package: the plain local handler registry.RegisterLocalData builds, and the
-// `ze <verb>` and offline-fallback routes (registry.ValidateLocalArgs). One
-// call covers every route, so none can be left unvalidated. Called from init();
+// package, for the `ze <verb>` and offline-fallback routes
+// (registry.ValidateLocalArgs). One call covers every route, so none can be
+// left unvalidated. Called from init();
 // not safe for concurrent use with any route.
 func RegisterArgDefSource(source ArgDefSource) {
 	argDefSource = source
@@ -171,7 +304,7 @@ func writeLocalRefusal(err error) {
 // HasLocalData reports whether a command is served in this process, which is
 // what the published catalog reads to say the command reaches the pipe layer.
 func HasLocalData(path string) bool {
-	handler, _ := registry.LookupLocalData(strings.Fields(path))
+	handler, _ := LookupLocalData(strings.Fields(path))
 	return handler != nil
 }
 

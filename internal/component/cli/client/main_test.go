@@ -494,7 +494,7 @@ func TestEmitLocalResultSeparatesAnswersAndDiagnostics(t *testing.T) {
 	}
 
 	// A REJECTING answer: the code is the verdict and the payload is the
-	// evidence, so both are honored (registry.LocalDataHandler). This is the
+	// evidence, so both are honored (command.LocalDataHandler). This is the
 	// combination that had no case here, and it is the one that broke:
 	// `validate config` published the diagnostics of a rejected config on
 	// stderr, where no pipe operator can reach them.

@@ -20,6 +20,8 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/zefs"
+
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // setConfigDirEnv pins ze.config.dir for the duration of the test.
@@ -157,7 +159,7 @@ func TestDataRawKeyParity(t *testing.T) {
 			if err := reader.Close(); err != nil {
 				t.Fatal(err)
 			}
-			answer, code := dataList([]string{"--path", path, "custom/"})
+			answer, code := dataList(commandtest.Args("--path", path, "custom/"))
 			if code != 0 {
 				t.Fatalf("list returned %d", code)
 			}
@@ -205,7 +207,7 @@ func TestDataRefusesOwnedStoreMutation(t *testing.T) {
 	if code := cmdRm(path, []string{"meta/held"}); code != 2 {
 		t.Fatalf("owned-store remove returned %d", code)
 	}
-	if _, code := dataList([]string{"--path", path}); code != 0 {
+	if _, code := dataList(commandtest.Args("--path", path)); code != 0 {
 		t.Fatalf("read-only inspection returned %d", code)
 	}
 	data, err := owner.ReadKey("meta/held")

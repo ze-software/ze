@@ -73,7 +73,7 @@ type goSurface struct {
 	// Declared maps a command path to the flag tokens
 	// registry.RegisterCommandFlags declares for it.
 	Declared map[string][]string
-	// LocalData holds every path registered through RegisterLocalData, whose
+	// LocalData holds every path registered through command.RegisterLocalData, whose
 	// answer therefore reaches the pipe layer.
 	LocalData []string
 	// Literals holds the string literals that might be a daemon command; the
@@ -198,18 +198,28 @@ func registryCall(call *ast.CallExpr, specSets map[string][]string, constants *p
 		return
 	}
 	pkg, ok := selector.X.(*ast.Ident)
-	if !ok || (pkg.Name != "registry" && pkg.Name != "cmdregistry") {
+	if !ok {
 		return
 	}
 	path, ok := stringArg(call, 0)
 	if !ok {
 		return
 	}
+	// A data command registers in package command, whose handler type takes
+	// the validated arguments only that package builds.
+	if pkg.Name == "command" {
+		switch selector.Sel.Name {
+		case "RegisterLocalData", "MustRegisterLocalData":
+			surface.LocalData = append(surface.LocalData, path)
+		}
+		return
+	}
+	if pkg.Name != "registry" && pkg.Name != "cmdregistry" {
+		return
+	}
 	switch selector.Sel.Name {
 	case "RegisterRootHandler", "MustRegisterRootHandler", "RegisterRoot":
 		surface.Roots = append(surface.Roots, path)
-	case "RegisterLocalData", "MustRegisterLocalData":
-		surface.LocalData = append(surface.LocalData, path)
 	case "RegisterCommandFlags":
 		if len(call.Args) < 2 {
 			return

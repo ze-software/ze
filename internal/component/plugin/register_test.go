@@ -19,6 +19,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // probePluginName is the plugin these tests put in the registry so each one
@@ -63,7 +65,7 @@ func registerProbePlugin(t *testing.T) {
 func TestShowPluginListAnswersEveryRegisteredPlugin(t *testing.T) {
 	registerProbePlugin(t)
 
-	payload, code := dataPlugins(nil)
+	payload, code := dataPlugins(commandtest.Args())
 	if code != 0 {
 		t.Fatalf("show plugin list exit code = %d, want 0", code)
 	}
@@ -246,7 +248,7 @@ func TestShowPluginListCarriesTheRecordedSetupOutcome(t *testing.T) {
 	registerPlugin(t, recordingPluginName)
 	registry.RecordSetup(recordingPluginName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
 
-	payload, code := dataPlugins(nil)
+	payload, code := dataPlugins(commandtest.Args())
 	if code != 0 {
 		t.Fatalf("show plugin list exit code = %d, want 0", code)
 	}

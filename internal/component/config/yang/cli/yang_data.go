@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // The two filter flags `show yang tree` accepts, spelled as an operator types
@@ -54,7 +56,8 @@ func decodeWritten(write func(w *bytes.Buffer) error) (any, int) {
 // Its ROWS are the top-level nodes, each carrying its own children, because
 // that is what formatTreeJSON emits. `| first 1` therefore answers one subtree
 // whole, and `| match` keeps the roots holding the text.
-func dataTree(args []string) (any, int) {
+func dataTree(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	options, err := parseTreeOptions(args)
 	if err != nil {
 		return nil, writeOptionError(err)
@@ -71,7 +74,8 @@ func dataTree(args []string) (any, int) {
 
 // dataCompletion answers `show yang completion`: the prefix collisions in the
 // config and command trees, as rows.
-func dataCompletion(args []string) (any, int) {
+func dataCompletion(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	options, err := parseCompletionOptions(args)
 	if err != nil {
 		return nil, writeOptionError(err)

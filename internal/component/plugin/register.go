@@ -56,7 +56,7 @@ type pluginRow struct {
 // reaches it as no path at all, so the command would be reported as declared in
 // YANG and served by nobody.
 func init() {
-	cmdregistry.MustRegisterLocalData("show plugin list", dataPlugins, cmdregistry.Meta{
+	command.MustRegisterLocalData("show plugin list", dataPlugins, cmdregistry.Meta{
 		ShortHelp: "Every plugin compiled into this binary, with its setup outcome.",
 		Description: "One row is written for each plugin the binary links. The row names the " +
 			"families it registers, the RFCs it implements and the capability codes it " +
@@ -81,14 +81,14 @@ func init() {
 	// command word rather than a value: the CLI tree carries it, so completion
 	// offers it and the usage line states the grammar. Both forms answer one
 	// payload, so both declare the same shape and the same columns.
-	cmdregistry.MustRegisterLocalData("show plugin declarations", dataDeclarations, cmdregistry.Meta{
+	command.MustRegisterLocalData("show plugin declarations", dataDeclarations, cmdregistry.Meta{
 		ShortHelp: "What each plugin declares: the commands it serves and the pipe aliases it puts on them.",
 		Description: "One row is written for each plugin this binary carries. A plugin whose " +
 			"declaration could not be read keeps its row and says why in the state field, so a " +
 			"plugin is never missing from the answer.",
 		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
-	cmdregistry.MustRegisterLocalData("show plugin declarations config", dataDeclarationsConfig, cmdregistry.Meta{
+	command.MustRegisterLocalData("show plugin declarations config", dataDeclarationsConfig, cmdregistry.Meta{
 		ShortHelp: "The same answer, plus a row for each plugin a config file names.",
 		Description: "The file is read with the daemon's own loader, so the answer covers the plugins " +
 			"the daemon would start from it, external ones included. A plugin the file names and " +
@@ -111,7 +111,7 @@ func init() {
 //
 // It takes no arguments: the answer is the whole set, and a reader who wants
 // one plugin narrows it with `| match <name>`.
-func dataPlugins(_ []string) (any, int) {
+func dataPlugins(command.ValidatedArgs) (any, int) {
 	return Map{keyPlugins: pluginRows()}, 0
 }
 

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // captureStderr runs fn with os.Stderr replaced by a pipe and answers what fn
@@ -78,7 +80,7 @@ func TestRunAllowsLocalSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "answer.json")
 	var stdout, stderr bytes.Buffer
 
-	code := Run("example", func([]string) (any, int) {
+	code := Run("example", func(command.ValidatedArgs) (any, int) {
 		return struct {
 			Answer string `json:"answer"`
 		}{Answer: "saved locally"}, 0
@@ -108,7 +110,7 @@ func TestRunAllowsLocalSave(t *testing.T) {
 	invalidPath := filepath.Join(t.TempDir(), "missing", "answer.json")
 	stdout.Reset()
 	stderr.Reset()
-	code = Run("example", func([]string) (any, int) {
+	code = Run("example", func(command.ValidatedArgs) (any, int) {
 		return struct {
 			Answer string `json:"answer"`
 		}{Answer: "not saved"}, 0

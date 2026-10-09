@@ -357,7 +357,7 @@ func TestProductionLocalDataCommandsSkipTestdataAndLERootAdapter(t *testing.T) {
 	}
 	livePath := filepath.Join(root, "cmd", "live.go")
 	if err := os.WriteFile(livePath, []byte("package cmd\nfunc register() {\n"+
-		"registry.MustRegisterLocalData(\"show live | json compact\")\n}\n"), 0o600); err != nil {
+		"command.MustRegisterLocalData(\"show live | json compact\")\n}\n"), 0o600); err != nil {
 		t.Fatalf("write live registration fixture: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "cmd", "testdata", "malformed", "broken.go"), []byte("package malformed\nfunc {"), 0o600); err != nil {
@@ -365,7 +365,7 @@ func TestProductionLocalDataCommandsSkipTestdataAndLERootAdapter(t *testing.T) {
 	}
 	adapterPath := filepath.Join(root, "internal", "le", "le", "root", "leroot.go")
 	if err := os.WriteFile(adapterPath, []byte("package leroot\nfunc Register(name string) {\n"+
-		"registry.MustRegisterLocalData(CommandPath(name))\n}\n"), 0o600); err != nil {
+		"command.MustRegisterLocalData(CommandPath(name))\n}\n"), 0o600); err != nil {
 		t.Fatalf("write leroot adapter fixture: %v", err)
 	}
 	commands := productionLocalDataCommands(t, root)

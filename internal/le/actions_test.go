@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/command"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
@@ -166,7 +166,7 @@ func TestEveryPublishedVerbIsDispatchedThroughItsOwnTable(t *testing.T) {
 		// the CODE is asserted here. An area CAN map a bare line onto one of
 		// its verbs, and the refusal then names the keyword rather than the
 		// action.
-		if _, code := probeAnswer(handler, []string{probeWord}); code != refusalCode {
+		if _, code := probeAnswer(judged(t, tool.Name, handler), []string{probeWord}); code != refusalCode {
 			t.Errorf("area %q answered %d for a word naming no action, want %d: a line its table cannot read reached the area",
 				tool.Name, code, refusalCode)
 		}
@@ -229,10 +229,10 @@ func probesFor(row leaction.Row) [][]string {
 // one command line refuses an unknown name through Sweep. An area that runs one
 // refuses it through Answer. Both are the table reading the line, and a third
 // answer is a parser the area did not publish.
-func compareRefusal(t *testing.T, area string, reference leaction.Area, handler registry.LocalDataHandler, probe []string) {
+func compareRefusal(t *testing.T, area string, reference leaction.Area, handler command.LocalDataHandler, probe []string) {
 	t.Helper()
 
-	gotText, gotCode := probeAnswer(handler, probe)
+	gotText, gotCode := probeAnswer(judged(t, area, handler), probe)
 	answerText, answerCode := probeAnswer(reference.Answer, probe)
 	sweepText, sweepCode := probeAnswer(func(args []string) (any, int) {
 		return reference.Sweep(args, leaction.RunEveryAction)
@@ -248,11 +248,26 @@ func compareRefusal(t *testing.T, area string, reference leaction.Area, handler 
 		area, probe, gotCode, gotText, answerCode, answerText, sweepCode, sweepText)
 }
 
+// judged answers the registered handler of an area as a function of the
+// typed words. The registered handler takes judged arguments, and an le tool
+// declares no definitions, so the words are judged against none, as leroot.Run
+// judges them.
+func judged(t *testing.T, area string, handler command.LocalDataHandler) func(args []string) (any, int) {
+	t.Helper()
+	return func(args []string) (any, int) {
+		validated, err := command.ValidateArgs(args, nil, nil)
+		if err != nil {
+			t.Fatalf("area %q: judging %v against no definitions: %v", area, args, err)
+		}
+		return handler(validated)
+	}
+}
+
 // probeAnswer runs one handler over one probe and answers what it wrote to
 // stderr with the code it returned. The refusals every le area writes go to
 // stderr, so the stream is the only place the answer to a refused line is
 // readable.
-func probeAnswer(handler registry.LocalDataHandler, probe []string) (string, int) {
+func probeAnswer(handler func(args []string) (any, int), probe []string) (string, int) {
 	read, write, err := os.Pipe()
 	if err != nil {
 		panic("BUG: le: the probe cannot open a pipe: " + err.Error())

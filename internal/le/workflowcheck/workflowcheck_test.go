@@ -26,6 +26,8 @@ import (
 	_ "github.com/ze-software/ze/internal/le/verify"
 	_ "github.com/ze-software/ze/internal/le/verify/deps"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
+
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 const workflowsDir = ".github/workflows"
@@ -243,7 +245,7 @@ func actionExists(t *testing.T, identity string) {
 	if handler == nil {
 		t.Fatalf("native root %q is not registered", area)
 	}
-	payload, code := handler(nil)
+	payload, code := handler(commandtest.Args())
 	list, ok := payload.(leaction.List)
 	if !ok {
 		t.Fatalf("native root %q answered %T with code %d, want leaction.List", area, payload, code)

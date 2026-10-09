@@ -13,6 +13,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // minimal ze config: router-id + session asn local + one peer with connection/session.
@@ -156,7 +158,7 @@ func TestConfigDiffAnswersThreeKeyedSets(t *testing.T) {
 	file1 := writeTestConfig(t, testConfigBase)
 	file2 := writeTestConfig(t, testConfigChanged)
 
-	payload, code := dataDiff([]string{file1, file2})
+	payload, code := dataDiff(commandtest.Args(file1, file2))
 	require.Equal(t, exitOK, code)
 	require.NotNil(t, payload)
 
@@ -253,7 +255,7 @@ bgp {
 func marshalDiffAnswer(t *testing.T, file1, file2 string) (string, int) {
 	t.Helper()
 
-	payload, code := dataDiff([]string{file1, file2})
+	payload, code := dataDiff(commandtest.Args(file1, file2))
 	if payload == nil {
 		return "", code
 	}

@@ -33,6 +33,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/env"
@@ -182,7 +183,8 @@ func SetConfiguredPluginReader(read ConfiguredPluginReader) {
 //
 // It takes no argument: the answer is the whole set, and a reader who wants one
 // plugin narrows it with `| match <name>`.
-func dataDeclarations(args []string) (any, int) {
+func dataDeclarations(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	if len(args) > 0 {
 		var tb textbuf.Buffer
 		writeDeclarationError(errors.New(tb.Str("show plugin declarations takes no value, and ").
@@ -199,7 +201,8 @@ func dataDeclarations(args []string) (any, int) {
 // The keyword is a command word rather than a value, so the CLI tree carries it
 // and completion offers it (`ai/rules/cli.md`, keyword before value). What
 // reaches this handler is the path alone.
-func dataDeclarationsConfig(args []string) (any, int) {
+func dataDeclarationsConfig(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	path, err := declarationConfigPath(args)
 	if err != nil {
 		writeDeclarationError(err)

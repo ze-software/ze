@@ -257,7 +257,7 @@ func ClientFlagFinding(path, flag string) FlagFinding {
 // flag that renders its answer, because rendering is the pipe layer's job.
 //
 // served says whether the path is registered through
-// registry.MustRegisterLocalData, which decides the FIX and never the verdict.
+// command.MustRegisterLocalData, which decides the FIX and never the verdict.
 // A registered path already reaches the pipe layer (command.ServeLocal renders
 // the whole operator set over its answer), so the flag is a second spelling and
 // the fix is to delete it. An unregistered path reaches no pipe layer, and that
@@ -309,7 +309,7 @@ func pipeFlagMessage(path, token, bare string, served bool) string {
 			", which this command's answer already reaches. Only the operator composes, so delete the flag")
 	}
 	return msg("flag ", token, " renders an answer that reaches no pipe layer, which is the defect and not the exemption. ",
-		"Register the answer through registry.MustRegisterLocalData, which renders it through ", expression,
+		"Register the answer through command.MustRegisterLocalData, which renders it through ", expression,
 		", then delete the flag")
 }
 

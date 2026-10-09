@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -29,7 +30,8 @@ func writeStorageError(err error) {
 }
 
 // dataList answers `show data list [prefix]`: the keys the store holds.
-func dataList(args []string) (any, int) {
+func dataList(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	storePath, remaining := extractPathFlag(args)
 	s, err := openStore(storePath, false)
 	if err != nil {
@@ -56,7 +58,8 @@ func dataList(args []string) (any, int) {
 
 // dataRegistered answers `show data registered [pattern]`: the key patterns the
 // code declares, and what each one holds.
-func dataRegistered(args []string) (any, int) {
+func dataRegistered(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	entries := zefs.Entries()
 	rows := make([]map[string]any, 0, len(entries))
 	for _, e := range entries {

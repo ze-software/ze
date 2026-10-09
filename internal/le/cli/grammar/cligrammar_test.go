@@ -367,7 +367,7 @@ func flagFixture(t *testing.T) map[string]string {
 		"const send = \"request interface migrate --from a\"\n"
 	files["internal/fixture/tool.go"] = "package fixture\n\n" +
 		"func register() {\n" +
-		"\tregistry.MustRegisterLocalData(\"show fixture thing\", nil, meta, nil)\n" +
+		"\tcommand.MustRegisterLocalData(\"show fixture thing\", nil, meta, nil)\n" +
 		"}\n\n" +
 		"func run(args []string) int {\n" +
 		"\tfs := flag.NewFlagSet(\"ze fixture thing\", flag.ContinueOnError)\n" +
@@ -417,7 +417,7 @@ func TestTheFlagFeederDrawsARowForEachShape(t *testing.T) {
 }
 
 // VALIDATES: F3 fires on a rendering flag whose command is NOT registered
-// through registry.MustRegisterLocalData, and stops at the ze command surface.
+// through command.MustRegisterLocalData, and stops at the ze command surface.
 // PREVENTS: the condition the feeder first shipped with, which asked how a
 // command was registered before it asked whether the flag renders. That made a
 // command reaching no pipe layer the exempt case, when it is the defect.

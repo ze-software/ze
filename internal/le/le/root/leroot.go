@@ -101,12 +101,22 @@ func Register(name string, group Group, answer Answer, meta registry.Meta) {
 		panic("BUG: leroot.Register: Meta needs Description, Mode and Section")
 	}
 	setGroup(name, group)
-	registry.MustRegisterLocalData(
+	command.MustRegisterLocalData(
 		CommandPath(name),
-		registry.LocalDataHandler(answer),
+		toolHandler(answer),
 		meta,
 		command.RenderLocalAnswer,
 	)
+}
+
+// toolHandler is the shared-registry form of an le tool: the tool reads the
+// judged tokens. An le tool parses its own words, so its Answer keeps the
+// token slice, and every route that runs the registered handler has judged
+// them first: ServeLocal, the plain local handler, and Run.
+func toolHandler(answer Answer) command.LocalDataHandler {
+	return func(args command.ValidatedArgs) (any, int) {
+		return answer(args.Tokens())
+	}
 }
 
 // RegisterActions records the action table one area declared, so the dispatcher
@@ -253,8 +263,8 @@ func CommandPath(name string) string {
 // and the verification dispatcher reaches it from a stage Identity here, so no
 // second place decides what a registered name means. A lookup and its refusal
 // spelled twice is how the two come to disagree.
-func LookupCommand(name string) registry.LocalDataHandler {
-	handler, trailing := registry.LookupLocalData(strings.Fields(CommandPath(name)))
+func LookupCommand(name string) command.LocalDataHandler {
+	handler, trailing := command.LookupLocalData(strings.Fields(CommandPath(name)))
 	if len(trailing) != 0 {
 		return nil
 	}
@@ -273,7 +283,7 @@ func RegisterShape(name string, shape command.AnswerShape) {
 //
 // out and errOut are parameters so a test drives the same code path the binary
 // runs, rather than a copy of it.
-func Run(name string, answer Answer, args []string, out, errOut io.Writer) int {
+func Run(name string, handler command.LocalDataHandler, args []string, out, errOut io.Writer) int {
 	toolArgs, pipeStr := splitChain(args)
 
 	// The action can declare a different answer from its area. Only a verb
@@ -324,7 +334,17 @@ func Run(name string, answer Answer, args []string, out, errOut io.Writer) int {
 		toolArgs = append(toolArgs, strings.Fields(folded)...)
 	}
 
-	payload, code := answer(toolArgs)
+	// An le tool declares no argument definitions: its words are its own
+	// grammar, parsed by the tool. They are judged against that empty set, as
+	// every route judges a command's arguments against what it declares, so
+	// the registered handler is only ever run on a judged value.
+	validated, err := command.ValidateArgs(toolArgs, nil, nil)
+	if err != nil {
+		var tb textbuf.Buffer
+		fmt.Fprintln(errOut, tb.Str("error: ").Str(err.Error()).String()) //nolint:errcheck // CLI output
+		return 1
+	}
+	payload, code := handler(validated)
 	if payload == nil {
 		return code
 	}

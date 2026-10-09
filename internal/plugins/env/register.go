@@ -23,15 +23,15 @@ func init() {
 	// before, which is why `ze cli -c "show env list | json"` answered
 	// `unknown command`: YANG declared a wire method for each and no daemon
 	// handler implemented one.
-	registry.MustRegisterLocalData("show env list", dataList, registry.Meta{
+	command.MustRegisterLocalData("show env list", dataList, registry.Meta{
 		ShortHelp: "Every environment variable Ze reads, with its effective value.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show env get", dataGet, registry.Meta{
+	command.MustRegisterLocalData("show env get", dataGet, registry.Meta{
 		ShortHelp: "One environment variable, by key.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show env registered", dataRegistered, registry.Meta{
+	command.MustRegisterLocalData("show env registered", dataRegistered, registry.Meta{
 		ShortHelp: "Every environment variable the code declares, without effective values.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)

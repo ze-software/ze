@@ -64,23 +64,23 @@ func init() {
 	// The path is written as a literal at each call. `./le doc yang-contract
 	// command-contract` and the local-data coverage scan parse this file and
 	// read a string literal. A const identifier reaches them as no path at all.
-	registry.MustRegisterLocalData("show schema list", dataList, registry.Meta{
+	command.MustRegisterLocalData("show schema list", dataList, registry.Meta{
 		ShortHelp: "Every registered schema module, with its namespace.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show schema methods", dataMethods, registry.Meta{
+	command.MustRegisterLocalData("show schema methods", dataMethods, registry.Meta{
 		ShortHelp: "Every RPC a schema module declares. Narrow it with a module name.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show schema events", dataEvents, registry.Meta{
+	command.MustRegisterLocalData("show schema events", dataEvents, registry.Meta{
 		ShortHelp: "Every notification a schema module declares. Narrow it with a module name.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show schema handlers", dataHandlers, registry.Meta{
+	command.MustRegisterLocalData("show schema handlers", dataHandlers, registry.Meta{
 		ShortHelp: "Which module serves each handler path.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show schema protocol", dataProtocol, registry.Meta{
+	command.MustRegisterLocalData("show schema protocol", dataProtocol, registry.Meta{
 		ShortHelp: "The hub architecture protocol version.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)

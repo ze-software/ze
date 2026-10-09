@@ -133,8 +133,8 @@ func TestLocalHandlersCoverEveryRegistrationSpelling(t *testing.T) {
 			"\tregistry.MustRegisterLocalMeta(\"show two\", nil)\n"+
 			"\tregistry.RegisterLocal(\"show three\", nil)\n"+
 			"\tregistry.RegisterLocalMeta(\"show four\", nil)\n"+
-			"\tregistry.MustRegisterLocalData(\"show five\", nil)\n"+
-			"\tregistry.RegisterLocalData(\"show six\", nil)\n"+
+			"\tcommand.MustRegisterLocalData(\"show five\", nil)\n"+
+			"\tcommand.RegisterLocalData(\"show six\", nil)\n"+
 			"\tcmdregistry.MustRegisterLocal(\"show seven\", nil)\n"+
 			"\tregistry.RegisterSomethingElse(\"show eight\", nil)\n"+
 			"\tother.MustRegisterLocal(\"show nine\", nil)\n"+

@@ -14,7 +14,7 @@ import (
 func TestServeLocalRefusesInvalidChainBeforeCallingProducer(t *testing.T) {
 	called := 0
 	const path = "show test local validation order"
-	if err := registry.RegisterLocalData(path, func(_ []string) (any, int) {
+	if err := RegisterLocalData(path, func(ValidatedArgs) (any, int) {
 		called++
 		return func() {}, 0
 	}, registry.Meta{}, func(string, any) int { return 0 }); err != nil {
@@ -55,8 +55,8 @@ func withArgDefSource(t *testing.T, source ArgDefSource) {
 func TestServeLocalJudgesArgumentsAgainstTheirDefinitions(t *testing.T) {
 	const path = "show test local argument length"
 	var got []string
-	if err := registry.RegisterLocalData(path, func(args []string) (any, int) {
-		got = args
+	if err := RegisterLocalData(path, func(args ValidatedArgs) (any, int) {
+		got = args.Tokens()
 		return map[string]any{"ok": true}, 0
 	}, registry.Meta{}, func(string, any) int { return 0 }); err != nil {
 		t.Fatalf("register local data handler: %v", err)
@@ -96,7 +96,7 @@ func TestServeLocalJudgesArgumentsAgainstTheirDefinitions(t *testing.T) {
 func TestServeLocalRefusesWithoutArgDefSource(t *testing.T) {
 	const path = "show test local no source"
 	called := 0
-	if err := registry.RegisterLocalData(path, func(_ []string) (any, int) {
+	if err := RegisterLocalData(path, func(ValidatedArgs) (any, int) {
 		called++
 		return map[string]any{}, 0
 	}, registry.Meta{}, func(string, any) int { return 0 }); err != nil {

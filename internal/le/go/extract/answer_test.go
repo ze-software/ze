@@ -148,7 +148,7 @@ func TestTheAnswerRendersThroughTheEngine(t *testing.T) {
 	dest := filepath.Join(dir, "beta.go")
 
 	var out, errOut strings.Builder
-	code := leroot.Run("go extract", Answer,
+	code := leroot.Run("go extract", leroot.LookupCommand("go extract"),
 		[]string{"source", source, "dest", dest, "symbol", "Beta", "|", "json"}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("le go extract | json exited %d: %s", code, errOut.String())
@@ -174,7 +174,7 @@ func TestABareCommandRendersTheSummaryLine(t *testing.T) {
 	dest := filepath.Join(dir, "beta.go")
 
 	var out, errOut strings.Builder
-	code := leroot.Run("go extract", Answer,
+	code := leroot.Run("go extract", leroot.LookupCommand("go extract"),
 		[]string{"source", source, "dest", dest, "symbol", "Beta"}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("le go extract exited %d: %s", code, errOut.String())

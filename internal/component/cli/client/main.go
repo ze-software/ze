@@ -522,7 +522,7 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 // emitLocalResult prints a locally served ANSWER on stdout and answers the exit
 // code the handler chose. Transcripts keep the same command and result.
 //
-// The ANSWER and the CODE are independent (registry.LocalDataHandler): the code
+// The ANSWER and the CODE are independent (command.LocalDataHandler): the code
 // carries the verdict and the payload carries the evidence, so `validate config`
 // answers the diagnostics of a config it rejects AND exits 1. Routing on the
 // code sent that payload to stderr, where no pipe operator can reach it, and

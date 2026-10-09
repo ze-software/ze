@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/resolve"
 
 	"github.com/ze-software/ze/internal/component/cli"
@@ -73,7 +74,8 @@ func withRuntimeStore(configPath string, fn func(storage.Storage) (any, int)) (a
 // row operator is refused over it by name instead of answering something
 // plausible. The payload is the map `--json` emits, from the same
 // resolveDump call, so the two spellings cannot disagree.
-func dataDump(args []string) (any, int) {
+func dataDump(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	stripPrivate := false
 	var configPath string
 	for _, arg := range args {
@@ -116,7 +118,8 @@ func dataDump(args []string) (any, int) {
 // The printer wrote `[data] <key>` and `[fs] <path>` lines. The bracket prefix
 // becomes a FIELD, which is what a row operator can select on: `| match data`
 // used to match the prefix by accident of it being in the line.
-func dataList(args []string) (any, int) {
+func dataList(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	if len(args) != 0 {
 		fmt.Fprintln(os.Stderr, "usage: show config list")
 		return nil, exitError
@@ -159,7 +162,8 @@ func dataList(args []string) (any, int) {
 // so a caller sees one list and can select on it. The printer wrote
 // `draft  (editing in progress)` before the numbered revisions, which no row
 // operator could reach.
-func dataHistory(args []string) (any, int) {
+func dataHistory(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "error: requires exactly one config file")
 		return nil, exitError
@@ -197,8 +201,9 @@ func dataHistory(args []string) (any, int) {
 //
 // The exit code is the verdict and the payload is the evidence, so a rejected
 // configuration answers its diagnostics AND exits 1
-// (registry.LocalDataHandler).
-func dataValidate(args []string) (any, int) {
+// (command.LocalDataHandler).
+func dataValidate(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		helpfmt.WriteError(os.Stderr, false, "missing config file (use - for stdin)")
 		return nil, exitError
@@ -228,7 +233,8 @@ func dataValidate(args []string) (any, int) {
 // agree about, with every secret value masked.
 //
 // It is ONE document holding three keyed sets rather than rows.
-func dataDiff(args []string) (any, int) {
+func dataDiff(validated command.ValidatedArgs) (any, int) {
+	args := validated.Tokens()
 	diff, code := resolveDiff(nil, args)
 	if diff == nil {
 		return nil, code
