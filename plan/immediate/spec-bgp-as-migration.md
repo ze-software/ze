@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | `plan/immediate/spec-bgp-local-as-options.md` |
 | Phase | - |
-| Updated | 2026-09-14 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -179,12 +179,12 @@ and writes the enrolment row that admits all nine in the same change.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Nothing in the tree currently rejects an OPEN on an AS mismatch, so introducing the check is a genuine behaviour change and not a duplicate. | `NotifyOpenBadPeerAS` (`internal/component/bgp/message/notification.go`) is originated nowhere, and `validateOpenIdentifier` (`internal/component/bgp/reactor/session_open_validation.go`) reads the AS only for the RFC 6286 determination. | The check already exists somewhere and this spec must extend it rather than add one. | Tree-wide grep for `NotifyOpenBadPeerAS` and for any comparison against `settings.PeerAS`, as the first implementation action. | unvalidated |
-| A-2 | The three iBGP determination sites can be routed through one rule without changing any existing verdict. | They are textually identical today: `internal/component/bgp/reactor/peer_settings.go`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/reactor/session_validation.go`. | A site has a subtly different meaning and consolidating it changes behaviour for sessions that do not use the feature. | A refactor-only commit that unifies the three with no behaviour change, proven by the existing suites passing untouched. | unvalidated |
-| A-3 | Introducing the Bad Peer AS check breaks no existing test or deployment, because a correctly configured peer advertises the AS it is configured with. | The configured `PeerAS` is what every session already assumes when deciding iBGP versus eBGP. | Sessions that work today start failing. That is a real operational risk and the reason the check lands in its own phase with its own `.ci`. | Running the full functional and interop suites after the check lands, before anything else in this spec. | unvalidated |
-| A-4 | A dynamic peer, whose `PeerAS` is 0 until establishment, must be exempt from the new check. | `validateOpenIdentifier` documents exactly this: the comment at `buildDynamicPeerSettings` (`internal/component/bgp/reactor/session_open_validation.go`) records that it sets `PeerAS` to 0 and that `resolveDynamicPeerSettings` fills it only at establishment. | Every dynamic peer is rejected at OPEN, which would be a severe regression. | A dedicated dynamic-peer test asserting the check is skipped when `PeerAS` is 0. | unvalidated |
-| A-5 | `RFC7705-4.2-5`'s fallback can be implemented within the existing connect-retry path without a new FSM state. | The retry already exists as a timer-driven reconnect; the change is which ASN the next OPEN carries. | The SHOULD is deferred with an explicit annotation rather than silently skipped, and that deferral is a compliance decision for Thomas. | A design spike on the connect-retry path before phase 5 starts. | unvalidated |
-| A-6 | Enrolling RFC 7705 requires `plan/immediate/spec-bgp-local-as-options.md` to have landed, because a row admits an RFC only when every gated MUST is classified. | `rfc/enrolled.txt` header: an enrolled RFC has every MUST-level requirement either covered by tagged tests or annotated. | The two specs must land together in one change, which enlarges the commit but does not change the work. | `./le rfc check` after both specs' tests exist. | unvalidated |
+| A-1 | Nothing in the tree currently rejects an OPEN on an AS mismatch, so introducing the check is a genuine behaviour change and not a duplicate. | `NotifyOpenBadPeerAS` (`internal/component/bgp/message/notification.go`) is originated nowhere, and `validateOpenIdentifier` (`internal/component/bgp/reactor/session_open_validation.go`) reads the AS only for the RFC 6286 determination. | The check already exists somewhere and this spec must extend it rather than add one. | Tree-wide grep for `NotifyOpenBadPeerAS` and for any comparison against `settings.PeerAS`, as the first implementation action. | confirmed 2026-10-09: the only send site of `NotifyOpenBadPeerAS` in the reactor is `rejectOpenPeerAS` (`session_open_as.go`), added by `11f0a65db2` with `ErrPeerASMismatch`; the only other reactor reference is the receive-side match in `noteASMigrationRejection`. No earlier check existed to extend |
+| A-2 | The three iBGP determination sites can be routed through one rule without changing any existing verdict. | They are textually identical today: `internal/component/bgp/reactor/peer_settings.go`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/reactor/session_validation.go`. | A site has a subtly different meaning and consolidating it changes behaviour for sessions that do not use the feature. | A refactor-only commit that unifies the three with no behaviour change, proven by the existing suites passing untouched. | confirmed 2026-10-09: every production iBGP verdict calls `isIBGPWith` (`session_as_migration.go`): `IsEBGP` (`peer_settings.go`), `session_validation.go`, `session_negotiate.go`, `peer_settings_negotiation.go`, `session_open_validation.go`, `session_next_hop.go`, `reactor_api.go`. `grep -rnE "LocalAS (!=\|==) .*PeerAS"` over non-test reactor code finds only a comment. `TestMigrationIBGPVerdictAgreesAcrossEverySite` pins the sites agreeing |
+| A-3 | Introducing the Bad Peer AS check breaks no existing test or deployment, because a correctly configured peer advertises the AS it is configured with. | The configured `PeerAS` is what every session already assumes when deciding iBGP versus eBGP. | Sessions that work today start failing. That is a real operational risk and the reason the check lands in its own phase with its own `.ci`. | Running the full functional and interop suites after the check lands, before anything else in this spec. | confirmed 2026-10-09: the check landed in `11f0a65db2`; the test fixtures it reddened presented an AS their session was not configured for, and were corrected to present the configured one (the `configuredAS` field in `rfc7607_session_open_as_test.go` records why). No deployment-shaped `.ci` or interop scenario needed a change: the four new `.ci`, `bgp-local-as-options`, `bgp-local-as-inbound-untouched`, `dynamic-group-static-peer-wins` and interop `bgp-as-migration-local-as` (FRR, BIRD, GoBGP) pass. Refusals are now counted by `ze_bgp_open_rejected_bad_peer_as_total` |
+| A-4 | A dynamic peer, whose `PeerAS` is 0 until establishment, must be exempt from the new check. | `validateOpenIdentifier` documents exactly this: the comment at `buildDynamicPeerSettings` (`internal/component/bgp/reactor/session_open_validation.go`) records that it sets `PeerAS` to 0 and that `resolveDynamicPeerSettings` fills it only at establishment. | Every dynamic peer is rejected at OPEN, which would be a severe regression. | A dedicated dynamic-peer test asserting the check is skipped when `PeerAS` is 0. | confirmed 2026-10-09: `peerASAccepted` (`session_as_migration.go`) carries an explicit dynamic-peer branch, and `TestOpenCheckSkippedForDynamicPeer` (`rfc7705_session_as_migration_test.go`) proves a dynamic peer advertising a real AS is accepted; every dynamic-group `.ci`, `dynamic-group-static-peer-wins` included, still establishes |
+| A-5 | `RFC7705-4.2-5`'s fallback can be implemented within the existing connect-retry path without a new FSM state. | The retry already exists as a timer-driven reconnect; the change is which ASN the next OPEN carries. | The SHOULD is deferred with an explicit annotation rather than silently skipped, and that deferral is a compliance decision for Thomas. | A design spike on the connect-retry path before phase 5 starts. | confirmed 2026-10-09: `noteASMigrationRejection` (session_as_migration.go) toggles `Peer.asMigrationFallback` on NOTIFICATION 2/2 and `openLocalAS` reads it on the next connect-retry attempt; no FSM state was added. Proven by `TestMigrationFallbackOnBadPeerAS`, `test/plugin/bgp-as-migration-send-either.ci`, and interop `bgp-as-migration-local-as` against FRR |
+| A-6 | Enrolling RFC 7705 requires `plan/immediate/spec-bgp-local-as-options.md` to have landed, because a row admits an RFC only when every gated MUST is classified. | `rfc/enrolled.txt` header: an enrolled RFC has every MUST-level requirement either covered by tagged tests or annotated. | The two specs must land together in one change, which enlarges the commit but does not change the work. | `./le rfc check` after both specs' tests exist. | confirmed 2026-09-14: enrolment waited for the Section 3.3 tags of the local-as-options spec, and both halves enrolled together; `rfc/enrolled.txt` carries the `rfc7705` row naming the Section 3.3 and 4.2 producers, and `./le rfc check` named no RFC 7705 violation (Progress, 2026-09-14) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -319,7 +319,7 @@ and writes the enrolment row that admits all nine in the same change.
 | Pipe completeness | N-A | No new command output |
 | Env var registration | No | Per-neighbour operational config belongs in YANG |
 | Doctor check for runtime dependencies | No | No new file path, socket, service, port or binary |
-| Prometheus counters/metrics | Yes | `bgp_open_rejected_bad_peer_as_total`, labelled by peer, so the tightening in R-1 is observable rather than only logged |
+| Prometheus counters/metrics | Yes | `ze_bgp_open_rejected_bad_peer_as_total` (the `ze_` prefix the naming convention in `docs/plugin-development/metrics.md` requires), labelled by peer, so the tightening in R-1 is observable rather than only logged |
 | BGP family surface (new SAFI / capability / attribute) | No | No new SAFI, capability or attribute code; the ASN4 capability already exists |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -338,7 +338,7 @@ and writes the enrolment row that admits all nine in the same change.
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md`: AS migration is a feature other daemons list |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md`: OPEN validation gains an AS check on the shared rail |
 | 13 | Route metadata keys added/changed? | No | |
-| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` for the rejection counter |
+| 14 | Prometheus counters added/changed? | Yes | `docs/guide/monitoring.md`, Session Lifecycle, for the rejection counter: that page is the metric catalogue, while `docs/plugin-development/metrics.md` holds only the naming convention |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep `docs/` for anchors naming `session_negotiate.go`, `session_open_validation.go`, `peer_settings.go` and `ze-bgp-conf.yang` and correct each stale claim |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | Any `session > asn` example must show the new leaf where relevant |
@@ -533,3 +533,207 @@ through `-3.3-5` on the two forward-rail tests in
 
 Remaining for this spec: AC-12 is met, and the `.ci` and interop rows of phases 3,
 5, 6 and 9 are untouched by this pass.
+
+## Progress, 2026-10-09 -- functional and interop proof
+
+Landed in `ee15e53be9`. All four planned `.ci` files exist and pass
+(`./le test bgp plugin`, 7/7 with the two local-as files and
+`dynamic-group-static-peer-wins`):
+
+| File | AC | Forced red (break in `session_as_migration.go`, then restored) |
+|------|----|------------------------------------------------------------------|
+| `test/plugin/bgp-open-bad-peer-as.ci` | AC-1 | `peerASAccepted` last arm `return true`: NOTIFICATION 2/2 never arrives (timeout) |
+| `test/plugin/bgp-as-migration-accept-either.ci` | AC-4, AC-5 | migration arm compares `PeerAS` only: ze sends NOTIFICATION 2/2 instead of the UPDATE |
+| `test/plugin/bgp-as-migration-ibgp-treatment.ci` | AC-7 | `isIBGPWith` ignores `MigrationAS`: UPDATE arrives with AS_PATH [65000] and no LOCAL_PREF |
+| `test/plugin/bgp-as-migration-send-either.ci` | AC-6, AC-9 agreement, AC-10 | `noteASMigrationRejection` returns at once: conn=2 OPEN carries 0xFDE8 again |
+
+AC-3 (dynamic exemption) is carried by every dynamic-group `.ci`; 
+`dynamic-group-static-peer-wins.ci` passed in the same run.
+
+Interop: one scenario, `test/interop/scenarios/bgp-as-migration-local-as`
+(checker `internal/le/interoplab/bgp/checkers.go`), FRR + BIRD + GoBGP. FRR is
+AS 65002 and refuses ze's first OPEN (65001) with Bad Peer AS; ze's fallback
+OPEN carries the migration AS 65002 and the session establishes as iBGP, with
+10.77.5.0/24 at FRR carrying no 65001 in its path. Green twice on 2026-10-09
+(`interop: 1 passed, 0 failed`). The two `NN-*` rows of the Interop Tests table
+are replaced by this one scenario: BIRD's Bad Peer AS report is covered on the
+FRR leg, where Bad Peer AS is what drives the fallback.
+
+AC-10 settled as implemented, not deferred: RFC 7705 Section 4.2 reads "the
+speaker SHOULD send BGP OPEN using the globally configured ASN first, and only
+send a BGP OPEN using the locally configured ASN as a fallback if the remote
+neighbor responds with the BGP error "Bad Peer AS"." Ze does exactly that, and
+with Ze on both ends `peerASAccepted` accepts either AS from a migrating peer,
+so no OPEN pairing is refused. A-5 is confirmed above.
+
+Still open before `/ze-close`: the integration checklist row promising a
+`bgp_open_rejected_bad_peer_as_total` counter has no producer (`grep -rn
+bad_peer_as internal` finds none), nor its `docs/plugin-development/metrics.md`
+entry; A-1 through A-4 and A-6 still read `unvalidated` in the table though the
+code and tests answer them; the closure template, Review Gate and the two
+closure commits.
+
+Since then: the counter landed in `9a783621b7` (`openBadPeerAS`,
+`reactor_metrics.go`; incremented in `rejectOpenPeerAS`, `session_open_as.go`;
+catalogued in `docs/guide/monitoring.md`, the metric catalogue, while
+`docs/plugin-development/metrics.md` holds only the naming convention), and
+A-1 to A-4 and A-6 are confirmed in the table above.
+
+## Implementation Summary
+
+### What Was Implemented
+- `11f0a65db2`: the Bad Peer AS check (`validateOpenPeerAS`, `rejectOpenPeerAS`, `session_open_as.go`) on both OPEN rails (`handleOpen`, `processOpen`); the `session { asn { migration } }` leaf (`ze-bgp-conf.yang`, parsed by `parsePeerSettings` and checked by `setMigrationAS`); the one iBGP rule `isIBGPWith`; `peerASAccepted`; `openLocalAS` feeding header, ASN4 capability and encoder from one value; the RFC 7705 Section 4.2 fallback `noteASMigrationRejection` over `Peer.asMigrationFallback`.
+- `45fc0acdff`, `e476c99b84`: unit tests at both entry points (`internal/component/bgp/config/rfc7705_as_migration_test.go`, `internal/component/bgp/reactor/rfc7705_session_as_migration_test.go`).
+- `af10938607`: enrolment (`rfc/short/rfc7705.md`, `rfc/extraction/rfc7705.json`, `rfc/discrimination/rfc7705.json`).
+- `ee15e53be9`: the four `.ci` files and interop scenario `bgp-as-migration-local-as` (FRR, BIRD, GoBGP).
+- `9a783621b7`: `ze_bgp_open_rejected_bad_peer_as_total` and `TestOpenBadPeerASCounted`.
+- Closure: stale comment on `peerASAccepted` corrected; three pages repaired (below).
+
+### Bugs Found/Fixed
+- `peerASAccepted`'s comment named `openClaimsASZero`, which does not exist, and `openAdvertisedAS` as the reader of the advertised AS; `validateOpenPeerAS` does both. Corrected in closure (comment only).
+- The bgp/config red recorded in `plan/journal/gate-red-where-nothing-blocks-on-it.md` was an untagged `go test` in an export, not a defect. Under the gate's tags (`ze_core` plus `feature-gates.txt`) the package passes, `TestPeersFromConfigTree_ASMigrationPerNeighborGroup` included. The row now says so.
+
+### Documentation Updates
+- `docs/architecture/behavior/fsm-open-sent.md`, "What `handleOpen` actually validates": the ordered list lacked the peer AS check; step 4 added (anchors `validateOpenPeerAS`, `rejectOpenPeerAS`, `peerASAccepted`), later steps renumbered.
+- `docs/features/bgp-protocol.md`: new section "Peer AS check and AS migration (RFC 7705)" with source anchors.
+- `docs/comparison.md`: row "AS migration: local-as and iBGP dual AS (RFC 7705)", Ze Yes, other daemons `?` (not verified per daemon).
+- Earlier commits: `docs/guide/configuration.md` "Internal AS Migration (RFC 7705 Section 4.2)", `docs/guide/monitoring.md` counter, `docs/features/rfc-status.md` (generated) RFC 7705 row `9 gated: 9 proven`.
+- `./le doc check verify`: the only failing stage is the wiki command-catalog drift (`../wiki/command-catalog.md`), unrelated to this spec; no anchor finding names a page edited here.
+
+### Deviations from Plan
+- Test files are `rfc7705_*_test.go`, not the names in Files to Create; the planned test names map as in the Audit below.
+- The two `NN-*` interop rows became one named scenario, `bgp-as-migration-local-as` (Progress, 2026-10-09).
+- Core-design checklist row 12: `docs/architecture/core-design.md` does not describe OPEN validation; the page that does is `fsm-open-sent.md`, which was repaired instead.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | A closure agent ran the bgp/config tests untagged in an export and recorded a red | The package is green under the gate's tags; `docs/contributing/running-commands.md` names this phantom red | Re-run under `ze_core` plus feature tags | Journal row corrected |
+| approach | Docs checklist rows 1, 11, 12 answered Yes with no page edit | Feature page, comparison row and the FSM validation list were missing | Closure doc review | Pages repaired in commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| RFC7705-4.2-1 configurable per neighbour or group | Done | `config.go` `parsePeerSettings`, `ze-bgp-conf.yang` leaf `migration` | |
+| RFC7705-4.2-2 accept either ASN | Done | `session_as_migration.go` `peerASAccepted` | |
+| RFC7705-4.2-3 send with either ASN | Done | `session_negotiate.go` via `openLocalAS` | |
+| RFC7705-4.2-4 native iBGP | Done | `session_as_migration.go` `isIBGPWith` | |
+| Bad Peer AS originated | Done | `session_open_as.go` `rejectOpenPeerAS` | |
+| Enrol RFC 7705 | Done | `rfc/enrolled.txt`, `rfc/short/rfc7705.md` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/bgp-open-bad-peer-as.ci`, `TestOpenBadPeerASCounted`, RFC7705-4.2-2 negative in `rfc7705_reactor_b_test.go` | |
+| AC-2 | Done | `TestOpenBadPeerASCounted` "the configured AS" | |
+| AC-3 | Done | `TestOpenCheckSkippedForDynamicPeer`, `dynamic-group-static-peer-wins.ci` | |
+| AC-4, AC-5 | Done | `TestMigrationAcceptsEitherASN`, `bgp-as-migration-accept-either.ci` | |
+| AC-6, AC-9 | Done | `TestMigrationOpenCarriesResolvedASN`, `bgp-as-migration-send-either.ci` | |
+| AC-7 | Done | `TestMigrationSessionIsIBGP`, `rfc7705_live_behavior_test.go` 4.2-4 tags, `bgp-as-migration-ibgp-treatment.ci` | |
+| AC-8 | Done | `TestPeersFromConfigTree_ASMigrationPerNeighborGroup` | green under gate tags 2026-10-09 |
+| AC-10 | Done | `TestMigrationFallbackOnBadPeerAS`, send-either `.ci`, interop FRR leg | |
+| AC-11 | Done | `TestMigrationFallbackIgnoredWithoutTheMechanism`, 4.2-3 negative polarity | |
+| AC-12 | Done | `./le rfc check` names no RFC 7705 violation (2026-10-09) | its exit 2 is other RFCs |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestOpenRejectedOnBadPeerAS`, `TestOpenAcceptedOnMatchingAS` | Changed | `TestOpenBadPeerASCounted`, `rfc7705_reactor_b_test.go` | |
+| `TestOpenCheckSkippedForDynamicPeer` | Done | `rfc7705_session_as_migration_test.go` | |
+| `TestMigrationAcceptsGlobalASN`, `...AlternateASN` | Changed | `TestMigrationAcceptsEitherASN` | one table, both polarities |
+| `TestMigrationOpenCarriesResolvedASN` | Done | same file | |
+| `TestMigrationSessionIsIBGP` | Done | same file | |
+| `TestMigrationNoEBGPPrepend` | Changed | `rfc7705_live_behavior_test.go`, ibgp-treatment `.ci` | |
+| `TestMigrationLeafPerNeighborGroup` | Changed | `TestPeersFromConfigTree_ASMigrationPerNeighborGroup` | |
+| `TestIBGPVerdictSingleRule` | Changed | `TestMigrationIBGPVerdictAgreesAcrossEverySite` | |
+| `TestMigrationFallbackOnBadPeerAS` | Done | same file | |
+| `TestNoMigrationConfigUnchanged` | Changed | `TestMigrationFallbackIgnoredWithoutTheMechanism` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `session_as_migration.go` | Done | |
+| `session_as_migration_test.go` | Changed | `rfc7705_session_as_migration_test.go` |
+| four `.ci` files | Done | |
+| `peer.go`, `peer_settings.go`, `session_validation.go`, `session_open_validation.go`, `session_negotiate.go`, `config.go`, YANG | Done | `11f0a65db2` |
+
+### Audit Summary
+- **Total items:** 32
+- **Done:** 24
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 8 (test and file names, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Section 4.2 works against other implementations | interop | `test/interop/scenarios/bgp-as-migration-local-as`: FRR refuses ze's first OPEN with Bad Peer AS, ze reopens with the migration AS, session establishes iBGP; green twice 2026-10-09; forced red with the fallback broken (FRR shows 6 NOTIFICATIONs, Idle) |
+| User path end to end | functional | four `.ci` files, each forced red by a break in `session_as_migration.go` (Progress, 2026-10-09) |
+| Four gated MUSTs proven in both polarities | RFC ledger | `docs/features/rfc-status.md` RFC 7705 `9 gated: 9 proven`; `rfc/discrimination/rfc7705.json` |
+| RFC 7705 enrolled | file | `rfc/enrolled.txt` `rfc7705` row |
+| Tightening observable | metric | `ze_bgp_open_rejected_bad_peer_as_total`, `TestOpenBadPeerASCounted` (forced red in an export) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC and checklist row is met | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-as-migration-12d06ccf-2460-42c7-a707-30bb0a427796.md` |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, logic and RFC 7705 Section 4.2 text, security (attacker-supplied AS, fallback bound), stale comments, documentation drift |
+
+Round 1 found one ISSUE and three documentation gaps; round 2, over the fixes, found 0 BLOCKER and 0 ISSUE.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Comment on `peerASAccepted` names a nonexistent `openClaimsASZero` and the wrong reader of the advertised AS | `session_as_migration.go` | comment corrected |
+| 2 | ISSUE | `fsm-open-sent.md` validation order omits the peer AS check | `docs/architecture/behavior/fsm-open-sent.md` | step 4 added |
+| 3 | ISSUE | Feature page and comparison carry no RFC 7705 entry though checklist rows 1 and 11 say Yes | `docs/features/bgp-protocol.md`, `docs/comparison.md` | section and row added |
+
+NOTE: `Peer.asMigrationFallback` is never reset when a session establishes, so after a drop the next OPEN uses whichever AS last succeeded. RFC 7705 Section 4.2's "SHOULD send BGP OPEN using the globally configured ASN first" governs the first attempt, which ze meets; reopening with the AS the peer last accepted cannot deadlock, since the toggle still walks both.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `session_as_migration.go`, `rfc7705_session_as_migration_test.go` | yes | `grep -n "^func Test"` lists 9 tests in the test file |
+| `test/plugin/bgp-open-bad-peer-as.ci`, `bgp-as-migration-{accept-either,send-either,ibgp-treatment}.ci` | yes | `ee15e53be9` stat |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-8 | per-group leaf with peer override | `go test -tags "ze_core <feature-gates>" -run TestPeersFromConfigTree_ASMigrationPerNeighborGroup ./internal/component/bgp/config/`: PASS; whole package `ok` (58s) |
+| AC-1..AC-7, AC-9..AC-11 | reactor behaviour | `go test -tags ... -run 'Migration|BadPeerAS|PeerAS|DynamicPeer|IBGP' ./internal/component/bgp/reactor/`: `ok` 21.8s |
+| AC-12 | no RFC 7705 violation | `./le rfc check` output has no `RFC7705` line |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| OPEN with unconfigured AS | `bgp-open-bad-peer-as.ci` | forced red recorded (Progress, 2026-10-09) |
+| migration peer, either ASN | `bgp-as-migration-accept-either.ci` | forced red recorded |
+| our OPEN toward migration peer | `bgp-as-migration-send-either.ci` | forced red recorded |
+| routes on alternate-ASN session | `bgp-as-migration-ibgp-treatment.ci` | forced red recorded |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1..A-6 | confirmed | Assumptions table above, one evidence cell each |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| feature page, comparison, FSM validation order | `validateOpenPeerAS`, `peerASAccepted`, `noteASMigrationRejection`, `openLocalAS` read in closure | yes |
+| config guide, monitoring | `parsePeerSettings` "migration", `openBadPeerAS` | yes |
+| `./le doc check verify` | only the unrelated wiki catalog drift fails | yes |

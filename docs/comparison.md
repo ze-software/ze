@@ -75,6 +75,7 @@ Last updated: 2026-09-20
 | Extended Nexthop (RFC 8950) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Route Reflector (RFC 4456) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes |
 | Confederation (RFC 5065) | No | Yes | Yes | Yes | No | Yes | No | No | No | No | Yes |
+| AS migration: local-as and iBGP dual AS (RFC 7705) | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
 | Admin Shutdown (RFC 8203) | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Partial |
 | BGP Roles (RFC 9234) | Yes | Yes | Yes | No | Yes | No | Yes | No | No | No | Partial |
 | Prefix Limit (RFC 4486) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |

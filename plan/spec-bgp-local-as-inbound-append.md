@@ -52,7 +52,7 @@ meets it (`plan/README.md`).
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc7705.md` - the enrolled summary, returned from `rfc/pending/` on 2026-09-14
-  → Constraint: enrolment of RFC 7705 belonged to `plan/immediate/spec-bgp-as-migration.md` and is done. `RFC7705-3.3-9` is a SHOULD, so it is outside the gated set and this spec still adds no `RFC requirement:` tag for it. The seam is unchanged: that spec owned the LEDGER, this spec owns the RECIPE and the defects under it.
+  → Constraint: enrolment of RFC 7705 belonged to spec-bgp-as-migration and is done. `RFC7705-3.3-9` is a SHOULD, so it is outside the gated set and this spec still adds no `RFC requirement:` tag for it. The seam is unchanged: that spec owned the LEDGER, this spec owns the RECIPE and the defects under it.
 - [ ] `rfc/short/rfc7947.md` - route server transparency
   → Constraint: Section 2.2.2.1 forbids a route server from modifying AS_PATH "in any other way", which is wider than the prepend it names. An inbound append on a route-server path is inside that prohibition, and RFC 7705 never mentions route servers, so the interaction is ze's to settle.
 
@@ -159,7 +159,7 @@ meets it (`plan/README.md`).
 |----------|--------|
 | What breaks if this is wrong? | A route learned from the migrated peer carries the wrong AS_PATH inside the AS: too short and the legacy ASN is invisible to loop detection at every other router, too long or malformed and a neighbor drops the session's routes or the UPDATE itself. On a route server, a modified path reaches clients whose decision process RFC 7947 says must see the original. |
 | How is it reverted? | Remove the modifier from the import chain and the next UPDATE is unchanged. Revert this spec's recipe safeguards separately from the pre-existing width correction. Routes already re-advertised carry the path onward |
-| Who else touches this path? | spec-bgp-local-as-options (closed 2026-10-09) owned the outbound rail and the `local-options` semantics; `plan/immediate/spec-bgp-as-migration.md` owns RFC 7705 enrolment and the `rfc/short/` ledger. Neither is edited here. |
+| Who else touches this path? | spec-bgp-local-as-options (closed 2026-10-09) owned the outbound rail and the `local-options` semantics; spec-bgp-as-migration (closed 2026-10-09) owned RFC 7705 enrolment and the `rfc/short/` ledger. Neither is edited here. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -271,7 +271,7 @@ meets it (`plan/README.md`).
 | 6 | Has a user guide page? | Yes | `docs/guide/configuration.md` is the page; no new page is added |
 | 7 | Wire format changed? | No | The AS_PATH encoding rules and existing width-aware writer are preserved |
 | 8 | Plugin SDK/protocol changed? | No | no SDK surface changes |
-| 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 7705 was enrolled on 2026-09-14 by `plan/immediate/spec-bgp-as-migration.md`. `RFC7705-3.3-9` remains an unimplemented automatic SHOULD; this spec proves an operator recipe and changes no conformance classification |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 7705 was enrolled on 2026-09-14 by spec-bgp-as-migration. `RFC7705-3.3-9` remains an unimplemented automatic SHOULD; this spec proves an operator recipe and changes no conformance classification |
 | 10 | Test infrastructure changed? | No | existing `.ci` and interop harnesses |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` -- other daemons offer the inbound append as a per-neighbor knob and ze offers a policy recipe; the row states that plainly |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/bgp/egress-attribute-rules.md` -- the import direction of the prepend action and its width rule |
@@ -361,7 +361,7 @@ meets it (`plan/README.md`).
 - `RFC7705-3.3-9` stays an unimplemented SHOULD. The recipe is operator configuration, so ze does not perform the append by itself and no conformance row moves. Implementing it as an engine mechanism is the deferred work this spec's Task section records the owner's ruling on.
 - `local-options no-prepend` still selects nothing, and after this spec it still cannot: with no engine append there is nothing for it to suppress. Its only new effect is the refusal it triggers beside the recipe.
 - The RFC's "flexible model" (Section 3.3, the BGP Alias MAY) is out of scope and unchanged.
-- RFC 7705 enrolment was completed by `plan/immediate/spec-bgp-as-migration.md` on 2026-09-14. The existing Section 3.3 MUST tags remain with their current tests; this recipe adds no tag for the deferred SHOULD.
+- RFC 7705 enrolment was completed by spec-bgp-as-migration on 2026-09-14. The existing Section 3.3 MUST tags remain with their current tests; this recipe adds no tag for the deferred SHOULD.
 
 ## RFC Documentation (Scope: protocol)
 

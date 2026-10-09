@@ -97,12 +97,12 @@ func (n *PeerSettings) isIBGPWith(peerAS uint32) bool {
 // configured to establish with. It is the test behind RFC 4271 Section 6.2 "Bad Peer AS",
 // and the exception RFC 7705 Section 4.2 carves out of it.
 //
-// advertised is the peer's REAL AS, read through the AS4 capability by openAdvertisedAS
-// (peer.go), so a four-octet peer is judged on its own ASN rather than on the AS_TRANS it
-// is required to put in My Autonomous System (RFC 6793 Section 3).
+// advertised is the peer's REAL AS, read through the AS4 capability by validateOpenPeerAS
+// (session_open_as.go), so a four-octet peer is judged on its own ASN rather than on the
+// AS_TRANS it is required to put in My Autonomous System (RFC 6793 Section 3).
 //
-// advertised is never zero here: openClaimsASZero refuses AS 0 on both rails before this
-// runs (session_open_as.go, RFC 7607 Section 2). So no branch below has to decide what an
+// advertised is never zero here: validateOpenPeerAS refuses AS 0 on both rails before it
+// calls this (RFC 7607 Section 2). So no branch below has to decide what an
 // absent AS means, and none of them treats zero as a pass.
 func (n *PeerSettings) peerASAccepted(advertised uint32) bool {
 	if n.MigrationAS != 0 {

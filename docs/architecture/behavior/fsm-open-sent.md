@@ -83,26 +83,36 @@ In order:
 3. `open.ValidateHoldTime()` rejects hold time 1 or 2 seconds per RFC 4271
    Section 6.2. Failure sends the NOTIFICATION embedded in the error and
    fires `EventBGPOpenMsgErr`.
-4. If an `openValidator` is configured (e.g. RFC 9234 role check), it
+4. `validateOpenPeerAS` (`session_open_as.go`) parses the capabilities and
+   judges the advertised AS, the ASN4 capability's value when present.
+   AS 0 (RFC 7607 Section 2) and an AS `PeerSettings.peerASAccepted`
+   (`session_as_migration.go`) refuses both send NOTIFICATION 2/2 Bad Peer AS,
+   fire `EventBGPOpenMsgErr`, close the connection and count the refusal in
+   `ze_bgp_open_rejected_bad_peer_as_total`. `peerASAccepted` accepts the
+   configured remote AS, or either AS of an RFC 7705 Section 4.2 migration
+   pair, and skips the comparison for a dynamic peer whose AS is not known yet.
+   `validateOpenIdentifier` then applies RFC 6286 Section 2.2 (Bad BGP
+   Identifier).
+5. If an `openValidator` is configured (e.g. RFC 9234 role check), it
    runs and may reject with a typed
    `interface{ NotifyCodes() (uint8, uint8) }`. Rejection sends
    NOTIFICATION but does **not** fire an FSM event (the caller returns
    the error and the read loop exits, which later trips
    `handleConnectionClose` -> `EventTCPConnectionFails`).
-5. Capabilities are parsed and negotiated via `negotiateWith`, which also fixes
+6. Capabilities are parsed and negotiated via `negotiateWith`, which also fixes
    the session's peer AS and its internal verdict. `sessionPeerAS` (`peer.go`)
    answers the AS, taking the configured value before the one the OPEN
    advertises. `PeerSettings.isIBGPWith` (`session_as_migration.go`) answers the
    verdict. Both go into `capability.Negotiate` as a `PeerIdentity`, so
    `Negotiated.Identity` is what every later reader of the two gets.
-6. `CheckRequired(requiredFamilies)` must pass. Missing required families
+7. `CheckRequired(requiredFamilies)` must pass. Missing required families
    sends NOTIFICATION (UnsupportedCapability) and fires
    `EventBGPOpenMsgErr`.
-7. `validateCapabilityModes(...)` enforces `RequiredCapabilities` and
+8. `validateCapabilityModes(...)` enforces `RequiredCapabilities` and
    `RefusedCapabilities`. Failure returns an error; it does not
    explicitly fire an event, so the read loop exits and the session
    tears down.
-8. Finally `advanceAfterOpen` runs, and it forks. In the ordinary case it
+9. Finally `advanceAfterOpen` runs, and it forks. In the ordinary case it
    fires `fsm.Event(EventBGPOpen)`, `sendKeepalive` writes our KEEPALIVE and
    `timers.ResetHoldTimer` restarts the hold timer with the negotiated value.
    Under BFD strict mode it does none of that: see the section below.
@@ -128,6 +138,8 @@ is in `fsm.md`.
 <!-- source: internal/component/bgp/reactor/session_negotiate.go — negotiateWith -->
 <!-- source: internal/component/bgp/reactor/peer.go -- sessionPeerAS, openAdvertisedAS -->
 <!-- source: internal/component/bgp/reactor/session_as_migration.go -- isIBGPWith -->
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS, rejectOpenPeerAS -->
+<!-- source: internal/component/bgp/reactor/session_as_migration.go -- peerASAccepted -->
 <!-- source: internal/component/bgp/reactor/session.go — openValidator, setOpenValidator -->
 
 ## Timers running in this state
