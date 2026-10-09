@@ -238,7 +238,6 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 | `test-fib-ecmp` | `test/bgp/fib-ecmp.ci` | Two eBGP peers, same prefix, ECMP installed | |
 | `test-fib-recursive` | `test/bgp/fib-recursive.ci` | iBGP with recursive NH, route installed with resolved NH | |
 | `test-fib-blackhole` | `test/bgp/fib-blackhole.ci` | Blackhole route programmed correctly | |
-| `test-fib-vrf-table` | `test/bgp/fib-vrf-table.ci` | Route installed in non-default table | |
 | `test-fib-mpls-kernel` | `test/bgp/fib-mpls-kernel.ci` | MPLS encap route in Linux kernel | |
 
 ### Interop Tests (MANDATORY for protocol features)
@@ -269,7 +268,6 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 - `test/bgp/fib-ecmp.ci` -- functional test
 - `test/bgp/fib-recursive.ci` -- functional test
 - `test/bgp/fib-blackhole.ci` -- functional test
-- `test/bgp/fib-vrf-table.ci` -- functional test
 - `test/bgp/fib-mpls-kernel.ci` -- functional test
 
 ### Integration Checklist
@@ -514,7 +512,7 @@ Add `// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP m
 | IGP cost tiebreaker works | unit test + functional test | TestComparePairIGPCost + test-fib-recursive.ci |
 | Recursive NH resolution | unit test + functional test | TestRecursiveNHResolve + test-fib-recursive.ci |
 | ECMP installed in FIB | functional test + interop | test-fib-ecmp.ci + ecmp-frr |
-| Rich route attributes in kernel | functional test | test-fib-blackhole.ci + test-fib-vrf-table.ci |
+| Rich route attributes in kernel | functional test | test-fib-blackhole.ci (test-fib-vrf-table.ci moved with AC-9 to `spec-fib-nexthop-objects-vpp-metric.md`, 2026-10-09) |
 | Linux/VPP parity | functional comparison test | test comparing both backends |
 
 ## Review Gate

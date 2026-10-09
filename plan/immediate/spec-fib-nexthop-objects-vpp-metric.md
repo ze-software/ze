@@ -109,8 +109,16 @@ route identity; backend TableID consumption alone does not satisfy AC-9."
 |------|------|-----------|--------|
 | [written at design time] | | | |
 
+### Functional Tests
+Moved verbatim from `plan/immediate/spec-fib-depth.md` with AC-9 (2026-10-09):
+
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `test-fib-vrf-table` | `test/bgp/fib-vrf-table.ci` | Route installed in non-default table | |
+
 ## Files to Modify
-- [written at design time]
+- `test/bgp/fib-vrf-table.ci` -- functional test (moved from `spec-fib-depth` with AC-9)
+- [rest written at design time]
 
 ### Integration Checklist
 - [written at design time]
