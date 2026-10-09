@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/api"
 	"github.com/ze-software/ze/internal/component/authz"
+	cmd "github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -298,10 +299,10 @@ func TestAPIStreamSourceRunsStreamingHandler(t *testing.T) {
 		username string
 		args     []string
 	}
-	pluginserver.RegisterStreamingHandler(command, func(_ context.Context, srv *pluginserver.Server, w io.Writer, username string, args []string) error {
+	pluginserver.RegisterStreamingHandler(command, func(_ context.Context, srv *pluginserver.Server, w io.Writer, username string, args cmd.ValidatedArgs) error {
 		seen.server = srv
 		seen.username = username
-		seen.args = append([]string(nil), args...)
+		seen.args = args.Tokens()
 		if _, writeErr := fmt.Fprintln(w, "first"); writeErr != nil { //nolint:errcheck // output
 			return writeErr
 		}
@@ -340,7 +341,7 @@ func TestAPIStreamSourceReturnsHandlerStartupError(t *testing.T) {
 
 	const command = "test api stream source error"
 	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(command) })
-	pluginserver.RegisterStreamingHandler(command, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+	pluginserver.RegisterStreamingHandler(command, func(context.Context, *pluginserver.Server, io.Writer, string, cmd.ValidatedArgs) error {
 		return fmt.Errorf("bad stream arguments")
 	})
 
@@ -360,7 +361,7 @@ func TestAPIStreamSourceAuthorizesReadOnly(t *testing.T) {
 	const command = "test api stream source auth"
 	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(command) })
 	ran := false
-	pluginserver.RegisterStreamingHandler(command, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+	pluginserver.RegisterStreamingHandler(command, func(context.Context, *pluginserver.Server, io.Writer, string, cmd.ValidatedArgs) error {
 		ran = true
 		return nil
 	})
@@ -407,7 +408,7 @@ func TestAPIStreamSourceCancelStopsHandler(t *testing.T) {
 	const command = "test api stream source cancel"
 	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(command) })
 	handlerDone := make(chan struct{})
-	pluginserver.RegisterStreamingHandler(command, func(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, _ []string) error {
+	pluginserver.RegisterStreamingHandler(command, func(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, _ cmd.ValidatedArgs) error {
 		defer close(handlerDone)
 		if _, writeErr := fmt.Fprintln(w, "started"); writeErr != nil { //nolint:errcheck // output
 			return writeErr
@@ -441,7 +442,7 @@ func TestAPIStreamLineWriterPartialWrites(t *testing.T) {
 
 	const command = "test api stream source partial"
 	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(command) })
-	pluginserver.RegisterStreamingHandler(command, func(_ context.Context, _ *pluginserver.Server, w io.Writer, _ string, _ []string) error {
+	pluginserver.RegisterStreamingHandler(command, func(_ context.Context, _ *pluginserver.Server, w io.Writer, _ string, _ cmd.ValidatedArgs) error {
 		// Write "hello world\n" across three Write calls.
 		if _, writeErr := w.Write([]byte("hel")); writeErr != nil {
 			return writeErr
@@ -473,7 +474,7 @@ func TestAPIStreamLineWriterFlushesOnClose(t *testing.T) {
 
 	const command = "test api stream source notail"
 	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(command) })
-	pluginserver.RegisterStreamingHandler(command, func(_ context.Context, _ *pluginserver.Server, w io.Writer, _ string, _ []string) error {
+	pluginserver.RegisterStreamingHandler(command, func(_ context.Context, _ *pluginserver.Server, w io.Writer, _ string, _ cmd.ValidatedArgs) error {
 		if _, writeErr := fmt.Fprintln(w, "line one"); writeErr != nil { //nolint:errcheck // output
 			return writeErr
 		}
@@ -501,7 +502,7 @@ func TestAPIStreamSourceRecoversPanic(t *testing.T) {
 
 	const command = "test api stream source panic"
 	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(command) })
-	pluginserver.RegisterStreamingHandler(command, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+	pluginserver.RegisterStreamingHandler(command, func(context.Context, *pluginserver.Server, io.Writer, string, cmd.ValidatedArgs) error {
 		panic("handler exploded")
 	})
 

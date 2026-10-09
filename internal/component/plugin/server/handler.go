@@ -15,8 +15,11 @@ import (
 
 // StreamingHandler handles streaming commands (e.g., monitor).
 // ctx is the session context, s is the plugin server, w is the output writer,
-// username is the authenticated SSH user (for authorization), args are command arguments.
-type StreamingHandler func(ctx context.Context, s *Server, w io.Writer, username string, args []string) error
+// username is the authenticated SSH user (for authorization), and args is the
+// value ValidateArgs returned for the words after the streaming prefix, so a
+// handler never sees a token its command's model refuses
+// (GetStreamingHandlerForCommand).
+type StreamingHandler func(ctx context.Context, s *Server, w io.Writer, username string, args command.ValidatedArgs) error
 
 // MonitorProvider creates a TUI monitor session for a streaming command.
 type MonitorProvider struct {
@@ -114,7 +117,7 @@ func UnregisterStreamingHandler(prefix string) {
 // for that prefix (route R8). Matches the longest registered prefix. handler is
 // nil when no prefix matches, and when the arguments are refused: the refusal
 // is then err, and the caller MUST report it rather than run anything. A caller
-// MUST invoke the handler only with the tokens of the value answered.
+// MUST invoke the handler with the value answered.
 func GetStreamingHandlerForCommand(input string) (StreamingHandler, command.ValidatedArgs, error) {
 	handler, prefix, args := matchStreamingCommand(input)
 	if handler == nil {

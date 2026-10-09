@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/events"
 )
 
@@ -336,7 +337,7 @@ func TestGetStreamingHandlerPreservesArgCase(t *testing.T) {
 		streamingHandlersMu.Unlock()
 	}()
 
-	handler := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error { return nil }
+	handler := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ command.ValidatedArgs) error { return nil }
 	RegisterStreamingHandler("monitor event", handler)
 
 	_, args := streamingLookup(t, "monitor event peer MyRouter-1")

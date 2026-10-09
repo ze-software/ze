@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -103,7 +104,7 @@ func runRawSSHExec(t *testing.T, server *Server, command string) (stdout, stderr
 // the requested renderer must run once for every newline-delimited event.
 func TestSSHRawExecFormatsStreamEventsAndConsumesLog(t *testing.T) {
 	const streamCommand = "monitor ssh-pipe-test"
-	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, command.ValidatedArgs) error {
 		return nil
 	})
 
@@ -172,7 +173,7 @@ func TestStreamPipeWriterFormatsEachEventOnce(t *testing.T) {
 // PREVENTS: a late refusal reaching stdout before a later handler event.
 func TestSSHRawExecReturnsLateStreamRefusalOnStderr(t *testing.T) {
 	const streamCommand = "monitor ssh-late-refusal-test"
-	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, command.ValidatedArgs) error {
 		return nil
 	})
 
@@ -200,7 +201,7 @@ func TestSSHRawExecReturnsLateStreamRefusalOnStderr(t *testing.T) {
 // the remote pipe boundary before it constructs or invokes a handler executor.
 func TestSSHRawExecRefusesStreamSaveBeforeDispatch(t *testing.T) {
 	const streamCommand = "monitor ssh-save-test"
-	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, command.ValidatedArgs) error {
 		return nil
 	})
 

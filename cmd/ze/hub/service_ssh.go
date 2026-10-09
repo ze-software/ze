@@ -152,7 +152,7 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 			if handler == nil {
 				return fmt.Errorf("unknown streaming command: %q", input)
 			}
-			return handler(ctx, apiServer, w, username, validated.Tokens())
+			return handler(ctx, apiServer, w, username, validated)
 		}
 	})
 	sshSrv.SetMonitorFactory(func(ctx context.Context, args []string) (*contract.MonitorSession, error) {

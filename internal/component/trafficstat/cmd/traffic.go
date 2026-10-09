@@ -8,6 +8,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/trafficstat"
@@ -69,7 +70,7 @@ func handleMonitorTraffic(_ *pluginserver.CommandContext, args []string) (*plugi
 	}, nil
 }
 
-func streamTraffic(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args []string) error {
+func streamTraffic(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args command.ValidatedArgs) error {
 	svc := trafficstat.EnsureGlobal()
 	if svc == nil {
 		return nil
@@ -79,8 +80,8 @@ func streamTraffic(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ s
 	defer svc.Detach(id)
 
 	var filterName string
-	if len(args) > 0 {
-		filterName = args[0]
+	if tokens := args.Tokens(); len(tokens) > 0 {
+		filterName = tokens[0]
 	}
 
 	enc := json.NewEncoder(w)

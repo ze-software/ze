@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
@@ -62,7 +63,13 @@ func TestNetlinkMonitorRPCRegistered(t *testing.T) {
 }
 
 func TestNetlinkMonitorInvalidGroup(t *testing.T) {
-	err := streamNetlinkMonitor(context.TODO(), nil, nil, "", []string{"bogus"})
+	// The model declares no leaf for this command, so the group word reaches
+	// the handler unjudged and the handler's own check is what refuses it.
+	args, err := command.ValidateArgs([]string{"bogus"}, nil, nil)
+	if err != nil {
+		t.Fatalf("ValidateArgs with no definitions: %v", err)
+	}
+	err = streamNetlinkMonitor(context.TODO(), nil, nil, "", args)
 	if err == nil {
 		t.Fatal("expected error for invalid group")
 	}

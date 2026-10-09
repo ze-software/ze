@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -46,8 +47,8 @@ var nextEventMonitorID atomic.Uint64
 // and streams events until the context is canceled.
 // Registration: called from internal/component/bgp/plugins/cmd/monitor/monitor.go init()
 // via RegisterStreamingHandler("event monitor", StreamEventMonitor).
-func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, args []string) error {
-	opts, err := ParseEventMonitorArgs(args)
+func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, args command.ValidatedArgs) error {
+	opts, err := ParseEventMonitorArgs(args.Tokens())
 	if err != nil {
 		return err
 	}

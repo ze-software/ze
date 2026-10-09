@@ -212,7 +212,7 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 					writer.close(fmt.Errorf("streaming handler panic: %v", r))
 				}
 			}()
-			err := handler(streamCtx, s, writer, caller.Username, validated.Tokens())
+			err := handler(streamCtx, s, writer, caller.Username, validated)
 			writer.close(err)
 		}()
 

@@ -10,6 +10,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/ike/engine"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -47,7 +48,7 @@ type ipsecMonitorEvent struct {
 	IfID        uint32 `json:"if-id,omitempty"`
 }
 
-func streamIPsecMonitor(ctx context.Context, s *pluginserver.Server, w io.Writer, _ string, _ []string) error {
+func streamIPsecMonitor(ctx context.Context, s *pluginserver.Server, w io.Writer, _ string, _ command.ValidatedArgs) error {
 	ch := make(chan ipsecMonitorEvent, 64)
 
 	unsub1 := engine.SAUp.Subscribe(s, func(ev *engine.SAEvent) {

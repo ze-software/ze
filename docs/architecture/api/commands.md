@@ -1483,15 +1483,20 @@ plugin serving `show config cat`, which no daemon builtin serves.
 
 The local-handler registry cannot import `command`, so `RegisterArgDefSource`
 installs the judgment there too (`registry.RegisterLocalArgCheck`); a process
-that installed none refuses every local route. Handler signatures still take a
-token slice; the routes pass `ValidatedArgs.Tokens()`.
+that installed none refuses every local route.
+
+A streaming handler (`pluginserver.StreamingHandler`) takes the
+`command.ValidatedArgs` itself, so no route can declare or invoke one with a
+token slice: R8 hands it the value `GetStreamingHandlerForCommand` answered, and
+the handler reads `Tokens()` or `Positional(leaf)`. The other handler types still
+take a token slice, and their routes pass `ValidatedArgs.Tokens()`.
 <!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
 <!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource -->
 <!-- source: internal/component/command/registry/registry.go -- ValidateLocalArgs, RegisterLocalArgCheck -->
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
 <!-- source: internal/component/plugin/server/server.go -- wrapHandler -->
 <!-- source: internal/component/plugin/server/ensure.go -- wrapWithEnsureChain -->
-<!-- source: internal/component/plugin/server/handler.go -- GetStreamingHandlerForCommand -->
+<!-- source: internal/component/plugin/server/handler.go -- StreamingHandler, GetStreamingHandlerForCommand -->
 
 A `type empty` leaf is a flag (`ArgFlag`): the keyword alone is the argument,
 in any position, and no value follows it. `ValidateArgs` consumes it in

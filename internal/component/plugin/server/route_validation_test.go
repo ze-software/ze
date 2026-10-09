@@ -153,7 +153,7 @@ func TestStreamingLookupInvokesWithValidatedArguments(t *testing.T) {
 		streamingHandlers = saved
 		streamingHandlersMu.Unlock()
 	})
-	RegisterStreamingHandler(modelPath, func(context.Context, *Server, io.Writer, string, []string) error { return nil })
+	RegisterStreamingHandler(modelPath, func(context.Context, *Server, io.Writer, string, command.ValidatedArgs) error { return nil })
 
 	handler, _, err := GetStreamingHandlerForCommand(modelPath + " " + nameOverLong)
 	if err == nil {

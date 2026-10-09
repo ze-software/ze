@@ -17,6 +17,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/component/command"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
@@ -34,8 +35,8 @@ const (
 	eventKeyTimestamp = "timestamp"
 )
 
-func streamNetlinkMonitor(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args []string) error {
-	group, err := netlinkGroupFromArgs(args)
+func streamNetlinkMonitor(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args command.ValidatedArgs) error {
+	group, err := netlinkGroupFromArgs(args.Tokens())
 	if err != nil {
 		return err
 	}

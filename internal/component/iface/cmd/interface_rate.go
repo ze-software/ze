@@ -15,6 +15,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -75,10 +76,10 @@ func handleMonitorInterfaceRate(_ *pluginserver.CommandContext, args []string) (
 	}, nil
 }
 
-func streamInterfaceRate(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args []string) error {
+func streamInterfaceRate(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args command.ValidatedArgs) error {
 	var filterName string
-	if len(args) > 0 {
-		filterName = args[0]
+	if tokens := args.Tokens(); len(tokens) > 0 {
+		filterName = tokens[0]
 	}
 
 	enc := json.NewEncoder(w)
