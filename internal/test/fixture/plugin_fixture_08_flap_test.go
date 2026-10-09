@@ -77,3 +77,39 @@ func TestTotalCounter08SelectsTheMetricAndReadsBareSeries(t *testing.T) {
 		t.Errorf("totalCounter08 read a value off a timestamped series, got %v, want 0", got)
 	}
 }
+
+// flapNetlinkTable08 is /proc/net/netlink as a 6.x kernel prints it, with two
+// sockets that dropped notifications and one that did not.
+const flapNetlinkTable08 = `sk               Eth Pid        Groups   Rmem     Wmem     Dump  Locks    Drops    Inode
+0000000000000000 0   1          00000550 0        0        0     2        0        12345
+0000000000000000 0   4242       00000001 0        0        0     2        1054     12346
+0000000000000000 0   4243       00000001 0        0        0     2        207      12347
+`
+
+// VALIDATES: sumNetlinkDrops08 sums the Drops column over every socket, and
+// refuses a table it cannot read rather than answering a number.
+//
+// PREVENTS: the vacuous zero-drops assertion. The reader used to return -1 for
+// a table with no Drops column and to skip a row it could not parse; the
+// fixture subtracts a baseline read the same way, so the run saw zero drops
+// whatever the kernel had discarded.
+func TestSumNetlinkDrops08ReadsTheDropsColumnOrRefuses(t *testing.T) {
+	got, err := sumNetlinkDrops08(flapNetlinkTable08)
+	if err != nil {
+		t.Fatalf("sumNetlinkDrops08 over a well-formed table: %v", err)
+	}
+	if got != 1261 {
+		t.Errorf("sumNetlinkDrops08 = %d, want 1261 (0 + 1054 + 207)", got)
+	}
+	refused := map[string]string{
+		"no Drops column": "sk Eth Pid Groups Rmem Wmem Dump Locks Inode\n0 0 1 550 0 0 0 2 12345\n",
+		"short row":       "sk Eth Pid Groups Rmem Wmem Dump Locks Drops Inode\n0 0 1 550 0 0 0 2\n",
+		"non-numeric":     "sk Eth Pid Groups Rmem Wmem Dump Locks Drops Inode\n0 0 1 550 0 0 0 2 x 12345\n",
+		"empty file":      "",
+	}
+	for name, table := range refused {
+		if value, err := sumNetlinkDrops08(table); err == nil {
+			t.Errorf("%s: sumNetlinkDrops08 = %d with no error, want a refusal", name, value)
+		}
+	}
+}

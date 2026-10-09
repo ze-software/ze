@@ -94,8 +94,13 @@
 # burst the monitor cannot read fast enough overflows the KERNEL's socket
 # buffer and the transition is lost before ze sees it. That loss is outside
 # this spec and it makes (3) unattainable for any producer: at 401 transitions
-# it was measured. The driver reads /proc/net/netlink and fails the run if it
-# happens.
+# it was measured, and at 101 with the kernel's default receive buffer, which
+# is why monitorReceiveBufferBytes sizes all three monitor sockets. The driver
+# reads the Drops column of /proc/net/netlink after EVERY burst, before any
+# other check of the round, and fails the run naming the round if it moved: a
+# notification ze never received otherwise fails a later check that blames the
+# queue for it. It reads once more at the end, to cover the last recovery. An
+# unreadable table fails the run rather than reading as zero drops.
 #
 # The stimulus for the default route is an injected neighbour carrying
 # NTF_ROUTER, the flag the kernel sets when it receives a Router Advertisement

@@ -99,15 +99,24 @@ func flapDefaultMetric08(ctx context.Context) (int, bool) {
 	return value, err == nil
 }
 
-func netlinkDrops08() int {
+// netlinkDrops08 sums the Drops column of /proc/net/netlink: every notification
+// the kernel discarded because a netlink socket's receive queue was full.
+func netlinkDrops08() (int, error) {
 	data, err := os.ReadFile("/proc/net/netlink")
 	if err != nil {
-		return -1
+		return 0, fmt.Errorf("read netlink drops: %w", err)
 	}
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) == 0 {
-		return -1
-	}
+	return sumNetlinkDrops08(string(data))
+}
+
+// sumNetlinkDrops08 sums the Drops column of a /proc/net/netlink table.
+//
+// It returns an error, never a sentinel, for a table it cannot read in full.
+// It used to return -1 for a missing column and skip a row it could not parse,
+// and every caller subtracts a baseline, so an unreadable table read as
+// -1 - -1 = 0 and the zero-drops assertion passed without measuring anything.
+func sumNetlinkDrops08(table string) (int, error) {
+	lines := strings.Split(strings.TrimSpace(table), "\n")
 	header := strings.Fields(lines[0])
 	column := -1
 	for i, name := range header {
@@ -116,20 +125,21 @@ func netlinkDrops08() int {
 		}
 	}
 	if column < 0 {
-		return -1
+		return 0, fmt.Errorf("netlink drops: no Drops column in header %q", lines[0])
 	}
 	total := 0
 	for _, line := range lines[1:] {
 		fields := strings.Fields(line)
 		if len(fields) <= column {
-			continue
+			return 0, fmt.Errorf("netlink drops: row has no Drops field: %q", line)
 		}
 		value, err := strconv.Atoi(fields[column])
-		if err == nil {
-			total += value
+		if err != nil {
+			return 0, fmt.Errorf("netlink drops: row %q: %w", line, err)
 		}
+		total += value
 	}
-	return total
+	return total, nil
 }
 
 func scrape08(ctx context.Context, port string) (string, error) {
@@ -318,7 +328,10 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	// commits this test is named for never happened. Cheap to print, and the
 	// alternative is inferring it from a truncated log.
 	fmt.Fprintf(os.Stderr, "FLAP: signaling daemon.pid=%d, parent=%d\n", pid, os.Getppid())
-	dropsBefore := netlinkDrops08()
+	dropsBefore, err := netlinkDrops08()
+	if err != nil {
+		return err
+	}
 	resyncsBefore, err := flapCounter08(ctx, port, "ze_iface_carrier_resyncs_total")
 	if err != nil {
 		return err
@@ -376,6 +389,21 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		}
 		if _, _, err := runCommand08(ctx, true, "ip", "-force", "-batch", "flap.batch"); err != nil {
 			return err
+		}
+		// Read the drops HERE, every round, before any assertion about what the
+		// daemon did with the burst. The kernel queues or discards each
+		// notification while it applies the change, so once the batch returns
+		// this round's loss is final. A notification that never reached ze
+		// fails every later check of the round for a reason none of them names:
+		// on 2026-10-09 a 4 KiB monitor buffer failed with "the queue did not
+		// fold events it held", blaming the queue for events it never received,
+		// because the drops were only read after the last round.
+		dropsNow, err := netlinkDrops08()
+		if err != nil {
+			return err
+		}
+		if dropped := dropsNow - dropsBefore; dropped != 0 {
+			return fmt.Errorf("round %d: kernel dropped %d netlink notifications by the end of the burst", round, dropped)
 		}
 		blockedNow, err := flapBlocked08(ctx, port)
 		if err != nil {
@@ -475,7 +503,13 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 		case <-time.After(1600 * time.Millisecond):
 		}
 	}
-	if dropped := netlinkDrops08() - dropsBefore; dropped != 0 {
+	// The per-round read covers each burst; this one also covers the recovery
+	// after the last burst, which no round read sees.
+	dropsAfter, err := netlinkDrops08()
+	if err != nil {
+		return err
+	}
+	if dropped := dropsAfter - dropsBefore; dropped != 0 {
 		return fmt.Errorf("kernel dropped %d netlink notifications during this run", dropped)
 	}
 	resyncsNow, err := flapCounter08(ctx, port, "ze_iface_carrier_resyncs_total")
