@@ -18,10 +18,25 @@ which should [show] the unique feature of ze, like irr download, vpn, etc. all i
 one big session ... identify the key things rpki, etc. and then have us configure
 it and demonstrate each feature one after the other. It can be a longer video."
 
-One continuous terminal recording, one Ze daemon, configured live in the SSH
-editor chapter by chapter, each chapter committed and then demonstrated. It
-becomes the site front-page hero, and a 60 to 90 s cut of it replaces the README
-animation.
+Owner amendment (2026-10-09): "we need a recording per topic and a
+super-recording."
+
+Two kinds of recording, each made on its own:
+
+- **Topic recordings.** One per storyboard topic, chapters 2 to 9: RPKI, IRR,
+  BFD, OSPF, IPsec, VRRP tracking, eBPF traffic, commit-confirmed. Each stands
+  alone from a base lab: the topic is typed live in the SSH editor, committed and
+  demonstrated. Each is placed on that feature's doc page and in the demo gallery
+  (`docs/guide/terminal-demonstrations.md`).
+- **Super-recording.** A separate continuous long session: one Ze daemon whose
+  config builds up chapter by chapter (chapters 0 to 10 below), each chapter
+  committed and then demonstrated. It is recorded on its own, never stitched
+  from the topic casts and never sliced into them. Its home is the site
+  (asciinema player, front-page hero); the GitHub README embeds it inline when
+  GitHub can render it, else links to the site player.
+
+Owner answer on placement (2026-10-09): "the content should be on the site but
+if github can have it embedded that would be ideal".
 
 ### Owner decisions (2026-10-09, answers to the research questions)
 
@@ -31,8 +46,11 @@ animation.
 | WireGuard | Needs runtime testing AND a demo: `plan/spec-wireguard-runtime-proof.md`. Not a chapter of this showcase until that spec lands |
 | PPP / L2TP | Skip |
 | Chapters | As listed below, in that order |
-| Length | About 7 minutes on the site (asciinema player). README gets a separate 60 to 90 s cut as an animated SVG |
-| Front page | Switch the hero from cli-dashboard to the showcase |
+| Recordings (amendment) | One recording per topic (chapters 2 to 9) plus one super-recording. The super is a separate continuous session, recorded on its own, not stitched from nor sliced into the topic casts |
+| Topic placement (amendment) | Each topic recording on its feature's doc page AND in the demo gallery `docs/guide/terminal-demonstrations.md` |
+| Super placement (amendment) | Home is the site (asciinema player). The GitHub README embeds the super inline if GitHub can render it (animated SVG, or a video GitHub plays in markdown) within GitHub's size limits; otherwise the README shows a thumbnail linking to the site player. The carrier is a measured outcome of a Work Plan probe, not an owner question (R-4) |
+| Length | Super about 7 minutes. The earlier "README gets a separate 60 to 90 s cut as an animated SVG" is superseded: the README carries the super itself, inline or as a linked thumbnail |
+| Front page | Switch the hero from cli-dashboard to the super-recording (the earlier decision stands) |
 | Configuration style | Everything typed live in the SSH editor and committed. Where a live commit fails to enable a feature, that is a Ze defect to fix, not to work around in the tape |
 
 ### Storyboard (from research, to be validated chapter by chapter)
@@ -90,10 +108,14 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
    - live commit enables RPKI, IRR, BFD, OSPF, IPsec, VRRP, traffic usage on a running daemon (each a defect to fix if not);
    - esp4 and xfrm_interface load inside the privileged demo container on the render host.
 2. Lab: one root-netns Ze managing veths to lab netns; FRR running bgpd+bfdd+ospfd together (`startFRRPair` hardcodes one daemon and `/run/frr`; generalize it); RTR cache, IRR server, HTTP source, keepalived peer, hidden second Ze for IKE.
-3. Scenario `showcase`: runner case, validator in `demoValidators`, manifest entry (`platform linux`, `privileged true`), cards per chapter, tape and transcript.
-4. Hero: derive the front-page demo, caption and anchor from one declaration (`homeHeroDemo` plus manifest), then point it at the showcase.
-5. README cut: a second short demo id or a cut of the showcase cast; make the SVG conversion a native `./le` action (`internal/le/site/...`) instead of a hand recipe; reword README line 10.
-6. Gallery marker in `docs/guide/terminal-demonstrations.md`.
+3. Scenarios, each with a runner case, a validator in `demoValidators`, a manifest entry (`platform linux`, `privileged true` where the lab needs it), cards, tape and transcript:
+   - one topic scenario per chapter 2 to 9 (RPKI, IRR, BFD, OSPF, IPsec, VRRP tracking, eBPF traffic, commit-confirmed), each starting from the base lab and typing its topic live. Seven topics already have a single-feature demo (`rpki`, `irr-filter`, `bfd-failover`, `ospf-adjacency`, `vrrp-failover`, `traffic-anomaly`, `commit-confirmed`) that loads a prepared `demos/terminal/<id>/ze.conf` instead of typing it, and `vrrp-failover` shows failover, not tracking. Whether each topic recording replaces its existing demo or sits beside it is settled at design (`ai/rules/no-layering.md` favours replacing). IPsec has no demo today;
+   - the `showcase` super scenario, all chapters in one session, driven from the same per-topic declarations (R-5).
+4. Hero: derive the front-page demo, caption and anchor from one declaration (`homeHeroDemo` plus manifest), then point it at the super.
+5. README carrier probe, once the super is recorded: render the super as an animated SVG and measure its size; test whether GitHub renders it inline in the README, and likewise a video GitHub plays in markdown; check each against GitHub's size limits. Record the measurements in this spec.
+6. README: embed the super inline with the carrier the probe proved; when neither renders within limits, show a thumbnail linking to the site player. Its producer is a native `./le` action (`internal/le/site/...`), not a hand recipe. Reword README line 10.
+7. Gallery: `docs/guide/terminal-demonstrations.md` (the manifest's `gallery-page`) lists each topic recording by name, and the super.
+8. Feature pages: embed each topic recording in its feature doc page through the manifest's per-demo `page` and `anchor` (today `guide/rpki.md`, `guide/irr-filtering.md`, `guide/bfd.md`, `guide/ospf.md`, `guide/vrrp.md`, `guide/traffic-usage.md`, `guide/config-editor.md`; the new IPsec recording goes on `guide/ipsec.md`).
 
 ## Risks
 
@@ -102,7 +124,8 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
 | R-1 | A feature does not enable on a live commit | Fix in Ze (owner decision 5) |
 | R-2 | Render host kernel lacks esp4/xfrm_interface | Load in container; else record where available; appliance spec covers the product side |
 | R-3 | Long session flakes (plugin stage stall under load seen 2026-10-08) | Per-chapter waits on output; journal and fix the stall if it recurs |
-| R-4 | README SVG too large for GitHub | Separate short cut |
+| R-4 | A 7 minute animated SVG is likely too large for GitHub to render (a 58 s cast gave 96 KB; 7 minutes is several MB) | Not an owner question: a measured outcome. Work Plan step 5 measures the SVG and tests inline rendering (SVG, then a video GitHub plays in markdown); if neither renders within GitHub's limits, the fallback is a README thumbnail linking to the site player |
+| R-5 | Each topic is recorded twice, as its own cast and as a super chapter, and the two drift (config lines, commands, expected output) | Declare each topic's typed config and demonstration once and drive both recordings from it. No such declaration exists today: a manifest `Demo` (`internal/le/site/terminaldemo/types.go`) carries only id, title, description, page, anchor, platform, kind, engine, source tape, validate id, duration and flags; the config is a per-demo `demos/terminal/<id>/ze.conf` loaded at prepare, the steps are that demo's `demo.tape`, and each validator in `demoValidators` is a Go function keyed by demo id that starts its own runner. The tape format has an include (every tape opens with `Source common.tape`), so a per-topic tape fragment sourced by both the topic tape and the showcase tape is one candidate; each topic's validator checks must likewise be one function that both validators call |
 
 ## Work Not Done (owned elsewhere)
 
