@@ -359,7 +359,9 @@ box carried a load average of 20 to 60 across 32 cores for every `encode` and
 |-------|-------------------|-------------------|
 | AC-1 | A full instrumented functional run completes | Every suite in `Gating` that CAN record has a non-empty recorded package set, a suite that records nothing is omitted from the map rather than written empty, and no test passes uninstrumented and fails instrumented across paired runs |
 | AC-2 | The instrumented full run is measured against the uninstrumented one | The added cost is stated as a number, and it is smaller than selection saves on a feature-local change |
-| AC-3 | The change set is one `internal/component/ssh` file and the map is current | The stage runs the suites whose recorded set contains that package, and no others |
+| AC-3 | The change set is one `internal/component/ssh` file and the map is current | The stage runs the suites whose recorded set contains that package, and no others. When the map cannot answer for a changed path (absent, stale, or unmapped), the stage runs every suite (fail-open, `suitesFor`) |
+
+-> Decision (owner, 2026-10-08): AC-3 keeps the fail-open fallback. Exactly the mapped suites when the map answers; all suites when it cannot. Strict selection was rejected because a change the map does not know would run too few suites and pass green without testing anything.
 | AC-4 | The map does not record a changed package | Every suite runs, and the stage names the package it could not answer for |
 | AC-5 | The map exists, but a commit since its recorded HEAD touched the changed package | That package is treated as unknown, so every suite runs |
 | AC-6 | The map is absent entirely | Every suite runs, exactly as today |
