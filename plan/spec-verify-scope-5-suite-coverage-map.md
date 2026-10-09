@@ -2,12 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | tooling |
 | Depends | spec-verify-scope-2-change-set-selector (closed 2026-09-05; the selector is `internal/le/changed/selector.go` and `docs/architecture/testing/verify-freshness-scope.md`) |
 | Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-09-07 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "Also set aside 4 specs nobody is working on"): no session has worked it since 2026-09-07. Next: recover the 2026-09-07 recording run's result or record a full instrumented functional run, then the paired runs AC-1's equivalence clause needs, AC-2's cost comparison and AC-3's selection from the real map.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

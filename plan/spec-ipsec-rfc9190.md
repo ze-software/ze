@@ -2,11 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | protocol |
 | Depends | - |
 | Phase | 8/8 |
-| Updated | 2026-09-08 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "Also set aside 4 specs nobody is working on"): no session has worked it since 2026-09-08. AC-7 (enrolment) and AC-9 (eight `weak` and one `wrong` verdict) are owed. Next, Implementation Steps item 7: derive the requirement inventory and complete the remaining evidence before enrolment.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

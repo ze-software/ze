@@ -2,11 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | config |
 | Depends | plan/pre-release/spec-appliance-ships-ze-kernel.md (AC-15 only) |
 | Phase | 6/6 |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): AC-1 to AC-14 carry the evidence below, and AC-15 waits on `plan/pre-release/spec-appliance-ships-ze-kernel.md`, because the default appliance image ships the stock rtr7 kernel without `CONFIG_MPLS`. When that spec closes: the MPLS seed boot lab, review, close.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

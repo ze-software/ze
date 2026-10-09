@@ -2,12 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | tooling |
-| Depends | `spec-rfc-requirement-quote-hand-backfill` (closed 2026-09-27, `f265152e15`) |
+| Depends | `spec-rfc-requirement-quote-hand-backfill` (closed 2026-09-27, `f265152e15`); the open children `plan/pre-release/spec-rfc-verdict-fix-{bgp,bfd,ospf,ike-eap,access,routing,services}.md` (AC-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): AC-11, parent closure, needs every child closed, and seven children are open. The parent closes after them.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

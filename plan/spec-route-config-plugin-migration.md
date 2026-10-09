@@ -2,10 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Depends | - |
 | Phase | 5/8 |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "Also set aside 4 specs nobody is working on"): no session is working it, and Phase 6 code is not started. Next: Phase 6, the community parser extraction and the chaos caller off `BuildFlowSpec`/`FlowSpecRouteConfig` (owner decision 2026-10-08).
 
 ## Post-Compaction Recovery
 

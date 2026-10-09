@@ -2,11 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
-| Depends | - |
+| Depends | plan/spec-ipsec-vpp-policy-interface.md (AC-5) |
 | Phase | 5/5 |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): AC-5 needs a real VPP receiving both ESP forms on one inbound SA, and the VPP backend refuses every policy IKE produces until `plan/spec-ipsec-vpp-policy-interface.md` lands (Required Reading, R-4). The owner's defer-heavy-testing instruction also still governs that measurement.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -160,7 +162,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 - VPP installs SAs, but IKE policy activation and dual-form decryption proof remain
   separate prerequisites. SA read-back does not demonstrate packet reception.
 
-## Original Behavior (2026-08-01 design baseline)
+## Current Behavior (as of the 2026-08-01 design baseline, before route A landed)
 
 **Source files read:** (verified in the working tree on 2026-08-01)
 - [ ] `internal/component/ike/dataplane/encap_integration_linux_test.go` -

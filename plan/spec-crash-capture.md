@@ -2,12 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | config |
-| Depends | spec-appliance-ships-ze-kernel |
+| Depends | plan/pre-release/spec-appliance-ships-ze-kernel.md |
 | Phase | 7/7 |
 | Handoff | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): the Phase 7 QEMU labs cannot pass while the appliance ships the stock rtr7 kernel, which lacks `CONFIG_PSTORE` (Progress, 2026-10-09, below). When `plan/pre-release/spec-appliance-ships-ze-kernel.md` closes: rerun the labs, then Phase 8.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

@@ -2,12 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "Also set aside 4 specs nobody is working on"): no session is working it. AC-2 (NSSA Type-7) and AC-3 (IS-IS readiness) are undiagnosed. Next, per "Current diagnosis boundary": diagnose the missing NSSA route through `v6OriginateNSSALSA`, and the `isis-redist-frr` readiness failure.
 
 <!-- Scope remains plugin for the chain repair. The original investigation
      assumed all downstream originators were correct; the dated Goal Validation
