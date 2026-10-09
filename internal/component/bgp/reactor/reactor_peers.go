@@ -271,6 +271,14 @@ func (r *Reactor) removePeer(addr netip.Addr, subcode uint8) error {
 	if removed != nil && r.eventDispatcher != nil {
 		r.eventDispatcher.OnPeerStateChange(removed, rpc.SessionStateDown, rpc.ReasonPeerRemoved)
 	}
+	// Only now the index drops the peer's edges, so a process it fed stops
+	// being fed for it after it was told the peer is down (delivery_graph.go).
+	// Guarded on the index being live for the same reason AddPeer is.
+	r.mu.Lock()
+	if r.deliveryPublished {
+		r.publishDeliveryGraphLocked()
+	}
+	r.mu.Unlock()
 	return nil
 }
 
@@ -429,12 +437,11 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 		}
 	}
 
-	// Republish the peer-to-process index without this peer's edges: a process
-	// it fed must stop being fed for it (delivery_graph.go). Guarded on the
-	// index being live for the same reason AddPeer is.
-	if r.deliveryPublished {
-		r.publishDeliveryGraphLocked()
-	}
+	// The peer-to-process index is republished without this peer by
+	// removePeer, AFTER the down event: that event finds its receivers through
+	// the index (PeerScopedProcs), so an index that no longer named the peer
+	// told no process it fed that it was gone, and the RIB and the route server
+	// kept its routes.
 
 	// Build the removed peer's identity for the post-unlock plugin notification.
 	removed := &plugin.PeerInfo{

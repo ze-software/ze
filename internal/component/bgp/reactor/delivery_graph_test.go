@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -346,4 +347,51 @@ func TestConfigOperationDiscardsRuntimeSubscriptionsBeforePeerChanges(t *testing
 	require.NotEmpty(t, j.atPeerStage, "the operation must reach a peer change")
 	assert.Equal(t, 0, j.atPeerStage[0], "the override is discarded before the first peer change")
 	assert.Equal(t, 0, live(), "a config operation discards the live capability addition")
+}
+
+// TestRemovedPeerStaysInTheIndexUntilItsDownEvent pins the order removePeer
+// keeps: the down event first, the republished index after it.
+//
+// The down event finds its receivers through the index
+// (bgpserver.onPeerStateChange asks PeerScopedProcs by the peer's address), so
+// the index it reads is the one in place when doRemovePeer, the locked phase
+// that precedes the event, has returned. That index must still name the peer.
+// When doRemovePeer republished it, the event reached no process the peer fed,
+// and the RIB and the route server kept the removed peer's routes
+// (test/plugin/api-peer-create-delete-rib.ci drives that end to end).
+//
+// VALIDATES: the locked removal phase leaves the peer's edges in the index, and
+// the completed removal drops them.
+// PREVENTS: a down event for a removed peer that no process receives.
+func TestRemovedPeerStaysInTheIndexUntilItsDownEvent(t *testing.T) {
+	srv := &pluginserver.Server{}
+	r := newTestReactor(t)
+	r.api = srv
+	r.eventDispatcher = nil
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	r.ctx = ctx
+	r.running = true
+
+	addPeersFromTree(t, r, deliveryTree(lookingGlass))
+	r.mu.Lock()
+	r.publishDeliveryGraphLocked()
+	r.mu.Unlock()
+
+	first := netip.MustParseAddr("192.0.2.1")
+	removed, stop, err := r.doRemovePeer(first, message.NotifyCeasePeerDeconfigured)
+	require.NoError(t, err)
+	require.NotNil(t, removed)
+	stop.run()
+	assert.Equal(t, []string{"looking-glass"},
+		recv(srv.DeliveryGraph(), bgpevents.EventState, events.DirUnspecified, "192.0.2.1"),
+		"the down event that follows must still find the process the peer fed")
+
+	// The whole removal of the other peer republishes, and the index it
+	// publishes is built from the reactor's peers, so neither peer is in it.
+	require.NoError(t, r.RemovePeer(netip.MustParseAddr("192.0.2.2")))
+	for _, pe := range srv.DeliveryGraph().Inspect() {
+		assert.NotContains(t, []string{"192.0.2.1", "192.0.2.2"}, pe.Peer,
+			"a completed removal leaves no edge for a removed peer")
+	}
 }
