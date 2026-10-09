@@ -1,5 +1,7 @@
 // Design: docs/architecture/core-design.md -- the qemu area, as one command
 // Detail: hugepages.go -- the proof this table reaches
+// Detail: mplsboot.go -- the appliance MPLS boot proof
+// Detail: crashcapture.go -- the two kernel crash-capture proofs
 // Detail: run.go -- the host harness this table reaches
 // Detail: install.go -- the four import-linked installer proofs
 //
@@ -64,6 +66,21 @@ var actions = leaction.New(area,
 		" are absent; on Linux it needs membership of the kvm group" +
 		" (`./le setup check` reports it as kvm-access)",
 		Answer: runHugepagesHere},
+	leaction.Action{Verb: "mpls-boot-test", Why: "the appliance starts with MPLS in use, end to end: build an appliance whose" +
+		" seed adds `set fib kernel` and `set ldp`, boot it, then assert `show ldp neighbor`" +
+		" answers over the Ze CLI, which a daemon the kernel capability gate refused cannot." +
+		" Self-skips like vpp-hugepages-test",
+		Answer: runMPLSBootHere},
+	leaction.Action{Verb: "crash-capture-panic-harvest", Why: "kernel crash capture survives a panic, end to end:" +
+		" build an appliance that reserves a crash region, boot it, inject an NMI the seed turns into a" +
+		" kernel panic, and assert the next boot harvested a kernel artifact carrying the panic into" +
+		" /perm/ze/crash. amd64 only; self-skips like vpp-hugepages-test",
+		Answer: runCrashPanicHarvestHere},
+	leaction.Action{Verb: "crash-capture-ota-unaffected", Why: "an OTA reboot still works with crash capture active:" +
+		" build an appliance that reserves a crash region, boot it, ask gokrazy's update server for the" +
+		" kexec reboot `gok update` ends with, and assert the next boot is armed again with no kernel" +
+		" artifact. amd64 only; self-skips like vpp-hugepages-test",
+		Answer: runCrashOTAUnaffectedHere},
 	leaction.Action{
 		Verb: "run",
 		Why: "boot an Alpine Linux guest, share this checkout, install the requested" +
@@ -191,6 +208,52 @@ func runHugepagesHere() (any, int) {
 // CI both rely on. A machine without QEMU has not disproved anything.
 func runHugepages(run *Hugepages) (HugepagesReport, int) {
 	report, err := run.Run()
+	if err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
+	if report.Verdict == VerdictFail || report.Verdict == VerdictUnspecified {
+		return report, 1
+	}
+	return report, 0
+}
+
+// runMPLSBootHere proves the appliance starts with MPLS in use, over the
+// checkout this command was run in.
+func runMPLSBootHere() (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	report, err := newMPLSBoot(root).Run()
+	if err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
+	if report.Verdict == VerdictFail || report.Verdict == VerdictUnspecified {
+		return report, 1
+	}
+	return report, 0
+}
+
+// runCrashPanicHarvestHere proves a kernel panic is harvested on the next
+// boot, over the checkout this command was run in.
+func runCrashPanicHarvestHere() (any, int) { return runCrashCaptureHere(CrashLabPanicHarvest) }
+
+// runCrashOTAUnaffectedHere proves an OTA reboot still works with crash capture
+// active, over the checkout this command was run in.
+func runCrashOTAUnaffectedHere() (any, int) { return runCrashCaptureHere(CrashLabOTAUnaffected) }
+
+// runCrashCaptureHere runs one crash-capture proof over the checkout this
+// command was run in.
+func runCrashCaptureHere(lab CrashLab) (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	report, err := newCrashCapture(root, lab).Run()
 	if err != nil {
 		leaction.ReportError(err)
 		return report, 1

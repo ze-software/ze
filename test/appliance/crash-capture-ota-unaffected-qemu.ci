@@ -1,0 +1,18 @@
+# End-to-end QEMU coverage of spec-crash-capture R-5: an OTA reboot still works with crash capture active.
+#
+# Drives internal/le/test/qemu/crashcapture.go, which builds the same image as the
+# panic-harvest proof, boots it, waits for `show crashes | json` to report the region
+# armed, asks gokrazy's update server for the kexec reboot `gok update` ends with, and
+# asserts the next boot is armed again and lists no kernel artifact.
+#
+# amd64 only. The driver self-skips with a clear reason on another architecture, or
+# when QEMU, sshpass, e2fsprogs, or the go toolchain are absent. It exits 0 in both
+# PASS and SKIP cases; a genuine failure exits non-zero, as does an appliance that
+# never answers under a hardware accelerator.
+#
+# The explicit timeout covers a host ze build, an appliance init, a full gokrazy image
+# build and two QEMU boots; vpp-hugepages-qemu.ci explains why it is pinned.
+option=timeout:value=900s
+cmd=foreground:seq=1:exec=./le test qemu crash-capture-ota-unaffected
+expect=exit:code=0
+expect=stdout:pattern=APPLIANCE-CRASH-CAPTURE-QEMU: (PASS|SKIP)

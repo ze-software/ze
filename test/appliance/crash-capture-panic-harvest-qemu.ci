@@ -1,0 +1,20 @@
+# End-to-end QEMU coverage of spec-crash-capture AC-3 and assumptions A-2, A-3, A-5: a kernel panic on an
+# appliance that reserves a crash region is harvested by the next boot into /perm/ze/crash.
+#
+# Drives internal/le/test/qemu/crashcapture.go, which builds a HOST ze, inits an
+# appliance whose config carries image.crash-dump, seeds `set system crash-dump enabled true`
+# and kernel.unknown_nmi_panic, boots the image in QEMU, waits for `show crashes | json`
+# to report the region armed, injects an NMI through the QEMU monitor, and asserts the
+# next boot lists a kernel-kind artifact whose text carries the panic line.
+#
+# amd64 only. The driver self-skips with a clear reason on another architecture, or
+# when QEMU, sshpass, e2fsprogs, or the go toolchain are absent. It exits 0 in both
+# PASS and SKIP cases; a genuine failure exits non-zero, as does an appliance that
+# never answers under a hardware accelerator.
+#
+# The explicit timeout covers a host ze build, an appliance init, a full gokrazy image
+# build and two QEMU boots; vpp-hugepages-qemu.ci explains why it is pinned.
+option=timeout:value=900s
+cmd=foreground:seq=1:exec=./le test qemu crash-capture-panic-harvest
+expect=exit:code=0
+expect=stdout:pattern=APPLIANCE-CRASH-CAPTURE-QEMU: (PASS|SKIP)

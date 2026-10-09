@@ -145,6 +145,15 @@ own value is never overwritten: only a table reading exactly 0 is repaired.
 
 <!-- source: internal/plugins/fib/kernel/labelspace_linux.go -- ensureLabelSpace, repairLabelSpace -->
 
+The appliance kernel builds MPLS routing in (`gokrazy/kernel/runtime.config`,
+enforced through `runtime.require`), so an appliance whose configuration puts
+MPLS in use passes the gate. `./le test qemu mpls-boot-test`
+(`test/appliance/appliance-mpls-qemu.ci`) proves it on a booted image: the seed
+adds `set fib kernel` and `set ldp`, and `show ldp neighbor | json` must answer
+over the Ze CLI, which a daemon the gate refused cannot do.
+
+<!-- source: internal/le/test/qemu/mplsboot.go -- MPLSBoot, mplsSeedLines, askJSON -->
+
 ## An external plugin depends on two binaries, so doctor reads both
 
 Ze starts an external plugin by giving the operator's `run` string to a shell,

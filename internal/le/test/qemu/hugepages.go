@@ -519,6 +519,18 @@ func (h *Hugepages) appliance(host string, environment []string, verb string) (s
 // them to byte counts. The appliance configuration parses those spellings, and
 // this proof tests that path directly.
 func (h *Hugepages) writeApplianceConfig(path string) error {
+	return editImageConfig(path, func(image map[string]any) {
+		image["arch"] = h.Arch
+		image["memory"] = h.Memory
+		image["hugepages"] = map[string]any{"size": h.Reservation, "page-size": h.PageSize}
+	})
+}
+
+// editImageConfig rewrites the `image` object of an appliance.json through set,
+// leaving every other field `appliance init` wrote exactly as it found it. Each
+// proof that builds an image names its own fields; this is the one reader and
+// writer of the file they share.
+func editImageConfig(path string, set func(image map[string]any)) error {
 	raw, err := os.ReadFile(path) //nolint:gosec // a path under the work directory this run made
 	if err != nil {
 		return err
@@ -532,9 +544,7 @@ func (h *Hugepages) writeApplianceConfig(path string) error {
 	if image == nil {
 		image = map[string]any{}
 	}
-	image["arch"] = h.Arch
-	image["memory"] = h.Memory
-	image["hugepages"] = map[string]any{"size": h.Reservation, "page-size": h.PageSize}
+	set(image)
 	config["image"] = image
 
 	written, err := json.Marshal(config)

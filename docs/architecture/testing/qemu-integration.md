@@ -418,6 +418,29 @@ store for diagnosis. A skipped action is not storage-import evidence.
 <!-- source: internal/le/test/qemu/install_storage.go -- seedInterruptedImport, assertImportedSeed, installSeedTLS -->
 <!-- source: internal/le/test/qemu/install_build.go -- buildHostZeEnv, buildImage -->
 
+## Appliance kernel crash capture
+
+Two host-side actions prove kernel crash capture
+(`docs/architecture/diagnostics/crash-capture.md`) on a booted appliance. Both
+build an image whose `appliance.json` carries `image.crash-dump` with a 16 MB
+reserve and whose seed adds `set system crash-dump enabled true`, boot it, and
+read `show crashes | json` until readiness reports `armed`, `pstore-available`
+and a writable `/perm/ze/crash`. Each then reboots the machine its own way.
+
+| Action | Reboot | Passes when the next boot |
+|--------|--------|---------------------------|
+| `crash-capture-panic-harvest` | The seed sets `kernel.unknown_nmi_panic` and `kernel.panic`; the proof sends `nmi` to a QEMU monitor on its own TCP port, so the kernel panics and warm-resets | Lists a kernel-kind artifact whose text carries the `Kernel panic` line |
+| `crash-capture-ota-unaffected` | A POST to gokrazy's `/reboot` over a forwarded port 80, the kexec reboot `gok update` ends with, authenticated with the password gok resolved at build time | Is armed again and lists no kernel artifact |
+
+A new boot is told from the old one by `boot-time-unix` in
+`show host kernel | json`. Both actions are amd64 only, because an unknown NMI
+panics only on x86 and gokrazy kexecs only on amd64; another architecture
+answers SKIP. The functional wrappers are
+`test/appliance/crash-capture-panic-harvest-qemu.ci` and
+`test/appliance/crash-capture-ota-unaffected-qemu.ci`.
+
+<!-- source: internal/le/test/qemu/crashcapture.go -- CrashCapture, injectNMI, otaReboot, gokrazyPassword -->
+
 ## Writing Integration Tests
 
 ### Which test each Linux-only change needs

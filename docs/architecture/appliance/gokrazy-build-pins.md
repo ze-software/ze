@@ -228,6 +228,7 @@ cache written before the flag existed needs a one-time
 | Proof | What it does | Use it for |
 |-------|--------------|------------|
 | `./le test qemu vpp-hugepages-test` | Builds a real image through `ze appliance build`, boots it in QEMU, asserts the kernel command line and the reserved hugepage count | The default boot proof |
+| `./le test qemu mpls-boot-test` | Builds a real image whose seed adds `set fib kernel` and `set ldp`, boots it in QEMU, asserts `show ldp neighbor \| json` answers over the Ze CLI | The appliance kernel carries MPLS, so the kernel capability gate lets Ze start |
 | `./le test deployment gokrazy-l2tp-ppp-test` | Builds the appliance and boots it against a real LAC | The L2TP path |
 | `test/appliance/serial-login.ci` | Boots nothing. Its header says the QEMU plan applies "when appliance serial test infrastructure is ready"; it asserts the argv[0] shell-invocation gate offline | Never a boot proof |
 

@@ -1,0 +1,24 @@
+# End-to-end QEMU coverage of an appliance that starts with MPLS in use
+# (spec-kernel-capability-gate AC-15).
+#
+# Drives internal/le/test/qemu/mplsboot.go, which builds a HOST ze, inits an
+# appliance whose seed configuration is gokrazy/ze/ze.conf plus `set fib kernel`
+# and `set ldp`, builds the gokrazy image, boots it in QEMU, and asks the Ze CLI
+# `show ldp neighbor | json` over SSH. That configuration puts MPLS in use, so
+# the kernel capability gate refuses to start Ze on a kernel without MPLS
+# routing, and a refused daemon has no SSH server to answer. Only the LDP engine
+# answers the question, so the answer also proves the gate judged the MPLS
+# configuration rather than a default one.
+#
+# The driver self-skips like vpp-hugepages-qemu.ci: no QEMU, sshpass, e2fsprogs
+# or go toolchain is a SKIP, and an appliance that never answers is a SKIP only
+# under software emulation. Under kvm or hvf it is a FAIL. Both PASS and SKIP
+# exit 0. The exhaustive run is `./le test qemu mpls-boot-test`.
+
+# The derived timeout would settle on the seconds a SKIP takes. A host ze build,
+# an appliance init, a gokrazy image build and a QEMU boot need far more, so the
+# budget is pinned to the real cost, as vpp-hugepages-qemu.ci does.
+option=timeout:value=900s
+cmd=foreground:seq=1:exec=./le test qemu mpls-boot-test
+expect=exit:code=0
+expect=stdout:pattern=APPLIANCE-MPLS-QEMU: (PASS|SKIP)
