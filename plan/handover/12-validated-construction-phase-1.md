@@ -34,7 +34,7 @@ correctly in another session".
 
 | # | Batch | Commit | State |
 |---|-------|--------|-------|
-| 1 | Step 2, T3: `command.ArgDef` private fields, per-kind constructors, accessors, D-4, D-7 | "command: build every ArgDef through a validating constructor" (this commit) | Done |
+| 1 | Step 2, T3: `command.ArgDef` private fields, per-kind constructors, accessors, D-4, D-7 | `9cbd3485ca` "command: build every ArgDef through a validating constructor" | Done. Owed: web, cmd/ze/hub and plugin/server unit runs did not finish green on a loaded machine (see commit body) |
 
 Batch 1 notes for the next batch:
 
@@ -46,7 +46,8 @@ Batch 1 notes for the next batch:
 - `validateUint` no longer defaults a zero width to 64: the constructor refuses it.
 - Owner answers recorded 2026-10-09: cross-plugin `*/yang` blank imports approved (spec T4 section); goyang CLA signed (row above).
 - `usageValues` (`command/usage.go`) copies an enumeration's values, so a `UsageToken` does not alias the definition it was rendered from.
-- Open after batch 1: `./le rfc check` reports RFC7950-9.6.4.2-1 SHIFTED. The audit fingerprint is file-level, and batch 1 had to edit `config/yang/rfc7950_enum_value_test.go` (one untagged line, `def.EnumValues` no longer compiles); the four tagged units are byte-identical. Only `./le rfc reseal` clears it, and it rewrites every RFC's audit file, so it waits for the owner's decision. The other seven `rfc check` findings (L2TP/EAP naming, RFC8907 stale and discrimination) predate batch 1.
+- Open after batch 1: `./le rfc check` reports RFC7950-9.6.4.2-1 SHIFTED. The audit fingerprint is file-level, and batch 1 had to edit `config/yang/rfc7950_enum_value_test.go` (one untagged line, `def.EnumValues` no longer compiles); the four tagged units are byte-identical. Do not run `./le rfc reseal` (it rewrites every RFC's audit file); clear it with an independent `ze-rfc-audit` re-judge of that one verdict (`mode rejudge`), folded into the next batch that touches rfc7950.
+- `test/weakened/<session>.md` holds only the rows the next commit owes: `./le commit create` drops rows whose text HEAD already has (`docs/contributing/testing.md`). An empty table after a commit is correct; do not "restore" landed rows. The prepared script `tmp/commit-f93f1d5f-d-8a429f.sh` did that and was deliberately not run. The other seven `rfc check` findings (L2TP/EAP naming, RFC8907 stale and discrimination) predate batch 1.
 
 ## What the next session needs to know
 
