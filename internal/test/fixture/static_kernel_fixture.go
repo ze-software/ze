@@ -143,8 +143,12 @@ func kernelEntries(ctx context.Context, prefix string) []string {
 	}
 	var entries []string
 	for line := range strings.SplitSeq(out, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			entries = append(entries, line+" ")
+		// iproute2 pads some fields with a second space: an MPLS route
+		// prints "<prefix>  encap mpls  100/200 via ...". Each word is
+		// rejoined with one space so a caller matches the words, not the
+		// padding.
+		if fields := strings.Fields(line); len(fields) > 0 {
+			entries = append(entries, strings.Join(fields, " ")+" ")
 		}
 	}
 	return entries
