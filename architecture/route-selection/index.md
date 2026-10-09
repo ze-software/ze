@@ -126,7 +126,7 @@ later loses too.
 | 12 | `lost-origin` | Lowest ORIGIN wins (IGP=0 < EGP=1 < INCOMPLETE=2) | 4271 | |
 | 13 | `lost-med` | Lowest MED wins (same neighbor AS only) | 4271 | Compared only when the neighbor AS matches. The neighbor AS is the leftmost AS of the AS_PATH; an IBGP-learned route with an empty AS_PATH was originated inside the local AS, so its neighbor AS is the local AS and two such routes compare MED. A path that begins with an AS_SET has no leftmost AS (the set is unordered, `firstASInPath`), so an IBGP aggregate led by one also takes the local AS, as Section 9.1.2.2 (c) says. An EBGP route with no leftmost AS (empty or AS_SET-led), or a route whose session class is unknown, compares no MED (`neighborAS`, `bestpath.go`). Section 9.1.2.2 (c) gives a route that carries no MULTI_EXIT_DISC the lowest possible value, 0, so an absent attribute wins this step |
 | 14 | `lost-ebgp-over-ibgp` | eBGP preferred over iBGP | 4271 | eBGP = PeerASN != LocalASN |
-| 15 | `lost-igp-cost` | Lowest resolved interior distance to next-hop | 4271/7311 | Recursive BGP hops contribute received AIGP, not MED; unavailable distance is distinct from zero |
+| 15 | `lost-igp-cost` | Lowest resolved interior distance to next-hop | 4271/7311 | Recursive BGP hops contribute received AIGP, not MED; an unresolved next hop ranks last and is distinct from zero. The RFC 4271 skip for a reachable next hop with no cost never arises, because every Loc-RIB path carries a metric |
 | 16 | `lost-router-id` | Lowest Router ID / ORIGINATOR_ID wins | 4271/4456 | Numeric IP comparison |
 | 17 | `lost-cluster-list-length` | Shortest CLUSTER_LIST wins | 4456 | Section 9 inserts this between RFC 4271 steps f) and g). Counted in CLUSTER_IDs; an absent attribute counts zero. Unconditional |
 | 18 | `lost-peer-address` | Lowest peer IP address wins | 4271 | Numeric IP comparison |
@@ -255,6 +255,12 @@ source FIFO. A source that has entered this path stays on it across settings
 reloads. Live items also carry a session generation, checked before destination
 writes, so reconnect or peer replacement cannot publish an old queued item.
 A collector without a forwarding role acquires no recipients.
+
+In process, the RIB subscribes to Loc-RIB changes and reruns selection over
+every retained route after each change, coalescing bursts into one pending
+scan. A change of interior cost alone, with no BGP UPDATE, therefore moves the
+best path, whether or not the candidates carry AIGP.
+<!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- runAIGPSelection, reselectAIGPRoutes -->
 
 The RIB reads interior distances from the engine's registered `route-metrics`
 RPC when it runs in a subprocess. A one-second revision poll invalidates its

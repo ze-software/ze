@@ -318,10 +318,20 @@ Host metrics are refreshed on a configurable interval (default 60 seconds). Linu
 | `ze_peer_notifications_received_total` | counter | `peer`, `code`, `subcode` | NOTIFICATION messages received |
 | `ze_peer_session_duration_seconds` | gauge | `peer` | Seconds since the session established |
 | `ze_bgp_open_in_established_total` | counter | `peer` | OPEN messages refused because the connection was already in Established or OpenConfirm |
+| `ze_bgp_open_rejected_bad_peer_as_total` | counter | `peer` | OPEN messages refused with NOTIFICATION 2/2 Bad Peer AS |
 | `ze_bgp_connect_retry_counter` | gauge | `peer` | RFC 4271 ConnectRetryCounter: times this peer has tried to establish a session since the last operator start or stop |
 
 A non-zero `ze_bgp_open_in_established_total` names a peer that tried to
 re-negotiate mid-session. Ze answers it with a Cease and closes the connection.
+
+A non-zero `ze_bgp_open_rejected_bad_peer_as_total` names a peer whose OPEN
+carried an AS Ze does not accept for it: AS 0 (RFC 7607 Section 2), or an AS
+that is neither the configured `remote { as }` nor, on a session configured
+with `session { asn { migration } }`, the other AS of the migration pair
+(RFC 7705 Section 4.2). The usual cause is a mistyped `remote { as }` on one
+side. Ze refuses the OPEN and
+closes the connection, so the session never establishes and the peer retries.
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- rejectOpenPeerAS -->
 
 `ze_bgp_connect_retry_counter` is RFC 4271 Section 8.1.1 mandatory session
 attribute 2, "the number of times a BGP peer has tried to establish a peer

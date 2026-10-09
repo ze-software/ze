@@ -10,7 +10,7 @@ Show the import\/export filter chain applied to a peer\.
 - Wire method: `ze-bgp:show-policy-chain`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `direction`
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Column order: none

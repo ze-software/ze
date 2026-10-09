@@ -52,6 +52,7 @@
 <li><a href="#address-families">Address Families</a></li>
 <li><a href="#capabilities">Capabilities</a></li>
 <li><a href="#as-number-notation">AS number notation</a></li>
+<li><a href="#peer-as-check-and-as-migration-rfc-7705">Peer AS check and AS migration (RFC 7705)</a></li>
 <li><a href="#multipath-installation">Multipath installation</a></li>
 <li><a href="#startup-convergence-hold-update-delay">Startup convergence hold (update-delay)</a></li>
 <li><a href="#long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</a></li>
@@ -450,6 +451,23 @@ format, and that program fixes the spelling.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- as-notation leaf -->
 <!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- asPathList -->
 <!-- source: internal/core/bgp/attribute/text_append.go -- AppendText, which stays asplain -->
+<h3 id="peer-as-check-and-as-migration-rfc-7705">Peer AS check and AS migration (RFC 7705)</h3>
+<p>Ze refuses an OPEN whose AS is not the one the peer is configured for, and an
+OPEN carrying AS 0, with NOTIFICATION 2/2 Bad Peer AS. The AS judged is the
+Four-octet AS capability's value when the peer sends one. A dynamic peer, whose
+AS is learned from its OPEN, is exempt. Each refusal is counted in
+<code>ze_bgp_open_rejected_bad_peer_as_total</code> (<code>docs/guide/monitoring.md</code>).</p>
+<p><code>session { asn { migration &lt;asn&gt; } }</code>, on a peer or a group, runs one iBGP
+session under either of two local AS numbers (RFC 7705 Section 4.2). Ze accepts
+an OPEN carrying the local or the migration AS, treats the session as internal
+whichever AS won, and opens with the local AS first, switching to the other one
+on the next attempt only after the peer answers Bad Peer AS. The external-session
+options of RFC 7705 Section 3.3 are <code>local</code> and <code>local-options</code>. Both are in
+<code>docs/guide/configuration.md</code>, "AS Migration (<code>local-as</code>)" and "Internal AS
+Migration (RFC 7705 Section 4.2)".</p>
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS, rejectOpenPeerAS -->
+<!-- source: internal/component/bgp/reactor/session_as_migration.go -- peerASAccepted, isIBGPWith, noteASMigrationRejection, openLocalAS -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings, migration -->
 <h3 id="multipath-installation">Multipath installation</h3>
 <p>When several BGP candidates tie under multipath selection, Ze carries the
 winner and its equal-cost sibling next hops into the shared Loc-RIB. The system
@@ -840,7 +858,7 @@ whether an enabled peer's capture directory is usable
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

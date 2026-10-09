@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 224 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 224 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 224 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>30.5%</strong><b>208 of 683 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>28.6%</strong><b>195 of 683 tagged units, 0 escaped and 13 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>92</strong><b>of 224 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>92</strong><b>of 224 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 224 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -353,8 +353,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L8" title="internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go" target="_blank" rel="noopener"><code>TestProposalNegotiationFirstMatch</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87" title="internal/component/ike/engine/rfc7296_esn_test.go" target="_blank" rel="noopener"><code>TestEsnResponderAnswersOnlyAValueTheOfferCarried</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L63" title="internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go" target="_blank" rel="noopener"><code>TestProposalNegotiationNoMatch</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1050" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1019" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1205" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1174" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3-1">RFC7296-3.3-1</code></td><td colspan="3"><span class="rfc-subject">If an initiator wants to propose both combined- mode ciphers and normal ciphers, it must include two proposals: one will have all the combined-mode ciphers, and the other will have all the normal ciphers with the integrity algorithms. (§3.3)</span></td></tr>
@@ -2728,7 +2728,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7296-2.7-1"><code>RFC7296-2.7-1</code></a></h3>
 <p>The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN. Each IPsec protocol proposal contains one or more transforms. Each transform contains a Transform Type. The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal. (§2.7)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. NegotiateIKE picks one proposal or returns ErrNoProposalChosen; TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one transform of the type and maps refusal to NO_PROPOSAL_CHOSEN</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused moved. NegotiateIKE picks one proposal or returns ErrNoProposalChosen; TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one transform of the type and maps refusal to NO_PROPOSAL_CHOSEN</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2744,7 +2744,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1019" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1174" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2759,7 +2759,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1050" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1205" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2926,7 +2926,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L57" title="internal/component/ike/engine/rfc7296_rekey_payloads_test.go" target="_blank" rel="noopener"><code>TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2941,17 +2941,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L267" title="internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go" target="_blank" rel="noopener"><code>TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L272" title="internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go" target="_blank" rel="noopener"><code>TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L157" title="internal/component/ike/engine/rfc7296_rekey_payloads_test.go" target="_blank" rel="noopener"><code>TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -5231,22 +5231,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L386" title="internal/component/ike/engine/rfc7296_msgid_test.go" target="_blank" rel="noopener"><code>TestMidTemporaryFailureDefersTheIKERekey</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L276" title="internal/component/ike/engine/rfc7296_msgid_test.go" target="_blank" rel="noopener"><code>TestMidTemporaryFailureDefersTheRetry</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L382" title="internal/component/ike/engine/rfc7296_msgid_test.go" target="_blank" rel="noopener"><code>TestMidTemporaryFailureDefersTheIKERekey</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L268" title="internal/component/ike/engine/rfc7296_msgid_test.go" target="_blank" rel="noopener"><code>TestMidTemporaryFailureDefersTheRetry</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -5281,12 +5281,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L306" title="internal/component/ike/engine/rfc7296_rekey_test.go" target="_blank" rel="noopener"><code>TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L303" title="internal/component/ike/engine/rfc7296_rekey_test.go" target="_blank" rel="noopener"><code>TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -5381,7 +5381,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_dh_test.go#L38" title="internal/component/ike/engine/rfc7296_rekey_dh_test.go" target="_blank" rel="noopener"><code>TestRFC7296IKERekeyInitiatorNeverProposesDHNone</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_dh_test.go#L98" title="internal/component/ike/engine/rfc7296_rekey_dh_test.go" target="_blank" rel="noopener"><code>TestRFC7296IKERekeyResponderRefusesDHNone</code></a></td>
@@ -6775,7 +6775,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L56" title="internal/component/ike/engine/rfc7296_noresponse_test.go" target="_blank" rel="noopener"><code>TestNrsResponseNeverDrawsAResponse</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L252" title="internal/component/ike/engine/rfc7296_noresponse_test.go" target="_blank" rel="noopener"><code>TestNrsInformationalHandlerRefusesAResponse</code></a></td>
@@ -6785,7 +6785,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L46" title="internal/component/ike/engine/rfc7296_noresponse_test.go" target="_blank" rel="noopener"><code>TestNrsResponseNeverDrawsAResponse</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -9216,7 +9216,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

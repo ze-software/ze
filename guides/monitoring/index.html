@@ -731,6 +731,12 @@ diff nd.txt ze.txt
 <td>OPEN messages refused because the connection was already in Established or OpenConfirm</td>
 </tr>
 <tr>
+<td><code>ze_bgp_open_rejected_bad_peer_as_total</code></td>
+<td>counter</td>
+<td><code>peer</code></td>
+<td>OPEN messages refused with NOTIFICATION 2/2 Bad Peer AS</td>
+</tr>
+<tr>
 <td><code>ze_bgp_connect_retry_counter</code></td>
 <td>gauge</td>
 <td><code>peer</code></td>
@@ -740,6 +746,14 @@ diff nd.txt ze.txt
 </table>
 <p>A non-zero <code>ze_bgp_open_in_established_total</code> names a peer that tried to
 re-negotiate mid-session. Ze answers it with a Cease and closes the connection.</p>
+<p>A non-zero <code>ze_bgp_open_rejected_bad_peer_as_total</code> names a peer whose OPEN
+carried an AS Ze does not accept for it: AS 0 (RFC 7607 Section 2), or an AS
+that is neither the configured <code>remote { as }</code> nor, on a session configured
+with <code>session { asn { migration } }</code>, the other AS of the migration pair
+(RFC 7705 Section 4.2). The usual cause is a mistyped <code>remote { as }</code> on one
+side. Ze refuses the OPEN and
+closes the connection, so the session never establishes and the peer retries.</p>
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- rejectOpenPeerAS -->
 <p><code>ze_bgp_connect_retry_counter</code> is RFC 4271 Section 8.1.1 mandatory session
 attribute 2, "the number of times a BGP peer has tried to establish a peer
 session". The BGP FSM raises it by one on each teardown RFC 4271 Section 8.2.2
@@ -1120,7 +1134,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 October 2026 20:49 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

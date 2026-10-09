@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.2%</strong><b>26 of 36 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>24 of 36 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -714,7 +714,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L329" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseRefusesPeerSPIZero</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L120" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestInitiatorRefusesPeerSPIZero</code></a></td>
@@ -754,7 +754,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L357" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseUsesPeerSPI</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L149" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestInitiatorUsesPeerSPI</code></a></td>
@@ -1550,7 +1550,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

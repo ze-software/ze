@@ -2712,7 +2712,7 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `create bgp peer <address> asn <asn> [...]` | write | Add a peer to the running daemon <!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerAdd --> |
+| `create bgp peer <address> asn <asn> [...]` | write | Add a peer to the running daemon <!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerCreate --> |
 
 The peer address comes first and `asn` is the only required keyword. The rest
 are optional: `local-as`, `local-address`, `router-id`, `receive-hold-time`,
@@ -2722,10 +2722,13 @@ take a comma-separated list. A keyword the command does not take is refused by
 name, and so is a value it cannot use.
 
 The peer lives in the running daemon. The running configuration carries it, and
-the configuration FILE does not, so `show config` does not carry it and a reload
-removes it. That is what `delete bgp peer` mirrors on the way out: it takes the
-peer out of the running daemon and out of the running configuration, and leaves
-the file on disk alone.
+the configuration FILE does not, so `show config` does not carry it. A commit or
+a reload whose configuration does not declare the peer keeps it running, with its
+session and its routes; one that declares it, by its name or its address, makes
+it a configured peer from then on. `delete bgp peer` is how it leaves: it takes
+the peer out of the running daemon and out of the running configuration, and
+leaves the file on disk alone.
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- ReloadRunning, SetConfigTree -->
 
 `update bgp config` is what makes either change permanent. It writes the running
 peer set into the file: a peer created here is added to it, and a peer the file
@@ -2736,7 +2739,7 @@ declares that `delete bgp peer` removed is taken out of it.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `delete bgp peer <sel>` | write | Remove peer <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler --> |
+| `delete bgp peer <sel>` | write | Remove peer <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDelete --> |
 
 ### Route Injection
 
@@ -2746,6 +2749,23 @@ send bgp <sel> update hex <hex-data>
 send bgp <sel> update b64 <b64-data>
 send bgp <sel> raw <hex|b64> <data> [type <type>]
 ```
+
+On-demand origination, tracked by tag so a later withdraw can name it:
+
+```
+send bgp <sel> unicast <prefix> [next-hop <address>] [community <value> ...] [tag <key> <value>] [for <duration>]
+send bgp <sel> blackhole <prefix> [tag <key> <value>] [for <duration>]
+send bgp <sel> flowspec <match components> (community <value>|rate-limit <bytes-per-second>|discard) [tag <key> <value>] [for <duration>]
+send bgp <sel> withdraw tag <key> [value <value>]
+send bgp <sel> withdraw id <id>
+send bgp <sel> withdraw all
+```
+
+A flowspec rule takes exactly one action, and `ze send bgp flowspec help` lists
+the seventeen match components. A word that no option claims is refused and
+names that word, so `discard rate-limit 500` announces nothing.
+<!-- source: internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang -- announce-forms, withdraw-forms -->
+<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- parseTrailingOpts -->
 
 Text format attributes:
 

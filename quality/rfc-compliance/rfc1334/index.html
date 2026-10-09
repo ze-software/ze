@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.0%</strong><b>16 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.2%</strong><b>26 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -235,7 +235,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>16</td>
+<td>26</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1334.md</code></td>
@@ -251,14 +251,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: PAP and LCP authentication are implemented by the shared PPP authenticator and PPPoE client. PAP Authenticate-Request retries, changing Identifiers, matching reply validation and post-authentication reanswers have source changes and regression tests; the 2026-09-21 source batch has not run their verification or discrimination proofs.</p>
+<p>Enrolled: PAP and LCP authentication are implemented by the shared PPP authenticator and PPPoE client. PAP Authenticate-Request retries, changing Identifiers, matching reply validation and post-authentication reanswers are implemented with regression tests, and each of their tags carries a discrimination record in `rfc/discrimination/rfc1334.json` (2026-10-09).</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 PAP authentication option through PPP auth handling.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Verification remains for the retry and post-authentication reanswer changes in <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-pppoe-client-pap-retry.md" target="_blank" rel="noopener"><code>plan/immediate/spec-pppoe-client-pap-retry.md</code></a> and <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-ppp-pap-reanswer-after-auth.md" target="_blank" rel="noopener"><code>plan/immediate/spec-ppp-pap-reanswer-after-auth.md</code></a>. The source batch adds tests for <a href="#rfc1334-2.2.1-2"><code>RFC1334-2.2.1-2</code></a>, <a href="#rfc1334-2.2.1-4"><code>RFC1334-2.2.1-4</code></a>, <a href="#rfc1334-2.2.1-5"><code>RFC1334-2.2.1-5</code></a>, <a href="#rfc1334-2.2-1"><code>RFC1334-2.2-1</code></a> and <a href="#rfc1334-2.3-3"><code>RFC1334-2.3-3</code></a>; no new test result or discrimination proof is claimed.
+No interoperability scenario exercises PAP: the PPPoE and L2TP labs authenticate with CHAP-MD5, so the client retry (<code>pppoeclient/session.go::runClientAuth</code>) and the authenticator reanswer (<code>ppp/pap.go::reanswerPAP</code>) are proven by unit tests and revert discrimination records only.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -594,12 +594,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L126" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L125" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -634,12 +634,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L205" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestPAPReanswerDiscardsMalformedRequest</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L144" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestPAPReanswersAfterAuthentication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -654,12 +654,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L178" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestPAPReanswerPreservesDecision</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L145" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestPAPReanswersAfterAuthentication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -694,12 +694,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L128" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L127" title="internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go" target="_blank" rel="noopener"><code>TestClientPAPRetriesUntilMatchingReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -714,12 +714,12 @@ Verification remains for the retry and post-authentication reanswer changes in <
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestPAPReanswersAfterAuthentication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146" title="internal/component/l2tp/ppp/auth_phase_rfc1334_test.go" target="_blank" rel="noopener"><code>TestPAPReanswersAfterAuthentication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
@@ -1103,7 +1103,7 @@ Verification remains for the retry and post-authentication reanswer changes in <
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

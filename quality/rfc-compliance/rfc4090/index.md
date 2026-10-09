@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 32 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 32 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 32 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 90.9% | 80 of 88 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 89.8% | 79 of 88 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -85,9 +85,9 @@ Enrolled: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. The checklist was 
 
 **Status:** Experimental
 
-**What the ledger says is covered:**
+**What the ledger says is covered**
 
-Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup.
+Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup. A Ze PLR's backup PATH ([`internal/plugins/rsvpte/frr.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr.go) `backupPath`, sent by `tryLocalRepair`) crosses the bypass to a freeRtr merge point, which answers it with labelled RESVs that the PLR accepts (interop scenario `plr-backup-path-to-egress-merge-point`, 2026-10-09).
 
 **What the ledger says remains**
 
@@ -505,7 +505,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. bypa
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4090BypassDestinationIsMergePoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L364) | unit/verify | mutant, verified |
-| positive | [`TestRFC4090BypassDestinationIsMergePoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L363) | unit/verify | mutant, verified |
+| positive | [`TestRFC4090BypassDestinationIsMergePoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L363) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4090-6.4-1`](#rfc4090-6.4-1)
 

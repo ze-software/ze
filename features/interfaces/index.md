@@ -1106,15 +1106,20 @@ main gaps against feature parity.
 ### Stub (non-Linux)
 
 On darwin, macOS, BSD, and Windows the netlink backend package compiles
-to a stub whose constructor succeeds but whose every method returns
+to a stub whose constructor succeeds. `ListInterfaces` and `GetInterface`
+read the host's interfaces through the Go standard library, so `ze init`
+discovers them and writes an initial config: the loopback is typed by its
+flag, and any other interface with a hardware address is classified as
+ethernet. Every other method returns
 `"interface management not supported on <GOOS>"`. `StopMonitor` and
 `Close` are no-ops. The stub exists so the rest of the daemon can load
 and the binary remains testable on developer machines; real interface
 management requires Linux.
 
 The stub never installs itself as the default silently. A macOS daemon
-that actually tries `ze interface show` or any config-driven
-reconciliation sees the explicit error and rejects under
-exact-or-reject.
+can list its interfaces, but any config-driven reconciliation that
+creates, addresses or changes one sees the explicit error and rejects
+under exact-or-reject.
 
 <!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
+<!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface via net.Interfaces -->

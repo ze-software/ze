@@ -14,8 +14,8 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 473 CLI commands, 38 config sections, 93 plugin registrations, 52 direct Go dependencies, 43 weekly change entries.
-- Test evidence counts: 35,000+ unit tests, 88 fuzz targets, 2,100+ end-to-end transcript steps, 160 interop scenarios across 9 target implementations.
+- Current generated counts: 52 shipped or experimental feature cards, 473 CLI commands, 38 config sections, 90 plugin registrations, 52 direct Go dependencies, 43 weekly change entries.
+- Test evidence counts: 35,100+ unit tests, 88 fuzz targets, 2,100+ end-to-end transcript steps, 160 interop scenarios across 9 target implementations.
 - Release inventory preview pending owner classification: [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
 - Generated date: 2026-10-09.
 
@@ -23,7 +23,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 35,000+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 35,100+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 88 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -214,8 +214,6 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `flow-export`: sFlow, NetFlow v9, and IPFIX counter export Config roots: flow-export. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/flowexport`.
 - `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall, bgp-rib. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
 - `geodns`: GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) Config roots: service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/geodns`.
-- `iface-dhcp`: DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/dhcp`.
-- `iface-ra`: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/ra`.
 - `ike`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/imageserver`.
 - `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: none. Start after (order only): none. YANG files: 6. Source: `internal/component/iface`.
@@ -227,7 +225,6 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `l2tp-shaper`: Traffic shaping for L2TP subscriber sessions Config roots: l2tp. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/l2tp/plugins/shaper`.
 - `ldp`: Label Distribution Protocol (RFC 5036): MPLS label distribution Config roots: ldp. Dependencies: fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ldp`.
 - `loop`: Route loop detection (RFC 4271 S9, RFC 4456 S8) Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/reactor/filter`.
-- `memlock`: Memory lock: keep the running executable resident under memory pressure Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/memlock`.
 - `mrt`: MRT routing information export (RFC 6396) Config roots: mrt. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/mrt`.
 - `ntp`: NTP client: system clock synchronization Config roots: environment/ntp. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ntp`.
 - `ospf`: Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Config roots: ospf. Dependencies: interface, fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ospf`.
@@ -275,7 +272,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `clear vrrp statistics` (daemon; wire ze-vrrp:clear-statistics; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear vrrp statistics`): Reset every VRRP virtual router\'s counters to zero\.
 
 ### `create` commands (10)
-- `create bgp peer` (daemon; wire ze-bgp:peer-add; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:union, asn:union, local-as:union, local-address:union, router-id:string, receive-hold-time:uint, send-hold-time:uint, connect-retry:uint, connect:enum, accept:enum, family:string, graceful-restart:uint, group-updates:enum, attach:string; usage `create bgp peer <selector> <asn> [local-as <local-as>] [local-address <local-address>] [router-id <router-id>] [receive-hold-time <receive-hold-time>] [send-hold-time <send-hold-time>] [connect-retry <connect-retry>] [connect <true|false>] [accept <true|false>] [family <family>] [graceful-restart <graceful-restart>] [group-updates <true|false>] [attach <attach>]`): Add a peer to the running daemon\.
+- `create bgp peer` (daemon; wire ze-bgp:peer-create; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:union, asn:union, local-as:union, local-address:union, router-id:string, receive-hold-time:uint, send-hold-time:uint, connect-retry:uint, connect:enum, accept:enum, family:string, graceful-restart:uint, group-updates:enum, attach:string; usage `create bgp peer <selector> <asn> [local-as <local-as>] [local-address <local-address>] [router-id <router-id>] [receive-hold-time <receive-hold-time>] [send-hold-time <send-hold-time>] [connect-retry <connect-retry>] [connect <true|false>] [accept <true|false>] [family <family>] [graceful-restart <graceful-restart>] [group-updates <true|false>] [attach <attach>]`): Add a peer to the running daemon\.
 - `create interface address` (daemon; wire ze-iface:interface-addr-add; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, prefix:union; usage `create interface address <name> <prefix>`): Add an IP address to an interface\.
 - `create interface bridge name` (daemon; wire ze-iface:interface-create-bridge; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `create interface bridge name <name>`): Create a Linux bridge for L2 forwarding\.
 - `create interface bridge name address` (daemon; wire ze-iface:interface-addr-add; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, prefix:union; usage `create interface bridge name <name> address <prefix>`): Add an IP address to the bridge\.
@@ -293,7 +290,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `debug ospf inject enable` (daemon; wire ze-ospf:debug-inject-enable; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `debug ospf inject enable`): Enable OSPF debug LSA injection \(shared across both address families\)\.
 
 ### `delete` commands (6)
-- `delete bgp peer` (daemon; wire ze-bgp:delete-peer; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `delete bgp peer <selector>`): Remove a peer from the running config\.
+- `delete bgp peer` (daemon; wire ze-bgp:peer-delete; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `delete bgp peer <selector>`): Remove a peer from the running config\.
 - `delete debug module` (daemon; wire ze-debug:delete-module; args module-name:string, flag:string; usage `delete debug module <module-name> [flag <flag>] [scope <kind> <value>]`): Disable debug for a subsystem\, or remove one of its flags or scopes\.
 - `delete debug profile name` (daemon; wire ze-debug:delete-profile-name; args profile-name:string; usage `delete debug profile name <profile-name>`): Delete a named debug profile\.
 - `delete interface name` (daemon; wire ze-iface:interface-delete; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `delete interface name <name>`): Delete an interface from the kernel\.

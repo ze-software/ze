@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.8%</strong><b>9 of 76 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>49.7%</strong><b>90 of 181 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.5%</strong><b>104 of 181 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -239,7 +239,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>56</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>90</td>
+<td>104</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1661.md</code></td>
@@ -1880,7 +1880,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L146" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPNakChangesIdentifierAndDropsStaleReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L492" title="internal/component/l2tp/ppp/rfc1661_lcp_test.go" target="_blank" rel="noopener"><code>TestLCPConfigureRequestIdentifierLifecycle</code></a></td>
@@ -1890,7 +1890,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L80" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPRejectRemovesOnlyRejectedOptions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1960,7 +1960,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L19" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPReplyCorrelation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L399" title="internal/component/l2tp/ppp/rfc1661_lcp_test.go" target="_blank" rel="noopener"><code>TestLCPRepliesMatchOutstandingRequest</code></a></td>
@@ -1970,7 +1970,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L18" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPReplyCorrelation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1990,7 +1990,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L21" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPReplyCorrelation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L401" title="internal/component/l2tp/ppp/rfc1661_lcp_test.go" target="_blank" rel="noopener"><code>TestLCPRepliesMatchOutstandingRequest</code></a></td>
@@ -2000,7 +2000,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L20" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPReplyCorrelation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2149,7 +2149,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L22" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPReplyCorrelation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L403" title="internal/component/l2tp/ppp/rfc1661_lcp_test.go" target="_blank" rel="noopener"><code>TestLCPRepliesMatchOutstandingRequest</code></a></td>
@@ -2159,7 +2159,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L145" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPNakChangesIdentifierAndDropsStaleReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2309,7 +2309,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L23" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPReplyCorrelation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L405" title="internal/component/l2tp/ppp/rfc1661_lcp_test.go" target="_blank" rel="noopener"><code>TestLCPRepliesMatchOutstandingRequest</code></a></td>
@@ -2319,7 +2319,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L76" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPRejectRemovesOnlyRejectedOptions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2339,7 +2339,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L24" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPReplyCorrelation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L407" title="internal/component/l2tp/ppp/rfc1661_lcp_test.go" target="_blank" rel="noopener"><code>TestLCPRepliesMatchOutstandingRequest</code></a></td>
@@ -2349,7 +2349,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L77" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPRejectRemovesOnlyRejectedOptions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2369,7 +2369,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L79" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPRejectRemovesOnlyRejectedOptions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L533" title="internal/component/l2tp/ppp/rfc1661_lcp_test.go" target="_blank" rel="noopener"><code>TestLCPRejectedOptionsStayRemoved</code></a></td>
@@ -2379,7 +2379,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L78" title="internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go" target="_blank" rel="noopener"><code>TestClientLCPRejectRemovesOnlyRejectedOptions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3301,7 +3301,7 @@ Partial for L2TP and PPPoE. Fifteen MUST rows carry {gap}. Remaining gaps includ
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

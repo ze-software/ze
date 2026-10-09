@@ -684,8 +684,10 @@ before you call the scenario evidence:
 | A scenario for a sender-side wire change whose receiver is obliged to accept any form (RFC 7606 Section 5.1: receivers accept any field combination) | A conforming peer accepts the old and the new wire equally | Reverting the sender change leaves the peer's routing table identical |
 | A test asserting the ABSENCE of something (no log line, no allocation, no route) | Deleting the mechanism leaves the same absence | Ask what would still be absent if the code were removed |
 | A test whose fixture is at an extreme (all fields set, maximum value) | An off-by-one or a partial break still handles the extreme | Boundary the fixture: test one below and one above |
-| A test whose data reaches the peer by a DIFFERENT path than the one changed | The unchanged path still delivers | Trace which code path actually produces the asserted bytes |
+| A test whose data reaches the peer by a DIFFERENT path than the one changed | The unchanged path still delivers | Trace which code path actually produces the asserted bytes. A scenario proving two peers are NOT merged is this trap when they are already kept apart by another fact: `local-as-replace-as-partition` passed with the group key's prepend zeroed until BIRD was made to advertise the RFC 8654 capability FRR advertises by default, because the two sessions differed in `announceFacts.extended`. Log each peer's key in the red build |
 | An assertion whose clauses are all satisfied by ONE stimulus | Each clause reads as an independent observation, and they are one observation written twice | Name the single event that satisfies every clause. Then ask which clause a peer that did nothing would still satisfy |
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate (ExtendedMessageSend follows the peer's advertisement) -->
+<!-- source: test/interop/scenarios/local-as-replace-as-partition/bird.conf -- enable extended messages -->
 
 The fifth trap is what the IPsec suite carried until 2026-09-04, and it is worth
 reading in full because the shape recurs. `verifyTunnelTraffic`
@@ -935,7 +937,9 @@ where Ze originates PATH, ResvErr, ResvTear, PathErr and strict hops and
 freeRouter is the independent implementation that parses, relays and
 re-encodes them. A Ze head-end tunnel in this suite requests `fast-reroute`,
 because freeRouter's `packRsvp.parseDatPatReq` refuses a PATH without
-SESSION_ATTRIBUTE and Ze emits that object only for a protected tunnel. Each freeRouter owns its own IPv4 stack
+SESSION_ATTRIBUTE and Ze emits that object only for a protected tunnel and a
+bypass. A third shape puts Ze at the point of local repair: Ze ingress, Ze
+PLR, freeRouter relay on the bypass, freeRouter egress as the merge point. Each freeRouter owns its own IPv4 stack
 and MAC: `test/interop-rsvpte/run-freertr.sh` makes the container's `eth0`
 promiscuous and joins it to the jar through the upstream `rawInt.bin`, so the
 suite needs Docker and privileged containers, never host root, a TAP device or
@@ -943,13 +947,15 @@ a network namespace. Ze's container is privileged because it programs MPLS
 labels; the preflight loads `mpls_router` and refuses a host kernel without it.
 
 Every assertion reads what a peer received. Every container, Ze or freeRouter,
-runs `tcpdump -vvv` on its `eth0` into `/run/fr/rsvp.txt`, and the checker
-parses that text: a message Ze
+runs `tcpdump -vvv` on its `eth0` into `/run/fr/rsvp.txt`, RSVP and every
+MPLS-labelled frame, because a PATH carried through a bypass LSP is labelled.
+The checker parses that text: a message Ze
 logs as sent counts for nothing until the peer's capture holds it.
 
 | Scenario | What the peers observe |
 |----------|------------------------|
 | `transit-loose-ero-expansion` | freeRouter ingress, Ze transit, freeRouter egress. The ingress names Ze and the egress loopback as loose hops and prepends its own next hop, Ze, as a strict subobject (`ipFwdTab.fillRsvpFrst`), so it signals `[Ze strict, Ze loose, egress loopback loose]`. Ze's native route to the loopback runs through `.14`, which no subobject names, so the PATH the egress captures carries `.14` ahead of the still-loose loopback (RFC 3209 Section 4.3.4.1 steps 5 and 6). The ingress captures Ze's RESV with a label, and Ze's MPLS table holds a swap via `.14` |
+| `plr-backup-path-to-egress-merge-point` | Ze ingress, Ze PLR, freeRouter relay `.15`, freeRouter egress `.14`. The ingress asks facility protection for a tunnel whose protected hop is the PLR's `prot0`, VLAN 100 to the egress at `10.0.14.14`; the PLR's configured bypass runs untagged through the relay and merges at that egress. Before the fault the egress holds no backup PATH. The checker takes `prot0` down, and the egress captures, through the bypass, a PATH whose sender and RSVP_HOP are the PLR and whose ERO is `10.0.14.14` alone; the PLR captures at least two labelled RESVs from the egress naming its own sender and answers none with a ResvErr (RFC 4090 Sections 6.1 and 6.4). The egress answers from its `eth0` address `.14`, not from `10.0.14.14`, and Ze accepts an alternate merge-point source only when a live native IGP database attributes it to the same node, so the PLR and the egress run OSPF on `eth0` (freeRouter router-id `10.0.14.14`) and the checker waits for a Full adjacency, read through `show ospf neighbor` on the PLR, before it takes `prot0` down. freeRouter is the merge point only as an egress: it keys the backup PATH by sender and LSP-ID as a new LSP, and has no transit merge |
 | `transit-strict-hop-forwarded` | Ze ingress, freeRouter relay `.15`, Ze transit, freeRouter egress `.14`. The Ze ingress names every hop strict. The PATH the egress captures from Ze carries the ERO shortened to strict `.14` alone, the Ze ingress captures a labelled RESV relayed by freeRouter, and the Ze transit holds a swap via `.14` |
 | `transit-strict-hop-outside-refused` | Ze ingress, freeRouter relay, Ze transit. The last strict hop's native route at the transit runs through a node outside both abstract nodes, so the transit sends PathErr Routing Problem / Bad strict node (24/2) and never forwards the PATH (RFC 3209 Section 4.3.3.1). The Ze ingress captures that PathErr as freeRouter relays it, naming the transit as the error node |
 | `ingress-resv-error-relayed` | Ze ingress, freeRouter relay, Ze egress. The ingress interface reserves less than the tunnel asks, so the ingress refuses the RESV freeRouter relays and sends a ResvErr naming itself, Error Code 1 Admission Control failure, value 2. The Ze egress captures that ResvErr from freeRouter with the error node, code and value intact (RFC 2205 Sections 2.5 and 3.1.8) |
@@ -1030,6 +1036,24 @@ true case, and a false case written against one stated wrong reading, such as
 two tokens matched across two log lines, a peer-originated event passing as a
 received one, or an absence with no proof that the query ran.
 <!-- source: internal/le/interoplab/bgp/bgp_test.go -- TestBespokeCheckerBranches -->
+
+### Raw frame injection from inside a peer container
+
+A checker that must put a hand-built Ethernet frame on a peer's wire, as that
+peer, sends it with `interoplab.SendFrameInContainer`. The helper writes the
+frame as a one-record pcap inside the named container and runs `tcpreplay`
+there through `docker exec`, so the image MUST carry `tcpreplay`. Ze's BGP lab
+image does, for the `isis-purge-reorig-frr` own-LSP purge, and so does the
+PPPoE client image, for `pppoe-padr-replay`, `pppoe-pap-ze-ac` and the IPv6CP
+replays.
+
+The send runs in the container, never from the checker process. On a rootful
+Docker daemon a container's network namespace belongs to root: an unprivileged
+checker cannot open `/proc/<pid>/ns/net`, because the kernel's ptrace access
+check refuses another user's process, and could not `setns` into it without
+`CAP_SYS_ADMIN`. `docker exec` already runs inside the namespace and needs
+neither.
+<!-- source: internal/le/interoplab/sendframe.go -- SendFrameInContainer -->
 
 ### Querying Ze
 
@@ -1471,6 +1495,18 @@ Measured on 2026-09-06 on a 32-core workstation: 6.1s and 4.8s for the two
 cross-compiles against a warm `cache/go-cache`, at a peak resident set of 1.03
 GiB and 0.98 GiB, then 54.7s for the `docker build`, which is now context
 transfer rather than compilation.
+
+Measured again on 2026-10-09 on the same workstation, from a `git archive`
+export of 1cfc44afd7 with an empty `cache/go-cache`, while other sessions ran
+labs: `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le test integration interop`
+reported `1 passed, 0 failed` in 9m27s of wall time, which includes building
+the launcher itself from cold. The staged binaries were written about 18s and
+9s apart. The largest process of the whole run peaked at 1524736 KiB
+(1.45 GiB) under `/usr/bin/time -v`. A separate `docker build` of
+`test/interop/Dockerfile.ze` over those staged binaries took 199.4s at a load
+average of 65, with the client peaking at 48.5 MiB, so the time is the
+contended daemon rather than any compile. Inside that image `ze --version` and
+`le test` both ran, and `/etc/alpine-release` read `3.21.7`.
 
 The shape before 2026-09-06 is what those numbers are read against. `Dockerfile.ze`
 copied the whole tree and compiled ze twice with no cache mount. One colima VM of

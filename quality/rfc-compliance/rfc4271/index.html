@@ -1401,7 +1401,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.1.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked excludes only SRv6-ineligible entries and next hops naming one of ze&#39;s own session addresses (internal/component/bgp/plugins/rib/rib_commands.go), and extractCandidate uses the next hop solely to look up an interior cost, giving an unresolvable one the maximum (internal/component/bgp/plugins/rib/rib_commands.go `extractCandidate`). The route therefore still competes: it loses Section 9.1.2.2 step e) to any resolvable path, but wins outright when it is preferred at an earlier step (LOCAL_PREF, AIGP, AS_PATH, ORIGIN, MULTI_EXIT_DISC, EBGP over IBGP) or is the only path</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.1.2-2">RFC4271-9.1.2-2</code></td><td colspan="3"><span class="rfc-subject">The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB. (§9.1.2)</span></td></tr>
 <tr><td></td>
@@ -2079,7 +2079,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 </tr>
 <tr><td><a href="#rfc4271-9.1.2-1"><code>RFC4271-9.1.2-1</code></a> If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2)</td>
 <td>{gap}, no test</td>
-<td>an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally</td>
+<td>an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked excludes only SRv6-ineligible entries and next hops naming one of ze&#39;s own session addresses (internal/component/bgp/plugins/rib/rib_commands.go), and extractCandidate uses the next hop solely to look up an interior cost, giving an unresolvable one the maximum (internal/component/bgp/plugins/rib/rib_commands.go `extractCandidate`). The route therefore still competes: it loses Section 9.1.2.2 step e) to any resolvable path, but wins outright when it is preferred at an earlier step (LOCAL_PREF, AIGP, AS_PATH, ORIGIN, MULTI_EXIT_DISC, EBGP over IBGP) or is the only path</td>
 </tr>
 <tr><td><a href="#rfc4271-9.1.2-4"><code>RFC4271-9.1.2-4</code></a> If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. (§9.1.2)</td>
 <td>{gap}, no test</td>
@@ -6283,7 +6283,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

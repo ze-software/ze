@@ -67,9 +67,9 @@ explicit blob artifact for appliance builders.
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=f1701fef68) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=586e5c6ada)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=bd9dbca818) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=586e5c6ada)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 2 minutes 57 seconds.
+Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 3 minutes 7 seconds.
 
 ```console
 $ ze init

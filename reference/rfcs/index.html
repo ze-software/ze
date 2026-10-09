@@ -1020,7 +1020,7 @@
 <td>RSVP-TE Fast Reroute</td>
 <td>Experimental</td>
 <td>32 gated: 31 proven, 1 annotated (0 partial subset), 0 untested</td>
-<td>Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup.</td>
+<td>Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup. A Ze PLR's backup PATH (<code>backupPath</code>, sent by <code>tryLocalRepair</code>) crosses the bypass to a freeRtr merge point, which answers it with labelled RESVs that the PLR accepts (interop scenario <code>plr-backup-path-to-egress-merge-point</code>, 2026-10-09). <span class="ev-src"><span class="ev-ref"><code>internal/plugins/rsvpte/frr.go</code></span></span></td>
 <td>PLRs now signal and refresh the protected PATH through the bypass, and an MP merges it into matching protected state (Sections 6.4.3, 6.4.4, 7.1.1). A head-end PLR uses a distinct assigned local sender address and a two-label ingress push (Section 6.1.1). Each of those six requirements carries a discrimination record in both polarities (completed 2026-10-08). One-to-one detours remain absent; Section 6 states "A PLR MAY support the DETOUR object". A bandwidth-guaranteed bypass is also absent. Those optional feature records require a scope decision and do not authorize implementation. <span class="ev-src"><span class="ev-ref"><code>rfc/discrimination/rfc4090.json</code></span><span class="ev-ref"><code>plan/spec-rsvpte-bypass-bandwidth-protection.md</code></span></span></td>
 </tr>
 </tbody>
@@ -1115,7 +1115,7 @@
 <td class="cell-partial">∿</td>
 <td>13 gated: 13 proven, 0 annotated (0 partial subset), 0 untested</td>
 <td>PAP authentication option through PPP auth handling.</td>
-<td>Verification remains for the retry and post-authentication reanswer changes in. The source batch adds tests for RFC1334-2.2.1-2, RFC1334-2.2.1-4, RFC1334-2.2.1-5, RFC1334-2.2-1 and RFC1334-2.3-3; no new test result or discrimination proof is claimed. <span class="ev-src"><span class="ev-ref"><code>plan/immediate/spec-pppoe-client-pap-retry.md</code></span><span class="ev-ref"><code>plan/immediate/spec-ppp-pap-reanswer-after-auth.md</code></span></span></td>
+<td class="cell-no">✕</td>
 </tr>
 <tr>
 <td>RFC 1994</td>
@@ -1154,8 +1154,8 @@
 <td>PPPoE</td>
 <td class="cell-partial">∿</td>
 <td>37 gated: 26 proven, 11 annotated (0 partial subset), 0 untested</td>
-<td>Access concentrator (PADI/PADO/PADR/PADS/PADT discovery, AC-Cookie, session tables, AF_PPPOX kernel sessions) and PPPoE client/Host dialer share PPP codecs and option validation. The AC uses the PPP driver; the client runs its own negotiation loop. Requirement bindings are derived from the tagged tests. The 2026-09-21 PADT lifetime and prohibited-option regressions have been added but not run or discriminated during the concurrent source batch.</td>
-<td>Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and payload to 1484 octets, excluding the Ethernet header; the returned frame can reach 1498 octets and an oversized request returns nil. Tests exercise that boundary and the 16-octet relay-tag reservation. The Linux pppoe module writes session CODE 0x00. Both roles now stop PPP transport on PADT and reject ACCM, ACFC and FCS Alternatives (type 9); verification and discrimination for these changes remain owed. PFC is NOT RECOMMENDED rather than prohibited by Section 7. Remaining annotations below cover kernel resource-allocation evidence and the conditional relay-agent and Generic-Error features proposed in existing specs. Error tags currently carry no data. The session table reserves SESSION_ID 0xffff, and PADO/PADS emit Service-Name even when its value is empty. Receive-side tolerance of absent or repeated Service-Name is documented in docs/architecture/l2tp/bng-5-pppoe.md; Sections 5.1 and 5.3 bind the sender. No optional-feature decision is implied by the backlog specs.</td>
+<td>Access concentrator (PADI/PADO/PADR/PADS/PADT discovery, AC-Cookie, session tables, AF_PPPOX kernel sessions) and PPPoE client/Host dialer share PPP codecs and option validation. The AC uses the PPP driver; the client runs its own negotiation loop. Requirement bindings are derived from the tagged tests. The PADT lifetime and prohibited-option regressions pass and carry discrimination records in (2026-10-09). <span class="ev-src"><span class="ev-ref"><code>rfc/discrimination/rfc2516.json</code></span></span></td>
+<td>Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and payload to 1484 octets, excluding the Ethernet header; the returned frame can reach 1498 octets and an oversized request returns nil. Tests exercise that boundary and the 16-octet relay-tag reservation. The Linux pppoe module writes session CODE 0x00. Both roles now stop PPP transport on PADT and reject ACCM, ACFC and FCS Alternatives (type 9); their regressions carry discrimination records. PFC is NOT RECOMMENDED rather than prohibited by Section 7. Remaining annotations below cover kernel resource-allocation evidence and the conditional relay-agent and Generic-Error features proposed in existing specs. Error tags currently carry no data. The session table reserves SESSION_ID 0xffff, and PADO/PADS emit Service-Name even when its value is empty. Receive-side tolerance of absent or repeated Service-Name is documented in docs/architecture/l2tp/bng-5-pppoe.md; Sections 5.1 and 5.3 bind the sender. No optional-feature decision is implied by the backlog specs.</td>
 </tr>
 <tr>
 <td>RFC 2865</td>
@@ -1551,7 +1551,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

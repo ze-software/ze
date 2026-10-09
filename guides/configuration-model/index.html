@@ -2693,7 +2693,10 @@ the NIC it was written for. Discovery writes no override on an ethernet for this
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address", container mac -->
 <h3 id="discovery-during-init">Discovery During Init</h3>
 <p>Running <code>ze init</code> discovers OS interfaces via netlink (Linux) or stdlib (other platforms)
-and writes initial config to <code>ze.conf</code>. Each discovered interface gets an entry named
+and writes initial config to <code>&lt;name&gt;.conf</code>, named after the instance name it asked for, which
+is the file a bare <code>ze start</code> on that store reads. An instance name that is not a valid file
+stem (letters, digits and hyphens, up to 64) falls back to <code>ze.conf</code>, as <code>ze start</code> does.
+Each discovered interface gets an entry named
 after its OS name, carrying one selector that binds it back to the device:</p>
 <table>
 <thead>
@@ -5200,7 +5203,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

@@ -222,7 +222,7 @@ over statement keywords answers correctly.
 | A `container`, `list`, `leaf` or `leaf-list` in the config tree | Yes | `entryShortHelp` puts its `ze:help` summary on the one-line row |
 | A `choice` or a `case` | No, but the walk descends through it | `effectiveChildren` (`internal/component/cli/completer.go`) walks THROUGH both and emits neither as a completion row, so neither text ever renders |
 | A `module`, `submodule`, `revision`, `import`, `include`, `grouping`, `typedef`, `identity`, `feature` or `extension` description | No | It never becomes an entry, so no row renders it |
-| A `leaf` in a `-cmd.yang` module | The two caps, off the command tree (`arguments`, `helpshape.go`), once for each declaration | `argDefFor` copies the leaf's `ze:help` into `ArgDef.ShortHelp`, which `ze help command --json`, the web form and the site catalog print. A leaf a container above the command declares is judged under that container, not once for each command that inherits it. The report prints `Argument texts judged` and `Argument texts with a summary` |
+| A `leaf` in a `-cmd.yang` module | The two caps, off the command tree (`arguments`, `helpshape.go`), once for each declaration | `argDefFor` passes the leaf's `ze:help` to the constructor as `ArgOptions.ShortHelp` (`ArgDef.ShortHelp()`), which `ze help command --json`, the web form and the site catalog print. A leaf a container above the command declares is judged under that container, not once for each command that inherits it. The report prints `Argument texts judged` and `Argument texts with a summary` |
 | A `leaf` under an `rpc` input or output, or under a `notification`, in any module | The two caps, off `ExtractRPCs` and `ExtractNotifications` (`leaves`, `helpshape.go`) | The leaf's `ze:help` reaches `ze help ai --json`, the MCP tool `title` and the gRPC schema. The report prints `RPC leaf texts judged` and `Notification leaf texts judged`, each with its `with a summary` line |
 | An `rpc` | By `collectRPCs`, wherever it is declared | Judging it here would refuse one declaration twice |
 | An `enum` value on any leaf, a list key included, and a union's enumeration members | The two caps, never the long-text rule | `valueCompletions` and `listKeyCompletions` put each value's `ze:help` summary on the completion row, both through `yang.EnumValueSummaries`, and the site reference lists the same values. An enum declares its summary as `ze:help` alone, and nothing reads a `description` on an enum. The report names the rendered count and how many declare a summary |
@@ -310,8 +310,10 @@ read a comment, and the schema output does not publish one.
 A `leaf` and a `leaf-list` are judged under the pair rules in a config module
 and under the two caps alone in a `-cmd.yang` or an `-api.yang` one, because
 different producers read them. `extractArgDefs` walks every child of a command
-container and calls `argDefFor`, which copies the leaf's `ze:help` into
-`ArgDef.ShortHelp` and its `description` into `ArgDef.Description`, and every
+container and calls `argDefFor`, which passes the leaf's `ze:help` and its
+`description` to the constructor as `ArgOptions.ShortHelp` and
+`ArgOptions.Description` (read back by `ArgDef.ShortHelp()` and
+`ArgDef.Description()`), and every
 command surface prints the one it has. `entryShortHelp` puts a config leaf's
 `ze:help` summary on the completion row. The file name is what separates the
 two at the level the hook reads.

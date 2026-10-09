@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 50.0% | 16 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 81.2% | 26 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -64,14 +64,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 32 |
 | Tagged units | 32 |
 | Recorded audit verdicts | 10 |
-| Discrimination records | 16 |
+| Discrimination records | 26 |
 | Summary | `rfc/short/rfc1334.md` |
 | Requirement shard | `rfc/requirements/rfc1334.md` |
 | RFC text | `rfc/full/rfc1334.txt` |
 
 ## Enrolment
 
-Enrolled: PAP and LCP authentication are implemented by the shared PPP authenticator and PPPoE client. PAP Authenticate-Request retries, changing Identifiers, matching reply validation and post-authentication reanswers have source changes and regression tests; the 2026-09-21 source batch has not run their verification or discrimination proofs.
+Enrolled: PAP and LCP authentication are implemented by the shared PPP authenticator and PPPoE client. PAP Authenticate-Request retries, changing Identifiers, matching reply validation and post-authentication reanswers are implemented with regression tests, and each of their tags carries a discrimination record in `rfc/discrimination/rfc1334.json` (2026-10-09).
 
 ## What the public ledger says
 
@@ -83,7 +83,7 @@ PAP authentication option through PPP auth handling.
 
 **What the ledger says remains**
 
-Verification remains for the retry and post-authentication reanswer changes in [`plan/immediate/spec-pppoe-client-pap-retry.md`](https://github.com/ze-software/ze/blob/main/plan/immediate/spec-pppoe-client-pap-retry.md) and [`plan/immediate/spec-ppp-pap-reanswer-after-auth.md`](https://github.com/ze-software/ze/blob/main/plan/immediate/spec-ppp-pap-reanswer-after-auth.md). The source batch adds tests for [`RFC1334-2.2.1-2`](#rfc1334-2.2.1-2), [`RFC1334-2.2.1-4`](#rfc1334-2.2.1-4), [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5), [`RFC1334-2.2-1`](#rfc1334-2.2-1) and [`RFC1334-2.3-3`](#rfc1334-2.3-3); no new test result or discrimination proof is claimed.
+No interoperability scenario exercises PAP: the PPPoE and L2TP labs authenticate with CHAP-MD5, so the client retry (`pppoeclient/session.go::runClientAuth`) and the authenticator reanswer (`ppp/pap.go::reanswerPAP`) are proven by unit tests and revert discrimination records only.
 
 ## Coverage
 
@@ -196,8 +196,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L126) | unit/verify | unproven |
-| positive | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L125) | unit/verify | unproven |
+| negative | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L126) | unit/verify | revert, verified |
+| positive | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L125) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.2.1-3`](#rfc1334-2.2.1-3)
 
@@ -218,8 +218,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPAPReanswerDiscardsMalformedRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L205) | unit/verify | unproven |
-| positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L144) | unit/verify | unproven |
+| negative | [`TestPAPReanswerDiscardsMalformedRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L205) | unit/verify | revert, verified |
+| positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L144) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5)
 
@@ -229,8 +229,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPAPReanswerPreservesDecision`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L178) | unit/verify | unproven |
-| positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L145) | unit/verify | unproven |
+| negative | [`TestPAPReanswerPreservesDecision`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L178) | unit/verify | revert, verified |
+| positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L145) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.2.1-6`](#rfc1334-2.2.1-6)
 
@@ -251,8 +251,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L128) | unit/verify | unproven |
-| positive | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L127) | unit/verify | unproven |
+| negative | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L128) | unit/verify | revert, verified |
+| positive | [`TestClientPAPRetriesUntilMatchingReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go#L127) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.3-3`](#rfc1334-2.3-3)
 
@@ -262,8 +262,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147) | unit/verify | unproven |
-| positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146) | unit/verify | unproven |
+| negative | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147) | unit/verify | revert, verified |
+| positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146) | unit/verify | revert, verified |
 | positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414) | unit/verify | unproven |
 | positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300) | unit/verify | unproven |
 

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 16.2% | 6 of 37 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 37 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 37 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 75.0% | 63 of 84 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 86.9% | 73 of 84 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 84 |
 | Tagged units | 84 |
 | Recorded audit verdicts | 31 |
-| Discrimination records | 63 |
+| Discrimination records | 73 |
 | Summary | `rfc/short/rfc2516.md` |
 | Requirement shard | `rfc/requirements/rfc2516.md` |
 | RFC text | `rfc/full/rfc2516.txt` |
@@ -87,12 +87,12 @@ Enrolled: PPPoE access-concentrator and client roles: discovery framing and tags
 **What the ledger says is covered**
 
 - Access concentrator (PADI/PADO/PADR/PADS/PADT discovery, AC-Cookie, session tables, AF_PPPOX kernel sessions) and PPPoE client/Host dialer share PPP codecs and option validation. The AC uses the PPP driver
-- the client runs its own negotiation loop. Requirement bindings are derived from the tagged tests. The 2026-09-21 PADT lifetime and prohibited-option regressions have been added but not run or discriminated during the concurrent source batch.
+- the client runs its own negotiation loop. Requirement bindings are derived from the tagged tests. The PADT lifetime and prohibited-option regressions pass and carry discrimination records in [`rfc/discrimination/rfc2516.json`](https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc2516.json) (2026-10-09).
 
 
 **What the ledger says remains**
 
-Four MUST rows carry {gap}. `BuildPADI` limits the PPPoE header and payload to 1484 octets, excluding the Ethernet header; the returned frame can reach 1498 octets and an oversized request returns nil. Tests exercise that boundary and the 16-octet relay-tag reservation. The Linux pppoe module writes session CODE 0x00. Both roles now stop PPP transport on PADT and reject ACCM, ACFC and FCS Alternatives (type 9); verification and discrimination for these changes remain owed. PFC is NOT RECOMMENDED rather than prohibited by Section 7. Remaining annotations below cover kernel resource-allocation evidence and the conditional relay-agent and Generic-Error features proposed in existing specs. Error tags currently carry no data. The session table reserves SESSION_ID 0xffff, and PADO/PADS emit Service-Name even when its value is empty. Receive-side tolerance of absent or repeated Service-Name is documented in [`docs/architecture/l2tp/bng-5-pppoe.md`](https://github.com/ze-software/ze/blob/main/docs/architecture/l2tp/bng-5-pppoe.md); Sections 5.1 and 5.3 bind the sender. No optional-feature decision is implied by the backlog specs.
+Four MUST rows carry {gap}. `BuildPADI` limits the PPPoE header and payload to 1484 octets, excluding the Ethernet header; the returned frame can reach 1498 octets and an oversized request returns nil. Tests exercise that boundary and the 16-octet relay-tag reservation. The Linux pppoe module writes session CODE 0x00. Both roles now stop PPP transport on PADT and reject ACCM, ACFC and FCS Alternatives (type 9); their regressions carry discrimination records. PFC is NOT RECOMMENDED rather than prohibited by Section 7. Remaining annotations below cover kernel resource-allocation evidence and the conditional relay-agent and Generic-Error features proposed in existing specs. Error tags currently carry no data. The session table reserves SESSION_ID 0xffff, and PADO/PADS emit Service-Name even when its value is empty. Receive-side tolerance of absent or repeated Service-Name is documented in [`docs/architecture/l2tp/bng-5-pppoe.md`](https://github.com/ze-software/ze/blob/main/docs/architecture/l2tp/bng-5-pppoe.md); Sections 5.1 and 5.3 bind the sender. No optional-feature decision is implied by the backlog specs.
 
 ## Coverage
 
@@ -475,12 +475,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L46) | unit/verify | unproven |
-| negative | [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L30) | unit/verify | unproven |
-| positive | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L45) | unit/verify | unproven |
-| positive | [`TestRFC2516ACSentPADTClosesTransportBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L79) | unit/verify | unproven |
-| positive | [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L29) | unit/verify | unproven |
-| positive | [`TestRFC2516ClientSentPADTStopsPPPBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L127) | unit/verify | unproven |
+| negative | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L46) | unit/verify | revert, verified |
+| negative | [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L30) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L45) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ACSentPADTClosesTransportBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L79) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L29) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ClientSentPADTStopsPPPBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L127) | unit/verify | revert, verified |
 
 ### [`RFC2516-6-1`](#rfc2516-6-1)
 
@@ -498,10 +498,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2516ACRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc2516_options_test.go#L12) | unit/verify | unproven |
-| negative | [`TestRFC2516ClientRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L102) | unit/verify | unproven |
-| positive | [`TestRFC2516ACRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc2516_options_test.go#L11) | unit/verify | unproven |
-| positive | [`TestRFC2516ClientRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L101) | unit/verify | unproven |
+| negative | [`TestRFC2516ACRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc2516_options_test.go#L12) | unit/verify | revert, verified |
+| negative | [`TestRFC2516ClientRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L102) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ACRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc2516_options_test.go#L11) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ClientRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L101) | unit/verify | revert, verified |
 
 ### [`RFC2516-7-3`](#rfc2516-7-3)
 

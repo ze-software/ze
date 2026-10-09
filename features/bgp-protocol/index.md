@@ -156,6 +156,27 @@ format, and that program fixes the spelling.
 <!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- asPathList -->
 <!-- source: internal/core/bgp/attribute/text_append.go -- AppendText, which stays asplain -->
 
+### Peer AS check and AS migration (RFC 7705)
+
+Ze refuses an OPEN whose AS is not the one the peer is configured for, and an
+OPEN carrying AS 0, with NOTIFICATION 2/2 Bad Peer AS. The AS judged is the
+Four-octet AS capability's value when the peer sends one. A dynamic peer, whose
+AS is learned from its OPEN, is exempt. Each refusal is counted in
+`ze_bgp_open_rejected_bad_peer_as_total` (`docs/guide/monitoring.md`).
+
+`session { asn { migration <asn> } }`, on a peer or a group, runs one iBGP
+session under either of two local AS numbers (RFC 7705 Section 4.2). Ze accepts
+an OPEN carrying the local or the migration AS, treats the session as internal
+whichever AS won, and opens with the local AS first, switching to the other one
+on the next attempt only after the peer answers Bad Peer AS. The external-session
+options of RFC 7705 Section 3.3 are `local` and `local-options`. Both are in
+`docs/guide/configuration.md`, "AS Migration (`local-as`)" and "Internal AS
+Migration (RFC 7705 Section 4.2)".
+
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS, rejectOpenPeerAS -->
+<!-- source: internal/component/bgp/reactor/session_as_migration.go -- peerASAccepted, isIBGPWith, noteASMigrationRejection, openLocalAS -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings, migration -->
+
 ### Multipath installation
 
 When several BGP candidates tie under multipath selection, Ze carries the

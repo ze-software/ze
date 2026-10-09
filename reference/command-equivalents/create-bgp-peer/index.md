@@ -7,7 +7,7 @@ Add a peer to the running daemon\.
 - Registry path: `create bgp peer`
 - Usage: `create bgp peer <selector> <asn> [local-as <local-as>] [local-address <local-address>] [router-id <router-id>] [receive-hold-time <receive-hold-time>] [send-hold-time <send-hold-time>] [connect-retry <connect-retry>] [connect <true\|false>] [accept <true\|false>] [family <family>] [graceful-restart <graceful-restart>] [group-updates <true\|false>] [attach <attach>]`
 - Mode: Daemon
-- Wire method: `ze-bgp:peer-add`
+- Wire method: `ze-bgp:peer-create`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,7 +21,7 @@ Add a peer to the running daemon\.
 - Command pipes: none
 - Pipe aliases: none
 
-The peer address and \'asn\' are required\. Every other keyword is optional\. Ze builds the peer\, starts it\, and dials the address unless \'connect false\' says otherwise\. The peer lives in the running daemon alone\. Ze writes nothing to the configuration\, so a reload removes the peer\. \'delete bgp peer\' does the same on the way out\, and it does not change the file on disk\. An address that already names a peer is refused\, and so is a keyword Ze cannot honor\. Each name in \'attach\' is bound to the whole surface\: that process receives every message from this peer and can send every type toward it\. Write the receive and send lists in the configuration file when the process needs less\.
+The peer address and \'asn\' are required\. Every other keyword is optional\. Ze builds the peer\, starts it\, and dials the address unless \'connect false\' says otherwise\. Ze writes nothing to the configuration file\, and a commit or a reload whose configuration does not declare the peer keeps it running\. \'delete bgp peer\' is how it leaves\, and it does not change the file on disk either\; \'update bgp config\' writes the running peers to the file\. An address that already names a peer is refused\, and so is a keyword Ze cannot honor\. Each name in \'attach\' is bound to the whole surface\: that process receives every message from this peer and can send every type toward it\. Write the receive and send lists in the configuration file when the process needs less\.
 
 ## Arguments
 

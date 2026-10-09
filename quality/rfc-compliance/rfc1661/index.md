@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 11.8% | 9 of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 49.7% | 90 of 181 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 57.5% | 104 of 181 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -71,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 181 |
 | Tagged units | 181 |
 | Recorded audit verdicts | 56 |
-| Discrimination records | 90 |
+| Discrimination records | 104 |
 | Summary | `rfc/short/rfc1661.md` |
 | Requirement shard | `rfc/requirements/rfc1661.md` |
 | RFC text | `rfc/full/rfc1661.txt` |
@@ -510,9 +510,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPConfigureRequestIdentifierLifecycle`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L493) | unit/verify | unproven |
-| negative | [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L146) | unit/verify | unproven |
+| negative | [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L146) | unit/verify | revert, verified |
 | positive | [`TestLCPConfigureRequestIdentifierLifecycle`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L492) | unit/verify | unproven |
-| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L80) | unit/verify | unproven |
+| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L80) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.2-1`](#rfc1661-5.2-1)
 
@@ -547,9 +547,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L400) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L19) | unit/verify | unproven |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L19) | unit/verify | revert, verified |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L399) | unit/verify | unproven |
-| positive | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L18) | unit/verify | unproven |
+| positive | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L18) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.2-4`](#rfc1661-5.2-4)
 
@@ -560,9 +560,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L402) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L21) | unit/verify | unproven |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L21) | unit/verify | revert, verified |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L401) | unit/verify | unproven |
-| positive | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L20) | unit/verify | unproven |
+| positive | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L20) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.3-1`](#rfc1661-5.3-1)
 
@@ -641,9 +641,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L404) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L22) | unit/verify | unproven |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L403) | unit/verify | unproven |
-| positive | [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L145) | unit/verify | unproven |
+| positive | [`TestClientLCPNakChangesIdentifierAndDropsStaleReply`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L145) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.3-8`](#rfc1661-5.3-8)
 
@@ -701,9 +701,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L406) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L23) | unit/verify | unproven |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L405) | unit/verify | unproven |
-| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L76) | unit/verify | unproven |
+| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L76) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.4-4`](#rfc1661-5.4-4)
 
@@ -714,9 +714,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L408) | unit/verify | unproven |
-| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L24) | unit/verify | unproven |
+| negative | [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L407) | unit/verify | unproven |
-| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L77) | unit/verify | unproven |
+| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L77) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.4-5`](#rfc1661-5.4-5)
 
@@ -727,9 +727,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLCPRejectedOptionsStayRemoved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L534) | unit/verify | unproven |
-| negative | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L79) | unit/verify | unproven |
+| negative | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L79) | unit/verify | revert, verified |
 | positive | [`TestLCPRejectedOptionsStayRemoved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L533) | unit/verify | unproven |
-| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L78) | unit/verify | unproven |
+| positive | [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L78) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.5-1`](#rfc1661-5.5-1)
 

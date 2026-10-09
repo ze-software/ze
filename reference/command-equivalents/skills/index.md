@@ -10,7 +10,7 @@ List the agent skills this binary carries\, or fetch one by name\.
 - Wire method: `ze-skills:skills`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `action`
+- Subcommands: `get`, `list`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none

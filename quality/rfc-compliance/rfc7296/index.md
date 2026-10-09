@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 224 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 224 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 224 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 30.5% | 208 of 683 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 28.6% | 195 of 683 tagged units, 0 escaped and 13 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Audit verdicts | 92 | of 224 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 92 | of 224 gated MUSTs judged | 2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 224 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -123,7 +123,7 @@ No MUST gap remains gated in [`rfc/short/rfc7296.md`](https://github.com/ze-soft
 |---|---|---|---|---|
 | `RFC7296-1.2-1` | The first pair of messages (IKE_SA_INIT) negotiate cryptographic algorithms, exchange nonces, and do a Diffie-Hellman exchange [DH]. The second pair of messages (IKE_AUTH) authenticate the previous messages, exchange identities and certificates, and establish the first Child SA. Parts of these messages are encrypted and integrity protected with keys established through the IKE_SA_INIT exchange, so the identities are hidden from eavesdroppers and all fields in all the messages are authenticated. (§1.2) | MUST | 1.2 - The initial exchanges | **positive:** `unit/verify` [`TestInitialExchangeEncryptionBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L32). **positive:** `unit/verify` [`TestRFC7296InitialExchangesCarryWhatSection12Names`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_initial_exchanges_test.go#L81). **negative:** `unit/verify` [`TestInitialExchangeEncryptionBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L35). **negative:** `unit/verify` [`TestRFC7296TamperedIKESAInitFailsIKEAuth`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_initial_exchanges_test.go#L190) |
 | `RFC7296-2.6-1` | The initial two eight-octet fields in the header, called the "IKE SPIs", are used as a connection identifier at the beginning of IKE packets. (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestHeaderRoundtrip`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_header_test.go#L9). **positive:** `unit/verify` [`TestRFC7296IKESPIPairIdentifiesTheIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go#L44). **positive:** `unit/verify` [`TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go#L48). **negative:** `unit/verify` [`TestDecodeTruncatedHeader`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_header_test.go#L75). **negative:** `unit/verify` [`TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go#L43). **negative:** `unit/verify` [`TestRFC7296UnknownIKESPIPairMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go#L71) |
-| `RFC7296-2.7-1` | The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN. Each IPsec protocol proposal contains one or more transforms. Each transform contains a Transform Type. The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal. (§2.7) | MUST | 2.7 | **positive:** `unit/verify` [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L95). **positive:** `unit/verify` [`TestProposalNegotiationFirstMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L8). **negative:** `unit/verify` [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87). **negative:** `unit/verify` [`TestProposalNegotiationNoMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L63). **positive:** `interop/nightly` [`checkESNBothOffered`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1050). **negative:** `interop/nightly` [`checkESNExtendedOnlyRefused`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1019) |
+| `RFC7296-2.7-1` | The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN. Each IPsec protocol proposal contains one or more transforms. Each transform contains a Transform Type. The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal. (§2.7) | MUST | 2.7 | **positive:** `unit/verify` [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L95). **positive:** `unit/verify` [`TestProposalNegotiationFirstMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L8). **negative:** `unit/verify` [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87). **negative:** `unit/verify` [`TestProposalNegotiationNoMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L63). **positive:** `interop/nightly` [`checkESNBothOffered`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1205). **negative:** `interop/nightly` [`checkESNExtendedOnlyRefused`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1174) |
 | `RFC7296-3.3-1` | If an initiator wants to propose both combined- mode ciphers and normal ciphers, it must include two proposals: one will have all the combined-mode ciphers, and the other will have all the normal ciphers with the integrity algorithms. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestAeadAloneInItsOwnProposalIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_aead_mix_test.go#L67). **positive:** `unit/verify` [`TestESPProposalsNeverMixAEADClass`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L172). **negative:** `unit/verify` [`TestAeadMixInOneProposalIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_aead_mix_test.go#L35) |
 | `RFC7296-3.3-2` | Combined-mode ciphers include both integrity and encryption in a single encryption algorithm, and MUST either offer no integrity algorithm or a single integrity algorithm of "NONE" (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestESPWireProposalAEADIntegNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L148). **negative:** `unit/verify` [`TestESPWireProposalAEADIntegNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L151) |
 | `RFC7296-3.3.2-1` | An SA payload proposing the establishment of an SA has the following mandatory and optional Transform Types. A compliant implementation MUST understand all mandatory and optional types for each protocol it supports (though it need not accept proposals with unacceptable suites). A proposal MAY omit the optional types if the only value for them it will accept is NONE. Protocol Mandatory Types Optional Types --------------------------------------------------- IKE ENCR, PRF, INTEG*, D-H (§3.3.3) | MUST | 3.3.3 | **positive:** `unit/verify` [`TestIKEWireProposalHasAllTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L195). **positive:** `unit/verify` [`TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_proposal_mandatory_test.go#L46). **positive:** `unit/verify` [`TestResponderRequiresKEForDH`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L226). **positive:** `unit/verify` [`TestTftUnknownTransformTypeMakesProposalUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L42). **negative:** `unit/verify` [`TestIKEWireProposalHasAllTransforms`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L198). **negative:** `unit/verify` [`TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_proposal_mandatory_test.go#L82). **negative:** `unit/verify` [`TestResponderRequiresKEForDH`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L229). **negative:** `unit/verify` [`TestTftUnknownTransformTypeMakesProposalUnacceptable`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transformtype_test.go#L43) |
@@ -396,16 +396,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN. Each IPsec protocol proposal contains one or more transforms. Each transform contains a Transform Type. The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal. (§2.7)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. NegotiateIKE picks one proposal or returns ErrNoProposalChosen; TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one transform of the type and maps refusal to NO_PROPOSAL_CHOSEN
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused moved. NegotiateIKE picks one proposal or returns ErrNoProposalChosen; TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one transform of the type and maps refusal to NO_PROPOSAL_CHOSEN
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestProposalNegotiationNoMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L63) | unit/verify | unproven |
 | negative | [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87) | unit/verify | unproven |
-| negative | [`checkESNExtendedOnlyRefused`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1019) | interop/nightly | unproven |
+| negative | [`checkESNExtendedOnlyRefused`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1174) | interop/nightly | unproven |
 | positive | [`TestProposalNegotiationFirstMatch`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L8) | unit/verify | unproven |
 | positive | [`TestEsnResponderAnswersOnlyAValueTheOfferCarried`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L95) | unit/verify | unproven |
-| positive | [`checkESNBothOffered`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1050) | interop/nightly | unproven |
+| positive | [`checkESNBothOffered`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1205) | interop/nightly | unproven |
 
 ### [`RFC7296-3.3-1`](#rfc7296-3.3-1)
 
@@ -480,7 +480,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 | negative | [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_collision_test.go#L337) | unit/verify | revert, verified |
 | negative | [`TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L96) | unit/verify | revert, verified |
 | positive | [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_collision_test.go#L343) | unit/verify | revert, verified |
-| positive | [`TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L57) | unit/verify | revert, verified |
+| positive | [`TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L57) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7296-1.3.3-4`](#rfc7296-1.3.3-4)
 
@@ -490,9 +490,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L267) | unit/verify | revert, verified |
-| positive | [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L272) | unit/verify | revert, verified |
-| positive | [`TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L157) | unit/verify | revert, verified |
+| negative | [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L267) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L272) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L157) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7296-2.9-1`](#rfc7296-2.9-1)
 
@@ -1564,10 +1564,10 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestMidTemporaryFailureDefersTheIKERekey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L386) | unit/verify | revert, verified |
-| negative | [`TestMidTemporaryFailureDefersTheRetry`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L276) | unit/verify | revert, verified |
-| positive | [`TestMidTemporaryFailureDefersTheIKERekey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L382) | unit/verify | revert, verified |
-| positive | [`TestMidTemporaryFailureDefersTheRetry`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L268) | unit/verify | revert, verified |
+| negative | [`TestMidTemporaryFailureDefersTheIKERekey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L386) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestMidTemporaryFailureDefersTheRetry`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L276) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestMidTemporaryFailureDefersTheIKERekey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L382) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestMidTemporaryFailureDefersTheRetry`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_msgid_test.go#L268) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7296-2.8-5`](#rfc7296-2.8-5)
 
@@ -1588,8 +1588,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L306) | unit/verify | revert, verified |
-| positive | [`TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L303) | unit/verify | revert, verified |
+| negative | [`TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L306) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L303) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7296-2.8-7`](#rfc7296-2.8-7)
 
@@ -1636,7 +1636,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 | negative | [`TestRFC7296IKERekeyInitiatorNeverProposesDHNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_dh_test.go#L42) | unit/verify | revert, verified |
 | negative | [`TestRFC7296IKERekeyResponderRefusesDHNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_dh_test.go#L93) | unit/verify | revert, verified |
 | positive | [`TestPropDHNoneRefusedForIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_test.go#L313) | unit/verify | revert, verified |
-| positive | [`TestRFC7296IKERekeyInitiatorNeverProposesDHNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_dh_test.go#L38) | unit/verify | revert, verified |
+| positive | [`TestRFC7296IKERekeyInitiatorNeverProposesDHNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_dh_test.go#L38) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7296IKERekeyResponderRefusesDHNone`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_dh_test.go#L98) | unit/verify | revert, verified |
 
 ### [`RFC7296-3.16-1`](#rfc7296-3.16-1)
@@ -2328,9 +2328,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 |---|---|---|---|
 | negative | [`TestResponseBitMatchesDirection`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L374) | unit/verify | revert, verified |
 | negative | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L257) | unit/verify | revert, verified |
-| negative | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L56) | unit/verify | revert, verified |
+| negative | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L56) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L252) | unit/verify | revert, verified |
-| positive | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L46) | unit/verify | revert, verified |
+| positive | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L46) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7296-3.2-2`](#rfc7296-3.2-2)
 

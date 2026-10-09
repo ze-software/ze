@@ -158,9 +158,14 @@ the answer cannot vary with the health of the box being diagnosed.
 
 A local-data command never asks a daemon. Its handler reads a registry that
 `init()` filled in this process, so the answer exists before `main()` does. It
-registers with `cmdregistry.MustRegisterLocalData(path, handler, meta,
+registers with `command.MustRegisterLocalData(path, handler, meta,
 command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
-`| yaml` and `| table` be three renderings of one payload.
+`| yaml` and `| table` be three renderings of one payload. The handler
+(`command.LocalDataHandler`) takes the `command.ValidatedArgs` the validator
+returned, never a token slice, and reads `Tokens()` or `Positional(leaf)`. The
+data-handler registry lives in package `command` rather than in the
+local-handler registry, because that registry cannot import `command` and so
+cannot name the value.
 
 The handler returns a payload AND an exit code, and the two are independent. The
 code carries the verdict, the payload carries the evidence, and `validate config`
@@ -172,7 +177,7 @@ which prints nothing. The one local result stdout never sees is a pipe error,
 which is a diagnostic about the operator's own chain rather than an answer to
 their question.
 <!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
-<!-- source: internal/component/command/registry/registry.go -- LocalDataHandler -->
+<!-- source: internal/component/command/local_data.go -- LocalDataHandler, RegisterLocalData, LookupLocalData -->
 
 Before the handler runs, `ServeLocal` judges the arguments against the leaves
 the command's YANG declares, with `command.ValidateArgs`, the same validator the
@@ -180,16 +185,25 @@ daemon dispatcher calls. A refused argument is written to stderr and exits 1, an
 the handler is never called. The definitions come from the YANG package, which
 registers itself as the source (`command.RegisterArgDefSource`); a process with
 no source registered refuses every local command rather than skipping the check.
-<!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, checkLocalArgs -->
+The handler runs on the value `ValidateArgs` returned, never on the raw words.
+<!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, ValidateModelArgs -->
 <!-- source: internal/component/config/yang/command.go -- commandArgDefs -->
 
 `ze <verb>` does not pass through `ServeLocal`: it runs the plain local handler
-that `registry.RegisterLocalData` builds from the same data handler. That
-handler runs the same judgment first (`registry.RegisterLocalDataArgCheck`,
-which `command.RegisterArgDefSource` installs), so `ze show env get <key>` and
-`ze cli -c "show env get <key>"` refuse the same values with the same message.
-<!-- source: internal/component/command/local_data.go -- RegisterArgDefSource -->
-<!-- source: internal/component/command/registry/registry.go -- RegisterLocalData, checkLocalDataArgs -->
+that `command.RegisterLocalData` builds from the same data handler and registers
+in the local-handler registry. That handler runs the same judgment first
+(`command.ValidateModelArgs`) and hands the data handler the value it got, so
+`ze show env get <key>` and `ze cli -c "show env get <key>"` refuse the same
+values with the same message.
+<!-- source: internal/component/command/local_data.go -- RegisterLocalData, plainLocalData, ValidateModelArgs -->
+
+An `le` tool registers through the same call (`leroot.Register`), and `le`'s
+own dispatcher (`leroot.Run`) is a route too: an `le` tool declares no
+argument definitions, since its words are its own grammar, so `Run` judges them
+against none with `command.ValidateArgs` and runs the registered handler on that
+value. The tool's own `leroot.Answer` keeps the token slice and reads the judged
+tokens.
+<!-- source: internal/le/le/root/leroot.go -- Register, toolHandler, Run -->
 
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
@@ -1444,6 +1458,62 @@ Operational commands declare their argument types as YANG leaves inside
    between tokenize and handler call (two-phase: keyword extraction, then
    positional matching).
 
+#### Every route validates
+
+`command.ValidateArgs` answers a `command.ValidatedArgs`: a copy of the tokens
+it judged and the leaf a lone spare positional token filled. Its fields are
+private, so only a successful call builds a non-zero value; the zero value means
+no tokens and no binding. `Tokens` answers a copy, so neither the route nor the
+handler can change what was judged. A call that leaves a mandatory leaf unfilled
+is refused with a `*command.MissingArgumentError` (`required argument missing:
+<leaf>`), which still reports the lone binding, because the dispatcher adopts a
+positional selector before it reports the missing leaf.
+
+Every route that invokes a handler calls the validator, including for a path
+whose model declares no definition: that call passes the tokens through
+unchanged. Each route then invokes the handler only with the tokens of the
+value it got. A route that holds no definitions of its own judges against the
+model through `command.ValidateModelArgs`.
+
+| Route | Where | Definitions |
+|-------|-------|-------------|
+| R1 daemon dispatcher | `Dispatcher.Dispatch` | the matched command's `ArgDefs`, inline selectors pre-matched |
+| R2 in-process local data (`ze cli -c`) | `command.ServeLocal` | the model, by path |
+| R3 the plain handler `RegisterLocalData` builds | `command.plainLocalData` | the model, through `command.ValidateModelArgs` |
+| R4 RPC wrapper | `Server.wrapHandler` | the model, the params' selector pre-matched |
+| R5 ensure-exists steps | `wrapWithEnsureChain` | the ancestor node's `ArgDefs`, the dispatcher's selectors pre-matched |
+| R6 `ze <verb>` local handlers | `cmd/ze` dispatch, `cmdutil.matchLocalHandler` | the model, through `registry.ValidateLocalArgs` |
+| R7 offline fallback | `client.runOfflineFallback` | the model, through `registry.ValidateLocalArgs` |
+| R8 streaming (`monitor ...`) | `GetStreamingHandlerForCommand` | the model, by the streaming prefix |
+| R9 plugin process and forked subsystem | `Dispatcher.routeToProcess`, `Dispatcher.dispatchSubsystem` | the model, by the plugin's command, the dispatcher's selectors pre-matched |
+
+The model is the one compiled into the daemon, so an external plugin's command
+is judged only at a path that model declares. Every shipped plugin command that
+declares an argument is also served by a builtin, which judges first (R1);
+`test/ui/cli-argument-refused-plugin-route.ci` reaches R9 alone through a test
+plugin serving `show config cat`, which no daemon builtin serves.
+
+The local-handler registry cannot import `command`, so `RegisterArgDefSource`
+installs the judgment there too (`registry.RegisterLocalArgCheck`) for R6 and
+R7; a process that installed none refuses both.
+
+A streaming handler (`pluginserver.StreamingHandler`) and a data handler
+(`command.LocalDataHandler`) take the `command.ValidatedArgs` itself, so no route
+can declare or invoke one with a token slice: R8 hands a streaming handler the
+value `GetStreamingHandlerForCommand` answered, R2 and R3 hand a data handler
+the value they judged, and the handler reads `Tokens()` or `Positional(leaf)`. A
+test that calls a handler directly builds its value with `commandtest.Args`,
+which goes through `ValidateArgs`. The other handler types still take a token
+slice, and their routes pass `ValidatedArgs.Tokens()`.
+<!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
+<!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource, LocalDataHandler -->
+<!-- source: internal/component/command/commandtest/commandtest.go -- Args -->
+<!-- source: internal/component/command/registry/registry.go -- ValidateLocalArgs, RegisterLocalArgCheck -->
+<!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
+<!-- source: internal/component/plugin/server/server.go -- wrapHandler -->
+<!-- source: internal/component/plugin/server/ensure.go -- wrapWithEnsureChain -->
+<!-- source: internal/component/plugin/server/handler.go -- StreamingHandler, GetStreamingHandlerForCommand -->
+
 A `type empty` leaf is a flag (`ArgFlag`): the keyword alone is the argument,
 in any position, and no value follows it. `ValidateArgs` consumes it in
 the keyword phase, and it is never an open definition, so a bare `force` never
@@ -1467,6 +1537,20 @@ nothing, so a missing mandatory argument is reported instead
 missing: direction`, and not a complaint about the `update` keyword the handler
 reads).
 
+A `ze:modifier "one-of"` container declares no leaf of its own: it wraps sibling
+modifier groups, and the operator types exactly one of them. The usage line
+renders it as a required alternation, `(community <value>|rate-limit
+<bytes-per-second>|discard)` on `send bgp <selector> flowspec`, so the obligation
+reads from the line. The wrapper's name is never typed: the completer offers the
+members' keywords and never the wrapper (`oneOfSuggestions`), and help lists the
+members rather than the container. The handler still refuses a word the options
+region does not claim (`announce flowspec ... discard rate-limit 500` answers
+`unexpected token rate-limit`), because the grammar states the obligation and the
+handler enforces it.
+<!-- source: internal/component/command/usage.go -- ModifierOneOf, usageOneOfToken, writeOneOfMembers -->
+<!-- source: internal/component/command/completer.go -- oneOfSuggestions -->
+<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- parseTrailingOpts, errTrailingOptUnclaimed -->
+
 A leaf's own `ze:help` and `description` travel with the argument. `argDefFor`
 (`config/yang/command.go`) reads the leaf's `type` and its `mandatory`
 statement, then fills `ShortHelp` from `GetHelpExtension` over the leaf's
@@ -1481,29 +1565,47 @@ and their pages print the summary and the explanation beside each argument),
 and the web admin command form (the summary beside each input, the
 explanation under it).
 
-```go
-type ArgDef struct {
-    Name        string         // YANG leaf name (kebab-case)
-    Kind        ArgKind        // Argument type category
-    EnumValues  []string       // Valid enum values
-    UintBits    int            // 8, 16, 32, or 64
-    Ranges      []UintRange    // Valid ranges (disjoint segments supported)
-    Lengths     []UintRange    // Character-count ranges for ArgString
-    Patterns    []*regexp.Regexp // Compiled XSD patterns for ArgString, all must match
-    UnionDefs   []ArgDef       // Member types for ArgUnion
-    Mandatory   bool           // True if YANG leaf has mandatory true
-    ShortHelp   string         // The leaf's ze:help summary
-    Description string         // The leaf's description explanation
-    Anchor      string         // Path keyword this value follows; "" for a trailing value
-}
-```
+`command.ArgDef` (`argdef.go`) has private fields, and only its per-kind
+constructors build one. Each validates and returns an error rather than a
+value:
+
+| Constructor | Kind | Refuses |
+|-------------|------|---------|
+| `NewStringArg(name, lengths, patterns, opts)` | `ArgString` | an empty name, a nil pattern, length parts that descend, overlap or are not ascending |
+| `NewUintArg(name, bits, ranges, opts)` | `ArgUint` | an empty name, a width outside {8, 16, 32, 64}, a range above the width, range parts that descend, overlap or are not ascending |
+| `NewEnumArg(name, values, opts)` | `ArgEnum` | an empty name, no value, an empty value |
+| `NewUnionArg(name, members, opts)` | `ArgUnion` | an empty name, a member no constructor built. Its enum values are its enum members' names, flattened in member order |
+| `NewFlagArg(name, opts)` | `ArgFlag` | an empty name |
+
+The part-order checks are RFC 7950 Sections 9.2.4 and 9.4.4: "If multiple
+values or ranges are given, they all MUST be disjoint and MUST be in ascending
+order." Every refusal wraps `command.ErrArgDef`. `ArgOptions` carries what
+every kind shares: `Mandatory`, `ShortHelp` (the leaf's `ze:help` summary),
+`Description` (its `description`) and `Anchor` (the path keyword this value
+follows, empty for a trailing value). The constructors copy their input
+slices. The accessors (`Name`, `Kind`, `Mandatory`, `UintBits`, `ShortHelp`,
+`Description`, `Anchor`) return scalars, and `EnumValues`, `Ranges`,
+`Lengths`, `Patterns` (the pattern source text) and `UnionDefs` return
+iterators, so no reader can write into a validated definition.
+`WithAnchor` returns an anchored copy. Tests outside the package build
+definitions through `commandtest.Must`.
+
+The zero value `ArgDef{}` still compiles, and it is not a definition:
+`ValidateArgs` and `ValidateArgString` refuse it with an error wrapping
+`ErrArgDef`, rather than reading it as an unrestricted string.
+<!-- source: internal/component/command/argdef.go -- ArgDef, NewStringArg, NewUintArg, NewEnumArg, NewUnionArg, NewFlagArg, ErrArgDef -->
+<!-- source: internal/component/command/argbind.go -- ValidateArgs -->
+
 
 ArgDefs are extracted from YANG by `BuildCommandTree` (`config/yang/command.go`)
 and stored on `command.Node.ArgDefs`. The dispatcher receives them via
 `RegisterOptions.ArgDefs` populated by `PathToArgDefs`.
 
-`yangTypeToArgDef` assigns the internal `ArgKind`; raw argument strings never
-choose it. `ValidateArgString` and `Constraint` treat an unknown internal kind
+`yangTypeToArgDef` builds every definition through these constructors and
+assigns the internal `ArgKind`; raw argument strings never choose it. A
+constructor refusal there is a BUG: goyang's type resolution sorts, coalesces
+and bounds every range and length part before lowering reads it, and an
+enumeration with no enum has no argument. `ValidateArgString` and `Constraint` treat an unknown internal kind
 as a BUG, not successful validation or an unconstrained argument. Invalid
 operator-supplied values still return their type's existing validation errors.
 <!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef -->
@@ -1511,8 +1613,8 @@ operator-supplied values still return their type's existing validation errors.
 
 A string argument carries every restriction its YANG type chain declares.
 goyang resolves the typedef chain before `yangTypeToArgDef` reads it, so
-`Lengths` is the most restricted `length` along the chain and `Patterns` holds
-every `pattern` of every type in it. `validateString` refuses a value whose
+the lengths are the most restricted `length` along the chain and the patterns
+are every `pattern` of every type in it. `validateString` refuses a value whose
 character count falls outside every length range (RFC 7950 Section 9.4.4
 counts Unicode characters, not bytes), naming the bound (`invalid value "x",
 length 1 out of range 2..4`, or `1..8 | 16..32` for a disjoint length), and a
@@ -1527,7 +1629,7 @@ compile, wrapping `ErrUncompilablePattern`, so no argument is ever built with
 its pattern missing. The error names the module, the leaf, leaf-list,
 typedef or deviation the pattern restricts, the source location, and the reason, which
 quotes the pattern.
-<!-- source: internal/component/config/yang/command.go -- applyLength, applyPatterns -->
+<!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef, compilePatterns -->
 <!-- source: internal/component/command/argvalidate.go -- validateString -->
 <!-- source: internal/component/config/yang/loader.go -- checkPatterns, modulePatternErrors -->
 
@@ -1536,7 +1638,7 @@ its keyword, once, and every command under it takes that value:
 `request interface <name> up`, `<name> down`, `<name> mtu <bytes>` share one
 `name` leaf on the `interface` container. `inheritArgDefs`
 (`config/yang/command.go`) carries such a leaf down to each command after every
-module is merged, with `Anchor` set to the container's name, and the renderer
+module is merged, anchored to the container's name (`WithAnchor`), and the renderer
 places the value right after that keyword. The command under such a container
 that acts on no single member of the set states `ze:inherit "none"`:
 `show bgp peer list` reads every peer, and `request interface migrate` names two
@@ -1544,14 +1646,18 @@ interfaces of its own. The dispatcher binds the bare token after the anchor
 keyword to the leaf anchored there (`anchoredDef`, `plugin/server/command.go`),
 and a surface that builds a command from a name-to-value map writes the value
 at that same place through `command.WriteInvocation` (`arguments.go`), which
-the web admin form and the MCP tool call share. A positional token after the
+the web admin form and the MCP tool call share. It reads only a name, an
+anchor and whether the argument is a flag (`command.InvocationArg`): the web
+form projects the node's definitions with `command.InvocationArgs`, and the MCP
+server builds the input from its lister, which carries no type. A positional token after the
 command still goes to the definition whose type constrains it most
 (`positionalDef`).
 
 Runtime-dynamic hints (e.g., address families from plugin registry) remain as
 `ValueHints` callbacks. Static hints (log levels, FD limit "max") are
 YANG-declared and served through ArgDefs.
-<!-- source: internal/component/command/node.go -- ArgDef, Node.ArgDefs -->
+<!-- source: internal/component/command/node.go -- Node.ArgDefs -->
+<!-- source: internal/component/command/arguments.go -- WriteInvocation -->
 <!-- source: internal/component/config/yang/command.go -- extractArgDefs -->
 
 ### Plugin Command Completion

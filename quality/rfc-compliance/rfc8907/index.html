@@ -803,15 +803,15 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>MUST</td>
 <td>8.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-8.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L289" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceRunsStreamingHandler</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1222" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountingWithoutUsername</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L290" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceRunsStreamingHandler</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1223" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountingWithoutUsername</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L231" title="cmd/ze/hub/rfc8907_aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L46" title="internal/component/tacacs/rfc8907_accountant_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingSaturationRetainsEveryStart</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L111" title="internal/component/plugin/server/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907PluginDispatchAccountsCommand</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L171" title="internal/component/tacacs/rfc8907_dispatch_wire_test.go" target="_blank" rel="noopener"><code>TestRFC8907TrustedDispatchIdentitiesReachWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L33" title="internal/component/plugin/server/rfc8907_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC8907TypedDispatchAccountsDeniedCommand</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L355" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceAuthorizesReadOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1286" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountsRefusedCommands</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L356" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceAuthorizesReadOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1287" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountsRefusedCommands</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L123" title="internal/component/tacacs/rfc8907_security_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingRequiresDestination</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accountant_test.go#L90" title="internal/component/tacacs/rfc8907_accountant_test.go" target="_blank" rel="noopener"><code>TestRFC8907AccountingStopDrainsAcceptedStarts</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_aaa_lifecycle_test.go#L325" title="cmd/ze/hub/rfc8907_aaa_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC8907BundleRetirementWaitsForAccountingPair</code></a></span></div>
@@ -2022,7 +2022,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </div>
 <h3><a href="#rfc8907-8.3-4"><code>RFC8907-8.3-4</code></a></h3>
 <p>To support this mode of operation, TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized. (§8.3, Accounting Arguments)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap, internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername, internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands, internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire, internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire moved. (a) forbidden: an entered command with no accounting START, including a command authorization denied or that is unknown or malformed. (b) TestDispatcherAccountsRefusedCommands asserts starts == [input] for a denied, an unknown and a malformed command; TestRFC8907TypedDispatchAccountsDeniedCommand asserts START and STOP for a denied typed dispatch; api_test.go denied-stream and TACACS wire tests (rfc8907_dispatch_wire_test.go) assert real START packets; TestRFC8907AccountingRequiresDestination refuses accounting with no destination at Build.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap, cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly, cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler, internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername, internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands, internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire, internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire moved. (a) forbidden: an entered command with no accounting START, including a command authorization denied or that is unknown or malformed. (b) TestDispatcherAccountsRefusedCommands asserts starts == [input] for a denied, an unknown and a malformed command; TestRFC8907TypedDispatchAccountsDeniedCommand asserts START and STOP for a denied typed dispatch; api_test.go denied-stream and TACACS wire tests (rfc8907_dispatch_wire_test.go) assert real START packets; TestRFC8907AccountingRequiresDestination refuses accounting with no destination at Build.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2033,12 +2033,12 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L355" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceAuthorizesReadOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L356" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceAuthorizesReadOnly</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1286" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountsRefusedCommands</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1287" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountsRefusedCommands</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2063,7 +2063,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L289" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceRunsStreamingHandler</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc8907_api_test.go#L290" title="cmd/ze/hub/rfc8907_api_test.go" target="_blank" rel="noopener"><code>TestAPIStreamSourceRunsStreamingHandler</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2078,7 +2078,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1222" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountingWithoutUsername</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_command_test.go#L1223" title="internal/component/plugin/server/rfc8907_command_test.go" target="_blank" rel="noopener"><code>TestDispatcherAccountingWithoutUsername</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2944,7 +2944,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

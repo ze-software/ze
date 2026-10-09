@@ -97,7 +97,7 @@
 <tr>
 <td>BMP Delivery (RFC 7854)</td>
 <td>Experimental (partial)</td>
-<td>Each collector session owns a bounded FIFO transmit queue, drained by its own goroutine off the producer's, so a slow collector never blocks the BGP path. The bound is 256 MiB of queued-but-unwritten bytes per session, sized to absorb a full Loc-RIB dump (about 1M IPv4 best paths at roughly 120 bytes of Route Monitoring each is about 120 MB). Reaching it resets the session rather than dropping a message, because RFC 7854 has no back-pressure signal. The byte bound is NOT the defense against a wedged collector: one that stops reading entirely is caught seconds earlier by the per-write deadline. It bites for the other shape, a collector that keeps reading but steadily slower than Ze produces, where every write succeeds and the backlog is what grows. A Loc-RIB dump closes every family it owes, including one with nothing to send. <!-- source: internal/component/bgp/plugins/bmp/txqueue.go -- txQueueLimitBytes, txQueue --> <strong>Scope gaps:</strong> RFC 7854 obligations the ledger marks Partial; statistics report on timeout (plan/immediate/spec-bmp-statistics-timeout-sends-no-report.md).</td>
+<td>Each collector session owns a bounded FIFO transmit queue, drained by its own goroutine off the producer's, so a slow collector never blocks the BGP path. The bound is 256 MiB of queued-but-unwritten bytes per session, sized to absorb a full Loc-RIB dump (about 1M IPv4 best paths at roughly 120 bytes of Route Monitoring each is about 120 MB). Reaching it resets the session rather than dropping a message, because RFC 7854 has no back-pressure signal. The byte bound is NOT the defense against a wedged collector: one that stops reading entirely is caught seconds earlier by the per-write deadline. It bites for the other shape, a collector that keeps reading but steadily slower than Ze produces, where every write succeeds and the backlog is what grows. A Loc-RIB dump closes every family it owes, including one with nothing to send. <!-- source: internal/component/bgp/plugins/bmp/txqueue.go -- txQueueLimitBytes, txQueue --> <strong>Scope gaps:</strong> RFC 7854 obligations the ledger marks Partial.</td>
 </tr>
 <tr>
 <td>DHCP Server Named Ranges</td>
@@ -801,7 +801,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

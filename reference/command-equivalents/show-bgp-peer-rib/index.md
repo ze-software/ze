@@ -10,7 +10,7 @@ Show RIB data scoped to one peer\.
 - Wire method: `ze-bgp:peer-rib`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `scope`
+- Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: peer, next-hop
 - Column order: peer, direction, family, prefix, next-hop, path-id, as-path, origin, local-pref, med, communities

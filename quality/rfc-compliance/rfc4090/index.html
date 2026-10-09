@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>90.9%</strong><b>80 of 88 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>89.8%</strong><b>79 of 88 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -260,8 +260,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
-<p><strong>What the ledger says is covered:</strong></p>
-Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup.
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup. A Ze PLR&#39;s backup PATH (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr.go" target="_blank" rel="noopener"><code>internal/plugins/rsvpte/frr.go</code></a> <code>backupPath</code>, sent by <code>tryLocalRepair</code>) crosses the bypass to a freeRtr merge point, which answers it with labelled RESVs that the PLR accepts (interop scenario <code>plr-backup-path-to-egress-merge-point</code>, 2026-10-09).
+</details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 PLRs now signal and refresh the protected PATH through the bypass, and an MP merges it into matching protected state (Sections 6.4.3, 6.4.4, 7.1.1). A head-end PLR uses a distinct assigned local sender address and a two-label ingress push (Section 6.1.1). Each of those six requirements carries a discrimination record in both polarities (<a href="https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090.json" target="_blank" rel="noopener"><code>rfc/discrimination/rfc4090.json</code></a>, completed 2026-10-08). One-to-one detours remain absent; Section 6 states &#34;A PLR MAY support the DETOUR object&#34;. A bandwidth-guaranteed bypass is also absent (<a href="https://github.com/ze-software/ze/blob/main/plan/spec-rsvpte-bypass-bandwidth-protection.md" target="_blank" rel="noopener"><code>plan/spec-rsvpte-bypass-bandwidth-protection.md</code></a>). Those optional feature records require a scope decision and do not authorize implementation.
 </details>
@@ -1357,7 +1358,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L363" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090BypassDestinationIsMergePoint</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1993,7 +1994,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

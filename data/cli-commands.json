@@ -2681,9 +2681,9 @@
   {
     "path": "create bgp peer",
     "short-help": "Add a peer to the running daemon.",
-    "description": "The peer address and 'asn' are required. Every other keyword is\noptional. Ze builds the peer, starts it, and dials the address unless 'connect\nfalse' says otherwise. The peer lives in the running daemon alone. Ze writes\nnothing to the configuration, so a reload removes the peer. 'delete bgp peer'\ndoes the same on the way out, and it does not change the file on disk. An\naddress that already names a peer is refused, and so is a keyword Ze cannot\nhonor. Each name in 'attach' is bound to the whole surface: that process\nreceives every message from this peer and can send every type toward it. Write\nthe receive and send lists in the configuration file when the process needs\nless.",
+    "description": "The peer address and 'asn' are required. Every other keyword is\noptional. Ze builds the peer, starts it, and dials the address unless 'connect\nfalse' says otherwise. Ze writes nothing to the configuration file, and a\ncommit or a reload whose configuration does not declare the peer keeps it\nrunning. 'delete bgp peer' is how it leaves, and it does not change the file on\ndisk either; 'update bgp config' writes the running peers to the file. An\naddress that already names a peer is refused, and so is a keyword Ze cannot\nhonor. Each name in 'attach' is bound to the whole surface: that process\nreceives every message from this peer and can send every type toward it. Write\nthe receive and send lists in the configuration file when the process needs\nless.",
     "mode": "daemon",
-    "wire-method": "ze-bgp:peer-add",
+    "wire-method": "ze-bgp:peer-create",
     "args": [
       {
         "name": "selector",
@@ -4878,7 +4878,7 @@
     "short-help": "Remove a peer from the running config.",
     "description": "Tears down the TCP session and deletes the peer from the running\nconfiguration. Does not modify the config file on disk.",
     "mode": "daemon",
-    "wire-method": "ze-bgp:delete-peer",
+    "wire-method": "ze-bgp:peer-delete",
     "args": [
       {
         "name": "selector",
@@ -16347,10 +16347,11 @@
       }
     ],
     "subcommands": [
-      "action",
+      "community",
       "destination-ipv4",
       "destination-ipv6",
       "destination-port",
+      "discard",
       "dscp",
       "flow-label",
       "for",
@@ -16361,6 +16362,7 @@
       "packet-length",
       "port",
       "protocol",
+      "rate-limit",
       "rd",
       "source-ipv4",
       "source-ipv6",
@@ -21003,9 +21005,6 @@
         "med",
         "communities"
       ]
-    ],
-    "subcommands": [
-      "scope"
     ]
   },
   {
@@ -43094,9 +43093,6 @@
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
-    ],
-    "subcommands": [
-      "algorithm"
     ]
   },
   {
@@ -44006,9 +44002,6 @@
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
-    ],
-    "subcommands": [
-      "direction"
     ]
   },
   {
@@ -53378,7 +53371,8 @@
       }
     ],
     "subcommands": [
-      "action"
+      "get",
+      "list"
     ]
   },
   {

@@ -72,6 +72,8 @@ ZE_PPPOE_INTEROP_SCENARIO=pppoe-empty-service-name ./le test deployment docker-p
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-padr-replay ./le test deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-zero-identifier ./le test deployment docker-pppoe-accel-test
 ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-missing-option ./le test deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-ac ./le test deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-client ./le test deployment docker-pppoe-accel-test
 ```
 
 `01-pppoe-chap-ipv4` and `02-ze-ac-pppd-client` predate the naming rule and keep
@@ -134,15 +136,57 @@ bytes off Ze's own wire, not proving the encoder again.
 
 Ze's AC carries `max-sessions-per-mac 1`. The checker dials one session with the
 independent pppd client, waits until it is live in PPP, then replays the exact
-captured PADR frame from inside the client container's own network namespace
-(`interoplab.SendFrameInNamespace`, the same AF_PACKET/netns mechanism the BGP
-lab's IS-IS purge injector uses). It requires the PADS that replay provokes to
+captured PADR frame from inside the client container with `tcpreplay`
+(`interoplab.SendFrameInContainer`, the one frame sender every lab uses, the BGP
+lab's IS-IS purge injector included). The send runs in the container because an
+unprivileged checker cannot enter a rootful Docker container's network
+namespace. It requires the PADS that replay provokes to
 carry the SAME session id, never a second one. It then dials a second,
 genuinely independent session from the same MAC and requires the PADS it
 provokes to carry session id `0x0000` and an AC-System-Error tag, read off the
 captured frame -- a session count that stayed at one is not enough evidence on
 its own for either claim (`ai/rules/interop-and-goal-validation.md`, "Prove a
 scenario discriminates"). `spec-pppoe-padr-replay-allocates-unbounded-sessions`.
+
+### pppoe-pap-ze-ac
+
+Ze's AC carries `auth-method pap`, and pppd dials with `refuse-chap`, so PAP is
+the only method both ends accept. The checker requires pppd's trace to show
+Ze's Configure-Request demanding `<auth pap>`, the client's named
+Authenticate-Request and Ze's Authenticate-Ack, with no CHAP anywhere, then
+IPCP, ICMP to Ze, and PADT teardown. It captures the session-stage frames
+(0x8864) on the client's wire and requires exactly one Authenticate-Request and
+one Authenticate-Ack carrying the same Identifier, both on the PPPoE SESSION_ID
+Ze's REST table reports.
+
+It then resends that captured Authenticate-Request from inside the client
+container with `tcpreplay`, after IPCP has opened, with its Identifier advanced
+by one, because a peer retransmitting MUST change it (RFC 1334 Section 2.2.1:
+"The Identifier field MUST be changed each time an Authenticate-Request packet
+is issued"). It requires Ze to put exactly one Authenticate-Ack and no Nak on
+the wire, on the same SESSION_ID, carrying the new Identifier (Section 2.2.2:
+"The Identifier field MUST be copied from the Identifier field of the
+Authenticate-Request which caused this reply"), so a cached Ack resent with the
+old Identifier fails. Afterwards Ze's REST table must still list that one
+session, under the same SESSION_ID, and the client must still hold one PPP
+interface. That is RFC 1334 Section 2.2.1: "the authenticator MUST allow
+repeated Authenticate-Request packets after completing the Authentication
+phase", answered with the same Code (`internal/component/l2tp/ppp/pap.go`,
+`reanswerPAP`). `TestCheckPAPReanswerJudgesTheReply` drives the same judgement
+over scripted replies.
+`spec-ppp-pap-reanswer-after-auth`.
+
+### pppoe-pap-ze-client
+
+Ze dials accel-ppp as in `01-pppoe-chap-ipv4`, but accel-ppp loads `auth_pap`
+and no CHAP module, so the session comes up only if Ze's client authenticates
+with PAP (`internal/component/l2tp/pppoeclient/session.go`, `runClientAuth`).
+The checker runs the whole `01-pppoe-chap-ipv4` proof (link, address, route,
+accel-ppp session, ICMP, removal after Ze stops), then reads accel-ppp's own
+trace and requires `recv [PAP AuthReq` and `send [PAP AuthAck`, with no CHAP.
+The lab cannot lose a frame on demand, so the retry itself stays proven by the
+discriminated unit tests in `pppoeclient`; this scenario proves the PAP path
+interoperates. `spec-pppoe-client-pap-retry`.
 
 ### ipv6cp-zero-identifier and ipv6cp-missing-option
 

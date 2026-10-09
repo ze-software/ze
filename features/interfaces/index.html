@@ -2274,16 +2274,21 @@ main gaps against feature parity.</p>
 <!-- source: internal/plugins/iface/vpp/naming.go -- ze short name <-> VPP SwIfIndex map -->
 <h3 id="stub-non-linux">Stub (non-Linux)</h3>
 <p>On darwin, macOS, BSD, and Windows the netlink backend package compiles
-to a stub whose constructor succeeds but whose every method returns
+to a stub whose constructor succeeds. <code>ListInterfaces</code> and <code>GetInterface</code>
+read the host's interfaces through the Go standard library, so <code>ze init</code>
+discovers them and writes an initial config: the loopback is typed by its
+flag, and any other interface with a hardware address is classified as
+ethernet. Every other method returns
 <code>"interface management not supported on &lt;GOOS&gt;"</code>. <code>StopMonitor</code> and
 <code>Close</code> are no-ops. The stub exists so the rest of the daemon can load
 and the binary remains testable on developer machines; real interface
 management requires Linux.</p>
 <p>The stub never installs itself as the default silently. A macOS daemon
-that actually tries <code>ze interface show</code> or any config-driven
-reconciliation sees the explicit error and rejects under
-exact-or-reject.</p>
+can list its interfaces, but any config-driven reconciliation that
+creates, addresses or changes one sees the explicit error and rejects
+under exact-or-reject.</p>
 <!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
+<!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface via net.Interfaces -->
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -2318,7 +2323,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

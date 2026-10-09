@@ -11960,12 +11960,12 @@
       "display": "RFC 1334",
       "title": "PPP Authentication Protocols",
       "enrolled": true,
-      "enrolment-reason": "PAP and LCP authentication are implemented by the shared PPP authenticator and PPPoE client. PAP Authenticate-Request retries, changing Identifiers, matching reply validation and post-authentication reanswers have source changes and regression tests; the 2026-09-21 source batch has not run their verification or discrimination proofs.",
+      "enrolment-reason": "PAP and LCP authentication are implemented by the shared PPP authenticator and PPPoE client. PAP Authenticate-Request retries, changing Identifiers, matching reply validation and post-authentication reanswers are implemented with regression tests, and each of their tags carries a discrimination record in `rfc/discrimination/rfc1334.json` (2026-10-09).",
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Partial",
       "public-coverage": "PAP authentication option through PPP auth handling.",
-      "public-remaining": "Verification remains for the retry and post-authentication reanswer changes in `plan/immediate/spec-pppoe-client-pap-retry.md` and `plan/immediate/spec-ppp-pap-reanswer-after-auth.md`. The source batch adds tests for RFC1334-2.2.1-2, RFC1334-2.2.1-4, RFC1334-2.2.1-5, RFC1334-2.2-1 and RFC1334-2.3-3; no new test result or discrimination proof is claimed.",
+      "public-remaining": "No interoperability scenario exercises PAP: the PPPoE and L2TP labs authenticate with CHAP-MD5, so the client retry (`pppoeclient/session.go::runClientAuth`) and the authenticator reanswer (`ppp/pap.go::reanswerPAP`) are proven by unit tests and revert discrimination records only.",
       "summary-path": "rfc/short/rfc1334.md",
       "shard-path": "rfc/requirements/rfc1334.md",
       "source-path": "rfc/full/rfc1334.txt",
@@ -11991,7 +11991,7 @@
         "tags": 32,
         "units": 32,
         "audited": 10,
-        "discrimination-records": 16,
+        "discrimination-records": 26,
         "escapes": 0,
         "stale-records": 0
       },
@@ -12334,7 +12334,15 @@
               "line": 126,
               "carrier": "unit/verify",
               "claim": "-- a valid matching Ack stops the retry loop; no later request is written.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+                "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -12343,7 +12351,15 @@
               "line": 125,
               "carrier": "unit/verify",
               "claim": "-- a lost request or reply causes another Authenticate-Request on the same transport, and a matching Ack completes authentication.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+                "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -12426,7 +12442,15 @@
               "line": 205,
               "carrier": "unit/verify",
               "claim": "-- malformed PAP packets and Ack packets after authentication receive no reply. MUTATION: bypass request validation in reanswerPAP; malformed requests receive replies.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
+                "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -12435,7 +12459,15 @@
               "line": 144,
               "carrier": "unit/verify",
               "claim": "-- a request repeated after PAP completes receives another reply through handleFrame.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
+                "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -12467,7 +12499,15 @@
               "line": 178,
               "carrier": "unit/verify",
               "claim": "-- a later request cannot replace the original decision; both Ack and Nak Codes remain unchanged. MUTATION: hardcode Authenticate-Ack in reanswerPAP; the Nak case changes its decision.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
+                "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -12476,7 +12516,15 @@
               "line": 145,
               "carrier": "unit/verify",
               "claim": "-- a post-authentication request receives the original Ack Code with the incoming Identifier.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
+                "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -12559,7 +12607,15 @@
               "line": 128,
               "carrier": "unit/verify",
               "claim": "-- the second request never reuses the first request's Identifier. MUTATION: disable the retry arm or the Identifier increment; this exchange cannot finish or repeats the old Identifier.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+                "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -12568,7 +12624,15 @@
               "line": 127,
               "carrier": "unit/verify",
               "claim": "-- a retransmitted Authenticate-Request changes its Identifier while preserving credentials.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+                "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -12600,7 +12664,15 @@
               "line": 147,
               "carrier": "unit/verify",
               "claim": "-- reanswers cannot reuse the initial Identifier 0x5a when the repeated requests carry 0x5b and 0x5c. MUTATION: omit the decision cache or handleFrame PAP dispatch; the repeated request receives no reply. MUTATION: use the initial request's Identifier for reanswers; the 0x5b and 0x5c wire assertions fail.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
+                "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -12609,7 +12681,15 @@
               "line": 146,
               "carrier": "unit/verify",
               "claim": "-- each emitted PAP reply copies the Identifier of the request that caused it.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
+                "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -13697,7 +13777,7 @@
         "tags": 181,
         "units": 181,
         "audited": 56,
-        "discrimination-records": 90,
+        "discrimination-records": 104,
         "escapes": 0,
         "stale-records": 0
       },
@@ -14894,7 +14974,15 @@
               "line": 146,
               "carrier": "unit/verify",
               "claim": "-- a valid reply cannot leave the replacement request with the previous Identifier. MUTATION: keep lcpID unchanged after a valid Nak; the request reuses its old Identifier.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -14912,7 +15000,15 @@
               "line": 80,
               "carrier": "unit/verify",
               "claim": "-- the replacement request after a valid Reject has a different Identifier. MUTATION: restore rejected options or retain the old Identifier; the replacement request differs from the expected wire bytes.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -15057,7 +15153,15 @@
               "line": 19,
               "carrier": "unit/verify",
               "claim": "-- an otherwise exact Ack with a different Identifier leaves LCP waiting.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -15075,7 +15179,15 @@
               "line": 18,
               "carrier": "unit/verify",
               "claim": "-- an exact Ack of the latest Identifier opens the client LCP.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -15112,7 +15224,15 @@
               "line": 21,
               "carrier": "unit/verify",
               "claim": "-- missing, modified, or reordered Ack options cannot open LCP.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -15130,7 +15250,15 @@
               "line": 20,
               "carrier": "unit/verify",
               "claim": "-- an Ack echoing every sent option opens LCP.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -15476,7 +15604,15 @@
               "line": 22,
               "carrier": "unit/verify",
               "claim": "-- a Nak with a different Identifier emits no replacement request.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -15494,7 +15630,15 @@
               "line": 145,
               "carrier": "unit/verify",
               "claim": "-- a matching Nak emits a new request with a changed Identifier.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -15864,7 +16008,15 @@
               "line": 23,
               "carrier": "unit/verify",
               "claim": "-- a Reject with a different Identifier emits no replacement request.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -15882,7 +16034,15 @@
               "line": 76,
               "carrier": "unit/verify",
               "claim": "-- a matching Reject creates a replacement request.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -15919,7 +16079,15 @@
               "line": 24,
               "carrier": "unit/verify",
               "claim": "-- modified or reordered Reject options emit no replacement request. MUTATION: bypass ValidateLCPReply in negotiateLCP; forged replies open LCP or change the request.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -15937,7 +16105,15 @@
               "line": 77,
               "carrier": "unit/verify",
               "claim": "-- an unchanged ordered subset of the request is accepted as a Reject.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -15974,7 +16150,15 @@
               "line": 79,
               "carrier": "unit/verify",
               "claim": "-- an option the peer did not reject remains byte-identical.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -15992,7 +16176,15 @@
               "line": 78,
               "carrier": "unit/verify",
               "claim": "-- rejected MRU and Magic-Number options are absent from the replacement and its retransmission.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+                "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -35420,8 +35612,8 @@
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Partial",
-      "public-coverage": "Access concentrator (PADI/PADO/PADR/PADS/PADT discovery, AC-Cookie, session tables, AF_PPPOX kernel sessions) and PPPoE client/Host dialer share PPP codecs and option validation. The AC uses the PPP driver; the client runs its own negotiation loop. Requirement bindings are derived from the tagged tests. The 2026-09-21 PADT lifetime and prohibited-option regressions have been added but not run or discriminated during the concurrent source batch.",
-      "public-remaining": "Four MUST rows carry {gap}. `BuildPADI` limits the PPPoE header and payload to 1484 octets, excluding the Ethernet header; the returned frame can reach 1498 octets and an oversized request returns nil. Tests exercise that boundary and the 16-octet relay-tag reservation. The Linux pppoe module writes session CODE 0x00. Both roles now stop PPP transport on PADT and reject ACCM, ACFC and FCS Alternatives (type 9); verification and discrimination for these changes remain owed. PFC is NOT RECOMMENDED rather than prohibited by Section 7. Remaining annotations below cover kernel resource-allocation evidence and the conditional relay-agent and Generic-Error features proposed in existing specs. Error tags currently carry no data. The session table reserves SESSION_ID 0xffff, and PADO/PADS emit Service-Name even when its value is empty. Receive-side tolerance of absent or repeated Service-Name is documented in docs/architecture/l2tp/bng-5-pppoe.md; Sections 5.1 and 5.3 bind the sender. No optional-feature decision is implied by the backlog specs.",
+      "public-coverage": "Access concentrator (PADI/PADO/PADR/PADS/PADT discovery, AC-Cookie, session tables, AF_PPPOX kernel sessions) and PPPoE client/Host dialer share PPP codecs and option validation. The AC uses the PPP driver; the client runs its own negotiation loop. Requirement bindings are derived from the tagged tests. The PADT lifetime and prohibited-option regressions pass and carry discrimination records in `rfc/discrimination/rfc2516.json` (2026-10-09).",
+      "public-remaining": "Four MUST rows carry {gap}. `BuildPADI` limits the PPPoE header and payload to 1484 octets, excluding the Ethernet header; the returned frame can reach 1498 octets and an oversized request returns nil. Tests exercise that boundary and the 16-octet relay-tag reservation. The Linux pppoe module writes session CODE 0x00. Both roles now stop PPP transport on PADT and reject ACCM, ACFC and FCS Alternatives (type 9); their regressions carry discrimination records. PFC is NOT RECOMMENDED rather than prohibited by Section 7. Remaining annotations below cover kernel resource-allocation evidence and the conditional relay-agent and Generic-Error features proposed in existing specs. Error tags currently carry no data. The session table reserves SESSION_ID 0xffff, and PADO/PADS emit Service-Name even when its value is empty. Receive-side tolerance of absent or repeated Service-Name is documented in docs/architecture/l2tp/bng-5-pppoe.md; Sections 5.1 and 5.3 bind the sender. No optional-feature decision is implied by the backlog specs.",
       "summary-path": "rfc/short/rfc2516.md",
       "shard-path": "rfc/requirements/rfc2516.md",
       "source-path": "rfc/full/rfc2516.txt",
@@ -35446,7 +35638,7 @@
         "tags": 84,
         "units": 84,
         "audited": 31,
-        "discrimination-records": 63,
+        "discrimination-records": 73,
         "escapes": 0,
         "stale-records": 0
       },
@@ -36979,7 +37171,15 @@
               "line": 46,
               "carrier": "unit/verify",
               "claim": "-- wrong source, destination and session identifiers cannot close a live transport; another session remains writable after the matching PADT. MUTATION: omit closing the descriptor returned by Remove in handlePADT.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoe/server.go::handlePADT",
+                "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "negative",
@@ -36988,7 +37188,15 @@
               "line": 30,
               "carrier": "unit/verify",
               "claim": "-- wrong interface, source, destination, session, code and malformed discovery frames leave PPP usable before the matching PADT. MUTATION: remove link.Close from watchPADT's matching-PADT branch to leave PPP writable.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/dialer.go::watchPADT",
+                "break": "body of watchPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -36997,7 +37205,15 @@
               "line": 45,
               "carrier": "unit/verify",
               "claim": "-- a matching received PADT closes the AC transport descriptor so a later PPP write fails.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoe/server.go::handlePADT",
+                "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -37006,7 +37222,15 @@
               "line": 79,
               "carrier": "unit/verify",
               "claim": "-- the AC closes its transport before the outbound PADT reaches the discovery writer. MUTATION: move transport close below sendFrame in handleSessionDown.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoe/server.go::handleSessionDown",
+                "break": "body of handleSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -37015,7 +37239,15 @@
               "line": 29,
               "carrier": "unit/verify",
               "claim": "-- a matching received PADT closes the client transport, publishes Done and refuses a later PPP Terminate-Ack.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/dialer.go::watchPADT",
+                "break": "body of watchPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -37024,7 +37256,15 @@
               "line": 127,
               "carrier": "unit/verify",
               "claim": "-- the client closes PPP before publishing an outbound PADT and refuses PPP termination writes at that send boundary. MUTATION: remove sendPADT's link.Close call to leave PPP live when PADT is emitted.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/dialer.go::sendPADT",
+                "break": "body of sendPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -37062,7 +37302,15 @@
               "line": 12,
               "carrier": "unit/verify",
               "claim": "-- acceptable MRU and PFC options are acknowledged; L2TP still acknowledges ACCM and ACFC. MUTATION: remove the PPPoE guard in negotiatePeerOption to make the forbidden-option reply an Ack.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption",
+                "break": "body of negotiatePeerOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "negative",
@@ -37071,7 +37319,15 @@
               "line": 102,
               "carrier": "unit/verify",
               "claim": "-- a request carrying only MRU and PFC still receives Configure-Ack. MUTATION: remove PPPoE from clientLCPPolicy to let the client acknowledge ACCM and ACFC.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::clientLCPPolicy",
+                "break": "body of clientLCPPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -37080,7 +37336,15 @@
               "line": 11,
               "carrier": "unit/verify",
               "claim": "-- the AC rejects ACCM, ACFC and FCS Alternatives verbatim and never proposes them in its own Configure-Request.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption",
+                "break": "body of negotiatePeerOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -37089,7 +37353,15 @@
               "line": 101,
               "carrier": "unit/verify",
               "claim": "-- the client rejects ACCM, ACFC and FCS Alternatives and proposes none of them.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/l2tp/pppoeclient/session.go::clientLCPPolicy",
+                "break": "body of clientLCPPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -72815,7 +73087,7 @@
         "audited": 9,
         "discrimination-records": 29,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 2
       },
       "requirements": [
         {
@@ -72907,10 +73179,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
                 "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -73009,10 +73282,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
                 "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -73082,14 +73356,14 @@
           "gated": true,
           "positive-test": "`internal/le/interoplab/ipsec/checkers.go` `checkNATTTransportInnerChecksum` (interop/nightly)",
           "negative-test": "`internal/le/interoplab/ipsec/checkers.go` `checkNATTTunnelInnerChecksum` (interop/nightly)",
-          "note": "**nightly-only**",
+          "note": "**nightly-only** **audit: enforced, shifted**",
           "nightly-only": true,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 1355,
+              "line": 1510,
               "carrier": "interop/nightly",
               "claim": "-- the transport-mode skip of Section 3.1.2 is not applied here: over a tunnel-mode SA that differs in its mode alone, the same crafted datagram is dropped.",
               "tags": 1
@@ -73098,7 +73372,7 @@
               "polarity": "positive",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 1316,
+              "line": 1471,
               "carrier": "interop/nightly",
               "claim": "-- a datagram whose inner checksum a NAT would have invalidated is delivered by Ze's stack after transport-mode ESP-in-UDP decapsulation, which is the third alternative of Section 3.1.2 in observable form.",
               "tags": 1
@@ -73108,7 +73382,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Forbidden: dropping a transport-mode ESP-in-UDP datagram whose inner TCP/UDP checksum a NAT invalidated, when none of the three alternatives is done. checkNATTTransportInnerChecksum asserts Ze installs transport mode with the espinudp template and that nping --badsum TCP and UDP probes are delivered (checkInnerChecksums true). The tunnel-mode scenario, differing in mode alone, refuses the same probes, proving the corruption is real.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum",
+              "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum"
+            ]
           }
         },
         {
@@ -73126,7 +73404,7 @@
               "polarity": "negative",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 1319,
+              "line": 1474,
               "carrier": "interop/nightly",
               "claim": "-- the \"Tunnel mode TCP checksums MUST be verified\" sentence is scoped to tunnel mode, and this run measures that a TRANSPORT-mode SA does not verify. natt-tunnel-inner-checksum carries the positive.",
               "tags": 1
@@ -73135,7 +73413,7 @@
               "polarity": "positive",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 1352,
+              "line": 1507,
               "carrier": "interop/nightly",
               "claim": "-- a TCP segment and a UDP datagram whose inner checksum is wrong are REFUSED after tunnel-mode ESP-in-UDP decapsulation, so the checksum was verified.",
               "tags": 1
@@ -77995,7 +78273,7 @@
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Experimental",
-      "public-coverage": "Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup.",
+      "public-coverage": "Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup. A Ze PLR's backup PATH (`internal/plugins/rsvpte/frr.go` `backupPath`, sent by `tryLocalRepair`) crosses the bypass to a freeRtr merge point, which answers it with labelled RESVs that the PLR accepts (interop scenario `plr-backup-path-to-egress-merge-point`, 2026-10-09).",
       "public-remaining": "PLRs now signal and refresh the protected PATH through the bypass, and an MP merges it into matching protected state (Sections 6.4.3, 6.4.4, 7.1.1). A head-end PLR uses a distinct assigned local sender address and a two-label ingress push (Section 6.1.1). Each of those six requirements carries a discrimination record in both polarities (`rfc/discrimination/rfc4090.json`, completed 2026-10-08). One-to-one detours remain absent; Section 6 states \"A PLR MAY support the DETOUR object\". A bandwidth-guaranteed bypass is also absent (`plan/spec-rsvpte-bypass-bandwidth-protection.md`). Those optional feature records require a scope decision and do not authorize implementation.",
       "summary-path": "rfc/short/rfc4090.md",
       "shard-path": "rfc/requirements/rfc4090.md",
@@ -78023,7 +78301,7 @@
         "audited": 37,
         "discrimination-records": 80,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -79763,10 +80041,11 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/plugins/rsvpte/register.go::setupBypass",
                 "break": "line 875: \"bc.MergePoint\" -\u003e \"cfg.RouterID\"",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -87271,11 +87550,11 @@
           "gated": true,
           "positive-test": "--",
           "negative-test": "--",
-          "note": "{gap} an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally",
+          "note": "{gap} an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked excludes only SRv6-ineligible entries and next hops naming one of ze's own session addresses (internal/component/bgp/plugins/rib/rib_commands.go), and extractCandidate uses the next hop solely to look up an interior cost, giving an unresolvable one the maximum (internal/component/bgp/plugins/rib/rib_commands.go `extractCandidate`). The route therefore still competes: it loses Section 9.1.2.2 step e) to any resolvable path, but wins outright when it is preferred at an earlier step (LOCAL_PREF, AIGP, AS_PATH, ORIGIN, MULTI_EXIT_DISC, EBGP over IBGP) or is the only path",
           "nightly-only": false,
           "annotation": {
             "kind": "gap",
-            "reason": "an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally"
+            "reason": "an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked excludes only SRv6-ineligible entries and next hops naming one of ze's own session addresses (internal/component/bgp/plugins/rib/rib_commands.go), and extractCandidate uses the next hop solely to look up an interior cost, giving an unresolvable one the maximum (internal/component/bgp/plugins/rib/rib_commands.go `extractCandidate`). The route therefore still competes: it loses Section 9.1.2.2 step e) to any resolvable path, but wins outright when it is preferred at an earlier step (LOCAL_PREF, AIGP, AS_PATH, ORIGIN, MULTI_EXIT_DISC, EBGP over IBGP) or is the only path"
           }
         },
         {
@@ -96855,7 +97134,7 @@
         "audited": 10,
         "discrimination-records": 26,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 2
       },
       "requirements": [
         {
@@ -97066,10 +97345,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
                 "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -97186,10 +97466,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
                 "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -99756,7 +100037,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/forward_rr_test.go` `TestReactorForwardRRInjects` (unit/verify), `internal/le/interoplab/bgp/check_special.go` `checkReflectorWithdrawal` (interop/nightly)",
           "negative-test": "`internal/component/bgp/reactor/forward_rr_test.go` `TestReactorForwardRRPreservesOriginator` (unit/verify), `internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go` `TestForwardReflectionLeavesAWithdrawalUntouched` (unit/verify), `internal/le/interoplab/bgp/check_special.go` `checkReflectorWithdrawal` (interop/nightly)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -99809,7 +100090,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independent supplemental source rejudgment, 2026-10-06. RFC4456 Section 8: \"ORIGINATOR_ID is a new optional, non-transitive BGP attribute of Type code 9. This attribute is 4 bytes long and it will be created by an RR in reflecting a route. This attribute will carry the BGP Identifier of the originator of the route in the local AS. A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists.\" All five covers read: forward_rr_test.go TestReactorForwardRRInjects and TestReactorForwardRRPreservesOriginator, rfc4456_forward_build_withdraw_shape_test.go TestForwardReflectionLeavesAWithdrawalUntouched, and both checkReflectorWithdrawal tags. The real RS forward helper captures dispatched bodies and decodes bounded attribute fields: absent originator becomes exactly four bytes 10.0.0.1; present 9.9.9.9 remains byte-exact. General-forward withdrawal and EOR cases remain byte-exact, with an advertisement control requiring both RR attributes. Producers forwardUpdateSection/reactorForwardRSSection record Set(9); attrModHandlersWithDefaults explicitly registers originatorIDHandler, whose absent-source branch emits only a four-byte Set and existing-source branch keeps it; planAttr prevents creation without reachable NLRI. Interop carrier requires exact attribute tokens, refuses an early withdrawal, requests FRR withdrawal, then requires its exact wire shape and established session. It is registered in specialCheckers. No current diff changes checkReflectorWithdrawal itself (only unrelated waitZePeerState in its file); therefore this stale-unit is preexisting judgment debt relative to HEAD, not this mechanical edit. Supplemental interop log matching is not promoted to independent executed proof: live named-peer run remains pending. Existing enforced verdict retained on complementary precise unit assertions; no new defect found.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal",
+              "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2"
+            ]
           }
         },
         {
@@ -99820,7 +100105,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/forward_rr_test.go` `TestReactorForwardRRInjects` (unit/verify), `internal/le/interoplab/bgp/check_special.go` `checkReflectorWithdrawal` (interop/nightly)",
           "negative-test": "`internal/component/bgp/reactor/forward_rr_test.go` `TestReactorForwardRRPreservesOriginator` (unit/verify), `internal/le/interoplab/bgp/check_special.go` `checkReflectorWithdrawal` (interop/nightly)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -99864,7 +100149,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independent supplemental source rejudgment, 2026-10-06. RFC4456 Section 8: \"When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST. If the CLUSTER_LIST is empty, it MUST create a new one.\" Read all four covers: forward_rr_test.go TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator, and both checkReflectorWithdrawal tags. With an otherwise identical valid iBGP route, the first requires exact CLUSTER_LIST [1.2.3.2] and the second exact [1.2.3.2,5.5.5.5]; replacement, append, omission and wrong local ID all fail. Existing-list input isolates the prepend obligation, while absent-list input proves creation. Traced both forward producers recording Prepend(10) through attrModHandlersWithDefaults to clusterListHandler, which emits each four-byte prepend before the retained source value. planAttr blocks creation on withdrawals/EOR, and interop requires the reflected attribute token followed by an explicitly requested attribute-free withdrawal. The interop unit has no current diff against HEAD, so its stale-unit is preexisting judgment debt rather than current mechanical change; sibling waitZePeerState edits do not alter it. Source verdict retained; named-peer execution remains pending, and no canonical producer-halt record is taken as semantic correctness. No new defect found.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal",
+              "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2"
+            ]
           }
         },
         {
@@ -165843,7 +166132,7 @@
         "audited": 92,
         "discrimination-records": 208,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 13
       },
       "requirements": [
         {
@@ -166062,7 +166351,7 @@
           "gated": true,
           "positive-test": "`internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go` `TestProposalNegotiationFirstMatch` (unit/verify), `internal/component/ike/engine/rfc7296_esn_test.go` `TestEsnResponderAnswersOnlyAValueTheOfferCarried` (unit/verify), `internal/le/interoplab/ipsec/checkers.go` `checkESNBothOffered` (interop/nightly)",
           "negative-test": "`internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go` `TestProposalNegotiationNoMatch` (unit/verify), `internal/component/ike/engine/rfc7296_esn_test.go` `TestEsnResponderAnswersOnlyAValueTheOfferCarried` (unit/verify), `internal/le/interoplab/ipsec/checkers.go` `checkESNExtendedOnlyRefused` (interop/nightly)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -166087,7 +166376,7 @@
               "polarity": "negative",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 1019,
+              "line": 1174,
               "carrier": "interop/nightly",
               "claim": "-- strongSwan 5.9.14 offers esp_proposals = aes256gcm16-esn, the \"single ESN transform with value 1\" of RFC 7296 Section 3.3.2, and ze answers no suite: \"The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN\" (Section 2.7). MEASURED 2026-08-29 with the ESN comparison in espProposalMatches reverted: ze accepts that proposal, logs no refusal, and this scenario times out, so the assertion names the acceptance rather than a bare absence.",
               "tags": 1
@@ -166114,7 +166403,7 @@
               "polarity": "positive",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 1050,
+              "line": 1205,
               "carrier": "interop/nightly",
               "claim": "-- the same peer offering both values gets one of them back: \"The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal\" (Section 2.7). Traffic is what proves the two ends selected the SAME one, because a peer that keyed 64-bit sequence numbers against ze's 32-bit state would establish this tunnel and carry nothing through it.",
               "tags": 1
@@ -166124,7 +166413,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "NegotiateIKE picks one proposal or returns ErrNoProposalChosen; TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one transform of the type and maps refusal to NO_PROPOSAL_CHOSEN",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered",
+              "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused"
+            ]
           }
         },
         {
@@ -166513,10 +166806,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::initiateChildRekey",
                 "break": "body of initiateChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -166549,10 +166843,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
                 "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -166566,10 +166861,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
                 "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -166583,10 +166879,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
                 "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -170993,10 +171290,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/established.go::startChildRekey",
                 "break": "body of startChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -171010,10 +171308,11 @@
               "tags": 2,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/established.go::startChildRekey",
                 "break": "body of startChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -171027,10 +171326,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/established.go::startIKERekey",
                 "break": "body of startIKERekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -171044,10 +171344,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/established.go::startChildRekey",
                 "break": "body of startChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -171105,10 +171406,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
                 "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -171122,10 +171424,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
                 "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -171329,10 +171632,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/rekey.go::initiateIKERekey",
                 "break": "body of initiateIKERekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -174084,10 +174388,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
                 "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -174118,10 +174423,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
                 "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -203313,7 +203619,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 619,
+              "line": 620,
               "carrier": "unit/verify",
               "claim": "-- a value not in the enum (\"both\") is rejected with ErrTypeEnum.",
               "tags": 1
@@ -203322,7 +203628,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 553,
+              "line": 554,
               "carrier": "unit/verify",
               "claim": "-- a value not in the enum (\"invalid-mode\") is rejected with ErrTypeEnum.",
               "tags": 1
@@ -203357,7 +203663,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 618,
+              "line": 619,
               "carrier": "unit/verify",
               "claim": "-- each defined add-path direction enum value (send/receive/send/receive) is accepted.",
               "tags": 1
@@ -203366,7 +203672,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 552,
+              "line": 553,
               "carrier": "unit/verify",
               "claim": "-- each defined family-mode enum value (enable/disable/require/ignore) is accepted.",
               "tags": 1
@@ -203394,7 +203700,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 366,
+              "line": 367,
               "carrier": "unit/verify",
               "claim": "-- \"not-an-ip\" matches neither the ip-address member (ipv4/ipv6) nor the \"dynamic\" enum member of the union-typed leaf, so validateUnion rejects it with ErrTypeType.",
               "tags": 1,
@@ -203428,7 +203734,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 46,
+              "line": 47,
               "carrier": "unit/verify",
               "claim": "-- peer connection/remote/ip carrying \"192.0.2.2\" matches the ip-address union's ipv4-address member, so the union-typed leaf is accepted.",
               "tags": 1,
@@ -203464,7 +203770,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 338,
+              "line": 339,
               "carrier": "unit/verify",
               "claim": "-- a missing mandatory node (router-id) yields an ErrTypeMissing (missing-element) error at path bgp/router-id.",
               "tags": 1
@@ -203473,7 +203779,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 935,
+              "line": 936,
               "carrier": "unit/verify",
               "claim": "-- a missing mandatory node yields an ErrTypeMissing (missing-element) error.",
               "tags": 1
@@ -203482,7 +203788,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 934,
+              "line": 935,
               "carrier": "unit/verify",
               "claim": "-- a container with all mandatory nodes present (local/as, router-id) passes validation.",
               "tags": 1
@@ -203687,7 +203993,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 65,
+              "line": 66,
               "carrier": "unit/verify",
               "claim": "— a quoted string whose backslash is followed by a character outside n, t, \" and \\ is refused.",
               "tags": 1,
@@ -203704,7 +204010,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 115,
+              "line": 116,
               "carrier": "unit/verify",
               "claim": "— a quoted string carrying the four escapes n, t, \" and \\ loads.",
               "tags": 1,
@@ -203721,7 +204027,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-09; the case edited in ModuleLoadRefused is another row's. Negative: case \"bad escape\" (description \"bad \\q escape\", the only fault) requires an error containing \"escape\". Positive: case \"valid escapes\" loads \\t \\n \\\" \\\\ in a double-quoted string. Probe 2026-10-09: a single-quoted 'bad \\q kept', where backslash is not special, loads, so the refusal is scoped to double quotes as Section 6.1.3 scopes it.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): tagged units changed only in the 64-char tail of ModuleLoadAccepted (schema.GetEntry from the Resolved); cases unchanged, package green. RFC 6.1.3: 'The backslash MUST NOT be followed by any other character.' Prior judgement, still true: Re-judged 2026-10-09; the case edited in ModuleLoadRefused is another row's. Negative: case \"bad escape\" (description \"bad \\q escape\", the only fault) requires an error containing \"escape\". Positive: case \"valid escapes\" loads \\t \\n \\\" \\\\ in a double-quoted string. Probe 2026-10-09: a single-quoted 'bad \\q kept', where backslash is not special, loads, so the refusal is scoped to double quotes as Section 6.1.3 scopes it.",
             "freshness": "fresh"
           }
         },
@@ -203745,7 +204051,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 117,
+              "line": 118,
               "carrier": "unit/verify",
               "claim": "— a leaf whose identifier is 64 characters long loads and is found in the entry tree under that name.",
               "tags": 1,
@@ -203762,7 +204068,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "{single-polarity} on the row. (a) forbidden: refusing or truncating a 64-character identifier. (b) TestRFC7950ModuleLoadAccepted loads a module whose leaf name is 64 characters (require.NoError on AddModuleFromText and Resolve) and assert.NotNil(entry.Dir[long]), which goes red if the name were refused or shortened.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): the 64-character leaf is now read from schema.GetEntry of the returned Resolved, same assertions. RFC 6.2: 'Implementations MUST support identifiers up to 64 characters in length and MAY support longer identifiers.' Prior judgement, still true: {single-polarity} on the row. (a) forbidden: refusing or truncating a 64-character identifier. (b) TestRFC7950ModuleLoadAccepted loads a module whose leaf name is 64 characters (require.NoError on AddModuleFromText and Resolve) and assert.NotNil(entry.Dir[long]), which goes red if the name were refused or shortened.",
             "freshness": "fresh"
           }
         },
@@ -203841,7 +204147,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 68,
+              "line": 69,
               "carrier": "unit/verify",
               "claim": "— a reference to an external typedef without its prefix is refused as an unknown type.",
               "tags": 1,
@@ -203858,7 +204164,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 122,
+              "line": 123,
               "carrier": "unit/verify",
               "claim": "— an external typedef referenced with its import prefix and a local typedef referenced without one both load.",
               "tags": 1,
@@ -203875,7 +204181,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-09; unchanged cases. Clause 1: ModuleLoadRefused case \"external typedef without prefix\" (type port with ext imported) requires \"unknown type\", against Accepted case \"prefixed external and bare local\" (ext:port and bare local l load). Clause 2 (MAY): Accepted case \"extension with own and import prefix\" loads m:e under the module's own prefix. The submodule half of the MAY clause is not driven; a MAY imposes no refusal.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 6.5: 'References to identifiers defined in external modules MUST be qualified with appropriate prefixes'. Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. Clause 1: ModuleLoadRefused case \"external typedef without prefix\" (type port with ext imported) requires \"unknown type\", against Accepted case \"prefixed external and bare local\" (ext:port and bare local l load). Clause 2 (MAY): Accepted case \"extension with own and import prefix\" loads m:e under the module's own prefix. The submodule half of the MAY clause is not driven; a MAY imposes no refusal.",
             "freshness": "fresh"
           }
         },
@@ -203924,7 +204230,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeMustReplaceAnInvalidatedDefault",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go",
-              "line": 59,
+              "line": 60,
               "carrier": "unit/verify",
               "claim": "— a leaf, and a typedef, that narrow the range of a typedef defaulting to 5 to 6..10 and specify no new default each record a schema build error naming the default \"5\".",
               "tags": 1,
@@ -203941,7 +204247,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_test.go",
-              "line": 47,
+              "line": 48,
               "carrier": "unit/verify",
               "claim": "— a typedef whose default lies outside its own range records a schema build error naming the typedef default.",
               "tags": 1,
@@ -203958,7 +204264,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go",
-              "line": 40,
+              "line": 41,
               "carrier": "unit/verify",
               "claim": "— a leaf of the typedef with no default of its own carries the typedef's default 5; a leaf that narrows the range to 6..10 and gives default 7 converts with no error and carries 7; a typedef that narrows the range and gives default 8 hands 8 to its leaf with no error.",
               "tags": 1,
@@ -203975,7 +204281,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_test.go",
-              "line": 32,
+              "line": 33,
               "carrier": "unit/verify",
               "claim": "— a typedef whose default is inside its own range converts with no schema build error.",
               "tags": 1,
@@ -204193,7 +204499,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 74,
+              "line": 75,
               "carrier": "unit/verify",
               "claim": "— a leaf without a type substatement is refused.",
               "tags": 1,
@@ -204227,7 +204533,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 129,
+              "line": 130,
               "carrier": "unit/verify",
               "claim": "— a leaf with a type substatement naming a built-in type loads.",
               "tags": 1,
@@ -204244,7 +204550,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-09; unchanged cases. MUST be present: ModuleLoadRefused case \"leaf without type\" refused / Accepted \"leaf with type\" loads. Names an existing type: TestRFC7950LeafTypeMustNameAnExistingType refuses type nosuch as unknown type against local typedef and imported ext:port twins that differ in the type name alone, with revert records on Resolve.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 7.6.3: 'The \"type\" statement, which MUST be present, takes as an argument the name of an existing built-in or derived type.' The revert records on Resolve and AddModuleFromText for this row no longer verify (producer/unit changed) and are owed a re-record. Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. MUST be present: ModuleLoadRefused case \"leaf without type\" refused / Accepted \"leaf with type\" loads. Names an existing type: TestRFC7950LeafTypeMustNameAnExistingType refuses type nosuch as unknown type against local typedef and imported ext:port twins that differ in the type name alone, with revert records on Resolve.",
             "freshness": "fresh"
           }
         },
@@ -204263,7 +204569,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go",
-              "line": 74,
+              "line": 75,
               "carrier": "unit/verify",
               "claim": "— a leaf default naming enum x, which carries \"if-feature f\", records a schema build error naming the if-feature.",
               "tags": 1,
@@ -204280,7 +204586,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go",
-              "line": 92,
+              "line": 93,
               "carrier": "unit/verify",
               "claim": "— a union default \"x\", naming a member enumeration's enum x that carries \"if-feature f\", a bits default \"b1 b2\" whose bit b2 carries it, and a default \"x\" of a leaf whose typedef defines enum x with it, each record a schema build error naming the if-feature.",
               "tags": 1,
@@ -204297,7 +204603,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_test.go",
-              "line": 48,
+              "line": 49,
               "carrier": "unit/verify",
               "claim": "— a leaf default outside the type's range, a default that is not an enum name, and a default on a mandatory leaf each record a schema build error.",
               "tags": 1,
@@ -204314,7 +204620,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go",
-              "line": 75,
+              "line": 76,
               "carrier": "unit/verify",
               "claim": "— the same leaf with its default naming enum y, which carries no if-feature, converts with no schema build error.",
               "tags": 1,
@@ -204331,7 +204637,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go",
-              "line": 93,
+              "line": 94,
               "carrier": "unit/verify",
               "claim": "— the same three leaves with the default naming y, \"b1\", and y, whose definitions carry no if-feature, convert with no schema build error.",
               "tags": 1,
@@ -204348,7 +204654,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_test.go",
-              "line": 33,
+              "line": 34,
               "carrier": "unit/verify",
               "claim": "— a leaf whose default is inside its type's range, on a leaf that is not mandatory, converts with no schema build error.",
               "tags": 1,
@@ -204414,7 +204720,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_test.go",
-              "line": 49,
+              "line": 50,
               "carrier": "unit/verify",
               "claim": "— a leaf-list default outside its type's range, and a leaf-list default beside min-elements 1, each record a schema build error.",
               "tags": 1,
@@ -204431,7 +204737,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType",
               "file": "internal/component/config/rfc7950_yang_schema_defaults_test.go",
-              "line": 34,
+              "line": 35,
               "carrier": "unit/verify",
               "claim": "— a leaf-list whose default is valid for its type and whose min-elements is 0 converts with no schema build error.",
               "tags": 1,
@@ -204785,7 +205091,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 81,
+              "line": 82,
               "carrier": "unit/verify",
               "claim": "— an extension whose substatement is not a YANG statement is refused.",
               "tags": 1,
@@ -204887,7 +205193,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 137,
+              "line": 138,
               "carrier": "unit/verify",
               "claim": "— an extension whose substatements are YANG statements loads.",
               "tags": 1,
@@ -204904,7 +205210,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-09 after 6c06cb43af/037cc25e29. Sentence 1: TestRFC7950ExtensionUsageSubstatementsAreYANGStatements refuses m:e \"x\" { bogus \"y\"; } against description and nested m:e twins. Sentence 2 (Section 14 rules) now whole: substatements are resolved against the embedded RFC ABNF (resolveProduction) and checked for argument grammar (config maybe, namespace not a URI, path a / ../a[), cardinality (two type, two description; one type + two must loads), required substatements and blocks (leaf without type, list without data-def, refine with no block) and context forms (deviate add/not-supported mixing, type-body alternatives, augment absolute vs descendant), each tagged test with a revert record on its producer. Independent probe 2026-10-09 of ~70 valid unusual forms under a usage (quoted/unquoted/single-quoted args, + concatenation, nested usages at depth, leafref require-instance, multiple leaf-list defaults, deviate add/replace/delete in full, if-feature expressions with extra whitespace, path predicates with WSP, IPv6/percent URIs, refine across comments/newlines/tabs/UTF-8/CRLF, nested module/submodule) all load; config TRUE, max-elements 0/007, fraction-digits 19, deref() path, refine x; via comment or concatenation, empty input/augment are refused. Finding outside this verdict: sources is keyed by file name, so two texts parsed under one name overwrite each other and statementHasBlock reads the wrong text (valid refine {} refused with 'column past the end of line', invalid refine; accepted). The ModuleLoadRefused/Accepted tags drive the extension DEFINITION (extension e { bogus }), governed by the Section 14 extension-stmt rule, a neighbouring rule; their claims state what the body checks but do not bear on this sentence.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): only the ModuleLoadAccepted tail changed. RFC 7.19: 'the substatements MUST be YANG statements, including extensions defined using \"extension\" statements.' The earlier finding that sources was keyed by file name no longer holds at HEAD: sourcedModules.texts is keyed by *yang.Module (Parse binds each module added by a parse to its text). Revert records on AddModuleFromText for the ModuleLoadAccepted/Refused tags are owed a re-record. Prior judgement, still true: Re-judged 2026-10-09 after 6c06cb43af/037cc25e29. Sentence 1: TestRFC7950ExtensionUsageSubstatementsAreYANGStatements refuses m:e \"x\" { bogus \"y\"; } against description and nested m:e twins. Sentence 2 (Section 14 rules) now whole: substatements are resolved against the embedded RFC ABNF (resolveProduction) and checked for argument grammar (config maybe, namespace not a URI, path a / ../a[), cardinality (two type, two description; one type + two must loads), required substatements and blocks (leaf without type, list without data-def, refine with no block) and context forms (deviate add/not-supported mixing, type-body alternatives, augment absolute vs descendant), each tagged test with a revert record on its producer. Independent probe 2026-10-09 of ~70 valid unusual forms under a usage (quoted/unquoted/single-quoted args, + concatenation, nested usages at depth, leafref require-instance, multiple leaf-list defaults, deviate add/replace/delete in full, if-feature expressions with extra whitespace, path predicates with WSP, IPv6/percent URIs, refine across comments/newlines/tabs/UTF-8/CRLF, nested module/submodule) all load; config TRUE, max-elements 0/007, fraction-digits 19, deref() path, refine x; via comment or concatenation, empty input/augment are refused. The ModuleLoadRefused/Accepted tags drive the extension DEFINITION (extension e { bogus }), governed by the Section 14 extension-stmt rule, a neighbouring rule; their claims state what the body checks but do not bear on this sentence.",
             "freshness": "fresh"
           }
         },
@@ -205034,7 +205340,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 417,
+              "line": 418,
               "carrier": "unit/verify",
               "claim": "-- a 256-character hostname violates the leaf's YANG length \"1..255\", so validateString rejects it with ErrTypeLength.",
               "tags": 1,
@@ -205051,7 +205357,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 316,
+              "line": 317,
               "carrier": "unit/verify",
               "claim": "-- a leaf data value violating the leaf's YANG pattern (router-id \"not-an-ip\") is rejected with ErrTypePattern.",
               "tags": 1,
@@ -205068,7 +205374,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 175,
+              "line": 176,
               "carrier": "unit/verify",
               "claim": "-- a leaf data value outside the leaf's YANG range (receive-hold-time 2, port 0) is rejected with ErrTypeRange.",
               "tags": 1,
@@ -205085,7 +205391,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 900,
+              "line": 901,
               "carrier": "unit/verify",
               "claim": "-- values outside that range (1, 2) are rejected.",
               "tags": 1,
@@ -205102,7 +205408,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 851,
+              "line": 852,
               "carrier": "unit/verify",
               "claim": "-- a value violating the pattern (router-id \"not-an-ip\") is rejected.",
               "tags": 1,
@@ -205119,7 +205425,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 899,
+              "line": 900,
               "carrier": "unit/verify",
               "claim": "-- values inside the leaf's YANG range \"0 | 3..65535\" (0, 3, 180, 65535) are accepted.",
               "tags": 1,
@@ -205136,7 +205442,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern",
               "file": "internal/component/config/rfc7950_validator_yang_test.go",
-              "line": 850,
+              "line": 851,
               "carrier": "unit/verify",
               "claim": "-- a value matching the leaf's YANG pattern (router-id \"192.0.2.1\") is accepted.",
               "tags": 1,
@@ -205558,7 +205864,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 86,
+              "line": 87,
               "carrier": "unit/verify",
               "claim": "— a decimal64 type without fraction-digits is refused, and one with fraction-digits outside 1..18 is refused.",
               "tags": 1,
@@ -205575,7 +205881,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 140,
+              "line": 141,
               "carrier": "unit/verify",
               "claim": "— a decimal64 type with fraction-digits 2 loads.",
               "tags": 1,
@@ -205592,7 +205898,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-09; unchanged cases. Negative: ModuleLoadRefused case \"decimal64 without fraction-digits\" (type decimal64; only fault) requires an error containing \"[1..18]\". Positive: case \"decimal64 with fraction-digits\" (2) loads. The twins differ in the fraction-digits statement alone.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 9.3.4: 'The \"fraction-digits\" statement, which is a substatement to the \"type\" statement, MUST be present if the type is \"decimal64\".' Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. Negative: ModuleLoadRefused case \"decimal64 without fraction-digits\" (type decimal64; only fault) requires an error containing \"[1..18]\". Positive: case \"decimal64 with fraction-digits\" (2) loads. The twins differ in the fraction-digits statement alone.",
             "freshness": "fresh"
           }
         },
@@ -205645,7 +205951,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 89,
+              "line": 90,
               "carrier": "unit/verify",
               "claim": "— a negative length bound \"-1..5\", and length parts \"10..20 | 1..5\" written out of ascending order, are each refused.",
               "tags": 1,
@@ -205696,7 +206002,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 142,
+              "line": 143,
               "carrier": "unit/verify",
               "claim": "— a length with non-negative, ascending, disjoint parts loads.",
               "tags": 1,
@@ -205713,7 +206019,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-09; the earlier weak (min/max read as 0 and 2^64-1, and a one-part 5..1 tagged as parts out of order) is fixed. Non-negative: \"-1..5\" refused. Ascending: ModuleLoadRefused now drives \"10..20 | 1..5\", and TestRFC7950LengthPartsDisjointAndAscending refuses it and overlapping \"1..5 | 3..8\" (goyang coalesces both, so the refusal is checkStructure) against \"0..5 | 10..20\". min/max: TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds refuses \"min | 2\" and \"10 | max\" over typedef length 2..10 against \"min..4 | 6..max\" and \"min..max\"; revert records on both structural tests. Probe 2026-10-09: touching \"1..5 | 5..10\" and \"max | max\" refused, adjacent \"1..5 | 6..10\" and \"min | max\" load; min/max follow a two-level typedef chain and a typedef with no length of its own; a union member's length is checked.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 9.4.4: 'If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order.' Prior judgement, still true: Re-judged 2026-10-09; the earlier weak (min/max read as 0 and 2^64-1, and a one-part 5..1 tagged as parts out of order) is fixed. Non-negative: \"-1..5\" refused. Ascending: ModuleLoadRefused now drives \"10..20 | 1..5\", and TestRFC7950LengthPartsDisjointAndAscending refuses it and overlapping \"1..5 | 3..8\" (goyang coalesces both, so the refusal is checkStructure) against \"0..5 | 10..20\". min/max: TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds refuses \"min | 2\" and \"10 | max\" over typedef length 2..10 against \"min..4 | 6..max\" and \"min..max\"; revert records on both structural tests. Probe 2026-10-09: touching \"1..5 | 5..10\" and \"max | max\" refused, adjacent \"1..5 | 6..10\" and \"min | max\" load; min/max follow a two-level typedef chain and a typedef with no length of its own; a union member's length is checked.",
             "freshness": "fresh"
           }
         },
@@ -205881,7 +206187,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32",
               "file": "internal/component/config/yang/rfc7950_loader_clauses_test.go",
-              "line": 105,
+              "line": 106,
               "carrier": "unit/verify",
               "claim": "— an enum value of -2147483649, one below the int32 minimum, is refused naming the value.",
               "tags": 1,
@@ -205915,7 +206221,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 93,
+              "line": 94,
               "carrier": "unit/verify",
               "claim": "— an enum after one valued 2147483647 that carries no value, two enums with one value, and a value outside the int32 range are each refused.",
               "tags": 1,
@@ -205966,7 +206272,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32",
               "file": "internal/component/config/yang/rfc7950_loader_clauses_test.go",
-              "line": 106,
+              "line": 107,
               "carrier": "unit/verify",
               "claim": "— an enum value of -2147483648, the int32 minimum, loads.",
               "tags": 1,
@@ -206000,7 +206306,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
               "file": "internal/component/config/yang/rfc7950_loader_test.go",
-              "line": 146,
+              "line": 147,
               "carrier": "unit/verify",
               "claim": "— an enumeration whose values are unique, within the int32 range, and explicitly given after the maximum value loads.",
               "tags": 1,
@@ -206017,7 +206323,7 @@
           "audit": {
             "verdict": "weak",
             "meaning": "the tests pass over code that does not enforce the requirement",
-            "note": "Re-judged 2026-10-09 over the uncommitted goyang fork (go.mod replace github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98, upstream PR openconfig/goyang#317). The STACK now meets the sentence 'otherwise, the assigned value is one greater than the current highest enum value': vendored EnumType.Set sets last on the first assignment or any higher value (len(e.ToInt) == 0 || value \u003e e.last), so SetNext after an explicit -5 yields -4, and Loader.Resolve (goyang Modules.Process) no longer refuses enumeration { enum p { value -5; } enum q; enum r { value 0; } }. Ze's own producer (assignEnumValues) is unchanged and its tags still discriminate: TestRFC7950EnumImplicitValueFollowsTheHighest pins -4 after -5, 11 after 10 then 3, if-feature counted (2), two typedef levels down, each refused twin differing only in the value; TestRFC7950EnumValueRangeAndUniqueness refuses with ErrEnumValue an implicit value past 2147483647 and an explicit repeat of the implicit -4. Both tags' claims state only what their bodies assert, and the edited comments now say only true things (goyang v1.6.3 history, Ze's own refusals). Still weak: the module that proves the stack fix is exercised only by TestGoyangNumbersAnEnumAfterANegativeValue, which carries no RFC requirement tag, and every tagged positive sidesteps the defect (uniqueness positive uses r value -3; the implicit positives restate q -4 in a restriction goyang builds afresh). Under goyang v1.6.3 every tagged unit stays green, so dropping the replace at the next goyang bump (which the go.mod comment plans) reddens no tagged test. Owed to reach enforced: tag that module as a positive of this requirement (or change the uniqueness positive's r to value 0) and record its discrimination against the reverted Set.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (only the ModuleLoadAccepted tail changed; cases unchanged) over the goyang fork, now committed in 66e87707f5 (go.mod replace github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98, upstream PR openconfig/goyang#317). The STACK now meets the sentence 'otherwise, the assigned value is one greater than the current highest enum value': vendored EnumType.Set sets last on the first assignment or any higher value (len(e.ToInt) == 0 || value \u003e e.last), so SetNext after an explicit -5 yields -4, and Loader.Resolve (goyang Modules.Process) no longer refuses enumeration { enum p { value -5; } enum q; enum r { value 0; } }. Ze's own producer (assignEnumValues) is unchanged and its tags still discriminate: TestRFC7950EnumImplicitValueFollowsTheHighest pins -4 after -5, 11 after 10 then 3, if-feature counted (2), two typedef levels down, each refused twin differing only in the value; TestRFC7950EnumValueRangeAndUniqueness refuses with ErrEnumValue an implicit value past 2147483647 and an explicit repeat of the implicit -4. Both tags' claims state only what their bodies assert, and the edited comments now say only true things (goyang v1.6.3 history, Ze's own refusals). Still weak: the module that proves the stack fix is exercised only by TestGoyangNumbersAnEnumAfterANegativeValue, which carries no RFC requirement tag, and every tagged positive sidesteps the defect (uniqueness positive uses r value -3; the implicit positives restate q -4 in a restriction goyang builds afresh). Under goyang v1.6.3 every tagged unit stays green (TestGoyangNumbersAnEnumAfterANegativeValue still carries no tag and the uniqueness positive still uses r value -3), so dropping the replace at the next goyang bump (which the go.mod comment plans) reddens no tagged test. Owed to reach enforced: tag that module as a positive of this requirement (or change the uniqueness positive's r to value 0) and record its discrimination against the reverted Set.",
             "freshness": "fresh"
           }
         },
@@ -206218,7 +206524,7 @@
           "audit": {
             "verdict": "unimplemented",
             "meaning": "no code path enforces the requirement",
-            "note": "{gap} under OWNER RULING 4 (2026-09-30): no check compares an embedded module with its previous revision, so a reordering of data definition substatements passes. Recorded, not closed.",
+            "note": "{gap} stands, re-judged 2026-10-09 after 180df07922: LoadEmbedded only gained the refuseLoad guard and still parses ze-extensions.yang and ze-types.yang with no comparison against a previous revision, so a reordering of data definition substatements passes. RFC 11: 'In statements that have any data definition statements as substatements, those data definition substatements MUST NOT be reordered.' Recorded under OWNER RULING 4 (2026-09-30), not closed.",
             "freshness": "fresh"
           }
         },
@@ -206239,7 +206545,7 @@
           "audit": {
             "verdict": "unimplemented",
             "meaning": "no code path enforces the requirement",
-            "note": "{gap} stands. Re-judged 2026-10-09 after checkStructure changed (7070e5861a): it now joins moduleLengthErrors, moduleEnumErrors and moduleExtensionSubstatementErrors and still compares no include with the included submodule's belongs-to; Resolve adds process, checkExtensions, checkPatterns only. The BelongsTo read in loader.go resolves extension owners, not include validity. Probe 2026-10-09: module a, submodule s { belongs-to a; } and module b { include s; } resolve with no error, against 'A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.'",
+            "note": "{gap} stands, re-judged 2026-10-09 after 180df07922: Resolve now runs once and returns *yang.Resolved, and checkStructure only switched to l.modules.sourceModules(); neither compares an include with the included submodule's belongs-to, and the only BelongsTo read in loader.go resolves extension owners. RFC 7.2.2: 'A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.' The 2026-10-09 probe (module b { include s; } with s belonging to a resolves) is not re-run; no code path that could refuse it was added.",
             "freshness": "fresh"
           }
         },
@@ -206292,7 +206598,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "negative: a typedef with only a description refused; positive: the same typedef with type uint8 loads and the leaf using it resolves to Yuint8 (proves the type defines the base type). Twins differ by the type statement alone, so the loose \"type\" substring cannot be met by another fault. Records on Resolve.",
+            "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): the positive now reads the leaf from schema.GetEntry of the returned Resolved, same assertion (Yuint8). RFC 7.3.2: 'The \"type\" statement, which MUST be present, defines the base type from which this type is derived.' negative: a typedef with only a description refused; positive: the same typedef with type uint8 loads and the leaf using it resolves to Yuint8 (proves the type defines the base type). Twins differ by the type statement alone, so the loose \"type\" substring cannot be met by another fault. Records on Resolve. Those Resolve revert records no longer verify (unit-changed) and are owed a re-record.",
             "freshness": "fresh"
           }
         },
@@ -206311,7 +206617,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice",
               "file": "internal/component/config/yang/rfc7950_loader_clauses_test.go",
-              "line": 76,
+              "line": 77,
               "carrier": "unit/verify",
               "claim": "— a choice holding two cases both named x is refused as a duplicate.",
               "tags": 1,
@@ -206328,7 +206634,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice",
               "file": "internal/component/config/yang/rfc7950_loader_clauses_test.go",
-              "line": 77,
+              "line": 78,
               "carrier": "unit/verify",
               "claim": "— a choice with cases x and y loads, and two choices that each hold one case named x load.",
               "tags": 1,
@@ -206345,7 +206651,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "negative: two cases named x in one choice refused as duplicate; positive: cases x and y load, and case x in two different choices loads, which pins the scope to one choice. Records on Resolve.",
+            "note": "negative: two cases named x in one choice refused as duplicate; positive: cases x and y load, and case x in two different choices loads, which pins the scope to one choice. Records on Resolve. (2026-10-09: tagged units byte-identical, re-stamped for a file shift; the Resolve revert records no longer verify since 180df07922 changed Resolve, re-record owed.)",
             "freshness": "fresh"
           }
         },
@@ -206406,7 +206712,7 @@
               "polarity": "negative",
               "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden",
               "file": "internal/component/config/yang/rfc7950_loader_clauses_test.go",
-              "line": 92,
+              "line": 93,
               "carrier": "unit/verify",
               "claim": "— a leaf restricting a typedef of length \"2..5\" to length \"1..10\" is refused naming the length.",
               "tags": 1,
@@ -206423,7 +206729,7 @@
               "polarity": "positive",
               "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden",
               "file": "internal/component/config/yang/rfc7950_loader_clauses_test.go",
-              "line": 93,
+              "line": 94,
               "carrier": "unit/verify",
               "claim": "— restricting that typedef to \"2..5\", to \"3..4\", or to \"2..3 | 5..5\" loads.",
               "tags": 1,
@@ -206440,7 +206746,7 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "negative: widening a typedef's length 2..5 to 1..10 refused naming length; positive: equal 2..5, narrowed 3..4, and split 2..3 | 5..5 load, covering the allowed restriction kinds. Records on Resolve.",
+            "note": "negative: widening a typedef's length 2..5 to 1..10 refused naming length; positive: equal 2..5, narrowed 3..4, and split 2..3 | 5..5 load, covering the allowed restriction kinds. Records on Resolve. (2026-10-09: tagged units byte-identical, re-stamped for a file shift; the Resolve revert records no longer verify since 180df07922 changed Resolve, re-record owed.)",
             "freshness": "fresh"
           }
         },
@@ -229678,7 +229984,7 @@
               "polarity": "negative",
               "unit": "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly",
               "file": "cmd/ze/hub/rfc8907_api_test.go",
-              "line": 355,
+              "line": 356,
               "carrier": "unit/verify",
               "claim": "-- a denied API stream is still accounted, although its handler is never called.",
               "tags": 1
@@ -229687,7 +229993,7 @@
               "polarity": "negative",
               "unit": "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands",
               "file": "internal/component/plugin/server/rfc8907_command_test.go",
-              "line": 1286,
+              "line": 1287,
               "carrier": "unit/verify",
               "claim": "-- denied, unknown and malformed commands cannot bypass accounting at the dispatch entry point.",
               "tags": 1
@@ -229741,7 +230047,7 @@
               "polarity": "positive",
               "unit": "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler",
               "file": "cmd/ze/hub/rfc8907_api_test.go",
-              "line": 289,
+              "line": 290,
               "carrier": "unit/verify",
               "claim": "-- an accepted API stream records one accounting START and a matching STOP around handler execution.",
               "tags": 1
@@ -229768,7 +230074,7 @@
               "polarity": "positive",
               "unit": "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername",
               "file": "internal/component/plugin/server/rfc8907_command_test.go",
-              "line": 1222,
+              "line": 1223,
               "carrier": "unit/verify",
               "claim": "-- commands without a username are accounted as entered, without inventing an authenticated identity.",
               "tags": 1
@@ -229799,6 +230105,8 @@
             "freshness": "stale-unit",
             "moved": [
               "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap",
+              "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly",
+              "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler",
               "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername",
               "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands",
               "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire",
@@ -247789,7 +248097,7 @@
               "polarity": "negative",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkResponderEAPTLS13",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 381,
+              "line": 383,
               "carrier": "interop/nightly",
               "claim": "-- the same client refuses to produce an MSK when the indication is absent, and says so: get_msk logs \"missing protected success indication for EAP-TLS with TLS 1.3\" and returns FAILED. MEASURED 2026-08-12 with tlsMethod.indicateSuccess reverted: this line appears and wait_sa_established above times out, so the assertion below is what names the cause rather than leaving a bare timeout.",
               "tags": 1
@@ -247824,7 +248132,7 @@
               "polarity": "positive",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkResponderEAPTLS13",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 375,
+              "line": 377,
               "carrier": "interop/nightly",
               "claim": "-- charon's client_process reads the protected success indication, requires it to be exactly one octet equal to 0, and logs this line only after it has accepted it (src/libcharon/plugins/eap_tls/eap_tls.c). Its presence is another implementation confirming, on the wire, that Ze sent the encrypted TLS record with application data 0x00 the section demands.",
               "tags": 1
@@ -248030,7 +248338,7 @@
               "polarity": "positive",
               "unit": "internal/le/interoplab/ipsec/checkers.go::checkResponderEAPTLS13RevokedClient",
               "file": "internal/le/interoplab/ipsec/checkers.go",
-              "line": 418,
+              "line": 420,
               "carrier": "interop/nightly",
               "claim": "-- \"When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked (except the trust anchor).\" Ze is the EAP-TLS server here. charon negotiates TLS 1.3, sends its client certificate, and gets back ze's fatal bad_certificate alert instead of the protected success indication its sibling scenario receives. No SA is established and neither end installs an XFRM state. The certificate is valid and issued by the trusted CA, and responder-eap-tls13 establishes with the same material, so the revocation is the only thing this refusal can be about.",
               "tags": 1

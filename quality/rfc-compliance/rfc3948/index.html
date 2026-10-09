@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>69.0%</strong><b>29 of 42 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>64.3%</strong><b>27 of 42 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 11 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 11 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -345,8 +345,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1316" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1355" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1471" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1510" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
 </div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-2">RFC3948-3.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Tunnel mode TCP checksums MUST be verified (S3.1.2)</span></td></tr>
@@ -354,8 +354,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1352" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1319" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1507" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1474" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
 </div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-4">RFC3948-2.1-4</code></td><td colspan="3"><span class="rfc-subject">receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)</span></td></tr>
@@ -532,7 +532,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L330" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseRefusesPeerSPIZero</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L190" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderRefusesPeerSPIZero</code></a></td>
@@ -562,7 +562,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L358" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseUsesPeerSPI</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L212" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderUsesPeerSPI</code></a></td>
@@ -589,18 +589,18 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 </div>
 <h3><a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a></h3>
 <p>Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer&#39;s real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don&#39;t need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: dropping a transport-mode ESP-in-UDP datagram whose inner TCP/UDP checksum a NAT invalidated, when none of the three alternatives is done. checkNATTTransportInnerChecksum asserts Ze installs transport mode with the espinudp template and that nping --badsum TCP and UDP probes are delivered (checkInnerChecksums true). The tunnel-mode scenario, differing in mode alone, refuses the same probes, proving the corruption is real.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum moved. Forbidden: dropping a transport-mode ESP-in-UDP datagram whose inner TCP/UDP checksum a NAT invalidated, when none of the three alternatives is done. checkNATTTransportInnerChecksum asserts Ze installs transport mode with the espinudp template and that nping --badsum TCP and UDP probes are delivered (checkInnerChecksums true). The tunnel-mode scenario, differing in mode alone, refuses the same probes, proving the corruption is real.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1355" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1510" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1316" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1471" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -615,12 +615,12 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1319" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1474" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1352" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1507" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -1087,7 +1087,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>

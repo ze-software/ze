@@ -354,7 +354,7 @@ over statement keywords answers correctly.</p>
 <tr>
 <td>A <code>leaf</code> in a <code>-cmd.yang</code> module</td>
 <td>The two caps, off the command tree (<code>arguments</code>, <code>helpshape.go</code>), once for each declaration</td>
-<td><code>argDefFor</code> copies the leaf's <code>ze:help</code> into <code>ArgDef.ShortHelp</code>, which <code>ze help command --json</code>, the web form and the site catalog print. A leaf a container above the command declares is judged under that container, not once for each command that inherits it. The report prints <code>Argument texts judged</code> and <code>Argument texts with a summary</code></td>
+<td><code>argDefFor</code> passes the leaf's <code>ze:help</code> to the constructor as <code>ArgOptions.ShortHelp</code> (<code>ArgDef.ShortHelp()</code>), which <code>ze help command --json</code>, the web form and the site catalog print. A leaf a container above the command declares is judged under that container, not once for each command that inherits it. The report prints <code>Argument texts judged</code> and <code>Argument texts with a summary</code></td>
 </tr>
 <tr>
 <td>A <code>leaf</code> under an <code>rpc</code> input or output, or under a <code>notification</code>, in any module</td>
@@ -489,8 +489,10 @@ read a comment, and the schema output does not publish one.</p>
 <p>A <code>leaf</code> and a <code>leaf-list</code> are judged under the pair rules in a config module
 and under the two caps alone in a <code>-cmd.yang</code> or an <code>-api.yang</code> one, because
 different producers read them. <code>extractArgDefs</code> walks every child of a command
-container and calls <code>argDefFor</code>, which copies the leaf's <code>ze:help</code> into
-<code>ArgDef.ShortHelp</code> and its <code>description</code> into <code>ArgDef.Description</code>, and every
+container and calls <code>argDefFor</code>, which passes the leaf's <code>ze:help</code> and its
+<code>description</code> to the constructor as <code>ArgOptions.ShortHelp</code> and
+<code>ArgOptions.Description</code> (read back by <code>ArgDef.ShortHelp()</code> and
+<code>ArgDef.Description()</code>), and every
 command surface prints the one it has. <code>entryShortHelp</code> puts a config leaf's
 <code>ze:help</code> summary on the completion row. The file name is what separates the
 two at the level the hook reads.</p>
@@ -717,7 +719,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 23:38 UTC</span>
                 </div>
             </div>
         </footer>
