@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // rfc4271SentMessages is one message of each type Ze sends, with the Length
@@ -97,7 +99,7 @@ func TestRFC4271UpdatesSentWithinLengthBounds(t *testing.T) {
 	require.Greater(t, u.Len(nil), MaxMsgLen, "the input must not fit one message")
 
 	var carried []byte
-	err := NewSplitter().Split(u, MaxMsgLen, false, func(chunk *Update) error {
+	err := NewSplitter().Split(u, MaxMsgLen, func(family.Family) bool { return false }, func(chunk *Update) error {
 		buf := make([]byte, chunk.Len(nil))
 		n := chunk.WriteTo(buf, 0, nil)
 		declared := int(binary.BigEndian.Uint16(buf[MarkerLen:]))

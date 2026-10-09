@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4360-2-1": {
       "note": "Judge 2026-09-30. Rib TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets drives extCommunitiesEqual (rib_replay.go), the comparator that decides whether a replayed route's communities changed: + an octet-equal copy is equal; - flipping any one of the 8 octets makes it unequal. ExtendedCommunity is [8]byte, so equality elsewhere is whole-value by type; filter plugins match by policy, not equality, and are not driven.",
@@ -7,8 +8,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets": "b91c64811b214f64",
         "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets#2": "b91c64811b214f64",
-        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality": "df914436e0bdaf8a",
-        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality#2": "df914436e0bdaf8a"
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality": "34fcdbe05b3de369",
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality#2": "34fcdbe05b3de369"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets": "f86edae70afc8d20",
@@ -22,8 +23,8 @@
       "note": "Judge 2026-09-30. TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities over ParseExtendedCommunities, the registered parser: + 8 and 16 octets yield one and two communities holding the exact octets in order; - 12 and 20 octets are refused with ErrInvalidLength, not truncated.",
       "requirement_sha": "ff3bea0744d23aa8",
       "tests": {
-        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParse": "df914436e0bdaf8a",
-        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParseRejectsBadLength": "df914436e0bdaf8a",
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParse": "34fcdbe05b3de369",
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParseRejectsBadLength": "34fcdbe05b3de369",
         "internal/core/bgp/attribute/rfc4360_length_test.go::TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities": "faed7ed2466fe06a",
         "internal/core/bgp/attribute/rfc4360_length_test.go::TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities#2": "faed7ed2466fe06a"
       },

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-09",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -13,13 +13,13 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5549-4-1": {
-      "note": "Superseded row restating RFC8950-4-1; same judgement. The explicit-next-hop gap is closed by TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair (AnnounceNLRIBatch over a live session: IPv4 unicast sent only with <1/1, IPv6>, refused with ErrNextHopIncompatible and no UPDATE otherwise; VPN-IPv4 resolved only with <1/128, IPv6>), next-hop self by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair, and the negotiated intersection by the capability units. The forward-rail half is proven under RFC8950-4-1 by TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, which carries only RFC8950 tags. Observed-red records on canUseNextHopFor both polarities.",
+      "note": "Independent Section 4 rejudgment retains enforced for this superseded RFC8950-4-1 obligation. TestNegotiateExtendedNextHop and TestNegotiateExtendedNextHopMismatch establish advertised tuple intersection and remote absence. The tagged canUseNextHopFor, self and explicit-next-hop tests distinguish the exact 1/1 and 1/128 tuples, including wrong-pair and absent refusal. TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair installs the same real negotiated result in Session, Peer and send context and checks API refusal with no unlicensed unicast UPDATE. VPN assertions in that test remain resolver assertions, not VPN socket assertions. Negotiate projects the exact tuple to EncodingCaps; resolveNextHop/canUseNextHopFor and both forwarding consumers use that pair. The successor\u2019s separately tagged forwarding and post-policy final-writer tests provide the shared integration evidence. No stale producer-halt record is treated as selective semantic proof.",
       "requirement_sha": "eef7f1476d7f202a",
       "tests": {
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "4fac1106f94928ca",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "4fac1106f94928ca",
-        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "6b0d2ec0a00d81cf",
-        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "6b0d2ec0a00d81cf",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "8b20259c846f21ef",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "8b20259c846f21ef",
+        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "d61b84ec6325422a",
+        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "d61b84ec6325422a",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "d594579e92237315",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "d594579e92237315",
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "70fe9e821d14e4f2",
@@ -27,9 +27,9 @@
       },
       "units": {
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "3840c6ca12879693",
-        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "2e7bebb3999de5ad",
-        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "2e7bebb3999de5ad",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "31157ceb3b4d03b5",
+        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "4f69d9d82a2cadaf",
+        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "4f69d9d82a2cadaf",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "247c511b47d5880f",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "247c511b47d5880f",
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "7cfa7c59e93867e9",
@@ -68,23 +68,23 @@
       "verdict": "enforced"
     },
     "RFC5549-4-4": {
-      "note": "Superseded row, the negative spelling of RFC8950-4-1; same judgement as RFC5549-4-1. The explicit next hop to a peer lacking the pair is now refused at the announce entry point with no UPDATE on the wire (TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair), and next-hop self per pair by TestRFC8950IPv6NextHopFollowsTheNegotiatedPair. Observed-red records on canUseNextHopFor both polarities. The tag prose on TestCanUseNextHopFor_ExtendedNH still says 'the MUST NOT'.",
+      "note": "Independently rejudged the same Section 4 MUST-only-advertise sentence, not an invented separate MUST NOT clause. Tagged explicit/self matrices distinguish 1/1, 1/128 and neither; canUseNextHopFor tests reject absent and nil capability state and permit the licensed tuple. The explicit API test aligns actual Session and Peer negotiated state and observes ErrNextHopIncompatible with no UPDATE for unlicensed unicast. Shared RFC8950 successor evidence covers forwarding and post-policy writer admission. The positive ExtNH tag now accurately names the MUST-only-advertise condition. Retain the duplicate/superseded disposition and renew the changed claim\u2019s native record; the former panic binding is not selective semantic proof.",
       "requirement_sha": "eef7f1476d7f202a",
       "tests": {
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "4fac1106f94928ca",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "4fac1106f94928ca",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "4fac1106f94928ca",
-        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "6b0d2ec0a00d81cf",
-        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "6b0d2ec0a00d81cf",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "8b20259c846f21ef",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "8b20259c846f21ef",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "8b20259c846f21ef",
+        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "d61b84ec6325422a",
+        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "d61b84ec6325422a",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "d594579e92237315",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "d594579e92237315"
       },
       "units": {
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
-        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "3840c6ca12879693",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "31157ceb3b4d03b5",
         "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "73442ab49b6d3c26",
-        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "2e7bebb3999de5ad",
-        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "2e7bebb3999de5ad",
+        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair": "4f69d9d82a2cadaf",
+        "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2": "4f69d9d82a2cadaf",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair": "247c511b47d5880f",
         "internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go::TestRFC8950IPv6NextHopFollowsTheNegotiatedPair#2": "247c511b47d5880f"
       },

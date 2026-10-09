@@ -516,28 +516,26 @@ func checkRelayWithdrawalShape(ctx context.Context, check *interoplab.CheckConte
 // 10.3.1) decodes a Length of Next Hop Network Address octet of 32 on the on-link
 // route, reporting one global-scope and one link-local-scope next hop, and an octet
 // of 16 on the off-link route, reporting the global-scope entry alone. The two
-// routes cross the same session, so the length octet is the only thing that can
-// differ between the two decodes.
+// routes cross the same IPv6 session; their prefixes and global next hops differ.
 // RFC requirement: RFC2545-3-3 positive -- the link-local address IS included when
 // the speaker shares a common subnet with BOTH the entity named by the global next
-// hop and the peer the route is advertised to. FRR reports fe80::be:ef:2 as a
-// second, link-local-scope next hop for 2001:db8:5601::/48 and installs the route
-// via it (`B>* ... via fe80::be:ef:2, eth0`), so the receiver both parsed and used
-// the second address.
+// hop and the peer the route is advertised to. Ze's global next hop and FRR's
+// session address lie on the selected lab /64. FRR reports Ze's topology-owned
+// link-local address as the second next hop for 2001:db8:5601::/48 and installs
+// the route via it, so the receiver both parsed and used the second address.
 // RFC requirement: RFC2545-3-3 negative -- the link-local address is NOT included
 // when the speaker shares no subnet with the entity named by the global next hop,
 // even though the peer half of the condition holds and the same `link-local` leaf
 // is configured. FRR reports 2001:db8:ffff::1 as the sole next hop of
 // 2001:db8:5602::/48, with no link-local-scope entry. A leaf that decided inclusion
-// by itself would put fe80::be:ef:2 on this route too, and this assertion is what
+// by itself would put Ze's link-local on this route too, and this assertion
 // fails when it does.
 func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) error {
 	const (
-		name             = "bgp-rfc2545-linklocal-nexthop-frr"
-		onLinkPrefix     = "2001:db8:5601::/48"
-		offLinkPrefix    = "2001:db8:5602::/48"
-		offLinkNextHop   = "2001:db8:ffff::1"
-		linkLocalNextHop = "fe80::be:ef:2"
+		name           = "bgp-rfc2545-linklocal-nexthop-frr"
+		onLinkPrefix   = "2001:db8:5601::/48"
+		offLinkPrefix  = "2001:db8:5602::/48"
+		offLinkNextHop = "2001:db8:ffff::1"
 	)
 	fail := func(assertion int, cause error) error {
 		return checkerFailure(ctx, check.Lab, name, assertion, cause)
@@ -550,7 +548,7 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 	}
 	// Every assertion below reads its prefix back out of the operation that waited
 	// for the route, so the wait and the assertion can never name two routes.
-	session := operation{kind: opFRRSession, argument: networkHostAddress(check.Network, 2)}
+	session := operation{kind: opFRRSession, argument: networkHostAddress6(check.Network, 2)}
 	onLinkRoute := operation{kind: opFRRRoute, argument: onLinkPrefix, family: frrFamilyIPv6Unicast, timeout: 60 * time.Second}
 	offLinkRoute := operation{kind: opFRRRoute, argument: offLinkPrefix, family: frrFamilyIPv6Unicast, timeout: 60 * time.Second}
 	for index, step := range []*operation{&session, &onLinkRoute, &offLinkRoute} {
@@ -561,11 +559,10 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 
 	// Assertion 4. ze.conf names fd00:1e:0::2 as the on-link global next hop, which
 	// the harness rewrites onto the selected IPv6 network: host 2 on that /64.
-	expectedGlobal := check.Network.IPv6.Addr().Next().Next()
-	// One parse, so the shape assertion and the installed-route assertion below can
-	// never name two addresses, and FRR's listing is matched against the canonical
-	// rendering rather than against a second spelling of the same address.
-	linkLocal := netip.MustParseAddr(linkLocalNextHop)
+	expectedGlobal := check.Network.IPv6.Masked().Addr().Next().Next()
+	// The renderer and startup provisioner use this same topology-owned address.
+	// Both assertions therefore require the next hop owned by Ze's eth0.
+	linkLocal := rfc2545LinkLocal(check.Network)
 	onLink, err := queryFRRNextHops(ctx, check.Lab, onLinkRoute.argument)
 	if err != nil {
 		return fail(4, err)

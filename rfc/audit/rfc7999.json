@@ -1,5 +1,6 @@
 {
   "audited": "2026-10-06",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7999-3.1-2": {
       "note": "Forbidden: advertising BLACKHOLE to a bilateral peer that did not agree. internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer / ::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree / ::TestAnnounceBlackholeReachesAMemberOfADynamicGroup / ::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup all drive handleAnnounceBlackhole only. The second originating path the enrolment names, send ... unicast community 65535:666, is tested by TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate, which carries no tag, and no unit covers re-advertising a received BLACKHOLE-tagged route to an un-agreed peer.",
@@ -65,8 +66,8 @@
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f7ef88f508431a53",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f7ef88f508431a53"
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f5f441d25f0d5702"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "7572508169fe6f87",
@@ -95,8 +96,8 @@
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "619a6a003fffd5d0",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f7ef88f508431a53",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f7ef88f508431a53"
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f5f441d25f0d5702"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1180af0e7f6a806f",

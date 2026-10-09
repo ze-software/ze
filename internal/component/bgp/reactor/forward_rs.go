@@ -518,14 +518,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		applyFactsSendCommunity(facts, &mods)
 		applyFactsAIGP(facts, srcAIGP, srcNextHop, wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
-		// draft-ietf-idr-linklocal-capability Section 4: "Link-Local IPv6 next
-		// hops MUST NOT be included" toward a peer multiple IP hops away. A
-		// route server keeps the Global untouched (RFC 7947 Section 2.2.2) and
-		// drops only the Link-Local half a distant client cannot reach. The
-		// general rail (reactor_api_forward.go) answers the same.
-		if global, strip := egressNextHopGlobalHalf(peer, &mods, wire.Payload(), srcNextHop.mpFamily); strip {
-			mods.Op(14, filterapi.AttrModSet, global)
-		}
+		// RFC 2545 Section 3; draft-ietf-idr-linklocal-capability Section 4.
+		// Keep the effective Global unchanged (RFC 7947 Section 2.2.2),
+		// normalizing its Link-Local exactly as the cached forwarding rail.
+		applyEgressNextHopScope(peer, facts, &mods, wire.Payload(), srcNextHop.mpFamily)
 
 		// The egress gates that refuse an announcement because of the next hop
 		// about to be written. The general rail (forwardUpdateCore) asks the same
@@ -558,6 +554,11 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// neighbor the operator has placed inside the SR domain. Same base as
 		// the sibling above.
 		applyFactsPrefixSID(facts, srcHasPrefixSID, &mods)
+		if !mods.IsWithdraw() {
+			// RFC 9252 Section 2: both rails share the effective-identity
+			// decision; configured mode alone never proves a change.
+			applyEgressPrefixSIDNextHop(facts, &mods, srcNextHop, srcNextHop, srcHasPrefixSID)
+		}
 
 		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
 		// reaches another, and RFC 7947 Section 2.2.3 exempts a route server

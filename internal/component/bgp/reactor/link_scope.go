@@ -20,13 +20,14 @@ import (
 // identified by the global IPv6 address carried in the Network Address of Next
 // Hop field and the peer the route is being advertised to."
 //
-// The sentence gives "shares a common subnet with" two objects: the next-hop
-// entity, and the peer. peerOnLink answers the peer half, which depends on the
-// session alone and so is settled once per snapshot. The next-hop half depends
-// on the route being advertised, so linkLocalNextHop answers it per next hop.
+// peerOnLink settles the session-only one-hop condition. Pair inclusion is
+// stronger: one connected prefix must contain both peer and effective Global,
+// rather than each address belonging to a different prefix in the same snapshot.
 type linkScope struct {
 	// connected holds the subnets this host is directly attached to.
 	connected []netip.Prefix
+	// peer is the recipient address captured with this interface snapshot.
+	peer netip.Addr
 	// peerOnLink reports whether the speaker shares a common subnet with the
 	// peer the route is being advertised to.
 	peerOnLink bool
@@ -48,22 +49,40 @@ func newLinkScope(peerAddr netip.Addr) *linkScope {
 func newLinkScopeFrom(connected []netip.Prefix, peerAddr netip.Addr) *linkScope {
 	return &linkScope{
 		connected:  connected,
+		peer:       peerAddr.Unmap(),
 		peerOnLink: network.SharesSubnet(connected, peerAddr),
 	}
+}
+
+// sharesNextHopSubnet answers RFC 2545 Section 3's joint condition without
+// allocation or a kernel read: "The link-local address shall be included in the
+// Next Hop field if and only if the BGP speaker shares a common subnet with the
+// entity identified by the global IPv6 address carried in the Network Address
+// of Next Hop field and the peer the route is being advertised to."
+// The loop is bounded by the interface-prefix snapshot captured at setup.
+func (ls *linkScope) sharesNextHopSubnet(global netip.Addr) bool {
+	if ls == nil {
+		return false
+	}
+	for _, prefix := range ls.connected {
+		if prefix.Contains(ls.peer) && prefix.Contains(global) {
+			return true
+		}
+	}
+	return false
 }
 
 // linkLocalNextHop returns the link-local address to write after globalNextHop in
 // the MP_REACH_NLRI Network Address of Next Hop field, or the zero Addr when the
 // field carries the global address alone.
 //
-// The zero Addr is Section 3's else-branch: "In all other cases a BGP speaker
-// shall advertise to its peer in the Network Address field only the global IPv6
-// address of the next hop (the value of the Length of Network Address of Next Hop
-// field shall be set to 16)."
+// A zero Addr means no Link-Local was selected, not proof of Section 3's
+// "In all other cases" condition. It also covers an unavailable configured
+// address or a third-party Link-Local Ze does not learn. Those gaps cannot
+// turn a common subnet into a non-common one.
 //
-// A nil scope has read no interface table, so it knows of no shared subnet and
-// appends nothing. An "if and only if" makes an unproven condition a false one,
-// and the alternative would turn a failed read into a permissive answer.
+// A nil scope has read no interface table and appends nothing; it does not
+// establish the RFC's topology condition.
 //
 // configured is the operator's link-local address for this session. A configured
 // address that is not link-local unicast is not appended either: Section 3 names
@@ -120,14 +139,9 @@ func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, rout
 	if !global.Is6() || attribute.ValidateGlobalNextHop(global) != nil {
 		return netip.Addr{}
 	}
-	// SharesSubnet asks whether SOME local interface holds a subnet containing the
-	// address, not whether it is the SAME interface that faces the peer. A next hop
-	// on eth1 and a peer on eth0 therefore both pass, and the peer receives a
-	// link-local it cannot resolve on its own link. That is Section 3's literal
-	// text: it binds "the BGP speaker", one speaker sharing a common subnet with
-	// each of the two entities, and it names no single interface. Narrowing to one
-	// interface would refuse a case the section permits.
-	if !network.SharesSubnet(ls.connected, global) {
+	// RFC 2545 Section 3: both entities must share ONE connected subnet with
+	// the speaker. Separate interfaces cannot establish that joint condition.
+	if !ls.sharesNextHopSubnet(global) {
 		return netip.Addr{}
 	}
 	return configured
@@ -235,6 +249,18 @@ type nextHopOwners struct {
 	// held is every interface address of this host, host bits kept
 	// (receiveNextHopScope.addresses), so an address on another interface counts.
 	held []netip.Prefix
+}
+
+// nextHopOwners captures established-session ownership without acquiring Peer.mu
+// or reading the kernel. Queued writers can already hold that mutex.
+func (f *peerForwardFacts) nextHopOwners() nextHopOwners {
+	owners := nextHopOwners{endpoint: f.connectedLocal, configured: f.localAddr}
+	if f.localScope != nil {
+		if held := f.localScope.Load(); held != nil {
+			owners.held = held.addresses
+		}
+	}
+	return owners
 }
 
 // classify answers which router global names: one of the speaker's own

@@ -2,7 +2,11 @@
 
 | Test | Reason |
 |------|--------|
-| TestRegisterJSONFormatter | Retire the literal callback registration/getter echo, not real formatter behavior. Prefix-SID payload-to-JSON assertions and IPv6 community rendering/wrong-shape refusals remain. Independent AttributeIsolationReview accepted removal; the full attribute package and real filter-community formatter roots passed twenty race iterations with a deletion overlay matching the native removal. |
+| TestEgressNextHopGlobalHalf | Retire the old predicate's strip flags. All eight cases now assert the encoded MP_REACH next-hop bytes after the shared normalizer and attribute handler, including pair preservation, off-link trimming, VPN RD preservation and effective policy rewrites. Thirteen counted assertion sites become ten because one helper also checks attribute emission and presence; no case leaves. |
+| TestRFC8654TreatAsWithdrawRemovesInstalledRoutes | Retire the invalid requirement that every selected-path event own raw ForwardBytes. Exact ORIGIN1/MED17 must reach both recovered prefixes in Adj-RIB-In and recipient TCP; Metric17 must reach actual Loc-RIB publication and lookup. Length refusal, withdrawal, same-session and no-NOTIFICATION observations remain. The renewed native records and independent whole-clause judgment cover this causal oracle. |
+| TestPrefixSIDUnknownTLVSurvivesANextHopChange | Retire four assertions over the accumulator's Remove operation. The replacement calls rfc9252EffectiveNextHopCase on cached and route-server rails and inspects actual recipient UPDATEs: only Service TLVs disappear after a changed effective next hop, while the route and non-Service/unknown TLV bytes survive. Assertions live in the shared wire reader rather than the root's syntax. |
+| TestPrefixSIDPropagationNextHop | Retire the two operation-list subtests. A nested two-rail, three-case table now checks actual Session output for unchanged, explicit-equal and self-changed next hops. The shared wire reader asserts Service TLVs, Reserved/unknown bytes and surviving route/non-Service data. Both historical semantic defects have actual SDK/FRR old/fixed proof; absent local SID allocation remains partial rather than being counted as implemented. |
+| adj-rib-in-replay-rfc2545-next-hop | Move process ownership into the real three-namespace fixture; do not remove a wire oracle. Both live and stored replay UPDATEs remain independently byte-exact at the recipient, with explicit source/destination fences. Eleven counted directives become eight because the fixture owns launch and shutdown. The replacement passed eighty physical runs and both tagged replay bindings have native records. |
 
 ## Reviewed fixture corrections
 
@@ -22,11 +26,34 @@ detector reports no structural weakening for these carriers.
 - `test/encode/cap-refuse-asn4.ci`, `test/encode/cap-require-asn4.ci`: Corrected the obsolete zero-length capability tuple `4100` to the complete causing OPEN tuple `41040000FDE9`, as RFC5492 Section5 requires. Both refusal/requirement policies and exact NOTIFICATION code/subcode remain. Native encode run `c5051c0d` exposed both mismatches; no producer change was made to satisfy an invalid oracle.
 - `test/encode/extended-nexthop-encode.ci`: Preserved both prefixes and next-hop endpoints, with the reverse IPv4 endpoint explicitly encoded as `::ffff:170.170.170.170` in the defined sixteen-octet AFI2 field. Removed only its misleading reverse capability5 tuple and the malformed four-octet expectation; all EOR obligations remain. Independent review rejected replacing the endpoint or dropping the reverse case. Native `c5051c0d` exposed the invalid old field.
 
-Pending, outside this commit: `test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci`
-now uses distinct speaker, recipient and next-hop-entity namespaces. Complete
-live and replay UPDATEs remain byte-exact. The replacement carrier passed once
-on kernel7.2 with unchanged guest-root stateless nft rules and tables
-(`job-joint-subnet-native-command-scoped-oracles-cccf06c2.log`); the older
-eighty-run evidence predates that replacement and does not qualify it. Its
-RFC2545-3-1 native record is present; the RFC2545-3-2 record and fresh eighty-run
-qualification remain pending.
+## Final writer audit dispositions
+
+`job-ordinary-final-writer-test-relaxation-audit-cb373453.log` reports five
+structural flags and no deletions. These are explained findings, not a clean
+audit. Native D15 approvals precede the tagged edits; their `RFC-approved:`
+trailers remain required in the carrying commit. FinalWriterProofReview read
+the old and current carriers and found no semantic coverage loss:
+
+- `rfc2545_api_origination_test.go`: The real worker owns the queued-send fence instead of a direct test-only batch call. The route and next-hop assertions remain.
+- `rfc2545_forward_subnet_test.go`: The fixture's peer identity matches its captured IPv6 subnet scope. The common-link and off-link next-hop assertions remain.
+- The recovery, Prefix-SID and replay changes now have exact test-name rows in
+  the table above. The later Prefix-SID replacement asserts recipient bytes,
+  not the earlier operation-list oracle.
+
+The replacement replay carrier completed eighty physical passing runs in
+`tmp/stress-repro/bgp-plugin-draft-adj-rib-in-replay-rfc2545-next-hop-20261009-012434.log`:
+240 retained passing steps and eighty inside-parent markers. Its live/draft
+SHA256 is `05c6abb4237fc448f0dbab17ac588fc08ab5028434a5e32d19ec9081fa606fa5`.
+This fresh evidence qualifies the replacement; the older qualification does
+not. Both RFC2545 replay bindings now have observed native producer-halt records;
+those records establish reachability, not selective truncation semantics.
+
+Two later untagged oracle corrections also retain their stronger observations.
+`TestOrdinaryBatchRetainsFinalSplitRefusal` requires the actual
+`ErrNLRITooLarge` cause for a seventeen-byte NLRI with eleven bytes available.
+`TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit` counts both complete
+UPDATEs accepted by the buffered writer, retains the refused result, and
+separately proves the failing transport received exactly one complete UPDATE.
+FinalWriterProofReview accepted both corrections; the six affected roots pass
+twenty race iterations in
+`job-ordinary-precise-refusal-and-buffered-counts-after-bb1f4e7e.log`.

@@ -215,7 +215,7 @@ func (session *Session) sendUpdateOwnedWithSplit(ctx context.Context, update *me
 	}
 	s := message.GetSplitter()
 	defer message.PutSplitter(s)
-	if err := s.Split(update, maxSize, addPath, func(chunk *message.Update) error {
+	if err := s.Split(update, maxSize, func(family.Family) bool { return addPath }, func(chunk *message.Update) error {
 		return session.sendUpdateCounted(ctx, chunk, nil, replay, owner)
 	}); err != nil {
 		return fmt.Errorf("splitting update: %w", err)
@@ -237,6 +237,7 @@ var errBuildRejected = errors.New("update build rejected: message does not fit t
 func isRouteScopedSendError(err error) bool {
 	return errors.Is(err, message.ErrAttributesTooLarge) ||
 		errors.Is(err, message.ErrNLRITooLarge) ||
+		errors.Is(err, message.ErrMPOverheadTooLarge) ||
 		errors.Is(err, errBuildRejected) ||
 		errors.Is(err, message.ErrUnicastNextHopUnusable)
 }

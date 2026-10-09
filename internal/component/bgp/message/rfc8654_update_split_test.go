@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // collectChunks runs Splitter.Split with a collecting callback and returns
@@ -21,7 +22,7 @@ func collectChunks(t *testing.T, u *Update, maxSize int, addPath bool) ([]*Updat
 	t.Helper()
 	var chunks []*Update
 	s := NewSplitter()
-	err := s.Split(u, maxSize, addPath, func(c *Update) error {
+	err := s.Split(u, maxSize, func(family.Family) bool { return addPath }, func(c *Update) error {
 		chunks = append(chunks, &Update{
 			WithdrawnRoutes: append([]byte(nil), c.WithdrawnRoutes...),
 			PathAttributes:  append([]byte(nil), c.PathAttributes...),
@@ -1190,7 +1191,7 @@ func TestSplitter_CallbackOrder(t *testing.T) {
 
 	s := NewSplitter()
 	chunks := 0
-	err := s.Split(u, 200, false, func(c *Update) error {
+	err := s.Split(u, 200, func(family.Family) bool { return false }, func(c *Update) error {
 		chunks++
 		if len(c.PathAttributes) == 0 {
 			t.Errorf("chunk %d: empty PathAttributes", chunks)
@@ -1220,7 +1221,7 @@ func TestSplitter_ChunksAliasScratch(t *testing.T) {
 
 	s := NewSplitter()
 	fired := false
-	err := s.Split(u, 150, false, func(c *Update) error {
+	err := s.Split(u, 150, func(family.Family) bool { return false }, func(c *Update) error {
 		fired = true
 		if !sliceAliasesAny(c.PathAttributes, s.scratch) {
 			t.Error("emitted chunk PathAttributes does not alias splitter scratch")
@@ -1249,7 +1250,7 @@ func TestSplitter_CallbackError_StopsSplit(t *testing.T) {
 	sentinel := errors.New("splitter stopped")
 	s := NewSplitter()
 	fired := 0
-	err := s.Split(u, 200, false, func(*Update) error {
+	err := s.Split(u, 200, func(family.Family) bool { return false }, func(*Update) error {
 		fired++
 		if fired == 1 {
 			return sentinel
@@ -1272,9 +1273,9 @@ func TestSplitter_ZeroAllocAfterWarmup(t *testing.T) {
 	s := NewSplitter()
 	emit := func(*Update) error { return nil }
 	// Warmup.
-	_ = s.Split(u, 4096, false, emit)
+	_ = s.Split(u, 4096, func(family.Family) bool { return false }, emit)
 	allocs := testing.AllocsPerRun(100, func() {
-		_ = s.Split(u, 4096, false, emit)
+		_ = s.Split(u, 4096, func(family.Family) bool { return false }, emit)
 	})
 	// Fast-path: single emit call, no struct allocation. Under -race, ≤ 2.
 	if allocs > 2 {

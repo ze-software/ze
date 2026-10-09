@@ -19,16 +19,16 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestRFC2545ReceivedPairSubnetConditions checks the final writer with independent
-// destination and received-global subnet predicates, keeping the source fixed.
+// TestRFC2545ReceivedPairSubnetConditions checks the final writer with actual
+// IPv6 destination addresses and a joint common-prefix predicate.
 // RFC 2545 Section 3: "The link-local address shall be included in the Next Hop
 // field if and only if the BGP speaker shares a common subnet with the entity
 // identified by the global IPv6 address carried in the Network Address of Next
 // Hop field and the peer the route is being advertised to."
-// RFC requirement: RFC2545-3-3 positive -- a received global/link-local pair remains intact when both subnet predicates hold.
-// RFC requirement: RFC2545-3-3 negative -- either failed predicate independently removes only the link-local half, preserving the global address and native NLRI.
+// RFC requirement: RFC2545-3-3 positive -- a received global/link-local pair remains intact when the recipient and effective Global share one connected prefix.
+// RFC requirement: RFC2545-3-3 negative -- either off-link entity removes only the link-local half, preserving the global address and native NLRI.
 // MUTATION: bypass either the received-global subnet check or the destination
-// subnet check in egressNextHopGlobalHalf; alternatively strip every pair.
+// subnet check in applyEgressNextHopScope; alternatively strip every pair.
 func TestRFC2545ReceivedPairSubnetConditions(t *testing.T) {
 	for _, native := range []struct {
 		name string
@@ -56,15 +56,7 @@ func TestRFC2545ReceivedPairSubnetConditions(t *testing.T) {
 				}
 				f.destination.settings.NextHopMode = NextHopUnchanged
 				f.destination.settings.PeerAS = 65002
-				connected := []netip.Prefix{
-					netip.PrefixFrom(f.source.Settings().Address, 32),
-					netip.MustParsePrefix("2001:db8:1::/64"),
-				}
-				if scope.peerOnLink {
-					connected = append(connected, netip.PrefixFrom(f.destination.Settings().Address, 32))
-				}
-				f.destination.refreshLinkScopeFrom(connected)
-				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+				rfc2545ForwardScope(f, scope.peerOnLink, true)
 				global := netip.MustParseAddr(scope.global).AsSlice()
 				linkLocal := netip.MustParseAddr("fe80::9").AsSlice()
 				var pair []byte
@@ -160,12 +152,7 @@ func TestRFC2545ReceivedUnusableGlobalRefused(t *testing.T) {
 				}
 				f.destination.settings.NextHopMode = NextHopUnchanged
 				f.destination.settings.PeerAS = 65002
-				f.destination.refreshLinkScopeFrom([]netip.Prefix{
-					netip.PrefixFrom(f.source.Settings().Address, 32),
-					netip.PrefixFrom(f.destination.Settings().Address, 32),
-					netip.MustParsePrefix("2001:db8:1::/64"),
-				})
-				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+				rfc2545ForwardScope(f, true, true)
 				hop := netip.MustParseAddr(tc.hop).AsSlice()
 				if tc.pair {
 					hop = append(hop, netip.MustParseAddr("fe80::9").AsSlice()...)
@@ -286,15 +273,7 @@ func TestRFC2545ReceivedPairSecondAddressValidated(t *testing.T) {
 						// control reaches egress. Only destination advertisements vary.
 						f.source.session.recvCtxID = f.ctxID
 						f.source.session.SetSourceID(f.source.SourceID())
-						connected := []netip.Prefix{netip.PrefixFrom(f.source.Settings().Address, 32)}
-						if scope.peerOnLink {
-							connected = append(connected, netip.PrefixFrom(f.destination.Settings().Address, 32))
-						}
-						if scope.globalOnLink {
-							connected = append(connected, netip.MustParsePrefix("2001:db8:1::/64"))
-						}
-						f.destination.refreshLinkScopeFrom(connected)
-						f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+						rfc2545ForwardScope(f, scope.peerOnLink, scope.globalOnLink)
 						if destOnLink(f.destination) != scope.peerOnLink {
 							t.Fatal("fixture destination scope differs from the selected predicate")
 						}
@@ -425,24 +404,41 @@ func rfc2545ReceiveFixture(t *testing.T, cap77, peerOnLink, globalOnLink bool) *
 		remote:    f.source.Settings().Address,
 		direct:    true,
 	})
+	rfc2545ForwardScope(f, peerOnLink, globalOnLink)
+	if destOnLink(f.destination) != peerOnLink {
+		t.Fatal("fixture destination scope differs from selected predicate")
+	}
+	return f
+}
+
+// rfc2545ForwardScope gives the recipient an IPv6 identity on the Global's
+// prefix only in the common-subnet positive. The IPv4 source stays distinct
+// because mixed-message cases also assert its valid legacy NEXT_HOP unchanged.
+func rfc2545ForwardScope(f *aigpReplayFixture, peerOnLink, globalOnLink bool) {
+	delete(f.r.peers, f.destination.Settings().PeerKey())
+	recipient := "2001:db8:ffff::2"
+	if peerOnLink {
+		recipient = "2001:db8:2::2"
+		if globalOnLink {
+			recipient = "2001:db8:1::2"
+		}
+	}
+	f.destination.settings.Address = netip.MustParseAddr(recipient)
+	f.r.peers[f.destination.Settings().PeerKey()] = f.destination
+	f.r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: f.destination.Settings().PeerKey()}, 4096)
 	connected := []netip.Prefix{netip.PrefixFrom(f.source.Settings().Address, 32)}
 	if peerOnLink {
-		connected = append(connected, netip.PrefixFrom(f.destination.Settings().Address, 32))
+		connected = append(connected, netip.PrefixFrom(f.destination.Settings().Address, 64))
 	}
 	if globalOnLink {
-		// These supply the implemented prefix predicates, not entity adjacency.
-		// fe80::/64 deliberately exposes a first-slot link-local pair that
-		// cannot be mistaken for capability 77's standalone 16-octet form.
+		// fe80::/64 exposes the invalid pair-first slot separately from
+		// capability 77's valid standalone link-local form.
 		for _, prefix := range []string{"2001:db8:1::/64", "fe80::/64", "::1/128", "::ffff:192.0.2.0/120"} {
 			connected = append(connected, netip.MustParsePrefix(prefix))
 		}
 	}
 	f.destination.refreshLinkScopeFrom(connected)
 	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
-	if destOnLink(f.destination) != peerOnLink {
-		t.Fatal("fixture destination scope differs from selected predicate")
-	}
-	return f
 }
 
 // rfc2545ReceiveForward MUST retain the published cache entry until the writer

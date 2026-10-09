@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-08",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -26,8 +27,8 @@
       "note": "Forbidden: an update from one cache applied to another cache's data (unmarked source). TestRTRCacheSwitchKeepsSerialBasesSeparate gives both caches the same Session ID and serial; after switching 2->3->2 it asserts the query sequence ends {2, pduResetQuery} (not a Serial Query against the other cache's base) and that only the selected cache's prefix and ASPA provider validate (roas.Validate / aspas.isProvider per candidate), so a merge or reuse goes red.",
       "requirement_sha": "106112228a6dabf0",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "35b120fedd68e009",
-        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "35b120fedd68e009"
+        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "ecc88870039ee22d",
+        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "ecc88870039ee22d"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "c1679960dc16d025",
@@ -73,8 +74,8 @@
       "note": "Forbidden: selecting a cache other than the most preferred one that answers (config order, or reading every cache at once). TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers lists the standby (preference 200) first and the preferred (10) second; it waits for the preferred cache's accept and t.Fatal fires if the standby accepts within 500ms, so a group that followed config order or dialled all caches goes red. The failover subtest asserts that when the preferred cache refuses, the next in preference order (snaps[1].Synced) carries the load, and snapshots are held most preferred first. The 'or set of caches' alternative is a permission, not a forbidden behaviour.",
       "requirement_sha": "f1776b40118c197f",
       "tests": {
-        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "35b120fedd68e009",
-        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers#2": "35b120fedd68e009"
+        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "ecc88870039ee22d",
+        "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers#2": "ecc88870039ee22d"
       },
       "units": {
         "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "ca1b4a0d18891da9",

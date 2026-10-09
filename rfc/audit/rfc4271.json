@@ -1,6 +1,9 @@
 {
-  "audited": "2026-10-08",
+  "audited": "2026-10-09",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -43,10 +46,10 @@
       "note": "Sender side. TestRFC4271EveryMessageSentWithAllOnesMarker packs OPEN (classic, extended, >255), UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH into a fresh buffer and at offset 7 of a zero-filled buffer and asserts the 16 marker octets equal 0xFF each time; red if writeHeader writes any other marker. Receive-side (6.1) tags kept.",
       "requirement_sha": "b7d075677edef5c1",
       "tests": {
-        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "65bfdbcba738b5a1",
-        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker#2": "65bfdbcba738b5a1",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerAllOnesOnSend": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerNotAllOnesRejected": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "b57c65aae7255a53",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker#2": "b57c65aae7255a53",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerAllOnesOnSend": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerNotAllOnesRejected": "abbe4d642c22df9a"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "adb2ca346668fad8",
@@ -60,10 +63,10 @@
       "note": "TestRFC4271EveryMessageSentWithSmallestLength asserts, for all five types incl. both RFC 9072 extended OPEN shapes, that the Length field and the octets written equal an independently computed minimum, and that a 0xAA spare tail past it is untouched. Judge break openExtendedFixedLen 13->14: red (the D-8 fix it proves).",
       "requirement_sha": "92f06ef6c4ac6216",
       "tests": {
-        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "65bfdbcba738b5a1",
-        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength#2": "65bfdbcba738b5a1",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NonSmallestLengthRejected": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271SmallestLengthOnSend": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "b57c65aae7255a53",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength#2": "b57c65aae7255a53",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NonSmallestLengthRejected": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271SmallestLengthOnSend": "abbe4d642c22df9a"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "3eb327ba16f7e2b1",
@@ -74,17 +77,17 @@
       "verdict": "enforced"
     },
     "RFC4271-4.1-3": {
-      "note": "Send half: TestRFC4271UpdatesSentWithinLengthBounds feeds the Splitter an UPDATE that needs >4096 (asserted) and requires every emitted chunk's declared Length = octets written, 19..4096, all 1500 prefixes in order. Receive half held by the existing ValidateLength units. Rail proven: message.Splitter; the forward rail (wireu.SplitWireUpdate) is RFC4271-9.2-10's open item.",
+      "note": "RFC 4271 Section 4.1: \u201cThe value of the Length field MUST always be at least 19 and no greater than 4096, and MAY be further constrained, depending on the message type.\u201d The changed sender test supplies an equivalent all-false per-family ADD-PATH selector. It establishes that 1500 prefixes exceed one 4096-byte UPDATE, encodes every emitted chunk, requires declared Length equal to written octets within 19..4096, and requires every prefix in original order. Receive controls accept 19, 1000 and 4096 and reject 18, 4097 and 65535 without Extended Message, with exact header-error classification. Producer tracing confirms size budgets include the BGP header; the final ordinary writer sizes effective post-policy bytes, consumes split chunks synchronously and refuses unencodable output instead of emitting a truncated frame. Negotiated RFC 8654 extension remains a separate qualification. This judgment is based on assertions and current source, not producer-halt proof alone.",
       "requirement_sha": "063b29b32af07441",
       "tests": {
-        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds": "65bfdbcba738b5a1",
-        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds#2": "65bfdbcba738b5a1",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthOutOfBounds": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthWithinBounds": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds": "b57c65aae7255a53",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds#2": "b57c65aae7255a53",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthOutOfBounds": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthWithinBounds": "abbe4d642c22df9a"
       },
       "units": {
-        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds": "06dd27f977080727",
-        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds#2": "06dd27f977080727",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds": "b9c8395b4fc7f99a",
+        "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds#2": "b9c8395b4fc7f99a",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthOutOfBounds": "1ca02d5222a7f2eb",
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthWithinBounds": "7b7f7116880300cf"
       },
@@ -111,8 +114,8 @@
         "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "71651bbb29bf74fa",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "94aa07ebd53dcc5b",
         "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "f16e4cbdf16366d6",
-        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "7de877eade9fefb8",
-        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "7de877eade9fefb8"
+        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "4d1e0cbb7558949b",
+        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "4d1e0cbb7558949b"
       },
       "units": {
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "d87e9f9a0b7f0c20",
@@ -128,7 +131,7 @@
       "note": "{single-polarity} accepted, but the assertion (flags&0x0F==0) covers only the five well-known encoders plus MED via WriteAttrTo. Opaque/relayed attributes are written with the flags octet as received (attribute/opaque.go Flags 'preserved for forwarding'; no low-nibble mask found in attribute/ or reactor/), so a received low nibble set on an unrecognized transitive attribute is untested on the relay and forward rails and may be re-sent non-zero.",
       "requirement_sha": "b37ec5ac4690ae20",
       "tests": {
-        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "7de877eade9fefb8"
+        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "4d1e0cbb7558949b"
       },
       "units": {
         "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "64a11a9539271936"
@@ -139,8 +142,8 @@
       "note": "The quote carries both clauses. 'ignored when received': TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive asserts RFC7606ActionNone with 0x4F flags on ORIGIN/AS_PATH/NEXT_HOP (validator only). 'zero when sent': no assertion in this row's units (it lives under RFC4271-4.3-3, itself limited to the local encoders). The tagged negative (Optional/Transitive bits still enforced) proves RFC 7606 3(c), a neighbouring rule.",
       "requirement_sha": "c348224c8014594e",
       "tests": {
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "abbe4d642c22df9a"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "a8e00216f929109e",
@@ -205,8 +208,8 @@
         "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop": "f5d717769f48817a",
         "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "7269224e2de8c2ef",
         "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "7269224e2de8c2ef",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized": "abbe4d642c22df9a"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop": "6e221ecc789fcfaf",
@@ -223,8 +226,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialSetOnUnrecognizedTransitiveOptional": "94aa07ebd53dcc5b",
-        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "7de877eade9fefb8",
-        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialStampedOnUnrecognizedTransitive": "7de877eade9fefb8",
+        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "4d1e0cbb7558949b",
+        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialStampedOnUnrecognizedTransitive": "4d1e0cbb7558949b",
         "test/plugin/rfc4271-partial-unknown-transitive.ci": "04fc1c4bc8662a94"
       },
       "units": {
@@ -243,7 +246,7 @@
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "ab16100811ce8d90",
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing": "ab16100811ce8d90",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "94aa07ebd53dcc5b",
-        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "7de877eade9fefb8"
+        "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "4d1e0cbb7558949b"
       },
       "units": {
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "7b778cbd4098f7ab",
@@ -259,8 +262,8 @@
       "tests": {
         "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact": "4070fa8f7934cc62",
         "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact#2": "4070fa8f7934cc62",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttributesOutOfOrderAccepted": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OutOfOrderDoesNotMaskMalformation": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttributesOutOfOrderAccepted": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OutOfOrderDoesNotMaskMalformation": "abbe4d642c22df9a"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact": "3bba169e97c915a2",
@@ -271,13 +274,12 @@
       "verdict": "enforced"
     },
     "RFC4271-5-7": {
-      "code": {},
-      "note": "Re-judged 2026-09-30 after the R43 signature change: TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes assertions unchanged (the call goes through mustBuildUnicast), re-recorded red. BuildUnicast, BuildGroupedUnicast, BuildLabeledUnicast emit strictly ascending codes; with raw config attributes AIGP 26 and type 20 supplied after the builder's own, they still sort before LARGE_COMMUNITY 32. Producer read: appendRawAttributes wraps each one-attribute raw slice (packRawAttributes) in fullRawAttribute so OrderAttributes places it. Originating builders only; forwarded UPDATEs keep the received order.",
+      "note": "RFC 4271 Section 5: \u201cThe sender of an UPDATE message SHOULD order path attributes within the UPDATE message in ascending order of attribute type.\u201d All six tagged covers were independently re-read. Unicast, grouped and labeled origination builders order raw and ordinary attributes together; batch and queued announcement rails pin exact ascending sequences, including AS4_PATH before LARGE_COMMUNITY. The changed split unit retains non-ADD-PATH framing, requires more than one emitted chunk and checks each chunk for exactly [1,2,5,14,16]. Actual producers order contributions and insert MP_REACH between lower- and higher-coded base attributes. The retained claim is the existing originating-builder recommendation and split preservation; forwarding deliberately preserves received block order rather than globally sorting it. This is not evidence that MP_REACH is first, and does not close RFC7606-5.1-1's separately disclosed stronger requirement. No selective semantic proof is inferred from a renewed whole-producer halt.",
       "requirement_sha": "63c781a1e915d623",
       "tests": {
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "65ed9271dab3a1ea",
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "65ed9271dab3a1ea",
-        "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "125e31687892a371",
+        "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "6d5f1ebef2af18e4",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "775d197b2c06317e",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "775d197b2c06317e",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "775d197b2c06317e"
@@ -285,7 +287,7 @@
       "units": {
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "1b2ce2e6c980df3e",
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "1b2ce2e6c980df3e",
-        "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "8d9d9ce35844f8cf",
+        "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "7896ab097ea86fb3",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "2323a119f1a1422a",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "2ad378772013fadb",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "073483cbcad85930"
@@ -335,8 +337,8 @@
         "internal/component/bgp/wireu/rfc4271_advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "6da7ca3641c9fc13",
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "38033d5a4d8d353b",
         "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "38033d5a4d8d353b",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "f7ef88f508431a53",
-        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "f7ef88f508431a53"
+        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "f5f441d25f0d5702"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_aspath_empty_test.go::TestForwardPresentEmptyASPath": "3c3e7fbce15f43c3",
@@ -366,8 +368,8 @@
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "8acb5d36c93abfec",
         "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
-        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "f7ef88f508431a53",
-        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "f5f441d25f0d5702",
         "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
         "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
       },
@@ -418,8 +420,8 @@
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS#2": "d216c0c86115d31f",
         "internal/component/bgp/reactor/forward_med_test.go::TestForwardWritesLocallySetMED": "d216c0c86115d31f",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDPropagationAllowedTo": "d216c0c86115d31f",
-        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "f7ef88f508431a53",
-        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkMEDAcrossAS#2": "f5f441d25f0d5702",
         "test/plugin/med-locally-set-reaches-peer.ci": "1b8b6dc94487cd73",
         "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
         "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
@@ -507,7 +509,7 @@
         "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "94aa07ebd53dcc5b",
-        "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "f5f441d25f0d5702",
         "test/plugin/local-pref-strip-ebgp.ci": "5a4fff5cffb8e210",
         "test/plugin/local-pref-strip-ebgp.ci#2": "5a4fff5cffb8e210"
       },
@@ -528,8 +530,8 @@
       "note": "RFC 4271 \u00a75.1.5, rfc/full/rfc4271.txt:1599-1604: 'If it is contained in an UPDATE message that is received from an external peer, then this attribute MUST be ignored by the receiving speaker, except in the case of BGP Confederations [RFC3065].' The current full short row has this same receive-side sentence and no partial annotation. Read all four covers: internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession requires ActionNone and empty DiscardEntries; ::TestRFC4271LocalPrefIgnoredOnExternalSession requires exactly AttributeDiscard, one entry, code 5; both polarities of internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB drive an actual Established session. The internal case requires byte-identical attributes including preference 200 and unchanged NLRI. The external case uses the matching four-octet peer AS, requires one dispatched UPDATE, exact attribute codes [1,2,3,252], absence of code 5, byte-identical retained ORIGIN/AS_PATH/NEXT_HOP, unchanged NLRI, Established state and no NOTIFICATION. The 252 marker is not mistaken for a surviving LOCAL_PREF.\nProducing/consuming path read: message/rfc7606.go::validateLocalPrefAttr \u2192 reactor/session_validation.go::enforceRFC7606 \u2192 ApplyAttrDiscard/rebuild \u2192 session_read.go::processMessage \u2192 reactor_notify.go::notifyMessageReceiver. The latter derives RawBytes and AttrsWire from the rewritten WireUpdate, not the original raw body. rib_structured.go::handleReceivedStructured consumes that WireUpdate and packed attributes. Q1 yes: exact ignore-versus-retain behavior; Q2 yes by inspection: preserving external preference, dropping the UPDATE or stripping the internal control breaks explicit assertions; Q3 yes: valid established peers and matching external AS isolate preference handling; Q4 yes for the implemented non-confederation receive boundary, not send-side omission or entire RFC support. No confederation feature support or fresh semantic execution is inferred.\nPending note: use the preceding RFC quote, population, assertions and producer chain; retain enforced and state explicitly that this audit ran no tests and independent peer acceptance remains pending.",
       "requirement_sha": "d93d8e7519be8e22",
       "tests": {
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefIgnoredOnExternalSession": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "ba18c36b881a0964",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefIgnoredOnExternalSession": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "abbe4d642c22df9a",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "c0444b10289a63ff",
         "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "c0444b10289a63ff"
       },
@@ -575,8 +577,8 @@
       "note": "Forbidden: a non-zero subcode when none is specified. TestRFC4271NotificationUnspecifiedSubcodeIsZero asserts data[HeaderLen+1]==0 on the packed NOTIFICATION and 0 after decode. The negative is a same-producer contrast (three specified subcodes packed verbatim and non-zero), which rules out an encoder that writes a constant zero, so the zero is shown to come from absence.",
       "requirement_sha": "1a0863a8cbd8cbf8",
       "tests": {
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationSpecifiedSubcodePreserved": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationUnspecifiedSubcodeIsZero": "ba18c36b881a0964"
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationSpecifiedSubcodePreserved": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationUnspecifiedSubcodeIsZero": "abbe4d642c22df9a"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationSpecifiedSubcodePreserved": "6142e9cfc5efaf08",
@@ -1384,8 +1386,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "fb37fc79234ccfec",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "fb37fc79234ccfec"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "70e4f5e5056d4e79",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "70e4f5e5056d4e79"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
@@ -1442,8 +1444,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "fb37fc79234ccfec",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "fb37fc79234ccfec"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "70e4f5e5056d4e79",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "70e4f5e5056d4e79"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
@@ -1517,17 +1519,17 @@
       "verdict": "enforced"
     },
     "RFC4271-9.2-10": {
-      "note": "New unit TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld drives the relay rail buildFwdBody (the path the old weak note named as unproven) toward a 4096-octet destination. Positive: one route with 900 communities fits and is relayed as one raw body byte-identical to the received. Negative: one route with 1100 communities cannot fit; buildFwdBody returns ok=false with no raw body and no parsed update, and both callers (forward_rs.go, reactor_api_forward.go) skip the destination on !ok (read at the producer). Observed-red records: + revert forward_body.go::buildFwdBody, - revert wireu/split.go::buildCombinedUpdates. The message Splitter units stay as supplementary proof of the originate rail.",
+      "note": "RFC 4271 Section 9.2: \u201cIf, due to the limits on the maximum size of an UPDATE message (see Section 4), a single route doesn't fit into the message, the BGP speaker MUST not advertise the route to its peers and MAY choose to log an error locally.\u201d The changed splitter pair retains equivalent non-ADD-PATH framing. Its oversized opaque-attribute case requires an error and zero callbacks; the fitting control preserves attributes and NLRI in one output. The genuine relay pair supplies protocol-shaped input: a single route with 900 communities fits and is relayed byte-identically; 1100 communities exceed the 4096-byte destination limit and yield ok=false with neither raw nor parsed output. Both forwarding callers explicitly release and skip failed items, so failure is not later dispatched. Final ordinary-write admission also refuses an indivisible effective chunk. The corrected test tag accurately says an error, not an assertion of the exact ErrAttributesTooLarge identity. Logging is optional. Whole-producer halt records are reachability evidence, not selective size-check mutations.",
       "requirement_sha": "17cf9a33430fda7d",
       "tests": {
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271FittingRouteIsAdvertised": "ba18c36b881a0964",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "ba18c36b881a0964",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271FittingRouteIsAdvertised": "abbe4d642c22df9a",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "abbe4d642c22df9a",
         "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld": "4ae6ed42ec547fb7",
         "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld#2": "4ae6ed42ec547fb7"
       },
       "units": {
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271FittingRouteIsAdvertised": "f490e285663db95e",
-        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "4f951680e8995f18",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271FittingRouteIsAdvertised": "e5fe0384e82a9ec6",
+        "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "a7db01e738f9e64a",
         "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld": "3869fa5b27305bbe",
         "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld#2": "3869fa5b27305bbe"
       },
@@ -1582,8 +1584,8 @@
       "note": "positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the 'newly installed routes' half of the sentence carries no tag. Negative is an unchanged-best re-run",
       "requirement_sha": "04f270bb5549bd27",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "fb37fc79234ccfec",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "fb37fc79234ccfec"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "70e4f5e5056d4e79",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "70e4f5e5056d4e79"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",

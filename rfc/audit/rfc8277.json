@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-08",
+  "audited": "2026-10-09",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -120,8 +121,8 @@
         "internal/component/bgp/server/rfc8277_labeled_consumer_test.go::TestLabeledWithdrawalCodecConsumersIgnoreCompatibility#2": "e01b89d8a37c843b",
         "internal/component/bgp/server/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalCodecConsumersIgnoreCompatibility": "81f1f7f03f165039",
         "internal/component/bgp/server/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalCodecConsumersIgnoreCompatibility#2": "81f1f7f03f165039",
-        "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers": "b99d292a8388f4f9",
-        "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2": "b99d292a8388f4f9"
+        "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers": "c7b74b21182bbe96",
+        "internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2": "c7b74b21182bbe96"
       },
       "units": {
         "internal/component/bgp/format/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalJSONConsumersIgnoreCompatibility": "6ceec53b2cf77a4f",
@@ -238,9 +239,9 @@
     "RFC8277-3.2.2-3": {
       "code": {
         "internal/component/bgp/message/update_build_labeled.go::BuildLabeledUnicastNLRIBytes": "d9a21e276d6d82f1",
-        "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler": "46b72e8590298c28"
+        "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler": "05f35291e9778f6b"
       },
-      "note": "RFC 8277 \u00a73.2.2 requires a Section 2.4 withdrawal of the earlier same-AFI/SAFI/prefix fewer-label route when the speaker decides not to propagate the replacement stack to a peer that cannot handle it. This is a distinct trigger from \u00a73.2.1. mpReachNextHopHandler changes the next hop and copies the NLRI without a label-count decision, and BuildLabeledUnicastNLRIBytes encodes every supplied label. Multiple Labels Capability negotiation/count handling remains absent. The existing TestLabeledPropagationChangedNextHopReusesReceivedLabelGap observes unchanged labels with a changed next hop, not the required withdrawal. Record the missing behavior explicitly; absence does not establish vacuous conformance or authorize development.",
+      "note": "Rejudged RFC 8277 Section 3.2.2 independently. When propagation of a changed-next-hop replacement stack is declined because the recipient cannot handle it, the earlier same-AFI/SAFI/prefix fewer-label route requires a Section 2.4 withdrawal. mpReachNextHopHandler still replaces only the next-hop field and retains the whole NLRI tail; BuildLabeledUnicastNLRIBytes serializes every supplied label. Multiple Labels capability/count admission and its coupled changed-next-hop withdrawal decision remain absent. No tagged test proves this row; TestLabeledPropagationChangedNextHopReusesReceivedLabelGap observes unchanged upstream labels after a next-hop rewrite, not the required withdrawal. Ordinary withdrawal ownership does not supply the missing label-count trigger. Preserve the explicit gap separately from RFC8277-3.2.1-4; absence is neither vacuous conformance nor authorization to implement the feature.",
       "requirement_sha": "523787d86a868dc6",
       "verdict": "unimplemented"
     }

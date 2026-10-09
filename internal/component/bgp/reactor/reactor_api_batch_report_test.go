@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"bufio"
+	"encoding/binary"
 	"errors"
 	"net"
 	"net/netip"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -194,19 +196,14 @@ func TestSendRoutesNamesTheNotEstablishedPeer(t *testing.T) {
 	assert.NotEmpty(t, conns[0].written(), "the established peer must still be sent the withdrawal")
 }
 
-// TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit covers the second
-// outcome: (*CommitService).Commit returns partial stats BESIDE its error, and
-// the caller used to discard both with a bare `continue`. The UPDATEs that had
-// already left were then counted nowhere.
-//
-// VALIDATES: AC-5 -- the row reports the UPDATEs that left and the routes they
-// carried, states announce-refused, and the top-level total includes them.
-// PREVENTS: a commit that half-succeeded reporting zero work done.
+// TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit distinguishes buffered
+// acceptance from TCP delivery when a later flush fails. Both complete UPDATEs
+// reached the writer's acceptance frontier; only the first reached the transport.
+// The error must remain visible beside those accepted counts.
 func TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit(t *testing.T) {
-	// One write accepted, every later write refused. Two routes with different
-	// next hops are two attribute groups, and GroupByAttributesTwoLevel sorts
-	// them by key, so the first UPDATE leaves and the second does not.
-	adapter, _ := newCommitFixture(t,
+	// Two next-hop groups produce two complete UPDATEs. The connection accepts
+	// the first flush and refuses the second after its buffered write succeeded.
+	adapter, conns := newCommitFixture(t,
 		commitPeerOption{address: "10.0.0.2", established: true, writesLeft: 1},
 	)
 
@@ -223,13 +220,19 @@ func TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	row := rowFor(t, result, "10.0.0.2")
-	assert.Equal(t, 1, row.UpdatesSent, "the UPDATE that left before the refusal is counted")
-	assert.Equal(t, 1, row.RoutesAnnounced, "the route that UPDATE carried is counted")
+	assert.Equal(t, 2, row.UpdatesSent, "both complete UPDATEs reached buffered acceptance")
+	assert.Equal(t, 2, row.RoutesAnnounced, "accepted routes remain counted beside the flush error")
 	assert.Equal(t, []string{bgptypes.CommitReasonAnnounceRefused}, row.Reasons)
 
 	assert.Equal(t, 2, result.RoutesQueued)
-	assert.Equal(t, 1, result.RoutesAnnounced, "half the commit reached the wire")
-	assert.Equal(t, 1, result.UpdatesSent)
+	assert.Equal(t, 2, result.RoutesAnnounced)
+	assert.Equal(t, 2, result.UpdatesSent)
+
+	written := conns[0].written()
+	require.GreaterOrEqual(t, len(written), message.HeaderLen)
+	assert.Equal(t, len(written), int(binary.BigEndian.Uint16(written[16:18])),
+		"exactly one complete message reached the transport, not both accepted messages")
+	assert.Equal(t, byte(2), written[18], "the transported message is an UPDATE")
 }
 
 // TestSendRoutesCountsOnlyTheWithdrawalsThatLeft covers the third outcome: a

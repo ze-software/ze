@@ -33,35 +33,35 @@ func TestLinkScopeLinkLocalNextHop(t *testing.T) {
 	}{
 		{
 			name:       "both halves hold",
-			scope:      &linkScope{connected: connected, peerOnLink: true},
+			scope:      newLinkScopeFrom(connected, onLink),
 			configured: linkLocal,
 			nextHop:    onLink,
 			want:       linkLocal,
 		},
 		{
 			name:       "next-hop entity off link",
-			scope:      &linkScope{connected: connected, peerOnLink: true},
+			scope:      newLinkScopeFrom(connected, onLink),
 			configured: linkLocal,
 			nextHop:    offLink,
 			want:       netip.Addr{},
 		},
 		{
 			name:       "peer off link",
-			scope:      &linkScope{connected: connected, peerOnLink: false},
+			scope:      newLinkScopeFrom(connected, offLink),
 			configured: linkLocal,
 			nextHop:    onLink,
 			want:       netip.Addr{},
 		},
 		{
 			name:       "no link-local configured",
-			scope:      &linkScope{connected: connected, peerOnLink: true},
+			scope:      newLinkScopeFrom(connected, onLink),
 			configured: netip.Addr{},
 			nextHop:    onLink,
 			want:       netip.Addr{},
 		},
 		{
 			name:       "configured address is not link-local",
-			scope:      &linkScope{connected: connected, peerOnLink: true},
+			scope:      newLinkScopeFrom(connected, onLink),
 			configured: netip.MustParseAddr("2001:db8:1::2"),
 			nextHop:    onLink,
 			want:       netip.Addr{},
@@ -79,7 +79,7 @@ func TestLinkScopeLinkLocalNextHop(t *testing.T) {
 			// excludes, and appending a second address to it would leave a
 			// conformant length octet over a non-conformant field.
 			name:       "global next hop is itself link-local",
-			scope:      &linkScope{connected: append(connected, netip.MustParsePrefix("fe80::/64")), peerOnLink: true},
+			scope:      newLinkScopeFrom(append(connected, netip.MustParsePrefix("fe80::/64")), onLink),
 			configured: linkLocal,
 			nextHop:    netip.MustParseAddr("fe80::beef"),
 			want:       netip.Addr{},
@@ -89,21 +89,21 @@ func TestLinkScopeLinkLocalNextHop(t *testing.T) {
 			// an IPv6 global address. RFC 8950 carries an IPv4 NLRI behind an IPv6
 			// next hop, never the reverse.
 			name:       "global next hop is IPv4",
-			scope:      &linkScope{connected: append(connected, netip.MustParsePrefix("192.0.2.0/24")), peerOnLink: true},
+			scope:      newLinkScopeFrom(append(connected, netip.MustParsePrefix("192.0.2.0/24")), onLink),
 			configured: linkLocal,
 			nextHop:    netip.MustParseAddr("192.0.2.1"),
 			want:       netip.Addr{},
 		},
 		{
 			name:       "global next hop unset",
-			scope:      &linkScope{connected: connected, peerOnLink: true},
+			scope:      newLinkScopeFrom(connected, onLink),
 			configured: linkLocal,
 			nextHop:    netip.Addr{},
 			want:       netip.Addr{},
 		},
 		{
 			name:       "empty connected set",
-			scope:      &linkScope{connected: nil, peerOnLink: true},
+			scope:      newLinkScopeFrom(nil, onLink),
 			configured: linkLocal,
 			nextHop:    onLink,
 			want:       netip.Addr{},
@@ -135,7 +135,7 @@ func TestNextHopOwnersClassify(t *testing.T) {
 		configured: netip.MustParseAddr("2001:db8:1::5"),
 		held:       []netip.Prefix{netip.MustParsePrefix("2001:db8:2::7/64")},
 	}
-	scope := &linkScope{connected: []netip.Prefix{netip.MustParsePrefix("2001:db8:1::/64"), netip.MustParsePrefix("2001:db8:2::/64")}, peerOnLink: true}
+	scope := newLinkScopeFrom([]netip.Prefix{netip.MustParsePrefix("2001:db8:1::/64"), netip.MustParsePrefix("2001:db8:2::/64")}, netip.MustParseAddr("2001:db8:1::2"))
 	linkLocal := netip.MustParseAddr("fe80::1")
 
 	tests := []struct {
@@ -143,13 +143,14 @@ func TestNextHopOwnersClassify(t *testing.T) {
 		owners nextHopOwners
 		global string
 		want   nextHopRouter
+		wantLL bool
 	}{
-		{"session endpoint", owners, "2001:db8:1::1", nextHopRouterSpeaker},
-		{"configured local address", owners, "2001:db8:1::5", nextHopRouterSpeaker},
-		{"address on another interface", owners, "2001:db8:2::7", nextHopRouterSpeaker},
-		{"peer's own address", owners, "2001:db8:1::2", nextHopRouterThirdParty},
-		{"another router on the shared link", owners, "2001:db8:1::99", nextHopRouterThirdParty},
-		{"unset global", owners, "", nextHopRouterUnspecified},
+		{"session endpoint", owners, "2001:db8:1::1", nextHopRouterSpeaker, true},
+		{"configured local address", owners, "2001:db8:1::5", nextHopRouterSpeaker, true},
+		{"address on another interface", owners, "2001:db8:2::7", nextHopRouterSpeaker, false},
+		{"peer's own address", owners, "2001:db8:1::2", nextHopRouterThirdParty, false},
+		{"another router on the shared link", owners, "2001:db8:1::99", nextHopRouterThirdParty, false},
+		{"unset global", owners, "", nextHopRouterUnspecified, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -160,11 +161,11 @@ func TestNextHopOwnersClassify(t *testing.T) {
 			router := tt.owners.classify(global)
 			assert.Equal(t, tt.want, router)
 			got := scope.linkLocalNextHop(linkLocal, global, router)
-			if router == nextHopRouterSpeaker {
-				assert.Equal(t, linkLocal, got, "own Link-Local follows the speaker's global")
+			if tt.wantLL {
+				assert.Equal(t, linkLocal, got, "own Link-Local follows a speaker global on the common subnet")
 				return
 			}
-			assert.False(t, got.IsValid(), "no own Link-Local after a third party's global")
+			assert.False(t, got.IsValid(), "no own Link-Local for a third party or a different subnet")
 		})
 	}
 }

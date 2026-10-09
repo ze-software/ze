@@ -42,9 +42,9 @@
       "unit-sha": "b961a8c54e795df6",
       "claim-sha": "a59bc6f7b4bec4e7",
       "route": "revert",
-      "producer": "internal/component/bgp/wireu/aspath_collapse.go::CollapseAS4Family",
-      "producer-sha": "ab2668a627662c2f",
-      "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "producer": "internal/component/bgp/wireu/aspath_collapse.go::WriteTo",
+      "producer-sha": "43141993ff1bbdf3",
+      "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000FDE9FA56EA7B40030401010101C00708FA56EA7B01010101180A0000"
     },
     {
@@ -54,9 +54,9 @@
       "unit-sha": "7bf1f0bea4647e50",
       "claim-sha": "b550aea0c66f40dd",
       "route": "revert",
-      "producer": "internal/component/bgp/wireu/aspath_collapse.go::CollapseAS4Family",
-      "producer-sha": "ab2668a627662c2f",
-      "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "producer": "internal/component/bgp/wireu/aspath_collapse.go::WriteTo",
+      "producer-sha": "43141993ff1bbdf3",
+      "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE9FA56EA7B40030401010101180A0000"
     },
     {
@@ -88,9 +88,9 @@
       "unit-sha": "7bf1f0bea4647e50",
       "claim-sha": "3051dd17aec1e3a3",
       "route": "revert",
-      "producer": "internal/component/bgp/wireu/aspath_collapse.go::CollapseAS4Family",
-      "producer-sha": "ab2668a627662c2f",
-      "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "producer": "internal/component/bgp/wireu/aspath_collapse.go::WriteTo",
+      "producer-sha": "43141993ff1bbdf3",
+      "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE9FA56EA7B40030401010101180A0000"
     },
     {

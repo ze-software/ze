@@ -9,7 +9,7 @@
       "claim-sha": "96d493b633a228d8",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "d176f585ebd4492f",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
-      "producer-sha": "8ab3b992e328218f",
+      "producer-sha": "9de55f51f2ef3bb2",
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "9d30f137022b2158",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
-      "producer-sha": "8ab3b992e328218f",
+      "producer-sha": "9de55f51f2ef3bb2",
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "ac62f950f258c2ba",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
-      "producer-sha": "8ab3b992e328218f",
+      "producer-sha": "9de55f51f2ef3bb2",
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "e75d1660c0542e3b",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
-      "producer-sha": "8ab3b992e328218f",
+      "producer-sha": "9de55f51f2ef3bb2",
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -96,9 +96,9 @@
       "unit-sha": "ea51ba57f18af0e5",
       "claim-sha": "a7ff419c08ac52e3",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4760-7-1",

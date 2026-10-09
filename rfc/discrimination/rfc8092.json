@@ -63,9 +63,9 @@
       "unit-sha": "239e1dc55c4e2bf1",
       "claim-sha": "e49e7ccbf33a65ef",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8092-6-4",

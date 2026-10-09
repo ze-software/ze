@@ -1,12 +1,13 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-09",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC1997-Encoding-1": {
       "note": "(a) a COMMUNITIES value that is not a whole set of four-octet values, e.g. 6 octets, silently truncated to one community; (b) TestCommunitiesParseRejectsNonMultipleOf4 require.ErrorIs ErrInvalidLength on 6 octets goes red. Positive TestCommunitiesParse asserts the exact two four-octet communities decoded from 8 octets.",
       "requirement_sha": "802df88dbded3638",
       "tests": {
-        "internal/core/bgp/attribute/community_test.go::TestCommunitiesParse": "df914436e0bdaf8a",
-        "internal/core/bgp/attribute/community_test.go::TestCommunitiesParseRejectsNonMultipleOf4": "df914436e0bdaf8a"
+        "internal/core/bgp/attribute/community_test.go::TestCommunitiesParse": "34fcdbe05b3de369",
+        "internal/core/bgp/attribute/community_test.go::TestCommunitiesParseRejectsNonMultipleOf4": "34fcdbe05b3de369"
       },
       "units": {
         "internal/core/bgp/attribute/community_test.go::TestCommunitiesParse": "90045079c50235d6",
@@ -15,7 +16,7 @@
       "verdict": "enforced"
     },
     "RFC1997-Well-1": {
-      "note": "Independent supplemental source rejudgment, 2026-10-06. RFC1997 Well-known Communities: \"All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself).\" Read all ten current tagged covers: reactor TestForwardNoExportSkipsExternalPeerOnly, TestForwardWithoutNoExportReachesExternalPeer, TestForwardNoExportStillWithdrawsFromExternalPeer; wireu TestWellKnownNoExportRefusesExternalPeer and TestWellKnownNoExportAllowsInternalPeer; both checkNoExportBoundary tags; both wellknown-no-export-egress.ci tags and wellknown-no-export-withdraw-egress.ci. The predicate and general-forward pairs discriminate external suppression against the same route internally and an ordinary community externally. The mixed carrier separately asserts exact withdrawal and announcement fields, not raw-message absence. Its helper bypasses receive validation and is credited only for egress; the complete conforming functional packets supply mandatory attributes and correct ASN4 encoding. Both functional files require an external fence, internal NO_EXPORT announcement and external withdrawal, and reject only external announced NLRI; the mixed fixture uses one three-connection process and await_eor. Read checker_update_fields.go scoped matcher: withdrawn bytes cannot satisfy announced rejection. Traced ScanWellKnown -> AllowsEgressTo -> wellKnownAllowsEgress on general and RS rails -> SetWithdraw -> buildWithdrawalPayload/writeWithdrawal, and reflection handler registry/planner rather than assuming queued operations are applied. checkNoExportBoundary remains registered in specialCheckers and requires control at both observers, NO_EXPORT internally, absence alongside the control externally and surviving sessions. Its moved unit merely removes a local showTableJSON constant; checkers.go supplies the identical string, so this is current mechanical movement, not new judgment debt. Stand-alone AS scope is the RFC-stated boundary; no absent confederation feature is inferred. No new source defect found. Live FRR/BIRD and functional execution remain pending in this supplemental judgment; no test or producer-halt record is represented as fresh semantic execution.",
+      "note": "RFC 1997, Well-known Communities: \u201cAll routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself).\u201d Independently re-read all ten tagged covers and both producing egress rails through final ownership admission. Predicate and forwarding pairs distinguish external suppression from internal permission and ordinary-community forwarding. The changed mixed native carrier uses three independent peer processes: all-EOR readiness releases an ordinary source-owned 198.51.100.0/24 seed, both recipients acknowledge its wire receipt, and a source-only marker releases the mixed NO_EXPORT UPDATE. It requires the original withdrawal externally, withdrawal plus permitted announcement internally, the ordinary fence on both, and no external announcement of never-seeded 10.0.0.0/24. The observer checks seeded route-message counts 4/3. The producer retains ordinary ownership for original withdrawals and distinct absent-owner handling for synthesized refused announcements. Scope is the supported stand-alone-AS boundary, not an invented confederation-member implementation or a universal prohibition on all confederation eBGP sessions. Renewed producer-halt records demonstrate reachability, not selective community-decision discrimination.",
       "requirement_sha": "58d22b491a5fae2c",
       "tests": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "9d158bab1dc29c1e",
@@ -23,11 +24,11 @@
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "9d158bab1dc29c1e",
         "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "dec76563936c7c9c",
         "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "dec76563936c7c9c",
-        "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "f7ef88f508431a53",
-        "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "f5f441d25f0d5702",
         "test/plugin/wellknown-no-export-egress.ci": "c3795c82e01d4b21",
         "test/plugin/wellknown-no-export-egress.ci#2": "c3795c82e01d4b21",
-        "test/plugin/wellknown-no-export-withdraw-egress.ci": "d9cca60b3235c3ee"
+        "test/plugin/wellknown-no-export-withdraw-egress.ci": "e13a23a70fb19b67"
       },
       "units": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "beb2711142d7872a",
@@ -39,7 +40,7 @@
         "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "c1db0c94aae6cf16",
         "test/plugin/wellknown-no-export-egress.ci": "c3795c82e01d4b21",
         "test/plugin/wellknown-no-export-egress.ci#2": "c3795c82e01d4b21",
-        "test/plugin/wellknown-no-export-withdraw-egress.ci": "d9cca60b3235c3ee"
+        "test/plugin/wellknown-no-export-withdraw-egress.ci": "e13a23a70fb19b67"
       },
       "verdict": "enforced"
     },

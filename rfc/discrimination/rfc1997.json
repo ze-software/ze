@@ -64,13 +64,13 @@
       "rid": "RFC1997-Well-1",
       "polarity": "negative",
       "unit": "test/plugin/wellknown-no-export-withdraw-egress.ci",
-      "unit-sha": "960664c2a2e50ffd",
+      "unit-sha": "fa0ec11e3551afe2",
       "claim-sha": "90aa885c9d7f9777",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildWithdrawalPayload",
       "producer-sha": "215bcdb3f55a6061",
       "break": "body of buildWithdrawalPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-      "citation": "expect=bgp:conn=3:seq=1:withdrawn=18C63364"
+      "citation": "reject=bgp:conn=1:scope=announced:pattern=180A0000"
     },
     {
       "rid": "RFC1997-Well-2",

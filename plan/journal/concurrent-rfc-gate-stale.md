@@ -1,5 +1,6 @@
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
+| 2026-10-09 | spec-rfc-verdict-fix-bgp | Native `rfc check`, `job-final-residual-stamps-and-projection-3f7574f9.log` | Seven foreign findings: untagged RFC1661/RFC5216 test names; stale RFC8907-3.7-2,8.3-4,10.5.1-1 judgments; two changed-unit RFC8907 records. The receipt names every carrier. | Left with their protocol/test owners; no foreign source or record changed. Zero BGP-owned findings remain. This is mechanical freshness, not a claim of PPP, EAP or TACACS+ nonconformance. |
 | 2026-07-30 | - | workflow | `./le rfc check` failed because another session shifted tagged test line numbers | regenerated `ai/RFC-REQUIREMENTS.md` before verify |
 | 2026-07-30 | - | workflow | same staleness from a different concurrent session's edits | diffed regenerated ledger to identify owning package |
 | 2026-08-11 | rfc-ledger-per-rfc-shards | git | commit 7ec29b6e6 was an unrelated IPsec fix. It absorbed the split `ai/RFC-REQUIREMENTS.md` while the 177 `rfc/requirements/` files stayed untracked. HEAD then held an index citing files no commit provided | the closure commits those files. History is not rewritten |

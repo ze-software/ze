@@ -20,7 +20,7 @@
       "claim-sha": "7a6d08afdd4aef21",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
-      "producer-sha": "009b15e6807dd5a1",
+      "producer-sha": "f8cae24a7e3bf924",
       "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "ba4b1bacccb900be",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
-      "producer-sha": "009b15e6807dd5a1",
+      "producer-sha": "f8cae24a7e3bf924",
       "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

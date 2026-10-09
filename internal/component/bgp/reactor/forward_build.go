@@ -19,12 +19,11 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// maxUpdateBody is the largest UPDATE body Ze will build.
+// maxUpdateBody is the largest complete UPDATE body on the wire.
 //
-// RFC 8654 raises the message ceiling to 65535 octets, of which 19 are the fixed
-// header, so a body cannot exceed 65516. An edit whose exact size lands above
-// this cannot be sent to any peer under any negotiated size, so it is refused
-// here rather than handed to a session that would refuse it with less context.
+// RFC 8654 Section 6 raises the message ceiling to 65535 octets, of which 19
+// are the fixed header. Ordinary next-hop normalization alone can materialize
+// a larger logical body, which its final writer MUST split before emission.
 const maxUpdateBody = 65516
 
 // modBufPool provides reusable buffers for the progressive build.
@@ -195,6 +194,29 @@ func buildModifiedPayload(
 	pp *peerPool,
 	nlriOverride []byte,
 ) ([]byte, int, modifyFailure) {
+	// RFC 4271 Section 4.3; RFC 8654 Section 6. Existing forwarding and policy
+	// rebuilds retain the complete-message bound.
+	return buildModifiedPayloadWithLimit(payload, mods, handlers, pp, nlriOverride, maxUpdateBody)
+}
+
+// buildModifiedPayloadWithLimit shares the encoder with ordinary next-hop
+// normalization. Its caller MUST bound maxBody and MUST split any logical body
+// exceeding the destination's wire limit before emission. Section lengths still
+// fit their wire fields; only the total logical body can exceed a wire message.
+//
+// RFC 4271 Section 4.3: "This 2-octet unsigned integer indicates the total
+// length of the Path Attributes field in octets."
+//
+// UPDATE body offsets: [0:2] withdrawn length, [2:] withdrawn, then attribute
+// length(2), attributes and NLRI. Only the final writer adds the 19-octet header.
+func buildModifiedPayloadWithLimit(
+	payload []byte,
+	mods *filterapi.ModAccumulator,
+	handlers map[uint8]filterapi.AttrModHandler,
+	pp *peerPool,
+	nlriOverride []byte,
+	maxBody int,
+) ([]byte, int, modifyFailure) {
 	// The ModAccumulator can also carry per-peer NLRI rewrites. An explicit
 	// nlriOverride argument (the legacy per-prefix modify path) takes precedence;
 	// otherwise the accumulator's announce-NLRI rewrite applies. The withdrawn
@@ -347,13 +369,12 @@ func buildModifiedPayload(
 
 	// The EXACT output size. Nothing below this line estimates.
 	needSize := wdBytes + 2 + attrBytes + nlriBytes
-	if needSize > maxUpdateBody {
-		// RFC 8654 bounds the body at 65516 octets, so an edit above it cannot
-		// be sent to any peer under any negotiated size. The route is suppressed
-		// for this destination and says so, rather than going out unmodified
-		// carrying exactly what the policy exists to strip.
-		fwdLogger().Warn("modified UPDATE body exceeds the message ceiling, suppressing route",
-			"bodyLen", needSize, "max", maxUpdateBody, "attrCount", spans.Len())
+	if needSize > maxBody {
+		// A failed rebuild must not fall back to bytes the policy changed.
+		// The ordinary normalization caller alone permits a bounded logical
+		// intermediate; the other callers retain the RFC 8654 wire ceiling.
+		fwdLogger().Warn("modified UPDATE body exceeds the build ceiling, suppressing route",
+			"bodyLen", needSize, "max", maxBody, "attrCount", spans.Len())
 		return nil, 0, modifyFailureOverflow
 	}
 

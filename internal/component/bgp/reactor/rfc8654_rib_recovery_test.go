@@ -32,24 +32,18 @@ import (
 // RFC requirement: RFC8654-3-1 positive -- an otherwise valid 4097-octet UPDATE installs both routes, and a later valid extended UPDATE reinstalls them on the same live session.
 // RFC requirement: RFC8654-3-1 negative -- changing only ORIGIN to an invalid value in that extended UPDATE removes both already installed routes from actual Adj-RIB-In and Loc-RIB storage and withdraws them downstream without resetting the session.
 func TestRFC8654TreatAsWithdrawRemovesInstalledRoutes(t *testing.T) {
+	const recoveredMED = 17
 	var recoveryMu sync.Mutex
 	var recovered uint8
-	var retained [2]locrib.ForwardHandle
-	// Register before peer cleanup so shared UPDATE handles remain retained
-	// until all producing handlers stop, not merely until one prefix dispatch.
-	t.Cleanup(func() {
-		recoveryMu.Lock()
-		defer recoveryMu.Unlock()
-		for _, handle := range retained {
-			if handle != nil {
-				handle.Release()
-			}
-		}
-	})
 	peers := extendedRecoveryPeers(t, true, false)
 	source, recipient := peers[0], peers[1]
 	session := source.peer.currentSession()
 	update := fatalLengthAnnouncement()
+	// RFC 4271 Section 5.1.4: "The value of the MULTI_EXIT_DISC attribute is a
+	// four-octet unsigned number, called a metric."
+	// The RIB mirrors MED as the Loc-RIB path's Metric.
+	update.PathAttributes = append(update.PathAttributes, 0x80, 4, 4, 0, 0, 0, 0)
+	medLastOctet := message.HeaderLen + 4 + len(update.PathAttributes) - 1
 	padding := 4097 - message.HeaderLen - 4 - len(update.NLRI) - len(update.PathAttributes) - 4
 	update.PathAttributes = append(update.PathAttributes, 0xd0, 99, byte(padding>>8), byte(padding))
 	update.PathAttributes = append(update.PathAttributes, bytes.Repeat([]byte{0x5a}, padding)...)
@@ -91,11 +85,16 @@ func TestRFC8654TreatAsWithdrawRemovesInstalledRoutes(t *testing.T) {
 		return withdrawn == 3
 	}, "treat-as-withdraw reaches recipient TCP")
 
-	// Adj-RIB-In insertion and independent RS forwarding do not fence Loc-RIB
-	// mirroring. Observe the recovered UPDATE at the actual publication boundary.
+	// An AIGP reselection can publish an inserted route before the receive
+	// handler reaches its per-prefix election. That publication legitimately
+	// has no ForwardBytes; the later identical Path insert emits no event.
+	// Observe the recovered MED at the selected-path publication boundary,
+	// and check the actual ORIGIN and MED separately in storage and on TCP.
 	unsubscribe := locrib.Default().OnChange(func(change locrib.Change) {
-		if change.Family != family.IPv4Unicast ||
-			(change.Kind != locrib.ChangeAdd && change.Kind != locrib.ChangeUpdate) {
+		if change.Family != family.IPv4Unicast {
+			return
+		}
+		if change.Kind != locrib.ChangeAdd && change.Kind != locrib.ChangeUpdate {
 			return
 		}
 		prefixes := fatalLengthPrefixes()
@@ -103,55 +102,54 @@ func TestRFC8654TreatAsWithdrawRemovesInstalledRoutes(t *testing.T) {
 		if i < 0 {
 			return
 		}
+		if change.Best.Metric != recoveredMED {
+			t.Errorf("recovered Loc-RIB prefix %s metric = %d, want %d",
+				change.Prefix, change.Best.Metric, recoveredMED)
+			return
+		}
 		recoveryMu.Lock()
 		defer recoveryMu.Unlock()
-		if retained[i] != nil {
-			return
-		}
-		wire, ok := change.Forward.(locrib.ForwardBytes)
-		if !ok {
-			t.Errorf("recovered Loc-RIB prefix %s has no UPDATE bytes", change.Prefix)
-			return
-		}
-		change.Forward.AddRef()
-		retained[i] = change.Forward
-		// RFC 8654 Section 3; RFC 4271 Section 4.3.
-		update, err := message.UnpackUpdate(wire.Bytes())
-		if err != nil {
-			t.Errorf("recovered Loc-RIB prefix %s: %v", change.Prefix, err)
-			return
-		}
-		_, _, origin, found := attribute.AttrFind(update.PathAttributes, attribute.AttrOrigin)
-		if !found || !bytes.Equal(origin, []byte{1}) {
-			t.Errorf("recovered Loc-RIB prefix %s ORIGIN = %x, want 01", change.Prefix, origin)
-			return
-		}
 		recovered |= 1 << i
 	})
 	t.Cleanup(unsubscribe)
 
-	// A different valid ORIGIN is a causal post-error barrier, not a sleep or
-	// a stale match against the original announcement.
+	// Changed ORIGIN and MED identify this post-error UPDATE. MED also names
+	// its selected Loc-RIB path, which does not store ORIGIN.
 	valid[message.HeaderLen+4+3] = 1
+	valid[medLastOctet] = recoveredMED
 	source.send(t, valid)
-	lowEventually(t, func() bool {
-		attrs := lowInstalledAttributes([]byte{24, 203, 0, 114})
-		_, _, origin, found := attribute.AttrFind(attrs, attribute.AttrOrigin)
-		return found && bytes.Equal(origin, []byte{1})
-	}, "valid extended announcement reinstalls routes after error")
+	for _, prefix := range fatalLengthPrefixes() {
+		address := prefix.Addr().As4()
+		lowEventually(t, func() bool {
+			attrs := lowInstalledAttributes([]byte{24, address[0], address[1], address[2]})
+			_, _, origin, found := attribute.AttrFind(attrs, attribute.AttrOrigin)
+			if !found {
+				return false
+			}
+			if !bytes.Equal(origin, []byte{1}) {
+				return false
+			}
+			_, _, med, found := attribute.AttrFind(attrs, attribute.AttrMED)
+			return found && bytes.Equal(med, []byte{0, 0, 0, recoveredMED})
+		}, "each recovered route has ORIGIN=1 and MED=17 in actual Adj-RIB-In")
+	}
 	lowEventually(t, func() bool {
 		return extendedRecoveryRecipientAttribute(t, recipient, 0, attribute.AttrOrigin, []byte{1}) == 3
 	}, "both post-error routes reach the recipient")
 	lowEventually(t, func() bool {
+		return extendedRecoveryRecipientAttribute(t, recipient, 0, attribute.AttrMED, []byte{0, 0, 0, recoveredMED}) == 3
+	}, "both post-error routes carry MED=17 to the recipient")
+	lowEventually(t, func() bool {
 		recoveryMu.Lock()
 		defer recoveryMu.Unlock()
 		return recovered == 3
-	}, "both recovered ORIGIN=1 routes published in Loc-RIB")
+	}, "both recovered MED=17 paths published in Loc-RIB")
 	_, routes := fatalLengthRIBSnapshot()
 	require.Equal(t, uint8(3), routes)
 	for _, prefix := range fatalLengthPrefixes() {
-		_, found := locrib.Default().Lookup(family.IPv4Unicast, prefix)
+		best, found := locrib.Default().Best(family.IPv4Unicast, prefix)
 		require.True(t, found)
+		require.Equal(t, uint32(recoveredMED), best.Metric, "the installed path must be the recovered route")
 	}
 	require.Same(t, session, source.peer.currentSession())
 	require.Equal(t, fsm.StateEstablished, session.State())

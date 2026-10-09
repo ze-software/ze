@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // prefixSIDAllowedTo answers RFC 8669 Section 8 for one destination: "Prevent
@@ -66,9 +67,8 @@ func (p *Peer) prefixSIDAllowed() bool {
 // the heap (filterapi.opsInline), and an EBGP peer with next-hop-self and a
 // community filter is already close to that.
 //
-// The next-hop change's Remove (applyFactsNextHop, peer_forward_facts.go) does
-// not enter the fold: it is recorded only for a destination Section 8 allows,
-// and this function is asked only for one it refuses.
+// The next-hop change's Remove (applyEgressPrefixSIDNextHop) does not enter
+// the fold: it is recorded only for a destination Section 8 allows.
 //
 // Last wins, which is the accumulator's own rule (filterapi.LastSetOrSuppress).
 func prefixSIDOnWire(baseHasPrefixSID bool, mods *filterapi.ModAccumulator) bool {
@@ -111,10 +111,71 @@ func applyFactsPrefixSID(f *peerForwardFacts, baseHasPrefixSID bool, mods *filte
 	mods.Op(uint8(attribute.AttrPrefixSID), filterapi.AttrModSuppress, nil)
 }
 
+// applyEgressPrefixSIDNextHop compares the received and effective outgoing
+// next-hop entities after policy, configured rewriting and scope normalization.
+// RFC 9252 Section 2: "If the BGP next hop is unchanged during the advertisement,
+// the SRv6 Service TLVs, including any unrecognized Types of Sub-TLV and
+// Sub-Sub-TLV, SHOULD be propagated further." "In addition, all Reserved fields
+// in the TLV, Sub-TLV, or Sub-Sub-TLV MUST be propagated unchanged."
+// "If the BGP next hop is changed, the TLVs, Sub-TLVs, and Sub-Sub-TLVs SHOULD
+// be updated with the locally allocated SRv6 SID information. Any received
+// Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed."
+//
+// Ze allocates no local Service SID, so a changed entity removes its received
+// Service TLVs. RFC 8669 Section 3: "For future extensibility, unknown TLVs MUST
+// be ignored and propagated unmodified." The registered attribute handler keeps
+// every non-Service TLV. Domain suppression needs no additional Remove operation.
+//
+// received is always the original input, never a raw policy replacement. base
+// names only the destination's actual fields; a configured operation for an
+// absent companion field cannot change a route's next hop. RFC 9252 Sections
+// 5.1-5.4 and 6 carry services in MP_REACH; a legacy sibling cannot replace that
+// field's identity. Legacy-only input retains the existing propagation behavior.
+func applyEgressPrefixSIDNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, received, base nextHopValue, baseHasPrefixSID bool) {
+	if !prefixSIDAllowedTo(!f.isEBGP, f.propagatePrefixSID) {
+		return
+	}
+	if !prefixSIDOnWire(baseHasPrefixSID, mods) {
+		return
+	}
+	previous, emitted := received.legacy, base.legacy
+	written, _ := modsNextHop(mods)
+	// The carrier can exist without a usable intermediate address: a raw
+	// policy field may be repaired by the configured rewrite before admission.
+	// Match egressNextHopWithheld's presence test, not base.mp.IsValid().
+	if base.mpFamily != (family.Family{}) {
+		previous, emitted = received.mp, base.mp
+		if written.mp.IsValid() {
+			emitted = written.mp
+		}
+		// RFC 2545 Section 3 adds or removes an optional Link-Local for the
+		// same Global entity; it is not a new next hop. In RFC 4659 Section
+		// 3.2.1.1's absent-global pair, the Link-Local identifies the entity.
+		if previous.IsUnspecified() {
+			previous = received.mpLL
+		}
+		if emitted.IsUnspecified() {
+			emitted = base.mpLL
+			if written.mp.IsValid() {
+				emitted = written.mpLL
+			}
+		}
+	} else if emitted.IsValid() && written.legacy.IsValid() {
+		emitted = written.legacy
+	}
+	if !emitted.IsValid() {
+		return
+	}
+	if emitted == previous {
+		return
+	}
+	mods.Op(uint8(attribute.AttrPrefixSID), filterapi.AttrModRemove, srv6ServiceTLVTypes[:])
+}
+
 // srv6ServiceTLVTypes is the Buf of the Remove operation a next-hop change
-// records for code 40 (applyFactsNextHop): the TLV types RFC 9252 Section 2
-// ties to the next hop. A package-level array so the operation points at
-// storage that outlives every forward call, and no destination allocates one.
+// records for code 40 (applyEgressPrefixSIDNextHop): the TLV types RFC 9252
+// Section 2 ties to the next hop. Package-level storage outlives every forward
+// call, so no destination allocates an operation buffer.
 var srv6ServiceTLVTypes = [...]byte{attribute.PrefixSIDTLVSRv6L3Service, attribute.PrefixSIDTLVSRv6L2Service}
 
 // prefixSIDTLVHeaderOctets is a Prefix-SID TLV's Type (1 octet) and Length

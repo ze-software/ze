@@ -9,7 +9,7 @@
       "claim-sha": "223319b2754811dc",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
-      "producer-sha": "378ee273eeaf821f",
+      "producer-sha": "423b4ed2f5f1fead",
       "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "e9a80b6fc312b850",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
-      "producer-sha": "378ee273eeaf821f",
+      "producer-sha": "423b4ed2f5f1fead",
       "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "1c2d291ef75ae072",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
-      "producer-sha": "378ee273eeaf821f",
+      "producer-sha": "423b4ed2f5f1fead",
       "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "c4ea4642cd1f9602",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
-      "producer-sha": "378ee273eeaf821f",
+      "producer-sha": "423b4ed2f5f1fead",
       "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "7c99aaa4d5912c5c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "e2df5782bd82114a",
+      "producer-sha": "6edda6ecbc3c717e",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "18b5cacbe5dd8f6e",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "e2df5782bd82114a",
+      "producer-sha": "6edda6ecbc3c717e",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "65f0efde34da9bb0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "e2df5782bd82114a",
+      "producer-sha": "6edda6ecbc3c717e",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "8239a0f48754b2a7",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "e2df5782bd82114a",
+      "producer-sha": "6edda6ecbc3c717e",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "15cf6d3a8a35ef91",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "e2df5782bd82114a",
+      "producer-sha": "6edda6ecbc3c717e",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "ad0a8860f0cbfaa2",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "e2df5782bd82114a",
+      "producer-sha": "6edda6ecbc3c717e",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -182,10 +182,10 @@
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt",
       "unit-sha": "d0f37cadadd606de",
-      "claim-sha": "d48c957ebbe5e09f",
+      "claim-sha": "aea16d922a2cbc3c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "e2df5782bd82114a",
+      "producer-sha": "6edda6ecbc3c717e",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "9cd9bb98975d4cfd",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
-      "producer-sha": "e2df5782bd82114a",
+      "producer-sha": "6edda6ecbc3c717e",
       "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -250,9 +250,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "6c220b92b1ce53d9",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.1-5",
@@ -261,9 +261,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "c1656ed8cded3aff",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.1-7",
@@ -294,9 +294,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.1-7",
@@ -305,9 +305,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "230ef8fc846ca179",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.2-10",
@@ -338,9 +338,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.2-10",
@@ -349,9 +349,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "cd6960312d00f6a0",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.2-4",
@@ -448,9 +448,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.2-8",
@@ -459,9 +459,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "af5d69946857132d",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.3-5",
@@ -492,9 +492,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.3-5",
@@ -503,9 +503,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "766df134d88f2caa",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.3-7",
@@ -536,9 +536,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.3-7",
@@ -547,9 +547,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "c7bd8c221c1d1d06",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4-5",
@@ -580,9 +580,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4-5",
@@ -591,9 +591,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "25ca5499c118ddc0",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.1-5",
@@ -624,9 +624,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.1-5",
@@ -635,9 +635,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "77ec905ab429b1e7",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.1-7",
@@ -668,9 +668,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.1-7",
@@ -679,9 +679,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "c8e1eabebb86bc3f",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.1-3",
@@ -712,9 +712,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.1-3",
@@ -723,9 +723,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "d5316e9db8e291ab",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.1-5",
@@ -756,9 +756,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.1-5",
@@ -767,9 +767,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "76d8bce8d84be35a",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.2-3",
@@ -800,9 +800,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.2-3",
@@ -811,9 +811,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "4738e788f211d2b4",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.3-2",
@@ -844,9 +844,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.3-2",
@@ -855,9 +855,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "7a34fac4da183887",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.3-3",
@@ -866,9 +866,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "d60d64831ba17c92",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.3-3",
@@ -877,9 +877,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "bb5eeed53d04d9e0",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.4-3",
@@ -910,9 +910,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.4.2.4-3",
@@ -921,9 +921,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "c18330bd0b5a6ba3",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.6-6",
@@ -954,9 +954,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.6-6",
@@ -965,9 +965,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "645527dfcda5a7ae",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.7-7",
@@ -998,9 +998,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.7-7",
@@ -1009,9 +1009,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "7ea357fb27670c1b",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.8-7",
@@ -1042,9 +1042,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "a3816ca106e37831",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9830-2.4.8-7",
@@ -1053,9 +1053,9 @@
       "unit-sha": "6fdd6eaec27e0a70",
       "claim-sha": "586ee02023689776",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
-      "producer-sha": "5ff7d5703bc38cb1",
-      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+      "producer-sha": "579be1c9da3a0d46",
+      "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

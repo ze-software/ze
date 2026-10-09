@@ -82,7 +82,7 @@ func (c *pathsLimitChanges) release() {
 // receiver's limit in a negotiated ADD-PATH send direction constrains this side.
 func (s *Session) initPathsLimit(encoding *capability.EncodingCaps) {
 	s.pathsLimit = nil
-	s.pathsLimitTotals = pathsLimitSendCounts{}
+	s.updateSendTotals = updateSendCounts{}
 	if encoding == nil {
 		return
 	}
@@ -289,30 +289,30 @@ func (s *Session) filterPathsLimit(dst, body []byte, changes *pathsLimitChanges)
 	return n, dropped, nil
 }
 
-// These totals count only PATHS-LIMIT decisions. A commit subtracts its own
-// serialized write's delta, not changes made by concurrent plugin writers.
-type pathsLimitSendCounts struct {
-	routes  uint64
-	updates uint64
+// These totals count the final writer's accepted messages and route directions.
+// A commit retains its serialized write's delta even beside a later refusal.
+type updateSendCounts struct {
+	announcedRoutes uint64
+	withdrawnRoutes uint64
+	updates         uint64
 }
 
-type pathsLimitCommitSender struct {
-	peer     *Peer
-	withheld pathsLimitSendCounts
+type commitUpdateSender struct {
+	peer   *Peer
+	counts updateSendCounts
 }
 
-func (c *pathsLimitCommitSender) SendUpdate(update *message.Update) error {
+func (c *commitUpdateSender) SendUpdate(update *message.Update) error {
 	c.peer.mu.RLock()
 	session := c.peer.session
 	c.peer.mu.RUnlock()
 	if session == nil {
 		return ErrNotConnected
 	}
-	var counts pathsLimitSendCounts
-	if err := session.sendUpdateCounted(context.Background(), update, &counts, false, nil); err != nil {
-		return err
-	}
-	c.withheld.routes += counts.routes
-	c.withheld.updates += counts.updates
-	return nil
+	var counts updateSendCounts
+	err := session.sendUpdateCounted(context.Background(), update, &counts, false, nil)
+	c.counts.announcedRoutes += counts.announcedRoutes
+	c.counts.withdrawnRoutes += counts.withdrawnRoutes
+	c.counts.updates += counts.updates
+	return err
 }

@@ -201,7 +201,7 @@ func TestPrefixSIDAllowedTo(t *testing.T) {
 
 // TestPrefixSIDSuppressIsRecordedOnce proves the RFC 8669 Section 8 suppression
 // and the RFC 9252 Section 2 next-hop-change removal of the SRv6 Service TLVs do
-// not both record an operation for the same destination: applyFactsNextHop
+// not both record an operation for the same destination: applyEgressPrefixSIDNextHop
 // records its Remove only for a destination Section 8 allows the attribute to.
 //
 // A duplicate would be harmless on the wire, because the handler folds every
@@ -227,6 +227,8 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 
 		var mods filterapi.ModAccumulator
 		applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
+		received := nextHopValue{mp: netip.MustParseAddr("2001:db8::9")}
+		applyEgressPrefixSIDNextHop(&facts, &mods, received, received, true)
 		applyFactsPrefixSID(&facts, true, &mods)
 		assert.Equal(t, 1, countCode40(&mods), "the Section 8 suppression is the only one")
 	})
@@ -242,6 +244,8 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 
 		var mods filterapi.ModAccumulator
 		applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
+		received := nextHopValue{mp: netip.MustParseAddr("2001:db8::9")}
+		applyEgressPrefixSIDNextHop(&facts, &mods, received, received, true)
 		applyFactsPrefixSID(&facts, true, &mods)
 		assert.Equal(t, 1, countCode40(&mods), "the next-hop rail records nothing for a destination Section 8 refuses")
 	})

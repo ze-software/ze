@@ -1,0 +1,286 @@
+# Test: RFC2545 joint common-subnet condition over distinct S/P/N namespaces
+# RFC requirement: RFC2545-3-3 positive -- a received pair on one real common subnet reaches P unchanged.
+# RFC requirement: RFC2545-3-3 negative -- split links and either routed entity omit only the link-local half.
+# RFC requirement: RFC2545-3-4 positive -- each negative emits exactly the global-only field and unchanged NLRI without withdrawal.
+# RFC requirement: RFC2545-3-4 negative -- the real common-link positive retains both received addresses.
+# RFC2545 Section 3: "The link-local address shall be included in the Next Hop
+# field if and only if the BGP speaker shares a common subnet with the entity
+# identified by the global IPv6 address carried in the Network Address of Next
+# Hop field and the peer the route is being advertised to."
+# MUTATION: retain received pairs with independent union-membership checks,
+# bypass either shared-prefix condition, or strip all received pairs.
+# S owns a::1 on A, b::1 on B, or both in the split case. P owns a::2.
+# N owns a::9 on the common link, otherwise b::9, and advertised fe80::9 on n0.
+# Routed negatives use P or N as the intermediate router. Kernel ownership and
+# veth/bridge attachment are read back before traffic, without ND/liveness claims.
+# Source and receiver linger until the receiver has checked the subject and the
+# following different-MED control. The fixture joins output copiers at teardown
+# and refuses late rejection markers. Setup/deadline failures are not RFC reds.
+# RFC2545-3-6 third-party origination is not exercised or claimed here.
+option=needs-linux:caps=net-admin
+option=timeout:value=400s
+option=env:var=ze_test_bgp_port:value=$PORT
+
+# same-link: exact MP_REACH attribute includes length, addresses, reserved octet and NLRI.
+tmpfs=same-link/inject.peer:terminator=EOF_INJECT
+option=asn:value=65004
+option=bind:value=2001:db8:a::9
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0053020000003C4001010040020602010000FDEC800E2C0002012020010DB8000A00000000000000000009FE800000000000000000000000000009003020010DB85701
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004A02000000334001010040020602010000FDEC80040400000007800E1C0002011020010DB8000A00000000000000000009003020010DB85702
+EOF_INJECT
+
+tmpfs=same-link/receive.peer:terminator=EOF_RECEIVE
+option=asn:value=65003
+option=bind:value=2001:db8:a::2
+option=linger:value=true
+option=established-file:path=same-link/ready
+expect=bgp:conn=1:seq=1:contains=800E2C0002012020010DB8000A00000000000000000009FE800000000000000000000000000009003020010DB85701
+expect=bgp:conn=1:seq=2:contains=800E1C0002011020010DB8000A00000000000000000009003020010DB85702
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85701
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85702
+EOF_RECEIVE
+
+tmpfs=same-link/ze.conf:terminator=EOF_CONF
+plugin {
+    internal rs { use bgp-rs; }
+}
+bgp {
+    peer inject {
+        connection {
+            remote { ip 2001:db8:a::9; }
+            local { ip 2001:db8:a::1; accept false; }
+            ttl { set 3; }
+        }
+        session {
+            asn { local 65001; remote 65004; }
+            router-id 10.254.5.1;
+            next-hop unchanged;
+            family { ipv6/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { rs-fast-path enable; }
+        timer { connect-retry 2; }
+    }
+    peer receive {
+        connection {
+            remote { ip 2001:db8:a::2; }
+            local { ip 2001:db8:a::1; accept false; }
+            ttl { set 3; }
+        }
+        session {
+            asn { local 65001; remote 65003; }
+            router-id 10.254.5.1;
+            next-hop unchanged;
+            family { ipv6/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { rs-fast-path enable; }
+        timer { connect-retry 2; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/rfc2545-joint-subnet case same-link netns zejs1$PORT peer router same-link/receive.peer peer-after same-link/ready far same-link/inject.peer run ze start same-link/ze.conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=TOPOLOGY-PASSED: same-link distinct S/P/N address owners and veth attachments
+expect=stderr:contains=WIRE-PASSED: recipient subject and completion fence; both peers held open
+reject=stdout:pattern=ZE-PEER-REJECTED
+reject=stderr:pattern=panic recovered
+# split-link: exact MP_REACH attribute includes length, addresses, reserved octet and NLRI.
+tmpfs=split-link/inject.peer:terminator=EOF_INJECT_SPLIT
+option=asn:value=65004
+option=bind:value=2001:db8:b::9
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0053020000003C4001010040020602010000FDEC800E2C0002012020010DB8000B00000000000000000009FE800000000000000000000000000009003020010DB85701
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004A02000000334001010040020602010000FDEC80040400000007800E1C0002011020010DB8000B00000000000000000009003020010DB85702
+EOF_INJECT_SPLIT
+
+tmpfs=split-link/receive.peer:terminator=EOF_RECEIVE_SPLIT
+option=asn:value=65003
+option=bind:value=2001:db8:a::2
+option=linger:value=true
+option=established-file:path=split-link/ready
+expect=bgp:conn=1:seq=1:contains=800E1C0002011020010DB8000B00000000000000000009003020010DB85701
+expect=bgp:conn=1:seq=2:contains=800E1C0002011020010DB8000B00000000000000000009003020010DB85702
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85701
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85702
+reject=bgp:conn=1:pattern=FE800000000000000000000000000009
+EOF_RECEIVE_SPLIT
+
+tmpfs=split-link/ze.conf:terminator=EOF_CONF_SPLIT
+plugin {
+    internal rs { use bgp-rs; }
+}
+bgp {
+    peer inject {
+        connection {
+            remote { ip 2001:db8:b::9; }
+            local { ip 2001:db8:b::1; accept false; }
+            ttl { set 3; }
+        }
+        session {
+            asn { local 65001; remote 65004; }
+            router-id 10.254.5.1;
+            next-hop unchanged;
+            family { ipv6/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { rs-fast-path enable; }
+        timer { connect-retry 2; }
+    }
+    peer receive {
+        connection {
+            remote { ip 2001:db8:a::2; }
+            local { ip 2001:db8:a::1; accept false; }
+            ttl { set 3; }
+        }
+        session {
+            asn { local 65001; remote 65003; }
+            router-id 10.254.5.1;
+            next-hop unchanged;
+            family { ipv6/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { rs-fast-path enable; }
+        timer { connect-retry 2; }
+    }
+}
+EOF_CONF_SPLIT
+
+cmd=foreground:seq=2:exec=le test fixture plugin/rfc2545-joint-subnet case split-link netns zejs2$PORT peer router split-link/receive.peer peer-after split-link/ready far split-link/inject.peer run ze start split-link/ze.conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=TOPOLOGY-PASSED: split-link distinct S/P/N address owners and veth attachments
+expect=stderr:contains=WIRE-PASSED: recipient subject and completion fence; both peers held open
+reject=stdout:pattern=ZE-PEER-REJECTED
+reject=stderr:pattern=panic recovered
+# entity-off-link: exact MP_REACH attribute includes length, addresses, reserved octet and NLRI.
+tmpfs=entity-off-link/inject.peer:terminator=EOF_INJECT_ENTITY
+option=asn:value=65004
+option=bind:value=2001:db8:b::9
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0053020000003C4001010040020602010000FDEC800E2C0002012020010DB8000B00000000000000000009FE800000000000000000000000000009003020010DB85701
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004A02000000334001010040020602010000FDEC80040400000007800E1C0002011020010DB8000B00000000000000000009003020010DB85702
+EOF_INJECT_ENTITY
+
+tmpfs=entity-off-link/receive.peer:terminator=EOF_RECEIVE_ENTITY
+option=asn:value=65003
+option=bind:value=2001:db8:a::2
+option=linger:value=true
+option=established-file:path=entity-off-link/ready
+expect=bgp:conn=1:seq=1:contains=800E1C0002011020010DB8000B00000000000000000009003020010DB85701
+expect=bgp:conn=1:seq=2:contains=800E1C0002011020010DB8000B00000000000000000009003020010DB85702
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85701
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85702
+reject=bgp:conn=1:pattern=FE800000000000000000000000000009
+EOF_RECEIVE_ENTITY
+
+tmpfs=entity-off-link/ze.conf:terminator=EOF_CONF_ENTITY
+plugin {
+    internal rs { use bgp-rs; }
+}
+bgp {
+    peer inject {
+        connection {
+            remote { ip 2001:db8:b::9; }
+            local { ip 2001:db8:a::1; accept false; }
+            ttl { set 3; }
+        }
+        session {
+            asn { local 65001; remote 65004; }
+            router-id 10.254.5.1;
+            next-hop unchanged;
+            family { ipv6/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { rs-fast-path enable; }
+        timer { connect-retry 2; }
+    }
+    peer receive {
+        connection {
+            remote { ip 2001:db8:a::2; }
+            local { ip 2001:db8:a::1; accept false; }
+            ttl { set 3; }
+        }
+        session {
+            asn { local 65001; remote 65003; }
+            router-id 10.254.5.1;
+            next-hop unchanged;
+            family { ipv6/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { rs-fast-path enable; }
+        timer { connect-retry 2; }
+    }
+}
+EOF_CONF_ENTITY
+
+cmd=foreground:seq=3:exec=le test fixture plugin/rfc2545-joint-subnet case entity-off-link netns zejs3$PORT peer router entity-off-link/receive.peer peer-after entity-off-link/ready far entity-off-link/inject.peer run ze start entity-off-link/ze.conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=TOPOLOGY-PASSED: entity-off-link distinct S/P/N address owners and veth attachments
+expect=stderr:contains=WIRE-PASSED: recipient subject and completion fence; both peers held open
+reject=stdout:pattern=ZE-PEER-REJECTED
+reject=stderr:pattern=panic recovered
+# recipient-off-link: exact MP_REACH attribute includes length, addresses, reserved octet and NLRI.
+tmpfs=recipient-off-link/inject.peer:terminator=EOF_INJECT_RECIPIENT
+option=asn:value=65004
+option=bind:value=2001:db8:b::9
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0053020000003C4001010040020602010000FDEC800E2C0002012020010DB8000B00000000000000000009FE800000000000000000000000000009003020010DB85701
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004A02000000334001010040020602010000FDEC80040400000007800E1C0002011020010DB8000B00000000000000000009003020010DB85702
+EOF_INJECT_RECIPIENT
+
+tmpfs=recipient-off-link/receive.peer:terminator=EOF_RECEIVE_RECIPIENT
+option=asn:value=65003
+option=bind:value=2001:db8:a::2
+option=linger:value=true
+option=established-file:path=recipient-off-link/ready
+expect=bgp:conn=1:seq=1:contains=800E1C0002011020010DB8000B00000000000000000009003020010DB85701
+expect=bgp:conn=1:seq=2:contains=800E1C0002011020010DB8000B00000000000000000009003020010DB85702
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85701
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85702
+reject=bgp:conn=1:pattern=FE800000000000000000000000000009
+EOF_RECEIVE_RECIPIENT
+
+tmpfs=recipient-off-link/ze.conf:terminator=EOF_CONF_RECIPIENT
+plugin {
+    internal rs { use bgp-rs; }
+}
+bgp {
+    peer inject {
+        connection {
+            remote { ip 2001:db8:b::9; }
+            local { ip 2001:db8:b::1; accept false; }
+            ttl { set 3; }
+        }
+        session {
+            asn { local 65001; remote 65004; }
+            router-id 10.254.5.1;
+            next-hop unchanged;
+            family { ipv6/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { rs-fast-path enable; }
+        timer { connect-retry 2; }
+    }
+    peer receive {
+        connection {
+            remote { ip 2001:db8:a::2; }
+            local { ip 2001:db8:b::1; accept false; }
+            ttl { set 3; }
+        }
+        session {
+            asn { local 65001; remote 65003; }
+            router-id 10.254.5.1;
+            next-hop unchanged;
+            family { ipv6/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { rs-fast-path enable; }
+        timer { connect-retry 2; }
+    }
+}
+EOF_CONF_RECIPIENT
+
+cmd=foreground:seq=4:exec=le test fixture plugin/rfc2545-joint-subnet case recipient-off-link netns zejs4$PORT peer router recipient-off-link/receive.peer peer-after recipient-off-link/ready far recipient-off-link/inject.peer run ze start recipient-off-link/ze.conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=TOPOLOGY-PASSED: recipient-off-link distinct S/P/N address owners and veth attachments
+expect=stderr:contains=WIRE-PASSED: recipient subject and completion fence; both peers held open
+reject=stdout:pattern=ZE-PEER-REJECTED
+reject=stderr:pattern=panic recovered

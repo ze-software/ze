@@ -179,6 +179,17 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 		return interoplab.PreparedScenario{Cleanup: func() error { return os.RemoveAll(rendered) }}, err
 	}
 	peers, err := scenarioPeers(producer, rendered, suffix, prepare.Network)
+	if prepare.Source.Name == rfc2545Scenario {
+		// Own the advertised Link-Local before Ze snapshots its interfaces.
+		setup := name.Reset().Str("ip -6 address add ").Addr(rfc2545LinkLocal(prepare.Network)).
+			Str("/64 dev eth0 nodad\nexec ze \"$@\"").String()
+		for i := range peers {
+			if peers[i].Name == "ze" {
+				peers[i].Arguments = append(peers[i].Arguments, dockerEntrypointFlag, "/bin/sh")
+				peers[i].Command = append([]string{shellErrexitCommand, setup, "--"}, peers[i].Command...)
+			}
+		}
+	}
 	return interoplab.PreparedScenario{
 		Peers: peers,
 		Cleanup: func() error {
@@ -219,6 +230,12 @@ func renderScenario(source, target string, network interoplab.Network) error {
 			text := strings.ReplaceAll(string(data), baseIPv4Prefix, ipv4Token)
 			if ipv6Token != "" {
 				text = strings.ReplaceAll(text, baseIPv6Prefix, ipv6Token)
+			}
+			if strings.Contains(text, rfc2545LinkLocalToken) {
+				if !network.IPv6.IsValid() {
+					return errors.New("RFC 2545 link-local rendering requires an IPv6 network")
+				}
+				text = strings.ReplaceAll(text, rfc2545LinkLocalToken, rfc2545LinkLocal(network).String())
 			}
 			if relative == "inject.msg" {
 				text = renderInjectedNextHops(text, ipv4)
@@ -523,4 +540,21 @@ func networkHostAddress6(network interoplab.Network, host uint8) string {
 	octets := network.IPv6.Masked().Addr().As16()
 	octets[15] = host
 	return netip.AddrFrom16(octets).String()
+}
+
+const (
+	rfc2545Scenario       = "bgp-rfc2545-linklocal-nexthop-frr"
+	rfc2545LinkLocalToken = "@ZE_LINK_LOCAL@"
+)
+
+// rfc2545LinkLocal puts the selected lab prefix and Ze's host number in the
+// interface identifier. prepareScenario assigns it to Ze's eth0 before startup;
+// rendering and the checker use this same address rather than an unowned literal.
+func rfc2545LinkLocal(network interoplab.Network) netip.Addr {
+	prefix := network.IPv6.Masked().Addr().As16()
+	return netip.AddrFrom16([16]byte{
+		0xfe, 0x80,
+		8: prefix[0], 9: prefix[1], 10: prefix[2], 11: prefix[3],
+		12: prefix[4], 13: prefix[5], 15: 2,
+	})
 }

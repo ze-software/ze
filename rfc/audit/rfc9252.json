@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-04",
+  "audited": "2026-10-09",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -129,34 +129,46 @@
       "verdict": "enforced"
     },
     "RFC9252-3.3-1": {
-      "note": "The missing wire tag is now present: TestRFC9252ReservedFieldsPropagatedUnchanged relays, with the next hop unchanged, on the general and route-server rails, L3 and L2 Service TLVs with TLV RESERVED 0xA5, SID Information Sub-TLV RESERVED1 0x5A and RESERVED2 0xC3 (layout checked against rfc9252.txt Section 2, 3.1, 3.2.1; the SID Structure Sub-Sub-TLV has no Reserved field), an unrecognized Sub-TLV 0xF0 and Sub-Sub-TLV 0xEE, and asserts attribute 40 byte-identical plus the source next hop; a zeroing or dropping rail goes red. Observed red with applyFactsNextHop broken. Negative stays on TestPrefixSIDPropagationNextHop: the propagation is conditional, and with the next hop changed the Service TLVs are named for removal (observed red).",
+      "note": "Rejudged the whole RFC 9252 Section 2 unchanged-next-hop propagation and Reserved-field obligation after the implemented identity-condition fix. applyFactsNextHop now records only next-hop operations; applyEgressPrefixSIDNextHop compares the original received entity with the final effective carrier after policy, configured rewriting and scope normalization on cached and RS paths. Equal identity records no Service-TLV removal, including explicit A-to-A and configured restoration of the original address. The migrated TestPrefixSIDPropagationNextHop and new TestRFC9252EffectiveNextHopControlsServiceTLVs inspect actual recipient Session output after validated receipt and cache publication, asserting exact Service-TLV Reserved and unknown nested bytes for unchanged identity, with changed-identity counter-controls. The matrix covers native IPv6/VPNv6 carriers, operation and raw-policy changes, RS export fallback, mixed legacy/MP output, pair trimming and repaired intermediate addressless MP fields. MP carrier presence is selected by base.mpFamily rather than address validity, so a legacy sibling or absent companion operation cannot decide the MP service identity. The earlier reserved-field fixture remains complementary materialized-body evidence, not the sole end-to-end proof. Legacy/mapped and extra L2 fixtures are propagation controls, not claims of service origination or EVPN support. The former explicit-equality defect is fixed, not retained as a scope gap.",
       "requirement_sha": "a14cd59919a27569",
       "tests": {
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "91d588c10fec0c6e",
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "91d588c10fec0c6e",
+        "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "6b36e3edb7d65a62",
+        "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "6b36e3edb7d65a62",
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "ecf02c1d9bcb0077",
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "ecf02c1d9bcb0077",
         "internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go::TestRFC9252ReservedFieldsPropagatedUnchanged": "1e5dc6de8905bcd3"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "29df0bd665ea969c",
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "29df0bd665ea969c",
+        "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "93ff09b4d091ecc0",
+        "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "93ff09b4d091ecc0",
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "6c50bed30bbf7b9b",
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "6c50bed30bbf7b9b",
         "internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go::TestRFC9252ReservedFieldsPropagatedUnchanged": "104fdfe95b708141"
       },
       "verdict": "enforced"
     },
     "RFC9252-3.3-2": {
-      "note": "The wire tag the previous note asked for is present: TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange, now tagged +, relays with next-hop-self on both rails a Prefix-SID whose L3 Service TLV carries an unrecognized Sub-TLV 0xF0 and Sub-Sub-TLV 0xEE, and asserts attribute 40 absent while the route arrives with the new next hop and its NLRI; a handler ignoring the Remove (the KeepAll the old note named) would put attribute 40 on the wire and go red. Observed red with prefixSIDNextHopHandler broken. Negative on TestPrefixSIDPropagationNextHop (next hop unchanged: no removal op). The SHOULD half (rebuild with a locally allocated SID) is not done: Ze allocates none; the MUST (unrecognized removed) is met by removing the whole Service TLVs.",
-      "requirement_sha": "332f8de9d0c327f1",
+      "code": {
+        "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop": "eef3ac381164d635",
+        "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDNextHopHandler": "0be0ed3c6f6d19d3"
+      },
+      "note": "Tested: \u2018Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed.\u2019 Gap: \u2018SHOULD be updated with the locally allocated SRv6 SID information.\u2019 Producer: internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop. Independent post-fix review confirms that original received identity is compared with final effective carrier identity after policy/configuration/scope on cached and RS paths, including raw-policy fallback and repaired intermediate addressless MP fields. The registered prefixSIDNextHopHandler consumes Remove of types 5 and 6 while retaining unrelated top-level TLVs. Migrated TestPrefixSIDPropagationNextHop and TestRFC9252EffectiveNextHopControlsServiceTLVs inspect actual recipient Session output: effective A-to-B removes Service TLVs and unknown nested fields while the route survives; A-to-A and restoration controls preserve them; mixed MP/legacy cases follow the applicable MP identity; unknown top-level TLVs and SRGB remain, with Label-Index transmit normalization tested separately. The older service-only test supplies complementary removal evidence, and the new actual-writer service-only cases forbid an empty attribute. The policy-only-change and equal-address defects are fixed, not scoped away. Locally allocated SRv6 SID information is still not produced to rebuild the service information, so the whole SHOULD-plus-MUST quotation remains partial. No local SID allocation is commissioned, and pending live FRR/SDK or native-record completion is not claimed by this source judgment.",
+      "requirement_sha": "2eaaad937d8e63dd",
       "tests": {
-        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "c845a4b49b1894c0",
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "91d588c10fec0c6e",
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "91d588c10fec0c6e"
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "35a0672bf6b8628a",
+        "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "6b36e3edb7d65a62",
+        "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "6b36e3edb7d65a62",
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "ecf02c1d9bcb0077",
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "ecf02c1d9bcb0077"
       },
       "units": {
         "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "2214ed49b4ee3c25",
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "29df0bd665ea969c",
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "29df0bd665ea969c"
+        "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "93ff09b4d091ecc0",
+        "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "93ff09b4d091ecc0",
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "6c50bed30bbf7b9b",
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "6c50bed30bbf7b9b"
       },
-      "verdict": "enforced"
+      "verdict": "partial"
     },
     "RFC9252-3.4-1": {
       "note": "Section 7 lists the malformed cases. Asserted to give treat-as-withdraw: trailing bytes after the last Sub-TLV (TestValidateSRv6ServiceTLV_TrailingBytes) and a SID Information Sub-TLV under 21 octets (TestValidateSRv6ServiceTLV_SIDInfoTooShort). Not asserted by any tagged unit: TLV Length less than 1, and TLV Length inconsistent with the Prefix-SID attribute length. The second one gives the wrong action: validatePrefixSIDAttr answers RFC7606ActionAttributeDiscard for a type 5 or 6 TLV that overruns the attribute, not treat-as-withdraw.",

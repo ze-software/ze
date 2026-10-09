@@ -728,13 +728,30 @@ following ingest and export rules can remove or change the attribute:
 |------|--------------|-------|
 | An EBGP source not configured with `accept-srv6-prefix-sid` (RFC 8669 Section 4) | The attribute is discarded before publication | `Session.enforceRFC7606`, see [SRv6](../../features/srv6.md) |
 | A repeated single-occurrence TLV (RFC 8669 Section 6, RFC 9252 Section 7) | Every copy after the first is discarded at ingest, so every consumer sees the attribute without it | `discardRepeatedPrefixSIDTLVs`, described below |
-| The next hop changes toward a destination (RFC 9252 Section 2) | The SRv6 L3 and L2 Service TLVs are removed and every other TLV is kept; an attribute left with no TLV is removed | `prefixSIDNextHopHandler` |
+| The effective next-hop entity changes toward a destination, after export policy and configured rewriting (RFC 9252 Section 2) | The SRv6 L3 and L2 Service TLVs are removed and every other TLV is kept; an attribute left with no TLV is removed. An explicit rewrite to the received address preserves the Service TLVs | `applyEgressPrefixSIDNextHop`, `prefixSIDNextHopHandler` |
 | An EBGP destination the operator has not configured for propagation (RFC 8669 Section 8) | The attribute is removed, on every rail that writes an UPDATE | `prefixSIDAllowedTo`, see [SRv6](../../features/srv6.md) |
 | A transmitted Label-Index TLV (RFC 8669 Section 3.1) | Its Reserved octet and both Flags octets are cleared in the private outgoing buffer; received storage and Originator SRGB bytes are unchanged | `clearTransmittedLabelIndex` |
 
 <!-- source: internal/component/bgp/reactor/session_validation.go -- Session.enforceRFC7606 and discardRepeatedPrefixSIDTLVs -->
 <!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
+
+The comparison uses the original received address and the final address for the
+route's actual legacy or MP field, including raw export-policy replacements.
+`auto` and `unchanged` do not exempt a policy-written change. IPv4-mapped and
+native IPv4 spellings identify the same address; VPN Route Distinguishers are not
+addresses. Adding or trimming the optional Link-Local half of a Global pair does
+not change its Global entity. In the permitted absent-global VPN pair, the
+Link-Local identifies the next hop instead. Ze removes received Service TLVs on
+a change; it does not allocate or rebuild local Service SIDs.
+RFC 9252's service carriers use MP_REACH. When a legacy sibling is also present,
+its independent NEXT_HOP does not govern the MP service. Legacy-only input keeps
+the same propagation safeguard; that is not an SRv6 origination capability.
+An MP carrier remains present when raw export policy temporarily leaves its
+next-hop field empty or undecodable. If a configured rewrite repairs that field
+before admission, the repaired address governs Service-TLV propagation; an
+unrelated legacy next hop or an unusable intermediate value cannot replace it.
+<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- applyEgressPrefixSIDNextHop -->
 
 **A repeated single-occurrence TLV is discarded at ingest.** RFC 8669 Section 6
 requires a receiver to discard every occurrence after the first of a TLV whose

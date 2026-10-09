@@ -315,9 +315,9 @@ type Session struct {
 	// that bufio has already sent without retaining buffered bytes.
 	writePending bool
 
-	// Negotiated sender limits and advertised path identities, owned by writeMu.
+	// Negotiated sender limits and final write totals, owned by writeMu.
 	pathsLimit       map[capability.Family]*pathsLimitFamily
-	pathsLimitTotals pathsLimitSendCounts
+	updateSendTotals updateSendCounts
 
 	// Error channel for timer callbacks to signal errors.
 	errChan chan error

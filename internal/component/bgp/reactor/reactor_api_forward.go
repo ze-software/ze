@@ -792,17 +792,11 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			aigpCostWithheld = applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), update.SourcePeerIP, srcAIGPLinkMetric, &mods)
 		}
 
-		// draft-ietf-idr-linklocal-capability Section 4: "When sending a message
-		// to an external peer X, and the peer is multiple IP hops away from the
-		// speaker (aka "multihop EBGP"): * Link-Local IPv6 next hops MUST NOT be
-		// included." A received Global plus Link-Local next hop relayed to a peer
-		// more than one hop away keeps its Global alone
-		// (egressNextHopGlobalHalf, forward_next_hop.go, which also quotes the
-		// internal-peer sentence and RFC 2545 Section 3). Recorded before the
-		// gates below, so they read the field that will be written.
-		if global, strip := egressNextHopGlobalHalf(peer, &mods, peerBaseWire.Payload(), baseNextHop.mpFamily); strip {
-			mods.Op(14, filterapi.AttrModSet, global)
-		}
+		// RFC 2545 Section 3; draft-ietf-idr-linklocal-capability Section 4.
+		// Normalize the effective policy field before the gates read it:
+		// append the speaker's available own LL on a common subnet, or trim
+		// a valid pair outside that subnet. Policy is not run again.
+		applyEgressNextHopScope(peer, facts, &mods, peerBaseWire.Payload(), baseNextHop.mpFamily)
 
 		// The egress gates that refuse an announcement because of the next hop
 		// about to be written: RFC 4271 Section 5.1.3 (next-hop self with no
@@ -855,6 +849,11 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			baseHasPrefixSID = payloadHasAttr(peerBaseWire.Payload(), attribute.AttrPrefixSID)
 		}
 		applyFactsPrefixSID(facts, baseHasPrefixSID, &mods)
+		// RFC 9252 Section 2: compare the original received entity with
+		// the effective field after policy, configured rewriting and scope.
+		if !mods.IsWithdraw() {
+			applyEgressPrefixSIDNextHop(facts, &mods, srcNextHop, baseNextHop, baseHasPrefixSID)
+		}
 
 		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
 		// reaches another. Asked over the same two payloads, and for the same
@@ -1247,27 +1246,6 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	}
 
 	return nil
-}
-
-// addPathForUpdate determines the ADD-PATH flag for splitting a parsed UPDATE.
-// RFC 7911: ADD-PATH is negotiated per AFI/SAFI. UPDATEs contain either:
-//   - IPv4 unicast NLRIs in the legacy NLRI field (no MP attributes)
-//   - MP_REACH_NLRI/MP_UNREACH_NLRI for other families
-//
-// This extracts the dominant family and queries the destination's context.
-func addPathForUpdate(ctx *bgpctx.EncodingContext, u *message.Update) bool {
-	if ctx == nil {
-		return false
-	}
-
-	// Check for MP_REACH_NLRI (type 14) to determine family.
-	// Attribute format: [flags:1][type:1][len:1-2][AFI:2][SAFI:1]...
-	if fam, ok := message.ExtractMPFamily(u.PathAttributes); ok {
-		return ctx.AddPathFor(fam)
-	}
-
-	// No MP attributes — IPv4 unicast (legacy NLRI field).
-	return ctx.AddPathFor(family.IPv4Unicast)
 }
 
 // DeleteUpdate removes an update from the cache without forwarding.

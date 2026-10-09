@@ -20,17 +20,23 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"log/slog"
+	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 // exportFilterForBody runs the destination peer's export filter chain on the wire
 // body of an outbound (non-forwarded, non-EOR) route UPDATE, by delegating to the
-// SAME chain body forwardUpdateCore uses (runEgressPolicyChainASN4). Returns
-// suppress=true to drop the route for this peer, or override != nil to write a
-// rewritten body instead. Zero-cost when the peer has no export filters (the
-// common case).
+// SAME chain body forwardUpdateCore uses (runEgressPolicyChainASN4). It then
+// normalizes the effective ordinary IPv6 next hop, even with no active filters.
+// Returns suppress=true to drop the route for this peer, or override != nil to
+// write a rewritten body instead. Unchanged bodies are neither allocated nor copied.
 //
 // It must not re-implement the chain: this function used to "mirror"
 // forwardUpdateCore and honored only Reject and raw overrides, so every
@@ -46,56 +52,155 @@ import (
 // peer's own keepalives/routes, which writeMu serializes regardless.
 func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override []byte) {
 	facts := peer.forwardFacts()
-	// nil facts (peer not established -- peer_forward_facts.go:35) and a chain
-	// with no ref that can execute are legitimate ACCEPTS: absent preconditions,
-	// not guard misses. A not-established peer has no session on which a route
-	// reaches the wire; a chain that is empty, or that holds only deactivated
-	// refs, applies no export policy, because PolicyFilterChain skips a ref
-	// marked Inactive (filter_chain.go). Keep the zero-cost skip for both.
-	//
-	// Reading the raw length here would fail closed below on a chain the
-	// operator switched off, while reactorForwardRS forwards the same route for
-	// the same peer: one rail honors the opt-out and the other blackholes on it.
-	// hasActiveFilter (forward_rs.go) is the one predicate both rails ask.
-	if facts == nil || !hasActiveFilter(facts.exportFilters) {
+	if facts == nil {
+		// No established forwarding snapshot: retain the existing admission.
 		return false, nil
 	}
-	// facts present AND an ACTIVE export filter: this peer HAS an export
-	// policy whose purpose is to reject. A nil API server means the filter
-	// engine that enforces it is absent -- a guard MISS, not an accept. Fail
-	// closed and speak, exactly as policyFilterFunc (filter_chain.go:368-371:
-	// Warn + PolicyReject) and default-originate (peer_initial_sync.go) already
-	// do for this identical r.api == nil condition. Silently accepting would
-	// send the route unfiltered and leak whatever the export policy exists to
-	// strip (e.g. RFC 6996 private ASNs). See
-	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md.
-	if r.api == nil {
-		slog.Warn("export filter: no API server -- fail-closed", "peer", facts.addrStr)
+	// Inactive refs skip policy, not Section 3 normalization. Testing raw chain
+	// length would wrongly fail closed for a policy the operator switched off.
+	if hasActiveFilter(facts.exportFilters) {
+		// An active export policy needs its engine. Preserve the same fail-closed
+		// decision as policyFilterFunc and default-originate.
+		if r.api == nil {
+			slog.Warn("export filter: no API server -- fail-closed", "peer", facts.addrStr)
+			return true, nil
+		}
+		// The body is already encoded in THIS peer's SEND context. Passing 0
+		// loses ASN4 attributes from filter text and silently defeats matches.
+		wireUpdate := wireu.NewWireUpdate(body, facts.sendCtxID)
+		res := r.runEgressPolicyChainASN4(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, wireUpdate, facts.sendASN4)
+		if !res.accept {
+			return true, nil
+		}
+		if res.wireOverride != nil {
+			override = res.wireOverride.Payload()
+			body = override
+		}
+	}
+
+	// RFC 2545 Section 3: the common-subnet condition judges the effective
+	// post-policy field, including when the destination has no active policy.
+	normalized, fail := r.normalizeOrdinaryNextHop(peer, facts, body)
+	r.recordModifyFailureAddr(fail, modifySiteExportChain, facts.addr)
+	if fail.failed() {
 		return true, nil
 	}
-	// The body was encoded by the session write path in THIS peer's SEND context,
-	// so that is the context its attributes must be parsed under -- and likewise
-	// why asn4 is facts.sendASN4 rather than a source-context lookup.
-	//
-	// Passing 0 here renders an attribute-less filter text ("nlri ipv4/unicast add
-	// 10.0.0.0/24"), because AttributesWire is constructed with the wire's ctxID
-	// (wireu/wire_update.go:106) and cannot decode ASN4 AS_PATH without it. Every
-	// attribute-matching filter then sees no attributes, returns Accept, and the
-	// route goes out unfiltered. That is the second half of the private-ASN leak.
-	wireUpdate := wireu.NewWireUpdate(body, facts.sendCtxID)
-	res := r.runEgressPolicyChainASN4(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, wireUpdate, facts.sendASN4)
-	if !res.accept {
-		return true, nil
+	if normalized != nil {
+		// The nil-pool rebuild owns this result; no second copy is needed.
+		return false, normalized
 	}
-	if res.wireOverride == nil {
+	if override == nil {
 		return false, nil
 	}
-	// Copy: the caller (writeUpdate) hands the override straight to
-	// writeRawUpdateBody, which stages through the same session writeBuf that
-	// `body` may alias. buildModifiedPayload's nil-pool path already returns a
-	// freshly allocated slice, but the raw-override branch does not, so copy
-	// unconditionally rather than depend on which branch produced it.
-	out := make([]byte, len(res.wireOverride.Payload()))
-	copy(out, res.wireOverride.Payload())
+	// A raw policy override may alias the session's writeBuf. Only copy when
+	// normalization did not already rebuild it into independently owned bytes.
+	out := make([]byte, len(override))
+	copy(out, override)
 	return false, out
+}
+
+// normalizeOrdinaryNextHop applies RFC 2545 Section 3 to a valid effective plain
+// IPv6 field. Invalid roles/widths, mapped and standalone link-local forms remain
+// untouched for writeUpdateGated's existing final admission. VPN and independent
+// layouts are not plain fields and retain their own rules.
+//
+// RFC 2545 Section 3: "The link-local address shall be included in the Next Hop
+// field if and only if the BGP speaker shares a common subnet with the entity
+// identified by the global IPv6 address carried in the Network Address of Next
+// Hop field and the peer the route is being advertised to."
+// "In all other cases a BGP speaker shall advertise to its peer in the
+// Network Address field only the global IPv6 address of the next hop
+// (the value of the Length of Network Address of Next Hop field shall
+// be set to 16)."
+//
+// MP_REACH value offsets (RFC 4760 Section 3; RFC 2545 Section 3):
+//
+//	[0:2] AFI | [2] SAFI | [3] NH length | [4:20] Global
+//	          | [20:36] optional Link-Local | [4+length] Reserved
+//	          | [5+length:] NLRI
+//
+// RFC 8950 Section 3 extends this plain 16/32-octet layout to IPv4 SAFI 1/2/4:
+// "This field is to be constructed as per Section 3 of [RFC2545]."
+// MPNextHopProfile marks those forms IPv6Roles as well as ExtendedIPv6; the
+// rewrite preserves their IPv6 field form, so final capability admission still
+// refuses a recipient that did not negotiate it.
+//
+// A nil result with no failure means identity, as in buildModifiedPayload. The
+// caller MUST suppress on failure and MUST keep the original body on identity.
+func (r *Reactor) normalizeOrdinaryNextHop(peer *Peer, facts *peerForwardFacts, body []byte) ([]byte, modifyFailure) {
+	sections, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		return nil, modifyFailureNone
+	}
+	_, _, value, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrMPReachNLRI)
+	if !found || len(value) < 5 {
+		return nil, modifyFailureNone
+	}
+	octets := int(value[3])
+	// Do not let the rewrite handler drop an attribute missing its reserved
+	// octet, thereby hiding a malformed field from the ordinary writer.
+	if 5+octets > len(value) {
+		return nil, modifyFailureNone
+	}
+	profile := attribute.MPNextHopProfile(attribute.AFI(binary.BigEndian.Uint16(value)), attribute.SAFI(value[2]))
+	if !profile.IPv6Roles || (octets != 16 && octets != 32) {
+		return nil, modifyFailureNone
+	}
+	field := value[4 : 4+octets]
+	global, suppliedLL := nextHopAddr(field)
+	// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1:
+	// validate both original slots before trimming could conceal an invalid one.
+	if message.ValidateMPNextHop(profile, octets, global, suppliedLL) != nil {
+		return nil, modifyFailureNone
+	}
+	if !global.Is6() || !global.IsGlobalUnicast() {
+		// Mapped IPv4 and capability-77 standalone LL keep their exact forms.
+		return nil, modifyFailureNone
+	}
+	if global == facts.addr.Unmap() || suppliedLL == facts.addr.Unmap() {
+		// In particular, stripping a peer-owned LL must not hide the address
+		// from the final RFC 4271 Section 5.1.3 refusal.
+		return nil, modifyFailureNone
+	}
+
+	scope := peer.llScope.Load()
+	var ll netip.Addr
+	if octets == 32 {
+		// RFC 2545 Section 3: one common subnet, not independent memberships.
+		if scope.sharesNextHopSubnet(global) {
+			return nil, modifyFailureNone
+		}
+	} else {
+		owners := facts.nextHopOwners()
+		// LinkLocal is restart-scoped, not hot-swappable (Peer.Settings,
+		// hotSwappableSettings). A reload constructs another Peer rather than
+		// mutating this address, so no p.mu lock or duplicate snapshot is needed.
+		// RFC 2545 Section 3: append only this next-hop entity's own LL, and
+		// only when the same common-subnet predicate permits it.
+		ll = scope.linkLocalNextHop(peer.settings.LinkLocal, global, owners.classify(global))
+		if !ll.IsValid() {
+			return nil, modifyFailureNone
+		}
+	}
+
+	// Only a real size change reaches the allocator. The existing MP_REACH
+	// handler preserves AFI/SAFI, reserved octet and NLRI while recalculating
+	// attribute/section lengths, including the extended-length boundary.
+	var mods filterapi.ModAccumulator
+	if ll.IsValid() {
+		var pair [32]byte
+		copy(pair[:16], field)
+		address := ll.As16()
+		copy(pair[16:], address[:])
+		mods.OpCopy(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, pair[:])
+	} else {
+		mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, field[:16])
+	}
+	// RFC 2545 Section 3; RFC 8654 Section 4. This is a logical ordinary body,
+	// not a complete wire message: writeOrdinaryUpdateBody MUST split it after
+	// final admission. Forward/raw rebuilds keep their complete-message bound.
+	// Growth is one link-local address plus a possible extended length octet.
+	const nextHopGrowthMax = 16 + 1
+	out, _, fail := buildModifiedPayloadWithLimit(body, &mods, r.attrModHandlers, nil, nil, maxUpdateBody+nextHopGrowthMax)
+	return out, fail
 }

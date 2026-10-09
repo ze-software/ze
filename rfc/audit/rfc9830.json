@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-06",
+  "audited": "2026-10-09",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -41,36 +42,36 @@
       "verdict": "enforced"
     },
     "RFC9830-2.3-1": {
-      "note": "Independent semantic rejudgment: RFC9830 Section 2.3: \"If these sub-TLVs are present, a BGP speaker MUST ignore them and MAY remove them from the Tunnel Encapsulation attribute during propagation.\" Current TestRFC9830InapplicableSubTLVsIgnoredOnReceipt isolates endpoint length, duplicate count, and Color on a valid RT/ASN4 SR Policy carrier. Original selective endpoint-length, endpoint-count and Color receive classifiers each fail exact ActionNone and downstream announcement checks while clean policy controls survive. Preference remains 100 and MP_REACH bytes are unchanged through real receive/cache/export. Retention is Ze policy, not an RFC MUST; the MAY-remove clause is not elevated to a preservation mandate. No SRPM consumer is inferred. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
+      "note": "Independent whole-clause rejudgment against RFC 9830 \u00a72.3: \"The Tunnel Egress Endpoint and Color sub-TLVs of the Tunnel Encapsulation Attribute, as defined in [RFC9012], are not utilized for SR Policy encodings. Consequently, their values are not relevant within the context of the SR Policy SAFI NLRI. If these sub-TLVs are present, a BGP speaker MUST ignore them and MAY remove them from the Tunnel Encapsulation Attribute during propagation.\" The current summary has no partial/gap annotation for this requirement. All four current tags were read: both polarities in reactor TestRFC9830InapplicableSubTLVsIgnoredOnReceipt and attribute TestRFC9830EgressEndpointAndColorSubTLVsIgnored. The reactor's positive cases compare a clean policy with individually added endpoint and Color sub-TLVs on actual AFI 1/73 and 2/73 carriers, requiring no error, exactly RFC7606ActionNone, unchanged MP_REACH including its NLRI and next hop, one retained type-15 tunnel, and readable Preference 100. Its negative controls add duplicate endpoints or an endpoint with a one-octet value and require the same outcomes, catching erroneous application of unicast endpoint-count/value validation to an SR Policy. These inputs isolate applicability: teSub/teTLV encode their actual lengths, so the short endpoint has invalid endpoint content but intact sub-TLV and outer framing; teSRPolicyBody supplies a single type-15 TLV, correctly sized policy NLRI, ORIGIN, four-octet AS_SEQUENCE 65002 and an IPv4-format Route Target, with no legacy announcement. The attribute positive control reads equal Preference values with and without endpoint/Color; its separate negative control changes the applicable Preference from 4242 to 9999 and requires a changed result, excluding blanket disregard of all sub-TLVs. Round-trip equality additionally pins Ze's permitted retention choice. Source inspection confirms applyRFC7606 calls applyTunnelEncap and consumes both returned values; applyTunnelEncap identifies the policy from MP_REACH AFI/SAFI, and tunnelTLVLayout still validates framing but skips endpoint semantic/count checks when policy is true and assigns no meaning to Color. TunnelTLV.Preference consumes only type 12 with the required six-octet value; its readback is a codec assertion, not evidence of SRPM selection. processValidatedMessage forwards accepted announcements through onMessageReceived; notifyMessageReceiver caches the accepted WireUpdate before dispatch. teForwardedAttrs exercises that real receive/cache/ForwardUpdate path to an iBGP socket and a downstream processMessage consumer, both without the MED policy and with an actual MED=50 rebuild, asserting preserved attributes/MP_REACH, one announcement and no synthesized withdrawal. Ignoring these contents does not require erasing their wire bytes: byte retention is a conforming implementation choice under MAY, not an additional RFC MUST. Stored native records for this reactor cover name replacement of applyTunnelEncap by panic; those establish sensitivity to that producer halt only, not selective endpoint/Color discrimination. Historical records naming the former carry-test cover likewise do not extend current semantic proof. No checks, mutations, hashes or canonical edits were performed for this rejudgment. Credit is limited to the implemented receive, codec and cached propagation behavior demonstrated by these assertions; no separate route-server rail, SR Policy Manager, attribute-driven steering or dataplane proof is claimed, and absent consumers remain separately unimplemented scope. RFC9830-2.3-3 is not rejudged. No code map is needed for this enforced pending entry.",
       "requirement_sha": "8fa04c271531948b",
       "tests": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "0b4aeaf3624a6954",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "0b4aeaf3624a6954",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "2f370bfac5e3c897",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "2f370bfac5e3c897",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored#2": "a929cacac0d74fc0"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "254a42372d9957ca",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "254a42372d9957ca",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "58b2ba0312cc9ecc",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "58b2ba0312cc9ecc",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored": "a91fe301f73ccc00",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830EgressEndpointAndColorSubTLVsIgnored#2": "a91fe301f73ccc00"
       },
       "verdict": "enforced"
     },
     "RFC9830-2.3-3": {
-      "note": "Independent semantic rejudgment: RFC9830 Section 2.3: \"Similarly, any other sub-TLVs, including those specified in [RFC9012], that do not have explicitly specified applicability to the SR Policy SAFI MUST be ignored by the BGP speaker and MAY be removed from the Tunnel Encapsulation attribute during propagation.\" The current policy-admission unit isolates listed Embedded Label Handling, valid-length UDP, and VXLAN sub-TLVs. Each selective policy-only classifier now fails the exact no-action assertion and route delivery while clean policy controls survive; Preference and MP_REACH remain unchanged on actual receive/cache/export/downstream traversal. Source tunnelTLVLayout grants the policy carrier exception without interpreting these fields, so the common ignore policy is observed rather than inferred from a local Preference getter. MAY removal is not forbidden; no tunnel/header consumer or SRPM behavior is claimed. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
+      "note": "Independent RFC 9830 Section 2.3 rejudgment retains enforced for ignoring sub-TLVs without explicitly defined applicability to the SR Policy SAFI; the same full sentence permits their removal during propagation. TestRFC9012MeaninglessSubTLVIgnoredNotRemoved proves the applicable Preference counter-control but is not the sole proof. TestRFC9830InapplicableSubTLVsIgnoredOnReceipt isolates well-framed VXLAN, Embedded Label Handling and UDP sub-TLVs on both SAFI 73 AFIs and requires exact no-action, intact MP_REACH and readable Preference. teForwardedAttrs traverses actual receive/cache/ForwardUpdate/Session output/downstream receipt with unchanged and MED-rebuilt cached forwarding. The corrected tag now describes those two cached modes rather than claiming the separate RS rail. applyTunnelEncap/tunnelTLVLayout ignore inapplicable semantics while retaining framing checks; Preference consumes only its applicable type. A native four-octet next hop on AFI-2 SR Policy remains legal under the independent wire-family contract. Preserving the bytes is a conforming choice, not a prohibition on the RFC\u2019s MAY removal. No SRPM, dataplane, full-RFC or fresh selective execution claim is made.",
       "requirement_sha": "58c3a539f651edbd",
       "tests": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "0b4aeaf3624a6954",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "0b4aeaf3624a6954",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "9c9405d666c6d458",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "9c9405d666c6d458"
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "2f370bfac5e3c897",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "2f370bfac5e3c897",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "e8576a1ee12543a9",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "e8576a1ee12543a9"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "254a42372d9957ca",
-        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "254a42372d9957ca",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "b3dc33dfbd302427"
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "58b2ba0312cc9ecc",
+        "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "58b2ba0312cc9ecc",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "08d7f773742e8a39",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "08d7f773742e8a39"
       },
       "verdict": "enforced"
     },
@@ -78,8 +79,8 @@
       "note": "Judge 2026-09-30, re-read after the RFC9012-13-7 tag lines left the unit (assertions unchanged). TestRFC9012DuplicateSingleInstanceSubTLVs: + with two Preference sub-TLVs Preference() returns the first (100); - the second value standing alone IS returned (200), so the choice is positional.",
       "requirement_sha": "df21740158624797",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "9c9405d666c6d458",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "9c9405d666c6d458"
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "e8576a1ee12543a9",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "e8576a1ee12543a9"
       },
       "units": {
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "0f66262cbfae7a17",
@@ -91,8 +92,8 @@
       "note": "Judge 2026-09-30, re-read after the RFC9012-13-7 tag lines left the unit (assertions unchanged). TestRFC9012DuplicateSingleInstanceSubTLVs: the duplicate Preference parses without error, both sub-TLVs are enumerated and the attribute round-trips octet-equal, so the ignored instance is not treated as malformed.",
       "requirement_sha": "25fc1827c2d6725e",
       "tests": {
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "9c9405d666c6d458",
-        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "9c9405d666c6d458"
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "e8576a1ee12543a9",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "e8576a1ee12543a9"
       },
       "units": {
         "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "0f66262cbfae7a17",
@@ -148,8 +149,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored#2": "a929cacac0d74fc0"
       },
@@ -185,8 +186,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored#2": "a929cacac0d74fc0"
       },
@@ -209,8 +210,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -321,8 +322,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -382,8 +383,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -419,8 +420,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -456,8 +457,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -519,8 +520,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -556,8 +557,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -606,8 +607,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -643,8 +644,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -693,8 +694,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -746,8 +747,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -765,8 +766,8 @@
       "note": "Independent semantic rejudgment: RFC9830 Section 2.4.4.2.3: \"If B-Flag appears with Segment Type A, it MUST be ignored.\" TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. The source-mapped rx-typea-b mutant is bounded to nested Type A value[0]&0x10. Both AFIs fail their isolated Type A B-bit victim and combined dirty input at the receive-action assertion; unchanged B=0 controls and valid Type B B=1/structure controls pass. This is the receive-only obligation: no missing transmit conjunct is invented, and assigned Type B B is not rejected. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
       "requirement_sha": "eda0489b177a2ef7",
       "tests": {
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -800,8 +801,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -863,8 +864,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -913,8 +914,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },
@@ -963,8 +964,8 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "efdd1728c4ed7d07",
-        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "efdd1728c4ed7d07",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+        "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
         "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
       },

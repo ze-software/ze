@@ -1,0 +1,1 @@
+--relay-peer 172.30.0.15:179 --result /tmp/srv6-identity --duration 240

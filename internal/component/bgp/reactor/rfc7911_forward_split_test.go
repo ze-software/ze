@@ -22,7 +22,7 @@ func collectSplit(t *testing.T, u *message.Update, maxSize int, addPath bool) ([
 	t.Helper()
 	var chunks []*message.Update
 	s := message.NewSplitter()
-	err := s.Split(u, maxSize, addPath, func(c *message.Update) error {
+	err := s.Split(u, maxSize, func(family.Family) bool { return addPath }, func(c *message.Update) error {
 		chunks = append(chunks, &message.Update{
 			WithdrawnRoutes: append([]byte(nil), c.WithdrawnRoutes...),
 			PathAttributes:  append([]byte(nil), c.PathAttributes...),

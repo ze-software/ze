@@ -39,6 +39,9 @@ type adjOutWrite struct {
 	pathSources []wireu.SentPathSource
 	raw         bool
 	ordinals    map[family.Family]uint32
+	// Counts come from the existing final-body record walk, before acceptance.
+	announcedRoutes uint64
+	withdrawnRoutes uint64
 }
 
 var adjOutWritePool = sync.Pool{New: func() any {
@@ -111,6 +114,7 @@ func (w *adjOutWrite) release() {
 	w.removed, w.suppressed = 0, 0
 	w.source, w.pathSources = nil, nil
 	w.sourceSet = false
+	w.announcedRoutes, w.withdrawnRoutes = 0, 0
 	adjOutWritePool.Put(w)
 }
 
@@ -469,6 +473,7 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 		}
 		if withdraw {
 			delete(w.table.routes, key)
+			w.withdrawnRoutes++
 			return true
 		}
 		owner, ok := w.owners[key]
@@ -525,6 +530,7 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 				entry.exactNLRI = append([]byte(nil), raw...)
 			}
 		}
+		w.announcedRoutes++
 		return true
 	})
 	if err != nil {

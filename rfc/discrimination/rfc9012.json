@@ -53,7 +53,7 @@
       "claim-sha": "a5f4ee4155d50fda",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelTLVLayout",
-      "producer-sha": "7f65dbce27946c1b",
+      "producer-sha": "78c99487a1b959d5",
       "break": "body of tunnelTLVLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "8bce94920ae8ba79",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelTLVLayout",
-      "producer-sha": "7f65dbce27946c1b",
+      "producer-sha": "78c99487a1b959d5",
       "break": "body of tunnelTLVLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "3ba592b941509e3a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -350,7 +350,7 @@
       "claim-sha": "3ba592b941509e3a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -383,7 +383,7 @@
       "claim-sha": "3ba592b941509e3a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -438,7 +438,7 @@
       "claim-sha": "291d1facdab7b563",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelTLVLayout",
-      "producer-sha": "7f65dbce27946c1b",
+      "producer-sha": "78c99487a1b959d5",
       "break": "body of tunnelTLVLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "f78b876ff8cbc0f4",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelTLVLayout",
-      "producer-sha": "7f65dbce27946c1b",
+      "producer-sha": "78c99487a1b959d5",
       "break": "body of tunnelTLVLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -471,7 +471,7 @@
       "claim-sha": "3fa7d2c243366784",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -493,7 +493,7 @@
       "claim-sha": "0c0bb34dae8783e4",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -515,7 +515,7 @@
       "claim-sha": "0c7bd7c7d8378e39",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -537,7 +537,7 @@
       "claim-sha": "0120b931cfc1e1d8",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -581,7 +581,7 @@
       "claim-sha": "c4412ab5cd463a99",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -691,7 +691,7 @@
       "claim-sha": "2776d348f59668fd",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -713,7 +713,7 @@
       "claim-sha": "5abfdbd6e85d3a92",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -735,7 +735,7 @@
       "claim-sha": "eb935bdf7adf03ea",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

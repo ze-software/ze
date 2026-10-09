@@ -7,7 +7,7 @@
 # A previously suppressed ID is expected only AFTER withdrawal and explicit retry.
 #
 # RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6 positive -- the paths the daemon sends for one prefix stay within the number the peer advertised, for IPv4 and IPv6, and a replacement of an admitted identifier and a reuse of a withdrawn slot both reach the wire.
-# RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6 negative -- an identifier above the peer's advertised number never reaches the wire: it is absent from the hex before the next different-prefix sentinel, and it appears only after a withdrawal frees a slot and the operator retries it.
+# RFC requirement: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6 negative -- an additional identifier that would exceed the peer's advertised per-prefix path count never reaches the wire: it is absent from the hex before the next different-prefix sentinel, and it appears only after a withdrawal frees a slot and the operator retries it.
 
 option=timeout:value=180s
 

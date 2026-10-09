@@ -478,27 +478,6 @@ func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFa
 	case nhModeSelfV6LL:
 		mods.Op(14, filterapi.AttrModSet, f.nhGlobalLL[:])
 	}
-	// RFC 9252 Section 2: "If the BGP next hop is changed, the TLVs, Sub-TLVs,
-	// and Sub-Sub-TLVs SHOULD be updated with the locally allocated SRv6 SID
-	// information. Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized
-	// MUST be removed." Ze allocates no local SRv6 SID, so the SRv6 Service
-	// TLVs leave rather than being rebuilt. That sentence governs the Service
-	// TLVs alone, and nothing else in the attribute leaves with them:
-	// RFC 8669 Section 3: "For future extensibility, unknown TLVs MUST be
-	// ignored and propagated unmodified."
-	// RFC 8669 Section 5: "A BGP speaker that advertises a path received from
-	// one of its neighbors SHOULD advertise the BGP Prefix-SID received with
-	// the path without modification as long as the BGP Prefix-SID was
-	// acceptable."
-	// The operation names the TLV types to remove; prefixSIDNextHopHandler
-	// (forward_prefix_sid.go) rewrites each route's attribute from it.
-	//
-	// A destination RFC 8669 Section 8 refuses the attribute to gets no
-	// operation here: applyFactsPrefixSID removes the whole attribute for it,
-	// and one operation per code keeps the accumulator inline.
-	if prefixSIDAllowedTo(!f.isEBGP, f.propagatePrefixSID) {
-		mods.Op(uint8(attribute.AttrPrefixSID), filterapi.AttrModRemove, srv6ServiceTLVTypes[:])
-	}
 }
 
 func applyFactsSendCommunity(f *peerForwardFacts, mods *filterapi.ModAccumulator) {

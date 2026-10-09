@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md — egress attribute modification on the forward rails
 // RFC: rfc/short/rfc8669.md — BGP Prefix-SID, Section 3 and Section 5
-// Related: peer_forward_facts.go — applyFactsNextHop, which records the next-hop-change edit
+// Related: forward_prefix_sid.go — applyEgressPrefixSIDNextHop records the effective next-hop-change edit
 // Related: forward_prefix_sid.go — prefixSIDNextHopHandler, which plans the rewritten attribute
 //
 // RFC 8669 Section 3: "For future extensibility, unknown TLVs MUST be ignored and
@@ -26,10 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
-	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/family"
 )
 
 // The TLVs of the relayed Prefix-SID. The Label-Index is RFC 8669 Section 3.1 (index
@@ -182,32 +179,16 @@ func TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange(t *testing.T) {
 	}
 }
 
-// TestPrefixSIDUnknownTLVSurvivesANextHopChange reads the operation the next-hop-self
-// egress decision records for attribute 40.
-//
-// VALIDATES: a next-hop change records the removal of the SRv6 Service TLV types 5 and 6
-// and never a suppression of the whole attribute.
-// PREVENTS: applyFactsNextHop recording AttrModSuppress on code 40, which drops every TLV
-// (Label-Index, Originator SRGB, unknown types) whenever the next hop changes.
+// TestPrefixSIDUnknownTLVSurvivesANextHopChange reads recipient Session output,
+// preserving the RFC 8669 Section 3 unknown-TLV contract across the RFC 9252
+// Section 2 Service-TLV removal rather than pinning an operation list.
 func TestPrefixSIDUnknownTLVSurvivesANextHopChange(t *testing.T) {
-	var facts peerForwardFacts
-	precomputeNextHop(&PeerSettings{
-		NextHopMode:  NextHopSelf,
-		LocalAddress: netip.MustParseAddr("192.0.2.1"),
-	}, &facts)
-	var mods filterapi.ModAccumulator
-	applyFactsNextHop(&facts, &mods, family.IPv4Unicast)
-
-	var removals int
-	for _, op := range mods.Ops() {
-		if op.Code != uint8(attribute.AttrPrefixSID) {
-			continue
-		}
-		require.NotEqual(t, filterapi.AttrModSuppress, op.Action,
-			"RFC 8669 Section 3: unknown TLVs MUST be propagated unmodified; a next-hop change removes the whole attribute")
-		require.Equal(t, filterapi.AttrModRemove, op.Action)
-		assert.Equal(t, []byte{5, 6}, op.Buf, "only the SRv6 Service TLV types are removed")
-		removals++
+	for _, rail := range []string{"cached", "rs"} {
+		t.Run(rail, func(t *testing.T) {
+			// RFC 8669 Section 3 and RFC 9252 Section 2.
+			rfc9252EffectiveNextHopCase(t, rail, "ipv6", rfc9252NextHopCase{
+				mode: NextHopExplicit, explicitChange: true, changed: true,
+			})
+		})
 	}
-	assert.Equal(t, 1, removals)
 }

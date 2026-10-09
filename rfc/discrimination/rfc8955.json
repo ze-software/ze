@@ -26,17 +26,6 @@
     {
       "rid": "RFC8955-4-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop",
-      "unit-sha": "7384f80ed2599058",
-      "claim-sha": "0c5a426726d16e25",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
-      "producer-sha": "183dde33bd18124a",
-      "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC8955-4-3",
-      "polarity": "negative",
       "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
       "unit-sha": "df568cdde62ec74a",
       "claim-sha": "02a2159a3d547a48",
@@ -75,7 +64,7 @@
       "claim-sha": "e990732fba089e82",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
-      "producer-sha": "f7e58ddbd5e3ea57",
+      "producer-sha": "407b221048114400",
       "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +86,18 @@
       "claim-sha": "344647c5805e1b1a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
-      "producer-sha": "183dde33bd18124a",
+      "producer-sha": "212c223da2a71145",
+      "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop",
+      "unit-sha": "7384f80ed2599058",
+      "claim-sha": "0c5a426726d16e25",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",
+      "producer-sha": "212c223da2a71145",
       "break": "body of payloadNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -351,7 +351,7 @@
       "claim-sha": "bc1bf2bc576ef3f2",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-      "producer-sha": "ab86a7e561be6508",
+      "producer-sha": "a5957db57472ecce",
       "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

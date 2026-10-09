@@ -144,7 +144,7 @@ func TestTunnelAnnouncementUnaffectedByPolicyWithdrawal(t *testing.T) {
 // RFC requirement: RFC9830-2.3-1 positive -- endpoint and color sub-TLVs on AFI 1/73 and 2/73 leave the receive verdict, policy NLRI and Preference unchanged.
 // RFC requirement: RFC9830-2.3-1 negative -- duplicate and malformed-length endpoint sub-TLVs do not invoke the unicast removal rule on the SR Policy carrier.
 // RFC requirement: RFC9830-2.3-3 positive -- well-framed VXLAN, Embedded Label Handling and UDP-port sub-TLVs leave the received SAFI 73 policy intact and reach the peer unchanged.
-// RFC requirement: RFC9830-2.3-3 negative -- adding those inapplicable sub-TLVs changes neither the no-action verdict nor the MP_REACH bytes on either forwarding rail.
+// RFC requirement: RFC9830-2.3-3 negative -- adding those inapplicable sub-TLVs changes neither the no-action verdict nor the MP_REACH bytes during unchanged or policy-rebuilt cached forwarding.
 // MUTATION: applying the RFC 9012 endpoint count rule to SAFI 73 withdraws the dirty policy.
 func TestRFC9830InapplicableSubTLVsIgnoredOnReceipt(t *testing.T) {
 	clean := teSRPolicyValue(0, false)

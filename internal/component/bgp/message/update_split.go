@@ -116,8 +116,10 @@ func (s *Splitter) alloc(n int) []byte {
 }
 
 // Split chunks an oversized UPDATE into multiple UPDATEs respecting maxSize
-// and delivers each chunk to emit synchronously. addPath indicates whether
-// Add-Path (RFC 7911) is negotiated for this family.
+// and delivers each chunk to emit synchronously. The caller MUST supply a non-nil
+// addPathFor selecting the encoding of each family already present in u. Legacy
+// sections use IPv4 unicast; each MP section uses its own AFI/SAFI. Neither
+// callback is retained, and the size-fit fast path does not call addPathFor.
 //
 // Handles both IPv4 (NLRI field) and MP families (MP_REACH_NLRI attribute):
 //   - IPv4 announcements: split u.NLRI via ChunkMPNLRI
@@ -138,8 +140,13 @@ func (s *Splitter) alloc(n int) []byte {
 // Note: maxSize is always 4096 or 65535 from MaxMessageLength() -- no validation needed.
 //
 // RFC 4271 Section 4.3: Each UPDATE is self-contained with full attributes.
-// RFC 7911: Add-Path requires 4-byte path identifier before each NLRI.
-func (s *Splitter) Split(u *Update, maxSize int, addPath bool, emit func(*Update) error) error {
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE message,
+// the NLRI encoding MUST be extended by prepending the Path Identifier field,
+// which is of four octets."
+//
+// Per-family NLRI offsets: [0:4] Path Identifier (only with ADD-PATH),
+// followed by the family's existing length/prefix or typed NLRI encoding.
+func (s *Splitter) Split(u *Update, maxSize int, addPathFor func(family.Family) bool, emit func(*Update) error) error {
 	// Empty UPDATE (End-of-RIB) - pass through as-is.
 	if u.IsEndOfRIB() {
 		return emit(u)
@@ -155,7 +162,7 @@ func (s *Splitter) Split(u *Update, maxSize int, addPath bool, emit func(*Update
 		return emit(u)
 	}
 
-	return s.splitByShape(u, maxSize, addPath, emit)
+	return s.splitByShape(u, maxSize, addPathFor, emit)
 }
 
 // SplitCompliant behaves like Split, except that it also splits an UPDATE that
@@ -173,26 +180,26 @@ func (s *Splitter) Split(u *Update, maxSize int, addPath bool, emit func(*Update
 // is compliant by construction, so making it walk the attributes on every send
 // to re-learn that would be pure cost. Everything past the shape decision is the
 // same code.
-func (s *Splitter) SplitCompliant(u *Update, maxSize int, addPath bool, emit func(*Update) error) error {
+func (s *Splitter) SplitCompliant(u *Update, maxSize int, addPathFor func(family.Family) bool, emit func(*Update) error) error {
 	if u.IsEndOfRIB() || !u.MixesNLRIFields() {
-		return s.Split(u, maxSize, addPath, emit)
+		return s.Split(u, maxSize, addPathFor, emit)
 	}
-	return s.splitByShape(u, maxSize, addPath, emit)
+	return s.splitByShape(u, maxSize, addPathFor, emit)
 }
 
 // splitByShape dispatches to the MP or IPv4 splitter. Both split entry points
 // share it, so the two differ only in when they decide a split is needed.
-func (s *Splitter) splitByShape(u *Update, maxSize int, addPath bool, emit func(*Update) error) error {
+func (s *Splitter) splitByShape(u *Update, maxSize int, addPathFor func(family.Family) bool, emit func(*Update) error) error {
 	// Detect MP attributes in PathAttributes.
 	mpReachInfo := findMPAttribute(u.PathAttributes, attribute.AttrMPReachNLRI)
 	mpUnreachInfo := findMPAttribute(u.PathAttributes, attribute.AttrMPUnreachNLRI)
 
 	if mpReachInfo.found || mpUnreachInfo.found {
-		return s.splitUpdateWithMP(u, maxSize, mpReachInfo, mpUnreachInfo, addPath, emit)
+		return s.splitUpdateWithMP(u, maxSize, mpReachInfo, mpUnreachInfo, addPathFor, emit)
 	}
 
 	// IPv4 path (no MP attributes).
-	return s.splitUpdateIPv4(u, maxSize, addPath, emit)
+	return s.splitUpdateIPv4(u, maxSize, addPathFor(family.IPv4Unicast), emit)
 }
 
 // ExtractMPFamily returns the address family from MP_REACH_NLRI or MP_UNREACH_NLRI
@@ -257,7 +264,7 @@ func findMPAttribute(pathAttrs []byte, code attribute.AttributeCode) mpAttrInfo 
 // above the MP code are stashed above the chunk region and re-copied after each
 // MP attribute; when there are none (the common case) this costs nothing and the
 // layout is exactly as before.
-func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttrInfo, addPath bool, emit func(*Update) error) error {
+func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttrInfo, addPathFor func(family.Family) bool, emit func(*Update) error) error {
 	s.resetScratch()
 	overhead := HeaderLen + 4
 
@@ -312,9 +319,13 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 	// is also what RFC 7606 Section 5.1 asks of a sender: at most one of Withdrawn Routes,
 	// NLRI, MP_REACH_NLRI and MP_UNREACH_NLRI per UPDATE. Order across the whole function
 	// is withdrawals then announcements: IPv4 withdrawn, MP_UNREACH, MP_REACH, IPv4 NLRI.
+	addPathIPv4 := false
+	if len(u.WithdrawnRoutes) > 0 || len(u.NLRI) > 0 {
+		addPathIPv4 = addPathFor(family.IPv4Unicast)
+	}
 	if len(u.WithdrawnRoutes) > 0 {
 		// Withdrawals carry no attributes, so the whole budget after the header is theirs.
-		chunks, err := chunkIPv4NLRI(u.WithdrawnRoutes, maxSize-overhead, addPath)
+		chunks, err := chunkIPv4NLRI(u.WithdrawnRoutes, maxSize-overhead, addPathIPv4)
 		if err != nil {
 			return fmt.Errorf("chunking withdrawn routes: %w", err)
 		}
@@ -335,15 +346,24 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 		if maxMPAttrValue <= 0 {
 			return ErrAttributesTooLarge
 		}
-		mpChunks, err := splitMPUnreachNLRIWithAddPath(mpUnreach, maxMPAttrValue, addPath)
-		if err != nil {
-			return fmt.Errorf("splitting MP_UNREACH_NLRI: %w", err)
-		}
-		for _, chunk := range mpChunks {
-			if err := s.emitMPChunk(lowLen, highLen, stashOff, chunk, emit); err != nil {
-				return err
+		// RFC 4724 Section 2: "For any other address family, it is an UPDATE
+		// message that contains only the MP_UNREACH_NLRI attribute [BGP-MP]
+		// with no withdrawn routes for that <AFI, SAFI>."
+		// An empty field in mixed input is not a marker; separating it would create one.
+		emptyMixed := len(mpUnreach.NLRI) == 0 &&
+			(len(u.WithdrawnRoutes) > 0 || len(u.NLRI) > 0 || mpReachInfo.found)
+		if !emptyMixed {
+			addPath := addPathFor(family.Family{AFI: family.AFI(mpUnreach.AFI), SAFI: family.SAFI(mpUnreach.SAFI)})
+			mpChunks, err := splitMPUnreachNLRIWithAddPath(mpUnreach, maxMPAttrValue, addPath)
+			if err != nil {
+				return fmt.Errorf("splitting MP_UNREACH_NLRI: %w", err)
 			}
-			emitted++
+			for _, chunk := range mpChunks {
+				if err := s.emitMPChunk(lowLen, highLen, stashOff, chunk, emit); err != nil {
+					return err
+				}
+				emitted++
+			}
 		}
 	}
 
@@ -356,6 +376,7 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 		if maxMPAttrValue <= 0 {
 			return ErrAttributesTooLarge
 		}
+		addPath := addPathFor(family.Family{AFI: family.AFI(mpReach.AFI), SAFI: family.SAFI(mpReach.SAFI)})
 		mpChunks, err := SplitMPReachNLRIWithAddPath(mpReach, maxMPAttrValue, addPath)
 		if err != nil {
 			return fmt.Errorf("splitting MP_REACH_NLRI: %w", err)
@@ -380,7 +401,7 @@ func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnre
 		if highLen > 0 {
 			copy(s.scratch[lowLen:baseLen], s.scratch[stashOff:stashOff+highLen])
 		}
-		chunks, err := chunkIPv4NLRI(u.NLRI, space, addPath)
+		chunks, err := chunkIPv4NLRI(u.NLRI, space, addPathIPv4)
 		if err != nil {
 			return fmt.Errorf("chunking NLRI: %w", err)
 		}

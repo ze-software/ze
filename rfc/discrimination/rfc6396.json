@@ -108,7 +108,7 @@
       "claim-sha": "d89300f7ec23a8b1",
       "route": "revert",
       "producer": "internal/component/bgp/wireu/aspath_collapse.go::CollapseAS4Family",
-      "producer-sha": "ab2668a627662c2f",
+      "producer-sha": "c34a7a065e80d23f",
       "break": "body of CollapseAS4Family replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

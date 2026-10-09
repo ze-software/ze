@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Attribute type-code ordering across a split.
@@ -84,7 +85,7 @@ func TestSplitMP_PreservesAscendingAttributeOrder(t *testing.T) {
 	defer PutSplitter(s)
 
 	chunks := 0
-	err := s.Split(u, 4096, false, func(c *Update) error {
+	err := s.Split(u, 4096, func(family.Family) bool { return false }, func(c *Update) error {
 		chunks++
 		assert.Equal(t, []int{1, 2, 5, 14, 16}, splitAttrCodes(t, c.PathAttributes),
 			"chunk %d attribute order", chunks)
@@ -110,14 +111,14 @@ func TestSplitMP_ChunkMatchesUnsplitEncoding(t *testing.T) {
 
 	var unsplit []int
 	small := orderedMPUpdate(t, 5)
-	require.NoError(t, s.Split(small, 4096, false, func(c *Update) error {
+	require.NoError(t, s.Split(small, 4096, func(family.Family) bool { return false }, func(c *Update) error {
 		unsplit = splitAttrCodes(t, c.PathAttributes)
 		return nil
 	}))
 
 	large := orderedMPUpdate(t, 5000)
 	seen := 0
-	require.NoError(t, s.Split(large, 4096, false, func(c *Update) error {
+	require.NoError(t, s.Split(large, 4096, func(family.Family) bool { return false }, func(c *Update) error {
 		seen++
 		assert.Equal(t, unsplit, splitAttrCodes(t, c.PathAttributes),
 			"split chunk %d must encode its attributes exactly like the unsplit UPDATE", seen)
@@ -183,7 +184,7 @@ func TestSplitMP_ExtendedMessageStashFitsScratch(t *testing.T) {
 	defer PutSplitter(s)
 
 	chunks := 0
-	err := s.Split(u, wireExtendedMax, false, func(c *Update) error {
+	err := s.Split(u, wireExtendedMax, func(family.Family) bool { return false }, func(c *Update) error {
 		chunks++
 		assert.Equal(t, []int{1, 2, 5, 14, 16}, splitAttrCodes(t, c.PathAttributes),
 			"chunk %d attribute order", chunks)
@@ -210,7 +211,7 @@ func TestSplitMP_HighAttrsIdenticalInEveryChunk(t *testing.T) {
 
 	want := []byte{0x80, 0x06, 0x00, 0x00, 0x46, 0x16, 0x00, 0x00}
 	chunks := 0
-	err := s.Split(u, 4096, false, func(c *Update) error {
+	err := s.Split(u, 4096, func(family.Family) bool { return false }, func(c *Update) error {
 		chunks++
 		iter := attribute.NewAttrIterator(c.PathAttributes)
 		found := false

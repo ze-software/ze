@@ -292,10 +292,7 @@ func buildFwdBody(
 		// destination context -- so emitting a mixed shape here is the plainer violation
 		// of the two.
 		if destUpdate.Len(nil) > maxMsgSize || destUpdate.MixesNLRIFields() {
-			destSendCtx := peer.sendContext()
-			addPath := addPathForUpdate(destSendCtx, destUpdate)
-
-			splitErr := fwdSplitParsedUpdate(destUpdate, maxMsgSize, addPath, &result)
+			splitErr := fwdSplitParsedUpdate(destUpdate, maxMsgSize, peer.sendContext(), &result)
 			if splitErr != nil {
 				fwdLogger().Warn("forward split failed", "peer", peerAddr, "err", splitErr)
 				return result, false
@@ -309,12 +306,12 @@ func buildFwdBody(
 	return result, true
 }
 
-func fwdSplitParsedUpdate(update *message.Update, maxMsgSize int, addPath bool, result *fwdBodyResult) error {
+func fwdSplitParsedUpdate(update *message.Update, maxMsgSize int, sendCtx *bgpctx.EncodingContext, result *fwdBodyResult) error {
 	splitter := message.GetSplitter()
 	defer message.PutSplitter(splitter)
 	// SplitCompliant rather than Split: this path also has to break up an UPDATE that
 	// fits but carries more than one NLRI-bearing field (RFC 7606 Section 5.1).
-	return splitter.SplitCompliant(update, maxMsgSize, addPath, func(c *message.Update) error {
+	return splitter.SplitCompliant(update, maxMsgSize, sendCtx.AddPath, func(c *message.Update) error {
 		result.updates = append(result.updates, &message.Update{
 			WithdrawnRoutes: append([]byte(nil), c.WithdrawnRoutes...),
 			PathAttributes:  append([]byte(nil), c.PathAttributes...),

@@ -164,7 +164,14 @@ func newSyncOrderRailWith(t *testing.T, handler func(fwdKey, []fwdItem)) (*React
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	cache := newRecentUpdateCache(100)
-	t.Cleanup(cache.Stop)
+	// syncOrderPublish keeps one fixture consumer outstanding so cached
+	// history survives forwarding. MUST unregister it after the workers stop;
+	// stopping a cache scanner alone releases no adopted read/build buffers.
+	cache.RegisterConsumer("sync-order-fixture")
+	t.Cleanup(func() {
+		cache.UnregisterConsumer("sync-order-fixture")
+		require.Zero(t, cache.Len(), "fixture cleanup must release its cached history")
+	})
 
 	src := makeForwardSourcePeer(t, ctx, ctxID)
 	src.session = NewSession(src.Settings())
@@ -211,6 +218,23 @@ func syncOrderPublish(t *testing.T, r *Reactor, ctxID bgpctx.ContextID, updateID
 	r.recentUpdates.Add(update)
 	r.recentUpdates.Activate(updateID, 1)
 	return update
+}
+
+// TestSyncOrderFixtureReleasesAdoptedBuffers proves a completed replay fixture
+// returns the pooled bytes its cached history owns, without resetting the pool.
+func TestSyncOrderFixtureReleasesAdoptedBuffers(t *testing.T) {
+	_, before := bufMuxStd.Stats()
+	t.Run("cached-history", func(t *testing.T) {
+		r, _, _, _, ctxID := newSyncOrderRail(t)
+		update := syncOrderPublish(t, r, ctxID, 1, syncOrderAnnounceBody)
+		handle := getReadBuf(false)
+		require.NotNil(t, handle.Buf)
+		update.adoptFwdHandle(handle)
+		_, held := bufMuxStd.Stats()
+		require.Equal(t, before+1, held, "the fixture owns one adopted buffer")
+	})
+	_, after := bufMuxStd.Stats()
+	require.Equal(t, before, after, "the completed fixture must return its adopted buffer")
 }
 
 // newSyncOrderFixture queues an initial replay and a later withdrawal from the

@@ -202,6 +202,39 @@
     {
       "rid": "RFC7606-5.1-2",
       "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination",
+      "unit-sha": "b3367822eba486cd",
+      "claim-sha": "18412dd68147107f",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_shape.go::NLRIBearingFieldCount",
+      "producer-sha": "1f73af544175ef7c",
+      "break": "body of NLRIBearingFieldCount replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate",
+      "unit-sha": "0b4d5b30d1ca67e5",
+      "claim-sha": "060339711cb48b2b",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_split.go::SplitCompliant",
+      "producer-sha": "b7a3a7d53d70d461",
+      "break": "body of SplitCompliant replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantSplitsMixedUpdateThatFits",
+      "unit-sha": "c35a01e456a20574",
+      "claim-sha": "0ed5d43a1b046561",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_split.go::SplitCompliant",
+      "producer-sha": "b7a3a7d53d70d461",
+      "break": "body of SplitCompliant replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-5.1-2",
+      "polarity": "positive",
       "unit": "test/plugin/rfc7606-relay-one-field.ci",
       "unit-sha": "d6fcda2a56ba426a",
       "claim-sha": "639b8ce2b61bf9b7",

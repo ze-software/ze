@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/family"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -400,8 +401,8 @@ func TestRFC4271NotificationSpecifiedSubcodePreserved(t *testing.T) {
 // PREVENTS: Emitting a truncated UPDATE for a route that does not fit.
 //
 // RFC requirement: RFC4271-9.2-10 positive -- when the attributes of a single route do not
-// fit within the message size, Split returns ErrAttributesTooLarge and calls emit zero
-// times, so nothing is advertised (internal/component/bgp/message/update_split.go:357-366).
+// fit within the message size, Split returns an error and calls emit zero times,
+// so nothing is advertised.
 func TestRFC4271OversizeSingleRouteNotAdvertised(t *testing.T) {
 	s := NewSplitter()
 	attrs := make([]byte, 300)
@@ -412,7 +413,7 @@ func TestRFC4271OversizeSingleRouteNotAdvertised(t *testing.T) {
 	}
 
 	emitted := 0
-	err := s.Split(u, HeaderLen+4+200, false, func(*Update) error {
+	err := s.Split(u, HeaderLen+4+200, func(family.Family) bool { return false }, func(*Update) error {
 		emitted++
 		return nil
 	})
@@ -441,7 +442,7 @@ func TestRFC4271FittingRouteIsAdvertised(t *testing.T) {
 	}
 
 	var got []*Update
-	err := s.Split(u, MaxMsgLen, false, func(chunk *Update) error {
+	err := s.Split(u, MaxMsgLen, func(family.Family) bool { return false }, func(chunk *Update) error {
 		got = append(got, chunk)
 		return nil
 	})

@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Splitter.splitUpdateWithMP used to emit only `&Update{PathAttributes: ...}` chunks, with
@@ -56,7 +58,7 @@ func TestSplitUpdateWithMPPreservesIPv4Fields(t *testing.T) {
 	var s Splitter
 	var withdrawnOut, nlriOut []byte
 	mpReachChunks := 0
-	err := s.Split(u, 200, true, func(chunk *Update) error {
+	err := s.Split(u, 200, func(family.Family) bool { return true }, func(chunk *Update) error {
 		withdrawnOut = append(withdrawnOut, chunk.WithdrawnRoutes...)
 		nlriOut = append(nlriOut, chunk.NLRI...)
 		if findAttr(chunk.PathAttributes, 14) {
@@ -83,7 +85,7 @@ func TestSplitUpdateWithMPEmitsOneFieldPerChunk(t *testing.T) {
 	var s Splitter
 	seenAnnounce := false
 	var order []string
-	err := s.Split(u, 200, true, func(chunk *Update) error {
+	err := s.Split(u, 200, func(family.Family) bool { return true }, func(chunk *Update) error {
 		var present []string
 		if len(chunk.WithdrawnRoutes) > 0 {
 			present = append(present, "withdrawn")

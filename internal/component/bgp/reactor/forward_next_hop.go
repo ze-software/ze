@@ -15,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/network"
 )
 
 // nextHopValue names every NEXT_HOP address one UPDATE offers a destination.
@@ -364,9 +363,8 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 	return dest.linkLocalOnlyNextHopRefused(emitted.mp, base.mpFamily)
 }
 
-// egressNextHopGlobalHalf returns, for ONE destination, the Global half of an
-// MP_REACH_NLRI pair when either the destination or the Global entity shares
-// no connected subnet with this speaker, and whether the Link-Local is removed.
+// applyEgressNextHopScope normalizes the effective MP next-hop field for ONE
+// destination, after policy and the configured next-hop rewrite.
 //
 // draft-ietf-idr-linklocal-capability Section 4: "When sending a message to an
 // external peer X, and the peer is multiple IP hops away from the speaker (aka
@@ -379,25 +377,29 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 // address carried in the Network Address of Next Hop field and the peer the
 // route is being advertised to."
 //
-// Next hop self already obeys this (linkScope.linkLocalNextHop). This is the
-// relay half: under next hop unchanged or auto, applyFactsNextHop records
-// nothing, and a received 32-octet pair would cross unchanged to a peer that
-// cannot reach the Link-Local. The field asked about is the last MP_REACH_NLRI
-// Set in mods when one exists (a filter rewrite counts: a policy may not grant
-// what the RFC refuses), else basePayload's own field.
+// Under next hop unchanged or auto, applyFactsNextHop records nothing. A
+// speaker-owned global introduced by policy still needs the configured own
+// Link-Local on a common subnet, and a received pair must lose its Link-Local
+// outside that subnet. The last MP_REACH_NLRI Set wins over basePayload.
 //
-// The destination and the effective Global entity are independent conditions.
-// The received source peer being on-link proves nothing about the Global entity.
-// A nil scope has read no interface table and proves neither shared subnet, so
-// the Link-Local is removed, for the reason linkScope.linkLocalNextHop gives.
+// The destination and effective Global must belong to ONE connected prefix.
+// Source-peer membership cannot substitute for either. A nil scope has read no
+// interface table and proves no common subnet, so the Link-Local is removed.
 //
 // A pair with an invalid address in either slot MUST remain intact here:
 // trimming it would hide the pair's invalid form from egressNextHopWithheld,
 // which MUST refuse it through the existing per-section withdrawal path.
 //
-// The returned slice aliases the field it was cut from, which lives as long as
-// the operation buffers or the payload the rebuild reads. Allocation-free.
-func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePayload []byte, baseFamily family.Family) ([]byte, bool) {
+// Plain IPv6 next-hop bytes (RFC 2545 Section 3; MP_REACH value offset +4):
+//
+//	+0                    +16                    +32
+//	| Global IPv6 (16 B)  | Link-Local IPv6 (16 B) |
+//
+// The single-address form ends at +16; the paired form ends at +32.
+//
+// A trimmed field aliases its original operation or payload. A newly constructed
+// pair is copied into mods' owned storage; no stack-backed slice is retained.
+func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterapi.ModAccumulator, basePayload []byte, baseFamily family.Family) {
 	field := payloadMPNextHopField(basePayload)
 	for _, op := range mods.Ops() {
 		if op.Code != uint8(attribute.AttrMPReachNLRI) {
@@ -411,27 +413,65 @@ func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePay
 	if profile.IPv6Roles && !slices.Contains(profile.Lengths, len(field)) {
 		// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1.
 		// Preserve a wrong-width field instead of hiding it by RD stripping.
-		return nil, false
+		return
 	}
 	var globalOctets int
 	switch len(field) {
+	case 16:
+		if !profile.IPv6Roles {
+			return
+		}
+		global := netip.AddrFrom16([16]byte(field)).Unmap()
+		if !global.Is6() {
+			return
+		}
+		if !global.IsGlobalUnicast() {
+			return
+		}
+		configured := dest.settings.LinkLocal.Unmap()
+		if !configured.Is6() {
+			return
+		}
+		if !configured.IsLinkLocalUnicast() {
+			return
+		}
+		scope := dest.llScope.Load()
+		if scope == nil {
+			return
+		}
+		if !scope.peerOnLink {
+			return
+		}
+		owners := facts.nextHopOwners()
+		// RFC 2545 Section 3: append only this entity's own Link-Local on
+		// the common subnet. Third-party discovery remains an absent feature.
+		ll := scope.linkLocalNextHop(configured, global, owners.classify(global))
+		if !ll.IsValid() {
+			return
+		}
+		var pair [32]byte
+		copy(pair[:16], field)
+		address := ll.As16()
+		copy(pair[16:], address[:])
+		mods.OpCopy(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, pair[:])
+		return
 	case 32: // Global(16) + Link-Local(16)
 		globalOctets = 16
 	case 48: // RD(8) + Global(16), RD(8) + Link-Local(16)
 		globalOctets = 24
 	default:
-		return nil, false
+		return
 	}
 	second := netip.AddrFrom16([16]byte(field[len(field)-16:])).Unmap()
 	if !second.Is6() || !second.IsLinkLocalUnicast() {
-		return nil, false
+		return
 	}
 	global := netip.AddrFrom16([16]byte(field[globalOctets-16 : globalOctets])).Unmap()
 	vpnPair := false
 	if !global.Is6() || !global.IsGlobalUnicast() {
 		vpnPair = vpnUnspecifiedNextHopPair(field)
 		if !vpnPair {
-			return nil, false
+			return
 		}
 	}
 	if scope := dest.llScope.Load(); scope != nil {
@@ -439,16 +479,17 @@ func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePay
 			// RFC 4659 Section 3.2.1.1 explicitly uses an unspecified Global
 			// for VPN-IPv6 speakers peering only over link-local addresses.
 			if vpnPair {
-				if vpnIPv6LinkLocalPeering(dest.forwardFacts(), baseFamily) {
-					return nil, false
+				if vpnIPv6LinkLocalPeering(facts, baseFamily) {
+					return
 				}
 			}
-			if network.SharesSubnet(scope.connected, global) {
-				return nil, false
+			// RFC 2545 Section 3: require the joint common-subnet condition.
+			if scope.sharesNextHopSubnet(global) {
+				return
 			}
 		}
 	}
-	return field[:globalOctets], true
+	mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModSet, field[:globalOctets])
 }
 
 // vpnUnspecifiedNextHopPair recognizes the exact 48-octet RFC 4659
@@ -516,7 +557,7 @@ func destOnLink(dest *Peer) bool {
 // in the Network Address of Next Hop field and the peer the route is being
 // advertised to."
 //
-// egressNextHopGlobalHalf removes the Link-Local half of a pair, which leaves a
+// applyEgressNextHopScope removes the Link-Local half of a pair, which leaves a
 // Global. This is the case with no Global to leave: a received 16-octet
 // Link-Local-only field (or the 24-octet RD plus Link-Local VPN form) relayed
 // under next hop unchanged or auto. The question is mode-independent, because

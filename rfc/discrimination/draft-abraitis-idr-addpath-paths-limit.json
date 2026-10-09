@@ -58,25 +58,25 @@
     },
     {
       "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
-      "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState",
-      "unit-sha": "548da67c3c6e84f7",
-      "claim-sha": "a11b8801dbbab1f8",
-      "route": "mutant",
-      "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
-      "producer-sha": "a5b40993910711b9",
-      "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"false\""
-    },
-    {
-      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState",
       "unit-sha": "548da67c3c6e84f7",
       "claim-sha": "e0c4df78d919642e",
       "route": "mutant",
       "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
-      "producer-sha": "a5b40993910711b9",
-      "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"true\""
+      "producer-sha": "83ce2e7a6b054e0b",
+      "break": "line 142: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState",
+      "unit-sha": "548da67c3c6e84f7",
+      "claim-sha": "a11b8801dbbab1f8",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+      "producer-sha": "83ce2e7a6b054e0b",
+      "break": "line 142: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"false\""
     },
     {
       "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
@@ -86,7 +86,7 @@
       "claim-sha": "e47aaa86df95bb96",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
-      "producer-sha": "a5b40993910711b9",
+      "producer-sha": "83ce2e7a6b054e0b",
       "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "cfb6f9efbd5695df",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
-      "producer-sha": "a5b40993910711b9",
+      "producer-sha": "83ce2e7a6b054e0b",
       "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -105,12 +105,12 @@
       "polarity": "negative",
       "unit": "test/plugin/paths-limit-live.ci",
       "unit-sha": "eb87336135389cbe",
-      "claim-sha": "42b2d0d3191e8c69",
+      "claim-sha": "9f15fdfc71891787",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
-      "producer-sha": "a5b40993910711b9",
+      "producer-sha": "83ce2e7a6b054e0b",
       "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-      "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000010000006318C63364"
+      "citation": "expect=stdout:contains=OK: PATHS-LIMIT live IPv4 and IPv6 admission, replacement, withdrawal and retry"
     },
     {
       "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
@@ -120,9 +120,9 @@
       "claim-sha": "33936730418e1fa1",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
-      "producer-sha": "a5b40993910711b9",
+      "producer-sha": "83ce2e7a6b054e0b",
       "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-      "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000010000000118C00002"
+      "citation": "expect=stdout:contains=OK: PATHS-LIMIT live IPv4 and IPv6 admission, replacement, withdrawal and retry"
     }
   ]
 }

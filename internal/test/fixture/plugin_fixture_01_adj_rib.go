@@ -107,7 +107,7 @@ func plugin01ReplayOnPeerUp(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin01ReplayRFC2545(ctx context.Context, plugin *sdk.Plugin) error {
-	const source, destination = "127.0.0.1", "127.0.0.2"
+	const source, destination = "2001:db8::1", "2001:db8::2"
 	if err := plugin01ReplaySetup(ctx, plugin, 2, source,
 		"update text origin igp nhop 2001:db8:ffff::1 nlri ipv6/unicast add 2001:db8:ffff::/48", 40); err != nil {
 		return err
@@ -123,6 +123,9 @@ func plugin01ReplayRFC2545(ctx context.Context, plugin *sdk.Plugin) error {
 		return errors.New("destination was never sent the relayed copy")
 	}
 	fmt.Fprintln(os.Stderr, "OK: the destination was sent the relayed copy")
+	// The namespace fixture owns shutdown after the recipient has read both
+	// exact wire copies. Sent counters alone do not fence those TCP reads.
+	<-ctx.Done()
 	return nil
 }
 

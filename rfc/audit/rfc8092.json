@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-06",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Forbidden behaviour: a speaker transmitting a LARGE_COMMUNITY attribute that carries the same 12-octet value twice. TestLargeCommunitiesWriteToNoDuplicates asserts n == 24 for a three-entry list holding one duplicate, so it goes red if LargeCommunities.WriteTo stops deduplicating; TestLargeCommunities (negative) pins that distinct values are all emitted. Only the WriteTo producer is covered: the adj-rib-out replay encoder in internal/component/bgp/plugins/rib/ribout_entry.go (parseLargeCommunityWire then appendAttr) re-encodes the stored value without deduplication, and forward-unchanged raw attribute bytes are not asserted either, so a duplicate can reach the wire on a path no tagged unit exercises.",
       "requirement_sha": "42daae0ee97b186e",
       "tests": {
-        "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "df914436e0bdaf8a",
-        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "df914436e0bdaf8a"
+        "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "34fcdbe05b3de369",
+        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "34fcdbe05b3de369"
       },
       "units": {
         "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "d0693f4c5a17e247",
@@ -24,8 +25,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DistinctLargeCommunitiesKeptWhole": "d985ac23bb1022c7",
         "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092RedundantLargeCommunityRemovedBeforePropagation": "d985ac23bb1022c7",
-        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "df914436e0bdaf8a",
-        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesParse": "df914436e0bdaf8a"
+        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "34fcdbe05b3de369",
+        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesParse": "34fcdbe05b3de369"
       },
       "units": {
         "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DistinctLargeCommunitiesKeptWhole": "83db492e0286cd99",
@@ -81,7 +82,7 @@
       "requirement_sha": "06d3c42c68daaf5c",
       "tests": {
         "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DuplicateLargeCommunityIsNotMalformed": "d985ac23bb1022c7",
-        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "df914436e0bdaf8a"
+        "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "34fcdbe05b3de369"
       },
       "units": {
         "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DuplicateLargeCommunityIsNotMalformed": "d919570041b35233",

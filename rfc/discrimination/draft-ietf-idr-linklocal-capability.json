@@ -9,7 +9,7 @@
       "claim-sha": "64a7a540c8a14432",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build.go::buildMPReach",
-      "producer-sha": "30e9b56876394731",
+      "producer-sha": "f8f830d92bd631c5",
       "break": "body of buildMPReach replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "c0d2a2c46c8e296c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "2f5ab70e7ded6a86",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "06ff1ebb3deab52a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
-      "producer-sha": "b6776e6b99bd1741",
+      "producer-sha": "c041921634486eb8",
       "break": "body of egressNextHopLinkLocalOnlyOffLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "32e33856758b4777",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
-      "producer-sha": "b6776e6b99bd1741",
+      "producer-sha": "c041921634486eb8",
       "break": "body of egressNextHopLinkLocalOnlyOffLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -140,9 +140,9 @@
       "unit-sha": "d77156b914833b04",
       "claim-sha": "e66f91774733ceb6",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf",
-      "producer-sha": "5de9ef91fab32bce",
-      "break": "body of egressNextHopGlobalHalf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+      "producer-sha": "f18fe575149c99df",
+      "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2",
@@ -151,9 +151,9 @@
       "unit-sha": "d77156b914833b04",
       "claim-sha": "90dd71f7ca487ded",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf",
-      "producer-sha": "5de9ef91fab32bce",
-      "break": "body of egressNextHopGlobalHalf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+      "producer-sha": "f18fe575149c99df",
+      "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
@@ -240,7 +240,7 @@
       "claim-sha": "7f20f0e2fc51dd93",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +251,7 @@
       "claim-sha": "9431d924a07ca3eb",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,7 +262,7 @@
       "claim-sha": "999e07204c9ce703",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
-      "producer-sha": "b6776e6b99bd1741",
+      "producer-sha": "c041921634486eb8",
       "break": "body of egressNextHopLinkLocalOnlyOffLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -273,7 +273,7 @@
       "claim-sha": "7f664ab70d69e5be",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "667b072371b20d0f",
+      "producer-sha": "0832262f7f8e9f77",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +284,7 @@
       "claim-sha": "704c09945c1666ac",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "667b072371b20d0f",
+      "producer-sha": "0832262f7f8e9f77",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -306,7 +306,7 @@
       "claim-sha": "826c734dd7eeed98",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "0423c2f64a7c38ca",
+      "producer-sha": "9cbd65f5cb5f2d13",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -317,7 +317,7 @@
       "claim-sha": "6d6f9c5df3715caa",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -328,7 +328,7 @@
       "claim-sha": "40432f7d4e7ad99c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -339,7 +339,7 @@
       "claim-sha": "431bab11d4a38f22",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-      "producer-sha": "667b072371b20d0f",
+      "producer-sha": "0832262f7f8e9f77",
       "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -349,9 +349,9 @@
       "unit-sha": "fb0d61908af62273",
       "claim-sha": "2c1aad3d4a625b64",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf",
-      "producer-sha": "5de9ef91fab32bce",
-      "break": "body of egressNextHopGlobalHalf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+      "producer-sha": "f18fe575149c99df",
+      "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
@@ -360,9 +360,9 @@
       "unit-sha": "9a49085f27e08a3b",
       "claim-sha": "8755929699952e52",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf",
-      "producer-sha": "5de9ef91fab32bce",
-      "break": "body of egressNextHopGlobalHalf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+      "producer-sha": "f18fe575149c99df",
+      "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
@@ -371,9 +371,9 @@
       "unit-sha": "570ecde6a8b007dd",
       "claim-sha": "e5310a9f8cd4b72f",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf",
-      "producer-sha": "5de9ef91fab32bce",
-      "break": "body of egressNextHopGlobalHalf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+      "producer-sha": "f18fe575149c99df",
+      "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
@@ -382,9 +382,9 @@
       "unit-sha": "0715036833756334",
       "claim-sha": "260c4404ca8be907",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf",
-      "producer-sha": "5de9ef91fab32bce",
-      "break": "body of egressNextHopGlobalHalf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+      "producer-sha": "f18fe575149c99df",
+      "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
@@ -416,7 +416,7 @@
       "claim-sha": "4eaafbe47c0c539a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -427,7 +427,7 @@
       "claim-sha": "520504fbeb30486b",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
-      "producer-sha": "95ae776972eaa76b",
+      "producer-sha": "3df201fd842fe190",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -438,7 +438,7 @@
       "claim-sha": "6b32ba631842aeb3",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
-      "producer-sha": "b6776e6b99bd1741",
+      "producer-sha": "c041921634486eb8",
       "break": "body of egressNextHopLinkLocalOnlyOffLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "857a0b1c080fa20d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
-      "producer-sha": "b6776e6b99bd1741",
+      "producer-sha": "c041921634486eb8",
       "break": "body of egressNextHopLinkLocalOnlyOffLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -460,7 +460,7 @@
       "claim-sha": "db2bfc859a8d0a54",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
-      "producer-sha": "b6776e6b99bd1741",
+      "producer-sha": "c041921634486eb8",
       "break": "body of egressNextHopLinkLocalOnlyOffLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

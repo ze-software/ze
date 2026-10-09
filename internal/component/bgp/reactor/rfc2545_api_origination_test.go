@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
@@ -348,8 +349,10 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 
 // testOriginatedPolicyForwardQueue uses the API's captured-owner maintenance
 // rail, not a synthetic fwdItem. Both replacements are accepted into overflow
-// before its ordering hold opens, so the same worker batch must skip a refused
-// first announcement and still write and flush its healthy native IPv4 sibling.
+// while the worker is parked on the API-generated wake sentinel. Only then does
+// the ordering hold open, so one stable overflow snapshot delivers both real
+// items to the same worker batch, which must skip a refused first announcement
+// and still write and flush its healthy native IPv4 sibling.
 func testOriginatedPolicyForwardQueue(t *testing.T) {
 	for _, refuse := range []bool{false, true} {
 		name := "global-control"
@@ -417,7 +420,19 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 				return r.exportFilterForBody(peer, body)
 			}
 			widths := make(chan int, 4)
+			workerParked := make(chan struct{}, 1)
+			workerGate := make(chan struct{})
+			releaseWorker := sync.OnceFunc(func() { close(workerGate) })
 			pool := newFwdPool(func(key fwdKey, items []fwdItem) {
+				// dispatchOverflow itself queues the wake sentinel. Park that
+				// callback before runWorker can start drainOverflow: the hold is
+				// read per item in takeOverflowReleased, so flipping it during
+				// that scan need not release both items in the same snapshot.
+				select {
+				case workerParked <- struct{}{}:
+				default:
+				}
+				<-workerGate
 				count := 0
 				for i := range items {
 					if items[i].peer != nil {
@@ -429,12 +444,15 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 				}
 				fwdBatchHandler(key, items)
 			}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
-			t.Cleanup(pool.Stop)
 			r.fwdPool = pool
 			peer.sendingInitialRoutes.Store(1)
 			t.Cleanup(func() {
 				peer.sendingInitialRoutes.Store(0)
+				// MUST release the worker before Stop waits for it, including
+				// timeout/fatal exits while the ordering hold is still closed.
+				releaseWorker()
 				peer.wakeForwardOverflow()
+				pool.Stop()
 			})
 			for _, batch := range []bgptypes.NLRIBatch{first, later} {
 				// This API acknowledges queuing, not eventual policy admission.
@@ -442,13 +460,21 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 					t.Fatalf("maintenance replacement was not queued: %v", err)
 				}
 			}
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			select {
+			case <-workerParked:
+			case <-ctx.Done():
+				t.Fatal("API-generated wake sentinel never reached the worker fence")
+			}
 			if !bytes.Equal(conn.written(), before) {
 				t.Fatal("queued replacement escaped its ordering hold")
 			}
 			peer.sendingInitialRoutes.Store(0)
+			// No drain can observe the hold transition: both real API items
+			// are queued and the worker is parked before its overflow scan.
+			releaseWorker()
 			peer.wakeForwardOverflow()
-			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-			defer cancel()
 			if err := pool.Barrier(ctx); err != nil {
 				t.Fatal(err)
 			}

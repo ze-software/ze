@@ -19,12 +19,12 @@
 # bytes rather than hidden behind an identical value. That is what separates
 # "discarded" from "merged and happened to agree".
 #
-# WHAT MAKES IT DISCRIMINATE: with the collapse removed the AS4_PATH survives
-# ingest and the forward path relays it verbatim between two four-octet
-# sessions, so conn=2 receives 37 attribute octets carrying C0110A... rather
-# than the 24 below. With the collapse present but its Section 4.1 arm removed,
-# the AS4_PATH is merged instead and conn=2 reads FA56EA00 at the tail of
-# AS_PATH.
+# WHAT THE WIRE ASSERTION DISTINGUISHES: a retained AS4_PATH adds thirteen
+# attribute octets; an incorrectly substituted path changes the AS_PATH tail.
+# The exact receiver bytes reject both, while requiring the route to arrive.
+# Current ingest prepares an AS4FamilyPlan and calls its WriteTo directly.
+# Disabling the older CollapseAS4Family wrapper does not break this route.
+# A producer halt records reachability, not a selective wrong-value mutation.
 #
 # RFC requirement: RFC6793-4.1-6 positive -- the UPDATE ze puts on the wire between
 # two NEW BGP speakers carries neither AS4_PATH nor AS4_AGGREGATOR. conn=2 receives

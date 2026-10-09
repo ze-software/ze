@@ -2,6 +2,7 @@
   "audited": "2026-09-29",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -227,8 +228,8 @@
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "885cc967d56945b1",
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsMixedWithdrawAndAnnounce": "885cc967d56945b1",
         "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig": "885cc967d56945b1",
-        "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal": "f7ef88f508431a53",
-        "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2": "f7ef88f508431a53",
+        "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal": "f5f441d25f0d5702",
+        "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2": "f5f441d25f0d5702",
         "test/plugin/role-otc-fwd-withdraw.ci": "291620aeb22446f9",
         "test/plugin/role-otc-fwd-withdraw.ci#2": "291620aeb22446f9",
         "test/plugin/role-otc-rs-client-dest-stamp.ci": "0fc1e8d471d95ed2",

@@ -1165,9 +1165,9 @@ func TestCanUseNextHopFor_IPv6Natural(t *testing.T) {
 // RFC requirement: RFC5549-4-1 positive -- with Extended Next Hop negotiated for IPv4/Unicast -> IPv6,
 // canUseNextHopFor permits the IPv6 next-hop for IPv4 NLRI, so the speaker may advertise it; RFC 5549
 // shares ze's RFC 8950 extended-next-hop code path (internal/component/bgp/reactor/peer.go:694).
-// RFC requirement: RFC5549-4-4 positive -- the MUST NOT does not fire when ExtNH is negotiated:
-// canUseNextHopFor returns true, permitting the IPv6-next-hop-for-IPv4 advertisement
-// (internal/component/bgp/reactor/peer.go:694).
+// RFC requirement: RFC5549-4-4 positive -- the MUST-only-advertise condition permits
+// the IPv6-next-hop-for-IPv4 advertisement when the relevant ExtNH tuple is
+// negotiated: canUseNextHopFor returns true.
 func TestCanUseNextHopFor_ExtendedNH(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)

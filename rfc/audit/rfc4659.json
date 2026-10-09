@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-09",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -40,15 +40,28 @@
       "verdict": "enforced"
     },
     "RFC4659-3.2.1.1-1": {
-      "note": "Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.",
-      "requirement_sha": "eb9bf089e9b42164",
+      "note": "Independently rejudged the full widened RFC 4659 Section 3.2.1.1 obligation. TestRFC4659ConfiguredIPv6TransportNextHopWire in internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go closes the former originator-identity proof gap: native configuration starts the real Peer and recipient Session over TCP6, with self and explicit selection under both grouping modes. Independent interface enumeration in separate namespaces establishes speaker ownership; the accepted endpoint supplies the self oracle and a distinct speaker-owned loopback supplies the explicit oracle. Literal recipient assertions require AFI 2/SAFI 128, length 24, every RD byte zero, the independently established speaker global address, both intended VPN NLRIs and completion at VPNv6 EOR. buildMPReachVPN is reached through configured static sending rather than called by the integration test. The earlier builder test remains an encoding control, and TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair remains contextual exception evidence. Section 3.2.1 leaves transport-policy definition to the operator; this tests its existing configured control-plane expression, not tunnel creation. Distinct /128s exclude the separate common-subnet/48-octet origination obligation. IPv4-mapped transport, PE dataplane and ASBR gaps remain unchanged.",
+      "requirement_sha": "b431818a1417e12c",
       "tests": {
-        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "468f4d4a5f404a50"
+        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "468f4d4a5f404a50",
+        "internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go::TestRFC4659ConfiguredIPv6TransportNextHopWire": "75980d479e2fbbe0",
+        "internal/component/bgp/reactor/rfc4659_link_local_peering_test.go::TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair": "66e1f87e8171d03e"
       },
       "units": {
-        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "52de945e3731d8fa"
+        "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop": "52de945e3731d8fa",
+        "internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go::TestRFC4659ConfiguredIPv6TransportNextHopWire": "95ed13777752712b",
+        "internal/component/bgp/reactor/rfc4659_link_local_peering_test.go::TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair": "dddb7dcbdc8e9937"
       },
       "verdict": "enforced"
+    },
+    "RFC4659-3.2.1.1-3": {
+      "code": {
+        "internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN": "6f16053847f7f08f",
+        "internal/component/bgp/reactor/peer_static_routes.go::buildStaticRouteUpdateNew": "27dd11ce802628c8"
+      },
+      "note": "Independent first judgment of RFC 4659 Section 3.2.1.1: The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. Both directions remain SHALL obligations. buildMPReachVPN emits only one RD plus one address, using length 24 for an IPv6 next hop; it has no 48-octet two-VPN-address emission or recipient common-subnet decision. buildStaticRouteUpdateNew receives a linkLocal argument but its VPN branch does not pass it into VPNParams or BuildVPN. Consequently the required inclusion when the speaker and recipient share a common subnet is unimplemented. Always omitting the link-local address can satisfy the off-subnet exclusion case but does not implement the full iff. No tagged test proves this row. RFC2545 plain-unicast pair tests, preservation of the special received link-local-only VPN pair, and the configured global-only VPNv6 integration test do not establish this missing VPN origination behavior; the integration fixture deliberately uses distinct /128s. Retain the separate internal-peer stripping MAY and link-local-only unspecified-global exception without using either to erase the condition. The existing 48-octet/common-subnet implementation gap remains explicit; no new feature is commissioned.",
+      "requirement_sha": "95532f9edd77514e",
+      "verdict": "unimplemented"
     },
     "RFC4659-3.4-1": {
       "note": "Re-judged 2026-10-02 (BGP c34 judge). DEFECT fixed (D-8): sendStaticRoutes sent every configured route whatever the session negotiated. Fix at the producer, judge-read: Peer.negotiatedStaticRoutes (reactor/peer_static_wire.go, RFC 4659 Section 3.4 quote above it) filters by routeFamily against the negotiated set at the top of sendStaticRoutes, so the per-route path, the grouped path and the reload delta (deliverStaticRouteDelta) are all covered; a skipped route is not in the answer, so it is not recorded in staticWire, a later reload never withdraws it (withdrawStaticRoutes reads only staticWire), and a new session with the family negotiated re-sends it from config. Implicit IPv4 unicast (no MP capability on either side) stays negotiated (capability.Negotiate FamilyImplicit), so plain IPv4 peers are unaffected. Send: rfc4659_vpnv6_negotiated_send_test.go, a session negotiating 2/128 carries MP_REACH 800e2f 000280 18 RD0 2001:db8::1 00 88 003e81 0000fde800000064 20010db80001 (positive); an ipv4-only session puts no UPDATE naming 2/128 on the wire, route or End-of-RIB (negative; failing-first observed before the fix, scratch c34p/4659s-green.log, and the filter-disabled probe reds only this unit). Receive: validateUpdateFamilies accepts a 2/128 MP_REACH on a session that negotiated it and refuses it with ErrFamilyNotNegotiated on one that did not. Records: negotiatedStaticRoutes and validateUpdateFamilies reverts, all four observed red. HEAD session_negotiate_test units stay as unrecorded supplementary tags.",
@@ -70,6 +83,17 @@
         "internal/component/bgp/reactor/session_negotiate_test.go::TestOpenAdvertisesVPNv6Capability": "e6780e3215c7673f"
       },
       "verdict": "enforced"
+    },
+    "RFC4659-8-5": {
+      "code": {
+        "internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN": "6f16053847f7f08f",
+        "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c43894606dafdb4c",
+        "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler": "05f35291e9778f6b",
+        "internal/component/sysrib/sysrib.go::processEvent": "073460f89bf95920"
+      },
+      "note": "Independently judged RFC 4659 Section 8 in its option-(b) context: When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. The SHALL remains binding when that condition holds; BGP peering may use either transport family, and Section 3.2.1 leaves the transport policy to the operator. Ze has reachable generic VPNv6 origination and cross-peer forwarding: buildMPReachVPN encodes a supplied address and labels, while mpReachNextHopHandler preserves the received NLRI when replacing the next hop. Neither supplies an ASBR-local label binding or the integrated inter-AS forwarding relationship. checkRouteBestChange excludes native VPN routes from Loc-RIB mirroring, and sysrib.processEvent does not turn their native-NLRI publications into FIB entries; the separate LDP/RSVP-TE MPLS channel is not a BGP option-(b) binding producer. Retain the explicit option-(b) implementation gap under the existing no-ASBR-feature scope. Do not infer non-applicability from missing ASBR names or full enforcement from the generic IPv6 encoder or Section 3.2.1.1 origination test. No ASBR implementation is commissioned.",
+      "requirement_sha": "acd4f58ba30443ce",
+      "verdict": "unimplemented"
     }
   },
   "rfc": "rfc4659"

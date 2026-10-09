@@ -129,7 +129,20 @@ func stripAIGPBody(dst, body []byte) ([]byte, error) {
 	attrs := sections.Attrs(body)
 	attrStart := 4 + sections.WithdrawnLen()
 	copy(dst, body[:attrStart])
-	written := attrStart
+	// RFC 7311 Section 3.3.
+	written := attrStart + len(stripAIGPAttributes(dst[attrStart:], attrs))
+	binary.BigEndian.PutUint16(dst[attrStart-2:attrStart], uint16(written-attrStart))
+	written += copy(dst[written:], sections.NLRI(body))
+	return dst[:written], nil
+}
+
+// stripAIGPAttributes copies only attributes, so an ordinary logical body need
+// not fit a wire buffer before splitting. The caller MUST provide len(attrs)
+// writable bytes in dst; the result MUST be consumed before dst is reused.
+// RFC 7311 Section 3.3: "The AIGP attribute MUST NOT be sent on any BGP session
+// for which AIGP_SESSION is disabled."
+func stripAIGPAttributes(dst, attrs []byte) []byte {
+	written := 0
 	it := attribute.NewAttrIterator(attrs)
 	off := 0
 	for {
@@ -147,9 +160,7 @@ func stripAIGPBody(dst, body []byte) ([]byte, error) {
 		}
 		off += n
 	}
-	binary.BigEndian.PutUint16(dst[attrStart-2:attrStart], uint16(written-attrStart))
-	written += copy(dst[written:], sections.NLRI(body))
-	return dst[:written], nil
+	return dst[:written]
 }
 
 func (s *Session) writeUpdateWithoutAIGP(body []byte, raw bool) (bool, error) {

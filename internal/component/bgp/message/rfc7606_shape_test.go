@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // RFC 7606 Section 5.1, second bullet: "An UPDATE message MUST NOT contain more than one of
@@ -68,8 +70,14 @@ func TestNLRIBearingFieldCountEveryCombination(t *testing.T) {
 		{name: "mp-unreach only", mpUnreach: true, want: 1},
 		{name: "withdrawn+nlri", withdrawn: true, nlri: true, want: 2},
 		{name: "withdrawn+mp-reach", withdrawn: true, mpReach: true, want: 2},
+		{name: "withdrawn+mp-unreach", withdrawn: true, mpUnreach: true, want: 2},
+		{name: "nlri+mp-reach", nlri: true, mpReach: true, want: 2},
 		{name: "nlri+mp-unreach", nlri: true, mpUnreach: true, want: 2},
 		{name: "both mp", mpReach: true, mpUnreach: true, want: 2},
+		{name: "withdrawn+nlri+mp-reach", withdrawn: true, nlri: true, mpReach: true, want: 3},
+		{name: "withdrawn+nlri+mp-unreach", withdrawn: true, nlri: true, mpUnreach: true, want: 3},
+		{name: "withdrawn+both mp", withdrawn: true, mpReach: true, mpUnreach: true, want: 3},
+		{name: "nlri+both mp", nlri: true, mpReach: true, mpUnreach: true, want: 3},
 		{name: "all four", withdrawn: true, nlri: true, mpReach: true, mpUnreach: true, want: 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -131,7 +139,7 @@ func TestSplitCompliantSplitsMixedUpdateThatFits(t *testing.T) {
 
 	var got []int
 	s := NewSplitter()
-	require.NoError(t, s.SplitCompliant(u, 4096, false, func(c *Update) error {
+	require.NoError(t, s.SplitCompliant(u, 4096, func(family.Family) bool { return false }, func(c *Update) error {
 		got = append(got, NLRIBearingFieldCount(c.WithdrawnRoutes, c.PathAttributes, c.NLRI))
 		return nil
 	}))
@@ -157,7 +165,7 @@ func TestSplitCompliantPassesThroughCompliantUpdate(t *testing.T) {
 
 	var emitted []*Update
 	s := NewSplitter()
-	require.NoError(t, s.SplitCompliant(u, 4096, false, func(c *Update) error {
+	require.NoError(t, s.SplitCompliant(u, 4096, func(family.Family) bool { return false }, func(c *Update) error {
 		emitted = append(emitted, c)
 		return nil
 	}))
@@ -174,7 +182,7 @@ func TestSplitCompliantEndOfRIBUntouched(t *testing.T) {
 
 	var emitted []*Update
 	s := NewSplitter()
-	require.NoError(t, s.SplitCompliant(u, 4096, false, func(c *Update) error {
+	require.NoError(t, s.SplitCompliant(u, 4096, func(family.Family) bool { return false }, func(c *Update) error {
 		emitted = append(emitted, c)
 		return nil
 	}))
@@ -194,7 +202,7 @@ func TestSplitCompliantStillSplitsOnSize(t *testing.T) {
 
 	count := 0
 	s := NewSplitter()
-	require.NoError(t, s.SplitCompliant(u, 100, false, func(_ *Update) error {
+	require.NoError(t, s.SplitCompliant(u, 100, func(family.Family) bool { return false }, func(_ *Update) error {
 		count++
 		return nil
 	}))
@@ -213,7 +221,7 @@ func TestSplitCompliantWithdrawalsPrecedeAnnouncements(t *testing.T) {
 
 	var order []string
 	s := NewSplitter()
-	require.NoError(t, s.SplitCompliant(u, 4096, false, func(c *Update) error {
+	require.NoError(t, s.SplitCompliant(u, 4096, func(family.Family) bool { return false }, func(c *Update) error {
 		switch {
 		case len(c.WithdrawnRoutes) > 0:
 			order = append(order, "withdrawn")
@@ -229,4 +237,123 @@ func TestSplitCompliantWithdrawalsPrecedeAnnouncements(t *testing.T) {
 
 	assert.Equal(t, []string{"withdrawn", "mp-unreach", "mp-reach", "nlri"}, order,
 		"withdrawals before announcements; MP_UNREACH before MP_REACH")
+}
+
+// RFC 4724 Section 2: "For any other address family, it is an UPDATE message
+// that contains only the MP_UNREACH_NLRI attribute [BGP-MP] with no withdrawn
+// routes for that <AFI, SAFI>."
+// Separating an empty MP withdrawal from a sibling must not invent that marker.
+func TestSplitCompliantEmptyMPUnreachKeepsMessageMeaning(t *testing.T) {
+	base := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe9, // AS_PATH [65001]
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP 192.0.2.1
+	}
+	emptyMP := []byte{0x80, 0x0f, 0x03, 0x00, 0x02, 0x01}
+	mpReach := shapeAttrs(true, false)[4:]
+	emptyReach := append([]byte(nil), mpReach[:24]...)
+	emptyReach[2] = 21 // AFI, SAFI, next-hop length, 16-byte next hop, reserved.
+	for _, tc := range []struct {
+		name string
+		body Update
+		want Update
+	}{
+		{
+			name: "legacy withdrawal",
+			body: Update{WithdrawnRoutes: shapeWithdrawn, PathAttributes: emptyMP},
+			want: Update{WithdrawnRoutes: shapeWithdrawn},
+		},
+		{
+			name: "legacy announcement",
+			body: Update{PathAttributes: append(append([]byte(nil), base...), emptyMP...), NLRI: shapeNLRI},
+			want: Update{PathAttributes: base, NLRI: shapeNLRI},
+		},
+		{
+			name: "MP announcement",
+			body: Update{PathAttributes: append(append(append([]byte(nil), base...), mpReach...), emptyMP...)},
+			want: Update{PathAttributes: append(append([]byte(nil), base...), mpReach...)},
+		},
+		{
+			name: "empty MP announcement field",
+			body: Update{PathAttributes: append(append(append([]byte(nil), base...), emptyReach...), emptyMP...)},
+			want: Update{PathAttributes: append(append([]byte(nil), base...), emptyReach...)},
+		},
+		{
+			name: "standalone MP End-of-RIB",
+			body: Update{PathAttributes: emptyMP},
+			want: Update{PathAttributes: emptyMP},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			emitted := 0
+			// RFC 7606 Section 5.1; RFC 4724 Section 2.
+			err := NewSplitter().SplitCompliant(&tc.body, MaxMsgLen, func(family.Family) bool { return false }, func(got *Update) error {
+				emitted++
+				assert.Equal(t, tc.want.WithdrawnRoutes, got.WithdrawnRoutes)
+				assert.Equal(t, tc.want.PathAttributes, got.PathAttributes)
+				assert.Equal(t, tc.want.NLRI, got.NLRI)
+				return nil
+			})
+			require.NoError(t, err)
+			assert.Equal(t, 1, emitted, "exactly the original sibling, or the genuine standalone EOR")
+		})
+	}
+}
+
+func TestSplitCompliantEmptyMPUnreachStillValidates(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		attrs   []byte
+		maxSize int
+		wantErr string
+	}{
+		{
+			name:    "malformed MP envelope",
+			attrs:   []byte{0x80, 0x0f, 0x02, 0x00, 0x02},
+			maxSize: MaxMsgLen,
+			wantErr: "parsing MP_UNREACH_NLRI",
+		},
+		{
+			name:    "MP attribute budget exhausted",
+			attrs:   []byte{0x80, 0x0f, 0x03, 0x00, 0x02, 0x01},
+			maxSize: HeaderLen + 4 + len(shapeWithdrawn),
+			wantErr: ErrAttributesTooLarge.Error(),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u := &Update{WithdrawnRoutes: shapeWithdrawn, PathAttributes: tc.attrs}
+			emitted := 0
+			// RFC 7606 Section 5.1: a split must not hide a malformed MP field.
+			err := NewSplitter().SplitCompliant(u, tc.maxSize, func(family.Family) bool { return false }, func(got *Update) error {
+				emitted++
+				assert.Equal(t, shapeWithdrawn, got.WithdrawnRoutes)
+				assert.Empty(t, got.PathAttributes)
+				assert.Empty(t, got.NLRI)
+				return nil
+			})
+			require.ErrorContains(t, err, tc.wantErr)
+			assert.Equal(t, 1, emitted, "the earlier complete withdrawal remains emitted before refusal")
+		})
+	}
+}
+
+func TestSplitCompliantNonemptyMPWithdrawalRemains(t *testing.T) {
+	mp := []byte{0x80, 0x0f, 0x0c, 0x00, 0x02, 0x01, 0x40, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0}
+	u := &Update{WithdrawnRoutes: shapeWithdrawn, PathAttributes: mp}
+	want := []Update{
+		{WithdrawnRoutes: shapeWithdrawn},
+		{PathAttributes: mp},
+	}
+	emitted := 0
+	// RFC 7606 Section 5.1: separate both real withdrawal fields without losing either.
+	err := NewSplitter().SplitCompliant(u, MaxMsgLen, func(family.Family) bool { return false }, func(got *Update) error {
+		require.Less(t, emitted, len(want))
+		assert.Equal(t, want[emitted].WithdrawnRoutes, got.WithdrawnRoutes)
+		assert.Equal(t, want[emitted].PathAttributes, got.PathAttributes)
+		assert.Equal(t, want[emitted].NLRI, got.NLRI)
+		emitted++
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, len(want), emitted)
 }

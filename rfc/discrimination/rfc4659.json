@@ -48,6 +48,17 @@
     {
       "rid": "RFC4659-3.2.1.1-1",
       "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go::TestRFC4659ConfiguredIPv6TransportNextHopWire",
+      "unit-sha": "1a1a760a51ef3ca4",
+      "claim-sha": "2b90ef467a3004c4",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN",
+      "producer-sha": "7ca6f0f3f9f54c23",
+      "break": "body of buildMPReachVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.2.1.1-1",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc4659_link_local_peering_test.go::TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair",
       "unit-sha": "cdfc3c21834b38a1",
       "claim-sha": "2805d4adac751e46",

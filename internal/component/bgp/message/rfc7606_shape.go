@@ -23,7 +23,7 @@ import (
 //
 // Path attribute bytes that stop parsing end the walk, and only what parsed is
 // counted. Callers have already validated the UPDATE (on the receive path that
-// is enforceRFC7606, reactor/session_read.go:162). Classifying shape is not
+// is applyRFC7606 in reactor/session_validation.go). Classifying shape is not
 // validating, and a parse failure must not be turned into an invented violation.
 func NLRIBearingFieldCount(withdrawn, pathAttrs, nlri []byte) int {
 	n := 0

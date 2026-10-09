@@ -207,7 +207,7 @@
       "claim-sha": "e5dc1c23d1c9d6f1",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::deleteWithCommunityCommand",
-      "producer-sha": "f65af76cc0bd50a8",
+      "producer-sha": "61d313428e08be72",
       "break": "body of deleteWithCommunityCommand replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -218,7 +218,7 @@
       "claim-sha": "a0ef4f81721814ff",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::deleteWithCommunityCommand",
-      "producer-sha": "f65af76cc0bd50a8",
+      "producer-sha": "61d313428e08be72",
       "break": "body of deleteWithCommunityCommand replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "bd0fb3adbc6f091a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::deleteWithCommunityCommand",
-      "producer-sha": "f65af76cc0bd50a8",
+      "producer-sha": "61d313428e08be72",
       "break": "body of deleteWithCommunityCommand replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=stderr:contains=OK: import-added NO_LLGR removed on LLGR entry; unmarked control retained with LLGR_STALE"
     },
@@ -241,7 +241,7 @@
       "claim-sha": "ff2a4d2032e4953d",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::deleteWithCommunityCommand",
-      "producer-sha": "f65af76cc0bd50a8",
+      "producer-sha": "61d313428e08be72",
       "break": "body of deleteWithCommunityCommand replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=stderr:contains=OK: import-added NO_LLGR removed on LLGR entry; unmarked control retained with LLGR_STALE"
     },

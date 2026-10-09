@@ -75,7 +75,7 @@
       "claim-sha": "cf99f75369b859eb",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
-      "producer-sha": "729811dd504a337f",
+      "producer-sha": "eed15e82d68e132d",
       "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "de89bbd0dc1520be",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-      "producer-sha": "1fb012d9e446c1a5",
+      "producer-sha": "4f141950953904e4",
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "22632035ab80403c",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-      "producer-sha": "1fb012d9e446c1a5",
+      "producer-sha": "4f141950953904e4",
       "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

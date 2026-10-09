@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 
@@ -498,12 +499,94 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		return nil
 	}
 
-	if aigpPresent(body) && (!s.settings.AIGPEnabled() || gate && !s.aigpOriginAllowed(body)) {
+	stripAIGP := aigpPresent(body) && (!s.settings.AIGPEnabled() || gate && !s.aigpOriginAllowed(body))
+	if gate {
+		// writeMu MUST remain held through final sizing and ownership admission.
+		// RFC 4271 Section 4.3; RFC 8654 Section 4; RFC 7311 Section 3.3.
+		return s.writeOrdinaryUpdateBody(body, stripAIGP)
+	}
+	if stripAIGP {
 		_, err := s.writeUpdateWithoutAIGP(body, false)
 		return err
 	}
 
 	return s.writeRawUpdateBody(body)
+}
+
+// writeOrdinaryUpdateBody sizes the effective ordinary advertisement, not the
+// pre-policy input. The caller MUST hold writeMu and flush successful writes.
+// Split callbacks MUST consume their borrowed chunk before returning; they
+// bypass policy but retain the final writer's ownership and admission.
+//
+// RFC 8654 Section 4: "Applications generating information that might be
+// encapsulated within BGP messages MUST limit the size of their payload to
+// take the maximum message size into account."
+//
+// RFC 4271 Sections 4.1 and 4.3, complete UPDATE offsets:
+//
+//	[0:16] Marker | [16:18] Length | [18] Type | [19:21] Withdrawn length
+//	[21:] Withdrawn | Attribute length(2) | Attributes | NLRI
+func (s *Session) writeOrdinaryUpdateBody(body []byte, stripAIGP bool) error {
+	maxSize := len(s.writeBuf.Buffer())
+	if !stripAIGP {
+		if len(body)+message.HeaderLen <= maxSize {
+			// RFC 4271 Section 4.3: retain the unchanged body without a copy.
+			return s.writeRawUpdateBody(body)
+		}
+	}
+
+	// RFC 4271 Section 4.3.
+	sections, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		return err
+	}
+	update := message.Update{
+		WithdrawnRoutes: sections.Withdrawn(body),
+		PathAttributes:  sections.Attrs(body),
+		NLRI:            sections.NLRI(body),
+	}
+	if stripAIGP {
+		// Only the uint16-bounded attribute section needs scratch. The logical
+		// body can exceed even an extended read buffer before final splitting.
+		handle := getReadBuf(len(update.PathAttributes) > message.MaxMsgLen)
+		defer s.returnReadBuffer(handle)
+		// RFC 7311 Section 3.3.
+		update.PathAttributes = stripAIGPAttributes(handle.Buf, update.PathAttributes)
+	}
+
+	splitter := message.GetSplitter()
+	defer message.PutSplitter(splitter)
+
+	emitted := false
+	// RFC 4271 Section 4.3; RFC 8654 Section 4; RFC 7911 Sections 3 and 5:
+	// every final section uses its own family's negotiated send framing.
+	err = splitter.Split(&update, maxSize, bgpctx.Registry.Get(s.sendCtxID).AddPath, func(chunk *message.Update) error {
+		emitted = true
+		// An indivisible attribute-only chunk can survive the splitter. Refuse
+		// it explicitly instead of letting WriteTo truncate into the buffer.
+		// RFC 4271 Sections 4.1 and 4.3; RFC 8654 Section 6.
+		n, err := chunk.CheckedWriteTo(s.writeBuf.Buffer(), 0, nil)
+		if err != nil {
+			return message.ErrAttributesTooLarge
+		}
+		// RFC 4271 Section 4.3: each final chunk owns its normal writer receipt.
+		return s.writeRawUpdateBody(s.writeBuf.Buffer()[message.HeaderLen:n])
+	})
+	if err == nil && !emitted {
+		// An oversized attribute-only UPDATE cannot become silent suppression.
+		err = message.ErrAttributesTooLarge
+	}
+	if err != nil {
+		if s.writePending {
+			// Earlier chunks have speculative ownership and may already have
+			// reached TCP. Commit them before a route-scoped refusal returns.
+			// A transport/flush failure retains its own error and retirement.
+			if flushErr := s.flushWrites(); flushErr != nil {
+				return flushErr
+			}
+		}
+	}
+	return err
 }
 
 // writeRawUpdateBody writes a raw UPDATE body to bufWriter without locking or flushing.
@@ -576,7 +659,6 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		}
 	}
 	committed := false
-	var withheld uint64
 	if len(s.pathsLimit) != 0 {
 		handle := getReadBuf(len(body) > message.MaxMsgLen-message.HeaderLen)
 		defer s.returnReadBuffer(handle)
@@ -591,15 +673,12 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		if err != nil {
 			return false, err
 		}
-		withheld = uint64(dropped)
 		if dropped != 0 {
 			sessionLogger().Debug("PATHS-LIMIT withheld additional paths",
 				"peer", s.settings.Address, "paths", dropped)
 		}
 		if n == 0 {
 			ownership.noteFilteredOperation()
-			s.pathsLimitTotals.routes += withheld
-			s.pathsLimitTotals.updates++
 			return false, nil
 		}
 		body = handle.Buf[:n]
@@ -644,11 +723,13 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		return opaque, err
 	}
 	s.writePending = true
+	s.updateSendTotals.updates++
+	s.updateSendTotals.announcedRoutes += ownership.announcedRoutes
+	s.updateSendTotals.withdrawnRoutes += ownership.withdrawnRoutes
 	if !opaque {
 		s.noteAIGPWrite(body)
 	}
 	committed = true
-	s.pathsLimitTotals.routes += withheld
 	// Asked only while the answer can still change, as above. This is the
 	// zero-copy forwarding path and it runs for every relayed UPDATE, so an
 	// armed connection pays one atomic load here rather than a walk of the body.
@@ -818,7 +899,7 @@ func (s *Session) SendUpdate(update *message.Update) error {
 
 // sendUpdateCounted captures this write's admission result while writeMu is
 // held. Named commits must not count paths withheld by the session as sent.
-func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *pathsLimitSendCounts, replay bool, owner *fwdItem) error {
+func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *updateSendCounts, replay bool, owner *fwdItem) error {
 	if err := s.writeMu.LockContext(ctx); err != nil {
 		return err
 	}
@@ -861,11 +942,18 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 		s.sentMeta = map[string]any{"replay": true}
 		defer func() { s.sentMeta = nil }()
 	}
-	before := s.pathsLimitTotals
+	before := s.updateSendTotals
 
 	err := s.writeUpdate(update)
 	if err == nil {
 		err = s.flushWrites()
+	}
+	if counts != nil {
+		// Earlier chunks can be accepted even when a later section is refused.
+		// These are the same buffered-acceptance facts as the sent callbacks.
+		counts.announcedRoutes = s.updateSendTotals.announcedRoutes - before.announcedRoutes
+		counts.withdrawnRoutes = s.updateSendTotals.withdrawnRoutes - before.withdrawnRoutes
+		counts.updates = s.updateSendTotals.updates - before.updates
 	}
 	if err != nil {
 		if canceled := ctx.Err(); canceled != nil {
@@ -880,10 +968,6 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 			return context.DeadlineExceeded
 		}
 		return err
-	}
-	if counts != nil {
-		counts.routes = s.pathsLimitTotals.routes - before.routes
-		counts.updates = s.pathsLimitTotals.updates - before.updates
 	}
 	return nil
 }

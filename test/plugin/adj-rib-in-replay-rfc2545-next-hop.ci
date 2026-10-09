@@ -1,3 +1,10 @@
+# S=2001:db8::254, N=2001:db8::1 plus fe80::1, P=2001:db8::2.
+# Separate namespaces share one real bridge/veth link. The fixture reads back
+# address ownership and attachment before starting Ze or either peer.
+option=needs-linux:caps=net-admin
+option=env:var=ze_test_bgp_port:value=$PORT
+option=timeout:value=90s
+
 # Test: a route learned with an RFC 2545 two-address next hop is replayed with
 #       BOTH addresses, byte-identical to what the live forward rail relays.
 # VALIDATES: RFC 2545 Section 3 -- "A BGP speaker shall advertise to its peer in
@@ -29,24 +36,22 @@
 #            replay must match.
 #   seq=2 -- the REPLAY, the subject. It is reconstructed from the STORED bytes,
 #            so it is the only one of the two that can carry a truncated field.
-# Nothing else can produce the second copy: no RIB plugin is loaded, so the
-# destination has no local-table delivery path, and adj-rib-in receives `state`
-# for the SOURCE peer only, so its own peer-up self-replay never fires for the
-# destination. The observer's explicit `request bgp adj-rib-in replay` is the sole
-# producer.
+# The mandatory RIB is not granted peer events or output here, so it cannot
+# provide a local-table replay. Adj-rib-in receives `state` for the SOURCE only,
+# so its own peer-up replay never fires for the destination. The observer's
+# explicit `request bgp adj-rib-in replay` owns the second copy.
 #
-# WHY THE TWO ARRIVALS MUST BE IDENTICAL. No next-hop mode is configured, so
-# applyFactsNextHop takes nhModeNone and returns without touching code 14. The
-# live forward therefore relays the source's next-hop field verbatim, and the
-# replay's job is to reproduce it. Asserting the same hex twice is the direct
-# statement of the one-egress-transform invariant, not a restatement of the code.
+# WHY THE TWO ARRIVALS MUST BE IDENTICAL. No next-hop mode rewrites the field.
+# The configured common IPv6 link satisfies the joint egress scope predicate.
+# Both live forwarding and replay must preserve the same complete pair.
 
 # ---------------------------------------------------------------------------
-# Source peer -- eBGP, AS 65001, on 127.0.0.1, ipv6/unicast.
+# Source peer -- eBGP, AS 65001, on 2001:db8::1, ipv6/unicast.
 # ---------------------------------------------------------------------------
-stdin=source:terminator=EOF_SOURCE
+tmpfs=source.peer:terminator=EOF_SOURCE
 option=tcp_connections:value=1
-option=timeout:value=40s
+option=asn:value=65001
+option=bind:value=2001:db8::1
 # The source must outlive the destination's assertions: if it closes, ze
 # withdraws its routes and the destination receives a withdrawal it has no rule
 # for.
@@ -81,17 +86,19 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0053020000003C40010
 EOF_SOURCE
 
 # ---------------------------------------------------------------------------
-# Destination peer -- eBGP, AS 65002, on 127.0.0.2, ipv6/unicast.
+# Destination peer -- eBGP, AS 65002, on 2001:db8::2, ipv6/unicast.
 # ---------------------------------------------------------------------------
 # Both arrivals carry the SAME bytes. RFC 4271 Section 5.1.2 prepends ze's own AS
 # 65000 (0xFDE8) towards an external peer; ORIGIN and the whole MP_REACH next-hop
 # field are relayed unchanged.
 #   AS_PATH:  40020A02020000FDE80000FDE9    AS_SEQUENCE[65000, 65001]
 # attr len = 4+13+47 = 64 = 0x40; total = 19+2+2+64 = 87 = 0x57.
-stdin=dest:terminator=EOF_DEST
+tmpfs=dest.peer:terminator=EOF_DEST
 option=tcp_connections:value=1
-option=timeout:value=40s
-option=bind:value=127.0.0.2
+option=asn:value=65002
+option=bind:value=2001:db8::2
+option=linger:value=true
+option=established-file:path=destination.up
 
 # seq=1 CONTROL -- the LIVE forward.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005702000000404001010040020A02020000FDE80000FDE9800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB80001
@@ -105,13 +112,12 @@ EOF_DEST
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# ze -- AS 65000, two external peers on separate loopbacks.
+# ze -- AS 65000, two external IPv6 peers on one real common link.
 # ---------------------------------------------------------------------------
-# No RIB plugin is loaded on purpose: bgp-rib would give the destination a second
-# delivery path for the same prefix out of a local table, and seq=2 would stop
-# naming the relay. adj-rib-in is given `update-received state` on the SOURCE peer
-# only, so it stores that peer's routes and never sees the destination come up.
-stdin=ze-bgp:terminator=EOF_CONF
+# The mandatory RIB has no peer grants here, preventing a second delivery path.
+# Adj-rib-in receives `update-received state` on the SOURCE only, so it stores
+# that peer's routes and never sees the destination come up.
+tmpfs=ze.conf:terminator=EOF_CONF
 plugin {
 	internal rs {
 		use bgp-rs
@@ -129,10 +135,10 @@ bgp {
 	peer source-peer {
 		connection {
 			remote {
-				ip 127.0.0.1
+				ip 2001:db8::1
 			}
 			local {
-				ip 127.0.0.1
+				ip 2001:db8::254
 				accept false
 			}
 		}
@@ -142,6 +148,7 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
+			next-hop unchanged
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
@@ -168,10 +175,10 @@ bgp {
 	peer dest-peer {
 		connection {
 			remote {
-				ip 127.0.0.2
+				ip 2001:db8::2
 			}
 			local {
-				ip 127.0.0.2
+				ip 2001:db8::254
 				accept false
 			}
 		}
@@ -181,6 +188,7 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			next-hop unchanged
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
@@ -207,10 +215,11 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
-cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
+cmd=foreground:seq=1:exec=le test fixture plugin/rfc2545-joint-subnet case replay netns zerp$PORT peer router dest.peer peer-after destination.up far source.peer run ze start ze.conf:timeout=90s
 expect=exit:code=0
+expect=stderr:contains=TOPOLOGY-PASSED: replay distinct S/P/N address owners and veth attachments
+expect=stderr:contains=WIRE-PASSED: recipient subject and completion fence; both peers held open
+reject=stdout:pattern=ZE-PEER-REJECTED
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL

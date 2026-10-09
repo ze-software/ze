@@ -205,9 +205,15 @@ A refusal is route-scoped: initial-sync queues,
 separate static groups and withdrawals, and originated forward-queue items
 continue to independent usable siblings. The forward worker still flushes
 accepted bytes, and API queue acceptance is not a claim of eventual delivery.
-Named commits continue usable groups, count only successful writes and retain
-`AnnounceRefused` in the partial result. Connection failures remain fail-fast;
-the first-error contract within one split UPDATE and all-or-nothing legacy
+Named commits continue usable groups and retain accepted final-writer counts
+beside a later refusal. Both input halves report actual announced and withdrawn
+routes and UPDATEs after policy and splitting: an announcement-half refusal keeps
+`AnnounceRefused`, a withdrawal send error keeps `SendFailed`, and a withdrawal
+build refusal keeps `WithdrawRefused`. A complete earlier split message is counted
+even when a later section cannot fit. The batch API preserves final splitter
+NLRI, attribute and MP-overhead encoding errors rather than replacing them with
+a no-negotiated-family warning. Connection failures remain fail-fast; the
+first-error contract within one split UPDATE and all-or-nothing legacy
 static-group recording are unchanged. Intentional raw injection and pre-filtered
 forwarding retain their distinct admission boundaries.
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated -->
@@ -218,6 +224,15 @@ forwarding retain their distinct admission boundaries.
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler -->
 <!-- test: internal/component/bgp/reactor/rfc2545_api_origination_test.go TestOriginatedIPv6NextHopAdmissionAfterExportPolicy -->
 <!-- test: internal/component/bgp/reactor/rfc2545_static_origination_test.go TestStaticOriginateContinuesAfterUnusablePolicyNextHop -->
+
+The shared splitter receives an ADD-PATH selector per family. Homogeneous
+original builder calls supply their fixed framing through a selector; final
+Session and parsed-relay splitting use the destination encoding context's
+`AddPath` selector. Legacy IPv4 and each MP section therefore retain their own
+negotiated framing in a mixed policy replacement.
+<!-- source: internal/component/bgp/message/update_split.go -- Split, SplitCompliant -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- queueBehindForwards, sendWithdrawals -->
+<!-- test: internal/component/bgp/reactor/ordinary_withdraw_result_test.go TestOrdinaryWithdrawalFinalResult -->
 
 IPv6 default origination uses that peer resolution gate too. With automatic local
 addressing, next-hop self resolves to the actual connected session endpoint.
@@ -237,6 +252,13 @@ peering. Capability 77's negotiated single-address form remains separate.
 Validation judges effective policy output, not an obsolete received pair, and
 preserves a valid legacy sibling in mixed input. These checks validate address
 roles and wire forms, not next-hop-entity adjacency.
+An effective 16-octet speaker-owned IPv6 global also receives the configured
+speaker Link-Local when one connected prefix contains that global and the
+recipient. This happens after policy on both rails, including raw export
+fallback under `next-hop auto` or `unchanged`. It uses the existing immutable
+ownership snapshot and accumulator storage, without rerunning policy.
+Third-party Link-Local discovery remains absent; the speaker's own address
+cannot substitute for another router's Link-Local.
 The global-unicast requirement also covers unpaired ordinary IPv6 globals:
 loopback cannot bypass it. The explicit single mapped IPv6 unicast, multicast,
 labeled and RD-bearing VPN forms retain their separate control-plane
@@ -267,12 +289,13 @@ width refusal survives materialization even if an unsupported operation would
 otherwise leave the original attribute unchanged; it does not withdraw the
 independent legacy section. Valid VPN RD forms, SR Policy and MVPN's independent
 next-hop families, FlowSpec zero-hop and negotiated capability 77 remain intact.
-<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf, egressNextHopWithheld -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope, egressNextHopWithheld -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSecondAddressValidated -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairFirstAddressValidated -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545EffectivePairPolicyAndMixedSibling -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedSingleGlobalAddressValidated -->
+<!-- test: internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go TestRFC2545ForwardPolicyOwnGlobalJointSubnet -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestSRPolicyNextHopWireFamily -->
 <!-- test: internal/component/bgp/reactor/next_hop_family_admission_test.go TestFamilyNextHopOriginationAdmission -->
 <!-- test: internal/component/bgp/reactor/next_hop_family_admission_test.go TestFamilyConfiguredBuilderAdmission -->
@@ -395,6 +418,27 @@ counts. An original withdrawal requires an existing matching owner; a synthesize
 withdrawal may pass when absent, but neither can remove another owner's route.
 Surviving legacy and MP sections are preserved. Removing every route from an
 ordinary UPDATE produces no message, not an accidental End-of-RIB.
+
+Ordinary UPDATE sizing follows the final policy and next-hop result, after AIGP
+stripping. A body that still fits goes directly to the existing writer without
+another copy. A larger body is split with the destination's send-size limit and
+ADD-PATH framing, without running export policy again. Each final chunk gets its
+own ownership admission, PATHS-LIMIT accounting and sent receipt. A later split
+error does not leave earlier accepted chunks pending indefinitely: they are
+flushed before the error is returned, and a failed flush retires the connection.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeOrdinaryUpdateBody -->
+
+Named-commit message, announced-route and withdrawn-route totals come from the
+final writer's accepted output, not the number or shape of original grouped send
+calls. Its existing ownership-record walk counts each final route in its actual
+direction, so a policy-generated withdrawal is not reported as an announcement.
+Suppressed and PATHS-LIMIT-withheld routes contribute no output count. A later
+error retains the earlier accepted counts beside the refusal reason. These are
+the same buffered-acceptance counts as sent callbacks, not a guarantee of TCP
+delivery after a failed flush.
+<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- updateSendCounts, commitUpdateSender -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- commitToPeer -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- recordSection -->
 
 Duplicate suppression is performed under the final writer lock, after policy
 and normalization, not by an API post-send record/forget bridge. Native semantic
@@ -890,6 +934,14 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 > the UPDATE and uses `Splitter.SplitCompliant` to separate mixed NLRI-bearing
 > fields. See `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and
 > RIB" (retired summary 078).
+
+Both forwarding splitters omit an empty MP_UNREACH field when the input also
+carries a nonempty legacy withdrawal, nonempty legacy NLRI, or an MP_REACH
+attribute. Emitting that empty field separately would invent an End-of-RIB
+marker under RFC 4724 Section 2. Genuine standalone markers remain intact.
+The parsed splitter still validates the MP envelope and its attribute budget
+before deciding whether to omit the empty field.
+<!-- test: internal/component/bgp/message/rfc7606_shape_test.go TestSplitCompliantEmptyMPUnreachKeepsMessageMeaning, TestSplitCompliantEmptyMPUnreachStillValidates -->
 
 **Files involved:**
 - `internal/component/bgp/message/update_split.go` - `Splitter.Split()` and `Splitter.SplitCompliant()`

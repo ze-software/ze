@@ -1,0 +1,4 @@
+# Independent receiver only. staticd owns the configured SRv6 next-hop underlay.
+zebra=yes
+bgpd=yes
+staticd=yes
