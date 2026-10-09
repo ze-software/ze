@@ -219,9 +219,10 @@ is the one command under it.";
                 ze:rpc "ze-bgp-api:peer-create";
                 description "The peer address and 'asn' are required. Every other keyword is
 optional. Ze builds the peer, starts it, and dials the address unless 'connect
-false' says otherwise. The peer lives in the running daemon alone. Ze writes
-nothing to the configuration, so a reload removes the peer. 'delete bgp peer'
-does the same on the way out, and it does not change the file on disk. An
+false' says otherwise. Ze writes nothing to the configuration file, and a
+commit or a reload whose configuration does not declare the peer keeps it
+running. 'delete bgp peer' is how it leaves, and it does not change the file on
+disk either; 'update bgp config' writes the running peers to the file. An
 address that already names a peer is refused, and so is a keyword Ze cannot
 honor. Each name in 'attach' is bound to the whole surface: that process
 receives every message from this peer and can send every type toward it. Write

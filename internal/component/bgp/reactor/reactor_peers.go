@@ -460,8 +460,9 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 //
 // The tree has the same shape as one peer's subtree in the configuration file,
 // so parsePeerFromTree reads both and a leaf added there is honored here. The
-// peer lives in the reactor alone: nothing is written to the configuration, and
-// RemovePeer mirrors that on the way out.
+// configuration FILE is not written: `update bgp config` does that. A reload
+// whose candidate does not declare the peer keeps it running (createdPeers,
+// reactor.go), and RemovePeer is how it leaves.
 //
 // The local AS and the router ID default to the reactor's own when the tree
 // states neither.
@@ -481,12 +482,16 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 		local["ip"] = valAuto
 	}
 
-	name := addr.String()
 	globals := r.globals()
-	settings, err := parsePeerFromTree(name, tree, globals.LocalAS, globals.RouterID)
+	settings, err := parsePeerFromTree(addr.String(), tree, globals.LocalAS, globals.RouterID)
 	if err != nil {
-		return fmt.Errorf("dynamic peer %s: %w", name, err)
+		return fmt.Errorf("dynamic peer %s: %w", addr, err)
 	}
+	// The peer carries the name the running configuration declares it under,
+	// and the one `update bgp config` writes it to the file under, so a reload
+	// operation that names that entry finds this peer (runningPeerSettings,
+	// operation.go) and a file that later declares it compares equal by name.
+	settings.Name = peerConfigNameFor(addr)
 
 	// The test port override reaches a peer built HERE as well as one built by
 	// the config loader, which applies it in applyPortOverride

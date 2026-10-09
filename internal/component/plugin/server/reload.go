@@ -284,8 +284,11 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 
 	logger().Info("config reload started")
 
-	// Get running config.
-	running := s.reactor.GetConfigTree()
+	// The running config, less the peers `create bgp peer` built that the
+	// candidate does not declare: the candidate was read from a file they are
+	// not in yet, so their absence from it is no removal. SetConfigTree keeps
+	// them in the tree that replaces this one.
+	running := s.reactor.ReloadRunning(newTree)
 
 	// Compute diff.
 	diff := config.DiffMaps(running, newTree)

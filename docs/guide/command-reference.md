@@ -2684,10 +2684,13 @@ take a comma-separated list. A keyword the command does not take is refused by
 name, and so is a value it cannot use.
 
 The peer lives in the running daemon. The running configuration carries it, and
-the configuration FILE does not, so `show config` does not carry it and a reload
-removes it. That is what `delete bgp peer` mirrors on the way out: it takes the
-peer out of the running daemon and out of the running configuration, and leaves
-the file on disk alone.
+the configuration FILE does not, so `show config` does not carry it. A commit or
+a reload whose configuration does not declare the peer keeps it running, with its
+session and its routes; one that declares it, by its name or its address, makes
+it a configured peer from then on. `delete bgp peer` is how it leaves: it takes
+the peer out of the running daemon and out of the running configuration, and
+leaves the file on disk alone.
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- ReloadRunning, SetConfigTree -->
 
 `update bgp config` is what makes either change permanent. It writes the running
 peer set into the file: a peer created here is added to it, and a peer the file

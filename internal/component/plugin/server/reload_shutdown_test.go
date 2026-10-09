@@ -27,6 +27,9 @@ type gatedReactor struct {
 	once    sync.Once
 }
 
+// ReloadRunning reaches the gate too, because the reload reads the running config through it.
+func (g *gatedReactor) ReloadRunning(map[string]any) map[string]any { return g.GetConfigTree() }
+
 func (g *gatedReactor) GetConfigTree() map[string]any {
 	g.once.Do(func() { close(g.entered) })
 	<-g.release

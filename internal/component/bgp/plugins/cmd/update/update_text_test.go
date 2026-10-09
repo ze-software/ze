@@ -1260,7 +1260,11 @@ func (m *mockReactorBatch) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCon
 func (m *mockReactorBatch) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }
-func (m *mockReactorBatch) GetConfigTree() map[string]any  { return nil }
+func (m *mockReactorBatch) GetConfigTree() map[string]any { return nil }
+
+// ReloadRunning answers the running config: the mock keeps no runtime state across a reload.
+func (m *mockReactorBatch) ReloadRunning(map[string]any) map[string]any { return m.GetConfigTree() }
+
 func (m *mockReactorBatch) SetConfigTree(_ map[string]any) {}
 func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64, _ string, _ plugin.Sender) error {
 	return nil

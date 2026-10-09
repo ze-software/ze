@@ -437,12 +437,115 @@ const configRootNameBGP = "bgp"
 // whose commit was refused would be left reading a notation that never took
 // effect. The daemon's FIRST configuration is recorded by applyASNotation
 // (../config/asn_notation.go), which no refusal follows.
+//
+// A peer `create bgp peer` built that the new tree does not declare is carried
+// into it from the tree it replaces, because the candidate came from a file the
+// peer is not in yet (createdPeers, reactor.go). One the new tree declares, by
+// its name or by its address, is the configuration's from here on, so a later
+// tree that drops it removes it.
 func (a *reactorAPIAdapter) SetConfigTree(tree map[string]any) {
 	recordASNotation(tree)
 
 	a.r.mu.Lock()
 	defer a.r.mu.Unlock()
-	a.r.configTree = tree
+	if len(a.r.createdPeers) == 0 {
+		a.r.configTree = tree
+		return
+	}
+	_, _, declared := copyToPeerList(tree)
+	_, _, running := copyToPeerList(a.r.configTree)
+	var carried []string
+	for addr, name := range a.r.createdPeers {
+		if peerListDeclares(declared, name, addr) {
+			delete(a.r.createdPeers, addr)
+			continue
+		}
+		carried = append(carried, name)
+	}
+	a.r.configTree = withPeerEntries(tree, running, carried)
+}
+
+// ReloadRunning answers the running configuration a reload compares candidate
+// against: the running tree without the peers `create bgp peer` built that
+// candidate does not declare.
+//
+// Those peers are in the running tree, which is what `update bgp config`
+// writes out, and not in the file the candidate was read from. Compared as
+// they are, every commit and every SIGHUP reload would plan their removal.
+// Left out, the diff and the decomposer see no change to them, and
+// SetConfigTree carries them into the tree that replaces this one. The running
+// tree itself is not changed.
+func (a *reactorAPIAdapter) ReloadRunning(candidate map[string]any) map[string]any {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	if len(a.r.createdPeers) == 0 {
+		return a.r.configTree
+	}
+	_, _, declared := copyToPeerList(candidate)
+	root, bgp, peers := copyToPeerList(a.r.configTree)
+	order := peerEntryOrder(bgp, peers)
+	for addr, name := range a.r.createdPeers {
+		if peerListDeclares(declared, name, addr) {
+			continue
+		}
+		delete(peers, name)
+		order = slices.DeleteFunc(order, func(key string) bool { return key == name })
+	}
+	writePeerList(bgp, peers, order)
+	// A list the created peers alone made is not compared as an empty list
+	// against a candidate that holds none: copyToPeerList created it for them.
+	if len(peers) == 0 {
+		delete(bgp, configListNamePeer)
+	}
+	return root
+}
+
+// peerListDeclares answers whether a peer list declares the peer created at
+// addr: an entry under its name, or an entry of any name whose remote address
+// is addr.
+func peerListDeclares(peers map[string]any, name string, addr netip.Addr) bool {
+	if _, named := peers[name]; named {
+		return true
+	}
+	for _, entry := range peers {
+		peer, isMap := entry.(map[string]any)
+		if !isMap {
+			continue
+		}
+		connection, _ := peer["connection"].(map[string]any)
+		remote, _ := connection["remote"].(map[string]any)
+		ip, _ := remote["ip"].(string)
+		declaredAddr, err := netip.ParseAddr(ip)
+		if err != nil {
+			continue
+		}
+		if declaredAddr == addr {
+			return true
+		}
+	}
+	return false
+}
+
+// withPeerEntries answers tree with the named entries of source added to its
+// peer list, after the entries tree already holds. tree is not written to.
+func withPeerEntries(tree, source map[string]any, names []string) map[string]any {
+	if len(names) == 0 {
+		return tree
+	}
+	slices.Sort(names)
+	root, bgp, peers := copyToPeerList(tree)
+	order := peerEntryOrder(bgp, peers)
+	for _, name := range names {
+		entry, held := source[name]
+		if !held {
+			continue
+		}
+		peers[name] = entry
+		order = append(order, name)
+	}
+	writePeerList(bgp, peers, order)
+	return root
 }
 
 // configListNamePeer is the key the peer list sits under in the BGP block of a
@@ -464,9 +567,17 @@ const configListNamePeer = "peer"
 // no lock, so an entry added in place is a concurrent map write. Only the two
 // maps on the path to the peer list are copied, and every other subtree is
 // shared with the tree that was running a moment ago, which no longer changes.
-func (a *reactorAPIAdapter) recordPeerConfig(name string, peerTree map[string]any) {
+//
+// The peer is also entered in createdPeers under the same lock, so no reload
+// can replace the tree between the entry and the mark that keeps it there.
+func (a *reactorAPIAdapter) recordPeerConfig(addr netip.Addr, name string, peerTree map[string]any) {
 	a.r.mu.Lock()
 	defer a.r.mu.Unlock()
+
+	if a.r.createdPeers == nil {
+		a.r.createdPeers = make(map[netip.Addr]string)
+	}
+	a.r.createdPeers[addr] = name
 
 	root, bgp, peers := copyToPeerList(a.r.configTree)
 	order := peerEntryOrder(bgp, peers)
@@ -508,14 +619,10 @@ func (a *reactorAPIAdapter) peerConfigName(addr netip.Addr) (string, bool) {
 	if !exists {
 		return "", false
 	}
-	if name := peer.Settings().Name; name != "" {
-		return name, true
-	}
-	// A peer built from a command carries no name of its own: parsePeerSettings
-	// names only what the configuration keyed, and ParseDynamicGroupTemplate is
-	// the one caller that fills the field afterwards. So the name it is
-	// recorded under is derived from its address.
-	return peerConfigNameFor(addr), true
+	// Every route that builds a peer names it: the configuration by its key, a
+	// listen range by the address it connected from, and `create bgp peer` by
+	// peerConfigNameFor (Reactor.AddDynamicPeer, reactor_peers.go).
+	return peer.Settings().Name, true
 }
 
 // peerConfigNameFor answers the name a peer that has none of its own is
@@ -815,6 +922,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 		currentPeers[key] = peer.settingsSnapshot()
 		currentSessions[key] = peer.currentSession()
 	}
+	created := maps.Clone(r.createdPeers)
 	r.mu.RUnlock()
 
 	// Categorize peers: to remove, to add, to swap in place, unchanged.
@@ -860,6 +968,13 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 		}
 
 		if !exists {
+			// A peer `create bgp peer` built is in no configuration until one
+			// declares it, so the candidate's silence about it is not a
+			// removal (createdPeers, reactor.go). `delete bgp peer` is how it
+			// leaves.
+			if _, runtime := created[key.Addr()]; runtime {
+				continue
+			}
 			toRemove = append(toRemove, key)
 			continue
 		}
@@ -1349,6 +1464,9 @@ func (a *reactorAPIAdapter) RemovePeer(addr netip.Addr) error {
 	if err := a.r.RemovePeer(addr); err != nil {
 		return err
 	}
+	a.r.mu.Lock()
+	delete(a.r.createdPeers, addr)
+	a.r.mu.Unlock()
 	if held {
 		a.dropPeerConfig(name)
 	}
@@ -1374,7 +1492,7 @@ func (a *reactorAPIAdapter) AddDynamicPeer(addr netip.Addr, tree map[string]any)
 	if !held {
 		return nil
 	}
-	a.recordPeerConfig(name, tree)
+	a.recordPeerConfig(addr, name, tree)
 	return nil
 }
 

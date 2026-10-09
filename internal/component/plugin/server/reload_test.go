@@ -53,6 +53,9 @@ func (m *mockReloadReactor) GetConfigTree() map[string]any {
 	return m.tree
 }
 
+// ReloadRunning answers the running config: the mock keeps no runtime state across a reload.
+func (m *mockReloadReactor) ReloadRunning(map[string]any) map[string]any { return m.GetConfigTree() }
+
 func (m *mockReloadReactor) SetConfigTree(tree map[string]any) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

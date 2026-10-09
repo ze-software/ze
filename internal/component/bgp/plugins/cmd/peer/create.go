@@ -36,9 +36,10 @@ var (
 //
 // It is the runtime counterpart of `delete bgp peer <selector>`
 // (handleBgpPeerDelete, peer.go), and it mirrors that command's reach: the peer
-// is built in the reactor and started there, and the configuration is not
-// touched. So a created peer does not appear in `show config` and a reload
-// removes it, exactly as a removed peer comes back on a reload.
+// is built in the reactor and started there, and the configuration file is not
+// touched. So a created peer does not appear in `show config`, and a commit or
+// a reload whose configuration does not declare it keeps it running
+// (createdPeers, internal/component/bgp/reactor/reactor.go).
 //
 // Every keyword the command accepts is a leaf of the same name in
 // ze-peer-cmd.yang, so the dispatcher types each value before the handler sees

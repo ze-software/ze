@@ -361,6 +361,15 @@ type Reactor struct {
 	// Config tree for plugin JSON delivery
 	configTree map[string]any
 
+	// createdPeers names the peers `create bgp peer` built that no candidate
+	// configuration has declared yet, by address, each with the name its entry
+	// in configTree carries. A reload's candidate is read from the
+	// configuration file, which such a peer is not in until `update bgp config`
+	// writes it, so a reload keeps these peers rather than reading their
+	// absence as a removal (ReloadRunning, SetConfigTree and
+	// reconcilePeersJournaled, reactor_api.go). Guarded by mu.
+	createdPeers map[netip.Addr]string
+
 	connCallback    connectionCallback
 	messageReceiver MessageReceiver       // Receives raw BGP messages
 	eventBus        ze.EventBus           // Namespaced pub/sub for cross-component notifications (nil until SetEventBus)

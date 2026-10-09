@@ -225,6 +225,11 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 
 type removalRecoveryReactor struct{ mockReloadReactor }
 
+// ReloadRunning answers the running config: the mock keeps no runtime state across a reload.
+func (r *removalRecoveryReactor) ReloadRunning(map[string]any) map[string]any {
+	return r.GetConfigTree()
+}
+
 func (r *removalRecoveryReactor) SetConfigTree(tree map[string]any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

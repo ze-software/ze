@@ -65,7 +65,8 @@ var (
 // with a lowering of it and gain nothing.
 //
 // The running configuration is the reactor's, and it is true: the reload
-// replaces it wholesale (SetConfigTree), and the two runtime commands maintain
+// replaces it (SetConfigTree, which carries forward the created peers the new
+// configuration does not declare), and the two runtime commands maintain
 // it as they change the peer set (recordPeerConfig and dropPeerConfig,
 // internal/component/bgp/reactor/reactor_api.go). So the file and the daemon
 // agree once this command returns, and a later commit of an unrelated leaf

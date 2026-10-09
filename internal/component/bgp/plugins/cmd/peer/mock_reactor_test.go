@@ -114,7 +114,11 @@ func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapab
 func (m *mockReactor) PeerFSMHistory(addr string) []plugin.FSMTransitionRecord {
 	return m.history[addr]
 }
-func (m *mockReactor) GetConfigTree() map[string]any                          { return m.configTree }
+func (m *mockReactor) GetConfigTree() map[string]any { return m.configTree }
+
+// ReloadRunning answers the running config: the mock keeps no runtime state across a reload.
+func (m *mockReactor) ReloadRunning(map[string]any) map[string]any { return m.GetConfigTree() }
+
 func (m *mockReactor) SetConfigTree(_ map[string]any)                         {}
 func (m *mockReactor) SignalAPIReady()                                        {}
 func (m *mockReactor) AddAPIProcessCount(_ int)                               {}

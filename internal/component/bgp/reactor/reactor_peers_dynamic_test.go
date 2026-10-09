@@ -301,3 +301,104 @@ func runningBGPBlock(t *testing.T, api *reactorAPIAdapter) map[string]any {
 	require.True(t, ok, "the running configuration holds a bgp block")
 	return bgp
 }
+
+// TestUnrelatedReloadKeepsACreatedPeer holds AC-9 of
+// spec-yang-rpc-declarations-with-no-handler at the reactor.
+//
+// GOAL: a commit or a SIGHUP reload whose candidate never names a peer the
+// operator created at runtime leaves that peer running, in the running
+// configuration, and out of the reload's diff. The candidate comes from the
+// configuration file, which a created peer is not in until `update bgp config`
+// writes it, so its absence there says nothing about the operator's intent.
+// METHOD: create a peer through the API adapter, then drive the three reactor
+// steps a reload takes with a candidate that does not name it: ReloadRunning
+// (what the diff and the decomposer compare against), ApplyConfigDiff, and
+// SetConfigTree.
+//
+// VALIDATES: the peer carries the name the running configuration declares it
+// under; ReloadRunning leaves it out, so no removal is planned; ApplyConfigDiff
+// leaves it in the reactor; SetConfigTree keeps its entry in the running
+// configuration.
+// PREVENTS: "bgp operation remove-peer peer peer-127.0.0.2 is not running",
+// which refused every commit while a created peer was up.
+func TestUnrelatedReloadKeepsACreatedPeer(t *testing.T) {
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	api := &reactorAPIAdapter{r: r}
+
+	addr := netip.MustParseAddr("192.0.2.7")
+	require.NoError(t, api.AddDynamicPeer(addr, map[string]any{
+		"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
+	}))
+	peer, held := r.findPeerByAddr(addr)
+	require.True(t, held)
+	assert.Equal(t, "peer-192.0.2.7", peer.Settings().Name,
+		"a created peer carries the name the running configuration declares it under")
+
+	candidate := map[string]any{"bgp": map[string]any{}}
+
+	base := api.ReloadRunning(candidate)
+	baseBGP, _ := base["bgp"].(map[string]any)
+	basePeers, _ := baseBGP["peer"].(map[string]any)
+	assert.NotContains(t, basePeers, "peer-192.0.2.7",
+		"the reload compares the candidate against a running set without the unsaved created peer")
+	assert.Contains(t, runningPeerList(t, api), "peer-192.0.2.7",
+		"ReloadRunning reads the running configuration and changes nothing")
+
+	require.NoError(t, api.ApplyConfigDiff(candidate))
+	_, held = r.findPeerByAddr(addr)
+	assert.True(t, held, "applying a candidate that never named the peer leaves it running")
+
+	api.SetConfigTree(candidate)
+	assert.Contains(t, runningPeerList(t, api), "peer-192.0.2.7",
+		"the running configuration still names the peer after the reload")
+	candidateBGP, _ := candidate["bgp"].(map[string]any)
+	assert.NotContains(t, candidateBGP, "peer", "the caller's candidate is not written to")
+}
+
+// TestCandidateNamingACreatedPeerTakesItOver holds the other side of AC-9:
+// once a candidate declares the created peer, the configuration owns it.
+//
+// GOAL: after `update bgp config` wrote the peer into the file, or after the
+// operator declared its address under a name of their own, the reload treats
+// the peer as configured, so a later candidate that drops it removes it.
+// METHOD: create a peer; check ReloadRunning keeps it when the candidate names
+// it by name and when it declares its address under another name; then set a
+// candidate that names it, then one that does not.
+//
+// VALIDATES: ReloadRunning keeps the entry for both forms of declaration; after
+// the declaring candidate is set, a candidate without it leaves no entry.
+// PREVENTS: a created peer that no configuration change can ever remove, which
+// is what carrying it unconditionally would produce.
+func TestCandidateNamingACreatedPeerTakesItOver(t *testing.T) {
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	api := &reactorAPIAdapter{r: r}
+
+	addr := netip.MustParseAddr("192.0.2.7")
+	require.NoError(t, api.AddDynamicPeer(addr, map[string]any{
+		"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
+	}))
+	entry := runningPeerList(t, api)["peer-192.0.2.7"]
+
+	byName := map[string]any{"bgp": map[string]any{"peer": map[string]any{"peer-192.0.2.7": entry}}}
+	assert.Contains(t, reloadRunningPeers(api, byName), "peer-192.0.2.7",
+		"a candidate naming the peer compares against it")
+
+	byAddress := map[string]any{"bgp": map[string]any{"peer": map[string]any{"edge": map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.7"}},
+	}}}}
+	assert.Contains(t, reloadRunningPeers(api, byAddress), "peer-192.0.2.7",
+		"a candidate declaring the address under another name replaces the created peer")
+
+	api.SetConfigTree(byName)
+	api.SetConfigTree(map[string]any{"bgp": map[string]any{}})
+	bgp, _ := api.GetConfigTree()["bgp"].(map[string]any)
+	assert.NotContains(t, bgp, "peer", "a configured peer the candidate dropped leaves the running configuration")
+}
+
+// reloadRunningPeers answers the peer list of the running configuration a
+// reload of candidate compares against.
+func reloadRunningPeers(api *reactorAPIAdapter, candidate map[string]any) map[string]any {
+	bgp, _ := api.ReloadRunning(candidate)["bgp"].(map[string]any)
+	peers, _ := bgp["peer"].(map[string]any)
+	return peers
+}

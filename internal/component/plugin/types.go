@@ -41,6 +41,12 @@ type ReactorConfigurator interface {
 
 	// SetConfigTree replaces the running config tree after a successful reload.
 	SetConfigTree(tree map[string]any)
+
+	// ReloadRunning answers the running config a reload compares candidate
+	// against. It is GetConfigTree less the runtime state the reactor keeps
+	// across a reload that candidate does not declare, which SetConfigTree
+	// carries forward. It does not change the running config.
+	ReloadRunning(candidate map[string]any) map[string]any
 }
 
 // ReactorStartupCoordinator handles plugin startup protocol signaling.

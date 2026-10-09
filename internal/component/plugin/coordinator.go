@@ -200,6 +200,18 @@ func (c *Coordinator) GetConfigTree() map[string]any {
 	return c.configTree
 }
 
+// ReloadRunning answers the running config a reload compares candidate against.
+// It asks the reactor where one is attached, for the reason above; with none,
+// there is no runtime state to leave out and the local tree is the answer.
+func (c *Coordinator) ReloadRunning(candidate map[string]any) map[string]any {
+	if r := c.getReactor(); r != nil {
+		return r.ReloadRunning(candidate)
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.configTree
+}
+
 // SetConfigTree replaces the running config tree after a successful reload. It
 // writes the reactor's tree where one is attached, for the reason above.
 func (c *Coordinator) SetConfigTree(tree map[string]any) {

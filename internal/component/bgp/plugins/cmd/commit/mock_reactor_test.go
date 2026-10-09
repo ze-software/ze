@@ -62,7 +62,11 @@ func (m *mockReactor) Reload() error                          { return nil }
 func (m *mockReactor) VerifyConfig(_ map[string]any) error    { return nil }
 func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error { return nil }
 func (m *mockReactor) GetConfigTree() map[string]any          { return nil }
-func (m *mockReactor) SetConfigTree(_ map[string]any)         {}
+
+// ReloadRunning answers the running config: the mock keeps no runtime state across a reload.
+func (m *mockReactor) ReloadRunning(map[string]any) map[string]any { return m.GetConfigTree() }
+
+func (m *mockReactor) SetConfigTree(_ map[string]any) {}
 
 // --- ReactorStartupCoordinator ---
 
