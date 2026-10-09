@@ -31,7 +31,7 @@ func Templ(src []byte, fileName string, config Config) (output []byte, changed b
 		return nil, false, err
 	}
 
-	if err = applyPrettier(t, config); err != nil {
+	if err = ApplyPrettier(t, config); err != nil {
 		return nil, false, err
 	}
 
@@ -44,7 +44,7 @@ func Templ(src []byte, fileName string, config Config) (output []byte, changed b
 	return out, changed, nil
 }
 
-func applyPrettier(t *parser.TemplateFile, config Config) (err error) {
+func ApplyPrettier(t *parser.TemplateFile, config Config) (err error) {
 	// Check to see if prettier can be run.
 	if config.PrettierCommand == "" {
 		config.PrettierCommand = prettier.DefaultCommand()
@@ -64,6 +64,10 @@ func applyPrettier(t *parser.TemplateFile, config Config) (err error) {
 		// Visit the children first to calculate their depth.
 		for _, child := range n.Children {
 			calculateNodeDepth(child, nodeToDepth, 1)
+		}
+		// Format constant attribute values in a single prettier batch.
+		if err := Attributes(n.Children, config.PrettierCommand); err != nil {
+			return err
 		}
 		// Now that we have the depth of each node, we can format them.
 		for _, child := range n.Children {

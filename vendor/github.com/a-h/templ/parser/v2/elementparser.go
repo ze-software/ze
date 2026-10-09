@@ -12,11 +12,12 @@ import (
 
 // Element open tag.
 type elementOpenTag struct {
-	Name        string
-	Attributes  []Attribute
-	IndentAttrs bool
-	NameRange   Range
-	Void        bool
+	Name         string
+	Attributes   []Attribute
+	IndentAttrs  bool
+	NameRange    Range
+	OpenTagRange Range
+	SelfClosing  bool
 }
 
 var elementOpenTagParser = parse.Func(func(pi *parse.Input) (e elementOpenTag, matched bool, err error) {
@@ -25,10 +26,12 @@ var elementOpenTagParser = parse.Func(func(pi *parse.Input) (e elementOpenTag, m
 		return e, false, nil
 	}
 
+	startIndex := pi.Index()
 	// <
 	if _, matched, err = lt.Parse(pi); err != nil || !matched {
 		return
 	}
+	openTagStart := pi.PositionAt(startIndex)
 
 	// Element name.
 	l := pi.Position().Line
@@ -65,7 +68,8 @@ var elementOpenTagParser = parse.Func(func(pi *parse.Input) (e elementOpenTag, m
 		return e, true, err
 	}
 	if matched {
-		e.Void = true
+		e.OpenTagRange = NewRange(openTagStart, pi.Position())
+		e.SelfClosing = true
 		return e, true, nil
 	}
 
@@ -79,6 +83,8 @@ var elementOpenTagParser = parse.Func(func(pi *parse.Input) (e elementOpenTag, m
 		err = parse.Error(fmt.Sprintf("<%s>: malformed open element", e.Name), pi.Position())
 		return
 	}
+
+	e.OpenTagRange = NewRange(openTagStart, pi.Position())
 
 	return e, true, nil
 })
@@ -110,6 +116,7 @@ type attributeValueParser struct {
 	EqualsAndQuote parse.Parser[string]
 	Suffix         parse.Parser[string]
 	UseSingleQuote bool
+	ConsumeSuffix  bool
 }
 
 func (avp attributeValueParser) Parse(pi *parse.Input) (value string, valueRange Range, ok bool, err error) {
@@ -128,6 +135,9 @@ func (avp attributeValueParser) Parse(pi *parse.Input) (value string, valueRange
 		pi.Seek(start)
 		return
 	}
+	if !avp.ConsumeSuffix {
+		pi.Seek(valueEnd)
+	}
 	return value, valueRange, true, nil
 }
 
@@ -135,13 +145,13 @@ func (avp attributeValueParser) Parse(pi *parse.Input) (value string, valueRange
 var (
 	attributeValueParsers = []attributeValueParser{
 		// Double quoted.
-		{EqualsAndQuote: parse.StringFrom(parse.OptionalWhitespace, parse.String(`="`)), Suffix: parse.String(`"`), UseSingleQuote: false},
+		{EqualsAndQuote: parse.StringFrom(parse.OptionalWhitespace, parse.String(`="`)), Suffix: parse.String(`"`), UseSingleQuote: false, ConsumeSuffix: true},
 		// Single quoted.
-		{EqualsAndQuote: parse.StringFrom(parse.OptionalWhitespace, parse.String(`='`)), Suffix: parse.String(`'`), UseSingleQuote: true},
+		{EqualsAndQuote: parse.StringFrom(parse.OptionalWhitespace, parse.String(`='`)), Suffix: parse.String(`'`), UseSingleQuote: true, ConsumeSuffix: true},
 		// Unquoted.
 		// A valid unquoted attribute value in HTML is any string of text that is not an empty string,
 		// and that doesn’t contain spaces, tabs, line feeds, form feeds, carriage returns, ", ', `, =, <, or >.
-		{EqualsAndQuote: parse.StringFrom(parse.OptionalWhitespace, parse.String("=")), Suffix: parse.Any(parse.RuneIn(" \t\n\r\"'`=<>/"), parse.EOF[string]()), UseSingleQuote: false},
+		{EqualsAndQuote: parse.StringFrom(parse.OptionalWhitespace, parse.String("=")), Suffix: parse.Any(parse.RuneIn(" \t\n\r\"'`=<>/"), parse.EOF[string]()), UseSingleQuote: false, ConsumeSuffix: false},
 	}
 	constantAttributeParser = parse.Func(func(pi *parse.Input) (attr *ConstantAttribute, ok bool, err error) {
 		start := pi.Index()
@@ -447,6 +457,31 @@ type attributesParser struct{}
 
 func (attributesParser) Parse(in *parse.Input) (attributes []Attribute, ok bool, err error) {
 	for {
+		// Try to parse and handle any comments first.
+		for {
+			if _, _, err = parse.OptionalWhitespace.Parse(in); err != nil {
+				return
+			}
+
+			commentStart := in.Index()
+			if node, commentOk, commentErr := goComment.Parse(in); commentErr != nil {
+				return attributes, false, commentErr
+			} else if commentOk {
+				// Found a Go comment, add it as an attribute comment
+				if goNode, ok := node.(*GoComment); ok {
+					attributes = append(attributes, &AttributeComment{
+						Comment:   goNode.Contents,
+						Multiline: goNode.Multiline,
+						Range:     goNode.Range,
+					})
+				}
+				continue
+			}
+
+			in.Seek(commentStart)
+			break
+		}
+
 		var attr Attribute
 		attr, ok, err = attribute.Parse(in)
 		if err != nil {
@@ -531,17 +566,19 @@ func (elementParser) Parse(pi *parse.Input) (n Node, ok bool, err error) {
 		return
 	}
 	r := &Element{
-		Name:        ot.Name,
-		Attributes:  ot.Attributes,
-		IndentAttrs: ot.IndentAttrs,
-		NameRange:   ot.NameRange,
+		Name:         ot.Name,
+		Attributes:   ot.Attributes,
+		IndentAttrs:  ot.IndentAttrs,
+		NameRange:    ot.NameRange,
+		OpenTagRange: ot.OpenTagRange,
+		SelfClosing:  ot.SelfClosing,
 	}
 
 	// Once we've got an open tag, the rest must be present.
 	l := pi.Position().Line
 
 	// If the element is self-closing, even if it's not really a void element (br, hr etc.), we can return early.
-	if ot.Void || r.IsVoidElement() {
+	if ot.SelfClosing || r.IsVoidElement() {
 		// Escape early, no need to try to parse children for self-closing elements.
 		return addTrailingSpaceAndValidate(start, r, pi)
 	}
@@ -566,6 +603,7 @@ func (elementParser) Parse(pi *parse.Input) (n Node, ok bool, err error) {
 	}
 
 	// Close tag.
+	closeTagStart := pi.Position()
 	_, ok, err = closer.Parse(pi)
 	if err != nil {
 		return r, true, err
@@ -574,6 +612,8 @@ func (elementParser) Parse(pi *parse.Input) (n Node, ok bool, err error) {
 		err = parse.Error(fmt.Sprintf("<%s>: expected end tag not present or invalid tag contents", r.Name), pi.Position())
 		return r, true, err
 	}
+	closeTagRange := NewRange(closeTagStart, pi.Position())
+	r.CloseTagRange = &closeTagRange
 
 	return addTrailingSpaceAndValidate(start, r, pi)
 }

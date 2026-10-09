@@ -17,11 +17,21 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"golang.org/x/tools/gopls/internal/protocol"
 	"golang.org/x/tools/gopls/internal/vulncheck"
 )
+
+// ErrPendingAnswer reports that a command asked the user something and the
+// answer has not arrived. It is not a failure: the command has done nothing
+// yet, and runs again once the user has answered.
+//
+// The questions travel in the command's [*protocol.InteractiveParams]; see the
+// [Interface] contract below, and [protocol.Server.ResolveCommand] for the
+// handshake that collects the answers.
+var ErrPendingAnswer = errors.New("waiting for an answer")
 
 // Interface defines the interface gopls exposes for the
 // workspace/executeCommand request.
@@ -41,6 +51,17 @@ import (
 //
 //  2. Methods must return either error or (T, error), where T is a
 //     JSON serializable type.
+//
+//     T may instead be [Action], in which case the method reports no result
+//     to the client: the Action is performed by the dispatcher and is not
+//     marshaled. A command whose T is an Action must not mutate the user's
+//     workspace itself -- it must not apply edits or reveal documents -- but
+//     return an Action that does so. See [Action].
+//
+//     A command that cannot proceed until the user has answered something
+//     asks through its [*protocol.InteractiveParams] and returns
+//     [ErrPendingAnswer]. Asking is not a failure: the command has done
+//     nothing yet, and runs again once the answers arrive.
 //
 //  3. The first line of the doc string is special.
 //     Everything after the colon is considered the command 'Title'.
@@ -325,20 +346,35 @@ type Interface interface {
 	// called on a path that has not already been loaded.
 	Modules(context.Context, ModulesArgs) (ModulesResult, error)
 
+	// ResolveTarget: Resolve a target query to it's definition.
+	//
+	// This command will resolve targets for the closest & longest matching
+	// package in the workspace, returning multiple only if there is unresolvable
+	// ambiguity.
+	//
+	// See here for a full description of the query logic:
+	//  https://go.dev/gopls/design/design/gopls-cli#target-symbol-resolution
+	ResolveTarget(context.Context, ResolveTargetParams) (ResolveTargetResult, error)
+
 	// PackageSymbols: Return information about symbols in the given file's package.
 	PackageSymbols(context.Context, PackageSymbolsArgs) (PackageSymbolsResult, error)
 
 	// ModifyTags: Add or remove struct tags on a given node.
-	ModifyTags(context.Context, ModifyTagsArgs, *protocol.InteractiveParams) error
+	ModifyTags(context.Context, ModifyTagsArgs, *protocol.InteractiveParams) (Action, error)
 
 	// MoveType: Move a type declaration to a different package.
 	MoveType(context.Context, MoveTypeArgs) error
 
 	// ImplementInterface: Add methods to a type to implement an interface.
-	ImplementInterface(context.Context, ImplementInterfaceArgs, *protocol.InteractiveParams) error
+	ImplementInterface(context.Context, ImplementInterfaceArgs, *protocol.InteractiveParams) (Action, error)
 
 	// MoveDeclaration: Move a declaration to a different file.
-	MoveDeclaration(context.Context, MoveDeclarationArgs, *protocol.InteractiveParams) error
+	MoveDeclaration(context.Context, MoveDeclarationArgs, *protocol.InteractiveParams) (Action, error)
+
+	// DragonSlayer: Slay the dragon
+	//
+	// Plays a tiny adventure game demonstrating interactive refactoring.
+	DragonSlayer(context.Context, DragonSlayerArgs, *protocol.InteractiveParams) (Action, error)
 }
 
 type RunTestsArgs struct {
@@ -884,6 +920,14 @@ type ImplementInterfaceArgs struct {
 	Interface string
 }
 
+// DragonSlayerArgs holds the arguments to the DragonSlayer command.
+type DragonSlayerArgs struct {
+	// Location is the location where the user invoked the code action.
+	// This location must be within the name of a package-level variable
+	// named dragonSlayer.
+	Location protocol.Location
+}
+
 // ModifyTagsArgs holds variables that determine how struct tags are modified.
 type ModifyTagsArgs struct {
 	// NOTE(hxjiang): the mofidication field is important, when resolving a
@@ -922,4 +966,40 @@ type MoveTypeArgs struct {
 type MoveDeclarationArgs struct {
 	// The location of the declaration to move.
 	Location protocol.Location
+}
+
+// ResolveTargetParams are the arguments for the ResolveTarget command.
+type ResolveTargetParams struct {
+	// TextDocument identifies the document context (e.g. CWD file or -pos file).
+	TextDocument protocol.TextDocumentIdentifier `json:"textDocument"`
+
+	// Target is the literal name or regex pattern (enclosed in slashes).
+	Target string `json:"target"`
+
+	// PkgScope optionally overrides the package search scope (from -pkg).
+	PkgScope string `json:"pkgScope,omitempty"`
+
+	// Range optionally restricts the search to a specific span within the file.
+	//
+	// TODO(aputman): Implement support for this.
+	Range protocol.Range `json:"range,omitempty"`
+}
+
+// ResolveTargetResult is the result of the ResolveTarget command.
+type ResolveTargetResult struct {
+	Matches []TargetMatch `json:"matches"`
+}
+
+// TargetMatch is a single match returned by the ResolveTarget command.
+type TargetMatch struct {
+	// Package is the Go package path of the symbol.
+	Package string `json:"package,omitempty"`
+
+	// Name is the name of the symbol.
+	Name string `json:"name"`
+
+	// Location is LSP protocol location because gopls.resolve_target
+	// is an internal utility command to map the target symbol position to
+	// LSP protocol locations.
+	Location protocol.Location `json:"location"`
 }
