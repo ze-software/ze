@@ -26,6 +26,10 @@ discrimination of the overlap guard and zero-drop assertion, obtain the clean
 independent review the latest update says is missing, and complete the normal
 verification and closure gates. This is no longer unstarted stimulus design.
 
+State at 2026-10-09 evening: the fixture fix is `51aa6d291d`, the runs are in
+"Evidence 2026-10-09 evening". Owed before closure: the independent review,
+`./le verify worktree`, and the two closure commits.
+
 ## Evidence 2026-10-09 (HEAD 98ee050ee9, amd64 KVM guest, runtime kernel 7.2)
 
 Every run used a private `git clone --depth 1` of HEAD. The daemons were
@@ -53,6 +57,33 @@ fires first and blames the queue, because `ifaceLinkFlap08` reads
 `netlinkDrops08` only after the last round. Whether red B actually dropped was
 not read from its log. One green run on amd64 is not the multi-run standard the
 load-dependent drop concern asks for.
+
+`51aa6d291d` settles the hazard: `ifaceLinkFlap08` reads the drops after every
+burst, before any other check of the round, and `sumNetlinkDrops08` refuses an
+unreadable table, where `netlinkDrops08` used to answer -1 and the baseline
+subtraction turned that into zero drops.
+
+## Evidence 2026-10-09 evening (HEAD 51aa6d291d, arm64 HVF guest on macOS, runtime kernel 7.2)
+
+Every run used a private `git clone --depth 1` of `51aa6d291d`. `ze` was
+cross-built for linux/arm64 with `CGO_ENABLED=0` and tags `ze_core ze_distro
+ze_setup zetest` plus every gate in `feature-gates.txt`, `ze-stripped` with
+`ze_core ze_ssh`; `le test qemu run` built the guest `le`, which carries the
+fixture, from the same clone. The driver was the command above with the
+arm64 7.2 runtime kernel at `tmp/kernel/build/vmlinuz`. The host load average
+was 40 to 77 throughout, from parallel sessions.
+
+| Run | Break (in the clone only) | Result |
+|-----|---------------------------|--------|
+| green 1 | none | `33.2s 1/1 PASS 383 iface-link-flap-during-commit` |
+| green 2 | none | `27.3s 1/1 PASS 383 iface-link-flap-during-commit` |
+| green 3 | none | `26.7s 1/1 PASS 383 iface-link-flap-during-commit`; another session's IPsec interop run was up during it |
+| red D, receive buffer | `monitorReceiveBufferBytes = 1 << 12` | `2.8s 1/1 FAIL 383`: `round 0: kernel dropped 465 netlink notifications by the end of the burst`, load average 4.8, no interop containers up |
+
+Three greens on arm64 HVF and the amd64 KVM green above make four runs on two
+architectures with zero drops. Red D is the same break as red B: the drops
+check now fires first and names the loss. Red A still holds for the overlap guard:
+`51aa6d291d` changed no line of the overlap logic.
 
 ## The instrument landed and the test PASSES (2026-09-04 evening, session 2d2bc99a)
 
@@ -293,6 +324,15 @@ was questioned.
 ### Integration Points
 - Native flap fixture, iface queue/metrics and netlink subscriptions.
 
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | The flap test runs on a current daemon in a Linux guest | It passes, more than once, with every per-round assertion, the zero-drops check and the 101-transition bound intact |
+| AC-2 | The burst is moved out of the commit's hold | The run fails on the wanted-rounds guard, naming that no round overlapped |
+| AC-3 | The kernel drops netlink notifications during a burst | The run fails on the zero-drops check, naming the round, before any other check of that round can blame the queue |
+| AC-4 | `/proc/net/netlink` cannot be read, or lacks a readable Drops column | The run fails; it never reads as zero drops |
+
 ## Wiring Test
 
 | Entry Point | → | Feature Code | Test |
@@ -322,6 +362,46 @@ was questioned.
 2. Record current Linux/QEMU results, including overlap-guard discrimination and the load-dependent zero-drop concern; do not reuse the historical run counts as fresh evidence.
 3. Obtain a clean independent review and `./le verify worktree` before normal closure.
 
+### Documentation Update Checklist (BLOCKING)
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No: test fixture only, no `features/` entry names this test | - |
+| 2 | Config syntax changed? | No | - |
+| 3 | CLI command added/changed? | No | - |
+| 4 | API/RPC added/changed? | No | - |
+| 5 | Plugin added/changed? | No: the fixture is a test plugin, its registration is unchanged | - |
+| 6 | Has a user guide page? | No | - |
+| 7 | Wire format changed? | No | - |
+| 8 | Plugin SDK/protocol changed? | No | - |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | - |
+| 10 | Test infrastructure changed? | Yes: the test's own header documents its checks | `test/plugin/iface-link-flap-during-commit.ci`, "WHY 101 TRANSITIONS AND NOT MORE" now describes the per-burst drops read (`51aa6d291d`) |
+| 11 | Affects daemon comparison? | No | - |
+| 12 | Internal architecture changed? | No | - |
+| 13 | Route metadata keys added/changed? | No | - |
+| 14 | Prometheus counters added/changed? | No | - |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
+| 16 | Any changed source file referenced by existing doc source anchors? | No: `grep -rn plugin_fixture_08_flap docs ai/CODE-TO-DOCS.md` finds none | - |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | - |
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Drops read after every burst, before the round's other checks | `grep -n "kernel dropped %d netlink notifications by the end of the burst" internal/test/fixture/plugin_fixture_08_flap.go` |
+| An unreadable drops table fails rather than reading zero | `./le job run label flap-unit command go test ./internal/test/fixture/ -run Netlink -count=1` |
+| Overlap guard discriminated | Red A in "Evidence 2026-10-09" |
+| Zero-drops check discriminated | A forced red in a private clone failing on `round N: kernel dropped` |
+| More than one green run | QEMU run logs, recorded in the evidence section |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | `sumNetlinkDrops08` parses a kernel table: a short row, a non-numeric field or a missing column must return an error, never a value |
+| Resource exhaustion | The table is read once per round, bounded by `flapAttempts08` rounds; no unbounded loop |
+| Shipped surface | The fixture is test-only code run by `le test fixture`; nothing reaches the `ze` binary |
+
 ## Checklist
 
 - [ ] Tests written
@@ -344,3 +424,124 @@ the failure mode is silent: a run that does not overlap looks exactly like a run
 whose product regressed until the end-of-run message is read. Whoever takes this
 should get the daemon's own log out of a keep-alive VM first, and answer
 question 1 before touching a constant.
+
+## Implementation Summary
+
+### What Was Implemented
+- `51aa6d291d`: `ifaceLinkFlap08` (`internal/test/fixture/plugin_fixture_08_flap.go`) reads netlink drops after every burst, before the round's other checks, and again at the end; `sumNetlinkDrops08` parses `/proc/net/netlink` and returns an error for a table it cannot read in full.
+- `TestSumNetlinkDrops08ReadsTheDropsColumnOrRefuses` (`internal/test/fixture/plugin_fixture_08_flap_test.go`).
+- Three arm64 HVF greens and the zero-drops red, in "Evidence 2026-10-09 evening".
+
+### Bugs Found/Fixed
+- The zero-drops check ran only after the last round, so a dropped notification failed the coalescing check first and blamed the queue (red B). Fixed in `51aa6d291d`; red D covers it.
+- `netlinkDrops08` answered -1 for an unreadable table and skipped unparsable rows; the baseline subtraction made that zero drops. Fixed in `51aa6d291d`; covered by `TestSumNetlinkDrops08ReadsTheDropsColumnOrRefuses`.
+
+### Documentation Updates
+- `test/plugin/iface-link-flap-during-commit.ci`, "WHY 101 TRANSITIONS AND NOT MORE": the per-burst drops read and the refusal of an unreadable table (`51aa6d291d`). No `docs/` page anchors the fixture (`grep -rn plugin_fixture_08_flap docs ai/CODE-TO-DOCS.md` is empty).
+
+### Deviations from Plan
+- "Behavior to change" said none was planned unless the proof found a surviving defect. It found two in the fixture's drops read, both fixed in `51aa6d291d`. No product code changed.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Red B (4 KiB monitor buffer) was read as "the zero-drops check has no red" | The check fired too late to be the one that failed: a dropped notification fails the round's coalescing check first | The end-of-run read in `ifaceLinkFlap08` | Drops read per burst (`51aa6d291d`) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Preserve all per-round assertions, zero drops, 101-transition bound | Done | `ifaceLinkFlap08` | No assertion removed or loosened; `flapTransitions08` unchanged |
+| Current Linux/QEMU evidence, not historical counts | Done | "Evidence 2026-10-09" and "Evidence 2026-10-09 evening" | |
+| Overlap guard discriminated | Done | Red A | |
+| Zero-drops check discriminated | Done | Red D | |
+| Clean independent review | Pending | Review Gate | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | greens 1-3 (arm64) and the amd64 green | |
+| AC-2 | Done | red A | |
+| AC-3 | Done | red D | |
+| AC-4 | Done | `TestSumNetlinkDrops08ReadsTheDropsColumnOrRefuses`, red under two mutations | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `iface-link-flap-during-commit` | Done | `test/plugin/iface-link-flap-during-commit.ci` | |
+| `TestSumNetlinkDrops08ReadsTheDropsColumnOrRefuses` | Done | `internal/test/fixture/plugin_fixture_08_flap_test.go` | added |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/fixture/plugin_fixture_08_flap.go` | Changed | drops read |
+| `internal/test/fixture/plugin_fixture_08_flap_test.go` | Changed | parser test |
+| `test/plugin/iface-link-flap-during-commit.ci` | Changed | header |
+
+### Audit Summary
+- **Total items:** 5 requirements, 4 ACs
+- **Done:** all but the review
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** see Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A link flapping during a commit that holds `dhcpMu` reaches the live-carrier metric without self-heal | functional, QEMU guest | `iface-link-flap-during-commit` PASS three times on arm64 HVF (`33.2s`, `27.3s`, `26.7s`) and once on amd64 KVM (`67.5s`), each asserting the metric, coalescing, zero resyncs and zero drops per round |
+| The test cannot go vacuous: a burst that misses the hold fails | forced red | red A: `only 0 of 3 wanted rounds overlapped a commit in 6 attempts` |
+| No notification loss is hidden | forced red | red D (`monitorReceiveBufferBytes = 1 << 12`): `round 0: kernel dropped 465 netlink notifications by the end of the burst`, where red B with the same break had failed on the coalescing check |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | REVIEW-PENDING |
+| `./le spec review check` | not run |
+| Rounds | REVIEW-PENDING |
+| Reviewer lenses used | REVIEW-PENDING |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/iface-link-flap-during-commit.ci` | yes | `ls` |
+| `internal/test/fixture/plugin_fixture_08_flap_test.go` | yes | `ls` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | greens | `flap-green1..3.log`: `1/1 PASS 383` |
+| AC-2 | overlap red | red A, amd64 run of `98ee050ee9`; overlap logic unchanged since |
+| AC-3 | drops red | red D log |
+| AC-4 | unreadable table refused | `go test ./internal/test/fixture/ -run Netlink`: PASS; mutated to skip rows: `short row ... want a refusal`; mutated to -1: `no Drops column ... want a refusal` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le test qemu all-tests test` runs the plugin suite | `test/plugin/iface-link-flap-during-commit.ci` | its `plugin` block runs `le test fixture plugin/iface-link-flap-during-commit`, which is `ifaceLinkFlap08` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| none | n/a | the spec declares no A-N rows |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `.ci` header drops paragraph | `ifaceLinkFlap08` per-round and end reads, `sumNetlinkDrops08` errors | yes |
+| No `docs/` page | `grep -rn plugin_fixture_08_flap docs ai/CODE-TO-DOCS.md` empty | yes |
