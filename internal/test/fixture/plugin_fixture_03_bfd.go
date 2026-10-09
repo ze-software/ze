@@ -306,16 +306,28 @@ func runZeUntilLogsRejecting03(ctx context.Context, config string, required, for
 	cmd := exec.CommandContext(ctx, "ze", "-")
 	cmd.Stdin = strings.NewReader(config)
 	cmd.Stdout = os.Stdout
-	stderr, err := cmd.StderrPipe()
+	// Wait must not close the reader while the scanner drains shutdown logs.
+	// Passing our own pipe leaves its read lifetime with this fixture.
+	stderr, stderrWriter, err := os.Pipe()
 	if err != nil {
 		return err
 	}
+	defer stderr.Close()
+	cmd.Stderr = stderrWriter
 	cmd.Env = os.Environ()
 	for key, value := range extraEnv {
 		cmd.Env = append(cmd.Env, key+"="+value)
 	}
 	if err := cmd.Start(); err != nil {
+		_ = stderrWriter.Close()
 		return err
+	}
+	// Only the child may keep the write end open after Start. Otherwise its
+	// exit would never deliver EOF to the scanner.
+	if err := stderrWriter.Close(); err != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return fmt.Errorf("close parent ze stderr writer: %w", err)
 	}
 	seen := make(map[string]bool, len(required))
 	rejected := make(map[string]bool, len(forbidden))
@@ -371,7 +383,15 @@ func runZeUntilLogsRejecting03(ctx context.Context, config string, required, for
 		<-waitDone
 	}
 	if !scanned {
-		scanErr = <-scanDone
+		drain := time.NewTimer(3 * time.Second)
+		defer drain.Stop()
+		select {
+		case scanErr = <-scanDone:
+		case <-drain.C:
+			_ = stderr.Close()
+			<-scanDone
+			return errors.New("ze stderr did not drain after process exit")
+		}
 	}
 	if scanErr != nil {
 		return fmt.Errorf("read ze stderr: %w", scanErr)
