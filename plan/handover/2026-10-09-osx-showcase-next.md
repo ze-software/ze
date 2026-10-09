@@ -43,6 +43,38 @@ each one with `./le spec claim spec <path>` and run it through `/ze-spec`, then
   owner did not place it in the order above; ask before starting it ahead of
   spec 1.
 
+## In flight: validated construction, Phase 1
+
+`plan/spec-validated-construction-and-state-types.md` is `in-progress` and runs
+by batches. Its resume file is `plan/handover/12-validated-construction-phase-1.md`:
+read it first, then the spec's Phase 1 section. The owner placed the showcase
+specs first; ask before resuming this one ahead of them.
+
+| Batch | State on 2026-10-09 |
+|-------|---------------------|
+| 1 (T3, `ArgDef` constructors) | Done, `9cbd3485ca` |
+| 2a, 2b (YANG Go imports, strict `DefaultLoader`) | Done, `7d69d6a669`, `5eaa197f32` |
+| 3 (T1, `yang.Resolved`), 3b (guard splits) | Done, `180df07922`, `93ee8363ce` |
+| 4a (C-T2a, every route validates) | Done, `62842be4c7` |
+| 4b (C-T2b, `StreamingHandler` takes `ValidatedArgs`) | Running on Linux when this was written; `git log --oneline -- plan/handover/12-validated-construction-phase-1.md` shows whether it landed |
+| 4c, 4d (`LocalDataHandler`, `LocalHandler`) | Not started. First the leaf-package decision in handover 12: `command` imports `command/registry`, so the validated type moves to a package internal to `command` |
+| 4e (`pluginserver.Handler`, ~340 handlers in 69 dirs, one commit) | Not started. Owner waiver of `.claude/rules/foreign-files.md` for this batch only, limits in handover 12 |
+| Close | `/ze-review`, then the two closure commits |
+
+Owed across all batches:
+
+- `./le verify worktree`: never run over these commits.
+- `./le --update` before `test/ui/cli-argument-refused-plugin-route.ci` runs, because it needs the rebuilt `le` test plugin.
+- `internal/component/cli` needs `-timeout` above 10m under `-race`.
+
+Follow-ups outside Phase 1, each already recorded:
+
+- Remove the goyang `replace` line in `go.mod` once https://github.com/openconfig/goyang/pull/317 is released. The CLA is signed.
+- Tag `goyang_enum_numbering_test.go` as an RFC7950-9.6.4.2-1 positive so that verdict can become enforced.
+- RFC 7950 7.2.2-1, the submodule include check, is a recorded gap.
+- Grammar R1: five root commands (`explain`, `generate wireguard keypair`, `skills`, `support`, `validate config`) need an owner grammar decision (`plan/journal/gate-red-where-nothing-blocks-on-it.md`).
+- `go mod vendor` would revert the hand-patched netlink (`f0d9c75df4`): patch `vendor/` by hand.
+
 ## Delete this handover
 
 When spec 2 is claimed, this file has done its job: remove it in that session's
