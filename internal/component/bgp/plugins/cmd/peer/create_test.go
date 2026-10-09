@@ -204,7 +204,7 @@ func TestCreateBgpPeerNamesTheKeywordItRefuses(t *testing.T) {
 			ctx := newTestContext(reactor)
 			ctx.Peer = tc.selector
 
-			resp, err := handleBgpPeerAdd(ctx, tc.args)
+			resp, err := handleBgpPeerCreate(ctx, tc.args)
 			require.Error(t, err)
 			assert.Equal(t, plugin.StatusError, resp.Status)
 			assert.Contains(t, resp.Error, tc.says, "the refusal names what it refused")

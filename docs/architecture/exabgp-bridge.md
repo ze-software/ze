@@ -231,11 +231,11 @@ wire. ze sends Cease, which is RFC 4271 error code 6, and it supplies the RFC
 8203 shutdown communication itself when the command gives none. So the ExaBGP
 grammar, which carries a subcode and nothing else, needs no message added to it.
 
-`create neighbor` reaches `create bgp peer`, the command `ze-bgp:peer-add`
+`create neighbor` reaches `create bgp peer`, the command `ze-bgp:peer-create`
 answers. The peer ze builds lives in the running daemon alone, which is what
 ExaBGP's own dynamic peer does: neither writes the configuration file, so a
 reload removes the peer. `delete neighbor` reaches `delete bgp peer`, the
-counterpart.
+counterpart `ze-bgp:peer-delete` answers.
 
 Each parameter maps to the `create bgp peer` keyword that means the same thing.
 

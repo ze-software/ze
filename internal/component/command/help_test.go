@@ -56,7 +56,7 @@ func testVerbTree() *Node {
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"peer": {Name: "peer", ShortHelp: "Remove a peer dynamically", WireMethod: "ze-bgp:delete-peer"},
+							"peer": {Name: "peer", ShortHelp: "Remove a peer dynamically", WireMethod: "ze-bgp:peer-delete"},
 						},
 					},
 				},

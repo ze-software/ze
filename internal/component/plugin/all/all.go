@@ -141,6 +141,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/trafficstat/cmd"
 
 	// CLI command packages -- command/registry registration.
+	_ "github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/config/cli"
 	_ "github.com/ze-software/ze/internal/component/doctor"
 	_ "github.com/ze-software/ze/internal/component/plugin"

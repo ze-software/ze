@@ -54,7 +54,7 @@ module test-cmd {
 
         container add {
             config false;
-            ze:command "ze-bgp:peer-add";
+            ze:command "ze-bgp:peer-create";
             ze:help "Add a new peer";
 
             leaf address {
@@ -91,7 +91,7 @@ module test-cmd {
 
 	addEntry := peerEntry.Dir["add"]
 	require.NotNil(t, addEntry)
-	assert.Equal(t, "ze-bgp:peer-add", GetCommandExtension(addEntry))
+	assert.Equal(t, "ze-bgp:peer-create", GetCommandExtension(addEntry))
 	assert.NotNil(t, addEntry.Dir["address"], "add should have address leaf child")
 
 	statusEntry := peerEntry.Dir["status"]
@@ -507,7 +507,7 @@ func TestCliSetCmdModule(t *testing.T) {
 }
 
 // TestPeerCmdModuleOwnsDeleteBgpPeer verifies the BGP peer command owner declares
-// delete > bgp > peer (ze-bgp:delete-peer), relocated out of the central delete
+// delete > bgp > peer (ze-bgp:peer-delete), relocated out of the central delete
 // schema, which is now a bare verb-root anchor.
 func TestPeerCmdModuleOwnsDeleteBgpPeer(t *testing.T) {
 	loader := NewLoader()
@@ -521,7 +521,7 @@ func TestPeerCmdModuleOwnsDeleteBgpPeer(t *testing.T) {
 
 	peer := entry.Dir["delete"].Dir["bgp"].Dir["peer"]
 	require.NotNil(t, peer, "delete > bgp > peer must exist in the peer owner module")
-	assert.Equal(t, "ze-bgp:delete-peer", GetCommandExtension(peer))
+	assert.Equal(t, "ze-bgp:peer-delete", GetCommandExtension(peer))
 }
 
 // TestCliDeleteCmdModule verifies the central delete verb module is a bare

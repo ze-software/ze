@@ -14,7 +14,7 @@ import (
 func TestPeerCmdSchemaOwnsCarvedVerbs(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-bgp:show-health"`,
-		`ze:command "ze-bgp:delete-peer"`,
+		`ze:command "ze-bgp:peer-delete"`,
 		`ze:command "ze-bgp:update-peer-prefix"`,
 		"container show",
 		"container delete",

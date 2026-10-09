@@ -132,12 +132,11 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
 		// Additional owner-registered BGP peer commands.
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
-		// `create bgp peer` and `delete bgp peer` are one pair, and the two
-		// wire methods are spelled differently because each takes the name its
-		// own YANG module declares: peer-add is declared in ze-bgp-api.yang and
-		// peer-remove is served under the delete verb's prefix.
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", Handler: handleBgpPeerAdd, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:delete-peer", Handler: handleBgpPeerRemove, RequiresSelector: true},
+		// `create bgp peer` and `delete bgp peer` are one pair over one runtime
+		// resource, so the two wire methods carry the create and delete verbs
+		// the verb table pairs, and ze-bgp-api.yang declares both.
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-create", Handler: handleBgpPeerCreate, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-delete", Handler: handleBgpPeerDelete, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:update-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
 		// `update bgp config` writes the running peer set to the configuration
 		// file. No selector: the absence of a peer is half of what it
@@ -746,9 +745,9 @@ func parseUint(s string) (uint64, error) {
 	return strconv.ParseUint(s, 10, 64)
 }
 
-// handleBgpPeerRemove handles "delete bgp peer <ip>" command.
+// handleBgpPeerDelete handles "delete bgp peer <ip>" command.
 // Removes a peer dynamically at runtime.
-func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerDelete(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

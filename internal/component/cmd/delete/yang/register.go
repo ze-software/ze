@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-cli-delete-api.yang", ZeCliDeleteAPIYANG)
 	configyang.RegisterModule("ze-cli-delete-cmd.yang", ZeCliDeleteCmdYANG)
 }

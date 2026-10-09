@@ -7,6 +7,11 @@ module ze-peer-cmd {
     // and delete bgp peer command surface. Its show, create and delete subtrees
     // container-merge onto the show, create and delete verb roots.
     description "BGP peer operations: create, show, delete, and control peer sessions.";
+    // One verb pair for one runtime resource: create and delete, the pair the
+    // verb table declares. peer-add and the delete verb's own spelling were
+    // two names for one lifecycle, and Ze is unreleased, so both are renamed
+    // outright, never aliased.
+    revision 2026-10-09 { description "create bgp peer answers ze-bgp:peer-create and delete bgp peer ze-bgp:peer-delete, both declared in ze-bgp-api."; }
     // ze-bgp:peer-add was declared in ze-bgp-api.yang and no handler answered
     // it, so ze created no BGP peer at runtime while the schema published the
     // method to an operator and to an agent (ai/rules/principles.md).
@@ -210,8 +215,8 @@ is the one command under it.";
             container peer {
                 config false;
 
-                ze:command "ze-bgp:peer-add";
-                ze:rpc "ze-bgp-api:peer-add";
+                ze:command "ze-bgp:peer-create";
+                ze:rpc "ze-bgp-api:peer-create";
                 description "The peer address and 'asn' are required. Every other keyword is
 optional. Ze builds the peer, starts it, and dials the address unless 'connect
 false' says otherwise. The peer lives in the running daemon alone. Ze writes
@@ -350,8 +355,8 @@ command under it.";
             container peer {
                 config false;
 
-                ze:command "ze-bgp:delete-peer";
-                ze:rpc "ze-cli-delete-api:bgp-peer";
+                ze:command "ze-bgp:peer-delete";
+                ze:rpc "ze-bgp-api:peer-delete";
                 description "Tears down the TCP session and deletes the peer from the running
 configuration. Does not modify the config file on disk.";
                 ze:help "Remove a peer from the running config.";

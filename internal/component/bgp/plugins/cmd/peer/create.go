@@ -23,7 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// cmdBgpPeerCreate is the path an operator types to reach handleBgpPeerAdd.
+// cmdBgpPeerCreate is the path an operator types to reach handleBgpPeerCreate.
 const cmdBgpPeerCreate = "create bgp peer"
 
 var (
@@ -32,21 +32,21 @@ var (
 	errCreateValue   = errors.New("this keyword takes a value")
 )
 
-// handleBgpPeerAdd handles `create bgp peer <address> asn <asn> ...`.
+// handleBgpPeerCreate handles `create bgp peer <address> asn <asn> ...`.
 //
 // It is the runtime counterpart of `delete bgp peer <selector>`
-// (handleBgpPeerRemove, peer.go), and it mirrors that command's reach: the peer
+// (handleBgpPeerDelete, peer.go), and it mirrors that command's reach: the peer
 // is built in the reactor and started there, and the configuration is not
 // touched. So a created peer does not appear in `show config` and a reload
 // removes it, exactly as a removed peer comes back on a reload.
 //
 // Every keyword the command accepts is a leaf of the same name in
 // ze-peer-cmd.yang, so the dispatcher types each value before the handler sees
-// it. The handler types them AGAIN, because a plugin reaching `ze-bgp:peer-add`
+// it. The handler types them AGAIN, because a plugin reaching `ze-bgp:peer-create`
 // over the IPC transport sends arguments the CLI never checked, and because a
 // keyword this handler cannot honor must be refused BY NAME rather than dropped
 // (ai/rules/principles.md).
-func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPeerCreate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

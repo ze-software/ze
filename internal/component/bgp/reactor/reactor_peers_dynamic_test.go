@@ -18,7 +18,7 @@ import (
 // so the command produces a peer with the settings the operator typed. The two
 // halves name their leaves independently, and a path that disagrees fails at
 // runtime with no compile error and no test red anywhere else.
-// METHOD: hand AddDynamicPeer the tree handleBgpPeerAdd builds for
+// METHOD: hand AddDynamicPeer the tree handleBgpPeerCreate builds for
 // `create bgp peer 192.0.2.7 asn 65002 local-as 65001 local-address 192.0.2.1
 // router-id 1.2.3.4 receive-hold-time 90 connect-retry 5 group-updates false`,
 // then read the PeerSettings it produced.

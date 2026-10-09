@@ -2674,7 +2674,7 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `create bgp peer <address> asn <asn> [...]` | write | Add a peer to the running daemon <!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerAdd --> |
+| `create bgp peer <address> asn <asn> [...]` | write | Add a peer to the running daemon <!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerCreate --> |
 
 The peer address comes first and `asn` is the only required keyword. The rest
 are optional: `local-as`, `local-address`, `router-id`, `receive-hold-time`,
@@ -2698,7 +2698,7 @@ declares that `delete bgp peer` removed is taken out of it.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `delete bgp peer <sel>` | write | Remove peer <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler --> |
+| `delete bgp peer <sel>` | write | Remove peer <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDelete --> |
 
 ### Route Injection
 

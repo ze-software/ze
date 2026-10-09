@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | - |
+| Phase | 1/3 |
 | Handoff | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -26,9 +26,9 @@ declarations were removed on September 13, as recorded below. The
 `ze-bgp-cmd-peer-api:peer-save` declaration and its module were simply not
 deleted that day; no owner ruled them retained. `peer-save` is served and must
 be declared exactly once, under its served name (`ze-bgp:peer-save`).
-`ze-bgp-cmd-peer-api.yang` is removed by
-`spec-rpc-published-name-does-not-reach-its-handler` after its two unique facts
-move there.
+`ze-bgp-cmd-peer-api.yang` was removed by
+`spec-rpc-published-name-does-not-reach-its-handler`, closed 2026-10-08
+(9c346cf094), after its two unique facts moved. This spec waits on nothing.
 
 **The model this spec builds.** Three RPCs act on one runtime working set, and
 the configuration file is reconciled to that set on demand.
@@ -54,9 +54,9 @@ sets and saves through an editor whose commit writer calls
 Those entry points are implemented. They do not by themselves demonstrate
 AC-1 through AC-13, nor implement this spec's required `peer-create` and
 `peer-delete` wire naming. The `ze-bgp-cmd-peer-api:peer-save` declaration
-publishes a different module prefix from the served save handler; it is
-replaced by one declaration under the served name `ze-bgp:peer-save`, moved by
-`spec-rpc-published-name-does-not-reach-its-handler`.
+published a different module prefix from the served save handler; it was
+replaced by one declaration under the served name `ze-bgp:peer-save`
+(`ze-bgp-api.yang`, revision 2026-10-08), and the module is gone.
 
 **Runtime origin and reload survival remain requirements.** The original design
 required a distinction between configured, listen-range and command-created
@@ -122,7 +122,8 @@ published methods are therefore `ze-bgp:peer-create`, `ze-bgp:peer-delete` and
 | Site | What changes |
 |---|---|
 | `internal/component/bgp/yang/ze-bgp-api.yang` | `rpc peer-add` becomes `peer-create`, `rpc peer-remove` becomes `peer-delete` |
-| `internal/component/bgp/plugins/cmd/peer/yang/ze-bgp-cmd-peer-api.yang` | Removed by `spec-rpc-published-name-does-not-reach-its-handler`, after `peer-save` is declared once under its served name `ze-bgp:peer-save` and the `session` input leaf of `session-peer-ready` moves |
+| `internal/component/bgp/plugins/cmd/peer/yang/ze-bgp-cmd-peer-api.yang` | Removed by `spec-rpc-published-name-does-not-reach-its-handler` (closed 2026-10-08) |
+| `internal/component/cmd/delete/yang/ze-cli-delete-api.yang` | That spec pointed `delete bgp peer` at its `rpc bgp-peer` after deleting `ze-bgp-api` `peer-remove`; the rpc moves to `ze-bgp-api` as `peer-delete` and the module is removed |
 | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` | `ze:command "ze-bgp:peer-add"` and `ze:command "ze-delete:bgp-peer"` |
 | `internal/component/bgp/plugins/cmd/peer/peer.go` | the two `RPCRegistration` wire methods |
 | `internal/component/bgp/plugins/cmd/peer/yang/cmd_schema_test.go` | asserts the `ze:command` string |
@@ -134,10 +135,10 @@ published methods are therefore `ze-bgp:peer-create`, `ze-bgp:peer-delete` and
 
 **The other declarations, judged under the same model.**
 `ze-bgp-cmd-peer-api.yang` publishes under the `ze-bgp-cmd-peer` wire prefix,
-while save is served under `ze-bgp`. The disposition is recorded: the module is
-removed by `spec-rpc-published-name-does-not-reach-its-handler`, after
-`peer-save` is declared exactly once under its served name `ze-bgp:peer-save`
-and the `session` input leaf of `session-peer-ready` moves into its final form.
+while save is served under `ze-bgp`. The disposition is done: the module was
+removed by `spec-rpc-published-name-does-not-reach-its-handler` (9c346cf094),
+after `peer-save` was declared exactly once under its served name
+`ze-bgp:peer-save` and the `session` input leaf of `session-peer-ready` moved.
 No owner ever ruled the module retained (Design Insights, 2026-10-08).
 The two `ze-cli-set-api.yang` names were deletion candidates because their
 own sibling records the removal: `ze-cli-set-cmd.yang` carries `revision
@@ -521,6 +522,13 @@ deleting duplicate declarations.
   -> Closure status (2026-10-08): this spec CANNOT close yet. Still owed here: the RIB-effect and
   persistence proofs AC-1 through AC-13, and the `peer-add`/`peer-remove` to
   `peer-create`/`peer-delete` rename. AC-14, AC-15 and AC-17 also wait on the other spec landing.
+  -> Superseded 2026-10-09: the other spec closed 2026-10-08 (9c346cf094); this spec waits on
+  nothing. Its model changed the wire names: the method is the ze:command node's own, and the
+  prefix comes from the registering package (756e85f100), so `delete bgp peer` was
+  `ze-bgp:delete-peer` documented by `ze-cli-delete-api:bgp-peer`. The rename lands both
+  commands on `ze-bgp:peer-create` / `ze-bgp:peer-delete`, declared in `ze-bgp-api.yang`;
+  `ze-cli-delete-api.yang` held only that rpc and is removed. Handlers renamed
+  `handleBgpPeerCreate` / `handleBgpPeerDelete`.
 - 2026-10-08, decision 2a implemented: the 14 local handlers each have a `ze:command` node at
   the path they register. Debug profile commands in `ze-debug-cmd.yang`; `generate wireguard
   keypair` in `ze-diag-cmd.yang`; `show config graph` and top-level `validate config` in

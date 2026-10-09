@@ -16,7 +16,7 @@ import (
 // the owner is removed.
 func TestDeleteSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 	banned := map[string]string{
-		`"ze-bgp:delete-peer"`: "BGP peer removal -> internal/component/bgp/plugins/cmd/peer/yang",
+		`"ze-bgp:peer-delete"`: "BGP peer removal -> internal/component/bgp/plugins/cmd/peer/yang",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliDeleteCmdYANG, token) {

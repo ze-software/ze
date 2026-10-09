@@ -455,7 +455,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 
 // AddDynamicPeer adds a peer to the running reactor from a config tree the
 // caller built, and starts it. `create bgp peer <address> asn <asn> ...` is the
-// command that reaches it (handleBgpPeerAdd,
+// command that reaches it (handleBgpPeerCreate,
 // internal/component/bgp/plugins/cmd/peer/create.go).
 //
 // The tree has the same shape as one peer's subtree in the configuration file,

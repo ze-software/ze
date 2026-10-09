@@ -10,6 +10,12 @@ module ze-bgp-api {
          RPCs for peer management, route operations, cache control,
          and event subscriptions. Notifications for BGP events.";
 
+    // peer-add and the delete verb's bgp-peer were two spellings of one
+    // lifecycle; ze-bgp:peer-create and ze-bgp:peer-delete name the pair.
+    revision 2026-10-09 {
+        description "Rename peer-add to peer-create; declare peer-delete, moved from ze-cli-delete-api.";
+    }
+
     // peer-save was declared in ze-bgp-cmd-peer-api.yang, which published it as
     // ze-bgp-cmd-peer:peer-save while the handler answers ze-bgp:peer-save.
     revision 2026-10-08 {
@@ -407,7 +413,7 @@ uses it to tell which operation produced this one.";
         }
     }
 
-    rpc peer-add {
+    rpc peer-create {
         description "The address and the ASN are required, and every other input is optional.
 'local-as' overrides the local ASN and 'router-id' overrides the router ID.
 'receive-hold-time' is the hold time RFC 4271 defines. 'send-hold-time' is the
@@ -419,7 +425,7 @@ the plugin processes this peer feeds. The peer lives in the running daemon
 alone: nothing is written to the configuration, so a reload removes it, which is
 what 'delete bgp peer' mirrors on the way out. 'create bgp peer <address> asn <asn>'
 is the CLI path.";
-        ze:help "Add a new peer.";
+        ze:help "Create a peer in the running daemon.";
         input {
             leaf address {
                 type zt:ip-address;
@@ -528,11 +534,19 @@ daemon and not in the configuration file.";
         }
     }
 
+    rpc peer-delete {
+        description "The selector is a peer address or a configured peer name, and the
+wildcard is refused. Ze stops the TCP session and removes the peer from the
+running daemon. The configuration file on disk does not change, so a peer the
+file declares comes back on a reload until 'ze-bgp:peer-save' takes it out.";
+        ze:help "Delete a peer from the running daemon.";
+    }
+
     rpc peer-save {
         description "The method takes no argument and acts on the whole running peer
 set. It reconciles the configuration file to that set in both directions: a
-peer created through 'ze-bgp:peer-add' is written into the file, and a peer the
-file declares that 'ze-bgp:delete-peer' removed is taken out of it. A peer both
+peer created through 'ze-bgp:peer-create' is written into the file, and a peer the
+file declares that 'ze-bgp:peer-delete' removed is taken out of it. A peer both
 sides hold is not rewritten. Nothing about the running daemon changes. The
 answer carries 'added', 'removed' and 'config', which names the file. An
 argument is refused, because after a removal no peer is left for a selector to

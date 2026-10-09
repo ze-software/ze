@@ -16,13 +16,13 @@ ze-bgp:cache-list
 ze-bgp:cache-release
 ze-bgp:cache-retain
 ze-bgp:commit
-ze-bgp:delete-peer
 ze-bgp:monitor
 ze-bgp:overview
-ze-bgp:peer-add
 ze-bgp:peer-borr
 ze-bgp:peer-capabilities
 ze-bgp:peer-clear-soft
+ze-bgp:peer-create
+ze-bgp:peer-delete
 ze-bgp:peer-detail
 ze-bgp:peer-eorr
 ze-bgp:peer-flush
