@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -549,8 +550,8 @@ func TestCommandFormPrintsArgumentTexts(t *testing.T) {
 	tree := &command.Node{Children: map[string]*command.Node{
 		"socket": {Name: "socket", Children: map[string]*command.Node{
 			"open": {Name: "open", WireMethod: "ze-test:socket-open", ArgDefs: []command.ArgDef{
-				{Name: "port", Kind: command.ArgUint, ShortHelp: "The TCP port to listen on", Description: "The port the socket binds."},
-				{Name: "label", Kind: command.ArgString, ShortHelp: "A label for the socket"},
+				commandtest.Must(command.NewUintArg("port", 64, nil, command.ArgOptions{ShortHelp: "The TCP port to listen on", Description: "The port the socket binds."})),
+				commandtest.Must(command.NewStringArg("label", nil, nil, command.ArgOptions{ShortHelp: "A label for the socket"})),
 			}},
 		}},
 	}}
@@ -586,8 +587,8 @@ func TestAdminExecuteAppendsPostedArguments(t *testing.T) {
 	tree := &command.Node{Children: map[string]*command.Node{
 		"socket": {Name: "socket", Children: map[string]*command.Node{
 			"open": {Name: "open", WireMethod: "ze-test:socket-open", ArgDefs: []command.ArgDef{
-				{Name: "port", Kind: command.ArgUint, Mandatory: true},
-				{Name: "label", Kind: command.ArgString},
+				commandtest.Must(command.NewUintArg("port", 64, nil, command.ArgOptions{Mandatory: true})),
+				commandtest.Must(command.NewStringArg("label", nil, nil, command.ArgOptions{})),
 			}},
 		}},
 	}}
@@ -638,7 +639,7 @@ func TestAdminExecuteBindsAnAnchoredValueThroughTheDispatcher(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	selector := command.ArgDef{Name: "selector", Kind: command.ArgString, Mandatory: true, Anchor: "bgp"}
+	selector := commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true, Anchor: "bgp"}))
 	tree := &command.Node{Children: map[string]*command.Node{
 		"send": {Name: "send", Children: map[string]*command.Node{
 			"bgp": {Name: "bgp", ArgDefs: []command.ArgDef{selector}, Children: map[string]*command.Node{
@@ -688,7 +689,7 @@ func TestAdminExecuteRefusesAQuoteInAValue(t *testing.T) {
 	require.NoError(t, err)
 	tree := &command.Node{Children: map[string]*command.Node{
 		"socket": {Name: "socket", Children: map[string]*command.Node{
-			"open": {Name: "open", ArgDefs: []command.ArgDef{{Name: "label", Kind: command.ArgString}}},
+			"open": {Name: "open", ArgDefs: []command.ArgDef{commandtest.Must(command.NewStringArg("label", nil, nil, command.ArgOptions{}))}},
 		}},
 	}}
 	dispatched := false

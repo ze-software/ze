@@ -102,23 +102,23 @@ func CheckNode(path string, node *command.Node) []Finding {
 	mandatoryFreeform := false
 	for i := range node.ArgDefs {
 		def := &node.ArgDefs[i]
-		if def.Kind != command.ArgString && def.Kind != command.ArgUint {
+		if def.Kind() != command.ArgString && def.Kind() != command.ArgUint {
 			continue // enum values are themselves closed keywords -- fine.
 		}
-		if def.Mandatory {
+		if def.Mandatory() {
 			mandatoryFreeform = true
 		}
 
 		// R5: a free-form value must be preceded by a keyword. In the YANG tree the
 		// leaf name IS that keyword, so it must be a valid keyword token.
-		if def.Name == "" || !validToken(def.Name) {
-			out = append(out, Finding{path, "R5", msg("free-form value with no keyword (arg name \"", def.Name, "\") -- a value must be typed by a selector keyword")})
+		if def.Name() == "" || !validToken(def.Name()) {
+			out = append(out, Finding{path, "R5", msg("free-form value with no keyword (arg name \"", def.Name(), "\") -- a value must be typed by a selector keyword")})
 		}
 
 		// R8: identifier-typed values are strings, never numeric, to avoid
 		// numeric-keyword ambiguity.
-		if def.Kind == command.ArgUint && looksLikeID(def.Name) {
-			out = append(out, Finding{path, "R8", msg("identifier ", def.Name, " is numeric; identifiers must be string-typed")})
+		if def.Kind() == command.ArgUint && looksLikeID(def.Name()) {
+			out = append(out, Finding{path, "R8", msg("identifier ", def.Name(), " is numeric; identifiers must be string-typed")})
 		}
 	}
 

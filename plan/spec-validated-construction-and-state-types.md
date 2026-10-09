@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling, config, protocol |
 | Depends | Phase 1: `plan/pre-release/spec-config-yang-loader-structural-checks.md` lands first, and the goyang fork `replace` in `go.mod` (enum numbering fix, another agent, 2026-10-09) lands before step 1. Later phases: reconcile the completed enum migration before changing its producers; coordinate overlapping IKE plans below |
 | Phase | Phase 1 (YANG resolved schema, strict `DefaultLoader`, validated command arguments, `ArgDef` construction) authorized by the owner on 2026-10-08; design decisions D-1 to D-7 answered by the owner on 2026-10-09. Later phases not authorized |
@@ -657,6 +657,8 @@ The discarded error that does exist is structural. A module's YANG `import` is n
 
 → Decision: the fix for the class is that every `*/yang` package blank-imports the Go package that registers each module its YANG imports or includes, so a module can never be linked without what it imports, in any binary. A new test, `TestYANGImportsFollowGoImports`, derives the edges from the registry (module name, registrar, `import` and `include` statements read from the parsed modules, not by regex over text, because a description can hold the word "import") and refuses any edge whose importer does not reach the imported registrar in Go. The alternative, keeping best-effort for test binaries only, is a second policy, which D-6 rules out. Feature gating is unaffected: a plugin's module imports only modules of the component it extends, and the gate that links the plugin links that component already.
 
+→ Decision (owner, 2026-10-09, verbatim): "May one plugin's YANG package import another: yes to ensure we can have part of the yang used as template". The blank Go imports between `*/yang` packages that this fix adds are approved.
+
 Behavior change under strict, stated for the owner's record:
 
 | Surface | Today | After |
@@ -712,7 +714,7 @@ The options the owner chose between, as presented on 2026-10-08:
 | A-10 | Plugin-process commands that declare definitions in the merged model can be validated in the engine before forwarding | `inheritArgDefs` in `rpc_register.go` merges model definitions | R9 validation needs definitions the engine does not hold | Step 1: `RegisteredCommand` paths against `PathToArgDefs` | Open |
 | A-12 | The goyang fork lands before step 1 and changes no Ze-visible behavior other than enum numbering | Another agent's task on 2026-10-09; journal rows in `zero-value-as-valid-answer.md` | Strict `DefaultLoader` could fail on a valid enumeration, or the vendored tree changes under T1 | Step 1: `go.mod` carries the `replace`; re-run the D-6 probe over the new tree | Open |
 | A-13 | No shipped profile links a module without the module it imports | D-6 probe 2026-10-09: runtime over distro, appliance, le; static `go list -deps` over setup, host, core, installer | Strict `DefaultLoader` would stop a shipped binary | `TestYANGImportsFollowGoImports` makes it hold by construction; step 3 re-runs the probe | Verified 2026-10-09 |
-| A-11 | Resolution refuses every restriction the `ArgDef` constructor refuses, for the types lowering reads | `checkStructure` refuses length parts that overlap or descend (`ErrLengthOrder`); Ze checks no range order, and goyang's range parsing is unread | A module loaded from a file (`AddModuleFromFile`, used by `le` tooling) could reach a constructor error inside lowering, making a BUG input-reachable | Read goyang's range parsing; if it checks nothing, add the range-order check to resolution in coordination with the structural-checks spec, or make lowering return the error | Open |
+| A-11 | Resolution refuses every restriction the `ArgDef` constructor refuses, for the types lowering reads | `checkStructure` refuses length parts that overlap or descend (`ErrLengthOrder`); Ze checks no range order, and goyang's range parsing is unread | A module loaded from a file (`AddModuleFromFile`, used by `le` tooling) could reach a constructor error inside lowering, making a BUG input-reachable | Read goyang's range parsing; if it checks nothing, add the range-order check to resolution in coordination with the structural-checks spec, or make lowering return the error | Confirmed 2026-10-09 (batch 1). goyang `YangRange.parseChildRanges` (`vendor/github.com/openconfig/goyang/pkg/yang/types_builtin.go`) refuses a part whose max is below its min, sorts and coalesces the parts, so lowering never sees parts that overlap or descend, and refuses parts outside the base type's range, so no range exceeds the width. `Type.resolve` (`types.go`) keeps the parent range or length when it refuses, so the best-effort `DefaultLoader` path also lowers only admitted parts. A negative length part falls outside `Uint64Range` and is refused the same way. `parseEnumAssignment` refuses an enumeration that lists no enum, and `yangTypeToArgDef` then builds no argument. Every lowered name is a leaf name. The constructor refusal inside `yangTypeToArgDef` is therefore a named BUG, and `TestCommandTreeBuildsFromEveryRegisteredModule` lowers the full registered set with none |
 
 ### Phase 1 Risks
 
@@ -796,6 +798,8 @@ Compile-negative probes follow the procedure in the TDD plan above: one forbidde
 | P-4 | A literal of the validated-arguments type naming a field, from another package | Its empty literal |
 | P-5 | An `ArgDef` literal naming `Lengths`, `Patterns` or `Kind`, from `config/yang` | The constructor call; the empty literal |
 | P-6 | Assigning into an element of what an `ArgDef` accessor returns | Ranging over it |
+
+→ Evidence (batch 1, 2026-10-09): P-5 and P-6 ran from throwaway packages under `internal/component/config/yang/`, one forbidden operation each, removed after the run. Positive control (constructor call, `command.ArgDef{}`, ranging over `EnumValues()`): compiles. P-5 `command.ArgDef{Lengths: nil}`: "unknown field Lengths in struct literal of type command.ArgDef, but does have unexported lengths"; `Patterns` and `Kind` give the same error for `patterns` and `kind`. P-6 `def.EnumValues()[0] = "x"`: "cannot index def.EnumValues() (value of func type iter.Seq[string])"; `def.Ranges()[0] = command.UintRange{}`: "cannot index def.Ranges() (value of func type iter.Seq[command.UintRange])". Before batch 1 each of these compiled: the fields were exported and 123 test literal lines named them.
 
 ### Phase 1 files
 

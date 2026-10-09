@@ -17,6 +17,7 @@ package command
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -213,10 +214,10 @@ func Usage(path []string, node *Node) []UsageToken {
 		tokens = append(tokens, UsageToken{Text: segment, Kind: UsageKeyword})
 		for i := range node.ArgDefs {
 			def := &node.ArgDefs[i]
-			if anchored[def.Name] || usageAnchor(def) != segment {
+			if anchored[def.name] || usageAnchor(def) != segment {
 				continue
 			}
-			anchored[def.Name] = true
+			anchored[def.name] = true
 			tokens = append(tokens, usageToken(def, UsageValue))
 		}
 	}
@@ -249,7 +250,7 @@ func appendLeafTokens(tokens []UsageToken, node *Node, anchored map[string]bool,
 	}
 	for i := range node.ArgDefs {
 		def := &node.ArgDefs[i]
-		if anchored[def.Name] || def.Mandatory != wantMandatory {
+		if anchored[def.name] || def.mandatory != wantMandatory {
 			continue
 		}
 		tokens = append(tokens, usageToken(def, usageLeafKind(def, kind)))
@@ -260,7 +261,7 @@ func appendLeafTokens(tokens []UsageToken, node *Node, anchored map[string]bool,
 // usageLeafKind answers UsageFlag for a flag definition, and kind for every
 // definition that takes a value.
 func usageLeafKind(def *ArgDef, kind UsageKind) UsageKind {
-	if def.Kind == ArgFlag {
+	if def.kind == ArgFlag {
 		return UsageFlag
 	}
 	return kind
@@ -339,7 +340,7 @@ func usageGroupToken(node *Node) UsageToken {
 	for i := range node.ArgDefs {
 		def := &node.ArgDefs[i]
 		valueKind := UsageValue
-		if !def.Mandatory {
+		if !def.mandatory {
 			valueKind = UsageOption
 		}
 		group = append(group, usageToken(def, usageLeafKind(def, valueKind)))
@@ -486,19 +487,21 @@ func writeUsageValue(tb *textbuf.Buffer, token *UsageToken) {
 
 // usageToken builds one value token from an argument definition.
 func usageToken(def *ArgDef, kind UsageKind) UsageToken {
-	return UsageToken{Text: def.Name, Values: usageValues(def), Kind: kind}
+	return UsageToken{Text: def.name, Values: usageValues(def), Kind: kind}
 }
 
 // usageValues returns the closed set of answers the definition's type states,
 // or nil when the type states none.
 //
 // A union states the member forms: each enumerated member contributes its own
-// values, and every other member contributes the leaf's name, once.
+// values, and every other member contributes the leaf's name, once. The slice
+// is the caller's: an enumeration's values are copied, so a UsageToken cannot
+// change the definition it was rendered from.
 func usageValues(def *ArgDef) []string {
 	//exhaustive:ignore // Only enum and union argument types contribute usage alternatives.
-	switch def.Kind {
+	switch def.kind {
 	case ArgEnum:
-		return def.EnumValues
+		return slices.Clone(def.enumValues)
 	case ArgUnion:
 		return unionForms(def)
 	case ArgString, ArgUint:
@@ -511,21 +514,21 @@ func usageValues(def *ArgDef) []string {
 // unionForms lists a union's member forms in declaration order. It answers nil
 // when no member states a value set, because the leaf name alone is the form.
 func unionForms(def *ArgDef) []string {
-	forms := make([]string, 0, len(def.UnionDefs))
+	forms := make([]string, 0, len(def.unionDefs))
 	named := false
-	for i := range def.UnionDefs {
-		member := &def.UnionDefs[i]
-		if member.Kind == ArgEnum {
-			forms = append(forms, member.EnumValues...)
+	for i := range def.unionDefs {
+		member := &def.unionDefs[i]
+		if member.kind == ArgEnum {
+			forms = append(forms, member.enumValues...)
 			continue
 		}
 		if named {
 			continue
 		}
 		named = true
-		forms = append(forms, def.Name)
+		forms = append(forms, def.name)
 	}
-	if len(forms) == 1 && forms[0] == def.Name {
+	if len(forms) == 1 && forms[0] == def.name {
 		return nil
 	}
 	return forms
@@ -542,8 +545,8 @@ func unionForms(def *ArgDef) []string {
 // answer: it follows the keyword it repeats, and trails every keyword when it
 // repeats none.
 func usageAnchor(def *ArgDef) string {
-	if def.Anchor != "" {
-		return def.Anchor
+	if def.anchor != "" {
+		return def.anchor
 	}
-	return def.Name
+	return def.name
 }

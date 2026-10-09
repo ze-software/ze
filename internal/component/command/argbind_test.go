@@ -8,9 +8,9 @@ import "testing"
 // alphabet kept 8080 away from it.
 func socketFilterDefs() []ArgDef {
 	return []ArgDef{
-		{Name: "protocol", Kind: ArgEnum, EnumValues: []string{"tcp", "udp"}},
-		{Name: "state", Kind: ArgString},
-		{Name: "port", Kind: ArgUint, UintBits: 32},
+		mustArgDef(NewEnumArg("protocol", []string{"tcp", "udp"}, ArgOptions{})),
+		mustArgDef(NewStringArg("state", nil, nil, ArgOptions{})),
+		mustArgDef(NewUintArg("port", 32, nil, ArgOptions{})),
 	}
 }
 
@@ -53,8 +53,8 @@ func TestPositionalDefPrefersConstrainedDef(t *testing.T) {
 				if def == nil {
 					t.Fatalf("ordering %d bound %q to nothing", i, tc.arg)
 				}
-				if def.Name != tc.want {
-					t.Errorf("ordering %d bound %q to %q, want %q", i, tc.arg, def.Name, tc.want)
+				if def.name != tc.want {
+					t.Errorf("ordering %d bound %q to %q, want %q", i, tc.arg, def.name, tc.want)
 				}
 			}
 		})
@@ -99,11 +99,11 @@ func TestPositionalBindingIsOrderIndependent(t *testing.T) {
 // turn a complete command into "required argument missing: port".
 func TestPositionalDefKeepsTheMandatoryTierFirst(t *testing.T) {
 	defs := []ArgDef{
-		{Name: "state", Kind: ArgEnum, EnumValues: []string{"up", "down"}},
-		{Name: "mode", Kind: ArgString, Mandatory: true},
+		mustArgDef(NewEnumArg("state", []string{"up", "down"}, ArgOptions{})),
+		mustArgDef(NewStringArg("mode", nil, nil, ArgOptions{Mandatory: true})),
 	}
 	def := positionalDef("up", defs, map[string]bool{})
-	if def == nil || def.Name != "mode" {
+	if def == nil || def.name != "mode" {
 		t.Fatalf("a required leaf was not offered the token first: %v", def)
 	}
 }

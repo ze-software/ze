@@ -227,7 +227,7 @@ func reachedWithoutSelector(node *command.Node) bool {
 // operator can leave it out and put the verb there instead.
 func takesValueAfterPeer(defs []command.ArgDef) bool {
 	for i := range defs {
-		if defs[i].Mandatory && strings.EqualFold(defs[i].Anchor, peerNodeName) {
+		if defs[i].Mandatory() && strings.EqualFold(defs[i].Anchor(), peerNodeName) {
 			return true
 		}
 	}

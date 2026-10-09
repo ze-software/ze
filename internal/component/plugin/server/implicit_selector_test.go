@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // TestImplicitSelectorPrefersThePatternlessLeaf covers the shape every
@@ -26,13 +27,13 @@ import (
 func TestImplicitSelectorPrefersThePatternlessLeaf(t *testing.T) {
 	mac := regexp.MustCompile(`^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$`)
 	defs := []command.ArgDef{
-		{Name: "name", Kind: command.ArgString, Mandatory: true},
-		{Name: "address", Kind: command.ArgString, Mandatory: true, Patterns: []*regexp.Regexp{mac}},
+		commandtest.Must(command.NewStringArg("name", nil, nil, command.ArgOptions{Mandatory: true})),
+		commandtest.Must(command.NewStringArg("address", nil, []*regexp.Regexp{mac}, command.ArgOptions{Mandatory: true})),
 	}
 
 	def := implicitSelectorDef([]string{"request", "interface", "mac"}, defs, nil)
 	require.NotNil(t, def, "the pattern-less leaf is the inline identifier")
-	assert.Equal(t, "name", def.Name)
+	assert.Equal(t, "name", def.Name())
 }
 
 // TestImplicitSelectorRefusesTwoPatternlessLeaves keeps the widening narrow.
@@ -42,8 +43,8 @@ func TestImplicitSelectorPrefersThePatternlessLeaf(t *testing.T) {
 // PREVENTS: reading "prefer the pattern-less one" as "take the first one".
 func TestImplicitSelectorRefusesTwoPatternlessLeaves(t *testing.T) {
 	defs := []command.ArgDef{
-		{Name: "name", Kind: command.ArgString, Mandatory: true},
-		{Name: "peer", Kind: command.ArgString, Mandatory: true},
+		commandtest.Must(command.NewStringArg("name", nil, nil, command.ArgOptions{Mandatory: true})),
+		commandtest.Must(command.NewStringArg("peer", nil, nil, command.ArgOptions{Mandatory: true})),
 	}
 
 	assert.Nil(t, implicitSelectorDef([]string{"create", "interface", "veth"}, defs, nil))
@@ -58,10 +59,10 @@ func TestImplicitSelectorRefusesTwoPatternlessLeaves(t *testing.T) {
 // resolves today.
 func TestImplicitSelectorTakesALonePatternedLeaf(t *testing.T) {
 	defs := []command.ArgDef{
-		{Name: "selector", Kind: command.ArgString, Mandatory: true, Patterns: []*regexp.Regexp{regexp.MustCompile(`^\S+$`)}},
+		commandtest.Must(command.NewStringArg("selector", nil, []*regexp.Regexp{regexp.MustCompile(`^\S+$`)}, command.ArgOptions{Mandatory: true})),
 	}
 
 	def := implicitSelectorDef([]string{"show", "bgp", "detail"}, defs, nil)
 	require.NotNil(t, def)
-	assert.Equal(t, "selector", def.Name)
+	assert.Equal(t, "selector", def.Name())
 }

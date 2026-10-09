@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // TestDispatchGeneratedBindsAnAnchoredValueThroughTheDispatcher: a tool call
@@ -29,8 +31,8 @@ import (
 // cannot see that refusal, so this test runs the dispatcher itself.
 func TestDispatchGeneratedBindsAnAnchoredValueThroughTheDispatcher(t *testing.T) {
 	const name = "peer announce unicast"
-	selector := command.ArgDef{Name: "selector", Kind: command.ArgString, Mandatory: true, Anchor: "peer"}
-	prefix := command.ArgDef{Name: "prefix", Kind: command.ArgString, Mandatory: true}
+	selector := commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true, Anchor: "peer"}))
+	prefix := commandtest.Must(command.NewStringArg("prefix", nil, nil, command.ArgOptions{Mandatory: true}))
 
 	d := pluginserver.NewDispatcher()
 	var gotSelector string
@@ -110,5 +112,40 @@ func TestDispatchGeneratedRefusesPeerBesideAnAnchoredSelector(t *testing.T) {
 	}
 	if dispatched {
 		t.Error("a call naming the peer twice must not be dispatched")
+	}
+}
+
+// TestWriteInvocationPlacesAnchoredValues: the MCP server hands
+// command.WriteInvocation only the name and the anchor its lister registered
+// (D-7), and the command it writes is the one the dispatcher binds.
+//
+// VALIDATES: invocationArgs projects each ParamInfo to its name and anchor, and
+// WriteInvocation over that input writes the anchored value bare after its
+// keyword and every other value after the command in keyword form.
+// PREVENTS: an untyped argument definition built only to carry two strings,
+// which would claim the argument accepts any value.
+func TestWriteInvocationPlacesAnchoredValues(t *testing.T) {
+	const name = "peer announce unicast"
+	s := &server{commands: func() ([]CommandInfo, error) {
+		return []CommandInfo{{Name: name, Params: []ParamInfo{
+			{Name: "selector", Type: "string", Required: true, Anchor: "peer"},
+			{Name: "prefix", Type: "string", Required: true},
+		}}}, nil
+	}}
+	args, err := s.invocationArgs(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []command.InvocationArg{{Name: "selector", Anchor: "peer"}, {Name: "prefix"}}
+	if len(args) != len(want) || args[0] != want[0] || args[1] != want[1] {
+		t.Fatalf("invocationArgs = %+v, want %+v", args, want)
+	}
+	var tb textbuf.Buffer
+	values := map[string]string{"selector": "192.0.2.9", "prefix": "198.51.100.0/24"}
+	if err := command.WriteInvocation(&tb, []string{"peer", "announce", "unicast"}, args, values); err != nil {
+		t.Fatal(err)
+	}
+	if got, wantCmd := tb.String(), "peer 192.0.2.9 announce unicast prefix 198.51.100.0/24"; got != wantCmd {
+		t.Fatalf("command = %q, want %q", got, wantCmd)
 	}
 }

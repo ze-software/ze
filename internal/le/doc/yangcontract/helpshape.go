@@ -216,11 +216,11 @@ func (r *HelpShapeReport) arguments(cliPath string, defs []command.ArgDef) {
 		}
 		r.argumentsJudged[label] = true
 		r.Arguments++
-		if strings.TrimSpace(def.ShortHelp) == "" {
+		if strings.TrimSpace(def.ShortHelp()) == "" {
 			continue
 		}
 		r.ArgumentsWithSummary++
-		r.judgeCaps(surfaceArgument, label, def.ShortHelp)
+		r.judgeCaps(surfaceArgument, label, def.ShortHelp())
 	}
 }
 
@@ -231,16 +231,16 @@ func (r *HelpShapeReport) arguments(cliPath string, defs []command.ArgDef) {
 // command below, which over-counts rather than drops a declaration.
 func argumentLabel(cliPath string, def *command.ArgDef) string {
 	var tb textbuf.Buffer
-	if def.Anchor != "" {
+	if def.Anchor() != "" {
 		tokens := strings.Fields(cliPath)
 		for i, token := range slices.Backward(tokens) {
-			if token != def.Anchor {
+			if token != def.Anchor() {
 				continue
 			}
-			return tb.Join(tokens[:i+1], " ").Byte(' ').Str(def.Name).String()
+			return tb.Join(tokens[:i+1], " ").Byte(' ').Str(def.Name()).String()
 		}
 	}
-	return tb.Str(cliPath).Byte(' ').Str(def.Name).String()
+	return tb.Str(cliPath).Byte(' ').Str(def.Name()).String()
 }
 
 // leaves judges the summary of every rpc or notification leaf under the two

@@ -356,7 +356,7 @@ func (c *TreeCompleter) GhostText(input string) string {
 func choiceSuggestions(node *Node, prefix string) []Suggestion {
 	var out []Suggestion
 	for i := range node.ArgDefs {
-		for _, value := range node.ArgDefs[i].EnumValues {
+		for _, value := range node.ArgDefs[i].enumValues {
 			if prefix != "" && !strings.HasPrefix(value, prefix) {
 				continue
 			}
@@ -469,7 +469,7 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 	}
 	for i := range node.ArgDefs {
 		def := &node.ArgDefs[i]
-		for _, v := range def.EnumValues {
+		for _, v := range def.enumValues {
 			if seen != nil && seen[v] {
 				continue
 			}
@@ -486,14 +486,14 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 		// and an optional one is `[<name> <value>]` (Usage, appendLeafTokens).
 		// Without this the completer offered `open` for `send bgp <selector>
 		// raw`, where a bare `open` is refused and only `type open` is accepted.
-		enumNeedsItsKeyword := def.Kind == ArgEnum && !def.Mandatory
-		if def.Kind == ArgUint || def.Kind == ArgString || def.Kind == ArgFlag || enumNeedsItsKeyword {
-			if seen != nil && seen[def.Name] {
+		enumNeedsItsKeyword := def.kind == ArgEnum && !def.mandatory
+		if def.kind == ArgUint || def.kind == ArgString || def.kind == ArgFlag || enumNeedsItsKeyword {
+			if seen != nil && seen[def.name] {
 				continue
 			}
-			if prefix == "" || strings.HasPrefix(def.Name, prefix) {
+			if prefix == "" || strings.HasPrefix(def.name, prefix) {
 				completions = append(completions, Suggestion{
-					Text: def.Name,
+					Text: def.name,
 					Type: SuggestionValue,
 				})
 			}

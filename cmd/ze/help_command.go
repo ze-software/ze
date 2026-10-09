@@ -527,14 +527,14 @@ func extractArgs(node *command.Node) []commandArg {
 	for i := range node.ArgDefs {
 		ad := &node.ArgDefs[i]
 		a := commandArg{
-			Name:        ad.Name,
-			Type:        argKindString(ad.Kind),
-			Mandatory:   ad.Mandatory,
-			ShortHelp:   ad.ShortHelp,
-			Description: ad.Description,
+			Name:        ad.Name(),
+			Type:        argKindString(ad.Kind()),
+			Mandatory:   ad.Mandatory(),
+			ShortHelp:   ad.ShortHelp(),
+			Description: ad.Description(),
 		}
-		if len(ad.EnumValues) > 0 {
-			a.Values = ad.EnumValues
+		if values := slices.Collect(ad.EnumValues()); len(values) > 0 {
+			a.Values = values
 		}
 		args = append(args, a)
 	}

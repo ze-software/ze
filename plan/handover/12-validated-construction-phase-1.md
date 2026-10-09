@@ -27,14 +27,26 @@ correctly in another session".
 | Item | State on 2026-10-09 |
 |------|---------------------|
 | Spec records the decisions, the D-2 A batch order and the D-6 census | Agent running when this was written; check `git log -- plan/spec-validated-construction-and-state-types.md` |
-| go.mod `replace` of goyang with the ze-software fork (enum numbering fix, journal `plan/journal/zero-value-as-valid-answer.md` row 4) | DONE in the commit that carries this row (subject "deps: build goyang from the ze-software fork with the enum numbering fix"). go.mod replaces goyang with github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98 (branch `fix-enum-implicit-value-after-negative`); upstream PR https://github.com/openconfig/goyang/pull/317. Vendor updated by hand for goyang only, because `go mod vendor` would revert the hand-patched vishvananda/netlink (f0d9c75df4). Still owed: the owner signs the Google CLA for the PR; drop the replace once a goyang release holds the fix |
+| go.mod `replace` of goyang with the ze-software fork (enum numbering fix, journal `plan/journal/zero-value-as-valid-answer.md` row 4) | DONE in the commit that carries this row (subject "deps: build goyang from the ze-software fork with the enum numbering fix"). go.mod replaces goyang with github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98 (branch `fix-enum-implicit-value-after-negative`); upstream PR https://github.com/openconfig/goyang/pull/317. Vendor updated by hand for goyang only, because `go mod vendor` would revert the hand-patched vishvananda/netlink (f0d9c75df4). The owner signed the Google CLA for the PR on 2026-10-09. Still owed: drop the replace once a goyang release holds the fix |
 | `./le verify worktree` over the 2026-10-08/09 commits | Owed, never run |
 
 ## Batch log
 
 | # | Batch | Commit | State |
 |---|-------|--------|-------|
-| - | none started | - | - |
+| 1 | Step 2, T3: `command.ArgDef` private fields, per-kind constructors, accessors, D-4, D-7 | "command: build every ArgDef through a validating constructor" (this commit) | Done |
+
+Batch 1 notes for the next batch:
+
+- `ArgDef` and its constructors live in `internal/component/command/argdef.go` (moved out of `node.go`). `ErrArgDef` wraps every refusal; `constructed` is the private marker `ValidateArgs` and `ValidateArgString` refuse a zero definition on (D-4).
+- `WriteInvocation` takes `[]command.InvocationArg` (name, anchor, flag). Web projects with `command.InvocationArgs`; MCP builds it in `invocationArgs` (was `argDefs`), D-7.
+- Tests outside `command` build definitions with `commandtest.Must(command.NewXArg(...))` (`internal/component/command/commandtest`); inside `command`, `mustArgDef` in `node_test.go`.
+- `applyRange`, `applyLength` and `applyPatterns` are gone: `yangTypeToArgDef` takes the `ArgOptions` and calls the constructors, and the pattern compile, with its "pattern Loader.Resolve refuses" BUG, is now `compilePatterns` in `config/yang/command.go`. T1 (step 4) removes that BUG branch under its new name.
+- A-11 is confirmed (spec row): goyang's range parsing sorts, coalesces and bounds parts, so the constructor refusal in `yangTypeToArgDef` is a named BUG. `TestCommandTreeBuildsFromEveryRegisteredModule` lives in `config/yang/command_registered_test.go` (external test package, it imports `plugin/all`), not in `command_test.go`.
+- `validateUint` no longer defaults a zero width to 64: the constructor refuses it.
+- Owner answers recorded 2026-10-09: cross-plugin `*/yang` blank imports approved (spec T4 section); goyang CLA signed (row above).
+- `usageValues` (`command/usage.go`) copies an enumeration's values, so a `UsageToken` does not alias the definition it was rendered from.
+- Open after batch 1: `./le rfc check` reports RFC7950-9.6.4.2-1 SHIFTED. The audit fingerprint is file-level, and batch 1 had to edit `config/yang/rfc7950_enum_value_test.go` (one untagged line, `def.EnumValues` no longer compiles); the four tagged units are byte-identical. Only `./le rfc reseal` clears it, and it rewrites every RFC's audit file, so it waits for the owner's decision. The other seven `rfc check` findings (L2TP/EAP naming, RFC8907 stale and discrimination) predate batch 1.
 
 ## What the next session needs to know
 

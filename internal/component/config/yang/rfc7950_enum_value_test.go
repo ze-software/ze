@@ -97,5 +97,5 @@ func TestEnumNamesFollowTheAssignedValues(t *testing.T) {
 
 	def, ok := argDefFor(leaf, "x")
 	require.True(t, ok)
-	assert.Equal(t, []string{"p", "q", "r"}, def.EnumValues)
+	assert.Equal(t, []string{"p", "q", "r"}, enumValuesOf(def))
 }

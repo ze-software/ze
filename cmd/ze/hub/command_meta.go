@@ -229,10 +229,10 @@ func anchoredParams(params []commandParam, defs []command.ArgDef) []commandParam
 	copy(anchored, params)
 	for i := range anchored {
 		for j := range defs {
-			if defs[j].Name != anchored[i].Name {
+			if defs[j].Name() != anchored[i].Name {
 				continue
 			}
-			anchored[i].Anchor = defs[j].Anchor
+			anchored[i].Anchor = defs[j].Anchor()
 			break
 		}
 	}

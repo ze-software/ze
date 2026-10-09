@@ -694,7 +694,7 @@ func TestDeclaredNumericBoundsHold(t *testing.T) {
 		t.Run(c.path+" "+c.leaf, func(t *testing.T) {
 			var def *command.ArgDef
 			for i, candidate := range argDefs[c.path] {
-				if candidate.Name == c.leaf {
+				if candidate.Name() == c.leaf {
 					def = &argDefs[c.path][i]
 				}
 			}
@@ -800,7 +800,7 @@ func TestInheritedSelectorReachesThePeerBridge(t *testing.T) {
 	require.NoError(t, err)
 	defs := yang.PathToArgDefs(loader)["request peer flush"]
 	require.Len(t, defs, 1)
-	assert.Equal(t, "peer", defs[0].Anchor, "the selector is anchored to the container that declares it")
+	assert.Equal(t, "peer", defs[0].Anchor(), "the selector is anchored to the container that declares it")
 
 	var gotPeer string
 	handler := func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {

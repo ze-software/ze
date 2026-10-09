@@ -8,8 +8,6 @@
 // completion, and pipe operators.
 package command
 
-import "regexp"
-
 // ArgKind identifies the type of a command argument from YANG leaf metadata.
 type ArgKind uint8
 
@@ -27,45 +25,6 @@ const (
 type UintRange struct {
 	Min uint64
 	Max uint64
-}
-
-// ArgDef declares a typed argument for an operational command, extracted from
-// YANG leaves inside ze:command containers. Drives completion, validation,
-// and documentation from a single source.
-type ArgDef struct {
-	Name       string           // YANG leaf name (kebab-case, used as keyword detector)
-	Kind       ArgKind          // Argument type category
-	EnumValues []string         // Valid enum values (for ArgEnum and ArgUnion)
-	UintBits   int              // 8, 16, 32, or 64 for ArgUint
-	Ranges     []UintRange      // Valid ranges for ArgUint (disjoint segments supported)
-	Lengths    []UintRange      // Character-count ranges for ArgString (nil = any length)
-	Patterns   []*regexp.Regexp // Compiled XSD patterns for ArgString, all must match (nil = accept any)
-	UnionDefs  []ArgDef         // Member types for ArgUnion (tried in order)
-	Mandatory  bool             // True if YANG leaf has mandatory true
-
-	// ShortHelp is the leaf's one-line summary, from its ze:help statement, and
-	// Description is the long explanation, from its description statement.
-	// Neither is derived from the other: a leaf that declares one text leaves
-	// the other empty, and every reader prints the one it has.
-	ShortHelp   string
-	Description string
-
-	// Anchor names the path keyword this value follows, and it is set when the
-	// leaf is declared by a container ABOVE the command rather than by the
-	// command itself: `request interface <name> down` declares `name` on
-	// `interface`, so the anchor is `interface`.
-	//
-	// It is empty for a leaf the command declares. Such a leaf follows the
-	// container whose name it repeats, and trails the last keyword when it
-	// repeats none, which is the rule the renderer already applied.
-	//
-	// The anchor decides where a value is printed (usageAnchor) and where the
-	// dispatcher reads it: matchCommandTokens binds the bare token after the
-	// anchor keyword to the leaf anchored there (anchoredDef,
-	// internal/component/plugin/server), and the web admin form prints a
-	// posted value at that same place (commandArguments,
-	// internal/component/web).
-	Anchor string
 }
 
 // ArgInherit says whether a command takes the values the containers ABOVE it

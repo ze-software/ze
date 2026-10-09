@@ -12,13 +12,18 @@ import (
 
 const maxArgLength = 1024
 
-// ValidateArgString validates a raw string argument against an ArgDef.
+// ValidateArgString validates a raw string argument against an ArgDef. It
+// refuses every token for a definition no constructor built (ErrArgDef): the
+// zero ArgDef would otherwise accept any string.
 func ValidateArgString(arg string, def *ArgDef) error {
+	if !def.constructed {
+		return fmt.Errorf("%w: argument %q was not built by a constructor", ErrArgDef, def.name)
+	}
 	if len(arg) > maxArgLength {
 		return fmt.Errorf("argument too long (max %d bytes)", maxArgLength)
 	}
 
-	switch def.Kind {
+	switch def.kind {
 	case ArgEnum:
 		return validateEnum(arg, def)
 	case ArgUint:
@@ -29,36 +34,32 @@ func ValidateArgString(arg string, def *ArgDef) error {
 		return validateUnion(arg, def)
 	case ArgFlag:
 		// A flag is its own keyword. No token is ever its value.
-		return fmt.Errorf("%s takes no value", def.Name)
+		return fmt.Errorf("%s takes no value", def.name)
 	default:
 		panic("BUG: invalid command argument kind")
 	}
 }
 
 func validateEnum(arg string, def *ArgDef) error {
-	if slices.Contains(def.EnumValues, arg) {
+	if slices.Contains(def.enumValues, arg) {
 		return nil
 	}
-	return fmt.Errorf("invalid value %q, expected one of: %s", arg, joinEnum(def.EnumValues))
+	return fmt.Errorf("invalid value %q, expected one of: %s", arg, joinEnum(def.enumValues))
 }
 
 func validateUint(arg string, def *ArgDef) error {
-	bits := def.UintBits
-	if bits == 0 {
-		bits = 64
-	}
-	v, err := strconv.ParseUint(arg, 10, bits)
+	v, err := strconv.ParseUint(arg, 10, def.uintBits)
 	if err != nil {
 		return fmt.Errorf("invalid value %q, expected unsigned integer", arg)
 	}
-	if len(def.Ranges) > 0 {
-		for _, r := range def.Ranges {
+	if len(def.ranges) > 0 {
+		for _, r := range def.ranges {
 			if v >= r.Min && v <= r.Max {
 				return nil
 			}
 		}
-		if len(def.Ranges) == 1 {
-			return fmt.Errorf("value %d out of range %d..%d", v, def.Ranges[0].Min, def.Ranges[0].Max)
+		if len(def.ranges) == 1 {
+			return fmt.Errorf("value %d out of range %d..%d", v, def.ranges[0].Min, def.ranges[0].Max)
 		}
 		return fmt.Errorf("value %d out of allowed ranges", v)
 	}
@@ -68,18 +69,18 @@ func validateUint(arg string, def *ArgDef) error {
 // validateString judges a string argument against its YANG length and every
 // pattern its type chain declares.
 func validateString(arg string, def *ArgDef) error {
-	if len(def.Lengths) > 0 {
+	if len(def.lengths) > 0 {
 		// RFC 7950 Section 9.4.4: "A "length" statement restricts the number
 		// of Unicode characters in the string."
 		length := uint64(utf8.RuneCountInString(arg))
-		if !inRanges(length, def.Lengths) {
-			return fmt.Errorf("invalid value %q, length %d out of range %s", arg, length, joinRanges(def.Lengths))
+		if !inRanges(length, def.lengths) {
+			return fmt.Errorf("invalid value %q, length %d out of range %s", arg, length, joinRanges(def.lengths))
 		}
 	}
 	// RFC 7950 Section 9.4.5: "If the type has multiple "pattern" statements,
 	// the expressions are ANDed together, i.e., all such expressions have to
 	// match."
-	for _, pattern := range def.Patterns {
+	for _, pattern := range def.patterns {
 		if !pattern.MatchString(arg) {
 			return fmt.Errorf("invalid value %q, does not match expected pattern", arg)
 		}
@@ -115,16 +116,16 @@ func joinRanges(ranges []UintRange) string {
 }
 
 func validateUnion(arg string, def *ArgDef) error {
-	for i := range def.UnionDefs {
-		if ValidateArgString(arg, &def.UnionDefs[i]) == nil {
+	for i := range def.unionDefs {
+		if ValidateArgString(arg, &def.unionDefs[i]) == nil {
 			return nil
 		}
 	}
 	var hint string
-	for i := range def.UnionDefs {
-		m := &def.UnionDefs[i]
-		if m.Kind == ArgEnum {
-			hint = joinEnum(m.EnumValues)
+	for i := range def.unionDefs {
+		m := &def.unionDefs[i]
+		if m.kind == ArgEnum {
+			hint = joinEnum(m.enumValues)
 			break
 		}
 	}
@@ -183,23 +184,23 @@ const (
 // every value any of its members accepts. A union of no members constrains
 // nothing and ranks last.
 func Constraint(def *ArgDef) ArgConstraint {
-	switch def.Kind {
+	switch def.kind {
 	case ArgEnum:
 		return ConstraintEnum
 	case ArgUint:
-		if len(def.Ranges) > 0 {
+		if len(def.ranges) > 0 {
 			return ConstraintRangedUint
 		}
 		return ConstraintUint
 	case ArgString:
-		if len(def.Patterns) > 0 {
+		if len(def.patterns) > 0 {
 			return ConstraintPattern
 		}
 		return ConstraintAny
 	case ArgUnion:
 		weakest := ConstraintUnspecified
-		for i := range def.UnionDefs {
-			if member := Constraint(&def.UnionDefs[i]); member > weakest {
+		for i := range def.unionDefs {
+			if member := Constraint(&def.unionDefs[i]); member > weakest {
 				weakest = member
 			}
 		}

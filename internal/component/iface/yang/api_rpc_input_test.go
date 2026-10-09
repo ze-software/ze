@@ -62,7 +62,7 @@ func TestAPIRPCInputMatchesCommandTree(t *testing.T) {
 			}
 			got := make([]string, 0, len(defs))
 			for i := range defs {
-				got = append(got, defs[i].Name)
+				got = append(got, defs[i].Name())
 			}
 			slices.Sort(got)
 			assert.Equal(t, want, got, "%s: rpc %s input leaves versus the leaves the command tree binds on %q", wire, rpcName, path)

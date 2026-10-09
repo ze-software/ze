@@ -35,10 +35,10 @@ func TestCommandHelpAndCompleteDeclareTheirArgument(t *testing.T) {
 		t.Run(path, func(t *testing.T) {
 			defs := argDefs[path]
 			require.Len(t, defs, 1, "the command declares exactly one leaf")
-			assert.Equal(t, leaf, defs[0].Name)
-			assert.True(t, defs[0].Mandatory, "the value is required")
-			assert.NotEmpty(t, defs[0].ShortHelp, "the leaf carries its summary")
-			assert.NotEmpty(t, defs[0].Description, "the leaf carries its explanation")
+			assert.Equal(t, leaf, defs[0].Name())
+			assert.True(t, defs[0].Mandatory(), "the value is required")
+			assert.NotEmpty(t, defs[0].ShortHelp(), "the leaf carries its summary")
+			assert.NotEmpty(t, defs[0].Description(), "the leaf carries its explanation")
 		})
 	}
 }

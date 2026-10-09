@@ -308,8 +308,7 @@ func appendAnchored(inherited []command.ArgDef, container string, defs []command
 	next := make([]command.ArgDef, 0, len(inherited)+len(defs))
 	next = append(next, inherited...)
 	for i := range defs {
-		next = append(next, defs[i])
-		next[len(next)-1].Anchor = container
+		next = append(next, defs[i].WithAnchor(container))
 	}
 	return next
 }
@@ -326,7 +325,7 @@ func withInheritedArgDefs(inherited, own []command.ArgDef) []command.ArgDef {
 	}
 	defs := make([]command.ArgDef, 0, len(inherited)+len(own))
 	for i := range inherited {
-		if argDefNamed(own, inherited[i].Name) {
+		if argDefNamed(own, inherited[i].Name()) {
 			continue
 		}
 		defs = append(defs, inherited[i])
@@ -337,7 +336,7 @@ func withInheritedArgDefs(inherited, own []command.ArgDef) []command.ArgDef {
 // argDefNamed reports whether defs holds a definition called name.
 func argDefNamed(defs []command.ArgDef, name string) bool {
 	for i := range defs {
-		if defs[i].Name == name {
+		if defs[i].Name() == name {
 			return true
 		}
 	}
@@ -668,16 +667,12 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 	if leaf == nil || leaf.Type == nil {
 		return command.ArgDef{}, false
 	}
-	def, ok := yangTypeToArgDef(name, leaf.Type, entryTypeStatement(leaf))
-	if !ok {
-		return command.ArgDef{}, false
+	opts := command.ArgOptions{
+		Mandatory:   leaf.Mandatory == gyang.TSTrue,
+		ShortHelp:   GetHelpExtension(leaf.Exts), // the ze:help summary
+		Description: leaf.Description,            // the YANG description explanation
 	}
-	if leaf.Mandatory == gyang.TSTrue {
-		def.Mandatory = true
-	}
-	def.ShortHelp = GetHelpExtension(leaf.Exts) // the ze:help summary
-	def.Description = leaf.Description          // the YANG description explanation
-	return def, true
+	return yangTypeToArgDef(name, leaf.Type, entryTypeStatement(leaf), opts)
 }
 
 // yangTypeToArgDef converts a goyang YangType into an ArgDef. declared is the
@@ -693,69 +688,69 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 // order in a generated usage line, and handleShowPolicyChain
 // (internal/component/bgp/plugins/cmd/policy/handler.go) documents
 // `[import|export]` in it.
-func yangTypeToArgDef(name string, yt *gyang.YangType, declared *gyang.Type) (command.ArgDef, bool) {
-	def := command.ArgDef{Name: name}
-
+//
+// Every definition comes from a command constructor. A constructor refusal
+// here is a BUG, not an operating error: goyang's type resolution, which runs
+// for every loaded module before a tree is built, sorts and coalesces range
+// and length parts and keeps them inside the base type
+// (YangRange.parseChildRanges), and on a bad restriction keeps the parent's,
+// so no part reaching here overlaps, descends or exceeds its width; an
+// enumeration lists at least one enum or parseEnumAssignment refuses it; and
+// every name is a leaf name.
+func yangTypeToArgDef(name string, yt *gyang.YangType, declared *gyang.Type, opts command.ArgOptions) (command.ArgDef, bool) {
+	var (
+		def command.ArgDef
+		err error
+	)
 	switch yt.Kind {
 	case gyang.Yenum:
-		def.Kind = command.ArgEnum
 		if declared == nil {
-			return def, false
+			return command.ArgDef{}, false
 		}
-		assigned, err := parseEnumAssignment(declared)
-		if err != nil {
-			return def, false
+		assigned, assignErr := parseEnumAssignment(declared)
+		if assignErr != nil {
+			return command.ArgDef{}, false
 		}
-		def.EnumValues = assigned.namesByValue()
+		def, err = command.NewEnumArg(name, assigned.namesByValue(), opts)
 
 	case gyang.Yempty:
-		def.Kind = command.ArgFlag
+		def, err = command.NewFlagArg(name, opts)
 
 	case gyang.Yuint8:
-		def.Kind = command.ArgUint
-		def.UintBits = 8
-		applyRange(&def, yt.Range)
+		def, err = command.NewUintArg(name, 8, uintRanges(yt.Range), opts)
 	case gyang.Yuint16:
-		def.Kind = command.ArgUint
-		def.UintBits = 16
-		applyRange(&def, yt.Range)
+		def, err = command.NewUintArg(name, 16, uintRanges(yt.Range), opts)
 	case gyang.Yuint32:
-		def.Kind = command.ArgUint
-		def.UintBits = 32
-		applyRange(&def, yt.Range)
+		def, err = command.NewUintArg(name, 32, uintRanges(yt.Range), opts)
 	case gyang.Yuint64:
-		def.Kind = command.ArgUint
-		def.UintBits = 64
-		applyRange(&def, yt.Range)
+		def, err = command.NewUintArg(name, 64, uintRanges(yt.Range), opts)
 
 	case gyang.Ystring:
-		def.Kind = command.ArgString
 		// goyang resolves the typedef chain: Length is the most restricted
 		// length along it, and Pattern holds every pattern of every type in it.
-		applyLength(&def, yt.Length)
-		applyPatterns(&def, yt.Pattern)
+		def, err = command.NewStringArg(name, uintRanges(yt.Length), compilePatterns(name, yt.Pattern), opts)
 
 	case gyang.Yunion:
-		def.Kind = command.ArgUnion
+		members := make([]command.ArgDef, 0, len(yt.Type))
 		for _, member := range yt.Type {
-			sub, ok := yangTypeToArgDef(name, member, unionMemberStatement(declared, member))
+			sub, ok := yangTypeToArgDef(name, member, unionMemberStatement(declared, member), command.ArgOptions{})
 			if ok {
-				def.UnionDefs = append(def.UnionDefs, sub)
-				if sub.Kind == command.ArgEnum {
-					def.EnumValues = append(def.EnumValues, sub.EnumValues...)
-				}
+				members = append(members, sub)
 			}
 		}
+		def, err = command.NewUnionArg(name, members, opts)
 
 	case gyang.Ynone, gyang.Yint8, gyang.Yint16, gyang.Yint32, gyang.Yint64,
 		gyang.Ybinary, gyang.Ybits, gyang.Ybool, gyang.Ydecimal64,
 		gyang.Yidentityref, gyang.YinstanceIdentifier, gyang.Yleafref:
-		return def, false
+		return command.ArgDef{}, false
 	default:
 		// Schema kinds are dependency-owned and open; unsupported kinds have no argument.
-		return def, false
+		return command.ArgDef{}, false
 	}
-
+	if err != nil {
+		panic("BUG: a command argument YANG resolution admits was refused by its constructor: " + err.Error())
+	}
 	return def, true
 }
 
@@ -779,20 +774,8 @@ func unionMemberStatement(declared *gyang.Type, member *gyang.YangType) *gyang.T
 	return nil
 }
 
-// applyRange converts each YangRange segment into a UintRange on the ArgDef.
-// Supports disjoint ranges (e.g., "1..100 | 200..300").
-func applyRange(def *command.ArgDef, r gyang.YangRange) {
-	def.Ranges = uintRanges(r)
-}
-
-// applyLength converts each YANG length segment into a character-count range
-// on the ArgDef. Supports disjoint lengths (e.g., "1..8 | 16..32").
-func applyLength(def *command.ArgDef, r gyang.YangRange) {
-	def.Lengths = uintRanges(r)
-}
-
 // uintRanges converts YANG range or length segments to UintRanges, nil for
-// none.
+// none. Supports disjoint segments (e.g., "1..100 | 200..300").
 func uintRanges(r gyang.YangRange) []command.UintRange {
 	if len(r) == 0 {
 		return nil
@@ -804,7 +787,7 @@ func uintRanges(r gyang.YangRange) []command.UintRange {
 	return ranges
 }
 
-// applyPatterns compiles every pattern through compilePattern, the XSD
+// compilePatterns compiles every pattern through compilePattern, the XSD
 // translation the config validator uses, so a command argument and a config
 // leaf of one type accept the same strings.
 //
@@ -812,18 +795,19 @@ func uintRanges(r gyang.YangRange) []command.UintRange {
 // compilePattern cannot compile, so a failure here means a command tree was
 // built from a loader whose resolution error was ignored. Dropping the pattern
 // would leave the argument accepting any string.
-func applyPatterns(def *command.ArgDef, patterns []string) {
+func compilePatterns(name string, patterns []string) []*regexp.Regexp {
 	if len(patterns) == 0 {
-		return
+		return nil
 	}
-	def.Patterns = make([]*regexp.Regexp, len(patterns))
+	compiled := make([]*regexp.Regexp, len(patterns))
 	for i, pattern := range patterns {
-		compiled, err := compilePattern(pattern)
+		re, err := compilePattern(pattern)
 		if err != nil {
-			panic("BUG: command argument " + def.Name + " holds a pattern Loader.Resolve refuses: " + err.Error())
+			panic("BUG: command argument " + name + " holds a pattern Loader.Resolve refuses: " + err.Error())
 		}
-		def.Patterns[i] = compiled
+		compiled[i] = re
 	}
+	return compiled
 }
 
 // GetCommandExtension reads the ze:command extension from a YANG entry.

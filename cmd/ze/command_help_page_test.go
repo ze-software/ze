@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // VALIDATES: AC-5 -- a command node that also has children prints its generated
@@ -21,7 +22,7 @@ func TestHelpPrintsUsageForNodeWithChildren(t *testing.T) {
 		Name:       "name",
 		WireMethod: "ze-iface:interface-create-dummy",
 		ShortHelp:  "Create a dummy interface.",
-		ArgDefs:    []command.ArgDef{{Name: "name", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs:    []command.ArgDef{commandtest.Must(command.NewStringArg("name", nil, nil, command.ArgOptions{Mandatory: true}))},
 		Children: map[string]*command.Node{
 			"unit":    {Name: "unit", ShortHelp: "Add a VLAN sub-interface."},
 			"address": {Name: "address", ShortHelp: "Add an IP address."},
@@ -55,8 +56,8 @@ func TestHelpPrintsOneUsageForALeafCommand(t *testing.T) {
 		WireMethod: "ze-cmd:show-system-sockets",
 		ShortHelp:  "Show open sockets.",
 		ArgDefs: []command.ArgDef{
-			{Name: "protocol", Kind: command.ArgEnum, EnumValues: []string{"tcp", "udp"}},
-			{Name: "port", Kind: command.ArgUint, UintBits: 32},
+			commandtest.Must(command.NewEnumArg("protocol", []string{"tcp", "udp"}, command.ArgOptions{})),
+			commandtest.Must(command.NewUintArg("port", 32, nil, command.ArgOptions{})),
 		},
 	}
 	page := commandHelpPage([]string{"show", "system", "sockets"}, node)

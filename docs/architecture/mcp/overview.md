@@ -463,7 +463,10 @@ with the web admin form (`docs/architecture/web-interface.md`): a value whose
 `ParamInfo.Anchor` names a path keyword goes bare after that keyword, which is
 where `anchoredDef` binds the peer selector of `peer <selector> announce
 unicast`; every other value follows the command as `name value`, in
-declaration order. The anchor is the registered command's `ArgDef.Anchor`,
+declaration order. `WriteInvocation` reads a name and an anchor for each
+parameter (`command.InvocationArg`), built from the lister by
+`invocationArgs`, never an argument definition with no type. The anchor is the
+registered command's `ArgDef.Anchor()`,
 which `buildCommandMeta` copies onto the parameter of the same name
 (`anchoredParams`). A call that carries both `peer` and a parameter anchored
 to `peer` names one slot twice and is refused by name.

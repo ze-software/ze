@@ -17,9 +17,9 @@ import (
 // validates and never binds.
 func TestWriteInvocationPlacesEachValueWhereTheDispatcherBindsIt(t *testing.T) {
 	defs := []ArgDef{
-		{Name: "selector", Kind: ArgString, Mandatory: true, Anchor: "peer"},
-		{Name: "prefix", Kind: ArgString, Mandatory: true},
-		{Name: "label", Kind: ArgString},
+		mustArgDef(NewStringArg("selector", nil, nil, ArgOptions{Mandatory: true, Anchor: "peer"})),
+		mustArgDef(NewStringArg("prefix", nil, nil, ArgOptions{Mandatory: true})),
+		mustArgDef(NewStringArg("label", nil, nil, ArgOptions{})),
 	}
 	path := []string{"peer", "announce", "unicast"}
 	cases := []struct {
@@ -37,7 +37,7 @@ func TestWriteInvocationPlacesEachValueWhereTheDispatcherBindsIt(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var tb textbuf.Buffer
-			if err := WriteInvocation(&tb, path, defs, tc.values); err != nil {
+			if err := WriteInvocation(&tb, path, InvocationArgs(defs), tc.values); err != nil {
 				t.Fatal(err)
 			}
 			if got := tb.String(); got != tc.want {
@@ -52,7 +52,7 @@ func TestWriteInvocationPlacesEachValueWhereTheDispatcherBindsIt(t *testing.T) {
 // than sent as tokens nobody typed.
 func TestWriteInvocationRefusesADoubleQuote(t *testing.T) {
 	var tb textbuf.Buffer
-	err := WriteInvocation(&tb, []string{"socket", "open"}, []ArgDef{{Name: "label", Kind: ArgString}}, map[string]string{"label": `a"b`})
+	err := WriteInvocation(&tb, []string{"socket", "open"}, []InvocationArg{{Name: "label"}}, map[string]string{"label": `a"b`})
 	if err == nil {
 		t.Fatal("expected a refusal")
 	}

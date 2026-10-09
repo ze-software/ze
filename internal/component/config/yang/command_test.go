@@ -947,9 +947,9 @@ module test-enum-cmd {
 	require.Len(t, goroutines.ArgDefs, 1)
 
 	def := goroutines.ArgDefs[0]
-	assert.Equal(t, "mode", def.Name)
-	assert.Equal(t, command.ArgEnum, def.Kind)
-	assert.Equal(t, []string{"summary", "blocked", "full"}, def.EnumValues)
+	assert.Equal(t, "mode", def.Name())
+	assert.Equal(t, command.ArgEnum, def.Kind())
+	assert.Equal(t, []string{"summary", "blocked", "full"}, slices.Collect(def.EnumValues()))
 }
 
 // TestArgDefFromUnionYANG verifies that union(uint64, enum) leaves produce
@@ -994,12 +994,13 @@ module test-union-cmd {
 	require.Len(t, fd.ArgDefs, 1)
 
 	def := fd.ArgDefs[0]
-	assert.Equal(t, "limit", def.Name)
-	assert.Equal(t, command.ArgUnion, def.Kind)
-	assert.Equal(t, []string{"max"}, def.EnumValues)
-	require.Len(t, def.UnionDefs, 2)
-	assert.Equal(t, command.ArgUint, def.UnionDefs[0].Kind)
-	assert.Equal(t, command.ArgEnum, def.UnionDefs[1].Kind)
+	assert.Equal(t, "limit", def.Name())
+	assert.Equal(t, command.ArgUnion, def.Kind())
+	assert.Equal(t, []string{"max"}, slices.Collect(def.EnumValues()))
+	members := slices.Collect(def.UnionDefs())
+	require.Len(t, members, 2)
+	assert.Equal(t, command.ArgUint, members[0].Kind())
+	assert.Equal(t, command.ArgEnum, members[1].Kind())
 }
 
 // TestArgDefUnionSkipsUnknownKind preserves the supported member when schema metadata adds an unknown kind.
@@ -1010,11 +1011,12 @@ func TestArgDefUnionSkipsUnknownKind(t *testing.T) {
 			{Kind: gyang.TypeKind(999)},
 			{Kind: gyang.Yuint8},
 		},
-	}, nil)
+	}, nil, command.ArgOptions{})
 	require.True(t, ok)
-	require.Len(t, def.UnionDefs, 1)
-	assert.Equal(t, command.ArgUint, def.UnionDefs[0].Kind)
-	assert.Equal(t, 8, def.UnionDefs[0].UintBits)
+	members := slices.Collect(def.UnionDefs())
+	require.Len(t, members, 1)
+	assert.Equal(t, command.ArgUint, members[0].Kind())
+	assert.Equal(t, 8, members[0].UintBits())
 }
 
 // TestArgDefFromUintRangeYANG verifies uint leaves with range constraints.
@@ -1055,12 +1057,13 @@ module test-uint-cmd {
 	require.Len(t, capture.ArgDefs, 1)
 
 	def := capture.ArgDefs[0]
-	assert.Equal(t, "count", def.Name)
-	assert.Equal(t, command.ArgUint, def.Kind)
-	assert.Equal(t, 32, def.UintBits)
-	require.Len(t, def.Ranges, 1)
-	assert.Equal(t, uint64(1), def.Ranges[0].Min)
-	assert.Equal(t, uint64(10000), def.Ranges[0].Max)
+	assert.Equal(t, "count", def.Name())
+	assert.Equal(t, command.ArgUint, def.Kind())
+	assert.Equal(t, 32, def.UintBits())
+	ranges := slices.Collect(def.Ranges())
+	require.Len(t, ranges, 1)
+	assert.Equal(t, uint64(1), ranges[0].Min)
+	assert.Equal(t, uint64(10000), ranges[0].Max)
 }
 
 // TestArgDefFromPatternYANG verifies string leaves with pattern constraints.
@@ -1101,11 +1104,11 @@ module test-pattern-cmd {
 	require.Len(t, ping.ArgDefs, 1)
 
 	def := ping.ArgDefs[0]
-	assert.Equal(t, "timeout", def.Name)
-	assert.Equal(t, command.ArgString, def.Kind)
-	require.Len(t, def.Patterns, 1)
-	assert.True(t, def.Patterns[0].MatchString("30s"))
-	assert.False(t, def.Patterns[0].MatchString("abc"))
+	assert.Equal(t, "timeout", def.Name())
+	assert.Equal(t, command.ArgString, def.Kind())
+	require.Len(t, slices.Collect(def.Patterns()), 1)
+	assert.NoError(t, command.ValidateArgString("30s", &def))
+	assert.Error(t, command.ValidateArgString("abc", &def))
 }
 
 // TestArgDefCarriesLengthAndEveryPattern: a string leaf's YANG length, and
@@ -1165,8 +1168,8 @@ module test-length-cmd {
 	require.NotNil(t, probe)
 	require.Len(t, probe.ArgDefs, 2)
 	name, target := &probe.ArgDefs[0], &probe.ArgDefs[1]
-	require.Equal(t, "name", name.Name)
-	require.Equal(t, "target", target.Name)
+	require.Equal(t, "name", name.Name())
+	require.Equal(t, "target", target.Name())
 
 	for _, ok := range []string{"ab", "abcd", "abcdefgh", "abcdefghij"} {
 		assert.NoError(t, command.ValidateArgString(ok, name), "in-bounds %q", ok)
@@ -1313,7 +1316,7 @@ func TestArgDefsPopulated(t *testing.T) {
 		}
 		var def *command.ArgDef
 		for i := range node.ArgDefs {
-			if node.ArgDefs[i].Name == "do-not-fragment" {
+			if node.ArgDefs[i].Name() == "do-not-fragment" {
 				def = &node.ArgDefs[i]
 			}
 		}
@@ -1321,11 +1324,11 @@ func TestArgDefsPopulated(t *testing.T) {
 			t.Errorf("command %q: no ArgDef named do-not-fragment", path)
 			continue
 		}
-		if def.Kind != command.ArgEnum {
-			t.Errorf("command %q: do-not-fragment kind = %v, want ArgEnum", path, def.Kind)
+		if def.Kind() != command.ArgEnum {
+			t.Errorf("command %q: do-not-fragment kind = %v, want ArgEnum", path, def.Kind())
 		}
-		if !slices.Equal(def.EnumValues, []string{"honor-cache", "bypass-cache"}) {
-			t.Errorf("command %q: do-not-fragment values = %v, want [honor-cache bypass-cache]", path, def.EnumValues)
+		if !slices.Equal(slices.Collect(def.EnumValues()), []string{"honor-cache", "bypass-cache"}) {
+			t.Errorf("command %q: do-not-fragment values = %v, want [honor-cache bypass-cache]", path, slices.Collect(def.EnumValues()))
 		}
 	}
 }
@@ -1344,16 +1347,16 @@ func TestShowMTUArgDefsByName(t *testing.T) {
 	require.NotNil(t, node, "show mtu not found in tree")
 	byName := map[string]command.ArgDef{}
 	for _, def := range node.ArgDefs {
-		byName[def.Name] = def
+		byName[def.Name()] = def
 	}
 	host, ok := byName["host"]
 	require.True(t, ok, "no ArgDef named host: %v", node.ArgDefs)
-	assert.NotEqual(t, command.ArgEnum, host.Kind, "host is a typed address, not an enumeration")
+	assert.NotEqual(t, command.ArgEnum, host.Kind(), "host is a typed address, not an enumeration")
 	for name, want := range map[string]string{"search": "exhaustive", "view": "detail"} {
 		def, ok := byName[name]
 		require.True(t, ok, "no ArgDef named %s: %v", name, node.ArgDefs)
-		assert.Equal(t, command.ArgEnum, def.Kind, "%s kind", name)
-		assert.Equal(t, []string{want}, def.EnumValues, "%s values", name)
+		assert.Equal(t, command.ArgEnum, def.Kind(), "%s kind", name)
+		assert.Equal(t, []string{want}, slices.Collect(def.EnumValues()), "%s values", name)
 	}
 }
 
@@ -1555,7 +1558,7 @@ func TestArgDefsFollowDeclarationOrder(t *testing.T) {
 
 	names := make([]string, 0, len(node.ArgDefs))
 	for _, def := range node.ArgDefs {
-		names = append(names, def.Name)
+		names = append(names, def.Name())
 	}
 	assert.Equal(t, []string{"remote", "called", "zone", "attempts"}, names)
 }
@@ -1575,7 +1578,7 @@ func TestArgDefsAreDeterministic(t *testing.T) {
 		require.NotNil(t, node)
 		names := make([]string, 0, len(node.ArgDefs))
 		for _, def := range node.ArgDefs {
-			names = append(names, def.Name)
+			names = append(names, def.Name())
 		}
 		if run == 0 {
 			first = names
@@ -1652,8 +1655,8 @@ module test-modifier-cmd {
 	assert.Equal(t, command.ModifierOnce, tag.Modifier)
 	assert.Equal(t, 1, tag.ModifierOrder)
 	require.Len(t, tag.ArgDefs, 2)
-	assert.Equal(t, "key", tag.ArgDefs[0].Name)
-	assert.Equal(t, "value", tag.ArgDefs[1].Name)
+	assert.Equal(t, "key", tag.ArgDefs[0].Name())
+	assert.Equal(t, "value", tag.ArgDefs[1].Name())
 
 	label := announce.Children["label"]
 	require.NotNil(t, label)
@@ -1749,26 +1752,26 @@ func TestArgDefsInheritFromTheContainerThatDeclaresThem(t *testing.T) {
 	flush := peer.Children["flush"]
 	require.NotNil(t, flush)
 	require.Len(t, flush.ArgDefs, 1)
-	assert.Equal(t, "selector", flush.ArgDefs[0].Name)
-	assert.Equal(t, "peer", flush.ArgDefs[0].Anchor)
-	assert.True(t, flush.ArgDefs[0].Mandatory)
+	assert.Equal(t, "selector", flush.ArgDefs[0].Name())
+	assert.Equal(t, "peer", flush.ArgDefs[0].Anchor())
+	assert.True(t, flush.ArgDefs[0].Mandatory())
 
 	// The inherited value comes first, then the command's own, so an operator
 	// reads the line in the order they type it.
 	teardown := peer.Children["teardown"]
 	require.NotNil(t, teardown)
 	require.Len(t, teardown.ArgDefs, 2)
-	assert.Equal(t, "selector", teardown.ArgDefs[0].Name)
-	assert.Equal(t, "peer", teardown.ArgDefs[0].Anchor)
-	assert.Equal(t, "cease-subcode", teardown.ArgDefs[1].Name)
-	assert.Empty(t, teardown.ArgDefs[1].Anchor)
+	assert.Equal(t, "selector", teardown.ArgDefs[0].Name())
+	assert.Equal(t, "peer", teardown.ArgDefs[0].Anchor())
+	assert.Equal(t, "cease-subcode", teardown.ArgDefs[1].Name())
+	assert.Empty(t, teardown.ArgDefs[1].Anchor())
 
 	// Depth is no limit: the container names the object however many keywords
 	// follow it.
 	ready := peer.Children["plugin"].Children["ready"]
 	require.NotNil(t, ready)
 	require.Len(t, ready.ArgDefs, 1)
-	assert.Equal(t, "peer", ready.ArgDefs[0].Anchor)
+	assert.Equal(t, "peer", ready.ArgDefs[0].Anchor())
 
 	assert.Empty(t, peer.Children["list"].ArgDefs, "a command that states ze:inherit none takes none")
 
@@ -2116,17 +2119,23 @@ module texts-cmd {
 
 	port, ok := argDefFor(open.Dir["port"], "port")
 	require.True(t, ok)
-	assert.Equal(t, "The TCP port to listen on", port.ShortHelp)
-	assert.Contains(t, port.Description, "The port the socket binds.")
-	assert.Contains(t, port.Description, "\n", "the explanation keeps the line breaks its author wrote")
-	assert.True(t, port.Mandatory)
+	assert.Equal(t, "The TCP port to listen on", port.ShortHelp())
+	assert.Contains(t, port.Description(), "The port the socket binds.")
+	assert.Contains(t, port.Description(), "\n", "the explanation keeps the line breaks its author wrote")
+	assert.True(t, port.Mandatory())
 
 	label, ok := argDefFor(open.Dir["label"], "label")
 	require.True(t, ok)
-	assert.Equal(t, "A label for the socket", label.ShortHelp)
-	assert.Empty(t, label.Description, "no description statement means no explanation")
+	assert.Equal(t, "A label for the socket", label.ShortHelp())
+	assert.Empty(t, label.Description(), "no description statement means no explanation")
 
 	defs := extractArgDefs(open)
 	require.Len(t, defs, 2)
-	assert.Equal(t, "The TCP port to listen on", defs[0].ShortHelp, "extractArgDefs keeps the texts argDefFor read")
+	assert.Equal(t, "The TCP port to listen on", defs[0].ShortHelp(), "extractArgDefs keeps the texts argDefFor read")
+}
+
+// enumValuesOf collects the enum names a definition yields, for assertions
+// that compare them as a slice.
+func enumValuesOf(def command.ArgDef) []string {
+	return slices.Collect(def.EnumValues())
 }

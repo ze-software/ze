@@ -424,7 +424,7 @@ func TestHelpDoesNotListAChoiceGroupAsASubcommand(t *testing.T) {
 			"direction": {
 				Name:     "direction",
 				Modifier: ModifierChoice,
-				ArgDefs:  []ArgDef{{Name: "direction", Kind: ArgEnum, EnumValues: []string{"import", "export"}}},
+				ArgDefs:  []ArgDef{mustArgDef(NewEnumArg("direction", []string{"import", "export"}, ArgOptions{}))},
 			},
 		},
 	}

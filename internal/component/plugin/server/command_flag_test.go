@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // TestValidateCommandArgsFlag drives the dispatcher's argument validation over
@@ -17,9 +18,9 @@ import (
 // PREVENTS: a flag keyword refused as "invalid value "force", expected unsigned integer".
 func TestValidateCommandArgsFlag(t *testing.T) {
 	defs := []command.ArgDef{
-		{Name: "path", Kind: command.ArgString, Mandatory: true},
-		{Name: "spare", Kind: command.ArgUint, UintBits: 8},
-		{Name: "force", Kind: command.ArgFlag},
+		commandtest.Must(command.NewStringArg("path", nil, nil, command.ArgOptions{Mandatory: true})),
+		commandtest.Must(command.NewUintArg("spare", 8, nil, command.ArgOptions{})),
+		commandtest.Must(command.NewFlagArg("force", command.ArgOptions{})),
 	}
 	for _, args := range [][]string{
 		{"path", "/b.zefs", "force"},

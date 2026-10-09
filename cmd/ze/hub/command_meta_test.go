@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -379,8 +380,8 @@ func TestBuildCommandMetaCarriesTheAnchorOfARegisteredArgument(t *testing.T) {
 	const name = "peer announce unicast"
 	got := buildCommandMeta(
 		[]*pluginserver.Command{{Name: name, ArgDefs: []command.ArgDef{
-			{Name: "selector", Kind: command.ArgString, Anchor: "peer"},
-			{Name: "prefix", Kind: command.ArgString},
+			commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Anchor: "peer"})),
+			commandtest.Must(command.NewStringArg("prefix", nil, nil, command.ArgOptions{})),
 		}}},
 		nil,
 		map[string][]commandParam{name: {{Name: "selector", Type: "string"}, {Name: "prefix", Type: "string"}}},

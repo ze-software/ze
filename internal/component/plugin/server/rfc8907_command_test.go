@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/bgp/transaction"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
@@ -599,7 +600,7 @@ func TestDispatchTypedSelectorMissingValue(t *testing.T) {
 		t.Fatal("handler should not be called without selector value")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show demo detail", RegisterOptions{
-		ArgDefs: []command.ArgDef{{Name: "name", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs: []command.ArgDef{commandtest.Must(command.NewStringArg("name", nil, nil, command.ArgOptions{Mandatory: true}))},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -622,7 +623,7 @@ func TestDispatchTypedSelectorExtractsValue(t *testing.T) {
 		calledArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show demo detail", RegisterOptions{
-		ArgDefs: []command.ArgDef{{Name: "name", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs: []command.ArgDef{commandtest.Must(command.NewStringArg("name", nil, nil, command.ArgOptions{Mandatory: true}))},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -648,7 +649,7 @@ func TestDispatchImplicitSelectorExtractsValue(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show entry detail", RegisterOptions{
 		RequiresSelector: true,
-		ArgDefs:          []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs:          []command.ArgDef{commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true}))},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -671,7 +672,7 @@ func TestDispatchImplicitSelectorMissingValue(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show entry detail", RegisterOptions{
 		RequiresSelector: true,
-		ArgDefs:          []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs:          []command.ArgDef{commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true}))},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -1337,7 +1338,7 @@ func TestDispatcherArgValidation(t *testing.T) {
 	if err := d.RegisterWithOptions("show system goroutines", handler, "Show goroutines", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "mode", Kind: command.ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
+			commandtest.Must(command.NewEnumArg("mode", []string{"blocked", "full", "summary"}, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1373,8 +1374,8 @@ func TestDispatcherKeywordExtraction(t *testing.T) {
 	if err := d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "count", Kind: command.ArgUint, UintBits: 32},
-			{Name: "dest", Kind: command.ArgString},
+			commandtest.Must(command.NewUintArg("count", 32, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewStringArg("dest", nil, nil, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1405,7 +1406,7 @@ func TestDispatcherPositionalMatching(t *testing.T) {
 	if err := d.RegisterWithOptions("show system goroutines", handler, "Goroutines", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "mode", Kind: command.ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
+			commandtest.Must(command.NewEnumArg("mode", []string{"blocked", "full", "summary"}, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1437,9 +1438,9 @@ func TestDispatcherMixedArgs(t *testing.T) {
 	if err := d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "count", Kind: command.ArgUint, UintBits: 32},
-			{Name: "dest", Kind: command.ArgString},
-			{Name: "timeout", Kind: command.ArgString},
+			commandtest.Must(command.NewUintArg("count", 32, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewStringArg("dest", nil, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewStringArg("timeout", nil, nil, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1464,8 +1465,8 @@ func TestDispatcherMandatoryMissing(t *testing.T) {
 	if err := d.RegisterWithOptions("show tcp-check", handler, "TCP check", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "host", Kind: command.ArgString, Mandatory: true},
-			{Name: "port", Kind: command.ArgUint, UintBits: 16, Mandatory: true},
+			commandtest.Must(command.NewStringArg("host", nil, nil, command.ArgOptions{Mandatory: true})),
+			commandtest.Must(command.NewUintArg("port", 16, nil, command.ArgOptions{Mandatory: true})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1513,15 +1514,7 @@ func TestDispatcherArgValidationUnion(t *testing.T) {
 
 	if err := d.RegisterWithOptions("set system file-descriptors", handler, "Set FD limit", RegisterOptions{
 		ArgDefs: []command.ArgDef{
-			{
-				Name: "limit",
-				Kind: command.ArgUnion,
-				UnionDefs: []command.ArgDef{
-					{Kind: command.ArgUint, UintBits: 64},
-					{Kind: command.ArgEnum, EnumValues: []string{"max"}},
-				},
-				EnumValues: []string{"max"},
-			},
+			commandtest.Must(command.NewUnionArg("limit", []command.ArgDef{commandtest.Must(command.NewUintArg("limit", 64, nil, command.ArgOptions{})), commandtest.Must(command.NewEnumArg("limit", []string{"max"}, command.ArgOptions{}))}, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1562,8 +1555,8 @@ func TestDispatcherDuplicateKeywordRejected(t *testing.T) {
 	if err := d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "count", Kind: command.ArgUint, UintBits: 32},
-			{Name: "dest", Kind: command.ArgString},
+			commandtest.Must(command.NewUintArg("count", 32, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewStringArg("dest", nil, nil, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1588,8 +1581,8 @@ func TestDispatcherPositionalErrorMessage(t *testing.T) {
 	if err := d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "count", Kind: command.ArgUint, UintBits: 32},
-			{Name: "timeout", Kind: command.ArgUint, UintBits: 32},
+			commandtest.Must(command.NewUintArg("count", 32, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewUintArg("timeout", 32, nil, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1620,7 +1613,7 @@ func TestPositionalErrorNamesTheOneOpenDefinition(t *testing.T) {
 	if err := d.RegisterWithOptions("show route lookup", handler, "Route lookup", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "ip", Kind: command.ArgString, Patterns: []*regexp.Regexp{regexp.MustCompile(`^[0-9a-fA-F:.]+$`)}, Mandatory: true},
+			commandtest.Must(command.NewStringArg("ip", nil, []*regexp.Regexp{regexp.MustCompile(`^[0-9a-fA-F:.]+$`)}, command.ArgOptions{Mandatory: true})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1656,8 +1649,8 @@ func TestMissingMandatoryOutranksAnUnplaceableToken(t *testing.T) {
 	if err := d.RegisterWithOptions("show policy test peer", handler, "Policy dry run", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "selector", Kind: command.ArgString, Mandatory: true},
-			{Name: "direction", Kind: command.ArgEnum, EnumValues: []string{"import", "export"}, Mandatory: true},
+			commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true})),
+			commandtest.Must(command.NewEnumArg("direction", []string{"import", "export"}, command.ArgOptions{Mandatory: true})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1689,9 +1682,9 @@ func TestPositionalErrorSkipsAFilledDefinition(t *testing.T) {
 	if err := d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "count", Kind: command.ArgUint, UintBits: 32},
-			{Name: "timeout", Kind: command.ArgUint, UintBits: 32},
-			{Name: "size", Kind: command.ArgUint, UintBits: 32},
+			commandtest.Must(command.NewUintArg("count", 32, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewUintArg("timeout", 32, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewUintArg("size", 32, nil, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1715,7 +1708,7 @@ func TestPositionalErrorSkipsAFilledDefinition(t *testing.T) {
 // selector on a command the dispatcher reads none for -- the defect that made
 // every peer-scoped MCP tool emit `peer <sel> show bgp peer detail`.
 func TestTakesInlineSelector(t *testing.T) {
-	selectorDef := []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}}
+	selectorDef := []command.ArgDef{commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true}))}
 
 	tests := []struct {
 		name string
@@ -1730,8 +1723,8 @@ func TestTakesInlineSelector(t *testing.T) {
 		{"ambiguous: two mandatory string args", &Command{
 			Name: "request cache forward",
 			ArgDefs: []command.ArgDef{
-				{Name: "id", Kind: command.ArgString, Mandatory: true},
-				{Name: "selector", Kind: command.ArgString, Mandatory: true},
+				commandtest.Must(command.NewStringArg("id", nil, nil, command.ArgOptions{Mandatory: true})),
+				commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true})),
 			},
 		}, false},
 		{"nil command", nil, false},
@@ -1910,10 +1903,10 @@ func TestDispatcherPositionalTypedLeaf(t *testing.T) {
 	if err := d.RegisterWithOptions("show tcp-check", handler, "TCP check", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "host", Kind: command.ArgString, Mandatory: true},
-			{Name: "port", Kind: command.ArgUint, UintBits: 16, Mandatory: true},
-			{Name: "source", Kind: command.ArgString},
-			{Name: "timeout", Kind: command.ArgString},
+			commandtest.Must(command.NewStringArg("host", nil, nil, command.ArgOptions{Mandatory: true})),
+			commandtest.Must(command.NewUintArg("port", 16, nil, command.ArgOptions{Mandatory: true})),
+			commandtest.Must(command.NewStringArg("source", nil, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewStringArg("timeout", nil, nil, command.ArgOptions{})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1959,8 +1952,8 @@ func TestDispatcherPositionalPrefersMandatory(t *testing.T) {
 	if err := d.RegisterWithOptions("show demo probe", handler, "Probe", RegisterOptions{
 		ReadOnly: true,
 		ArgDefs: []command.ArgDef{
-			{Name: "source", Kind: command.ArgString},
-			{Name: "port", Kind: command.ArgUint, UintBits: 16, Mandatory: true},
+			commandtest.Must(command.NewStringArg("source", nil, nil, command.ArgOptions{})),
+			commandtest.Must(command.NewUintArg("port", 16, nil, command.ArgOptions{Mandatory: true})),
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -1995,7 +1988,7 @@ func TestDispatchTerminalNounSelector(t *testing.T) {
 
 	if err := d.RegisterWithOptions("delete bgp peer", handler, "Remove a peer", RegisterOptions{
 		RequiresSelector: true,
-		ArgDefs:          []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs:          []command.ArgDef{commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true}))},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -2028,7 +2021,7 @@ func TestDispatchTerminalNounSelector(t *testing.T) {
 // ze-cli-announce-cmd.yang declares under `send bgp`. Binding its FIRST
 // positional would silently announce to a peer named "unicast".
 func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
-	selectorDefs := []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}}
+	selectorDefs := []command.ArgDef{commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true}))}
 
 	t.Run("multi-token payload is not a selector", func(t *testing.T) {
 		d := NewDispatcher()
@@ -2763,8 +2756,8 @@ func TestRouteToProcessRefusesARowThatIsNotJSON(t *testing.T) {
 // `unknown command`.
 func TestAnchoredSelectorResolvesThePeerScopedPath(t *testing.T) {
 	defs := []command.ArgDef{
-		{Name: selectorLeaf, Kind: command.ArgString, Mandatory: true, Anchor: "peer"},
-		{Name: "prefix", Kind: command.ArgString, Mandatory: true},
+		commandtest.Must(command.NewStringArg(selectorLeaf, nil, nil, command.ArgOptions{Mandatory: true, Anchor: "peer"})),
+		commandtest.Must(command.NewStringArg("prefix", nil, nil, command.ArgOptions{Mandatory: true})),
 	}
 
 	args, selectors, ok := matchCommandTokens(
@@ -2794,17 +2787,17 @@ func TestAnchoredSelectorResolvesThePeerScopedPath(t *testing.T) {
 // operator's value to whichever leaf the slice happened to list first.
 func TestAnchoredDefAnswersNilWhenTheModelDoesNotSayWhich(t *testing.T) {
 	two := []command.ArgDef{
-		{Name: "selector", Kind: command.ArgString, Mandatory: true, Anchor: "peer"},
-		{Name: "other", Kind: command.ArgString, Mandatory: true, Anchor: "peer"},
+		commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true, Anchor: "peer"})),
+		commandtest.Must(command.NewStringArg("other", nil, nil, command.ArgOptions{Mandatory: true, Anchor: "peer"})),
 	}
 	assert.Nil(t, anchoredDef("peer", two, nil), "two leaves on one keyword name none")
 
 	one := []command.ArgDef{
-		{Name: "selector", Kind: command.ArgString, Mandatory: true, Anchor: "peer"},
-		{Name: "prefix", Kind: command.ArgString, Mandatory: true},
+		commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true, Anchor: "peer"})),
+		commandtest.Must(command.NewStringArg("prefix", nil, nil, command.ArgOptions{Mandatory: true})),
 	}
 	require.NotNil(t, anchoredDef("peer", one, nil))
-	assert.Equal(t, "selector", anchoredDef("peer", one, nil).Name, "the anchored leaf wins over an unanchored one")
+	assert.Equal(t, "selector", anchoredDef("peer", one, nil).Name(), "the anchored leaf wins over an unanchored one")
 	assert.Nil(t, anchoredDef("announce", one, nil), "a keyword no leaf names answers nil")
 	assert.Nil(t, anchoredDef("peer", one, map[string]string{"selector": "192.0.2.9"}), "a matched leaf takes no second value")
 }
@@ -2870,7 +2863,7 @@ func TestDispatchNamesTheBoundOfAKeywordBoundValue(t *testing.T) {
 		got = ctx.Selectors
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	defs := []command.ArgDef{{Name: "name", Kind: command.ArgString, Mandatory: true, Lengths: []command.UintRange{{Min: 1, Max: 4}}}}
+	defs := []command.ArgDef{commandtest.Must(command.NewStringArg("name", []command.UintRange{{Min: 1, Max: 4}}, nil, command.ArgOptions{Mandatory: true}))}
 	require.NoError(t, d.RegisterWithOptions("show demo name", handler, "Demo", RegisterOptions{ArgDefs: defs, ReadOnly: true}))
 
 	_, err := d.Dispatch(&CommandContext{}, "show demo name abcde")

@@ -804,7 +804,7 @@ func TestBuildCommandTreeLogLevelArgDefs(t *testing.T) {
 
 	found := make(map[string]bool)
 	for _, def := range levelNode.ArgDefs {
-		for _, v := range def.EnumValues {
+		for v := range def.EnumValues() {
 			found[v] = true
 		}
 	}

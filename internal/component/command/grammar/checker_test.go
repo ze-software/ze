@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
 // ruleOf returns true if any finding cites the given rule.
@@ -83,7 +84,7 @@ func TestCheckNodeKeywordBeforeValue(t *testing.T) { // R5
 	good := &command.Node{
 		Name:       "detail",
 		WireMethod: "ze-show:x",
-		ArgDefs:    []command.ArgDef{{Name: "name", Kind: command.ArgString}},
+		ArgDefs:    []command.ArgDef{commandtest.Must(command.NewStringArg("name", nil, nil, command.ArgOptions{}))},
 	}
 	if f := CheckNode("show interface name detail", good); hasRule(f, "R5") {
 		t.Errorf("typed selector value flagged R5: %v", f)
@@ -91,10 +92,12 @@ func TestCheckNodeKeywordBeforeValue(t *testing.T) { // R5
 	bad := &command.Node{
 		Name:       "x",
 		WireMethod: "ze-show:x",
-		ArgDefs:    []command.ArgDef{{Name: "", Kind: command.ArgString}},
+		// No constructor builds an unnamed definition, so the zero value is
+		// the only unnamed one left, and the checker must still flag it.
+		ArgDefs: []command.ArgDef{{}},
 	}
 	if f := CheckNode("show x", bad); !hasRule(f, "R5") {
-		t.Errorf("unnamed free-form value not flagged R5: %v", f)
+		t.Errorf("unnamed (zero) definition not flagged R5: %v", f)
 	}
 }
 
@@ -108,7 +111,7 @@ func TestCheckNodeIgnoresModifierGroupsForR6(t *testing.T) { // R6
 	group := &command.Node{
 		Name:       "peer",
 		WireMethod: "ze-bgp:show-policy-chain",
-		ArgDefs:    []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs:    []command.ArgDef{commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true}))},
 		Children: map[string]*command.Node{
 			"direction": {Name: "direction", Modifier: command.ModifierChoice},
 		},
@@ -120,7 +123,7 @@ func TestCheckNodeIgnoresModifierGroupsForR6(t *testing.T) { // R6
 	action := &command.Node{
 		Name:       "peer",
 		WireMethod: "ze-bgp:show-policy-chain",
-		ArgDefs:    []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs:    []command.ArgDef{commandtest.Must(command.NewStringArg("selector", nil, nil, command.ArgOptions{Mandatory: true}))},
 		Children: map[string]*command.Node{
 			"direction": {Name: "direction", Modifier: command.ModifierChoice},
 			"detail":    {Name: "detail", WireMethod: "ze-show:policy-chain-detail"},
@@ -135,7 +138,7 @@ func TestCheckNodeValueBeforeKeyword(t *testing.T) { // R6
 	bad := &command.Node{
 		Name:       "cache",
 		WireMethod: "",
-		ArgDefs:    []command.ArgDef{{Name: "id", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs:    []command.ArgDef{commandtest.Must(command.NewStringArg("id", nil, nil, command.ArgOptions{Mandatory: true}))},
 		Children:   map[string]*command.Node{"retain": {Name: "retain", WireMethod: "ze-bgp:cache-retain"}},
 	}
 	if f := CheckNode("cache", bad); !hasRule(f, "R6") {
@@ -145,7 +148,7 @@ func TestCheckNodeValueBeforeKeyword(t *testing.T) { // R6
 	okFork := &command.Node{
 		Name:       "route",
 		WireMethod: "ze-iface:show-route",
-		ArgDefs:    []command.ArgDef{{Name: "prefix", Kind: command.ArgString, Mandatory: false}},
+		ArgDefs:    []command.ArgDef{commandtest.Must(command.NewStringArg("prefix", nil, nil, command.ArgOptions{Mandatory: false}))},
 		Children:   map[string]*command.Node{"lookup": {Name: "lookup", WireMethod: "ze-iface:show-route-lookup"}},
 	}
 	if f := CheckNode("show route", okFork); hasRule(f, "R6") {
@@ -156,7 +159,7 @@ func TestCheckNodeValueBeforeKeyword(t *testing.T) { // R6
 	okSelector := &command.Node{
 		Name:       "name",
 		WireMethod: "ze-iface:interface-create-dummy",
-		ArgDefs:    []command.ArgDef{{Name: "value", Kind: command.ArgString, Mandatory: true}},
+		ArgDefs:    []command.ArgDef{commandtest.Must(command.NewStringArg("value", nil, nil, command.ArgOptions{Mandatory: true}))},
 		Children:   map[string]*command.Node{"unit": {Name: "unit", WireMethod: "ze-iface:interface-unit-add"}},
 	}
 	if f := CheckNode("create interface dummy name", okSelector); hasRule(f, "R6") {
@@ -165,11 +168,11 @@ func TestCheckNodeValueBeforeKeyword(t *testing.T) { // R6
 }
 
 func TestCheckNodeStringIdentifier(t *testing.T) { // R8
-	good := &command.Node{Name: "id", WireMethod: "ze-x:y", ArgDefs: []command.ArgDef{{Name: "session-id", Kind: command.ArgString}}}
+	good := &command.Node{Name: "id", WireMethod: "ze-x:y", ArgDefs: []command.ArgDef{commandtest.Must(command.NewStringArg("session-id", nil, nil, command.ArgOptions{}))}}
 	if f := CheckNode("show l2tp session id", good); hasRule(f, "R8") {
 		t.Errorf("string session-id flagged R8: %v", f)
 	}
-	bad := &command.Node{Name: "id", WireMethod: "ze-x:y", ArgDefs: []command.ArgDef{{Name: "session-id", Kind: command.ArgUint}}}
+	bad := &command.Node{Name: "id", WireMethod: "ze-x:y", ArgDefs: []command.ArgDef{commandtest.Must(command.NewUintArg("session-id", 64, nil, command.ArgOptions{}))}}
 	if f := CheckNode("show l2tp session id", bad); !hasRule(f, "R8") {
 		t.Errorf("numeric session-id not flagged R8: %v", f)
 	}

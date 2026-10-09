@@ -38,12 +38,21 @@ import (
 // leaf, so reporting it is cheaper and safer than a second matcher that would
 // drift. "Lone" is the point: when a command leaves several tokens unconsumed,
 // which of them is the value is a guess, and the caller must not make it.
+//
+// A definition no constructor built, the zero ArgDef among them, is refused
+// before any token is read (ErrArgDef): it is a Ze defect, and accepting it as
+// an unrestricted string would fail open.
 func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (map[string]string, error) {
+	for i := range defs {
+		if !defs[i].constructed {
+			return nil, fmt.Errorf("%w: argument %d (%q) was not built by a constructor", ErrArgDef, i, defs[i].name)
+		}
+	}
 	consumed := make([]bool, len(args))
 	matched := make(map[string]bool, len(preMatched))
 	defByName := make(map[string]*ArgDef, len(defs))
 	for i := range defs {
-		defByName[defs[i].Name] = &defs[i]
+		defByName[defs[i].name] = &defs[i]
 	}
 	for name := range preMatched {
 		matched[name] = true
@@ -54,7 +63,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 	// with one bad value. Definitions are walked in order, so the refusal named
 	// is the same on every run.
 	for i := range defs {
-		value, bound := preMatched[defs[i].Name]
+		value, bound := preMatched[defs[i].name]
 		if !bound {
 			continue
 		}
@@ -69,13 +78,13 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 		if !ok {
 			continue
 		}
-		if matched[def.Name] {
+		if matched[def.name] {
 			return nil, fmt.Errorf("duplicate keyword %q", args[i])
 		}
 		consumed[i] = true
-		if def.Kind == ArgFlag {
+		if def.kind == ArgFlag {
 			// A flag is the keyword alone; the next token is its own argument.
-			matched[def.Name] = true
+			matched[def.name] = true
 			continue
 		}
 		if i+1 >= len(args) {
@@ -86,7 +95,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 		if err := ValidateArgString(args[i], def); err != nil {
 			return nil, err
 		}
-		matched[def.Name] = true
+		matched[def.name] = true
 	}
 
 	spare := 0
@@ -112,9 +121,9 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 			unplaced = append(unplaced, arg)
 			continue
 		}
-		matched[def.Name] = true
+		matched[def.name] = true
 		if spare == 1 {
-			lone = map[string]string{def.Name: arg}
+			lone = map[string]string{def.name: arg}
 		}
 	}
 
@@ -133,8 +142,8 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (m
 
 	// Phase 3: mandatory check.
 	for i := range defs {
-		if defs[i].Mandatory && !matched[defs[i].Name] {
-			return lone, fmt.Errorf("required argument missing: %s", defs[i].Name)
+		if defs[i].mandatory && !matched[defs[i].name] {
+			return lone, fmt.Errorf("required argument missing: %s", defs[i].name)
 		}
 	}
 
@@ -174,7 +183,7 @@ func positionalDef(arg string, defs []ArgDef, matched map[string]bool) *ArgDef {
 		bestRank := ConstraintUnspecified
 		for i := range defs {
 			def := &defs[i]
-			if matched[def.Name] || def.Mandatory != wantMandatory {
+			if matched[def.name] || def.mandatory != wantMandatory {
 				continue
 			}
 			if ValidateArgString(arg, def) != nil {
@@ -189,7 +198,7 @@ func positionalDef(arg string, defs []ArgDef, matched map[string]bool) *ArgDef {
 				best, bestRank = def, rank
 				continue
 			}
-			if rank == bestRank && def.Name < best.Name {
+			if rank == bestRank && def.name < best.name {
 				best = def
 			}
 		}
@@ -205,7 +214,7 @@ func positionalDef(arg string, defs []ArgDef, matched map[string]bool) *ArgDef {
 func unmatchedDefCount(defs []ArgDef, matched map[string]bool) int {
 	n := 0
 	for i := range defs {
-		if !matched[defs[i].Name] && defs[i].Kind != ArgFlag {
+		if !matched[defs[i].name] && defs[i].kind != ArgFlag {
 			n++
 		}
 	}
@@ -230,7 +239,7 @@ func unmatchedDefCount(defs []ArgDef, matched map[string]bool) int {
 func positionalError(arg string, defs []ArgDef, matched map[string]bool) error {
 	open := make([]*ArgDef, 0, len(defs))
 	for i := range defs {
-		if !matched[defs[i].Name] && defs[i].Kind != ArgFlag {
+		if !matched[defs[i].name] && defs[i].kind != ArgFlag {
 			open = append(open, &defs[i])
 		}
 	}
@@ -238,13 +247,13 @@ func positionalError(arg string, defs []ArgDef, matched map[string]bool) error {
 		return ValidateArgString(arg, open[0])
 	}
 	for _, def := range open {
-		if def.Kind == ArgEnum || def.Kind == ArgUnion {
+		if def.kind == ArgEnum || def.kind == ArgUnion {
 			return ValidateArgString(arg, def)
 		}
 	}
 	names := make([]string, 0, len(open))
 	for _, def := range open {
-		names = append(names, def.Name)
+		names = append(names, def.name)
 	}
 	return fmt.Errorf("unexpected argument %q, valid keywords: %s", arg, textbuf.Join(names, ", "))
 }

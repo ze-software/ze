@@ -3,17 +3,14 @@
 package command
 
 import (
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
 )
 
 func TestValidateArgStringEnum(t *testing.T) {
-	def := &ArgDef{
-		Name:       "mode",
-		Kind:       ArgEnum,
-		EnumValues: []string{"summary", "blocked", "full"},
-	}
+	def := new(mustArgDef(NewEnumArg("mode", []string{"summary", "blocked", "full"}, ArgOptions{})))
 
 	for _, v := range []string{"summary", "blocked", "full"} {
 		if err := ValidateArgString(v, def); err != nil {
@@ -29,11 +26,7 @@ func TestValidateArgStringEnum(t *testing.T) {
 }
 
 func TestValidateArgStringUint(t *testing.T) {
-	def := &ArgDef{
-		Name:     "count",
-		Kind:     ArgUint,
-		UintBits: 32,
-	}
+	def := new(mustArgDef(NewUintArg("count", 32, nil, ArgOptions{})))
 
 	if err := ValidateArgString("42", def); err != nil {
 		t.Errorf("valid uint rejected: %v", err)
@@ -50,12 +43,7 @@ func TestValidateArgStringUint(t *testing.T) {
 }
 
 func TestValidateArgStringUintRange(t *testing.T) {
-	def := &ArgDef{
-		Name:     "count",
-		Kind:     ArgUint,
-		UintBits: 32,
-		Ranges:   []UintRange{{Min: 1, Max: 10000}},
-	}
+	def := new(mustArgDef(NewUintArg("count", 32, []UintRange{{Min: 1, Max: 10000}}, ArgOptions{})))
 
 	if err := ValidateArgString("1", def); err != nil {
 		t.Errorf("min boundary rejected: %v", err)
@@ -75,11 +63,7 @@ func TestValidateArgStringUintRange(t *testing.T) {
 }
 
 func TestValidateArgStringUint64Boundary(t *testing.T) {
-	def := &ArgDef{
-		Name:     "limit",
-		Kind:     ArgUint,
-		UintBits: 64,
-	}
+	def := new(mustArgDef(NewUintArg("limit", 64, nil, ArgOptions{})))
 
 	if err := ValidateArgString("18446744073709551615", def); err != nil {
 		t.Errorf("max uint64 rejected: %v", err)
@@ -90,14 +74,7 @@ func TestValidateArgStringUint64Boundary(t *testing.T) {
 }
 
 func TestValidateArgStringUnion(t *testing.T) {
-	def := &ArgDef{
-		Name: "limit",
-		Kind: ArgUnion,
-		UnionDefs: []ArgDef{
-			{Kind: ArgUint, UintBits: 64},
-			{Kind: ArgEnum, EnumValues: []string{"max"}},
-		},
-	}
+	def := new(mustArgDef(NewUnionArg("limit", []ArgDef{mustArgDef(NewUintArg("limit", 64, nil, ArgOptions{})), mustArgDef(NewEnumArg("limit", []string{"max"}, ArgOptions{}))}, ArgOptions{})))
 
 	if err := ValidateArgString("1024", def); err != nil {
 		t.Errorf("uint member rejected: %v", err)
@@ -113,11 +90,7 @@ func TestValidateArgStringUnion(t *testing.T) {
 }
 
 func TestValidateArgStringPattern(t *testing.T) {
-	def := &ArgDef{
-		Name:     "timeout",
-		Kind:     ArgString,
-		Patterns: []*regexp.Regexp{regexp.MustCompile(`^\d+[smh]?$`)},
-	}
+	def := new(mustArgDef(NewStringArg("timeout", nil, []*regexp.Regexp{regexp.MustCompile(`^\d+[smh]?$`)}, ArgOptions{})))
 
 	if err := ValidateArgString("30s", def); err != nil {
 		t.Errorf("valid pattern rejected: %v", err)
@@ -137,7 +110,7 @@ func TestValidateArgStringPattern(t *testing.T) {
 // VALIDATES: RFC 7950 Section 9.4.4 length on a command argument.
 // PREVENTS: a value past the declared bound reaching the handler.
 func TestValidateArgStringLength(t *testing.T) {
-	def := &ArgDef{Name: "name", Kind: ArgString, Lengths: []UintRange{{Min: 2, Max: 4}}}
+	def := new(mustArgDef(NewStringArg("name", []UintRange{{Min: 2, Max: 4}}, nil, ArgOptions{})))
 
 	for _, v := range []string{"ab", "abcd", "\u00e9\u00e9\u00e9\u00e9"} {
 		if err := ValidateArgString(v, def); err != nil {
@@ -162,7 +135,7 @@ func TestValidateArgStringLength(t *testing.T) {
 // VALIDATES: RFC 7950 Section 9.4.4 "Multiple values or ranges can be given".
 // PREVENTS: only the first range of a disjoint length being enforced.
 func TestValidateArgStringDisjointLengths(t *testing.T) {
-	def := &ArgDef{Name: "key", Kind: ArgString, Lengths: []UintRange{{Min: 1, Max: 2}, {Min: 5, Max: 6}}}
+	def := new(mustArgDef(NewStringArg("key", []UintRange{{Min: 1, Max: 2}, {Min: 5, Max: 6}}, nil, ArgOptions{})))
 
 	for _, v := range []string{"a", "ab", "abcde", "abcdef"} {
 		if err := ValidateArgString(v, def); err != nil {
@@ -184,10 +157,10 @@ func TestValidateArgStringDisjointLengths(t *testing.T) {
 // VALIDATES: RFC 7950 Section 9.4.5 "all such expressions have to match".
 // PREVENTS: a second (or inherited) pattern constraining nothing.
 func TestValidateArgStringAllPatterns(t *testing.T) {
-	def := &ArgDef{Name: "id", Kind: ArgString, Patterns: []*regexp.Regexp{
+	def := new(mustArgDef(NewStringArg("id", nil, []*regexp.Regexp{
 		regexp.MustCompile(`^[a-z0-9]+$`),
 		regexp.MustCompile(`^[a-z].*$`),
-	}}
+	}, ArgOptions{})))
 	if err := ValidateArgString("a1", def); err != nil {
 		t.Errorf("value matching both patterns rejected: %v", err)
 	}
@@ -197,30 +170,28 @@ func TestValidateArgStringAllPatterns(t *testing.T) {
 }
 
 func TestValidateArgStringMaxLength(t *testing.T) {
-	def := &ArgDef{Name: "x", Kind: ArgString}
+	def := new(mustArgDef(NewStringArg("x", nil, nil, ArgOptions{})))
 	long := strings.Repeat("a", maxArgLength+1)
 	if err := ValidateArgString(long, def); err == nil {
 		t.Error("over-length arg accepted")
 	}
 }
 
-func TestValidateArgStringUintBitsZeroDefaultsTo64(t *testing.T) {
-	def := &ArgDef{Name: "x", Kind: ArgUint}
+// TestValidateArgStringUint64AcceptsMax: a 64-bit definition accepts the
+// largest uint64. A width of zero, which once defaulted to 64, is now refused
+// by NewUintArg (TestArgDefConstructorRefuses, "width 0").
+func TestValidateArgStringUint64AcceptsMax(t *testing.T) {
+	def := new(mustArgDef(NewUintArg("x", 64, nil, ArgOptions{})))
 	if err := ValidateArgString("42", def); err != nil {
-		t.Errorf("UintBits=0 should default to 64-bit: %v", err)
+		t.Errorf("42 refused: %v", err)
 	}
 	if err := ValidateArgString("18446744073709551615", def); err != nil {
-		t.Errorf("UintBits=0 should accept max uint64: %v", err)
+		t.Errorf("max uint64 refused: %v", err)
 	}
 }
 
 func TestValidateArgStringDisjointRange(t *testing.T) {
-	def := &ArgDef{
-		Name:     "x",
-		Kind:     ArgUint,
-		UintBits: 32,
-		Ranges:   []UintRange{{Min: 1, Max: 100}, {Min: 200, Max: 300}},
-	}
+	def := new(mustArgDef(NewUintArg("x", 32, []UintRange{{Min: 1, Max: 100}, {Min: 200, Max: 300}}, ArgOptions{})))
 	if err := ValidateArgString("50", def); err != nil {
 		t.Errorf("value in first range rejected: %v", err)
 	}
@@ -233,7 +204,7 @@ func TestValidateArgStringDisjointRange(t *testing.T) {
 }
 
 func TestValidateArgStringSanity(t *testing.T) {
-	def := &ArgDef{Name: "host", Kind: ArgString}
+	def := new(mustArgDef(NewStringArg("host", nil, nil, ArgOptions{})))
 	if err := ValidateArgString("192.168.1.1", def); err != nil {
 		t.Errorf("plain string rejected: %v", err)
 	}
@@ -247,6 +218,28 @@ func TestValidateArgStringRejectsInvalidKind(t *testing.T) {
 			t.Fatalf("panic = %v, want invalid argument kind assertion", got)
 		}
 	}()
-	err := ValidateArgString("anything", &ArgDef{Kind: ArgKind(255)})
+	// Zero-contract literal: only a same-package test can write a kind no
+	// constructor produces, and it marks the value constructed to reach the
+	// kind switch rather than the zero refusal.
+	err := ValidateArgString("anything", &ArgDef{name: "x", kind: ArgKind(255), constructed: true})
 	t.Fatalf("invalid argument kind returned %v instead of asserting", err)
+}
+
+// TestZeroArgDefRefused proves the zero ArgDef is refused rather than read as
+// an unrestricted string (D-4).
+//
+// VALIDATES: ValidateArgs and ValidateArgString refuse a definition no
+// constructor built, with an error wrapping ErrArgDef, even beside a valid one.
+// PREVENTS: an ArgDef{} accepting every token, which is fail-open.
+func TestZeroArgDefRefused(t *testing.T) {
+	if _, err := ValidateArgs([]string{"anything"}, []ArgDef{{}}, nil); !errors.Is(err, ErrArgDef) {
+		t.Errorf("ValidateArgs over a zero definition: err = %v, want ErrArgDef", err)
+	}
+	valid := mustArgDef(NewStringArg("label", nil, nil, ArgOptions{}))
+	if _, err := ValidateArgs([]string{"label", "x"}, []ArgDef{valid, {}}, nil); !errors.Is(err, ErrArgDef) {
+		t.Errorf("ValidateArgs with a zero definition beside a valid one: err = %v, want ErrArgDef", err)
+	}
+	if err := ValidateArgString("anything", &ArgDef{}); !errors.Is(err, ErrArgDef) {
+		t.Errorf("ValidateArgString over a zero definition: err = %v, want ErrArgDef", err)
+	}
 }

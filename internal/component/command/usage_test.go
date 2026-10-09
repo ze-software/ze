@@ -24,15 +24,15 @@ func TestUsagePlacesValueAfterDeclaringKeyword(t *testing.T) {
 		{
 			name: "the value belongs to the keyword that declares it",
 			path: []string{"create", "interface", "dummy", "name", "unit"},
-			defs: []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true}},
+			defs: []ArgDef{mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true}))},
 			want: "create interface dummy name <name> unit",
 		},
 		{
 			name: "two anchored leaves follow the path, not the alphabet",
 			path: []string{"request", "l2tp", "outgoing-call", "remote", "called"},
 			defs: []ArgDef{
-				{Name: "remote", Kind: ArgString, Mandatory: true},
-				{Name: "called", Kind: ArgString, Mandatory: true},
+				mustArgDef(NewStringArg("remote", nil, nil, ArgOptions{Mandatory: true})),
+				mustArgDef(NewStringArg("called", nil, nil, ArgOptions{Mandatory: true})),
 			},
 			want: "request l2tp outgoing-call remote <remote> called <called>",
 		},
@@ -40,8 +40,8 @@ func TestUsagePlacesValueAfterDeclaringKeyword(t *testing.T) {
 			name: "a leaf matching no container is appended after the keywords",
 			path: []string{"show", "tcp-check"},
 			defs: []ArgDef{
-				{Name: "host", Kind: ArgString, Mandatory: true},
-				{Name: "port", Kind: ArgUint, UintBits: 16, Mandatory: true},
+				mustArgDef(NewStringArg("host", nil, nil, ArgOptions{Mandatory: true})),
+				mustArgDef(NewUintArg("port", 16, nil, ArgOptions{Mandatory: true})),
 			},
 			want: "show tcp-check <host> <port>",
 		},
@@ -64,9 +64,9 @@ func TestUsageRendersOptionalLeafWithKeyword(t *testing.T) {
 		Name:       "sockets",
 		WireMethod: "ze-cmd:show-system-sockets",
 		ArgDefs: []ArgDef{
-			{Name: "protocol", Kind: ArgEnum, EnumValues: []string{"tcp", "udp"}},
-			{Name: "state", Kind: ArgString},
-			{Name: "port", Kind: ArgUint, UintBits: 32},
+			mustArgDef(NewEnumArg("protocol", []string{"tcp", "udp"}, ArgOptions{})),
+			mustArgDef(NewStringArg("state", nil, nil, ArgOptions{})),
+			mustArgDef(NewUintArg("port", 32, nil, ArgOptions{})),
 		},
 	}
 	want := "show system sockets [protocol <tcp|udp>] [state <state>] [port <port>]"
@@ -84,8 +84,8 @@ func TestUsageRendersMandatoryBeforeOptional(t *testing.T) {
 		Name:       "ping",
 		WireMethod: "ze-ping:resolve-ping",
 		ArgDefs: []ArgDef{
-			{Name: "count", Kind: ArgUint, UintBits: 32},
-			{Name: "target", Kind: ArgString, Mandatory: true},
+			mustArgDef(NewUintArg("count", 32, nil, ArgOptions{})),
+			mustArgDef(NewStringArg("target", nil, nil, ArgOptions{Mandatory: true})),
 		},
 	}
 	want := "resolve ping <target> [count <count>]"
@@ -106,23 +106,17 @@ func TestUsageRendersEnumValueSet(t *testing.T) {
 	}{
 		{
 			name: "an enumeration renders its whole value set",
-			def:  ArgDef{Name: "protocol", Kind: ArgEnum, EnumValues: []string{"tcp", "udp"}, Mandatory: true},
+			def:  mustArgDef(NewEnumArg("protocol", []string{"tcp", "udp"}, ArgOptions{Mandatory: true})),
 			want: "show system sockets <tcp|udp>",
 		},
 		{
 			name: "a union renders its member forms",
-			def: ArgDef{Name: "id", Kind: ArgUnion, Mandatory: true, EnumValues: []string{"all"}, UnionDefs: []ArgDef{
-				{Name: "id", Kind: ArgUint, UintBits: 32},
-				{Name: "id", Kind: ArgEnum, EnumValues: []string{"all"}},
-			}},
+			def:  mustArgDef(NewUnionArg("id", []ArgDef{mustArgDef(NewUintArg("id", 32, nil, ArgOptions{})), mustArgDef(NewEnumArg("id", []string{"all"}, ArgOptions{}))}, ArgOptions{Mandatory: true})),
 			want: "show system sockets <id|all>",
 		},
 		{
 			name: "a union names its value once when two members state no set",
-			def: ArgDef{Name: "id", Kind: ArgUnion, Mandatory: true, UnionDefs: []ArgDef{
-				{Name: "id", Kind: ArgUint, UintBits: 32},
-				{Name: "id", Kind: ArgString},
-			}},
+			def:  mustArgDef(NewUnionArg("id", []ArgDef{mustArgDef(NewUintArg("id", 32, nil, ArgOptions{})), mustArgDef(NewStringArg("id", nil, nil, ArgOptions{}))}, ArgOptions{Mandatory: true})),
 			want: "show system sockets <id>",
 		},
 	} {
@@ -143,8 +137,8 @@ func TestUsageGrammarRendersToUsageString(t *testing.T) {
 		Name:       "unit",
 		WireMethod: "ze-iface:interface-unit-add",
 		ArgDefs: []ArgDef{
-			{Name: "name", Kind: ArgString, Mandatory: true},
-			{Name: "protocol", Kind: ArgEnum, EnumValues: []string{"tcp", "udp"}},
+			mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true})),
+			mustArgDef(NewEnumArg("protocol", []string{"tcp", "udp"}, ArgOptions{})),
 		},
 	}
 	path := []string{"create", "interface", "dummy", "name", "unit"}
@@ -183,23 +177,23 @@ func TestUsageGrammarRoundTripsEveryKind(t *testing.T) {
 	node := &Node{
 		Name:       "opaque",
 		WireMethod: "ze-ospf:debug-inject",
-		ArgDefs:    []ArgDef{{Name: "instance", Kind: ArgString, Mandatory: true}, {Name: "area", Kind: ArgString}},
+		ArgDefs:    []ArgDef{mustArgDef(NewStringArg("instance", nil, nil, ArgOptions{Mandatory: true})), mustArgDef(NewStringArg("area", nil, nil, ArgOptions{}))},
 		Children: map[string]*Node{
 			"scope": {
 				Name: "scope", Modifier: ModifierRequired, ModifierOrder: 1,
-				ArgDefs: []ArgDef{{Name: "scope", Kind: ArgEnum, EnumValues: []string{"link", "area", "as"}, Mandatory: true}},
+				ArgDefs: []ArgDef{mustArgDef(NewEnumArg("scope", []string{"link", "area", "as"}, ArgOptions{Mandatory: true}))},
 			},
 			"type": {
 				Name: "type", Modifier: ModifierOnce, ModifierOrder: 2,
-				ArgDefs: []ArgDef{{Name: "type", Kind: ArgUint, UintBits: 8, Mandatory: true}},
+				ArgDefs: []ArgDef{mustArgDef(NewUintArg("type", 8, nil, ArgOptions{Mandatory: true}))},
 			},
 			"tlv": {
 				Name: "tlv", Modifier: ModifierRepeat, ModifierOrder: 3,
-				ArgDefs: []ArgDef{{Name: "type", Kind: ArgString, Mandatory: true}, {Name: "value-hex", Kind: ArgString, Mandatory: true}},
+				ArgDefs: []ArgDef{mustArgDef(NewStringArg("type", nil, nil, ArgOptions{Mandatory: true})), mustArgDef(NewStringArg("value-hex", nil, nil, ArgOptions{Mandatory: true}))},
 			},
 			"form": {
 				Name: "form", Modifier: ModifierChoice, ModifierOrder: 4,
-				ArgDefs: []ArgDef{{Name: "form", Kind: ArgEnum, EnumValues: []string{"hex", "text"}}},
+				ArgDefs: []ArgDef{mustArgDef(NewEnumArg("form", []string{"hex", "text"}, ArgOptions{}))},
 			},
 			"withdraw": {Name: "withdraw", Modifier: ModifierOnce, ModifierOrder: 5},
 		},
@@ -320,8 +314,8 @@ func TestUsageRendersModifierGroup(t *testing.T) {
 						Name:     "tag",
 						Modifier: ModifierOnce,
 						ArgDefs: []ArgDef{
-							{Name: "key", Kind: ArgString, Mandatory: true},
-							{Name: "value", Kind: ArgString, Mandatory: true},
+							mustArgDef(NewStringArg("key", nil, nil, ArgOptions{Mandatory: true})),
+							mustArgDef(NewStringArg("value", nil, nil, ArgOptions{Mandatory: true})),
 						},
 					},
 				},
@@ -337,7 +331,7 @@ func TestUsageRendersModifierGroup(t *testing.T) {
 					"label": {
 						Name:     "label",
 						Modifier: ModifierRepeat,
-						ArgDefs:  []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true}, {Name: "value", Kind: ArgString, Mandatory: true}},
+						ArgDefs:  []ArgDef{mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true})), mustArgDef(NewStringArg("value", nil, nil, ArgOptions{Mandatory: true}))},
 					},
 				},
 			},
@@ -348,12 +342,12 @@ func TestUsageRendersModifierGroup(t *testing.T) {
 			node: &Node{
 				Name:       "announce",
 				WireMethod: "ze-bgp:announce",
-				ArgDefs:    []ArgDef{{Name: "for", Kind: ArgString}},
+				ArgDefs:    []ArgDef{mustArgDef(NewStringArg("for", nil, nil, ArgOptions{}))},
 				Children: map[string]*Node{
 					"tag": {
 						Name:     "tag",
 						Modifier: ModifierOnce,
-						ArgDefs:  []ArgDef{{Name: "key", Kind: ArgString, Mandatory: true}},
+						ArgDefs:  []ArgDef{mustArgDef(NewStringArg("key", nil, nil, ArgOptions{Mandatory: true}))},
 					},
 				},
 			},
@@ -384,13 +378,13 @@ func TestUsageKeepsARequiredGroupInDeclarationOrder(t *testing.T) {
 		Name:       "peer",
 		WireMethod: "ze-bgp:show-policy-test",
 		ArgDefs: []ArgDef{
-			{Name: "selector", Kind: ArgString, Mandatory: true, Anchor: "peer"},
-			{Name: "direction", Kind: ArgEnum, EnumValues: []string{"import", "export"}, Mandatory: true},
+			mustArgDef(NewStringArg("selector", nil, nil, ArgOptions{Mandatory: true, Anchor: "peer"})),
+			mustArgDef(NewEnumArg("direction", []string{"import", "export"}, ArgOptions{Mandatory: true})),
 		},
 		Children: map[string]*Node{
-			"filter":      {Name: "filter", Modifier: ModifierOnce, ModifierOrder: 1, ArgDefs: []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true}}},
-			"update":      {Name: "update", Modifier: ModifierRequired, ModifierOrder: 2, ArgDefs: []ArgDef{{Name: "hex", Kind: ArgString, Mandatory: true}}},
-			"source-asn4": {Name: "source-asn4", Modifier: ModifierOnce, ModifierOrder: 3, ArgDefs: []ArgDef{{Name: "enabled", Kind: ArgEnum, EnumValues: []string{"true", "false"}, Mandatory: true}}},
+			"filter":      {Name: "filter", Modifier: ModifierOnce, ModifierOrder: 1, ArgDefs: []ArgDef{mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true}))}},
+			"update":      {Name: "update", Modifier: ModifierRequired, ModifierOrder: 2, ArgDefs: []ArgDef{mustArgDef(NewStringArg("hex", nil, nil, ArgOptions{Mandatory: true}))}},
+			"source-asn4": {Name: "source-asn4", Modifier: ModifierOnce, ModifierOrder: 3, ArgDefs: []ArgDef{mustArgDef(NewEnumArg("enabled", []string{"true", "false"}, ArgOptions{Mandatory: true}))}},
 		},
 	}
 	want := "show policy test peer <selector> <import|export> [filter <name>] update <hex> [source-asn4 <true|false>]"
@@ -408,7 +402,7 @@ func TestUsageIgnoresAChildThatIsItsOwnCommand(t *testing.T) {
 		Name:       "withdraw",
 		WireMethod: "ze-bgp:withdraw-all",
 		Children: map[string]*Node{
-			"tag": {Name: "tag", WireMethod: "ze-bgp:withdraw-tag", ArgDefs: []ArgDef{{Name: "key", Kind: ArgString, Mandatory: true}}},
+			"tag": {Name: "tag", WireMethod: "ze-bgp:withdraw-tag", ArgDefs: []ArgDef{mustArgDef(NewStringArg("key", nil, nil, ArgOptions{Mandatory: true}))}},
 		},
 	}
 	if got := UsageLine(Usage([]string{"withdraw"}, node)); got != "withdraw" {
@@ -424,8 +418,8 @@ func TestUsageRendersModifierGroupsInDeclarationOrder(t *testing.T) {
 		Name:       "announce",
 		WireMethod: "ze-bgp:announce",
 		Children: map[string]*Node{
-			"tag":  {Name: "tag", Modifier: ModifierOnce, ModifierOrder: 1, ArgDefs: []ArgDef{{Name: "key", Kind: ArgString, Mandatory: true}}},
-			"also": {Name: "also", Modifier: ModifierOnce, ModifierOrder: 2, ArgDefs: []ArgDef{{Name: "peer", Kind: ArgString, Mandatory: true}}},
+			"tag":  {Name: "tag", Modifier: ModifierOnce, ModifierOrder: 1, ArgDefs: []ArgDef{mustArgDef(NewStringArg("key", nil, nil, ArgOptions{Mandatory: true}))}},
+			"also": {Name: "also", Modifier: ModifierOnce, ModifierOrder: 2, ArgDefs: []ArgDef{mustArgDef(NewStringArg("peer", nil, nil, ArgOptions{Mandatory: true}))}},
 		},
 	}
 	want := "announce [tag <key>] [also <peer>]"
@@ -450,11 +444,11 @@ func TestUsageRendersRequiredModifierGroup(t *testing.T) {
 		Children: map[string]*Node{
 			"scope": {
 				Name: "scope", Modifier: ModifierRequired, ModifierOrder: 1,
-				ArgDefs: []ArgDef{{Name: "scope", Kind: ArgEnum, EnumValues: []string{"link", "area", "as"}, Mandatory: true}},
+				ArgDefs: []ArgDef{mustArgDef(NewEnumArg("scope", []string{"link", "area", "as"}, ArgOptions{Mandatory: true}))},
 			},
 			"id": {
 				Name: "id", Modifier: ModifierRequired, ModifierOrder: 2,
-				ArgDefs: []ArgDef{{Name: "opaque-id", Kind: ArgUint, UintBits: 32, Mandatory: true}},
+				ArgDefs: []ArgDef{mustArgDef(NewUintArg("opaque-id", 32, nil, ArgOptions{Mandatory: true}))},
 			},
 			"withdraw": {Name: "withdraw", Modifier: ModifierOnce, ModifierOrder: 3},
 		},
@@ -477,7 +471,7 @@ func TestUsageRendersValuelessGroupAsAFlag(t *testing.T) {
 	node := &Node{
 		Name:       "name",
 		WireMethod: "ze-pki:show-certificate",
-		ArgDefs:    []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true}},
+		ArgDefs:    []ArgDef{mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true}))},
 		Children: map[string]*Node{
 			"pem": {Name: "pem", Modifier: ModifierOnce, ModifierOrder: 1},
 		},
@@ -498,11 +492,11 @@ func TestUsageRendersBareChoice(t *testing.T) {
 	node := &Node{
 		Name:       "peer",
 		WireMethod: "ze-bgp:show-policy-chain",
-		ArgDefs:    []ArgDef{{Name: "selector", Kind: ArgString, Mandatory: true}},
+		ArgDefs:    []ArgDef{mustArgDef(NewStringArg("selector", nil, nil, ArgOptions{Mandatory: true}))},
 		Children: map[string]*Node{
 			"direction": {
 				Name: "direction", Modifier: ModifierChoice, ModifierOrder: 1,
-				ArgDefs: []ArgDef{{Name: "direction", Kind: ArgEnum, EnumValues: []string{"import", "export"}}},
+				ArgDefs: []ArgDef{mustArgDef(NewEnumArg("direction", []string{"import", "export"}, ArgOptions{}))},
 			},
 		},
 	}
@@ -545,28 +539,28 @@ func TestUsagePlacesInheritedValueAfterItsContainer(t *testing.T) {
 		{
 			name: "an inherited value follows the container that declares it",
 			path: []string{"request", "interface", "down"},
-			defs: []ArgDef{{Name: "name", Anchor: "interface", Kind: ArgString, Mandatory: true}},
+			defs: []ArgDef{mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true, Anchor: "interface"}))},
 			want: "request interface <name> down",
 		},
 		{
 			name: "the command's own leaf still trails the last keyword",
 			path: []string{"request", "interface", "mtu"},
 			defs: []ArgDef{
-				{Name: "name", Anchor: "interface", Kind: ArgString, Mandatory: true},
-				{Name: "bytes", Kind: ArgUint, UintBits: 16, Mandatory: true},
+				mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true, Anchor: "interface"})),
+				mustArgDef(NewUintArg("bytes", 16, nil, ArgOptions{Mandatory: true})),
 			},
 			want: "request interface <name> mtu <bytes>",
 		},
 		{
 			name: "an anchor deeper than the first keyword is honored",
 			path: []string{"request", "peer", "plugin", "session", "ready"},
-			defs: []ArgDef{{Name: "selector", Anchor: "peer", Kind: ArgString, Mandatory: true}},
+			defs: []ArgDef{mustArgDef(NewStringArg("selector", nil, nil, ArgOptions{Mandatory: true, Anchor: "peer"}))},
 			want: "request peer <selector> plugin session ready",
 		},
 		{
 			name: "an anchor naming no keyword on the path leaves the value trailing",
 			path: []string{"show", "tcp-check"},
-			defs: []ArgDef{{Name: "host", Anchor: "absent", Kind: ArgString, Mandatory: true}},
+			defs: []ArgDef{mustArgDef(NewStringArg("host", nil, nil, ArgOptions{Mandatory: true, Anchor: "absent"}))},
 			want: "show tcp-check <host>",
 		},
 	} {
@@ -628,11 +622,11 @@ func TestUsageRendersARequiredOneOfGroup(t *testing.T) {
 				Children: map[string]*Node{
 					"community": {
 						Name: "community", Modifier: ModifierOnce, ModifierOrder: 1,
-						ArgDefs: []ArgDef{{Name: "value", Kind: ArgString, Mandatory: true}},
+						ArgDefs: []ArgDef{mustArgDef(NewStringArg("value", nil, nil, ArgOptions{Mandatory: true}))},
 					},
 					"rate-limit": {
 						Name: "rate-limit", Modifier: ModifierOnce, ModifierOrder: 2,
-						ArgDefs: []ArgDef{{Name: "bytes-per-second", Kind: ArgString, Mandatory: true}},
+						ArgDefs: []ArgDef{mustArgDef(NewStringArg("bytes-per-second", nil, nil, ArgOptions{Mandatory: true}))},
 					},
 					"discard": {Name: "discard", Modifier: ModifierOnce, ModifierOrder: 3},
 				},
@@ -640,8 +634,8 @@ func TestUsageRendersARequiredOneOfGroup(t *testing.T) {
 			"tag": {
 				Name: "tag", Modifier: ModifierOnce, ModifierOrder: 2,
 				ArgDefs: []ArgDef{
-					{Name: "key", Kind: ArgString, Mandatory: true},
-					{Name: "value", Kind: ArgString, Mandatory: true},
+					mustArgDef(NewStringArg("key", nil, nil, ArgOptions{Mandatory: true})),
+					mustArgDef(NewStringArg("value", nil, nil, ArgOptions{Mandatory: true})),
 				},
 			},
 		},
@@ -676,7 +670,7 @@ func TestModifierChildrenRecursesOnlyIntoTheOneOf(t *testing.T) {
 	nested := map[string]*Node{
 		"inner": {
 			Name: "inner", Modifier: ModifierOnce, ModifierOrder: 1,
-			ArgDefs: []ArgDef{{Name: "value", Kind: ArgString, Mandatory: true}},
+			ArgDefs: []ArgDef{mustArgDef(NewStringArg("value", nil, nil, ArgOptions{Mandatory: true}))},
 		},
 	}
 	for _, tc := range []struct {
@@ -694,7 +688,7 @@ func TestModifierChildrenRecursesOnlyIntoTheOneOf(t *testing.T) {
 				Children: map[string]*Node{
 					"outer": {
 						Name: "outer", Modifier: tc.modifier, ModifierOrder: 1,
-						ArgDefs:  []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true}},
+						ArgDefs:  []ArgDef{mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true}))},
 						Children: nested,
 					},
 				},

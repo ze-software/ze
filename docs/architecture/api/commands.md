@@ -1481,29 +1481,47 @@ and their pages print the summary and the explanation beside each argument),
 and the web admin command form (the summary beside each input, the
 explanation under it).
 
-```go
-type ArgDef struct {
-    Name        string         // YANG leaf name (kebab-case)
-    Kind        ArgKind        // Argument type category
-    EnumValues  []string       // Valid enum values
-    UintBits    int            // 8, 16, 32, or 64
-    Ranges      []UintRange    // Valid ranges (disjoint segments supported)
-    Lengths     []UintRange    // Character-count ranges for ArgString
-    Patterns    []*regexp.Regexp // Compiled XSD patterns for ArgString, all must match
-    UnionDefs   []ArgDef       // Member types for ArgUnion
-    Mandatory   bool           // True if YANG leaf has mandatory true
-    ShortHelp   string         // The leaf's ze:help summary
-    Description string         // The leaf's description explanation
-    Anchor      string         // Path keyword this value follows; "" for a trailing value
-}
-```
+`command.ArgDef` (`argdef.go`) has private fields, and only its per-kind
+constructors build one. Each validates and returns an error rather than a
+value:
+
+| Constructor | Kind | Refuses |
+|-------------|------|---------|
+| `NewStringArg(name, lengths, patterns, opts)` | `ArgString` | an empty name, a nil pattern, length parts that descend, overlap or are not ascending |
+| `NewUintArg(name, bits, ranges, opts)` | `ArgUint` | an empty name, a width outside {8, 16, 32, 64}, a range above the width, range parts that descend, overlap or are not ascending |
+| `NewEnumArg(name, values, opts)` | `ArgEnum` | an empty name, no value, an empty value |
+| `NewUnionArg(name, members, opts)` | `ArgUnion` | an empty name, a member no constructor built. Its enum values are its enum members' names, flattened in member order |
+| `NewFlagArg(name, opts)` | `ArgFlag` | an empty name |
+
+The part-order checks are RFC 7950 Sections 9.2.4 and 9.4.4: "If multiple
+values or ranges are given, they all MUST be disjoint and MUST be in ascending
+order." Every refusal wraps `command.ErrArgDef`. `ArgOptions` carries what
+every kind shares: `Mandatory`, `ShortHelp` (the leaf's `ze:help` summary),
+`Description` (its `description`) and `Anchor` (the path keyword this value
+follows, empty for a trailing value). The constructors copy their input
+slices. The accessors (`Name`, `Kind`, `Mandatory`, `UintBits`, `ShortHelp`,
+`Description`, `Anchor`) return scalars, and `EnumValues`, `Ranges`,
+`Lengths`, `Patterns` (the pattern source text) and `UnionDefs` return
+iterators, so no reader can write into a validated definition.
+`WithAnchor` returns an anchored copy. Tests outside the package build
+definitions through `commandtest.Must`.
+
+The zero value `ArgDef{}` still compiles, and it is not a definition:
+`ValidateArgs` and `ValidateArgString` refuse it with an error wrapping
+`ErrArgDef`, rather than reading it as an unrestricted string.
+<!-- source: internal/component/command/argdef.go -- ArgDef, NewStringArg, NewUintArg, NewEnumArg, NewUnionArg, NewFlagArg, ErrArgDef -->
+<!-- source: internal/component/command/argbind.go -- ValidateArgs -->
+
 
 ArgDefs are extracted from YANG by `BuildCommandTree` (`config/yang/command.go`)
 and stored on `command.Node.ArgDefs`. The dispatcher receives them via
 `RegisterOptions.ArgDefs` populated by `PathToArgDefs`.
 
-`yangTypeToArgDef` assigns the internal `ArgKind`; raw argument strings never
-choose it. `ValidateArgString` and `Constraint` treat an unknown internal kind
+`yangTypeToArgDef` builds every definition through these constructors and
+assigns the internal `ArgKind`; raw argument strings never choose it. A
+constructor refusal there is a BUG: goyang's type resolution sorts, coalesces
+and bounds every range and length part before lowering reads it, and an
+enumeration with no enum has no argument. `ValidateArgString` and `Constraint` treat an unknown internal kind
 as a BUG, not successful validation or an unconstrained argument. Invalid
 operator-supplied values still return their type's existing validation errors.
 <!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef -->
@@ -1511,8 +1529,8 @@ operator-supplied values still return their type's existing validation errors.
 
 A string argument carries every restriction its YANG type chain declares.
 goyang resolves the typedef chain before `yangTypeToArgDef` reads it, so
-`Lengths` is the most restricted `length` along the chain and `Patterns` holds
-every `pattern` of every type in it. `validateString` refuses a value whose
+the lengths are the most restricted `length` along the chain and the patterns
+are every `pattern` of every type in it. `validateString` refuses a value whose
 character count falls outside every length range (RFC 7950 Section 9.4.4
 counts Unicode characters, not bytes), naming the bound (`invalid value "x",
 length 1 out of range 2..4`, or `1..8 | 16..32` for a disjoint length), and a
@@ -1527,7 +1545,7 @@ compile, wrapping `ErrUncompilablePattern`, so no argument is ever built with
 its pattern missing. The error names the module, the leaf, leaf-list,
 typedef or deviation the pattern restricts, the source location, and the reason, which
 quotes the pattern.
-<!-- source: internal/component/config/yang/command.go -- applyLength, applyPatterns -->
+<!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef, compilePatterns -->
 <!-- source: internal/component/command/argvalidate.go -- validateString -->
 <!-- source: internal/component/config/yang/loader.go -- checkPatterns, modulePatternErrors -->
 
@@ -1536,7 +1554,7 @@ its keyword, once, and every command under it takes that value:
 `request interface <name> up`, `<name> down`, `<name> mtu <bytes>` share one
 `name` leaf on the `interface` container. `inheritArgDefs`
 (`config/yang/command.go`) carries such a leaf down to each command after every
-module is merged, with `Anchor` set to the container's name, and the renderer
+module is merged, anchored to the container's name (`WithAnchor`), and the renderer
 places the value right after that keyword. The command under such a container
 that acts on no single member of the set states `ze:inherit "none"`:
 `show bgp peer list` reads every peer, and `request interface migrate` names two
@@ -1544,14 +1562,18 @@ interfaces of its own. The dispatcher binds the bare token after the anchor
 keyword to the leaf anchored there (`anchoredDef`, `plugin/server/command.go`),
 and a surface that builds a command from a name-to-value map writes the value
 at that same place through `command.WriteInvocation` (`arguments.go`), which
-the web admin form and the MCP tool call share. A positional token after the
+the web admin form and the MCP tool call share. It reads only a name, an
+anchor and whether the argument is a flag (`command.InvocationArg`): the web
+form projects the node's definitions with `command.InvocationArgs`, and the MCP
+server builds the input from its lister, which carries no type. A positional token after the
 command still goes to the definition whose type constrains it most
 (`positionalDef`).
 
 Runtime-dynamic hints (e.g., address families from plugin registry) remain as
 `ValueHints` callbacks. Static hints (log levels, FD limit "max") are
 YANG-declared and served through ArgDefs.
-<!-- source: internal/component/command/node.go -- ArgDef, Node.ArgDefs -->
+<!-- source: internal/component/command/node.go -- Node.ArgDefs -->
+<!-- source: internal/component/command/arguments.go -- WriteInvocation -->
 <!-- source: internal/component/config/yang/command.go -- extractArgDefs -->
 
 ### Plugin Command Completion

@@ -761,7 +761,7 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 	}
 	defByName := make(map[string]*command.ArgDef, len(defs))
 	for i := range defs {
-		defByName[strings.ToLower(defs[i].Name)] = &defs[i]
+		defByName[strings.ToLower(defs[i].Name())] = &defs[i]
 	}
 	inIdx := 0
 	selectors := make(map[string]string)
@@ -772,14 +772,14 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 
 		// Explicit typed selectors such as `name <value>` or `id <value>`. A
 		// flag takes no value, so it never selects.
-		if def, ok := defByName[strings.ToLower(keyTok)]; ok && def.Kind != command.ArgFlag && inIdx+1 < len(tokens) {
+		if def, ok := defByName[strings.ToLower(keyTok)]; ok && def.Kind() != command.ArgFlag && inIdx+1 < len(tokens) {
 			if keyIdx+1 >= len(keyTokens) || !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
 				// The keyword names the slot, so the value is bound without
 				// judging it: command.ValidateArgs judges it with the other
 				// arguments and names the bound it breaks. Refusing the match
 				// here answered "unknown command" for a 129-character
 				// `show metrics name`.
-				selectors[def.Name] = tokens[inIdx+1]
+				selectors[def.Name()] = tokens[inIdx+1]
 				inIdx += 2
 				continue
 			}
@@ -795,7 +795,7 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 			// command.ValidateArgs. The implicit leaf is a guess, and a value
 			// that fails it means the guess was wrong, so the match fails.
 			if def := anchoredDef(keyTok, defs, selectors); def != nil {
-				selectors[def.Name] = tokens[inIdx+1]
+				selectors[def.Name()] = tokens[inIdx+1]
 				inIdx += 2
 				continue
 			}
@@ -804,7 +804,7 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 				if err := command.ValidateArgString(value, def); err != nil {
 					return nil, nil, false
 				}
-				selectors[def.Name] = value
+				selectors[def.Name()] = value
 				inIdx += 2
 				continue
 			}
@@ -855,10 +855,10 @@ func anchoredDef(keyTok string, defs []command.ArgDef, matched map[string]string
 	var found *command.ArgDef
 	for i := range defs {
 		def := &defs[i]
-		if _, ok := matched[def.Name]; ok {
+		if _, ok := matched[def.Name()]; ok {
 			continue
 		}
-		if def.Anchor == "" || !strings.EqualFold(def.Anchor, keyTok) {
+		if def.Anchor() == "" || !strings.EqualFold(def.Anchor(), keyTok) {
 			continue
 		}
 		if found != nil {
@@ -874,16 +874,16 @@ func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[
 	looseCount, patternedCount := 0, 0
 	for i := range defs {
 		def := &defs[i]
-		if _, ok := matched[def.Name]; ok {
+		if _, ok := matched[def.Name()]; ok {
 			continue
 		}
-		if def.Kind != command.ArgString || !def.Mandatory {
+		if def.Kind() != command.ArgString || !def.Mandatory() {
 			continue
 		}
-		if keyTokenPresent(keyTokens, def.Name) {
+		if keyTokenPresent(keyTokens, def.Name()) {
 			continue
 		}
-		if len(def.Patterns) > 0 {
+		if command.Constraint(def) == command.ConstraintPattern {
 			patterned, patternedCount = def, patternedCount+1
 			continue
 		}

@@ -65,7 +65,7 @@ func TestServeLocalJudgesArgumentsAgainstTheirDefinitions(t *testing.T) {
 		if p != path {
 			return nil, nil
 		}
-		return []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true, Lengths: []UintRange{{Min: 1, Max: 4}}}}, nil
+		return []ArgDef{mustArgDef(NewStringArg("name", []UintRange{{Min: 1, Max: 4}}, nil, ArgOptions{Mandatory: true}))}, nil
 	})
 
 	_, code, served := ServeLocal(path+" abcde", "")

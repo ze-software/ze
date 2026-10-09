@@ -43,7 +43,7 @@ import (
 //
 // The path and the definitions come from the model this binary carries, and
 // the values from one request, so every loop below is bounded.
-func WriteInvocation(tb *textbuf.Buffer, path []string, defs []ArgDef, values map[string]string) error {
+func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, values map[string]string) error {
 	for name, value := range values {
 		if strings.ContainsRune(value, '"') {
 			return fmt.Errorf("argument %s: a value cannot hold a double quote", name)
@@ -73,7 +73,7 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []ArgDef, values ma
 		}
 		placed[name] = true
 		tb.Byte(' ').Str(name)
-		if defs[j].Kind == ArgFlag {
+		if defs[j].Flag {
 			// Any non-empty form value sets the flag; the keyword is the whole argument.
 			continue
 		}

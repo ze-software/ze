@@ -321,14 +321,14 @@ func extractArgs(node *command.Node) []Argument {
 	for i := range node.ArgDefs {
 		definition := &node.ArgDefs[i]
 		arg := Argument{
-			Name:        definition.Name,
-			Type:        argumentKind(definition.Kind),
-			Mandatory:   definition.Mandatory,
-			ShortHelp:   definition.ShortHelp,
-			Description: definition.Description,
+			Name:        definition.Name(),
+			Type:        argumentKind(definition.Kind()),
+			Mandatory:   definition.Mandatory(),
+			ShortHelp:   definition.ShortHelp(),
+			Description: definition.Description(),
 		}
-		if len(definition.EnumValues) > 0 {
-			arg.Values = definition.EnumValues
+		if values := slices.Collect(definition.EnumValues()); len(values) > 0 {
+			arg.Values = values
 		}
 		args = append(args, arg)
 	}

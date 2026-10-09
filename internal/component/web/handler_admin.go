@@ -78,9 +78,9 @@ func commandFormParameters(defs []command.ArgDef) []CommandParameter {
 	for i := range defs {
 		def := &defs[i]
 		parameters = append(parameters, CommandParameter{
-			Name:        def.Name,
-			ShortHelp:   def.ShortHelp,
-			Description: def.Description,
+			Name:        def.Name(),
+			ShortHelp:   def.ShortHelp(),
+			Description: def.Description(),
 		})
 	}
 	return parameters
@@ -262,10 +262,10 @@ func commandArguments(path []string, node *command.Node, form url.Values) (strin
 
 	values := make(map[string]string, len(node.ArgDefs))
 	for i := range node.ArgDefs {
-		name := node.ArgDefs[i].Name
+		name := node.ArgDefs[i].Name()
 		values[name] = strings.TrimSpace(form.Get(name))
 	}
-	if err := command.WriteInvocation(&tb, path, node.ArgDefs, values); err != nil {
+	if err := command.WriteInvocation(&tb, path, command.InvocationArgs(node.ArgDefs), values); err != nil {
 		return "", err
 	}
 	return tb.String(), nil

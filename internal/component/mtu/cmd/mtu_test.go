@@ -170,7 +170,7 @@ func TestShowMTUHostRefusedByTheGrammar(t *testing.T) {
 	}
 	var host *command.ArgDef
 	for i := range node.ArgDefs {
-		if node.ArgDefs[i].Name == argHost {
+		if node.ArgDefs[i].Name() == argHost {
 			host = &node.ArgDefs[i]
 		}
 	}

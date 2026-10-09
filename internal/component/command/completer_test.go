@@ -490,7 +490,7 @@ func TestCompleterArgDefsEnumSuggestions(t *testing.T) {
 						Name:       "goroutines",
 						WireMethod: "ze-cmd:show-system-goroutines",
 						ArgDefs: []ArgDef{
-							{Name: "mode", Kind: ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
+							mustArgDef(NewEnumArg("mode", []string{"blocked", "full", "summary"}, ArgOptions{})),
 						},
 					},
 				},
@@ -526,8 +526,8 @@ func TestCompleterArgDefsKeywordSuggestions(t *testing.T) {
 						Name:       "audit",
 						WireMethod: "ze-cmd:show-audit",
 						ArgDefs: []ArgDef{
-							{Name: "action", Kind: ArgString},
-							{Name: "count", Kind: ArgUint, UintBits: 32},
+							mustArgDef(NewStringArg("action", nil, nil, ArgOptions{})),
+							mustArgDef(NewUintArg("count", 32, nil, ArgOptions{})),
 						},
 					},
 				},
@@ -560,7 +560,7 @@ func TestCompleterArgDefsPrefixFilter(t *testing.T) {
 						Name:       "goroutines",
 						WireMethod: "ze-cmd:show-system-goroutines",
 						ArgDefs: []ArgDef{
-							{Name: "mode", Kind: ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
+							mustArgDef(NewEnumArg("mode", []string{"blocked", "full", "summary"}, ArgOptions{})),
 						},
 					},
 				},
@@ -595,7 +595,7 @@ func TestCompleterArgDefsDedup(t *testing.T) {
 					}
 				},
 				ArgDefs: []ArgDef{
-					{Name: "limit", Kind: ArgUnion, EnumValues: []string{"max"}},
+					mustArgDef(NewUnionArg("limit", []ArgDef{mustArgDef(NewEnumArg("limit", []string{"max"}, ArgOptions{}))}, ArgOptions{})),
 				},
 			},
 		},
@@ -782,7 +782,7 @@ func TestChoiceGroupCompletesItsWordsNotItsName(t *testing.T) {
 					"direction": {
 						Name:     "direction",
 						Modifier: ModifierChoice,
-						ArgDefs:  []ArgDef{{Name: "direction", Kind: ArgEnum, EnumValues: []string{"import", "export"}}},
+						ArgDefs:  []ArgDef{mustArgDef(NewEnumArg("direction", []string{"import", "export"}, ArgOptions{}))},
 					},
 					"detail": {Name: "detail", WireMethod: "ze-show:policy-chain-detail"},
 				},
@@ -823,7 +823,7 @@ func TestCompleterSuggestsSummaryNotWholeDescription(t *testing.T) {
 				ShortHelp:   "Pick the address family.",
 				Description: "The families are the ones this session negotiated.",
 				Modifier:    ModifierChoice,
-				ArgDefs:     []ArgDef{{Name: "family", EnumValues: []string{"ipv4"}}},
+				ArgDefs:     []ArgDef{mustArgDef(NewEnumArg("family", []string{"ipv4"}, ArgOptions{}))},
 			},
 		},
 	}
