@@ -95,14 +95,14 @@ prose, and that is covered above.
 ## Current Behavior (MANDATORY)
 
 **Source read on 2026-09-19:**
-- `internal/le/interoplab/zebuild.go`: `StageBinaries` returns early for `NO_BUILD`,
+- [ ] `internal/le/interoplab/zebuild.go`: `StageBinaries` returns early for `NO_BUILD`,
   reads `ServerArchitecture`, and calls `stageBinaries`. That function uses the
   pinned toolchain with Linux and the daemon architecture; `stageBinary` derives
   feature tags from the declared base and runs `go build` for each output.
-- `internal/le/interoplab/bgp/run.go`: `LabBinaries` declares `ze` and `le test`;
+- [ ] `internal/le/interoplab/bgp/run.go`: `LabBinaries` declares `ze` and `le test`;
   `suiteFor` installs `StageBinaries` as `Preflight` and declares the image
   without a `ZE_FEATURES` build argument.
-- `internal/le/interoplab/lab.go`: `Suite.Run` runs `Preflight` before image preparation.
+- [ ] `internal/le/interoplab/lab.go`: `Suite.Run` runs `Preflight` before image preparation.
 - The IPsec, RADIUS, L2TP and PPPoE suite producers also wire `StageBinaries`.
 - `test/interop/Dockerfile.ze`, `test/interop-l2tp/Dockerfile.ze` and
   `test/interop-pppoe/Dockerfile.ze` use an Alpine stage and copy staged binaries.
@@ -110,6 +110,22 @@ prose, and that is covered above.
 
 This is source evidence only. No build, scenario, timing, memory measurement,
 discrimination re-recording or validation was run for this reconciliation.
+
+**Evidence recorded 2026-10-09.** Every run used a `git archive HEAD` export of
+1cfc44afd7 under the session scratch (`.../scratch/icp`), with an empty
+`cache/go-cache`, because the shared tree did not build (another session's
+`internal/test/fixture/plugin_fixture_08_flap.go`). The logs are `icp-*.log` beside the export.
+
+| AC | Result |
+|----|--------|
+| AC-1, AC-6, AC-8 | a `go test -run` over the eight named tests in `internal/le/interoplab` and `.../bgp`: 8 `--- PASS`, both packages `ok`. The one remaining `go build` text in a `Dockerfile.ze` was the `test/interop-ipsec` header comment, now rewritten to name the producing action |
+| AC-2 | `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le --name icp test integration interop`: `interop: 1 passed, 0 failed`, wall 9:26.69 including the cold launcher build. Exit 1 came from four `image cleanup: docker image rm failed (exit 124): context deadline exceeded` lines at load 37 to 65 |
+| AC-3 | the in-run cross-compiles wrote `ze-linux` at 18:09:34 and `le-linux` at 18:09:43, about 18s and 9s after the launcher build ended. A separate `docker build -f test/interop/Dockerfile.ze` over the staged binaries took `wall=199.39 s` at load average 64.90. The page carries both (uncommitted, see the handoff) |
+| AC-4 | `/usr/bin/time -v` over the AC-2 run: `Maximum resident set size (kbytes): 1524736`, the largest single process of the run, cold cache included |
+| AC-5 | inside the image, `ze --version` answered `ze dev (built unknown)` and `le test help` printed its usage. `/etc/alpine-release` reads `3.21.7` |
+| AC-7 | NOT RECORDED. The `discriminate-record` green phase failed: `checkNoExportBoundary ... is already failing before any break is applied`. Of two direct runs, one hit the preflight's 5-minute bound (`cross-compile ze ... context deadline exceeded`). The other failed assertion 1, because another session's orphaned lab `ze-iop-4193630` held 172.30.0.0/24 and the lab picked 172.30.1.0/24. Journal rows are in `concurrent-session-corruption.md` and `bound-too-small-for-its-own-burst.md` |
+| AC-9 | `interop-radius`: `PASS  4 scenario(s)`, `wall=419.37 s`. `interop-ipsec`: the first run gave `18 passed, 19 failed` in a Docker daemon cascade (`removal of container ze-ipsec-ze-440125 is already in progress`, `docker run -d failed (exit 124)`). The rerun wrote an empty log and exited 1 after 25 minutes, and the disk was then found full (`/` 100%). NOT YET GREEN |
+| AC-10 | HEAD-built `le go version-pin check`: `Carriers checked: 7`, `go-version: OK`. `./le verify current mode full` has not been run |
 
 **Behavior to preserve:**
 - The image's contents: `/usr/local/bin/ze` and `/usr/local/bin/le` on an

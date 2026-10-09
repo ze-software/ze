@@ -1,6 +1,7 @@
 # Ze IKE image for IPsec interop lab.
-# Expects a pre-built linux binary at test/interop-ipsec/ze-linux.
-# Build with: CGO_ENABLED=0 GOOS=linux go build -o test/interop-ipsec/ze-linux ./cmd/ze
+# Expects a pre-built linux binary at test/interop-ipsec/ze-linux, which
+# `./le test integration interop-ipsec` cross-compiles before it builds this image
+# (internal/le/interoplab/zebuild.go, StageBinaries).
 
 FROM alpine:3.21
 
