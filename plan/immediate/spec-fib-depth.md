@@ -476,24 +476,26 @@ Add `// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP m
 |-------------|--------|----------|-------|
 
 ### Acceptance Criteria
-Audit 2026-10-09 (implementation agent). "Unit" means a Go test over the producer;
-"needs-linux" means it runs only in the QEMU guest (`./le test qemu run ... all-tests test <path>`)
-and was not run in this pass (host load 33, five-minute call budget).
+Audit 2026-10-09, updated 2026-10-10 (implementation agent 3). "Unit" means a Go test over the producer;
+"needs-linux" means it runs only in the QEMU guest (`./le test qemu run ... all-tests test <path>`,
+arm64 7.2 kernel `tmp/kernel/build/vmlinuz`). Each `.ci` red was one producer break, with the
+daemons rebuilt from the broken tree. Host `.ci` runs used `./le --name`, because the shared
+`bin/le` that runs the fixtures is not rebuilt for uncommitted fixture edits.
 
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | unit green, discriminated; functional owed a QEMU run | `TestIGPCostChangeReselectsWithoutAIGP` (`internal/component/bgp/plugins/rib/rfc4271_igp_cost_reselect_test.go`), `TestComparePairIGPCost`; `test/static/static-kernel-igp-cost-reselect.ci` (needs-linux, written, not run) | Red observed with the `compareAfterMED` interior-cost branch disabled. Cheaper hop rides on the peer the later tie-breakers reject |
-| AC-13 | unit green, discriminated; functional owed a QEMU run | same test and `.ci`: Loc-RIB metric change alone, through `runAIGPSelection`'s `OnChange` subscription, moves the best path and moves it back | Red observed with the `OnChange` send removed. Earlier evidence was AIGP-only and called `reselectAIGPRoutes` directly |
-| AC-2 | unit and needs-linux integration exist | `TestRecursiveNHResolve_*`, `TestRFC4271BGPNextHopResolvedToTheImmediateNextHop`, `TestFIBRecursiveIPv4ViaIPv6` | `test/plugin/fib-recursive.ci` asserts only presence in the system RIB, not the resolved hop |
-| AC-3 | unit exists; `.ci` partial | `TestECMPCollect_*`, `test/plugin/fib-ecmp.ci` | `.ci` asserts bgp-rib multipath siblings and system-RIB presence, not the `ECMPPaths` count |
+| AC-1 | unit and functional green, both discriminated | `TestIGPCostChangeReselectsWithoutAIGP` (`internal/component/bgp/plugins/rib/rfc4271_igp_cost_reselect_test.go`), `TestComparePairIGPCost`; `test/static/static-kernel-igp-cost-reselect.ci` (needs-linux) | Unit red with the `compareAfterMED` interior-cost branch disabled. `.ci` PASS green, FAIL with that branch disabled ("best path ... is not from 10.0.0.2"). Cheaper hop rides on the peer the later tie-breakers reject |
+| AC-13 | unit and functional green; unit discriminated | same test and `.ci`: Loc-RIB metric change alone, through `runAIGPSelection`'s `OnChange` subscription, moves the best path and moves it back | Red observed with the `OnChange` send removed. Earlier evidence was AIGP-only and called `reselectAIGPRoutes` directly |
+| AC-2 | unit and functional green, `.ci` discriminated | `TestRecursiveNHResolve_*`, `TestRFC4271BGPNextHopResolvedToTheImmediateNextHop`, `TestFIBRecursiveIPv4ViaIPv6`; `test/plugin/fib-recursive.ci` | `.ci` builds a three-level chain and requires `show nexthop-table` to report 10.0.0.2 resolved to direct-nh 198.51.100.1. FAIL when `nhResolver.Resolve` stops after the first covering route (got 192.0.2.1). A two-level chain did not discriminate |
+| AC-3 | unit and functional green, `.ci` discriminated | `TestECMPCollect_*`, `test/plugin/fib-ecmp.ci` | `.ci` requires the exact system-RIB next-hop set and N-1 `ecmp-paths` at 2, 1 and 3 paths. FAIL when `ecmpGroup` ignores `winner.ecmpNextHops` (one next hop left) |
 | AC-5 | unit exists | `TestVPPMultiPath` | no VPP functional run |
-| AC-6 | unit and one needs-linux integration exist; kernel `.ci` rewritten, owed a QEMU run | `TestKernelRouteType`, `TestNetlinkIntegration_BlackholeRouteWithNextHop`, `TestVPPRouteType`, `test/plugin/fib-blackhole.ci` | the `.ci` asserted only `fib-kernel` on stderr and passed with no route programmed; it now reads the kernel for blackhole, unreachable and prohibit (needs-linux, not run) |
-| AC-7 | unit; kernel `.ci` owed a QEMU run | `TestKernelRouteType`, `TestVPPRouteType`, `test/plugin/fib-blackhole.ci` | same rewritten `.ci` reads the installed `unreachable` route |
-| AC-10 | needs-linux integration exists; kernel `.ci` rewritten, owed a QEMU run | `TestMPLSIntegration_Push`, `TestKernelMPLSPush`, `test/plugin/fib-mpls-kernel.ci` | the `.ci` asserted only `fib-kernel` on stderr; it now reads `encap mpls 100/200 via 192.0.2.1` from the kernel (needs-linux, not run) |
+| AC-6 | unit and functional green, `.ci` discriminated | `TestKernelRouteType`, `TestNetlinkIntegration_BlackholeRouteWithNextHop`, `TestVPPRouteType`, `test/plugin/fib-blackhole.ci` (needs-linux) | the `.ci` once asserted only `fib-kernel` on stderr; it now reads the kernel type of blackhole, unreachable and prohibit (`ip -N` prints RTN 6, 7, 8). PASS green, FAIL with `routeTypeToLinux` mapping prohibit to RTN_UNREACHABLE (got 7) |
+| AC-7 | unit and functional green, discriminated | `TestKernelRouteType`, `TestVPPRouteType`, `test/plugin/fib-blackhole.ci` | same `.ci` reads the installed `unreachable` (7) and `prohibit` (8) routes |
+| AC-10 | integration and functional green, `.ci` discriminated | `TestMPLSIntegration_Push`, `TestKernelMPLSPush`, `test/plugin/fib-mpls-kernel.ci` (needs-linux) | `.ci` reads `encap mpls 100/200 via 192.0.2.1 ... proto 250` from the kernel. PASS green, FAIL with `buildMPLSEncap` truncating the stack to its first label (got `encap mpls 100`). `kernelEntries` collapses iproute2's double-space padding, which failed the first green run |
 | AC-11 | needs-linux integration and VPP unit exist | `srv6_integration_linux_test.go`, `TestSRv6SteerAdd`, `TestSRv6SteerWithdraw` | recorded delivered (learned 1113) |
 | AC-12 | unit exists | `TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB`, `TestNHResolver_Tracking` | no functional run |
 | AC-14 | unit exists | `TestECMPMemberFail`, `TestECMPRecursiveMemberLifecycle` | no functional run |
-| AC-15 | owed, no evidence | none | needs a VPP dataplane beside the kernel; no comparison test exists |
+| AC-15 | BLOCKED, no evidence | none | No test compares kernel and VPP forwarding for one input. The only real-VPP route is `./le test deployment vpp-test` (`internal/le/test/deployment/vppevidence.go`, `ligato/vpp-base:latest` in a privileged Docker container); its `ipv4-fib` and `mpls-fib` scenarios check presence, label and withdrawal in `show ip fib` only, with no kernel side, no discard type and no ECMP. The Docker host here is colima, kernel 6.8, where the owner banned Docker interop, and no QEMU action boots a VPP dataplane (`vpp-hugepages-test` checks hugepages only). Needs a 7.x-kernel Docker host (or VPP inside the QEMU guest) and a new scenario that feeds one route set to fib-kernel and fib-vpp and compares reachability |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
