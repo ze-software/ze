@@ -85,7 +85,7 @@ func handleBgpPeerSave(ctx *pluginserver.CommandContext, args []string) (*plugin
 		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error: tb.Err(errSaveTakesNoSelector).Str(". Got ").Quoted(args[0]).String(),
+			Error:  tb.Err(errSaveTakesNoSelector).Str(". Got ").Quoted(args[0]).String(),
 		}, fmt.Errorf("%w, got %q", errSaveTakesNoSelector, args[0])
 	}
 
