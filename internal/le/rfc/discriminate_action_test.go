@@ -1,13 +1,14 @@
 // Design: docs/architecture/core-design.md -- recording a proof that was observed
 // Overview: discriminate_action.go -- the overlay this file's cases are taken from
 //
-// The cases here cover the prune that runs after a producer's body is replaced
-// by a halt. Each one states the source the overlay would carry and asserts
-// which imports survive it, because an import the compiler no longer sees used
-// fails the BUILD, and a build failure is reported where a red was owed.
+// The cases cover checker source selection and the import prune after a
+// producer's body is replaced by a halt. A wrong scenario selects the wrong
+// proof; an orphaned import fails the build before the proof can run.
 package rfc
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -158,5 +159,43 @@ func pick() uint32 {
 	}
 	if strings.Contains(pruned, `"fmt"`) {
 		t.Errorf("fmt, used nowhere, survived the prune:\n%s", pruned)
+	}
+}
+
+// TestInteropScenarioOfConstantDeclarations keeps ordinary single declarations
+// and grouped declarations usable through the recorder's source resolver.
+func TestInteropScenarioOfConstantDeclarations(t *testing.T) {
+	const source = "internal/le/interoplab/bgp/check_fixture.go"
+	tests := []struct {
+		name        string
+		declaration string
+	}{
+		{
+			name:        "single",
+			declaration: "\tconst name = \"fixture-scenario\"\n",
+		},
+		{
+			name:        "grouped",
+			declaration: "\tconst (\n\t\tname = \"fixture-scenario\"\n\t)\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(tree, interopScenarioRel, "fixture-scenario"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			reader := newTextReader(map[string]string{
+				source: "package bgp\n\nfunc checkFixture() {\n" + tt.declaration + "}\n",
+			})
+			record := DiscriminationRecord{Unit: source + "::checkFixture"}
+			scenario, err := interopScenarioOf(tree, reader, newScopeIndex(), record)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if scenario != "fixture-scenario" {
+				t.Fatalf("selected scenario = %q, want fixture-scenario", scenario)
+			}
+		})
 	}
 }

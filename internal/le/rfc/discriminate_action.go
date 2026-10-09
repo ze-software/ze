@@ -89,7 +89,7 @@ const revertMarker = "disabled this producer to observe the red"
 // scenario is then confirmed against test/interop/scenarios/, so the value that
 // reaches the runner's environment comes from the tree rather than from a
 // record's free text.
-var interopScenarioRE = regexp.MustCompile(`(?m)^\s*name\s*=\s*"([a-z0-9][a-z0-9-]*)"`)
+var interopScenarioRE = regexp.MustCompile(`(?m)^\s*(?:const\s+)?name\s*=\s*"([a-z0-9][a-z0-9-]*)"`)
 
 // interopScenarioRel is where a scenario's directory lives.
 const interopScenarioRel = "test/interop/scenarios"

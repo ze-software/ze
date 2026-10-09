@@ -1156,6 +1156,10 @@ use the mutant route inside the value that the initializer returns
 | `revert` on a `.ci` | the producing function's body replaced by a halt | `le test <suite> <name>`, ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay |
 | `revert` on an interop checker | the same | `./le test integration interop` with `INTEROP_SCENARIO` set to the scenario the checker's own `const name` declares |
 
+The scenario binding accepts both `const name = "<scenario>"` and a grouped
+`const` declaration containing `name = "<scenario>"`. In either form the named
+checker must resolve uniquely and the scenario must exist in the tree.
+
 A Go unit runs where its own build constraints hold, and the file decides, not
 the author. `unitNeedsGuest` (`internal/le/rfc/discriminate_guest.go`) asks
 `go/build` of the tagged file, reading the `//go:build` line and the `_linux`
