@@ -640,11 +640,17 @@ func checkBackupPathToMP(ctx context.Context, lab interoplab.CheckerLab, timeout
 	if err != nil {
 		return err
 	}
-	if len(ero) != 1 || !strings.Contains(ero[0], addressProtectedMP+"/32") {
+	if len(ero) != 1 {
+		return fmt.Errorf("backup PATH carries ERO %q, want the merge point %s alone", ero, addressProtectedMP)
+	}
+	if !strings.Contains(ero[0], addressProtectedMP+"/32") {
 		return fmt.Errorf("backup PATH carries ERO %q, want the merge point %s alone", ero, addressProtectedMP)
 	}
 	answers := func(message rsvpMessage) bool {
-		if !strings.HasPrefix(message.target, addressZeTransit) || !strings.Contains(message.text, "Resv Message") {
+		if !strings.HasPrefix(message.target, addressZeTransit) {
+			return false
+		}
+		if !strings.Contains(message.text, "Resv Message") {
 			return false
 		}
 		if !strings.HasPrefix(message.source, addressFreeRtrEgress) && !strings.HasPrefix(message.source, addressProtectedMP) {

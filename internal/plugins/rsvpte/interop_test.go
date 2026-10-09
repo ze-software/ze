@@ -713,7 +713,9 @@ func TestEngineZeToZeMultiIfaceAdmissionInterop(t *testing.T) {
 // the LSP up, and A re-optimizes make-before-break. Every PATH/RESV/PathErr is
 // each engine's own encoded bytes decoded by its peer.
 // PREVENTS: a wire or control-flow divergence in the multi-node FRR exchange that
-// single-engine tests cannot surface (no open-source RSVP-TE peer exists).
+// single-engine tests cannot surface. Against another implementation, the
+// freeRtr interop scenario plr-backup-path-to-egress-merge-point covers a Ze PLR
+// signaling the backup PATH to a freeRtr merge point.
 func TestEngineZeToZeFRRLocalRepair(t *testing.T) {
 	fab := newFabric()
 	aAddr := netip.MustParseAddr("10.0.0.1") // head-end

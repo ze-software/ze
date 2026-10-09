@@ -343,10 +343,12 @@ SESSION_ATTRIBUTE object or not, SHALL forward the object unmodified." The
 decoder keeps the first received object's bytes (`ParsedMessage.SessionAttrRaw`),
 and the transit holds an owned copy in its path state block. Unchanged refreshes
 reuse that copy. A C-Type 1 object keeps its affinity masks and flags even when
-it requests no protection. Only the head-end builds a SESSION_ATTRIBUTE from its
-own protection request.
+it requests no protection. Only a head-end builds a SESSION_ATTRIBUTE: a tunnel
+head-end from its own protection request, and a bypass head-end from the bypass
+name with every flag clear (`mpls-rsvp-te-fast-reroute.md`).
 
 <!-- source: internal/plugins/rsvpte/build.go -- buildPath -->
+<!-- source: internal/plugins/rsvpte/register.go -- bypassSessionAttr -->
 <!-- source: internal/plugins/rsvpte/engine.go -- handlePathTransit -->
 
 The one-octet Name Length bounds the padded name at 256 bytes. The decoder

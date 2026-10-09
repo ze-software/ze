@@ -113,8 +113,10 @@ type pathStateBlock struct {
 	// A transit node fills it from the received PATH (protectionFromPath).
 	Protection *protectionRequest
 	// SessionAttr is the SESSION_ATTRIBUTE object exactly as a transit node
-	// received it, header included, and nil at the head-end and when the PATH
-	// carried none. RFC 3209 Section 4.7.4: "All RSVP routers, whether they
+	// received it, header included, and nil when the PATH carried none. At the
+	// head-end it is nil for a tunnel (Protection encodes the object instead)
+	// and holds the bypass's own object for a bypass LSP (register.go,
+	// bypassSessionAttr). RFC 3209 Section 4.7.4: "All RSVP routers, whether they
 	// support the SESSION_ATTRIBUTE object or not, SHALL forward the object
 	// unmodified", so the relay copies these bytes rather than rebuilding the
 	// object from the decoded fields (which would drop a C-Type 1 peer's
