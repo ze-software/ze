@@ -148,6 +148,12 @@ must be cheap.** `AddRef` and the handle's byte copy are lock-safe, using
 `sync.Once` plus an atomic. Anything heavier belongs on the subscriber's own
 goroutine. Sharding must keep this contract.
 
+`Inspect` keeps the shard read lock while its callback reads a live
+`PathGroup`; the callback must not retain the group or its `Paths` slice.
+`Best` selects and copies the best `Path` inside that same read scope, so an
+in-place upsert cannot race selection. `Lookup` returns a shallow group copy:
+its slice is not a snapshot and must not be read alongside writers.
+
 **Code that walked the old `multi` map now walks `pathSet` inside the trie
 value.** Single-path families are unaffected.
 

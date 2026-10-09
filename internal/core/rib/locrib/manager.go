@@ -447,14 +447,16 @@ func (r *RIB) Inspect(fam family.Family, prefix netip.Prefix, fn func(PathGroup)
 	return found
 }
 
-// Best returns the currently selected best Path for (fam, prefix).
+// Best returns the currently selected best Path for (fam, prefix), selected
+// under the shard read lock rather than from Lookup's borrowed Paths slice.
 // Returns (zero, false) when the prefix has no entry or no valid best.
 func (r *RIB) Best(fam family.Family, prefix netip.Prefix) (Path, bool) {
-	g, ok := r.Lookup(fam, prefix)
-	if !ok {
-		return Path{}, false
-	}
-	return g.best()
+	var best Path
+	var found bool
+	r.Inspect(fam, prefix, func(g PathGroup) {
+		best, found = g.best()
+	})
+	return best, found
 }
 
 // LPM performs a longest-prefix-match lookup for addr within the given
