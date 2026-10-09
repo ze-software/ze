@@ -27,6 +27,10 @@ const (
 	lifecyclePrefix         = "192.0.2.0/24"
 )
 
+// lifecycleFirstRunMarker tells the driver, started again by the second daemon
+// of test/plugin/api-peer-create-delete-rib.ci, that the lifecycle already ran.
+const lifecycleFirstRunMarker = "api-peer-create-delete-rib.first-run"
+
 // peerCreateDeleteRIB13 drives the runtime peer lifecycle through the command
 // dispatcher a plugin and an operator share, and reads every effect back from
 // the daemon rather than trusting an answer: the peer table, the RIB, the
@@ -38,6 +42,16 @@ const (
 func peerCreateDeleteRIB13(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return errors.New("peer lifecycle fixture requires the REST port")
+	}
+	// The .ci starts a second daemon on the file this run leaves behind, and the
+	// file names this same plugin. The marker sends that second run to the
+	// start check. It is written first, so a failed first run still hands the
+	// second daemon to the check.
+	if _, err := os.Stat(lifecycleFirstRunMarker); err == nil {
+		return observe13(ctx, "lifecycle-driver", lifecycleStartedOnTheFile)
+	}
+	if err := os.WriteFile(lifecycleFirstRunMarker, nil, 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", lifecycleFirstRunMarker, err)
 	}
 	driver := restLifecycle13{
 		base:    "http://127.0.0.1:" + args[0] + "/api/v1",
@@ -286,6 +300,23 @@ func lifecycleDeleteConfiguredPeer(ctx context.Context, plugin *sdk.Plugin) erro
 		return fmt.Errorf("a reload of the unchanged file did not bring %s back", lifecycleConfiguredPeer)
 	}
 	fmt.Fprintln(os.Stderr, "OK: deleting a configured peer leaves the file, and a reload brings it back")
+	return nil
+}
+
+// lifecycleStartedOnTheFile holds the fresh-start half of AC-7: a daemon
+// STARTED on the file the first daemon left unchanged, not one reloading it,
+// runs the configured peer the first daemon deleted, and does not run the peer
+// that daemon created, which the file never named.
+func lifecycleStartedOnTheFile(ctx context.Context, plugin *sdk.Plugin) error {
+	if _, present := waitPeerPresent13(ctx, plugin, lifecycleConfiguredPeer); !present {
+		return fmt.Errorf("a daemon started on the unchanged file does not run the configured peer %s", lifecycleConfiguredPeer)
+	}
+	// The whole peer set is loaded from the file in one step at start, so once
+	// the configured peer runs, an absent created peer is an answer, not a race.
+	if _, created := peerState13(ctx, plugin, lifecycleCreatedPeer); created {
+		return fmt.Errorf("a daemon started on the file runs the created peer %s, which the file never named", lifecycleCreatedPeer)
+	}
+	fmt.Fprintln(os.Stderr, "OK: a daemon started on the unchanged file runs the deleted configured peer")
 	return nil
 }
 

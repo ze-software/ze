@@ -5,8 +5,8 @@
 #            written; an unrelated commit keeps the created peer on its session;
 #            delete bgp peer removes the peer, its route leaves the RIB, the
 #            configured peer receives the WITHDRAW and a subscribed plugin is
-#            told; deleting a configured peer leaves the file alone and a reload
-#            brings that peer back.
+#            told; deleting a configured peer leaves the file alone, a reload
+#            brings that peer back, and so does a daemon STARTED on that file.
 # PREVENTS: a runtime peer that exists in the peer table and nowhere else, a
 #           delete that leaves routes behind, a create that writes the file, and
 #           a commit that tears a runtime peer down.
@@ -135,7 +135,6 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=dest
 cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=source
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
-expect=exit:code=0
 expect=stderr:contains=OK: the created peer is listed and established
 expect=stderr:contains=OK: the created peer's route is in the RIB and is the best path
 expect=stderr:contains=OK: the configuration file and the running configuration name no created peer
@@ -143,3 +142,12 @@ expect=stderr:contains=OK: an unrelated commit keeps the created peer and its ro
 expect=stderr:contains=OK: a reload keeps the created peer and its routes
 expect=stderr:contains=OK: the deleted peer's route left the RIB and a plugin was told
 expect=stderr:contains=OK: deleting a configured peer leaves the file, and a reload brings it back
+# The first daemon exits once its driver is done. The barrier waits for that
+# exit, then a fresh daemon starts on the file the first one left unchanged.
+# That file names the same driver, which finds its first-run marker and checks
+# the start (AC-7).
+cmd=foreground:seq=4:exec=le test fixture daemon/await-exit:timeout=30s
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=5:exec=ze start ze-bgp.conf:timeout=30s
+expect=stderr:contains=OK: a daemon started on the unchanged file runs the deleted configured peer
+expect=exit:code=0

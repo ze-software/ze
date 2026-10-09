@@ -23,13 +23,29 @@ import (
 // itself because a peer name cannot start with a digit.
 const savedPeerName = "peer-192.0.2.7"
 
+// savedFirstRunMarker tells the plugin, started again by the second daemon of
+// test/plugin/api-peer-save.ci, that the save scenario already ran.
+const savedFirstRunMarker = "api-peer-save.first-run"
+
 // plugin01APIPeerSave drives `update bgp config` over the whole path an
 // operator and a plugin share: the command dispatcher, the handler, the config
 // editor and the file on disk.
 //
 // The file is read back rather than the answer trusted, because a handler that
 // reports a save it never performed is the failure this test exists to catch.
+//
+// The .ci then starts a second daemon on the file this run left behind, and
+// the saved file names this same plugin, so the second run finds the marker
+// and checks what the fresh daemon brought up instead. The marker is written
+// first, so a failed first run still hands the second daemon to the start
+// check, which then reports what the file it started on lacks.
 func plugin01APIPeerSave(ctx context.Context, plugin *sdk.Plugin) error {
+	if _, err := os.Stat(savedFirstRunMarker); err == nil {
+		return plugin01SavedFileStarts(ctx, plugin)
+	}
+	if err := os.WriteFile(savedFirstRunMarker, nil, 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", savedFirstRunMarker, err)
+	}
 	if err := plugin01SaveCreatesAPeer(ctx, plugin); err != nil {
 		return err
 	}
@@ -199,6 +215,31 @@ func plugin01SaveSurvivesAReload(ctx context.Context, plugin *sdk.Plugin) error 
 			savedPeerName)
 	}
 	fmt.Fprintln(os.Stderr, "OK: the saved file survives a reload")
+	return nil
+}
+
+// plugin01SavedFileStarts holds the fresh-start half of AC-10 and AC-11: a
+// daemon STARTED on the file the save wrote, not one reloading it, runs the
+// created peer under the name the file gave it and does not run the peer the
+// save took out. Nothing but the file can have told this daemon either fact.
+func plugin01SavedFileStarts(ctx context.Context, plugin *sdk.Plugin) error {
+	var rows map[string]any
+	if !Poll(ctx, 80, plugin01PollDelay, func() bool {
+		current, status, err := plugin01DispatchMap(ctx, plugin, "show bgp peer list")
+		if err != nil || status != rpc.StatusDone {
+			return false
+		}
+		rows = plugin01PeerRows(current)
+		return plugin01Object(rows["192.0.2.7"])["name"] == savedPeerName
+	}) {
+		return fmt.Errorf("a daemon started on the saved file runs no peer 192.0.2.7 named %s: %v", savedPeerName, rows)
+	}
+	// The whole peer set is loaded from the file in one step at start, so once
+	// the saved peer runs, an absent 127.0.0.1 is an answer, not a race.
+	if _, deleted := rows["127.0.0.1"]; deleted {
+		return fmt.Errorf("a daemon started on the saved file runs the deleted peer 127.0.0.1: %v", rows)
+	}
+	fmt.Fprintln(os.Stderr, "OK: a daemon started on the saved file runs the saved peer and not the deleted one")
 	return nil
 }
 

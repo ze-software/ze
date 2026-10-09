@@ -1,8 +1,10 @@
 # Test: update bgp config writes the running peer set to the configuration file
 # VALIDATES: a peer created at runtime is written to the file, a peer deleted at
 #            runtime is taken out of it, and the command refuses a selector.
-# PREVENTS: a save that persists presence only, or one that answers success for
-#           a file it never wrote.
+#            A second daemon is then STARTED on the saved file, and it runs the
+#            saved peer and not the deleted one (AC-10, AC-11).
+# PREVENTS: a save that persists presence only, one that answers success for
+#           a file it never wrote, or a file a reload accepts and a start does not.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -52,7 +54,6 @@ EOF_CONF
 # Process orchestration
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
-expect=exit:code=0
 expect=stderr:contains=OK: the created peer is in the file
 expect=stderr:contains=OK: the deleted peer is out of the file
 expect=stderr:contains=OK: the saved file survives a reload
@@ -61,3 +62,11 @@ expect=stderr:contains=OK: the saved file survives a reload
 expect=stderr:contains=sighup reload complete
 reject=stderr:pattern=reload error
 expect=stderr:contains=OK: a selector is refused
+# The first daemon exits once its plugin is done. The barrier waits for that
+# exit, then a fresh daemon starts on the file the save wrote. That file names
+# the same plugin, which finds its first-run marker and checks the start.
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:timeout=30s
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=ze start ze-bgp.conf:timeout=30s
+expect=stderr:contains=OK: a daemon started on the saved file runs the saved peer and not the deleted one
+expect=exit:code=0

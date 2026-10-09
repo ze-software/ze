@@ -1814,6 +1814,23 @@ therefore be checked against the rewritten source and the post-reload behaviour;
 a reload log alone does not prove that the intended bytes were applied.
 <!-- source: internal/test/runner/runner_config.go -- zeConfigFileName -->
 
+A reload is not a start. To prove that a daemon STARTED on the file a first
+daemon left behind behaves as required, run the two daemons in sequence:
+`cmd=foreground:seq=N:exec=le test fixture daemon/await-exit` waits until the
+daemon named in `daemon.pid` has exited, and the next command,
+`exec=ze start ze-bgp.conf`, starts a fresh daemon on that file. The runner
+does not reap the first daemon before the test ends, so the barrier reads the
+process state (state `Z` or no process) rather than `kill(pid, 0)`. A runner
+waits only on a non-ze foreground command that is not the last one, which is
+what makes the barrier block. The file usually names the same observer plugin,
+so the plugin tells its two runs apart with a marker file it writes first.
+Each `expect=stderr` line binds to the command above it, and the file-level
+`expect=exit` asserts the LAST daemon only: every step of the first daemon
+needs its own `OK:` line. `test/plugin/api-peer-save.ci` and
+`test/plugin/api-peer-create-delete-rib.ci` use it.
+<!-- source: internal/test/fixture/daemon_await_exit_fixture.go -- daemonAwaitExit -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+
 ### 5. VPP Tests (`test/vpp/`)
 
 VPP functional tests are outside the default release gate. Run them with:
