@@ -18,9 +18,10 @@ func TestSchema_ZeHubModule(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-hub-conf")
+	mod := schema.GetModule("ze-hub-conf")
 	require.NotNil(t, mod, "ze-hub-conf module should exist")
 
 	// Check namespace

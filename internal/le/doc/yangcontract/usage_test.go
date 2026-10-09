@@ -4,6 +4,7 @@
 package docyangcontract
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 // fixtureLoader builds a loader holding the embedded extensions and one command
 // module written for the test, so a rendering rule is proven against a module a
 // reader can see rather than against the whole checkout.
-func fixtureLoader(t *testing.T, module string) *yang.Loader {
+func fixtureLoader(t *testing.T, module string) *yang.Resolved {
 	t.Helper()
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
@@ -22,10 +23,11 @@ func fixtureLoader(t *testing.T, module string) *yang.Loader {
 	if err := loader.AddModuleFromText("ze-fixture-cmd", module); err != nil {
 		t.Fatalf("load the fixture module: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve the fixture module: %v", err)
 	}
-	return loader
+	return schema
 }
 
 // proseModule declares one command whose description prescribes a CLI spelling,
@@ -442,5 +444,36 @@ func TestUsageContractRefusesDeletingAValuePositionLine(t *testing.T) {
 	}
 	if report.Valid {
 		t.Error("the gate accepted a deletion that hid a value-position difference")
+	}
+}
+
+// TestYANGContractBaselineRefusesFailedResolution: the HEAD usage baseline is
+// built only from a module set that resolved, so a module whose HEAD text holds
+// a pattern resolution refuses yields an error and no baseline.
+//
+// VALIDATES: AC-21, the usage.go policy is the shared transition: a pattern or
+// structure failure refuses the baseline as an undeclared extension does.
+// PREVENTS: the third resolution policy, which refused only
+// ErrUndeclaredExtension and built a baseline tree from a module set whose
+// pattern check had failed, reporting the module it lacked as deleted usage.
+func TestYANGContractBaselineRefusesFailedResolution(t *testing.T) {
+	registered := yang.Modules()
+	if len(registered) == 0 {
+		t.Fatal("this test binary registers no YANG module to replace")
+	}
+	name := registered[0].Name
+	files := map[string]string{name: "head/" + name}
+	blobs := map[string]string{"head/" + name: `module ze-fixture-head-refused {
+  namespace "urn:ze:fixture:head-refused";
+  prefix zfh;
+  leaf name { type string { pattern '\i+'; } }
+}`}
+
+	baseline, err := usageBaseline(files, blobs)
+	if !errors.Is(err, yang.ErrUncompilablePattern) {
+		t.Fatalf("a HEAD module set with a refused pattern answered %v, want ErrUncompilablePattern", err)
+	}
+	if baseline != nil {
+		t.Fatalf("a refused HEAD module set built a baseline of %d rows", len(baseline))
 	}
 }

@@ -355,13 +355,13 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// the schema, and DefaultLoader is strict: a module that fails to load
 	// disables the server, as a schema failure does, rather than serving a UI
 	// whose command tree silently lacks it.
-	loader, loaderErr := yangloader.DefaultLoader()
+	resolved, loaderErr := yangloader.DefaultLoader()
 	if loaderErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("warning: web server disabled: operational command tree: ").Err(loaderErr).Byte('\n').StdErr() //nolint:errcheck // a warning to stderr has nowhere further to report
 		return nil, nil
 	}
-	commandTree := yangloader.BuildCommandTree(loader)
+	commandTree := yangloader.BuildCommandTree(resolved)
 	// Strict ze:related validation against the full operational command
 	// tree. Surfaces typos and renamed-command drift at hub startup so
 	// operators see the diagnostic before any workbench click. Logged as
@@ -414,7 +414,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		commandCompleter = cli.NewCommandCompleter(commandTree)
 	}
 	// Create CLI completer for Tab/? autocomplete.
-	completer := cli.NewCompleter()
+	completer, err := cli.NewCompleter()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: web server disabled: completer: %v\n", err)
+		return nil, nil
+	}
 
 	// The caller's one live view of the local credentials, shared by the session
 	// store, by the web fallback authenticator below, and by the AAA chain the

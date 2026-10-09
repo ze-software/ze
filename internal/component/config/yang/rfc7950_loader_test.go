@@ -19,7 +19,8 @@ func loadModuleTexts(t *testing.T, texts ...string) error {
 			return err
 		}
 	}
-	return loader.Resolve()
+	_, resolveErr := loader.Resolve()
+	return resolveErr
 }
 
 // moduleFileName derives the file name goyang expects from the module
@@ -155,8 +156,9 @@ func TestRFC7950ModuleLoadAccepted(t *testing.T) {
 	loader := NewLoader()
 	long := strings.Repeat("a", 64)
 	require.NoError(t, loader.AddModuleFromText("m.yang", `module m { namespace "urn:m"; prefix m; leaf `+long+` { type string; } }`))
-	require.NoError(t, loader.Resolve())
-	entry := loader.GetEntry("m")
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	entry := schema.GetEntry("m")
 	require.NotNil(t, entry)
 	assert.NotNil(t, entry.Dir[long], "the 64-character identifier must be found in the entry tree")
 }

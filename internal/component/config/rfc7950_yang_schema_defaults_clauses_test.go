@@ -16,8 +16,9 @@ func leafNodeAndBuildError(t *testing.T, moduleText string) (*LeafNode, error) {
 	t.Helper()
 	loader := yang.NewLoader()
 	require.NoError(t, loader.AddModuleFromText("m.yang", moduleText))
-	require.NoError(t, loader.Resolve())
-	entry := loader.GetEntry("m")
+	schema, resolveErr := loader.Resolve()
+	require.NoError(t, resolveErr)
+	entry := schema.GetEntry("m")
 	require.NotNil(t, entry)
 	leaf := entry.Dir["a"]
 	require.NotNil(t, leaf, "module must define leaf a")

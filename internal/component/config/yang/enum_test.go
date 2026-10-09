@@ -176,10 +176,11 @@ func TestEnumValueSummariesFollowATypedef(t *testing.T) {
 	if err := loader.AddModuleFromText("ze-typedef-enum-conf.yang", typedefEnumConf); err != nil {
 		t.Fatalf("AddModuleFromText conf: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	entry := loader.GetEntry("ze-typedef-enum-conf")
+	entry := schema.GetEntry("ze-typedef-enum-conf")
 	if entry == nil || entry.Dir["settings"] == nil {
 		t.Fatal("the fixture module has no settings container")
 	}

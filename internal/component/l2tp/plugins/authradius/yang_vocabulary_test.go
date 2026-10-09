@@ -85,9 +85,9 @@ func packetTypeWords(t *testing.T, attribute *gyang.Entry, name string) []string
 }
 
 // entryAt walks one path of the loaded model, and FAILS on a name the tree does not
-// carry. DefaultLoader discards its own LoadRegistered and Resolve errors, so a model
-// that loaded half way comes back looking whole (ai/rules/evidence.md).
-func entryAt(t *testing.T, loader *configyang.Loader, path []string) *gyang.Entry {
+// carry, so a path that names nothing never answers an empty entry that every
+// comparison would pass over (ai/rules/evidence.md).
+func entryAt(t *testing.T, loader *configyang.Resolved, path []string) *gyang.Entry {
 	t.Helper()
 
 	entry := loader.GetEntry(radiusModule)

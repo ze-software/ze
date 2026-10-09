@@ -594,7 +594,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 	mux.Handle("GET /cli", authWrap(HandleCLIPageHTTP(renderer, false)))
 	mux.Handle("POST /cli", mutationWrap(HandleCLICommandWithAuthorizer(editorMgr, schema, renderer, authorizer)))
 	mux.Handle("/cli/complete", authWrap(HandleCLICompleteWithCommandCompleter(
-		cli.NewCompleter(), cli.NewCommandCompleter(webGoldenCommandTree()), editorMgr, schema)))
+		newCompleter(t), cli.NewCommandCompleter(webGoldenCommandTree()), editorMgr, schema)))
 	mux.Handle("POST /cli/terminal", mutationWrap(HandleCLITerminalWithDispatchAuthorizerAndAudit(
 		editorMgr, schema, tree, dispatch, authorizer, nil)))
 	mux.Handle("POST /cli/mode", mutationWrap(HandleCLIModeToggle(editorMgr, schema, renderer)))

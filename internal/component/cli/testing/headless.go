@@ -39,11 +39,11 @@ var errCommandTreeIsEmpty = errors.New(
 // the live RIB, and a plugin command comes from the live dispatcher. A headless
 // test has neither, so a completion over a value stays empty here.
 var headlessCommandTree = sync.OnceValues(func() (*command.Node, error) {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("loading the YANG modules for the command tree: %w", err)
 	}
-	tree := yang.BuildCommandTree(loader)
+	tree := yang.BuildCommandTree(schema)
 	if len(tree.Children) == 0 {
 		return nil, errCommandTreeIsEmpty
 	}

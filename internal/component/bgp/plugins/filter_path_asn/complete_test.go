@@ -29,7 +29,7 @@ var asnLeafPath = []string{
 // alone would not.
 func completionsFor(t *testing.T, input string) []cli.Completion {
 	t.Helper()
-	completer := cli.NewCompleter()
+	completer := newCompleter(t)
 	require.NotNil(t, completer)
 	return completer.Complete(input, nil)
 }
@@ -98,7 +98,7 @@ func TestCompletionIsNeverAConstraint(t *testing.T) {
 	})
 
 	t.Run("the editor accepts an unlisted ASN", func(t *testing.T) {
-		completer := cli.NewCompleter()
+		completer := newCompleter(t)
 		require.NoError(t, completer.ValidateValueAtPath(asnLeafPath, unlisted))
 	})
 
@@ -179,4 +179,15 @@ func TestCompletionRegistersUnderTheNameTheSchemaCarries(t *testing.T) {
 	assert.Equal(t, len(positionLeaves)+1,
 		strings.Count(string(schema), `ze:validate "`+curatedValidatorName+`"`),
 		"the five position leaf-lists and nth's own asn leaf-list carry the name this package registers, and regex does not")
+}
+
+// newCompleter builds the CLI completer, and FAILS the test when the module set
+// this test binary registers does not resolve.
+func newCompleter(t testing.TB) *cli.Completer {
+	t.Helper()
+	completer, err := cli.NewCompleter()
+	if err != nil {
+		t.Fatalf("cli.NewCompleter: %v", err)
+	}
+	return completer
 }

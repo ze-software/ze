@@ -181,11 +181,11 @@ func sessionTranscript(username, remoteAddr string) *cli.TranscriptWriter {
 // returned with its cause, so the session refuses to start rather than run
 // with a nil tree.
 func buildCommandTree() (*command.Node, error) {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return nil, fmt.Errorf("YANG loader: %w", err)
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	tree := yang.BuildCommandTree(loader)
+	tree := yang.BuildCommandTree(schema)
 	command.WireValueHints(tree)
 	return tree, nil
 }

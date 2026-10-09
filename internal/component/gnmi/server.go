@@ -69,7 +69,7 @@ type Server struct {
 	config   Config
 	tree     func() *zeconfig.Tree
 	sessions *api.ConfigSessionManager
-	loader   func() (*yangloader.Loader, error)
+	loader   func() (*yangloader.Resolved, error)
 	notifier *ChangeNotifier
 	srv      *grpc.Server
 	listener net.Listener
@@ -108,7 +108,7 @@ func (s *Server) Status() ServerStatus {
 }
 
 // NewServer creates a gNMI server.
-func NewServer(cfg Config, tree func() *zeconfig.Tree, sessions *api.ConfigSessionManager, loader func() (*yangloader.Loader, error), notifier *ChangeNotifier) *Server {
+func NewServer(cfg Config, tree func() *zeconfig.Tree, sessions *api.ConfigSessionManager, loader func() (*yangloader.Resolved, error), notifier *ChangeNotifier) *Server {
 	return &Server{
 		config:   cfg,
 		tree:     tree,

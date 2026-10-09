@@ -62,10 +62,11 @@ func probeCompleter(t *testing.T) *Completer {
 	if err := loader.AddModuleFromText("ze-test-backend-conf", backendProbeModule); err != nil {
 		t.Fatalf("add the probe module: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve the model: %v", err)
 	}
-	return &Completer{loader: loader}
+	return &Completer{schema: schema}
 }
 
 // TestBackendRootsSeeAContainerCompleterGoDoesNotName is the discrimination
@@ -127,7 +128,7 @@ func TestEveryBackendRootCarriesAnOpenBackendLeaf(t *testing.T) {
 	}
 
 	for _, root := range roots {
-		leaf := findSchemaLeaf(t, completer.loader, root, leafBackend)
+		leaf := findSchemaLeaf(t, completer.schema, root, leafBackend)
 		if leaf == nil {
 			t.Errorf("root %q: the model declares no %q leaf there", root, leafBackend)
 			continue
@@ -163,7 +164,7 @@ func TestDeriveBackendsReadsADerivedRoot(t *testing.T) {
 
 // findSchemaLeaf resolves a slash path against every loaded conf module and
 // answers the named leaf under it, or nil when no module declares it.
-func findSchemaLeaf(t *testing.T, loader *yang.Loader, path, leaf string) *gyang.Entry {
+func findSchemaLeaf(t *testing.T, loader *yang.Resolved, path, leaf string) *gyang.Entry {
 	t.Helper()
 
 	for _, module := range loader.ConfModuleNames() {

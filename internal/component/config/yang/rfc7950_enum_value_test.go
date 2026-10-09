@@ -87,15 +87,16 @@ func TestEnumNamesFollowTheAssignedValues(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.AddModuleFromText("m.yang",
 		enumModule(`leaf x { type enumeration { enum p { value -5; } enum q; enum r { value -3; } } }`)))
-	require.NoError(t, loader.Resolve())
-	leaf := loader.GetEntry("m").Dir["x"]
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	leaf := schema.GetEntry("m").Dir["x"]
 	require.NotNil(t, leaf)
 
 	names, err := EnumNamesDeclared(leaf)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"p", "q", "r"}, names)
 
-	def, ok := argDefFor(leaf, "x")
+	def, ok := compiledPatterns{}.argDefFor(leaf, "x")
 	require.True(t, ok)
 	assert.Equal(t, []string{"p", "q", "r"}, enumValuesOf(def))
 }

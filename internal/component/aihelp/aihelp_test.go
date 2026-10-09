@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+
 	// Registers ze-plugin-cmd.yang and ze-system-cmd.yang, which document
 	// builtin RPCs, so TestBuildPublishesEachRPCOnce meets the overlap.
 	_ "github.com/ze-software/ze/internal/core/ipc/yang"
@@ -259,7 +260,7 @@ func TestBuildPublishesEachRPCOnce(t *testing.T) {
 }
 
 // TestSchemaRegistryRefusesABrokenRPCPointer proves a ze:rpc pointer the schema
-// cannot honour reaches the caller as an error.
+// cannot honor reaches the caller as an error.
 //
 // VALIDATES: schemaRegistryFrom, the step SchemaRegistry and Build publish
 // through, returns yang.ErrRPCPointer for a ze:command node whose ze:rpc names
@@ -279,9 +280,10 @@ func TestSchemaRegistryRefusesABrokenRPCPointer(t *testing.T) {
     }
 }`
 	require.NoError(t, loader.AddModuleFromText("ze-fixture-cmd.yang", module))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	schemaReg, err := schemaRegistryFrom(loader)
+	schemaReg, err := schemaRegistryFrom(schema)
 	require.ErrorIs(t, err, yang.ErrRPCPointer)
 	assert.Nil(t, schemaReg)
 }

@@ -27,7 +27,7 @@ func TestEveryRegisteredModuleResolves(t *testing.T) {
 	if err := loader.LoadRegistered(); err != nil {
 		t.Fatalf("LoadRegistered: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	if _, err := loader.Resolve(); err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
 	if _, err := yang.DefaultLoader(); err != nil {

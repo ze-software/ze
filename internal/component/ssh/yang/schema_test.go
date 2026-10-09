@@ -20,9 +20,10 @@ func TestSchema_ZeSSHModule(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-ssh-conf")
+	mod := schema.GetModule("ze-ssh-conf")
 	require.NotNil(t, mod, "ze-ssh-conf module should exist")
 
 	// Check namespace
@@ -51,9 +52,10 @@ func TestSchema_ZeSSHEntry(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-ssh-conf")
+	entry := schema.GetEntry("ze-ssh-conf")
 	require.NotNil(t, entry, "ze-ssh-conf entry should exist")
 
 	environment := entry.Dir["environment"]
@@ -71,9 +73,10 @@ func TestSchema_ZeSSHOwnsPublicKeyAugmentOnly(t *testing.T) {
 	loader := yang.NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	module := loader.GetModule("ze-ssh-conf")
+	module := schema.GetModule("ze-ssh-conf")
 	require.NotNil(t, module)
 
 	var publicKeyAugmentFound bool

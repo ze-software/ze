@@ -108,14 +108,14 @@ func skipReason(wireMethod string) string {
 // fixture by calling this function (spec-le-is-a-ze-binary, step 4: the
 // scripts' --root flag became ZE_REPO_ROOT and an argument).
 func Validate(root string) (ValidationResult, error) {
-	loader, err := yang.DefaultLoader()
+	resolved, err := yang.DefaultLoader()
 	if err != nil {
 		return ValidationResult{}, err
 	}
 
 	// Discover -cmd modules dynamically from the loaded YANG modules.
 	var cmdModules []string
-	for _, name := range loader.ModuleNames() {
+	for _, name := range resolved.ModuleNames() {
 		if strings.HasSuffix(name, cmdModuleSuffix) {
 			cmdModules = append(cmdModules, name)
 		}
@@ -126,7 +126,7 @@ func Validate(root string) (ValidationResult, error) {
 	var commands []CommandEntry
 	var warnings []string
 	for _, mod := range cmdModules {
-		entry := loader.GetEntry(mod)
+		entry := resolved.GetEntry(mod)
 		if entry == nil {
 			warnings = append(warnings, mod)
 			continue
@@ -195,7 +195,7 @@ func Validate(root string) (ValidationResult, error) {
 	for _, rpc := range rpcs {
 		served[rpc.WireMethod] = true
 	}
-	declarations, err := publishedRPCs(loader)
+	declarations, err := publishedRPCs(resolved)
 	if err != nil {
 		return ValidationResult{}, err
 	}
@@ -235,8 +235,8 @@ func Validate(root string) (ValidationResult, error) {
 // the gate names it (AC-9). A broken pointer is an error. A loader that
 // publishes no rpc at all is an error too: the run would otherwise judge
 // nothing and answer that nothing is orphaned.
-func publishedRPCs(loader *yang.Loader) ([]RPCDeclaration, error) {
-	pub, err := yang.PublishedRPCs(loader)
+func publishedRPCs(schema *yang.Resolved) ([]RPCDeclaration, error) {
+	pub, err := yang.PublishedRPCs(schema)
 	if err != nil {
 		return nil, err
 	}

@@ -42,7 +42,7 @@ var modelLoader = sync.OnceValues(DefaultLoader)
 // MUST NOT be called from an init function: the modules load through init(), so
 // a caller that runs during init can see a model that is still being built.
 func EnumValues(path string) ([]string, error) {
-	loader, err := modelLoader()
+	schema, err := modelLoader()
 	if err != nil {
 		return nil, fmt.Errorf("load the YANG model: %w", err)
 	}
@@ -54,10 +54,10 @@ func EnumValues(path string) ([]string, error) {
 
 	// findInEntry is the walk the validator uses for the same paths, so a path
 	// this answers for is a path the validator also validates against.
-	walk := NewValidator(loader)
+	walk := NewValidator(schema)
 	resolved := false
-	for _, module := range loader.moduleNames() {
-		entry := loader.GetEntry(module)
+	for _, module := range schema.moduleNames() {
+		entry := schema.GetEntry(module)
 		if entry == nil || entry.Dir == nil {
 			continue
 		}
@@ -127,8 +127,8 @@ func entryTypeStatement(entry *gyang.Entry) *gyang.Type {
 
 // moduleNames answers every loaded module once, in name order, so two runs over
 // one model read the modules in one order.
-func (l *Loader) moduleNames() []string {
-	names := l.ModuleNames()
+func (r *Resolved) moduleNames() []string {
+	names := r.ModuleNames()
 	slices.Sort(names)
 	return names
 }

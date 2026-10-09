@@ -50,11 +50,11 @@ const dashboardPath = "monitor bgp"
 // method, under a header saying the output is always accurate. It is reported
 // here instead.
 func Collect() (Commands, error) {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("load the YANG command tree: %w", err)
 	}
-	wireToPath := yang.WireMethodToPath(loader)
+	wireToPath := yang.WireMethodToPath(schema)
 
 	var commands Commands
 

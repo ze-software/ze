@@ -672,16 +672,16 @@ var loadYANGState = sync.OnceValues(buildYANGState)
 // buildYANGState loads the YANG schema and derives every map and tree this
 // package serves from it.
 func buildYANGState() (*yangState, error) {
-	loader, err := yang.DefaultLoader()
+	resolved, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("cli: YANG command schema: %w", err)
 	}
 	state := &yangState{
-		wireToPath:   yang.WireMethodToPath(loader),
-		wireToPaths:  yang.WireMethodToPaths(loader),
-		cmdTree:      yang.BuildCommandTree(loader),
-		descriptions: yang.PathToDescription(loader),
-		argDefs:      yang.PathToArgDefs(loader),
+		wireToPath:   yang.WireMethodToPath(resolved),
+		wireToPaths:  yang.WireMethodToPaths(resolved),
+		cmdTree:      yang.BuildCommandTree(resolved),
+		descriptions: yang.PathToDescription(resolved),
+		argDefs:      yang.PathToArgDefs(resolved),
 		declared:     make(map[string]struct{}),
 	}
 	for _, reg := range allCLIRPCs() {

@@ -36,11 +36,12 @@ func TestSchemaTreeSkipsNonConfigNodes(t *testing.T) {
 	if err := l.AddModuleFromText("ze-fixture-conf.yang", fixtureYANG); err != nil {
 		t.Fatalf("AddModuleFromText: %v", err)
 	}
-	if err := l.Resolve(); err != nil {
+	schema, err := l.Resolve()
+	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
 
-	root, err := SchemaTree(l)
+	root, err := SchemaTree(schema)
 	if err != nil {
 		t.Fatalf("SchemaTree: %v", err)
 	}

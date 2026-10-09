@@ -43,7 +43,7 @@ const leafBackend = "backend"
 
 // Completer provides YANG-driven completions.
 type Completer struct {
-	loader   *yang.Loader
+	schema   *yang.Resolved
 	tree     *config.Tree            // Config data for list key completion
 	registry *yang.ValidatorRegistry // Validator registry for ze:validate completions
 	backends map[string]string       // component root -> active backend name
@@ -57,17 +57,21 @@ type Completer struct {
 	enumSummariesMu sync.Mutex
 }
 
-// NewCompleter creates a completer using YANG schema.
-func NewCompleter() *Completer {
+// NewCompleter creates a completer over the resolved YANG schema of every
+// embedded and registered module. A module set that fails to load or resolve
+// is an error: a completer without a schema would answer only the bare
+// command words, and the operator could not tell that from a real answer.
+func NewCompleter() (*Completer, error) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
-		return &Completer{}
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
 	if err := loader.LoadRegistered(); err != nil {
-		return &Completer{}
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	if err := loader.Resolve(); err != nil {
-		return &Completer{}
+	schema, err := loader.Resolve()
+	if err != nil {
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
 	reg := yang.NewValidatorRegistry()
 	config.RegisterValidators(reg)
@@ -75,7 +79,7 @@ func NewCompleter() *Completer {
 	// Without the merge, every CompleteFn a domain package registers is absent
 	// here, which is the surface the operator actually completes at.
 	reg.MergeGlobalCompletions()
-	return &Completer{loader: loader, registry: reg}
+	return &Completer{schema: schema, registry: reg}, nil
 }
 
 // SetTree sets the config tree for data-aware completion.
@@ -94,7 +98,10 @@ func (c *Completer) setTreeInternal(tree *config.Tree) {
 // here, so a component that gains a backend leaf is completed with no edit to
 // this file.
 func (c *Completer) deriveBackends(tree *config.Tree) map[string]string {
-	if tree == nil || c.loader == nil {
+	if tree == nil {
+		return nil
+	}
+	if c.schema == nil {
 		return nil
 	}
 	m := make(map[string]string)
@@ -131,8 +138,8 @@ func (c *Completer) deriveBackends(tree *config.Tree) map[string]string {
 // operator whose log goes there.
 func (c *Completer) backendRoots() []string {
 	var roots []string
-	for _, module := range c.loader.ConfModuleNames() {
-		entry := c.loader.GetEntry(module)
+	for _, module := range c.schema.ConfModuleNames() {
+		entry := c.schema.GetEntry(module)
 		if entry == nil {
 			continue
 		}
@@ -205,7 +212,7 @@ var commands = []Completion{
 // Complete returns completions for the given input at cursor position.
 // contextPath is the current edit context (e.g., ["bgp", "peer", "192.168.1.1"]).
 func (c *Completer) Complete(input string, contextPath []string) []Completion {
-	if c.loader == nil {
+	if c.schema == nil {
 		return commands
 	}
 
@@ -266,7 +273,10 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 
 // GhostText returns the best single completion for inline ghost text.
 func (c *Completer) GhostText(input string, contextPath []string) string {
-	if input == "" || c.loader == nil {
+	if input == "" {
+		return ""
+	}
+	if c.schema == nil {
 		return ""
 	}
 
@@ -1116,17 +1126,17 @@ func (c *Completer) entryShortHelp(entry *gyang.Entry) string {
 
 // confModuleNames returns all loaded YANG config module names (ending in "-conf").
 func (c *Completer) confModuleNames() []string {
-	if c.loader == nil {
+	if c.schema == nil {
 		return nil
 	}
-	return c.loader.ConfModuleNames()
+	return c.schema.ConfModuleNames()
 }
 
 // getEntry returns the YANG entry at the given path.
 // Handles list keys by skipping key values (e.g., "peer", "1.1.1.1" → navigate to peer list children).
 // Searches all config modules to find the path root.
 func (c *Completer) getEntry(path []string) *gyang.Entry {
-	if c.loader == nil {
+	if c.schema == nil {
 		return nil
 	}
 
@@ -1177,7 +1187,7 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 func (c *Completer) mergedRoot() *gyang.Entry {
 	groups := make(map[string][]*gyang.Entry)
 	for _, modName := range c.confModuleNames() {
-		modEntry := c.loader.GetEntry(modName)
+		modEntry := c.schema.GetEntry(modName)
 		if modEntry == nil || modEntry.Dir == nil {
 			continue
 		}
@@ -1204,7 +1214,7 @@ func (c *Completer) mergedRoot() *gyang.Entry {
 func (c *Completer) findModuleEntry(name string) *gyang.Entry {
 	var matches []*gyang.Entry
 	for _, modName := range c.confModuleNames() {
-		modEntry := c.loader.GetEntry(modName)
+		modEntry := c.schema.GetEntry(modName)
 		if modEntry == nil || modEntry.Dir == nil {
 			continue
 		}
@@ -1478,7 +1488,7 @@ func commonPrefix(a, b string) string {
 // Returns nil if valid, an error describing why the value is invalid.
 // Path should include the leaf name (e.g., ["bgp", "peer", "1.1.1.1", "receive-hold-time"]).
 func (c *Completer) ValidateValueAtPath(path []string, value string) error {
-	if c.loader == nil {
+	if c.schema == nil {
 		return nil // No schema loaded — cannot validate
 	}
 	entry := c.getEntry(path)

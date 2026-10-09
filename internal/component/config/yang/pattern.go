@@ -103,3 +103,8 @@ func rejectUnsupportedPattern(pattern string) error {
 	}
 	return nil
 }
+
+// compiledPatterns maps a pattern's text to the regexp compilePattern built
+// from it. checkPatterns fills one during Resolve with every pattern of the
+// module set, and only Resolved holds it.
+type compiledPatterns map[string]*regexp.Regexp

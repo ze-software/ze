@@ -175,11 +175,11 @@ func SplitValidatorNames(arg string) []string {
 
 // CheckAllValidatorsRegistered walks the YANG tree and verifies every ze:validate
 // reference has a corresponding registered function. Returns error listing all missing.
-func CheckAllValidatorsRegistered(loader *Loader, reg *ValidatorRegistry) error {
+func CheckAllValidatorsRegistered(schema *Resolved, reg *ValidatorRegistry) error {
 	seen := make(map[string]bool)
 
-	for _, moduleName := range loader.ModuleNames() {
-		entry := loader.GetEntry(moduleName)
+	for _, moduleName := range schema.ModuleNames() {
+		entry := schema.GetEntry(moduleName)
 		if entry == nil {
 			continue
 		}

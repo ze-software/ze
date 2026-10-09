@@ -267,11 +267,11 @@ func extractAuthzConfig(tree *config.Tree) (*authz.Store, error) {
 // returned, not treated as an empty command set: an empty set would warn on
 // every entry and hide the cause.
 func validateMatchEntries(store *authz.Store) error {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return fmt.Errorf("authorization match entries: YANG loader: %w", err)
+		return fmt.Errorf("authorization match entries: YANG schema: %w", err)
 	}
-	wireToPaths := yang.WireMethodToPaths(loader)
+	wireToPaths := yang.WireMethodToPaths(schema)
 
 	var cmds []string
 	for _, paths := range wireToPaths {

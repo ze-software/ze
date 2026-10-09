@@ -73,10 +73,10 @@ module test-cmd {
 
 	err = loader.AddModuleFromText("test-cmd.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("test-cmd")
+	entry := schema.GetEntry("test-cmd")
 	require.NotNil(t, entry)
 
 	peerEntry := entry.Dir["peer"]
@@ -140,10 +140,10 @@ module test-shortcut {
 
 	err = loader.AddModuleFromText("test-shortcut.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("test-shortcut")
+	entry := schema.GetEntry("test-shortcut")
 	require.NotNil(t, entry)
 
 	commitEntry := entry.Dir["commit"]
@@ -186,10 +186,10 @@ func TestPeerCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/peer/yang/ze-peer-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-peer-cmd")
+	entry := schema.GetEntry("ze-peer-cmd")
 	require.NotNil(t, entry)
 
 	show := entry.Dir["show"]
@@ -233,10 +233,10 @@ func TestRibCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/rib/yang/ze-rib-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-rib-cmd")
+	entry := schema.GetEntry("ze-rib-cmd")
 	require.NotNil(t, entry)
 
 	show := entry.Dir["show"]
@@ -275,10 +275,10 @@ func TestRefreshCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/yang/ze-refresh-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-refresh-cmd")
+	entry := schema.GetEntry("ze-refresh-cmd")
 	require.NotNil(t, entry)
 
 	request := entry.Dir["request"]
@@ -300,10 +300,10 @@ func TestMetaCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, "../../../plugins/meta/yang/ze-command-meta-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-command-meta-cmd")
+	entry := schema.GetEntry("ze-command-meta-cmd")
 	require.NotNil(t, entry)
 
 	assert.Equal(t, "ze-meta:bgp-help", GetCommandExtension(entry.Dir["help"]))
@@ -334,10 +334,10 @@ func TestSimpleCmdModules(t *testing.T) {
 			err := loader.LoadEmbedded()
 			require.NoError(t, err)
 			loadCmdModule(t, loader, tt.path)
-			err = loader.Resolve()
+			schema, err := loader.Resolve()
 			require.NoError(t, err)
 
-			entry := loader.GetEntry(tt.module)
+			entry := schema.GetEntry(tt.module)
 			require.NotNil(t, entry)
 			node := entry
 			for seg := range strings.SplitSeq(tt.container, "/") {
@@ -359,10 +359,10 @@ func TestCommitNoEditShortcut(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/commit/yang/ze-cli-commit-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-cli-commit-cmd")
+	entry := schema.GetEntry("ze-cli-commit-cmd")
 	require.NotNil(t, entry)
 	assert.False(t, hasEditShortcutExtension(entry.Dir["commit"]), "ze-bgp:commit is NOT an edit shortcut")
 }
@@ -377,14 +377,14 @@ func TestLogCmdModule(t *testing.T) {
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdBase+"log/yang/ze-cli-log-cmd.yang")
 	loadCmdModule(t, loader, "../../../plugins/log/yang/ze-log-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	anchor := loader.GetEntry("ze-cli-log-cmd")
+	anchor := schema.GetEntry("ze-cli-log-cmd")
 	require.NotNil(t, anchor)
 	assert.Empty(t, anchor.Dir, "ze-cli-log-cmd is a bare anchor after relocation")
 
-	entry := loader.GetEntry("ze-log-cmd")
+	entry := schema.GetEntry("ze-log-cmd")
 	require.NotNil(t, entry)
 
 	show := entry.Dir["show"]
@@ -410,10 +410,10 @@ func TestMetricsCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdBase+"metrics/yang/ze-cli-metrics-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-cli-metrics-cmd")
+	entry := schema.GetEntry("ze-cli-metrics-cmd")
 	require.NotNil(t, entry)
 
 	showM := entry.Dir["show"]
@@ -433,10 +433,10 @@ func TestRawCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/yang/ze-raw-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-raw-cmd")
+	entry := schema.GetEntry("ze-raw-cmd")
 	require.NotNil(t, entry)
 	assert.Equal(t, "ze-bgp:peer-raw", GetCommandExtension(entry.Dir["send"].Dir["bgp"].Dir["raw"]))
 	assert.Nil(t, entry.Dir["peer"], "the path the form moved from must carry no node")
@@ -451,10 +451,10 @@ func TestUpdateCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/update/yang/ze-update-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-update-cmd")
+	entry := schema.GetEntry("ze-update-cmd")
 	require.NotNil(t, entry)
 	assert.Equal(t, "ze-bgp:peer-update", GetCommandExtension(entry.Dir["send"].Dir["bgp"].Dir["update"]))
 	assert.Nil(t, entry.Dir["peer"], "the path the form moved from must carry no node")
@@ -469,10 +469,10 @@ func TestCliUpdateCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdBase+"update/yang/ze-cli-update-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-cli-update-cmd")
+	entry := schema.GetEntry("ze-cli-update-cmd")
 	require.NotNil(t, entry)
 
 	update := entry.Dir["update"]
@@ -492,10 +492,10 @@ func TestCliSetCmdModule(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdBase+"set/yang/ze-cli-set-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-cli-set-cmd")
+	entry := schema.GetEntry("ze-cli-set-cmd")
 	require.NotNil(t, entry)
 
 	set := entry.Dir["set"]
@@ -513,9 +513,10 @@ func TestPeerCmdModuleOwnsDeleteBgpPeer(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	loadCmdModule(t, loader, "../../../component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang")
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-peer-cmd")
+	entry := schema.GetEntry("ze-peer-cmd")
 	require.NotNil(t, entry)
 
 	peer := entry.Dir["delete"].Dir["bgp"].Dir["peer"]
@@ -530,9 +531,10 @@ func TestCliDeleteCmdModule(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	loadCmdModule(t, loader, cmdBase+"delete/yang/ze-cli-delete-cmd.yang")
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-cli-delete-cmd")
+	entry := schema.GetEntry("ze-cli-delete-cmd")
 	require.NotNil(t, entry)
 
 	deleteRoot := entry.Dir["delete"]
@@ -557,10 +559,10 @@ func TestBuildCommandTree(t *testing.T) {
 	// Load a non-overlapping module
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/cache/yang/ze-cli-cache-cmd.yang")
 
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	require.NotNil(t, tree)
 
 	// "cache" moved under show and request verbs from ze-cli-cache-cmd
@@ -606,10 +608,10 @@ func TestBuildCommandTreeEmpty(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	require.NotNil(t, tree)
 	assert.Empty(t, tree.Children)
 }
@@ -623,10 +625,10 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/rib/yang/ze-rib-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	require.NotNil(t, tree)
 
 	show := tree.Children["show"]
@@ -681,10 +683,10 @@ func TestSystemCmdModuleLoads(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, "../../../core/ipc/yang/ze-system-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-system-cmd")
+	entry := schema.GetEntry("ze-system-cmd")
 	require.NotNil(t, entry, "ze-system-cmd module should be loadable")
 
 	// system group
@@ -726,10 +728,10 @@ func TestPluginCmdModuleLoads(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, "../../../core/ipc/yang/ze-plugin-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-plugin-cmd")
+	entry := schema.GetEntry("ze-plugin-cmd")
 	require.NotNil(t, entry, "ze-plugin-cmd module should be loadable")
 
 	plugin := entry.Dir["plugin"]
@@ -787,10 +789,10 @@ module test-backend {
 `
 	err = loader.AddModuleFromText("test-backend.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("test-backend")
+	entry := schema.GetEntry("test-backend")
 	require.NotNil(t, entry)
 
 	tunnel := entry.Dir["tunnel"]
@@ -830,10 +832,10 @@ module test-backend-multi {
 `
 	err = loader.AddModuleFromText("test-backend-multi.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("test-backend-multi")
+	entry := schema.GetEntry("test-backend-multi")
 	require.NotNil(t, entry)
 
 	shared := entry.Dir["shared"]
@@ -881,10 +883,10 @@ module test-backend-tree-cmd {
 `
 	err = loader.AddModuleFromText("test-backend-tree-cmd.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	require.NotNil(t, tree)
 
 	vpp := tree.Children["vpp"]
@@ -939,9 +941,10 @@ module test-enum-cmd {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("test-enum-cmd.yang", yangText))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	goroutines := tree.Children["show"].Children["goroutines"]
 	require.NotNil(t, goroutines)
 	require.Len(t, goroutines.ArgDefs, 1)
@@ -986,9 +989,10 @@ module test-union-cmd {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("test-union-cmd.yang", yangText))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	fd := tree.Children["set"].Children["file-descriptors"]
 	require.NotNil(t, fd)
 	require.Len(t, fd.ArgDefs, 1)
@@ -1005,7 +1009,7 @@ module test-union-cmd {
 
 // TestArgDefUnionSkipsUnknownKind preserves the supported member when schema metadata adds an unknown kind.
 func TestArgDefUnionSkipsUnknownKind(t *testing.T) {
-	def, ok := yangTypeToArgDef("limit", &gyang.YangType{
+	def, ok := compiledPatterns{}.yangTypeToArgDef("limit", &gyang.YangType{
 		Kind: gyang.Yunion,
 		Type: []*gyang.YangType{
 			{Kind: gyang.TypeKind(999)},
@@ -1049,9 +1053,10 @@ module test-uint-cmd {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("test-uint-cmd.yang", yangText))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	capture := tree.Children["show"].Children["capture"]
 	require.NotNil(t, capture)
 	require.Len(t, capture.ArgDefs, 1)
@@ -1096,9 +1101,10 @@ module test-pattern-cmd {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("test-pattern-cmd.yang", yangText))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	ping := tree.Children["show"].Children["ping"]
 	require.NotNil(t, ping)
 	require.Len(t, ping.ArgDefs, 1)
@@ -1162,9 +1168,10 @@ module test-length-cmd {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("test-length-cmd.yang", yangText))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	probe := BuildCommandTree(loader).Children["show"].Children["probe"]
+	probe := BuildCommandTree(schema).Children["show"].Children["probe"]
 	require.NotNil(t, probe)
 	require.Len(t, probe.ArgDefs, 2)
 	name, target := &probe.ArgDefs[0], &probe.ArgDefs[1]
@@ -1219,9 +1226,10 @@ module test-alt-cmd {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("test-alt-cmd.yang", yangText))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	alt := BuildCommandTree(loader).Children["show"].Children["alt"]
+	alt := BuildCommandTree(schema).Children["show"].Children["alt"]
 	require.NotNil(t, alt)
 	require.Len(t, alt.ArgDefs, 1)
 	def := &alt.ArgDefs[0]
@@ -1263,9 +1271,10 @@ func TestArgDefsPopulated(t *testing.T) {
 	for _, path := range cmdFiles {
 		loadCmdModule(t, loader, path)
 	}
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 
 	// Commands that should have ArgDefs (from the Typed Argument Catalog).
 	wantArgDefs := map[string]int{
@@ -1342,8 +1351,9 @@ func TestShowMTUArgDefsByName(t *testing.T) {
 	require.NoError(t, loader.LoadEmbedded())
 	loadCmdModule(t, loader, cmdBase+"show/yang/ze-cli-show-cmd.yang")
 	loadCmdModule(t, loader, "../../../plugins/mtu-cmd/yang/ze-mtu-cmd.yang")
-	require.NoError(t, loader.Resolve())
-	node := navigateTree(BuildCommandTree(loader), "show mtu")
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	node := navigateTree(BuildCommandTree(schema), "show mtu")
 	require.NotNil(t, node, "show mtu not found in tree")
 	byName := map[string]command.ArgDef{}
 	for _, def := range node.ArgDefs {
@@ -1387,10 +1397,10 @@ func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, "../../../component/iface/yang/ze-iface-cmd.yang")
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	require.NotNil(t, tree)
 
 	create := tree.Children["create"]
@@ -1486,7 +1496,7 @@ func TestMergeYANGEntryWarnsOnDescriptionMismatch(t *testing.T) {
 		},
 	}
 
-	mergeYANGEntry(root, entry)
+	compiledPatterns{}.mergeYANGEntry(root, entry)
 
 	assert.Contains(t, buf.String(), "YANG command help text mismatch")
 	assert.Contains(t, buf.String(), "field=help")
@@ -1515,7 +1525,7 @@ func TestMergeYANGEntrySilentOnMatchingDescription(t *testing.T) {
 		},
 	}
 
-	mergeYANGEntry(root, entry)
+	compiledPatterns{}.mergeYANGEntry(root, entry)
 
 	assert.Empty(t, buf.String(), "no warning when descriptions match")
 }
@@ -1551,9 +1561,10 @@ func TestArgDefsFollowDeclarationOrder(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.AddModuleFromText("test-order-cmd.yang", declarationOrderModule))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	node := BuildCommandTree(loader).Children["request"].Children["outgoing-call"]
+	node := BuildCommandTree(schema).Children["request"].Children["outgoing-call"]
 	require.NotNil(t, node)
 
 	names := make([]string, 0, len(node.ArgDefs))
@@ -1572,9 +1583,10 @@ func TestArgDefsAreDeterministic(t *testing.T) {
 		loader := NewLoader()
 		require.NoError(t, loader.LoadEmbedded())
 		require.NoError(t, loader.AddModuleFromText("test-order-cmd.yang", declarationOrderModule))
-		require.NoError(t, loader.Resolve())
+		schema, err := loader.Resolve()
+		require.NoError(t, err)
 
-		node := BuildCommandTree(loader).Children["request"].Children["outgoing-call"]
+		node := BuildCommandTree(schema).Children["request"].Children["outgoing-call"]
 		require.NotNil(t, node)
 		names := make([]string, 0, len(node.ArgDefs))
 		for _, def := range node.ArgDefs {
@@ -1644,9 +1656,10 @@ module test-modifier-cmd {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("test-modifier-cmd.yang", yangText))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	root := BuildCommandTree(loader)
+	root := BuildCommandTree(schema)
 	announce := root.Children["announce"]
 	require.NotNil(t, announce)
 
@@ -1744,9 +1757,10 @@ func TestArgDefsInheritFromTheContainerThatDeclaresThem(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.AddModuleFromText("test-inherit-cmd.yang", inheritedArgModule))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	peer := BuildCommandTree(loader).Children["request"].Children["peer"]
+	peer := BuildCommandTree(schema).Children["request"].Children["peer"]
 	require.NotNil(t, peer)
 
 	flush := peer.Children["flush"]
@@ -1787,9 +1801,10 @@ func TestUsageRendersInheritedArguments(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.AddModuleFromText("test-inherit-cmd.yang", inheritedArgModule))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	peer := BuildCommandTree(loader).Children["request"].Children["peer"]
+	peer := BuildCommandTree(schema).Children["request"].Children["peer"]
 	require.NotNil(t, peer)
 
 	for _, tc := range []struct {
@@ -1853,9 +1868,10 @@ module test-orphan-cmd {
 	// The inheriting fixture rides along, so the silent half of the assertion
 	// is over a container that is really there.
 	require.NoError(t, loader.AddModuleFromText("test-inherit-cmd.yang", inheritedArgModule))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	require.NotNil(t, tree.Children["request"].Children["peer"], "the inheriting container is in this tree")
 
 	assert.Contains(t, buf.String(), "YANG grouping container declares a value no command below it takes")
@@ -1899,9 +1915,10 @@ func TestMergeYANGEntryReadsHelpExtension(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.AddModuleFromText("test-help-cmd.yang", helpExtensionModule))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	node := BuildCommandTree(loader).Children["show"].Children["widget"]
+	node := BuildCommandTree(schema).Children["show"].Children["widget"]
 	require.NotNil(t, node)
 
 	assert.Equal(t, "List every widget the daemon holds.", node.ShortHelp)
@@ -1922,9 +1939,10 @@ func TestMergeYANGEntryReadsNoHelpExtension(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.AddModuleFromText("test-order-cmd.yang", declarationOrderModule))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	node := BuildCommandTree(loader).Children["request"].Children["outgoing-call"]
+	node := BuildCommandTree(schema).Children["request"].Children["outgoing-call"]
 	require.NotNil(t, node)
 
 	assert.Equal(t, "Place a call.", node.ShortHelp)
@@ -1990,7 +2008,7 @@ func TestMergeYANGEntryWarnsPerFieldOnMismatch(t *testing.T) {
 				"show": {Name: "show", ShortHelp: "First summary.", Description: "First explanation."},
 			}}
 
-			mergeYANGEntry(root, entryWith(tc.description, tc.help))
+			compiledPatterns{}.mergeYANGEntry(root, entryWith(tc.description, tc.help))
 
 			for _, field := range tc.warnFields {
 				assert.Contains(t, buf.String(), "YANG command help text mismatch")
@@ -2021,7 +2039,7 @@ func TestMergeYANGEntryFillsEachFieldOnItsOwn(t *testing.T) {
 		"show": {Name: "show", ShortHelp: "First summary."},
 	}}
 
-	mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
+	compiledPatterns{}.mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
 		"show": {
 			Name:        "show",
 			Description: "The long explanation.",
@@ -2054,7 +2072,7 @@ func TestMergeYANGEntryWireMethodOverwriteIsPerField(t *testing.T) {
 		"show": {Name: "show", ShortHelp: "Grouping summary.", Description: "Grouping explanation."},
 	}}
 
-	mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
+	compiledPatterns{}.mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
 		"show": {
 			Name:   "show",
 			Config: gyang.TSFalse,
@@ -2112,24 +2130,25 @@ module texts-cmd {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("texts-cmd.yang", yangText))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	open := loader.GetEntry("texts-cmd").Dir["socket"].Dir["open"]
+	open := schema.GetEntry("texts-cmd").Dir["socket"].Dir["open"]
 	require.NotNil(t, open)
 
-	port, ok := argDefFor(open.Dir["port"], "port")
+	port, ok := compiledPatterns{}.argDefFor(open.Dir["port"], "port")
 	require.True(t, ok)
 	assert.Equal(t, "The TCP port to listen on", port.ShortHelp())
 	assert.Contains(t, port.Description(), "The port the socket binds.")
 	assert.Contains(t, port.Description(), "\n", "the explanation keeps the line breaks its author wrote")
 	assert.True(t, port.Mandatory())
 
-	label, ok := argDefFor(open.Dir["label"], "label")
+	label, ok := compiledPatterns{}.argDefFor(open.Dir["label"], "label")
 	require.True(t, ok)
 	assert.Equal(t, "A label for the socket", label.ShortHelp())
 	assert.Empty(t, label.Description(), "no description statement means no explanation")
 
-	defs := extractArgDefs(open)
+	defs := compiledPatterns{}.extractArgDefs(open)
 	require.Len(t, defs, 2)
 	assert.Equal(t, "The TCP port to listen on", defs[0].ShortHelp(), "extractArgDefs keeps the texts argDefFor read")
 }

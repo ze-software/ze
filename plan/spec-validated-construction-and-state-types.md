@@ -803,6 +803,8 @@ Compile-negative probes follow the procedure in the TDD plan above: one forbidde
 
 → Evidence (batch 1, 2026-10-09): P-5 and P-6 ran from throwaway packages under `internal/component/config/yang/`, one forbidden operation each, removed after the run. Positive control (constructor call, `command.ArgDef{}`, ranging over `EnumValues()`): compiles. P-5 `command.ArgDef{Lengths: nil}`: "unknown field Lengths in struct literal of type command.ArgDef, but does have unexported lengths"; `Patterns` and `Kind` give the same error for `patterns` and `kind`. P-6 `def.EnumValues()[0] = "x"`: "cannot index def.EnumValues() (value of func type iter.Seq[string])"; `def.Ranges()[0] = command.UintRange{}`: "cannot index def.Ranges() (value of func type iter.Seq[command.UintRange])". Before batch 1 each of these compiled: the fields were exported and 123 test literal lines named them.
 
+→ Evidence (batch 3, 2026-10-09): P-1 and P-2 ran the same way, from throwaway packages under `internal/component/config/yang/zprobe/`, removed after the run. Positive control (`loader.Resolve()` then `yang.BuildCommandTree(schema)`, `yang.Resolved{}`, `new(yang.Resolved)`): compiles. P-1 `yang.BuildCommandTree(yang.NewLoader())`: "cannot use yang.NewLoader() (value of type *yang.Loader) as *yang.Resolved value in argument to yang.BuildCommandTree". P-2 `yang.Resolved{modules: nil}`: "cannot refer to unexported field modules in struct literal of type yang.Resolved". Red runs: with `refuseLoad` answering nil, `TestResolveRefusesLoadAfterResolution` failed 10 times ("want ErrLoaderResolved"); with the `Resolved.set` guards removed, `TestResolvedZeroValueIsABug` failed 24 times ("want a BUG panic"). Both green restored.
+
 ### Phase 1 files
 
 | File | Change |

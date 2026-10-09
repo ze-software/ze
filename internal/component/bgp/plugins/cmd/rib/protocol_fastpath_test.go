@@ -24,13 +24,14 @@ import (
 // ribLoader loads the embedded modules and the rib command module, so the
 // assertions below read the module a reviewer can open rather than whatever
 // the rest of the binary happened to register.
-func ribLoader(t *testing.T) *configyang.Loader {
+func ribLoader(t *testing.T) *configyang.Resolved {
 	t.Helper()
 	loader := configyang.NewLoader()
 	require.NoError(t, loader.LoadEmbedded(), "load the embedded modules")
 	require.NoError(t, loader.AddModuleFromText("ze-rib-cmd", yang.ZeRibCmdYANG), "load the rib module")
-	require.NoError(t, loader.Resolve(), "resolve the rib module")
-	return loader
+	schema, err := loader.Resolve()
+	require.NoError(t, err, "resolve the rib module")
+	return schema
 }
 
 // TestProtocolAndFastpathStateTheirArguments pins the two generated usage

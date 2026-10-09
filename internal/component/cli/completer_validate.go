@@ -22,7 +22,7 @@ var errNoSchemaLoaded = errors.New("no schema loaded")
 // isConfigFalse checks if any node in the path has config false set.
 // YANG config false is inherited: if a container is config false, all children are too.
 func (c *Completer) isConfigFalse(path []string) bool {
-	if c.loader == nil {
+	if c.schema == nil {
 		return false
 	}
 	// Check each prefix of the path for config false
@@ -39,7 +39,7 @@ func (c *Completer) isConfigFalse(path []string) bool {
 // Unlike getEntry (which skips list keys silently), this enforces that every list has a key value.
 // Returns the leaf entry at the end of the path, or an error if the path is invalid.
 func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
-	if c.loader == nil {
+	if c.schema == nil {
 		return nil, errNoSchemaLoaded
 	}
 	if len(tokens) == 0 {

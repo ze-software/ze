@@ -22,7 +22,7 @@ func TestFibWithholdCompletionOffersRegisteredProtocols(t *testing.T) {
 	const late = "test-late-protocol"
 	redistevents.RegisterProtocol(late)
 
-	texts := completionTexts(NewCompleter().Complete("set fib-withhold ", []string{"rib"}))
+	texts := completionTexts(newTestCompleter(t).Complete("set fib-withhold ", []string{"rib"}))
 	if len(texts) == 0 {
 		t.Fatal("fib-withhold offers no completion at all")
 	}

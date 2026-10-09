@@ -342,11 +342,12 @@ module ze-fixture-api {
 	if err := loader.AddModuleFromText("ze-fixture-api", apiModule); err != nil {
 		t.Fatalf("load the fixture API module: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve the fixture modules: %v", err)
 	}
 
-	params := buildParamMeta(loader)["show sockets"]
+	params := buildParamMeta(schema)["show sockets"]
 	if len(params) != 2 {
 		t.Fatalf("params = %+v, want the two input leaves", params)
 	}

@@ -355,7 +355,7 @@ func TestCLIBarUpNavigates(t *testing.T) {
 // VALIDATES: AC-8 (autocomplete returns candidates).
 // PREVENTS: Autocomplete endpoint returns empty or errors.
 func TestCLIBarAutocomplete(t *testing.T) {
-	completer := cli.NewCompleter()
+	completer := newCompleter(t)
 
 	handler := HandleCLIComplete(completer, nil, nil)
 
@@ -482,7 +482,7 @@ func TestCLICompleteOperationalMode(t *testing.T) {
 	cmdComp := &fakeCommandCompleter{
 		items: []contract.Completion{{Text: "show", ShortHelp: "show command", Type: "command"}},
 	}
-	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cmdComp, mgr, schema)
+	handler := HandleCLICompleteWithCommandCompleter(newCompleter(t), cmdComp, mgr, schema)
 
 	w := httptest.NewRecorder()
 	r := authedRequest(t, http.MethodGet, "/cli/complete?input=sh&mode=operational", nil)
@@ -518,7 +518,7 @@ func TestCLICompleteOperationalIncludesPluginCommand(t *testing.T) {
 	command.MergeCommandPaths(tree, []command.CommandEntry{
 		{Name: "show myplugin thing", ShortHelp: "A plugin command"},
 	})
-	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cli.NewCommandCompleter(tree), mgr, schema)
+	handler := HandleCLICompleteWithCommandCompleter(newCompleter(t), cli.NewCommandCompleter(tree), mgr, schema)
 
 	w := httptest.NewRecorder()
 	r := authedRequest(t, http.MethodGet, "/cli/complete?input=show+myplugin+&mode=operational", nil)
@@ -1113,7 +1113,7 @@ func TestCLICompleteSendsSummaryNotExplanation(t *testing.T) {
 			},
 		}},
 	}}
-	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cli.NewCommandCompleter(tree), mgr, schema)
+	handler := HandleCLICompleteWithCommandCompleter(newCompleter(t), cli.NewCommandCompleter(tree), mgr, schema)
 
 	w := httptest.NewRecorder()
 	r := authedRequest(t, http.MethodGet, "/cli/complete?input=show+&mode=operational", nil)
@@ -1138,4 +1138,15 @@ func TestCLICompleteSendsSummaryNotExplanation(t *testing.T) {
 			"a candidate line is one line")
 	}
 	assert.True(t, found, "peer missing from web completion: %s", w.Body.String())
+}
+
+// newCompleter builds the CLI completer, and FAILS the test when the module set
+// this test binary registers does not resolve.
+func newCompleter(t testing.TB) *cli.Completer {
+	t.Helper()
+	completer, err := cli.NewCompleter()
+	if err != nil {
+		t.Fatalf("cli.NewCompleter: %v", err)
+	}
+	return completer
 }

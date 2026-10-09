@@ -23,12 +23,9 @@ const cmdModuleSuffix = "-cmd"
 // WireMethodToPaths walks all -cmd YANG modules and builds a map from
 // WireMethod (ze:command argument) to all CLI paths (space-joined tree paths).
 // Multiple paths per wire method represent command aliases.
-func WireMethodToPaths(loader *Loader) map[string][]string {
+func WireMethodToPaths(schema *Resolved) map[string][]string {
 	result := make(map[string][]string)
-	if loader == nil {
-		return result
-	}
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	collectPaths(tree, "", result)
 	return result
 }
@@ -37,8 +34,8 @@ func WireMethodToPaths(loader *Loader) map[string][]string {
 // Deterministic: when multiple aliases exist, the lexicographically smallest
 // path is chosen so restarts produce consistent authz context.
 // Callers that need all aliases should use WireMethodToPaths.
-func WireMethodToPath(loader *Loader) map[string]string {
-	paths := WireMethodToPaths(loader)
+func WireMethodToPath(schema *Resolved) map[string]string {
+	paths := WireMethodToPaths(schema)
 	result := make(map[string]string, len(paths))
 	for method, ps := range paths {
 		if len(ps) == 0 {
@@ -78,12 +75,9 @@ func collectPaths(node *command.Node, prefix string, result map[string][]string)
 // extension declares. Used to populate help text when registering commands in
 // the dispatcher. The long explanation a node declares with the YANG
 // description statement is a separate field and is not in this map.
-func PathToDescription(loader *Loader) map[string]string {
+func PathToDescription(schema *Resolved) map[string]string {
 	result := make(map[string]string)
-	if loader == nil {
-		return result
-	}
-	collectNodeText(BuildCommandTree(loader), "", result, nodeDescription)
+	collectNodeText(BuildCommandTree(schema), "", result, nodeDescription)
 	return result
 }
 
@@ -93,12 +87,9 @@ func PathToDescription(loader *Loader) map[string]string {
 //
 // A node that declares no explanation is absent from the map. That is not a
 // defect: the help page then prints the summary alone (PathToDescription).
-func PathToHelp(loader *Loader) map[string]string {
+func PathToHelp(schema *Resolved) map[string]string {
 	result := make(map[string]string)
-	if loader == nil {
-		return result
-	}
-	collectNodeText(BuildCommandTree(loader), "", result, nodeHelp)
+	collectNodeText(BuildCommandTree(schema), "", result, nodeHelp)
 	return result
 }
 
@@ -131,12 +122,9 @@ func collectNodeText(node *command.Node, prefix string, result map[string]string
 
 // PathToTaskSupport walks all -cmd YANG modules and builds a map from
 // CLI path to ze:task-support value. Paths without the extension are absent.
-func PathToTaskSupport(loader *Loader) map[string]string {
+func PathToTaskSupport(schema *Resolved) map[string]string {
 	result := make(map[string]string)
-	if loader == nil {
-		return result
-	}
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	collectTaskSupport(tree, "", result)
 	return result
 }
@@ -160,12 +148,9 @@ func collectTaskSupport(node *command.Node, prefix string, result map[string]str
 
 // PathToArgDefs walks all -cmd YANG modules and builds a map from CLI path
 // to ArgDef slices. Only paths with at least one ArgDef are included.
-func PathToArgDefs(loader *Loader) map[string][]command.ArgDef {
+func PathToArgDefs(schema *Resolved) map[string][]command.ArgDef {
 	result := make(map[string][]command.ArgDef)
-	if loader == nil {
-		return result
-	}
-	tree := BuildCommandTree(loader)
+	tree := BuildCommandTree(schema)
 	collectArgDefs(tree, "", result)
 	return result
 }
@@ -187,11 +172,11 @@ func commandArgDefs(path string) ([]command.ArgDef, error) {
 	modelArgDefsMu.Lock()
 	defer modelArgDefsMu.Unlock()
 	if modelArgDefs == nil {
-		loader, err := DefaultLoader()
+		schema, err := DefaultLoader()
 		if err != nil {
 			return nil, err
 		}
-		modelArgDefs = PathToArgDefs(loader)
+		modelArgDefs = PathToArgDefs(schema)
 	}
 	return modelArgDefs[path], nil
 }
@@ -213,19 +198,19 @@ func collectArgDefs(node *command.Node, prefix string, result map[string][]comma
 	}
 }
 
-// BuildCommandTree walks all -cmd YANG modules in the loader and builds
+// BuildCommandTree walks all -cmd YANG modules of schema and builds
 // a merged command.Node tree. Multiple modules contributing to the same
 // container path (e.g., 4 modules defining peer > ...) are merged.
 // Every node takes its summary from the ze:help extension and its long
 // explanation from the YANG description statement, whether or not it carries
 // ze:command.
 // Grouping containers (no ze:command) become navigation-only branches.
-func BuildCommandTree(loader *Loader) *command.Node {
+func BuildCommandTree(schema *Resolved) *command.Node {
 	root := &command.Node{Children: make(map[string]*command.Node)}
 
 	// Collect and sort -cmd module names for deterministic merge order.
 	var cmdModules []string
-	for _, name := range loader.ModuleNames() {
+	for _, name := range schema.ModuleNames() {
 		if strings.HasSuffix(name, cmdModuleSuffix) {
 			cmdModules = append(cmdModules, name)
 		}
@@ -233,11 +218,11 @@ func BuildCommandTree(loader *Loader) *command.Node {
 	slices.Sort(cmdModules)
 
 	for _, name := range cmdModules {
-		entry := loader.GetEntry(name)
+		entry := schema.GetEntry(name)
 		if entry == nil || entry.Dir == nil {
 			continue
 		}
-		mergeYANGEntry(root, entry)
+		schema.patterns.mergeYANGEntry(root, entry)
 	}
 
 	inheritArgDefs(root, nil)
@@ -384,7 +369,7 @@ func validateNode(node *command.Node, prefix string) {
 // into the command.Node tree. config false containers become tree nodes.
 // Every node takes its ze:help summary as the node Description and its YANG
 // description statement as the node Description.
-func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
+func (patterns compiledPatterns) mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 	if entry == nil || entry.Dir == nil {
 		return
 	}
@@ -431,7 +416,7 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 
 		// Extract typed argument definitions from leaf children of ze:command nodes.
 		if wm != "" && len(target.ArgDefs) == 0 {
-			target.ArgDefs = extractArgDefs(child)
+			target.ArgDefs = patterns.extractArgDefs(child)
 		}
 
 		if mode, ok := getInheritExtension(child); ok && target.Inherit == command.ArgInheritAncestors {
@@ -446,7 +431,7 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			if modifier, ok := getModifierExtension(child); ok {
 				target.Modifier = modifier
 				target.ModifierOrder = declaredContainerOrder(entry, name)
-				target.ArgDefs = extractArgDefs(child)
+				target.ArgDefs = patterns.extractArgDefs(child)
 			}
 		}
 
@@ -456,11 +441,11 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 		// are read here and inheritArgDefs carries them down after every module
 		// is merged, which is why the branch above cannot do it.
 		if wm == "" && target.Modifier == command.ModifierNone && len(target.ArgDefs) == 0 {
-			target.ArgDefs = extractArgDefs(child)
+			target.ArgDefs = patterns.extractArgDefs(child)
 		}
 
 		// Recurse into children (merge overlapping branches from multiple modules).
-		mergeYANGEntry(target, child)
+		patterns.mergeYANGEntry(target, child)
 	}
 }
 
@@ -508,7 +493,7 @@ func mergeHelpText(existing *string, incoming string, declaresCommand bool, node
 // Nothing binds a value BY POSITION in this slice: a positional token goes to
 // the definition whose type constrains it most (internal/component/plugin/server,
 // positionalDef). That is what makes the order safe to change.
-func extractArgDefs(entry *gyang.Entry) []command.ArgDef {
+func (patterns compiledPatterns) extractArgDefs(entry *gyang.Entry) []command.ArgDef {
 	if entry == nil || entry.Dir == nil {
 		return nil
 	}
@@ -520,7 +505,7 @@ func extractArgDefs(entry *gyang.Entry) []command.ArgDef {
 		if taken[name] {
 			continue
 		}
-		def, ok := argDefFor(entry.Dir[name], name)
+		def, ok := patterns.argDefFor(entry.Dir[name], name)
 		if !ok {
 			continue
 		}
@@ -537,7 +522,7 @@ func extractArgDefs(entry *gyang.Entry) []command.ArgDef {
 	slices.Sort(undeclared)
 
 	for _, name := range undeclared {
-		if def, ok := argDefFor(entry.Dir[name], name); ok {
+		if def, ok := patterns.argDefFor(entry.Dir[name], name); ok {
 			defs = append(defs, def)
 		}
 	}
@@ -663,7 +648,7 @@ func declaredLeafNames(entry *gyang.Entry) []string {
 // definitions of the first module that declared them (mergeYANGEntry fills
 // ArgDefs only while they are empty), so its texts follow the first-wins case
 // of mergeHelpText.
-func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
+func (patterns compiledPatterns) argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 	if leaf == nil || leaf.Type == nil {
 		return command.ArgDef{}, false
 	}
@@ -672,7 +657,7 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 		ShortHelp:   GetHelpExtension(leaf.Exts), // the ze:help summary
 		Description: leaf.Description,            // the YANG description explanation
 	}
-	return yangTypeToArgDef(name, leaf.Type, entryTypeStatement(leaf), opts)
+	return patterns.yangTypeToArgDef(name, leaf.Type, entryTypeStatement(leaf), opts)
 }
 
 // yangTypeToArgDef converts a goyang YangType into an ArgDef. declared is the
@@ -697,7 +682,7 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 // so no part reaching here overlaps, descends or exceeds its width; an
 // enumeration lists at least one enum or parseEnumAssignment refuses it; and
 // every name is a leaf name.
-func yangTypeToArgDef(name string, yt *gyang.YangType, declared *gyang.Type, opts command.ArgOptions) (command.ArgDef, bool) {
+func (patterns compiledPatterns) yangTypeToArgDef(name string, yt *gyang.YangType, declared *gyang.Type, opts command.ArgOptions) (command.ArgDef, bool) {
 	var (
 		def command.ArgDef
 		err error
@@ -728,12 +713,12 @@ func yangTypeToArgDef(name string, yt *gyang.YangType, declared *gyang.Type, opt
 	case gyang.Ystring:
 		// goyang resolves the typedef chain: Length is the most restricted
 		// length along it, and Pattern holds every pattern of every type in it.
-		def, err = command.NewStringArg(name, uintRanges(yt.Length), compilePatterns(name, yt.Pattern), opts)
+		def, err = command.NewStringArg(name, uintRanges(yt.Length), patterns.compiled(name, yt.Pattern), opts)
 
 	case gyang.Yunion:
 		members := make([]command.ArgDef, 0, len(yt.Type))
 		for _, member := range yt.Type {
-			sub, ok := yangTypeToArgDef(name, member, unionMemberStatement(declared, member), command.ArgOptions{})
+			sub, ok := patterns.yangTypeToArgDef(name, member, unionMemberStatement(declared, member), command.ArgOptions{})
 			if ok {
 				members = append(members, sub)
 			}
@@ -787,23 +772,26 @@ func uintRanges(r gyang.YangRange) []command.UintRange {
 	return ranges
 }
 
-// compilePatterns compiles every pattern through compilePattern, the XSD
-// translation the config validator uses, so a command argument and a config
-// leaf of one type accept the same strings.
+// compiled answers the regexp checkPatterns compiled for each of a command
+// argument's patterns, through compilePattern, the XSD translation the config
+// validator uses, so a command argument and a config leaf of one type accept
+// the same strings.
 //
-// Loader.Resolve and DefaultLoader refuse a module holding a pattern
-// compilePattern cannot compile, so a failure here means a command tree was
-// built from a loader whose resolution error was ignored. Dropping the pattern
-// would leave the argument accepting any string.
-func compilePatterns(name string, patterns []string) []*regexp.Regexp {
-	if len(patterns) == 0 {
+// Resolve refuses a module holding a pattern compilePattern cannot compile, so
+// patterns holds every pattern a Resolved module declares. goyang's YangType
+// carries the text of the pattern statements along the typedef chain, each of
+// which checkPatterns read. A miss here is therefore a lowering reading a
+// pattern the check never saw, a Ze defect, and dropping the pattern would
+// leave the argument accepting any string.
+func (patterns compiledPatterns) compiled(name string, texts []string) []*regexp.Regexp {
+	if len(texts) == 0 {
 		return nil
 	}
-	compiled := make([]*regexp.Regexp, len(patterns))
-	for i, pattern := range patterns {
-		re, err := compilePattern(pattern)
-		if err != nil {
-			panic("BUG: command argument " + name + " holds a pattern Loader.Resolve refuses: " + err.Error())
+	compiled := make([]*regexp.Regexp, len(texts))
+	for i, text := range texts {
+		re, checked := patterns[text]
+		if !checked {
+			panic("BUG: command argument " + name + " holds a pattern Loader.Resolve did not check: " + text)
 		}
 		compiled[i] = re
 	}
@@ -906,14 +894,11 @@ type UIResourceEntry struct {
 // PathToUIResource walks all -cmd YANG modules and builds a map from
 // CLI path to UIResourceEntry. The ze:ui-resource extension can appear on
 // grouping containers (not just ze:command nodes).
-func PathToUIResource(loader *Loader) map[string]UIResourceEntry {
+func PathToUIResource(schema *Resolved) map[string]UIResourceEntry {
 	result := make(map[string]UIResourceEntry)
-	if loader == nil {
-		return result
-	}
 
 	var cmdModules []string
-	for _, name := range loader.ModuleNames() {
+	for _, name := range schema.ModuleNames() {
 		if strings.HasSuffix(name, cmdModuleSuffix) {
 			cmdModules = append(cmdModules, name)
 		}
@@ -921,7 +906,7 @@ func PathToUIResource(loader *Loader) map[string]UIResourceEntry {
 	slices.Sort(cmdModules)
 
 	for _, name := range cmdModules {
-		entry := loader.GetEntry(name)
+		entry := schema.GetEntry(name)
 		if entry == nil || entry.Dir == nil {
 			continue
 		}

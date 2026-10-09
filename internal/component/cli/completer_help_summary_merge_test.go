@@ -62,8 +62,9 @@ func mergeProbeCompleter(t *testing.T) *Completer {
 	require.NoError(t, loader.LoadRegistered())
 	require.NoError(t, loader.AddModuleFromText("ze-test-aaa-merge-conf", firstMergeProbeModule))
 	require.NoError(t, loader.AddModuleFromText("ze-test-zzz-merge-conf", secondMergeProbeModule))
-	require.NoError(t, loader.Resolve())
-	return &Completer{loader: loader}
+	resolved, resolveErr := loader.Resolve()
+	require.NoError(t, resolveErr)
+	return &Completer{schema: resolved}
 }
 
 // summaryOf answers the completion row's one-line summary for one top-level

@@ -54,16 +54,13 @@ var ErrRPCMethod = errors.New("malformed wire method")
 // output, so an rpc carries the method of whichever node points at it. No
 // method is built from a module's file name. Every refusal is returned joined,
 // so one run names every broken pointer.
-func PublishedRPCs(loader *Loader) (RPCPublication, error) {
+func PublishedRPCs(schema *Resolved) (RPCPublication, error) {
 	var pub RPCPublication
-	if loader == nil {
-		return pub, fmt.Errorf("%w: no loader", ErrRPCPointer)
-	}
 
 	declared := make(map[string]RPCMeta)
 	var order []string
-	for _, module := range loader.ModuleNames() {
-		for _, meta := range ExtractRPCs(loader, module) {
+	for _, module := range schema.ModuleNames() {
+		for _, meta := range ExtractRPCs(schema, module) {
 			key := meta.Module + ":" + meta.Name
 			declared[key] = meta
 			order = append(order, key)
@@ -72,15 +69,15 @@ func PublishedRPCs(loader *Loader) (RPCPublication, error) {
 
 	pointers := make(map[string]string) // wire method -> "module:rpc"
 	var errs []error
-	for _, module := range loader.ModuleNames() {
+	for _, module := range schema.ModuleNames() {
 		if !strings.HasSuffix(module, cmdModuleSuffix) {
 			continue
 		}
-		collectRPCPointers(loader.GetEntry(module), module, pointers, &errs)
+		collectRPCPointers(schema.GetEntry(module), module, pointers, &errs)
 	}
 
 	loaded := make(map[string]bool)
-	for _, module := range loader.ModuleNames() {
+	for _, module := range schema.ModuleNames() {
 		loaded[module] = true
 	}
 

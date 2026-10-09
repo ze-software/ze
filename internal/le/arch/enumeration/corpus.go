@@ -138,9 +138,8 @@ const (
 	// 13 verbs on 2026-09-14, and the vocabulary is deliberately small.
 	floorVerbs = 8
 	// 329 distinct enumeration values on 2026-09-14, over 123 distinct
-	// enumerations. DefaultLoader discards its LoadRegistered and Resolve
-	// errors, so a half-loaded model answers quietly: this floor is the only
-	// thing that says so.
+	// enumerations. DefaultLoader refuses a model that fails to load or
+	// resolve; this floor catches a model that resolves whole but short.
 	floorYANGEnums = 120
 	// 154 diagnostic codes on 2026-09-14, the 141 builtins included.
 	floorDiagnosticCodes = 100
@@ -295,10 +294,10 @@ func yangEnumerations() (Corpus, error) {
 		Closed: true,
 	}
 
-	// DefaultLoader discards its own LoadRegistered and Resolve errors, so a
-	// half-loaded model comes back here looking whole. The floor is what says
-	// so, and it is why this corpus has the largest one.
-	loader, err := yang.DefaultLoader()
+	// DefaultLoader refuses a model that fails to load or resolve. A model that
+	// resolves but registers fewer modules than expected still comes back whole,
+	// and the floor is what says so; it is why this corpus has the largest one.
+	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return corpus, fmt.Errorf("load the YANG model: %w", err)
 	}
@@ -313,10 +312,10 @@ func yangEnumerations() (Corpus, error) {
 	// one tree, which is a gate disagreeing with itself.
 	pathsBySet := map[string][]string{}
 	keysBySet := map[string][]string{}
-	modules := loader.ModuleNames()
+	modules := schema.ModuleNames()
 	slices.Sort(modules)
 	for _, module := range modules {
-		entry := loader.GetEntry(module)
+		entry := schema.GetEntry(module)
 		if entry == nil {
 			continue
 		}

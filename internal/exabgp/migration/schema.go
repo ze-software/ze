@@ -27,14 +27,15 @@ func exaBGPSchema() *config.Schema {
 	if err := loader.AddModuleFromText("exabgp.yang", exabgpYANG); err != nil {
 		return nil
 	}
-	if err := loader.Resolve(); err != nil {
+	resolved, err := loader.Resolve()
+	if err != nil {
 		return nil
 	}
 
 	schema := config.NewSchema()
 
 	// Load exabgp module
-	entry := loader.GetEntry("exabgp")
+	entry := resolved.GetEntry("exabgp")
 	if entry != nil {
 		config.LoadYANGModule(schema, entry)
 	}

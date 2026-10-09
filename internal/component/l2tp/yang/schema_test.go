@@ -21,9 +21,10 @@ func TestSchema_ZeL2TPModule(t *testing.T) {
 	loader := yang.NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-l2tp-conf")
+	mod := schema.GetModule("ze-l2tp-conf")
 	require.NotNil(t, mod, "ze-l2tp-conf module should exist")
 	assert.Equal(t, "urn:ze:l2tp:conf", mod.Namespace.Name)
 }
@@ -39,9 +40,10 @@ func TestSchema_ZeL2TPEntry(t *testing.T) {
 	loader := yang.NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-l2tp-conf")
+	entry := schema.GetEntry("ze-l2tp-conf")
 	require.NotNil(t, entry, "ze-l2tp-conf entry should exist")
 
 	// Root-level l2tp{} has protocol settings.

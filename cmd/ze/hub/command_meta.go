@@ -83,14 +83,14 @@ type commandUIResource struct {
 // schema would publish each command with no parameters and no task support.
 func commandMetaSource(s *pluginserver.Server) func() ([]commandMeta, error) {
 	loadMeta := sync.OnceValues(func() (*yangCommandMeta, error) {
-		loader, err := yangloader.DefaultLoader()
+		schema, err := yangloader.DefaultLoader()
 		if err != nil {
 			return nil, fmt.Errorf("command metadata: %w", err)
 		}
 		return &yangCommandMeta{
-			paramsByPath:      buildParamMeta(loader),
-			taskSupportByPath: buildTaskSupportMap(loader),
-			uiResourceByPath:  yangloader.PathToUIResource(loader),
+			paramsByPath:      buildParamMeta(schema),
+			taskSupportByPath: buildTaskSupportMap(schema),
+			uiResourceByPath:  yangloader.PathToUIResource(schema),
 		}, nil
 	})
 
@@ -241,13 +241,13 @@ func anchoredParams(params []commandParam, defs []command.ArgDef) []commandParam
 
 // buildParamMeta extracts all RPC metadata from the YANG loader and builds a
 // map from CLI command path to neutral input parameters.
-func buildParamMeta(loader *yangloader.Loader) map[string][]commandParam {
-	if loader == nil {
+func buildParamMeta(schema *yangloader.Resolved) map[string][]commandParam {
+	if schema == nil {
 		return nil
 	}
 
 	// Build reverse map: CLI path -> wire method.
-	wireToPath := yangloader.WireMethodToPath(loader)
+	wireToPath := yangloader.WireMethodToPath(schema)
 	pathToWire := make(map[string]string, len(wireToPath))
 	for wire, path := range wireToPath {
 		pathToWire[path] = wire
@@ -256,7 +256,7 @@ func buildParamMeta(loader *yangloader.Loader) map[string][]commandParam {
 	// Each rpc a command node points at carries that node's wire method
 	// (yangloader.PublishedRPCs), so the join is by method, and no module name
 	// is rebuilt from it.
-	pub, err := yangloader.PublishedRPCs(loader)
+	pub, err := yangloader.PublishedRPCs(schema)
 	if err != nil {
 		return nil
 	}
@@ -288,11 +288,11 @@ func buildParamMeta(loader *yangloader.Loader) map[string][]commandParam {
 }
 
 // buildTaskSupportMap extracts ze:task-support values from the YANG loader.
-func buildTaskSupportMap(loader *yangloader.Loader) map[string]string {
-	if loader == nil {
+func buildTaskSupportMap(schema *yangloader.Resolved) map[string]string {
+	if schema == nil {
 		return nil
 	}
-	return yangloader.PathToTaskSupport(loader)
+	return yangloader.PathToTaskSupport(schema)
 }
 
 // lookupUIResource checks if a command path or any of its parent paths has a

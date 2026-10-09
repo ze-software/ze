@@ -61,7 +61,8 @@ func TestBlockIsReadFromTheTextTheModuleWasParsedFrom(t *testing.T) {
 				`leaf x { type string; a:e "v" { refine "q" { } } } }`))
 		require.NoError(t, loader.AddModuleFromText("same.yang",
 			`module b { namespace "urn:b"; prefix b; leaf y { type string; } }`))
-		assert.NoError(t, loader.Resolve(), "refine with an empty block conforms")
+		_, resolveErr := loader.Resolve()
+		assert.NoError(t, resolveErr, "refine with an empty block conforms")
 	})
 	t.Run("invalid statement where the later text has a block", func(t *testing.T) {
 		loader := NewLoader()
@@ -71,7 +72,7 @@ func TestBlockIsReadFromTheTextTheModuleWasParsedFrom(t *testing.T) {
 		require.NoError(t, loader.AddModuleFromText("same.yang",
 			`module b { namespace "urn:b"; prefix b; extension e { argument text; } `+
 				`leaf x { type string; b:e "v" { refine "q" { } } } }`))
-		err := loader.Resolve()
+		_, err := loader.Resolve()
 		require.Error(t, err, "refine with no block breaks refine-stmt")
 		assert.Contains(t, err.Error(), "module a")
 		assert.Contains(t, err.Error(), "requires a block")

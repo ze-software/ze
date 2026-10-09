@@ -21,9 +21,10 @@ func TestSchema_ZePluginModule(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-plugin-conf")
+	mod := schema.GetModule("ze-plugin-conf")
 	require.NotNil(t, mod, "ze-plugin-conf module should exist")
 
 	// Check namespace

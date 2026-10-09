@@ -53,12 +53,12 @@ var (
 // becomes a no-op -- tests that want to exercise the check
 // blank-import the relevant schema packages.
 func loadReservedIfaceNames() {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		reservedIfaceNamesErr = fmt.Errorf("iface: reserved CLI keywords unavailable: YANG loader: %w", err)
+		reservedIfaceNamesErr = fmt.Errorf("iface: reserved CLI keywords unavailable: YANG schema: %w", err)
 		return
 	}
-	tree := yang.BuildCommandTree(loader)
+	tree := yang.BuildCommandTree(schema)
 	if tree == nil {
 		return
 	}

@@ -21,9 +21,10 @@ func TestSchema_ZeWebModule(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-web-conf")
+	mod := schema.GetModule("ze-web-conf")
 	require.NotNil(t, mod, "ze-web-conf module should exist")
 
 	assert.Equal(t, "urn:ze:web:conf", mod.Namespace.Name)

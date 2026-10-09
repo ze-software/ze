@@ -108,14 +108,15 @@ func PluginOnlySchema() (*Schema, error) {
 	if err := loader.LoadRegistered(); err != nil {
 		return nil, fmt.Errorf("load registered YANG: %w", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	resolved, err := loader.Resolve()
+	if err != nil {
 		return nil, fmt.Errorf("resolve YANG modules: %w", err)
 	}
 
 	schema := NewSchema()
 
 	// Load only ze-plugin module
-	pluginEntry := loader.GetEntry("ze-plugin-conf")
+	pluginEntry := resolved.GetEntry("ze-plugin-conf")
 	if pluginEntry != nil {
 		for _, name := range sortedKeys(pluginEntry.Dir) {
 			child := pluginEntry.Dir[name]
@@ -158,9 +159,9 @@ var yangSchemaOnce = sync.OnceValues(func() (*Schema, error) {
 	return YANGSchemaWithPlugins(nil)
 })
 
-// loadYANGModules creates a resolved YANG loader with all modules.
+// loadYANGModules loads and resolves every embedded, registered and plugin module.
 // Shared by YANGSchemaWithPlugins and YANGValidatorWithPlugins.
-func loadYANGModules(pluginYANG map[string]string) (*yang.Loader, error) {
+func loadYANGModules(pluginYANG map[string]string) (*yang.Resolved, error) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("load embedded YANG: %w", err)
@@ -177,10 +178,11 @@ func loadYANGModules(pluginYANG map[string]string) (*yang.Loader, error) {
 			}
 		}
 	}
-	if err := loader.Resolve(); err != nil {
+	resolved, err := loader.Resolve()
+	if err != nil {
 		return nil, fmt.Errorf("resolve YANG modules: %w", err)
 	}
-	return loader, nil
+	return resolved, nil
 }
 
 // YANGValidatorWithPlugins creates a YANG value validator with all modules loaded.

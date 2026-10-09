@@ -21,9 +21,10 @@ func TestSchema_ZeTelemetryModule(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-telemetry-conf")
+	mod := schema.GetModule("ze-telemetry-conf")
 	require.NotNil(t, mod, "ze-telemetry-conf module should exist")
 
 	// Check namespace

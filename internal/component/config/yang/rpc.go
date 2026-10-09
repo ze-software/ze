@@ -54,13 +54,13 @@ type NotificationMeta struct {
 
 // ExtractRPCs extracts RPC metadata from a loaded YANG module.
 // Returns nil if the module doesn't exist or has no RPCs.
-func ExtractRPCs(loader *Loader, moduleName string) []RPCMeta {
-	mod := loader.GetModule(moduleName)
+func ExtractRPCs(schema *Resolved, moduleName string) []RPCMeta {
+	mod := schema.GetModule(moduleName)
 	if mod == nil {
 		return nil
 	}
 
-	entry := loader.GetEntry(moduleName)
+	entry := schema.GetEntry(moduleName)
 
 	var rpcs []RPCMeta
 	for _, rpc := range mod.RPC {
@@ -88,13 +88,13 @@ func ExtractRPCs(loader *Loader, moduleName string) []RPCMeta {
 
 // ExtractNotifications extracts notification metadata from a loaded YANG module.
 // Returns nil if the module doesn't exist or has no notifications.
-func ExtractNotifications(loader *Loader, moduleName string) []NotificationMeta {
-	mod := loader.GetModule(moduleName)
+func ExtractNotifications(schema *Resolved, moduleName string) []NotificationMeta {
+	mod := schema.GetModule(moduleName)
 	if mod == nil {
 		return nil
 	}
 
-	entry := loader.GetEntry(moduleName)
+	entry := schema.GetEntry(moduleName)
 
 	var notifs []NotificationMeta
 	for _, notif := range mod.Notification {

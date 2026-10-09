@@ -63,11 +63,12 @@ func Audit() (Report, error) {
 	if err := loader.LoadRegistered(); err != nil {
 		return report, fmt.Errorf("load registered YANG modules: %w", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		return report, fmt.Errorf("resolve YANG modules: %w", err)
 	}
 
-	root, err := claims.SchemaTree(loader)
+	root, err := claims.SchemaTree(schema)
 	if err != nil {
 		return report, err
 	}

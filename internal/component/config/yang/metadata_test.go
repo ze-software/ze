@@ -118,9 +118,11 @@ func TestMetadataFromRealYANG(t *testing.T) {
 	// Load the real ze-bgp YANG to verify it can be parsed
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
 	// Get the ze-types module (one of the core embedded modules)
-	mod := loader.GetModule("ze-types")
+	mod := schema.GetModule("ze-types")
 	require.NotNil(t, mod, "ze-types module should be available in embedded core modules")
 
 	meta := extractMetadata(mod)

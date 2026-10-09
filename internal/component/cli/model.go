@@ -402,7 +402,10 @@ func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62"))
 
-	comp := NewCompleter()
+	comp, err := NewCompleter()
+	if err != nil {
+		return Model{}, fmt.Errorf("failed to create completer: %w", err)
+	}
 	comp.SetTree(ed.Tree())
 
 	val, err := newConfigValidator()

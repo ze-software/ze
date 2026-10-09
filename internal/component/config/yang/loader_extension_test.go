@@ -20,7 +20,8 @@ func loadExtensionProbe(t *testing.T, probes ...Module) error {
 			t.Fatalf("parse %s: %v", probe.Name, err)
 		}
 	}
-	return loader.Resolve()
+	_, resolveErr := loader.Resolve()
+	return resolveErr
 }
 
 // assertNames fails the test for every wanted fragment the error text lacks.

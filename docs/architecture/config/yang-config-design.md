@@ -110,7 +110,7 @@ those declarations, so a module that declares its own extension, as
 `ErrUndeclaredExtension` and names the module, the file location and the
 statement. `DefaultLoader` returns this one with every other failure, so the
 daemon, the CLI and the `./le` tools all refuse the same schema. These callers return the error with
-its cause and never work from the nil loader: an SSH session and the config
+its cause and never work from a missing schema: an SSH session and the config
 editor refuse to build their completion tree, `ze help ai` and the MCP
 `ze_reference` tool fail, `ze yang` fails, interface-name validation fails
 rather than accept a reserved CLI keyword, and authorization profile
@@ -273,7 +273,9 @@ published under no name, and the command contract gate refuses it.
 
 YANG modules are loaded in two phases at startup.
 
-<!-- source: internal/component/config/yang/loader.go -- LoadEmbedded, LoadRegistered, DefaultLoader -->
+<!-- source: internal/component/config/yang/loader.go -- LoadEmbedded, LoadRegistered, DefaultLoader, Resolve, Resolved, ErrLoaderResolved -->
+<!-- source: internal/component/config/yang/command.go -- BuildCommandTree, compiledPatterns.compiled -->
+<!-- source: internal/le/doc/yangcontract/usage.go -- usageBaseline -->
 
 ### Phase 1: Embedded (bootstrap)
 
@@ -294,13 +296,38 @@ and registers them at import time.
 error, each naming its module, so one broken module does not hide the modules
 registered after it.
 
-After both phases, `Resolve()` resolves all cross-module imports via goyang.
+After both phases, `Resolve()` resolves all cross-module imports via goyang and
+runs the checks above. It is the one transition from loading to reading, and it
+answers a distinct type:
+
+| Type | Holds | Operations |
+|------|-------|------------|
+| `Loader` | Modules added, not yet checked | `LoadEmbedded`, `LoadRegistered`, `AddModuleFromText`, `AddModuleFromFile`, `Resolve` |
+| `Resolved` | A module set every check passed, and every pattern `checkPatterns` compiled, keyed by its text | `GetModule`, `GetEntry`, `ModuleNames`, `ConfModuleNames`, `APIModuleNames` |
+
+Only a successful `Resolve` (or `DefaultLoader`) produces a `Resolved`, and
+every reader of a checked module set takes one: `BuildCommandTree`, the
+`PathTo*` and `WireMethodTo*` maps, `PublishedRPCs`, `ExtractRPCs`,
+`ExtractNotifications`, `NewValidator` and `CheckAllValidatorsRegistered`. A
+caller that ignored a resolution error has no value to pass, so building a
+command tree from a module set that failed its checks does not compile. The
+command lowering reads each argument's patterns from the `Resolved` rather than
+compiling them again; a pattern it does not find there is a lowering that
+reads a pattern the check never saw, a Ze defect, and panics with a `BUG`.
+
+`Resolve` runs once. Go leaves the `Loader` usable after it, and the `Resolved`
+shares its module set, so every load and every further `Resolve` after the
+first, successful or not, returns `ErrLoaderResolved`. The zero value and nil
+of `Resolved` compile in any package; only Ze code can build one, and every
+accessor on one ends in a `BUG` panic rather than answering an empty module
+set.
 
 `DefaultLoader()` runs both phases and `Resolve()`, and it is strict: nothing is
 best-effort. A registered module that does not parse, an import that no linked
 package registers, an undeclared extension, an uncompilable pattern and a
 refused structure each come back, joined, and `DefaultLoader` then answers no
-loader. Its callers return or report that error and never serve a schema that
+`Resolved`. The `./le doc yang-contract` usage baseline built from the modules at
+git HEAD goes through the same `Resolve`. Its callers return or report that error and never serve a schema that
 silently lacks a module. A binary links every module a linked module imports,
 because the generated `register.go` of each `yang/` package blank-imports the
 packages registering its modules' imports (`command-ownership.md`, "YANG as
@@ -883,7 +910,7 @@ declares `urn:ze:ddos-local:cmd`.
 `zt` (ze-types) and `ze` (ze-extensions) are reserved prefixes.
 
 goyang keys a module that declares a `revision` under TWO names, its bare name
-and `<name>@<revision>`. `Loader.ModuleNames` answers the bare name alone, so a
+and `<name>@<revision>`. `Resolved.ModuleNames` answers the bare name alone, so a
 caller that counts what it walks counts each module once. Reach a module by its
 bare name; the revision key is goyang's, not an identity Ze uses.
 

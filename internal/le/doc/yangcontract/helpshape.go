@@ -417,7 +417,7 @@ func (r *HelpShapeReport) refuse(surface, label, rule, detail, summary string) {
 // module by building a loader over it and a fixture registration by passing one
 // (usage.go, usageContract, takes the same shape for the same reason).
 type helpShapeInput struct {
-	Loader *yang.Loader
+	Schema *yang.Resolved
 	Locals []registry.LocalCommandEntry
 }
 
@@ -430,12 +430,12 @@ type helpShapeInput struct {
 // as a converted tree and the cheapest route from red to green would be to stop
 // loading the modules (ai/rules/evidence.md).
 func helpShapeContract(in helpShapeInput) (HelpShapeReport, error) {
-	tree := yang.BuildCommandTree(in.Loader)
+	tree := yang.BuildCommandTree(in.Schema)
 	walk := newUsageWalk()
 	collectUsage(tree, nil, &walk)
-	collectRPCs(in.Loader, walk.shape)
+	collectRPCs(in.Schema, walk.shape)
 	collectLocals(in.Locals, tree, walk.shape)
-	collectSchema(in.Loader, walk.shape)
+	collectSchema(in.Schema, walk.shape)
 
 	report := *walk.shape
 	if report.Commands == 0 {
@@ -488,23 +488,23 @@ func helpShapeContract(in helpShapeInput) (HelpShapeReport, error) {
 // suffix filter would leave those 22 with no shape to satisfy and report the
 // corpus as covered, which is the silent answer this gate exists to remove
 // (ai/rules/evidence.md).
-func collectRPCs(loader *yang.Loader, report *HelpShapeReport) {
-	if loader == nil {
+func collectRPCs(schema *yang.Resolved, report *HelpShapeReport) {
+	if schema == nil {
 		return
 	}
-	modules := loader.ModuleNames()
+	modules := schema.ModuleNames()
 	slices.Sort(modules)
 
 	var tb textbuf.Buffer
 	for _, module := range modules {
-		for _, meta := range yang.ExtractRPCs(loader, module) {
+		for _, meta := range yang.ExtractRPCs(schema, module) {
 			tb.Reset()
 			label := tb.Str(module).Byte(':').Str(meta.Name).String()
 			report.rpc(label, meta)
 			report.leaves(label+"/input", meta.Input, &report.RPCLeaves, &report.RPCLeavesWithSummary)
 			report.leaves(label+"/output", meta.Output, &report.RPCLeaves, &report.RPCLeavesWithSummary)
 		}
-		for _, meta := range yang.ExtractNotifications(loader, module) {
+		for _, meta := range yang.ExtractNotifications(schema, module) {
 			tb.Reset()
 			report.leaves(tb.Str(module).Byte(':').Str(meta.Name).String(), meta.Leaves,
 				&report.NotificationLeaves, &report.NotificationLeavesWithSummary)
@@ -880,12 +880,12 @@ func HelpShape() (HelpShapeReport, error) {
 	if err != nil {
 		return HelpShapeReport{}, err
 	}
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return HelpShapeReport{}, err
 	}
 	return helpShapeContract(helpShapeInput{
-		Loader: loader,
+		Schema: schema,
 		Locals: locals,
 	})
 }

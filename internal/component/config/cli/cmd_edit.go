@@ -204,11 +204,11 @@ const createPromptTimeout = 10 * time.Second
 // buildEditorCommandTree builds a command.Node tree from YANG command modules.
 // A loader failure, such as a misspelled extension, is returned with its cause.
 func buildEditorCommandTree() (*command.Node, error) {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return nil, fmt.Errorf("YANG loader: %w", err)
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	return yang.BuildCommandTree(loader), nil
+	return yang.BuildCommandTree(schema), nil
 }
 
 // promptCreateConfig asks the user whether to create a missing config file.

@@ -60,15 +60,15 @@ import (
 // reason every other surface takes them from there: the loader holds exactly
 // what this binary carries, so a fixture module reaches the walk by being added
 // to a loader, and a `.yang` file under a testdata directory never does.
-func collectSchema(loader *yang.Loader, report *HelpShapeReport) {
-	if loader == nil {
+func collectSchema(schema *yang.Resolved, report *HelpShapeReport) {
+	if schema == nil {
 		return
 	}
-	names := loader.ConfModuleNames()
+	names := schema.ConfModuleNames()
 	slices.Sort(names)
 
 	for _, name := range names {
-		module := loader.GetEntry(name)
+		module := schema.GetEntry(name)
 		if module == nil {
 			continue
 		}

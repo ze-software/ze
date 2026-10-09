@@ -52,11 +52,10 @@ func testModules() map[string]string {
 // The modules are NAMED rather than read from the registry yang.DefaultLoader
 // reads. A test binary registers whichever modules its own imports happen to
 // pull in, goyang refuses the WHOLE set when one of them imports a module
-// nobody loaded, and DefaultLoader discards that error by design. The augment
-// under test then never lands, and a test reading the model would compare a Go
-// table against an absent leaf and pass. Naming the closure makes the refusal
-// exact.
-func yangModel(t *testing.T) *configyang.Loader {
+// nobody loaded, and DefaultLoader then refuses with an error about a module
+// this test never asked for. Naming the closure makes the refusal exact: it
+// fails on the modules under test and on nothing else.
+func yangModel(t *testing.T) *configyang.Resolved {
 	t.Helper()
 
 	loader := configyang.NewLoader()
@@ -64,8 +63,9 @@ func yangModel(t *testing.T) *configyang.Loader {
 	for name, content := range testModules() {
 		require.NoError(t, loader.AddModuleFromText(name, content))
 	}
-	require.NoError(t, loader.Resolve())
-	return loader
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	return schema
 }
 
 // yangEnumValues answers the values of the enumeration the leaf at path

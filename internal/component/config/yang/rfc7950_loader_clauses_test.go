@@ -59,8 +59,9 @@ func TestRFC7950TypedefTypeMustBePresent(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.AddModuleFromText("m.yang",
 		`module m { namespace "urn:m"; prefix m; typedef t { type uint8; description "d"; } leaf a { type t; } }`))
-	require.NoError(t, loader.Resolve())
-	entry := loader.GetEntry("m")
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	entry := schema.GetEntry("m")
 	require.NotNil(t, entry)
 	leaf := entry.Dir["a"]
 	require.NotNil(t, leaf)

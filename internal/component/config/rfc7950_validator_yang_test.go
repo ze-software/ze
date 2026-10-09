@@ -29,13 +29,14 @@ import (
 )
 
 // newTestLoader creates a resolved YANG loader with all registered modules.
-func newTestLoader(t *testing.T) *yang.Loader {
+func newTestLoader(t *testing.T) *yang.Resolved {
 	t.Helper()
 	loader := yang.NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
-	return loader
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	return schema
 }
 
 // TestValidateTree_ValidConfig verifies a complete valid config passes recursive walk.

@@ -249,21 +249,21 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 	plugin.RegisterPluginSendTypes()
 
 	// Build WireMethod -> CLI path mapping from shared YANG loader.
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("YANG command tree: %w", err)
 	}
-	wireToPaths := yang.WireMethodToPaths(loader)
-	wireToPath := yang.WireMethodToPath(loader)
-	pathToDesc := yang.PathToDescription(loader)
-	pathToHelp := yang.PathToHelp(loader)
-	pathToArgDefs := yang.PathToArgDefs(loader)
+	wireToPaths := yang.WireMethodToPaths(schema)
+	wireToPath := yang.WireMethodToPath(schema)
+	pathToDesc := yang.PathToDescription(schema)
+	pathToHelp := yang.PathToHelp(schema)
+	pathToArgDefs := yang.PathToArgDefs(schema)
 
 	// Register core handlers (text dispatcher for plugin protocol),
 	// including all YANG command aliases. Two builtins holding one command
 	// name or one wire method is a collision, and the server refuses to serve
 	// rather than let the later init() win in silence.
-	cmdTree := yang.BuildCommandTree(loader)
+	cmdTree := yang.BuildCommandTree(schema)
 	if err := loadBuiltinsWithAliases(s.dispatcher, AllBuiltinRPCs(), wireToPaths, pathToDesc, pathToHelp, pathToArgDefs, cmdTree); err != nil {
 		return nil, fmt.Errorf("builtin commands: %w", err)
 	}

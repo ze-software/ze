@@ -73,13 +73,14 @@ func newConfigValidator() (*ConfigValidator, error) {
 	if err := loader.LoadRegistered(); err != nil {
 		return nil, fmt.Errorf("failed to load registered YANG: %w", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	resolved, err := loader.Resolve()
+	if err != nil {
 		return nil, fmt.Errorf("failed to resolve YANG: %w", err)
 	}
 
 	return &ConfigValidator{
 		schema:        schema,
-		yangValidator: yang.NewValidator(loader),
+		yangValidator: yang.NewValidator(resolved),
 	}, nil
 }
 

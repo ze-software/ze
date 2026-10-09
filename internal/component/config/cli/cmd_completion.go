@@ -98,7 +98,11 @@ func completerFor(configPath string) (*cli.Completer, int) {
 		return nil, exitError
 	}
 
-	completer := cli.NewCompleter()
+	completer, err := cli.NewCompleter()
+	if err != nil {
+		helpfmt.WriteError(os.Stderr, false, "completion: %v", err)
+		return nil, exitError
+	}
 	completer.SetTree(tree)
 	return completer, exitOK
 }

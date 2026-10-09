@@ -16,15 +16,16 @@ import (
 )
 
 // loadAllAPIModules loads core + all API YANG modules for testing.
-func loadAllAPIModules(t *testing.T) *yang.Loader {
+func loadAllAPIModules(t *testing.T) *yang.Resolved {
 	t.Helper()
 	loader := yang.NewLoader()
 
 	require.NoError(t, loader.LoadEmbedded(), "load core modules")
 	require.NoError(t, loader.LoadRegistered(), "load registered modules")
-	require.NoError(t, loader.Resolve(), "resolve all modules")
+	schema, err := loader.Resolve()
+	require.NoError(t, err, "resolve all modules")
 
-	return loader
+	return schema
 }
 
 // TestYANGAPIModuleLoad verifies all 4 API YANG modules load and resolve.

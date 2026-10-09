@@ -230,11 +230,11 @@ var DefaultFloor = Floor{
 // test binary, and eighty-six in le. Taking the population as an argument is
 // what makes the floor mean the same thing in both.
 func Check(tree string, floor Floor, leRoots []string) (Result, error) {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return Result{}, fmt.Errorf("load YANG: %w", err)
 	}
-	commandTree := yang.BuildCommandTree(loader)
+	commandTree := yang.BuildCommandTree(schema)
 
 	result := Result{Exempt: map[string]int{}}
 	walk(commandTree, "", &result)

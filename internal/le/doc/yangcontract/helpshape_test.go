@@ -130,14 +130,22 @@ func shapeConfModule(t *testing.T) string {
 // shapeLoader answers a loader carrying one fixture command module, one fixture
 // API module and the fixture config module. The gate walks all three surfaces,
 // so a fixture that declares only one of them cannot reach it.
-func shapeLoader(t *testing.T, cmdModule, apiModule string) *yang.Loader {
+func shapeLoader(t *testing.T, cmdModule, apiModule string) *yang.Resolved {
 	t.Helper()
 	return shapeLoaderOver(t, cmdModule, apiModule, shapeConfModule(t))
 }
 
+// shapeExtraModule is one more fixture module shapeLoaderOver loads before it
+// resolves.
+type shapeExtraModule struct {
+	name string
+	text string
+}
+
 // shapeLoaderOver answers a loader over one command module, one API module and
-// one config module.
-func shapeLoaderOver(t *testing.T, cmdModule, apiModule, confModule string) *yang.Loader {
+// one config module, plus every extra module, resolved once every module is in:
+// a Loader refuses a load after Resolve.
+func shapeLoaderOver(t *testing.T, cmdModule, apiModule, confModule string, extra ...shapeExtraModule) *yang.Resolved {
 	t.Helper()
 
 	loader := yang.NewLoader()
@@ -153,16 +161,22 @@ func shapeLoaderOver(t *testing.T, cmdModule, apiModule, confModule string) *yan
 	if err := loader.AddModuleFromText("ze-fixture-conf", confModule); err != nil {
 		t.Fatalf("load the fixture config module: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	for _, module := range extra {
+		if err := loader.AddModuleFromText(module.name, module.text); err != nil {
+			t.Fatalf("load the fixture module %s: %v", module.name, err)
+		}
+	}
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve the fixture modules: %v", err)
 	}
-	return loader
+	return schema
 }
 
 // shapeInput answers the gate's input over one loader and one set of offline
 // registrations.
-func shapeInput(loader *yang.Loader, locals []registry.LocalCommandEntry) helpShapeInput {
-	return helpShapeInput{Loader: loader, Locals: locals}
+func shapeInput(loader *yang.Resolved, locals []registry.LocalCommandEntry) helpShapeInput {
+	return helpShapeInput{Schema: loader, Locals: locals}
 }
 
 // fixtureLocal is the CLI path of the offline local command every fixture in
@@ -394,11 +408,12 @@ func TestHelpShapeGateRefusesAnEmptyTree(t *testing.T) {
 	if err := loader.LoadEmbedded(); err != nil {
 		t.Fatalf("load the embedded modules: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve the embedded modules: %v", err)
 	}
 
-	report, err := helpShapeContract(shapeInput(loader, shapeLocals()))
+	report, err := helpShapeContract(shapeInput(schema, shapeLocals()))
 	if err == nil {
 		t.Fatalf("the gate accepted a tree of %d nodes: %+v", report.Nodes, report)
 	}
@@ -638,11 +653,12 @@ func TestHelpShapeGateRefusesAModuleSetWithNoRPC(t *testing.T) {
 	if err := loader.AddModuleFromText("ze-fixture-cmd", shapeModule); err != nil {
 		t.Fatalf("load the fixture command module: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve the fixture module: %v", err)
 	}
 
-	report, err := helpShapeContract(shapeInput(loader, shapeLocals()))
+	report, err := helpShapeContract(shapeInput(schema, shapeLocals()))
 	if err == nil {
 		t.Fatalf("the gate accepted a module set of %d RPCs: %+v", report.RPCs, report)
 	}
@@ -672,15 +688,10 @@ module ze-fixture-ipc {
 // modules alone would report those 22 as covered without reading one of them
 // (ai/rules/evidence.md).
 func TestHelpShapeGateWalksAnRPCOutsideAnAPIModule(t *testing.T) {
-	loader := shapeLoader(t, shapeModule, shapeAPIModule)
-	if err := loader.AddModuleFromText("ze-fixture-ipc", shapeIPCModule); err != nil {
-		t.Fatalf("load the fixture IPC module: %v", err)
-	}
-	if err := loader.Resolve(); err != nil {
-		t.Fatalf("resolve the fixture modules: %v", err)
-	}
+	schema := shapeLoaderOver(t, shapeModule, shapeAPIModule, shapeConfModule(t),
+		shapeExtraModule{name: "ze-fixture-ipc", text: shapeIPCModule})
 
-	report, err := helpShapeContract(shapeInput(loader, shapeLocals()))
+	report, err := helpShapeContract(shapeInput(schema, shapeLocals()))
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture modules: %v", err)
 	}

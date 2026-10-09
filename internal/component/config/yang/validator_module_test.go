@@ -38,10 +38,11 @@ func probeValidator(t *testing.T) *Validator {
 	if err := loader.AddModuleFromText("ze-test-section-conf", sectionProbeModule); err != nil {
 		t.Fatalf("add the probe module: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve the model: %v", err)
 	}
-	return NewValidator(loader)
+	return NewValidator(schema)
 }
 
 // TestValidateResolvesASectionValidatorGoDoesNotName is the discrimination test
@@ -117,8 +118,8 @@ func TestModuleDeclaringCoversEveryLoadedSection(t *testing.T) {
 	validator := probeValidator(t)
 
 	sections := 0
-	for _, module := range validator.loader.ConfModuleNames() {
-		entry := validator.loader.GetEntry(module)
+	for _, module := range validator.schema.ConfModuleNames() {
+		entry := validator.schema.GetEntry(module)
 		if entry == nil || entry.Dir == nil {
 			continue
 		}

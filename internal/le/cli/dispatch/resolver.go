@@ -126,7 +126,7 @@ func newSurface(tree string) (Surface, error) {
 	return Surface{dispatcher: dispatcher, keys: keys}, nil
 }
 
-func commandLoader(tree string) (*yangloader.Loader, error) {
+func commandLoader(tree string) (*yangloader.Resolved, error) {
 	loader := yangloader.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("load embedded YANG: %w", err)
@@ -154,10 +154,11 @@ func commandLoader(tree string) (*yangloader.Loader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load command YANG from %s: %w", root, err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		return nil, fmt.Errorf("resolve command YANG: %w", err)
 	}
-	return loader, nil
+	return schema, nil
 }
 
 // Resolves reports whether the dispatcher could route cmd.

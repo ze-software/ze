@@ -117,10 +117,10 @@ func newUsageWalk() usageWalk {
 // The head map is the same walk performed over the modules at git HEAD, keyed
 // by CLI path. A nil map skips the deletion half, which is what a fixture test
 // of the prose half passes.
-func usageContract(loader *yang.Loader, head map[string]UsageRow) UsageReport {
+func usageContract(schema *yang.Resolved, head map[string]UsageRow) UsageReport {
 	walk := newUsageWalk()
 	report := walk.report
-	collectUsage(yang.BuildCommandTree(loader), nil, &walk)
+	collectUsage(yang.BuildCommandTree(schema), nil, &walk)
 
 	for cliPath, was := range head {
 		if walk.authored[cliPath] {
@@ -338,7 +338,7 @@ func (r UsageReport) Text() string {
 // Every failure is an error rather than an empty report: a report nobody could
 // produce must not read as a tree with nothing to fix (ai/rules/evidence.md).
 func Usage(root string) (UsageReport, error) {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return UsageReport{}, err
 	}
@@ -346,7 +346,7 @@ func Usage(root string) (UsageReport, error) {
 	if err != nil {
 		return UsageReport{}, err
 	}
-	return usageContract(loader, head), nil
+	return usageContract(schema, head), nil
 }
 
 // runUsage runs the usage gate over the modules this binary carries.
@@ -394,7 +394,20 @@ func headUsage(root string) (map[string]UsageRow, error) {
 	if err != nil {
 		return nil, err
 	}
+	return usageBaseline(files, blobs)
+}
 
+// usageBaseline builds the usage rows of every registered command module, each
+// read from its text in blobs where files maps its name to a held path, and
+// from its registered text otherwise.
+//
+// The baseline goes through the one resolution policy every schema reader
+// shares: BuildCommandTree takes only the Resolved a successful Resolve
+// returns, so a module set that fails any check (an undeclared extension, an
+// uncompilable pattern, a structure checkStructure refuses) builds no
+// baseline. One that did would silently lack what the failure names, and the
+// comparison would report that loss as a usage change.
+func usageBaseline(files, blobs map[string]string) (map[string]UsageRow, error) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("load the embedded modules: %w", err)
@@ -408,15 +421,13 @@ func headUsage(root string) (map[string]UsageRow, error) {
 			return nil, fmt.Errorf("load %s at HEAD: %w", module.Name, err)
 		}
 	}
-	// Resolution is strict, as DefaultLoader's is: a baseline tree built from
-	// a module set that failed any check would silently lack what the failure
-	// names, and the comparison would report that loss as a usage change.
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		return nil, fmt.Errorf("resolve the modules at HEAD: %w", err)
 	}
 
 	walk := newUsageWalk()
-	collectUsage(yang.BuildCommandTree(loader), nil, &walk)
+	collectUsage(yang.BuildCommandTree(schema), nil, &walk)
 
 	was := make(map[string]UsageRow, len(walk.report.Prose))
 	for _, row := range walk.report.Prose {

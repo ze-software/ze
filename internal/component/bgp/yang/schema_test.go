@@ -23,9 +23,10 @@ func TestSchema_ZeBgpModule(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-bgp-conf")
+	mod := schema.GetModule("ze-bgp-conf")
 	require.NotNil(t, mod, "ze-bgp-conf module should exist")
 
 	// Check namespace

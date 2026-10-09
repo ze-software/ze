@@ -199,7 +199,7 @@ func TestOpaqueScopeVocabularyMatchesModel(t *testing.T) {
 	}
 }
 
-func loadOSPFModel(t *testing.T) *configyang.Loader {
+func loadOSPFModel(t *testing.T) *configyang.Resolved {
 	t.Helper()
 
 	loader, err := configyang.DefaultLoader()
@@ -210,7 +210,7 @@ func loadOSPFModel(t *testing.T) *configyang.Loader {
 }
 
 // modelEnum answers the values of the enumeration at one leaf of the config module.
-func modelEnum(t *testing.T, loader *configyang.Loader, path []string) []string {
+func modelEnum(t *testing.T, loader *configyang.Resolved, path []string) []string {
 	t.Helper()
 	return modelEnumIn(t, loader, ospfModule, path)
 }
@@ -218,10 +218,9 @@ func modelEnum(t *testing.T, loader *configyang.Loader, path []string) []string 
 // modelEnumIn answers the values of the enumeration at one leaf of the named module.
 //
 // It FAILS on a path that names no enumeration rather than answering an empty set.
-// DefaultLoader discards its own LoadRegistered and Resolve errors, so a model that
-// loaded half way comes back looking whole, and an empty set here would let every
-// comparison above pass over nothing (ai/rules/evidence.md).
-func modelEnumIn(t *testing.T, loader *configyang.Loader, module string, path []string) []string {
+// A path that names no enumeration would answer an empty set, and that set would
+// let every comparison above pass over nothing (ai/rules/evidence.md).
+func modelEnumIn(t *testing.T, loader *configyang.Resolved, module string, path []string) []string {
 	t.Helper()
 
 	entry := loader.GetEntry(module)

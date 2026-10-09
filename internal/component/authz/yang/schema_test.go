@@ -13,13 +13,14 @@ func TestSchema_ZeAuthzOwnsSharedAuthenticationUsers(t *testing.T) {
 	loader := configyang.NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	module := loader.GetModule("ze-authz-conf")
+	module := schema.GetModule("ze-authz-conf")
 	require.NotNil(t, module, "ze-authz-conf module should exist in every composition")
 	assert.Equal(t, "urn:ze:authz:conf", module.Namespace.Name)
 
-	entry := loader.GetEntry("ze-authz-conf")
+	entry := schema.GetEntry("ze-authz-conf")
 	require.NotNil(t, entry)
 	system := entry.Dir["system"]
 	require.NotNil(t, system, "authz must own the shared system container")

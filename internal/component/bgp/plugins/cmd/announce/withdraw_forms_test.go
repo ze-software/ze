@@ -34,10 +34,11 @@ func withdrawTree(t *testing.T) *command.Node {
 	if err := loader.AddModuleFromText("ze-raw-cmd", rawyang.ZeRawCmdYANG); err != nil {
 		t.Fatalf("load the raw module: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve the announce module: %v", err)
 	}
-	return configyang.BuildCommandTree(loader)
+	return configyang.BuildCommandTree(schema)
 }
 
 // TestWithdrawFormsAreSeparateCommands proves the split reached both halves:

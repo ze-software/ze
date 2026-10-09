@@ -63,14 +63,13 @@ func TestAuthMethodVocabularyMatchesModel(t *testing.T) {
 
 // modelEnum answers the values of the enumeration at one leaf of the loaded model.
 //
-// It FAILS on a path that names no enumeration rather than answering an empty set.
-// DefaultLoader discards its own LoadRegistered and Resolve errors, so a model that
-// loaded half way comes back looking whole, and an empty set here would let the
-// comparison above pass over nothing (ai/rules/evidence.md).
-func modelEnum(t *testing.T, loader *configyang.Loader, module string, path []string) []string {
+// It FAILS on a path that names no enumeration rather than answering an empty set:
+// a module this test binary does not link resolves to no entry, and an empty set
+// here would let the comparison above pass over nothing (ai/rules/evidence.md).
+func modelEnum(t *testing.T, schema *configyang.Resolved, module string, path []string) []string {
 	t.Helper()
 
-	entry := loader.GetEntry(module)
+	entry := schema.GetEntry(module)
 	if entry == nil {
 		t.Fatalf("the loaded model holds no module %s: this binary registered nothing to compare against", module)
 	}

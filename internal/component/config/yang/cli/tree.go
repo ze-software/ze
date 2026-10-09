@@ -79,13 +79,13 @@ func buildUnifiedTree() (*AnalysisNode, error) {
 
 // addConfigNodes loads YANG conf modules and walks them into the tree.
 func addConfigNodes(root *AnalysisNode) error {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return fmt.Errorf("YANG loader: %w", err)
+		return fmt.Errorf("YANG schema: %w", err)
 	}
 
-	for _, modName := range loader.ConfModuleNames() {
-		entry := loader.GetEntry(modName)
+	for _, modName := range schema.ConfModuleNames() {
+		entry := schema.GetEntry(modName)
 		if entry == nil || entry.Dir == nil {
 			continue
 		}
@@ -163,11 +163,11 @@ func walkYANGEntry(parent *AnalysisNode, name string, entry *gyang.Entry) {
 // addCommandNodes builds the command tree from YANG -cmd modules and merges it.
 // A loader failure is returned: a nil loader has no command tree to merge.
 func addCommandNodes(root *AnalysisNode) error {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return fmt.Errorf("YANG loader: %w", err)
+		return fmt.Errorf("YANG schema: %w", err)
 	}
-	cmdTree := yang.BuildCommandTree(loader)
+	cmdTree := yang.BuildCommandTree(schema)
 	if cmdTree == nil || cmdTree.Children == nil {
 		return nil
 	}
@@ -328,13 +328,13 @@ func yangNodeKind(entry *gyang.Entry) string {
 // AllRPCDocs returns documentation for all registered operational commands.
 // It loads YANG API modules to extract input/output parameter metadata.
 func AllRPCDocs() ([]rPCDoc, error) {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return nil, fmt.Errorf("YANG loader: %w", err)
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	wireToPath := yang.WireMethodToPath(loader)
+	wireToPath := yang.WireMethodToPath(schema)
 
-	cmdTree := yang.BuildCommandTree(loader)
+	cmdTree := yang.BuildCommandTree(schema)
 
 	rpcs := pluginserver.AllBuiltinRPCs()
 	docs := make([]rPCDoc, 0, len(rpcs))
@@ -378,11 +378,11 @@ type rpcParams struct {
 // loadRPCParams answers the parameters of every rpc a command node points at,
 // keyed by that node's wire method (yang.PublishedRPCs).
 func loadRPCParams() (map[string]rpcParams, error) {
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return nil, fmt.Errorf("YANG loader: %w", err)
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	pub, err := yang.PublishedRPCs(loader)
+	pub, err := yang.PublishedRPCs(schema)
 	if err != nil {
 		return nil, fmt.Errorf("YANG rpc pointers: %w", err)
 	}

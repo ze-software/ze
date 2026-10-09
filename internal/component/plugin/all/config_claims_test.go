@@ -38,11 +38,12 @@ func liveInventory(t *testing.T) (*claims.Node, []claims.Claim) {
 	if err := loader.LoadRegistered(); err != nil {
 		t.Fatalf("load registered YANG modules: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve YANG modules: %v", err)
 	}
 
-	root, err := claims.SchemaTree(loader)
+	root, err := claims.SchemaTree(schema)
 	if err != nil {
 		t.Fatalf("build config schema tree: %v", err)
 	}
@@ -196,12 +197,13 @@ func TestFeatureGatedModulesEnumerated(t *testing.T) {
 	if err := loader.LoadRegistered(); err != nil {
 		t.Fatalf("load registered YANG modules: %v", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		t.Fatalf("resolve YANG modules: %v", err)
 	}
 
 	loaded := make(map[string]bool)
-	for _, name := range loader.ModuleNames() {
+	for _, name := range schema.ModuleNames() {
 		loaded[name] = true
 	}
 

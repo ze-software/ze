@@ -13,7 +13,7 @@ import (
 )
 
 func TestCompleterCommands(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Empty input should show commands
 	completions := c.Complete("", nil)
@@ -28,7 +28,7 @@ func TestCompleterCommands(t *testing.T) {
 }
 
 func TestCompleterSetKeywords(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// "set " at bgp context should show bgp children from YANG
 	completions := c.Complete("set ", []string{"bgp"})
@@ -41,7 +41,7 @@ func TestCompleterSetKeywords(t *testing.T) {
 }
 
 func TestCompleterSetPartialKeyword(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// "set session" should complete to "session" in bgp context
 	completions := c.Complete("set session", []string{"bgp"})
@@ -52,7 +52,7 @@ func TestCompleterSetPartialKeyword(t *testing.T) {
 }
 
 func TestCompleterNestedPath(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// At bgp.peer list level (no key selected), should show all children including key
 	completions := c.Complete("set ", []string{"bgp", "peer"})
@@ -64,7 +64,7 @@ func TestCompleterNestedPath(t *testing.T) {
 }
 
 func TestCompleterValueTypeHints(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// After "set router-id " inside bgp context should hint value
 	completions := c.Complete("set router-id ", []string{"bgp"})
@@ -73,7 +73,7 @@ func TestCompleterValueTypeHints(t *testing.T) {
 }
 
 func TestCompleterGhostTextSingleMatch(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// "set router" should ghost "-id" (single match) inside bgp context
 	ghost := c.GhostText("set router", []string{"bgp"})
@@ -81,7 +81,7 @@ func TestCompleterGhostTextSingleMatch(t *testing.T) {
 }
 
 func TestCompleterGhostTextNoMatch(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// "set xyz" has no matches
 	ghost := c.GhostText("set xyz", []string{"bgp"})
@@ -89,7 +89,7 @@ func TestCompleterGhostTextNoMatch(t *testing.T) {
 }
 
 func TestCompleterEditPath(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// "edit " inside bgp should show peer (a list)
 	completions := c.Complete("edit ", []string{"bgp"})
@@ -100,7 +100,7 @@ func TestCompleterEditPath(t *testing.T) {
 }
 
 func TestCompleterYANGDescription(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Descriptions should come from YANG model
 	completions := c.Complete("set ", []string{"bgp"})
@@ -119,7 +119,7 @@ func TestCompleterYANGDescription(t *testing.T) {
 }
 
 func TestCompleterYANGMandatory(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Mandatory fields should be marked in description
 	completions := c.Complete("set ", []string{"bgp"})
@@ -145,7 +145,7 @@ func TestCompleterYANGMandatory(t *testing.T) {
 }
 
 func TestCompleterEnumValues(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// In session/capability/add-path context, should show direction/family/limit children
 	completions := c.Complete("set ", []string{"bgp", "peer", "session", "capability", "add-path"})
@@ -162,7 +162,7 @@ func TestCompleterEnumValues(t *testing.T) {
 // VALIDATES: Navigating to a list via tokens shows list keys, not schema children.
 // PREVENTS: "set bgp peer <tab>" showing remote instead of peer names.
 func TestCompleterSetListKeys(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// "set bgp peer " should show list key hints (* for template, <value> for new)
 	// NOT schema children like peer-as, address, etc.
@@ -183,7 +183,7 @@ func TestCompleterSetListKeys(t *testing.T) {
 // VALIDATES: "peer name" treats "name" as the key value.
 // PREVENTS: key leaf name being rejected as missing key.
 func TestCompleterKeyLeafAsValue(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// "peer name " should show list children ("name" is the key value)
 	peerComps := c.Complete("set bgp peer name ", nil)
@@ -201,7 +201,7 @@ func TestCompleterKeyLeafAsValue(t *testing.T) {
 // VALIDATES: peer "name" accepted as key value in validateTokenPath.
 // PREVENTS: regression where key leaf names were rejected.
 func TestValidateTokenPathKeyLeaf(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	_, err := c.validateTokenPath([]string{"bgp", "peer", "name", "description"})
 	require.NoError(t, err, "peer 'name' should be accepted as key value")
@@ -247,7 +247,7 @@ bgp {
 // VALIDATES: Navigating the config tree through list entries finds sublist keys.
 // PREVENTS: "edit update <tab>" inside a peer showing only <value> instead of existing keys.
 func TestCompleterListKeysInContext(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Build a tree: bgp { peer 1.1.1.1 { update { ... } update named { ... } } }
 	tree := config.NewTree()
@@ -287,7 +287,7 @@ func TestCompleterListKeysInContext(t *testing.T) {
 // VALIDATES: Single-entry lists auto-select without requiring a key.
 // PREVENTS: Asking for a key when there's only one option.
 func TestCompleterListKeySingleEntry(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Build a tree: bgp { peer 1.1.1.1 { update { ... } } }
 	tree := config.NewTree()
@@ -314,7 +314,7 @@ func TestCompleterListKeySingleEntry(t *testing.T) {
 // VALIDATES: Typed list key is accepted and offered as completion.
 // PREVENTS: "set bgp peer 10.0.0.1<Tab>" replacing IP with "<value>" or doing nothing.
 func TestCompleterListKeyTypedValueAccepted(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// No existing peers — empty tree
 	tree := config.NewTree()
@@ -340,7 +340,7 @@ func TestCompleterListKeyTypedValueAccepted(t *testing.T) {
 // VALIDATES: After Tab accepts key, next completions show peer children.
 // PREVENTS: Getting stuck at key position instead of advancing to children.
 func TestCompleterListKeyAcceptedThenShowsChildren(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Tree with the peer already added (simulates after key is accepted)
 	tree := config.NewTree()
@@ -367,7 +367,7 @@ func TestCompleterListKeyAcceptedThenShowsChildren(t *testing.T) {
 // VALIDATES: <value> hint shown when user hasn't typed anything at list key position.
 // PREVENTS: Removing helpful hint for empty list key position.
 func TestCompleterListKeyEmptyShowsHint(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// No existing peers — empty tree
 	tree := config.NewTree()
@@ -389,7 +389,7 @@ func TestCompleterListKeyEmptyShowsHint(t *testing.T) {
 // VALIDATES: "set bgp peer 1.1.1.1<Tab>" works even when 1.1.1.1 is the only peer.
 // PREVENTS: Tab doing nothing because single-entry auto-select returns nil.
 func TestCompleterListKeySingleEntryWithPrefix(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Build a tree with exactly one peer
 	tree := config.NewTree()
@@ -416,7 +416,7 @@ func TestCompleterListKeySingleEntryWithPrefix(t *testing.T) {
 // VALIDATES: "set bgp peer transit1<Tab>" offers the typed name as completion.
 // PREVENTS: Tab not accepting valid string list key values.
 func TestCompleterListKeyStringAccepted(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// No existing peers
 	tree := config.NewTree()
@@ -443,7 +443,7 @@ func TestCompleterListKeyStringAccepted(t *testing.T) {
 // VALIDATES: "set bgp peer 1.1.1 " does NOT show remote, receive-hold-time, etc.
 // PREVENTS: Navigating past an invalid key and showing schema children.
 func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	tree := config.NewTree()
 	bgp := config.NewTree()
@@ -463,7 +463,7 @@ func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
 // VALIDATES: Invalid values for typed leaves are rejected.
 // PREVENTS: Setting non-IP address for peer address, non-numeric for receive-hold-time.
 func TestCompleterValidateValueAtPath(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	tests := []struct {
 		name  string
@@ -495,7 +495,7 @@ func TestCompleterValidateValueAtPath(t *testing.T) {
 // VALIDATES: Placeholder completions use "hint" type, not "value".
 // PREVENTS: Tab replacing user input with literal "<value>" text.
 func TestCompleterHintTypeNotApplicable(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// "set bgp peer " with no tree entries → shows <value> hint
 	completions := c.Complete("set bgp peer ", nil)
@@ -523,7 +523,7 @@ func TestCompleterHintTypeNotApplicable(t *testing.T) {
 // VALIDATES: spec-editor-2: non-leaf and unknown paths are rejected.
 // PREVENTS: Setting values on containers or unknown schema elements.
 func TestValidateRejectsNonLeafPath(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	tests := []struct {
 		name    string
@@ -553,7 +553,7 @@ func TestValidateRejectsNonLeafPath(t *testing.T) {
 // VALIDATES: AC-1: Tab on a leaf with ze:validate + CompleteFn shows values.
 // PREVENTS: ze:validate leaves with CompleteFn falling through to generic hint.
 func TestCompleterValidateExtensionCompletion(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// receive leaf-list has ze:validate "receive-event-type" with CompleteFn
 	// -- should show actionable values, not hints.
@@ -583,7 +583,7 @@ func TestCompleterValidateExtensionCompletion(t *testing.T) {
 // VALIDATES: AC-3: Tab on receive leaf-list shows event types.
 // PREVENTS: receive leaf-list showing only <string> hint.
 func TestCompleterReceiveEventCompletion(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	completions := c.Complete("set receive ", []string{"bgp", "peer", "attach", "process"})
 	require.NotEmpty(t, completions, "expected completions from CompleteFn for receive leaf-list")
@@ -603,7 +603,7 @@ func TestCompleterReceiveEventCompletion(t *testing.T) {
 // VALIDATES: AC-4: Tab on send leaf-list shows "update", "refresh".
 // PREVENTS: send leaf-list showing only <string> hint.
 func TestCompleterSendMessageCompletion(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Navigate to bgp > peer > attach > process > send
 	completions := c.Complete("set send ", []string{"bgp", "peer", "attach", "process"})
@@ -621,7 +621,7 @@ func TestCompleterSendMessageCompletion(t *testing.T) {
 // VALIDATES: AC-5: Tab on receive-hold-time still shows numeric range hint.
 // PREVENTS: Breaking existing enum/bool/hint completion for non-validated leaves.
 func TestCompleterNoValidateRegression(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// receive-hold-time is a uint16 with no ze:validate
 	completions := c.Complete("set receive-hold-time ", []string{"bgp", "peer", "timer"})
@@ -636,7 +636,7 @@ func TestCompleterNoValidateRegression(t *testing.T) {
 // VALIDATES: AC-6: Typing partial text filters CompleteFn results.
 // PREVENTS: Tab showing all options regardless of what user has typed.
 func TestCompleterValidatePrefixFilter(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	// Type "up" prefix at receive leaf-list position
 	completions := c.Complete("set receive up", []string{"bgp", "peer", "attach", "process"})
@@ -660,7 +660,7 @@ func TestCompleterValidatePrefixFilter(t *testing.T) {
 // VALIDATES: AC-7: piped validators union their CompleteFn results with dedup.
 // PREVENTS: Only first validator's completions being shown.
 func TestCompleterValidatePipedUnion(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 	require.NotNil(t, c.registry, "completer should have validator registry")
 
 	// Register two test validators with CompleteFn that return overlapping values.
@@ -697,8 +697,8 @@ func TestCompleterValidatePipedUnion(t *testing.T) {
 // VALIDATES: AC-1 — netlink-only children excluded when backend is vpp.
 // PREVENTS: backend-specific config shown for wrong backend.
 func TestCompleterBackendFiltersChildren(t *testing.T) {
-	c := NewCompleter()
-	require.NotNil(t, c.loader)
+	c := newTestCompleter(t)
+	require.NotNil(t, c.schema)
 
 	// Set backends to "vpp" for interface
 	c.backends = map[string]string{"interface": "vpp"}
@@ -714,8 +714,8 @@ func TestCompleterBackendFiltersChildren(t *testing.T) {
 // VALIDATES: AC-2 — netlink-only children included when backend is netlink.
 // PREVENTS: false filtering of matching backends.
 func TestCompleterBackendIncludesMatching(t *testing.T) {
-	c := NewCompleter()
-	require.NotNil(t, c.loader)
+	c := newTestCompleter(t)
+	require.NotNil(t, c.schema)
 
 	c.backends = map[string]string{"interface": "netlink"}
 
@@ -729,8 +729,8 @@ func TestCompleterBackendIncludesMatching(t *testing.T) {
 // VALIDATES: AC-3 — children without ze:backend shown regardless of active backend.
 // PREVENTS: unrestricted nodes accidentally filtered.
 func TestCompleterBackendUnrestricted(t *testing.T) {
-	c := NewCompleter()
-	require.NotNil(t, c.loader)
+	c := newTestCompleter(t)
+	require.NotNil(t, c.schema)
 
 	c.backends = map[string]string{"interface": "vpp"}
 
@@ -745,8 +745,8 @@ func TestCompleterBackendUnrestricted(t *testing.T) {
 // VALIDATES: AC-1 via shortcut path (typing partial keyword without "set " prefix).
 // PREVENTS: backend-specific children leaking through the command shortcut.
 func TestCompleterBackendFiltersSetShortcut(t *testing.T) {
-	c := NewCompleter()
-	require.NotNil(t, c.loader)
+	c := newTestCompleter(t)
+	require.NotNil(t, c.schema)
 
 	c.backends = map[string]string{"interface": "vpp"}
 
@@ -764,8 +764,8 @@ func TestCompleterBackendFiltersSetShortcut(t *testing.T) {
 // VALIDATES: AC-1 via edit targets path.
 // PREVENTS: edit/show mode bypassing backend filtering.
 func TestCompleterBackendFiltersEditTargets(t *testing.T) {
-	c := NewCompleter()
-	require.NotNil(t, c.loader)
+	c := newTestCompleter(t)
+	require.NotNil(t, c.schema)
 
 	c.backends = map[string]string{"interface": "vpp"}
 
@@ -780,8 +780,8 @@ func TestCompleterBackendFiltersEditTargets(t *testing.T) {
 // VALIDATES: AC-4 — child with ze:backend "netlink vpp" shown for both backends.
 // PREVENTS: multi-backend annotations only matching first entry.
 func TestCompleterBackendMulti(t *testing.T) {
-	c := NewCompleter()
-	require.NotNil(t, c.loader)
+	c := newTestCompleter(t)
+	require.NotNil(t, c.schema)
 
 	// Find a child annotated with ze:backend "netlink" and verify it works.
 	// Then test with vpp — tunnel should be excluded since it's netlink-only.
@@ -802,8 +802,8 @@ func TestCompleterBackendMulti(t *testing.T) {
 // VALIDATES: AC-5 — backend read from config tree at SetTree time.
 // PREVENTS: backend map not updated when config changes.
 func TestCompleterBackendDefaultFromTree(t *testing.T) {
-	c := NewCompleter()
-	require.NotNil(t, c.loader)
+	c := newTestCompleter(t)
+	require.NotNil(t, c.schema)
 
 	tree := config.NewTree()
 	ifaceContainer := config.NewTree()
@@ -837,7 +837,7 @@ func completionTexts(completions []Completion) []string {
 // PREVENTS: the description of a config node staying unread, which left the ? box
 // with nothing the one-line row had not already shown.
 func TestConfigCompletionCarriesBothTexts(t *testing.T) {
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	comp := completionNamed(t, c.Complete("set router-id", []string{"bgp"}), "router-id")
 
@@ -858,7 +858,7 @@ func TestConfigCompletionCarriesBothTexts(t *testing.T) {
 func TestConfigCompletionRowIsNotTheParagraph(t *testing.T) {
 	const rowWidthMax = 96
 
-	c := NewCompleter()
+	c := newTestCompleter(t)
 
 	comp := completionNamed(t, c.Complete("set router-id", []string{"bgp"}), "router-id")
 

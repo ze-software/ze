@@ -39,7 +39,7 @@ var ErrExtensionSubstatement = errors.New("invalid YANG statement under an exten
 // checkStructure joins the structural checks goyang does not perform, over
 // every loaded module and submodule.
 func (l *Loader) checkStructure() error {
-	mods := l.sourceModules()
+	mods := l.modules.sourceModules()
 	errs := make([]error, 0, len(mods))
 	for _, mod := range mods {
 		errs = append(errs, moduleLengthErrors(mod)...)

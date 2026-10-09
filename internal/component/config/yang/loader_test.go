@@ -21,11 +21,11 @@ func TestLoader_EmbeddedModules(t *testing.T) {
 	err := loader.LoadEmbedded()
 	require.NoError(t, err, "loading embedded modules should succeed")
 
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err, "resolving modules should succeed")
 
 	// Verify core library modules are loaded (only extensions + types are embedded)
-	names := loader.ModuleNames()
+	names := schema.ModuleNames()
 	assert.Contains(t, names, "ze-extensions", "ze-extensions module should be loaded")
 	assert.Contains(t, names, "ze-types", "ze-types module should be loaded")
 }
@@ -39,10 +39,10 @@ func TestLoader_ZeTypesModule(t *testing.T) {
 
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-types")
+	mod := schema.GetModule("ze-types")
 	require.NotNil(t, mod, "ze-types module should exist")
 
 	// Check namespace
@@ -85,10 +85,10 @@ module test-module {
 	err := loader.AddModuleFromText("test-module.yang", yangText)
 	require.NoError(t, err, "loading from text should succeed")
 
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("test-module")
+	mod := schema.GetModule("test-module")
 	require.NotNil(t, mod)
 	assert.Equal(t, "urn:test:module", mod.Namespace.Name)
 }
@@ -134,7 +134,7 @@ module needs-import {
 	require.NoError(t, err, "parse should succeed")
 
 	// Resolution should fail due to missing import
-	err = loader.Resolve()
+	_, err = loader.Resolve()
 	require.Error(t, err, "resolution should fail with missing import")
 }
 
@@ -147,10 +147,10 @@ func TestLoader_TypeBoundaries(t *testing.T) {
 
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-types")
+	mod := schema.GetModule("ze-types")
 	require.NotNil(t, mod)
 
 	// Find ASN typedef and check its range
@@ -207,10 +207,10 @@ module test-rpc {
 
 	err := loader.AddModuleFromText("test-rpc.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("test-rpc")
+	mod := schema.GetModule("test-rpc")
 	require.NotNil(t, mod)
 
 	// Verify RPCs are parsed at module level
@@ -273,10 +273,10 @@ module test-notif {
 
 	err := loader.AddModuleFromText("test-notif.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("test-notif")
+	mod := schema.GetModule("test-notif")
 	require.NotNil(t, mod)
 
 	// Verify notifications are parsed at module level
@@ -339,10 +339,10 @@ module test-rpc-io {
 
 	err := loader.AddModuleFromText("test-rpc-io.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("test-rpc-io")
+	mod := schema.GetModule("test-rpc-io")
 	require.NotNil(t, mod)
 
 	entry := gyang.ToEntry(mod)
@@ -432,10 +432,10 @@ module test-mixed {
 
 	err = loader.AddModuleFromText("test-mixed.yang", yangText)
 	require.NoError(t, err)
-	err = loader.Resolve()
+	schema, err := loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("test-mixed")
+	mod := schema.GetModule("test-mixed")
 	require.NotNil(t, mod)
 
 	// Verify containers coexist with RPCs and notifications
@@ -495,9 +495,10 @@ func TestLoaderNamesEachModuleOnce(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.AddModuleFromText("ze-fixture-revision.yang", revisionedModule))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	names := loader.ModuleNames()
+	names := schema.ModuleNames()
 	assert.Contains(t, names, "ze-fixture-revision", "the bare name of a revisioned module is answered")
 
 	seen := make(map[string]bool, len(names))
@@ -509,7 +510,7 @@ func TestLoaderNamesEachModuleOnce(t *testing.T) {
 
 	// The raw goyang map is the producer this guard is written against: it holds
 	// the revisioned module under two keys, and the loader answers one.
-	require.NotNil(t, loader.GetModule("ze-fixture-revision@2026-08-31"),
+	require.NotNil(t, schema.GetModule("ze-fixture-revision@2026-08-31"),
 		"goyang no longer stores the revision key: this guard is measuring nothing")
 }
 

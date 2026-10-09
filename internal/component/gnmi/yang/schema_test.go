@@ -17,9 +17,10 @@ func TestGNMISchemaRegistered(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-gnmi-conf")
+	mod := schema.GetModule("ze-gnmi-conf")
 	require.NotNil(t, mod, "ze-gnmi-conf module should exist")
 
 	assert.Equal(t, "urn:ze:gnmi:conf", mod.Namespace.Name)
@@ -78,9 +79,10 @@ func TestGNMISchemaListenerPattern(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-gnmi-conf")
+	entry := schema.GetEntry("ze-gnmi-conf")
 	require.NotNil(t, entry)
 
 	env := entry.Dir["environment"]
@@ -101,9 +103,10 @@ func TestGNMISchemaTokenSensitive(t *testing.T) {
 
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-gnmi-conf")
+	entry := schema.GetEntry("ze-gnmi-conf")
 	require.NotNil(t, entry)
 
 	env := entry.Dir["environment"]

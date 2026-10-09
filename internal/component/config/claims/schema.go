@@ -33,7 +33,7 @@ const configuredModule = "the running config"
 // State nodes, RPCs, and notifications are left out: the subject is config an
 // operator can write. Choice and case nodes are transparent, because they add a
 // schema level that no config path carries.
-func SchemaTree(l *configyang.Loader) (*Node, error) {
+func SchemaTree(l *configyang.Resolved) (*Node, error) {
 	if l == nil {
 		return nil, errNilLoader
 	}

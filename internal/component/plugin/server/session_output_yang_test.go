@@ -33,7 +33,7 @@ import (
 )
 
 // rpcOutputLeaves answers the declared output leaves of one RPC, by name.
-func rpcOutputLeaves(t *testing.T, loader *yang.Loader, module, rpc string) map[string]yang.LeafMeta {
+func rpcOutputLeaves(t *testing.T, loader *yang.Resolved, module, rpc string) map[string]yang.LeafMeta {
 	t.Helper()
 	for _, meta := range yang.ExtractRPCs(loader, module) {
 		if meta.Name != rpc {

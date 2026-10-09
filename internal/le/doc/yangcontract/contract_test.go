@@ -353,7 +353,7 @@ func TestADeliberatelyOrphanedDeclarationIsNamed(t *testing.T) {
 	}
 }
 
-// VALIDATES: a loader that publishes no rpc stops the gate.
+// VALIDATES: a resolved module set that publishes no rpc stops the gate.
 // PREVENTS: a run that judged no declaration answering that none is orphaned,
 // the silent zero aihelp.SchemaRegistry answered after a loader error before
 // it returned that error.
@@ -362,7 +362,11 @@ func TestPublishedRPCsRefuseALoaderThatPublishesNoRPC(t *testing.T) {
 	if err := loader.LoadEmbedded(); err != nil {
 		t.Fatalf("load the embedded modules: %v", err)
 	}
-	if _, err := publishedRPCs(loader); !errors.Is(err, errNoPublishedRPC) {
+	schema, err := loader.Resolve()
+	if err != nil {
+		t.Fatalf("resolve the embedded modules: %v", err)
+	}
+	if _, err := publishedRPCs(schema); !errors.Is(err, errNoPublishedRPC) {
 		t.Fatalf("a loader publishing no rpc answered %v, want %v", err, errNoPublishedRPC)
 	}
 }

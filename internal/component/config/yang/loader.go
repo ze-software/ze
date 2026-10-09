@@ -15,31 +15,73 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 )
 
-// DefaultLoader creates a Loader with all embedded and registered modules
-// loaded and resolved, and answers no Loader when anything failed. Nothing is
+// DefaultLoader loads every embedded and registered module into a new Loader,
+// resolves it, and answers the Resolved, or no value when anything failed. Nothing is
 // best-effort: a registered module that does not parse, an import nothing
 // registers, an undeclared extension, a pattern compilePattern cannot compile
 // and a structure checkStructure refuses each come back, joined, so the caller
 // cannot serve a schema that silently lacks a module or a restriction.
 // LoadRegistered attempts every module, so one broken module does not hide
 // the failures of the modules registered after it.
-func DefaultLoader() (*Loader, error) {
+func DefaultLoader() (*Resolved, error) {
 	l := NewLoader()
 	if err := l.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("YANG LoadEmbedded: %w", err)
 	}
-	if err := errors.Join(l.LoadRegistered(), l.Resolve()); err != nil {
+	registeredErr := l.LoadRegistered()
+	schema, resolveErr := l.Resolve()
+	if err := errors.Join(registeredErr, resolveErr); err != nil {
 		return nil, err
 	}
-	return l, nil
+	return schema, nil
 }
 
 //go:embed modules
 var embeddedModules embed.FS
 
-// Loader loads and resolves YANG modules.
+// Loader collects YANG modules before resolution. It holds the loading
+// operations and one transition, Resolve; every read of the module set is a
+// method of Resolved, which only a successful Resolve produces, so no caller
+// can read a module set whose checks failed or never ran. Not safe for
+// concurrent use.
 type Loader struct {
 	modules *sourcedModules
+}
+
+// ErrLoaderResolved marks a load or a second Resolve on a Loader that Resolve
+// already ran on. The Resolved that Resolve returned shares the loader's module
+// set, so a module added afterwards would reach readers unchecked.
+var ErrLoaderResolved = errors.New("YANG loader already resolved")
+
+// Resolved is a YANG module set that Loader.Resolve resolved and checked:
+// every import resolves, every extension is declared, every pattern compiles
+// and every structure passes checkStructure. Only a successful Resolve (or
+// DefaultLoader) produces one, and the operations that need a checked module
+// set (BuildCommandTree, NewValidator, the PathTo maps, ExtractRPCs, ...)
+// accept only this type.
+//
+// The zero value and nil are invalid: only Ze code can build either, and no
+// input reaches one, so every accessor ends in a BUG panic on them. The set
+// cannot change after resolution, because the Loader refuses every load once
+// Resolve ran (ErrLoaderResolved). Not safe for concurrent use: goyang caches
+// entries inside the module set (yang.ToEntry).
+type Resolved struct {
+	modules *sourcedModules
+	// patterns holds every pattern checkPatterns compiled, keyed by the
+	// pattern text, so the command lowering reads a checked pattern instead of
+	// compiling it again.
+	patterns compiledPatterns
+}
+
+// set answers the checked module set, and panics on a zero or nil Resolved.
+func (r *Resolved) set() *sourcedModules {
+	if r == nil {
+		panic("BUG: a nil yang.Resolved holds no module set; only Loader.Resolve and DefaultLoader produce one")
+	}
+	if r.modules == nil {
+		panic("BUG: a zero yang.Resolved holds no module set; only Loader.Resolve and DefaultLoader produce one")
+	}
+	return r.modules
 }
 
 // sourcedModules is goyang's module set, keeping the text each module was
@@ -55,6 +97,18 @@ type sourcedModules struct {
 	// answer for the first. A module goyang read from disk itself, resolving
 	// an import, has no entry.
 	texts map[*yang.Module]string
+	// resolved is set by the first Resolve, successful or not. Every load
+	// after it is refused, so a Resolved reading this set never sees a module
+	// that the checks did not.
+	resolved bool
+}
+
+// refuseLoad answers ErrLoaderResolved once Resolve has run.
+func (m *sourcedModules) refuseLoad() error {
+	if m.resolved {
+		return ErrLoaderResolved
+	}
+	return nil
 }
 
 // Parse parses data into the module set, then binds every module and
@@ -116,6 +170,9 @@ func NewLoader() *Loader {
 // These are true bootstrap modules with no domain content.
 // Domain modules (hub-conf, bgp-conf, plugin-conf) are loaded via LoadRegistered().
 func (l *Loader) LoadEmbedded() error {
+	if err := l.modules.refuseLoad(); err != nil {
+		return err
+	}
 	files := []string{
 		"modules/ze-extensions.yang",
 		"modules/ze-types.yang",
@@ -139,6 +196,9 @@ func (l *Loader) LoadEmbedded() error {
 // joins every parse error, each naming its module, so a module registered
 // after a broken one is still loaded and its own failure still reported.
 func (l *Loader) LoadRegistered() error {
+	if err := l.modules.refuseLoad(); err != nil {
+		return err
+	}
 	var errs []error
 	for _, mod := range modules {
 		if err := l.AddModuleFromText(mod.Name, mod.Content); err != nil {
@@ -150,6 +210,9 @@ func (l *Loader) LoadRegistered() error {
 
 // AddModuleFromText adds a YANG module from text content.
 func (l *Loader) AddModuleFromText(name, content string) error {
+	if err := l.modules.refuseLoad(); err != nil {
+		return err
+	}
 	if err := l.modules.Parse(content, name); err != nil {
 		return fmt.Errorf("parse YANG: %w", err)
 	}
@@ -160,6 +223,9 @@ func (l *Loader) AddModuleFromText(name, content string) error {
 // here rather than by goyang's Modules.Read, so its text is recorded as every
 // parsed module's is.
 func (l *Loader) AddModuleFromFile(path string) error {
+	if err := l.modules.refuseLoad(); err != nil {
+		return err
+	}
 	data, err := os.ReadFile(path) //nolint:gosec // the caller names the module file to load
 	if err != nil {
 		return fmt.Errorf("read YANG file %s: %w", path, err)
@@ -181,8 +247,23 @@ func (l *Loader) AddModuleFromFile(path string) error {
 // (ErrLengthOrder), an enum restriction that departs from its base type
 // (ErrEnumRestriction), and a non-YANG statement under an extension
 // (ErrExtensionSubstatement).
-func (l *Loader) Resolve() error {
-	return errors.Join(l.process(), l.checkExtensions(), l.checkPatterns(), l.checkStructure())
+//
+// It answers the Resolved only when every check passed, and no value
+// otherwise. It runs once: afterwards, successful or not, every load and every
+// further Resolve on l returns ErrLoaderResolved.
+func (l *Loader) Resolve() (*Resolved, error) {
+	if err := l.modules.refuseLoad(); err != nil {
+		return nil, err
+	}
+	l.modules.resolved = true
+	processErr := l.process()
+	extensionErr := l.checkExtensions()
+	patterns, patternErr := l.checkPatterns()
+	structureErr := l.checkStructure()
+	if err := errors.Join(processErr, extensionErr, patternErr, structureErr); err != nil {
+		return nil, err
+	}
+	return &Resolved{modules: l.modules, patterns: patterns}, nil
 }
 
 // process runs goyang's import and type resolution over every loaded module.
@@ -220,7 +301,7 @@ var ErrUndeclaredExtension = errors.New("undeclared YANG extension")
 // is derived from the `extension` statements of the module the prefix
 // resolves to, never listed here.
 func (l *Loader) checkExtensions() error {
-	mods := l.sourceModules()
+	mods := l.modules.sourceModules()
 	errs := make([]error, 0, len(mods))
 	for _, mod := range mods {
 		errs = append(errs, moduleExtensionErrors(mod)...)
@@ -230,18 +311,19 @@ func (l *Loader) checkExtensions() error {
 
 // checkPatterns walks the statements of every loaded module and submodule and
 // returns one error per `pattern` statement that compilePattern refuses,
-// joined. goyang keeps a pattern without compiling it (types.go: "These
+// joined, and every pattern it compiled, keyed by its text. goyang keeps a pattern without compiling it (types.go: "These
 // patterns are not checked because there is no support for W3C regexes by
 // Go"), so this is the only place an uncompilable one is refused. Without it
 // the config validator reported the pattern on every value and the command
 // argument builder dropped it, leaving the argument open to any string.
-func (l *Loader) checkPatterns() error {
-	mods := l.sourceModules()
+func (l *Loader) checkPatterns() (compiledPatterns, error) {
+	mods := l.modules.sourceModules()
+	compiled := compiledPatterns{}
 	errs := make([]error, 0, len(mods))
 	for _, mod := range mods {
-		errs = append(errs, modulePatternErrors(mod)...)
+		errs = append(errs, modulePatternErrors(mod, compiled)...)
 	}
-	return errors.Join(errs...)
+	return compiled, errors.Join(errs...)
 }
 
 // patternOwnerKeywords are the statements whose name an operator recognizes
@@ -257,11 +339,12 @@ type pendingPattern struct {
 }
 
 // modulePatternErrors returns one error for each `pattern` statement in mod
-// that compilePattern cannot compile. Each error names the module, the leaf,
+// that compilePattern cannot compile, and records each one it compiled in
+// compiled. Each error names the module, the leaf,
 // leaf-list, typedef or deviation the pattern restricts, the source location, and the
 // reason compilePattern gave, which quotes the pattern. The walk is an
 // explicit stack, as in moduleExtensionErrors.
-func modulePatternErrors(mod *yang.Module) []error {
+func modulePatternErrors(mod *yang.Module, compiled compiledPatterns) []error {
 	if mod.Source == nil {
 		return nil
 	}
@@ -283,11 +366,14 @@ func modulePatternErrors(mod *yang.Module) []error {
 		if entry.statement.Keyword != "pattern" {
 			continue
 		}
-		if _, err := compilePattern(entry.statement.Argument); err != nil {
+		re, err := compilePattern(entry.statement.Argument)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("%w: module %s: %s: %s: %w",
 				ErrUncompilablePattern, mod.Name, patternOwnerName(owner),
 				entry.statement.Location(), err))
+			continue
 		}
+		compiled[entry.statement.Argument] = re
 	}
 	return errs
 }
@@ -303,10 +389,10 @@ func patternOwnerName(owner *yang.Statement) string {
 
 // sourceModules answers every loaded module and submodule, sorted by name,
 // skipping the revision-qualified duplicate keys goyang also stores.
-func (l *Loader) sourceModules() []*yang.Module {
-	names := make([]string, 0, len(l.modules.Modules.Modules)+len(l.modules.Modules.SubModules))
-	names = append(names, l.ModuleNames()...)
-	for name := range l.modules.Modules.SubModules {
+func (m *sourcedModules) sourceModules() []*yang.Module {
+	names := make([]string, 0, len(m.Modules.Modules)+len(m.Modules.SubModules))
+	names = append(names, m.moduleNames()...)
+	for name := range m.Modules.SubModules {
 		if strings.Contains(name, "@") {
 			continue
 		}
@@ -315,9 +401,9 @@ func (l *Loader) sourceModules() []*yang.Module {
 	slices.Sort(names)
 	mods := make([]*yang.Module, 0, len(names))
 	for _, name := range names {
-		mod := l.modules.Modules.Modules[name]
+		mod := m.Modules.Modules[name]
 		if mod == nil {
-			mod = l.modules.Modules.SubModules[name]
+			mod = m.Modules.SubModules[name]
 		}
 		mods = append(mods, mod)
 	}
@@ -396,31 +482,36 @@ func moduleDeclaresExtension(mod *yang.Module, keyword string) bool {
 	return false
 }
 
-// GetModule returns a loaded module by name.
-func (l *Loader) GetModule(name string) *yang.Module {
-	return l.modules.Modules.Modules[name]
+// GetModule returns a resolved module by name.
+func (r *Resolved) GetModule(name string) *yang.Module {
+	return r.set().Modules.Modules[name]
 }
 
 // GetEntry returns the processed entry tree for a module.
 // The entry tree has all imports resolved and mandatory fields properly set.
-func (l *Loader) GetEntry(name string) *yang.Entry {
-	mod := l.modules.Modules.Modules[name]
+func (r *Resolved) GetEntry(name string) *yang.Entry {
+	mod := r.set().Modules.Modules[name]
 	if mod == nil {
 		return nil
 	}
 	return yang.ToEntry(mod)
 }
 
-// ModuleNames returns the name of every loaded module, once each.
+// ModuleNames returns the name of every resolved module, once each.
+func (r *Resolved) ModuleNames() []string {
+	return r.set().moduleNames()
+}
+
+// moduleNames returns the name of every loaded module, once each.
 //
 // goyang keys a module that declares a revision under TWO names, its bare name
 // and `<name>@<revision>` (vendor/github.com/openconfig/goyang/pkg/yang/
 // modules.go, Modules.add), and the bare name always names the most recent
 // revision. 205 of Ze's modules declare one, so a caller that walks this map
 // raw visits each of them twice and counts what it finds there twice with it.
-func (l *Loader) ModuleNames() []string {
-	names := make([]string, 0, len(l.modules.Modules.Modules))
-	for name := range l.modules.Modules.Modules {
+func (m *sourcedModules) moduleNames() []string {
+	names := make([]string, 0, len(m.Modules.Modules))
+	for name := range m.Modules.Modules {
 		if strings.Contains(name, "@") {
 			continue
 		}
@@ -429,19 +520,19 @@ func (l *Loader) ModuleNames() []string {
 	return names
 }
 
-// ConfModuleNames returns sorted names of loaded config modules (suffix "-conf").
-func (l *Loader) ConfModuleNames() []string {
-	return l.moduleNamesBySuffix("-conf")
+// ConfModuleNames returns sorted names of resolved config modules (suffix "-conf").
+func (r *Resolved) ConfModuleNames() []string {
+	return r.moduleNamesBySuffix("-conf")
 }
 
-// APIModuleNames returns sorted names of loaded API modules (suffix "-api").
-func (l *Loader) APIModuleNames() []string {
-	return l.moduleNamesBySuffix("-api")
+// APIModuleNames returns sorted names of resolved API modules (suffix "-api").
+func (r *Resolved) APIModuleNames() []string {
+	return r.moduleNamesBySuffix("-api")
 }
 
-func (l *Loader) moduleNamesBySuffix(suffix string) []string {
+func (r *Resolved) moduleNamesBySuffix(suffix string) []string {
 	var names []string
-	for _, name := range l.ModuleNames() {
+	for _, name := range r.ModuleNames() {
 		if strings.HasSuffix(name, suffix) {
 			names = append(names, name)
 		}

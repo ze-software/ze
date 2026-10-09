@@ -408,8 +408,9 @@ func newTestValidator(t *testing.T) *yang.Validator {
 	loader := yang.NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
-	return yang.NewValidator(loader)
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	return yang.NewValidator(schema)
 }
 
 // TestReader_ValidateBlock_ValidTypes verifies YANG validator accepts valid config values.

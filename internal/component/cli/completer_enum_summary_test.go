@@ -54,8 +54,9 @@ func enumSummaryCompleter(t *testing.T) *Completer {
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
 	require.NoError(t, loader.AddModuleFromText("ze-test-enum-summary-conf", enumSummaryProbeModule))
-	require.NoError(t, loader.Resolve())
-	return &Completer{loader: loader}
+	resolved, resolveErr := loader.Resolve()
+	require.NoError(t, resolveErr)
+	return &Completer{schema: resolved}
 }
 
 // VALIDATES: AC-4, AC-5 -- the value row of an enumeration leaf carries the

@@ -39,14 +39,15 @@ module ze-fixture-cmd {
 `
 
 // publishLoader loads the fixture -api module and the given -cmd module text.
-func publishLoader(t *testing.T, cmdModule string) *Loader {
+func publishLoader(t *testing.T, cmdModule string) *Resolved {
 	t.Helper()
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.AddModuleFromText("ze-fixture-api.yang", rpcHelpModule))
 	require.NoError(t, loader.AddModuleFromText("ze-fixture-cmd.yang", cmdModule))
-	require.NoError(t, loader.Resolve())
-	return loader
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+	return schema
 }
 
 // TestPublishedRPCsTakeTheMethodOfThePointingNode proves an rpc is published
@@ -143,8 +144,9 @@ func TestPublishedRPCsRefuseAMalformedMethod(t *testing.T) {
 		require.NoError(t, loader.LoadEmbedded())
 		require.NoError(t, loader.AddModuleFromText("ze-fixture-proto-api.yang",
 			"module ze-fixture-proto-api { namespace \"urn:ze:fixture:proto\"; prefix zefp; import ze-extensions { prefix ze; } rpc ping { ze:method \"ping\"; } }"))
-		require.NoError(t, loader.Resolve())
-		_, err := PublishedRPCs(loader)
+		schema, err := loader.Resolve()
+		require.NoError(t, err)
+		_, err = PublishedRPCs(schema)
 		require.ErrorIs(t, err, ErrRPCMethod)
 	})
 }
@@ -156,9 +158,10 @@ func TestPublishedRPCsRefuseAMalformedMethod(t *testing.T) {
 func TestExtractRPCsNonexistentModule(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	rpcs := ExtractRPCs(loader, "nonexistent-module")
+	rpcs := ExtractRPCs(schema, "nonexistent-module")
 	assert.Empty(t, rpcs, "should return empty for nonexistent module")
 }
 
@@ -169,9 +172,10 @@ func TestExtractRPCsNonexistentModule(t *testing.T) {
 func TestExtractNotificationsNonexistentModule(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	notifs := ExtractNotifications(loader, "nonexistent-module")
+	notifs := ExtractNotifications(schema, "nonexistent-module")
 	assert.Empty(t, notifs, "should return empty for nonexistent module")
 }
 
@@ -217,9 +221,10 @@ func TestRPCDescriptionCarriesSummaryAndHelp(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.AddModuleFromText("ze-fixture-api.yang", rpcHelpModule))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	rpcs := ExtractRPCs(loader, "ze-fixture-api")
+	rpcs := ExtractRPCs(schema, "ze-fixture-api")
 	require.Len(t, rpcs, 2)
 
 	byName := map[string]RPCMeta{}
@@ -283,9 +288,10 @@ module ze-leaftexts-api {
 }
 `
 	require.NoError(t, loader.AddModuleFromText("ze-leaftexts-api.yang", module))
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
-	rpcs := ExtractRPCs(loader, "ze-leaftexts-api")
+	rpcs := ExtractRPCs(schema, "ze-leaftexts-api")
 	require.Len(t, rpcs, 1)
 	require.Len(t, rpcs[0].Input, 1)
 	assert.Equal(t, "The TCP port to listen on", rpcs[0].Input[0].ShortHelp)
@@ -294,7 +300,7 @@ module ze-leaftexts-api {
 	assert.Equal(t, "The descriptor of the open socket", rpcs[0].Output[0].ShortHelp)
 	assert.Equal(t, "A descriptor the caller closes when it is done.", rpcs[0].Output[0].Description)
 
-	notifs := ExtractNotifications(loader, "ze-leaftexts-api")
+	notifs := ExtractNotifications(schema, "ze-leaftexts-api")
 	require.Len(t, notifs, 1)
 	require.Len(t, notifs[0].Leaves, 1)
 	assert.Equal(t, "Why the socket closed", notifs[0].Leaves[0].ShortHelp)
@@ -334,9 +340,10 @@ func TestRPCInputKeepsTheOrderTheModuleDeclared(t *testing.T) {
 	for range 20 {
 		loader := NewLoader()
 		require.NoError(t, loader.AddModuleFromText("ze-order-api", module))
-		require.NoError(t, loader.Resolve())
+		schema, err := loader.Resolve()
+		require.NoError(t, err)
 
-		rpcs := ExtractRPCs(loader, "ze-order-api")
+		rpcs := ExtractRPCs(schema, "ze-order-api")
 		require.Len(t, rpcs, 1, "the module declares one rpc")
 
 		got := make([]string, 0, len(rpcs[0].Input))

@@ -146,11 +146,11 @@ func CLISubcommands() ([]CLICommand, error) {
 	seen := map[string]bool{}
 	var cmds []CLICommand
 
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return nil, fmt.Errorf("YANG loader: %w", err)
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	if yangTree := yang.BuildCommandTree(loader); yangTree != nil {
+	if yangTree := yang.BuildCommandTree(schema); yangTree != nil {
 		for _, name := range sortedChildren(yangTree) {
 			child := yangTree.Children[name]
 			desc := child.ShortHelp
@@ -205,7 +205,7 @@ func sortedChildren(node *command.Node) []string {
 
 // SchemaRegistry builds a schema registry with YANG RPC metadata.
 //
-// A loader error or a ze:rpc pointer the schema cannot honour is returned:
+// A loader error or a ze:rpc pointer the schema cannot honor is returned:
 // the registry would otherwise publish no documented RPC, and `ze help ai`
 // and the MCP ze_reference tool would answer with a shorter list and no
 // reason.
@@ -220,8 +220,8 @@ func SchemaRegistry() (*pluginserver.SchemaRegistry, error) {
 // schemaRegistryFrom registers the rpcs the loader publishes. Each rpc is
 // published under the method of the command node that points at it; the
 // plugin IPC protocol is not an operator method and stays out.
-func schemaRegistryFrom(loader *yang.Loader) (*pluginserver.SchemaRegistry, error) {
-	pub, err := yang.PublishedRPCs(loader)
+func schemaRegistryFrom(resolved *yang.Resolved) (*pluginserver.SchemaRegistry, error) {
+	pub, err := yang.PublishedRPCs(resolved)
 	if err != nil {
 		return nil, fmt.Errorf("YANG rpc publication: %w", err)
 	}
@@ -235,7 +235,7 @@ func schemaRegistryFrom(loader *yang.Loader) (*pluginserver.SchemaRegistry, erro
 // loadSchema loads and resolves every embedded and registered YANG module.
 // Each step's failure is returned with the step named, because a partial
 // schema publishes a partial reference.
-func loadSchema() (*yang.Loader, error) {
+func loadSchema() (*yang.Resolved, error) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("YANG LoadEmbedded: %w", err)
@@ -243,10 +243,11 @@ func loadSchema() (*yang.Loader, error) {
 	if err := loader.LoadRegistered(); err != nil {
 		return nil, fmt.Errorf("YANG LoadRegistered: %w", err)
 	}
-	if err := loader.Resolve(); err != nil {
+	schema, err := loader.Resolve()
+	if err != nil {
 		return nil, fmt.Errorf("YANG Resolve: %w", err)
 	}
-	return loader, nil
+	return schema, nil
 }
 
 // Services walks registered YANG conf modules for environment containers.
@@ -406,11 +407,11 @@ func Build() (Reference, error) {
 		ref.RPCs = append(ref.RPCs, RPC{WireMethod: brpc.WireMethod})
 	}
 
-	loader, err := yang.DefaultLoader()
+	schema, err := yang.DefaultLoader()
 	if err != nil {
-		return Reference{}, fmt.Errorf("YANG loader: %w", err)
+		return Reference{}, fmt.Errorf("YANG schema: %w", err)
 	}
-	ref.DispatchKeys = yang.WireMethodToPath(loader)
+	ref.DispatchKeys = yang.WireMethodToPath(schema)
 	if ref.DispatchKeys == nil {
 		ref.DispatchKeys = map[string]string{}
 	}

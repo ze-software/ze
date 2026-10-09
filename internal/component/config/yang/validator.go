@@ -74,14 +74,14 @@ func (e *ValidationError) Error() string {
 
 // Validator validates configuration data against YANG schemas.
 type Validator struct {
-	loader   *Loader
+	schema   *Resolved
 	registry *ValidatorRegistry
 }
 
 // NewValidator creates a new YANG validator.
-func NewValidator(loader *Loader) *Validator {
+func NewValidator(schema *Resolved) *Validator {
 	return &Validator{
-		loader: loader,
+		schema: schema,
 	}
 }
 
@@ -134,7 +134,7 @@ func (v *Validator) findSchemaNode(path string) (*yang.Entry, error) {
 	// module declares it. A path that names a module directly still resolves.
 	entry := v.moduleDeclaring(parts[0])
 	if entry == nil {
-		entry = v.loader.GetEntry(parts[0])
+		entry = v.schema.GetEntry(parts[0])
 	}
 	if entry == nil {
 		return nil, fmt.Errorf("module not found for path: %s", path)
@@ -181,8 +181,8 @@ func (v *Validator) findInEntry(entry *yang.Entry, parts []string) (*yang.Entry,
 // resolves to the same one. ValidateTreeAllModules is the entry point for a
 // caller that needs every contributing module rather than one.
 func (v *Validator) moduleDeclaring(section string) *yang.Entry {
-	for _, module := range v.loader.ConfModuleNames() {
-		entry := v.loader.GetEntry(module)
+	for _, module := range v.schema.ConfModuleNames() {
+		entry := v.schema.GetEntry(module)
 		if entry == nil || entry.Dir == nil {
 			continue
 		}
@@ -694,8 +694,8 @@ func (v *Validator) ValidateTree(path string, data map[string]any) []ValidationE
 // fields from other modules are silently skipped.
 func (v *Validator) ValidateTreeAllModules(section string, data map[string]any) []ValidationError {
 	var errs []ValidationError
-	for _, modName := range v.loader.ConfModuleNames() {
-		entry := v.loader.GetEntry(modName)
+	for _, modName := range v.schema.ConfModuleNames() {
+		entry := v.schema.GetEntry(modName)
 		if entry == nil || entry.Dir == nil {
 			continue
 		}

@@ -422,7 +422,8 @@ func TestBackendExtensionNames_AllAnnotationsNameKnownBackends(t *testing.T) {
 	loader := yang.NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
 
 	// Known backends today. Update this when a new backend is registered.
 	// iface: netlink, vpp ; firewall: nft ; traffic: tc.
@@ -434,8 +435,8 @@ func TestBackendExtensionNames_AllAnnotationsNameKnownBackends(t *testing.T) {
 	}
 
 	seen := map[string][]string{} // name -> paths carrying it
-	for _, modName := range loader.ModuleNames() {
-		entry := loader.GetEntry(modName)
+	for _, modName := range schema.ModuleNames() {
+		entry := schema.GetEntry(modName)
 		if entry == nil {
 			continue
 		}
