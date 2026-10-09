@@ -88,9 +88,9 @@
     "RFC7950-7.2.2-1": {
       "code": {
         "internal/component/config/yang/loader.go::Resolve": "30011595c2732bf2",
-        "internal/component/config/yang/loader_structure.go::checkStructure": "c5551710b8b40083"
+        "internal/component/config/yang/loader_structure.go::checkStructure": "dbd0bfe8e67e5c32"
       },
-      "note": "{gap} stands. Re-judged 2026-10-09: Resolve (process, checkExtensions, checkPatterns, checkStructure) and checkStructure (length, enum, extension-substatement checks) still hold no comparison of an include with the submodule's belongs-to. Probe 2026-10-09: modules a, submodule s { belongs-to a; } and module b { include s; } resolve with no error.",
+      "note": "{gap} stands. Re-judged 2026-10-09 after checkStructure changed (7070e5861a): it now joins moduleLengthErrors, moduleEnumErrors and moduleExtensionSubstatementErrors and still compares no include with the included submodule's belongs-to; Resolve adds process, checkExtensions, checkPatterns only. The BelongsTo read in loader.go resolves extension owners, not include validity. Probe 2026-10-09: module a, submodule s { belongs-to a; } and module b { include s; } resolve with no error, against 'A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.'",
       "requirement_sha": "4111ba92ddb919e3",
       "verdict": "unimplemented"
     },
@@ -512,9 +512,13 @@
       "verdict": "enforced"
     },
     "RFC7950-9.6.4.2-1": {
-      "note": "Re-judged 2026-10-09. Enforced clauses unchanged: int32 range at both ends, uniqueness, value required after 2147483647, and the restriction sentence (TestRFC7950EnumRestrictionKeepsTheBaseValue). Still no tagged test asserts automatic assignment, and the stack breaks it: CODE DEFECT confirmed by probe 2026-10-09, enumeration { enum p { value -5; } enum q; ... } assigns q = 0, where the sentence 'otherwise, the assigned value is one greater than the current highest enum value' gives -4 (goyang). The rest of the probe agreed: after value 10 then 3 an implicit enum is 11, and an if-feature enum does not shift the count (12, 13).",
+      "note": "Re-judged 2026-10-09 after 7070e5861a. Now enforced in Ze's own producer (assignEnumValues): TestRFC7950EnumImplicitValueFollowsTheHighest pins the implicit value after -5 (-4), after 10 then 3 (11), with an if-feature enum counted (2), and two typedef levels down, each refused twin differing only in the value; TestRFC7950EnumValueRangeAndUniqueness refuses with ErrEnumValue an implicit value past 2147483647 and an explicit repeat of an implicit -4. Unchanged units keep int32 range, restriction-keeps-base-value. Still weak because the STACK refuses a conforming module and no tagged test can see it: probe 2026-10-09 (overlay test, Loader.AddModuleFromText then Resolve) of enumeration { enum p { value -5; } enum q; enum r { value 0; } } is refused by goyang Modules.Process inside Loader.process with 'fields r and q conflict on value 0' (goyang EnumType.SetNext numbers q 0, not -4); Ze's checkStructure accepts it. Resolve is the production path (config/yang_schema.go, cli validator and completer). DefaultLoader discards the process error, so there it loads. The uniqueness positive picks r value -3, which sidesteps the defect: the sentence 'otherwise, the assigned value is one greater than the current highest enum value' is not met by the whole stack.",
       "requirement_sha": "af5bfbedbde62bb3",
       "tests": {
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest": "b366a4e00b84d3eb",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest#2": "b366a4e00b84d3eb",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness": "b366a4e00b84d3eb",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness#2": "b366a4e00b84d3eb",
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32": "881aace010f385f0",
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32#2": "881aace010f385f0",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue": "08b21c893ad470ee",
@@ -523,6 +527,10 @@
         "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "ab9e0bcafd430b57"
       },
       "units": {
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest": "2ea54feac4b996c2",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest#2": "2ea54feac4b996c2",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness": "ef60ab66013e4c1c",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness#2": "ef60ab66013e4c1c",
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32": "cc7cdabcebfb50cb",
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32#2": "cc7cdabcebfb50cb",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue": "bedbd0565b8aac39",
