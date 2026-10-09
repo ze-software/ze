@@ -1,0 +1,145 @@
+# Test: a peer created at runtime feeds the RIBs, and deleting it withdraws its routes
+# VALIDATES: create bgp peer builds a peer that dials, establishes and puts its
+#            route in the Adj-RIB-In, the RIB and the best path; the route is
+#            forwarded to a configured peer; the configuration file is not
+#            written; an unrelated commit keeps the created peer on its session;
+#            delete bgp peer removes the peer, its route leaves the RIB, the
+#            configured peer receives the WITHDRAW and a subscribed plugin is
+#            told; deleting a configured peer leaves the file alone and a reload
+#            brings that peer back.
+# PREVENTS: a runtime peer that exists in the peer table and nowhere else, a
+#           delete that leaves routes behind, a create that writes the file, and
+#           a commit that tears a runtime peer down.
+# The scenario and its read-backs: internal/test/fixture/plugin_fixture_13_peer_lifecycle.go.
+
+option=timeout:value=60s
+
+# ---------------------------------------------------------------------------
+# The created peer -- eBGP, AS 65002, on 127.0.0.2. Ze dials it after
+# `create bgp peer`. One TCP connection only: a commit that reset the session
+# would leave the peer down, which the fixture reports.
+# ---------------------------------------------------------------------------
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=bind:value=127.0.0.2
+option=asn:value=65002
+option=linger:value=true
+
+# seq=1 -- ze's End-of-RIB for the session it just opened.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# seq=2 -- announce 192.0.2.0/24.
+#   ORIGIN:    40010100            IGP
+#   AS_PATH:   40020602010000FDEA  AS_SEQUENCE[65002], 4-byte ASNs
+#   NEXT_HOP:  40030401010101      1.1.1.1
+#   NLRI:      18C00002            192.0.2.0/24
+# attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040101010118C00002
+EOF_SOURCE
+
+# ---------------------------------------------------------------------------
+# The configured peer -- eBGP, AS 65001, on 127.0.0.1. It receives the created
+# peer's route through the route server, then the WITHDRAW when that peer is
+# deleted.
+# ---------------------------------------------------------------------------
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65001
+
+# seq=1 -- the forward of 192.0.2.0/24.
+expect=bgp:conn=1:seq=1:contains=18C00002
+
+# seq=2 -- the WITHDRAW: withdrawn length 4, 192.0.2.0/24, no path attributes.
+expect=bgp:conn=1:seq=2:contains=02000418C000020000
+EOF_DEST
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external lifecycle-driver {
+		run "le test fixture plugin/api-peer-create-delete-rib $PORT2"
+		encoder json
+	}
+	internal rs {
+		use bgp-rs
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+environment {
+	api-server {
+		token "secret";
+		rest {
+			enabled true;
+			server main {
+				ip 127.0.0.1;
+				port $PORT2;
+			}
+		}
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		# The selecting RIB owns what was sent here: source-DOWN recovery asks it
+		# which routes this peer holds from a departed source (rib_recovery.go).
+		attach process bgp-rib {
+			receive [ update state refresh ]
+		}
+		# The driver is told of the WITHDRAW sent here when the created peer goes.
+		attach process lifecycle-driver {
+			receive [ update-sent ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=dest
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=source
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: the created peer is listed and established
+expect=stderr:contains=OK: the created peer's route is in the RIB and is the best path
+expect=stderr:contains=OK: the configuration file and the running configuration name no created peer
+expect=stderr:contains=OK: an unrelated commit keeps the created peer and its routes
+expect=stderr:contains=OK: a reload keeps the created peer and its routes
+expect=stderr:contains=OK: the deleted peer's route left the RIB and a plugin was told
+expect=stderr:contains=OK: deleting a configured peer leaves the file, and a reload brings it back
