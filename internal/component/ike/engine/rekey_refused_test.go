@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ func refusedNotify(notifyType uint16, data []byte) []wire.PayloadEntry {
 // refusedRig is one established PeerSession with a live Child SA and a UDP link to a
 // stand-in peer, so a test can watch what ze sends after a refused rekey.
 type refusedRig struct {
+	peer   *SA // The stand-in peer's end of the same IKE SA.
 	sa     *SA
 	ps     *PeerSession
 	old    *ChildSA
@@ -34,7 +36,7 @@ type refusedRig struct {
 func newRefusedRig(t *testing.T) *refusedRig {
 	t.Helper()
 	log := slogutil.DiscardLogger()
-	_, sa, ps := establishPSK(t)
+	peer, sa, ps := establishPSK(t)
 	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 	if sa.remoteUDPAddr() == nil {
@@ -46,7 +48,7 @@ func newRefusedRig(t *testing.T) *refusedRig {
 		t.Fatalf("createFirstChildSA: %v", err)
 	}
 	ps.setChildSA(old)
-	return &refusedRig{sa: sa, ps: ps, old: old, dp: dp, peerTr: peerTr, myTr: myTr}
+	return &refusedRig{peer: peer, sa: sa, ps: ps, old: old, dp: dp, peerTr: peerTr, myTr: myTr}
 }
 
 // answerChildRekey starts one Child SA rekey, checks it reached the peer, and feeds the
@@ -348,4 +350,179 @@ func TestIKERekeyInvalidKERetriesInConfiguredGroup(t *testing.T) {
 		t.Fatalf("the retry carried KEi in group %d, want the named group 19", got)
 	}
 	r.ps.pendingRekey.clear()
+}
+
+// relayToPeer carries the rekey request ze just sent to the stand-in peer, lets respond
+// build the peer's answer from the decrypted request, and feeds that answer back to the
+// owner. It returns the request ze sent, so a test can read the KE payload on the wire.
+func (r *refusedRig) relayToPeer(t *testing.T, respond func(req []wire.PayloadEntry, msgID uint32) []byte) ([]wire.PayloadEntry, ownedOutcome) {
+	t.Helper()
+	log := slogutil.DiscardLogger()
+	raw := rtxRecv(t, r.peerTr)
+	if raw == nil {
+		t.Fatal("the rekey request never reached the peer")
+	}
+	if r.ps.pendingRekey == nil {
+		t.Fatal("the rekey left no outstanding exchange")
+	}
+	msgID := r.ps.pendingRekey.messageID
+	req, err := decryptAndParse(r.peer, parseMsg(t, raw), raw)
+	if err != nil {
+		t.Fatalf("the peer could not decrypt the rekey request: %v", err)
+	}
+	answer := respond(req, msgID)
+	inner, err := decryptAndParse(r.sa, parseMsg(t, answer), answer)
+	if err != nil {
+		t.Fatalf("ze could not decrypt the peer's answer: %v", err)
+	}
+	respMsg := &wire.Message{Header: wire.Header{MessageID: msgID}}
+	out := r.ps.handleCreateChildSAOwned(r.sa, respMsg, inner, true, r.myTr, r.dp, log)
+	r.sa.releaseRequestWindow()
+	return req, out
+}
+
+// VALIDATES: a Child SA rekey refused with INVALID_KE_PAYLOAD naming group 19 completes
+// in group 19, end to end. The method runs both ends of one IKE SA. The peer answers the
+// first request, which carries KEi in group 14, with INVALID_KE_PAYLOAD naming 19, and
+// its real respondChildRekey accepts the retry. The first answer is scripted: ze offers
+// one group per Child SA rekey, so a responder that runs only group 19 answers that
+// offer NO_PROPOSAL_CHOSEN, and the INVALID_KE_PAYLOAD naming 19 is the peer's choice
+// this test stands in for. The test checks the retry's KEi on the wire, that the old
+// Child SA stayed live until the replacement was installed, and that both ends derived
+// the same keys, which they can only do from one shared secret in group 19.
+// PREVENTS: a retry that goes out in the named group but is refused on the way back by
+// ze's own checks of the answer (verifyAcceptedOffer, childRekeyKeys), which would loop
+// the refusal against a peer that has already said yes.
+func TestChildRekeyCompletesInTheGroupThePeerNamed(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	r := refusedRigTwoGroups(t)
+	// The peer runs PFS in group 19. A Ze responder demands the group of its IKE SA, so
+	// setting that group on the peer's end makes it accept KEi in 19 and nothing else.
+	r.peer.Proposal.DHGroup.ID = 19
+	peerESP := testESPGroup()
+	peerESP.PFS = ipsec.PFSEnable
+	peerDP := &rkyDP{}
+	peerOld, err := createFirstChildSA(r.peer, peerESP, "10.0.0.2", "10.0.0.1", 1, peerDP, log)
+	if err != nil {
+		t.Fatalf("createFirstChildSA for the peer: %v", err)
+	}
+	var peerNew *ChildSA
+	respond := func(req []wire.PayloadEntry, msgID uint32) []byte {
+		answer, child, err := respondChildRekey(r.peer, req, peerOld, msgID, peerDP, log)
+		if err != nil {
+			t.Fatalf("the peer refused the request outright: %v", err)
+		}
+		peerNew = child
+		return answer
+	}
+
+	// RFC 7296 Section 3.10.1: INVALID_KE_PAYLOAD carries the accepted group in two octets.
+	refuse := func(_ []wire.PayloadEntry, msgID uint32) []byte {
+		notify := &wire.PayloadNotify{NotifyMsgType: wire.NotifyInvalidKEPayload, NotificationData: []byte{0, 19}}
+		answer, err := buildEncryptedMessageEx(r.peer, []wire.PayloadEntry{{Payload: notify}},
+			msgID, wire.ExchangeCreateChildSA, initiatorFlag(r.peer)|wire.FlagResponse)
+		if err != nil {
+			t.Fatalf("build the peer's INVALID_KE_PAYLOAD answer: %v", err)
+		}
+		return answer
+	}
+
+	r.ps.startChildRekey(r.sa, r.myTr, log)
+	req, out := r.relayToPeer(t, refuse)
+	if got := rkyFindKE(t, req).DHGroup; got != 14 {
+		t.Fatalf("the first request carried KEi in group %d, want the first configured group 14", got)
+	}
+	if out.newChild != nil {
+		t.Fatal("an INVALID_KE_PAYLOAD answer installed a replacement Child SA")
+	}
+	if r.ps.getChildSA() != r.old {
+		t.Fatal("the refusal replaced the live Child SA")
+	}
+	if r.dp.wasRemoved(r.old.InboundSPI) {
+		t.Fatal("the refusal removed the live Child SA from the dataplane")
+	}
+
+	r.ps.startChildRekey(r.sa, r.myTr, log)
+	req, out = r.relayToPeer(t, respond)
+	if got := rkyFindKE(t, req).DHGroup; got != 19 {
+		t.Fatalf("the retry carried KEi in group %d on the wire, want the named group 19", got)
+	}
+	if peerNew == nil {
+		t.Fatal("the peer did not accept the retry in group 19")
+	}
+	if out.newChild == nil {
+		t.Fatal("ze refused the peer's acceptance of the retry in group 19")
+	}
+	if r.ps.getChildSA() != out.newChild {
+		t.Fatal("the replacement Child SA is not the live one")
+	}
+	if r.dp.installedSA(out.newChild.InboundSPI) == nil {
+		t.Fatal("the replacement Child SA was not installed")
+	}
+	if out.newChild.OutboundSPI != peerNew.InboundSPI {
+		t.Fatalf("ze sends on SPI %#x, the peer receives on %#x", out.newChild.OutboundSPI, peerNew.InboundSPI)
+	}
+	if !bytes.Equal(out.newChild.Keys.EncryptKeyI, peerNew.Keys.EncryptKeyI) ||
+		!bytes.Equal(out.newChild.Keys.EncryptKeyR, peerNew.Keys.EncryptKeyR) {
+		t.Fatal("the two ends derived different keys for the replacement Child SA")
+	}
+	if r.ps.pendingRekey != nil {
+		t.Fatal("the completed rekey is still outstanding")
+	}
+}
+
+// VALIDATES: the same, for an IKE SA rekey. The peer is configured for group 19 only,
+// so its real respondIKERekey refuses KEi in group 14 with INVALID_KE_PAYLOAD naming
+// 19, and accepts the retry. The new IKE SA runs group 19, and both ends hold the same
+// SK_d.
+// PREVENTS: a retry whose DH value is computed in the named group while its KE payload
+// still names the first configured group, which the peer refuses again.
+func TestIKERekeyCompletesInTheGroupThePeerNamed(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	r := refusedRigTwoGroups(t)
+	r.peer.IKEGroup.Proposals = []ipsec.IKEProposal{r.sa.IKEGroup.Proposals[1]}
+	if r.peer.IKEGroup.Proposals[0].DHGroup != 19 {
+		t.Fatal("the rig's second IKE proposal is not group 19")
+	}
+	var peerNew *SA
+	respond := func(req []wire.PayloadEntry, msgID uint32) []byte {
+		answer, sa, err := respondIKERekey(r.peer, req, msgID, log)
+		if err != nil {
+			t.Fatalf("the peer refused the request outright: %v", err)
+		}
+		peerNew = sa
+		return answer
+	}
+
+	r.ps.startIKERekey(r.sa, r.sa.IKEGroup, r.myTr, log)
+	req, out := r.relayToPeer(t, respond)
+	if got := rkyFindKE(t, req).DHGroup; got != 14 {
+		t.Fatalf("the first request carried KEi in group %d, want the first configured group 14", got)
+	}
+	if peerNew != nil || out.newSA != nil {
+		t.Fatal("the peer was expected to refuse KEi in group 14 with INVALID_KE_PAYLOAD")
+	}
+	if out.reestablish {
+		t.Fatal("the refusal tore the current IKE SA down")
+	}
+
+	r.ps.startIKERekey(r.sa, r.sa.IKEGroup, r.myTr, log)
+	req, out = r.relayToPeer(t, respond)
+	if got := rkyFindKE(t, req).DHGroup; got != 19 {
+		t.Fatalf("the retry carried KEi in group %d on the wire, want the named group 19", got)
+	}
+	if peerNew == nil {
+		t.Fatal("the peer did not accept the retry in group 19")
+	}
+	defer peerNew.SKKeys.Clear()
+	if out.newSA == nil {
+		t.Fatal("ze refused the peer's acceptance of the retry in group 19")
+	}
+	defer out.newSA.SKKeys.Clear()
+	if got := out.newSA.Proposal.DHGroup.ID; got != 19 {
+		t.Fatalf("the new IKE SA runs group %d, want 19", got)
+	}
+	if !bytes.Equal(out.newSA.SKKeys.SK_d, peerNew.SKKeys.SK_d) {
+		t.Fatal("the two ends derived different SK_d for the new IKE SA")
+	}
 }

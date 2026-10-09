@@ -1026,10 +1026,15 @@ func initiateIKERekey(oldSA *SA, ikeGroup ipsec.IKEGroup) ([]byte, *pendingRekey
 		props[i].SPISize = 8
 		props[i].SPI = spiBytes
 	}
+	// RFC 7296 Section 3.4: "The Diffie-Hellman Group Num identifies the Diffie-Hellman
+	// group in which the Key Exchange Data was computed". The KE payload therefore names
+	// dhGroupID, the group dh was built in, which is the group an INVALID_KE_PAYLOAD answer
+	// named after a refusal. Naming the first configured group there sent a value computed
+	// in one group under the number of another, and the peer refused the retry again.
 	inner := []wire.PayloadEntry{
 		{Payload: &wire.PayloadSA{Proposals: props}},
 		{Payload: &wire.PayloadNonce{NonceData: ni}},
-		{Payload: &wire.PayloadKE{DHGroup: uint16(ikeGroup.Proposals[0].DHGroup), KeyExchangeData: dh.PublicKey}},
+		{Payload: &wire.PayloadKE{DHGroup: uint16(dhGroupID), KeyExchangeData: dh.PublicKey}},
 	}
 	msgID := oldSA.NextMsgID
 	msg, err := buildEncryptedMessageEx(oldSA, inner, msgID, wire.ExchangeCreateChildSA, initiatorFlag(oldSA))
