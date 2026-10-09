@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | config |
-| Depends | - |
+| Depends | spec-appliance-ships-ze-kernel |
 | Phase | 7/7 |
 | Handoff | - |
 | Updated | 2026-10-08 |
@@ -511,3 +511,22 @@ not written, so A-2, A-3 and A-5 stay unvalidated.
 The current phase is 7/8 because boot proof remains unwritten; this is not a
 verification handoff. Phase 8 also owes the positive memory-image lab added to
 AC-15. The recorded commits do not establish usable full-memory capture.
+
+## Progress, 2026-10-09
+
+Both Phase 7 labs are written and registered (`internal/le/test/qemu/crashcapture.go`,
+`actions.go` verbs `crash-capture-panic-harvest` and `crash-capture-ota-unaffected`,
+wrappers `test/appliance/crash-capture-*-qemu.ci`), uncommitted.
+
+-> Constraint: the first panic-harvest run (KVM, from a HEAD export) FAILED for a real
+reason, before any panic: readiness reported the reservation present but
+"/sys/fs/pstore is absent; the running kernel was built without CONFIG_PSTORE". The
+appliance ships `github.com/rtr7/kernel` (`gokrazy/ze/config.json` KernelPackage), not
+ze's runtime kernel (`gokrazy/kernel/runtime.config` sets PSTORE and PSTORE_RAM).
+`TestPinnedKernelMeetsReserveMemFloor`, the runtime floor rows and
+`enforceReserveMemKernelFloor` all judge ze's runtime kernel, which no image ships, so
+`ze appliance build` accepts `image.crash-dump` for a kernel that cannot honour it.
+A-2, A-3 and A-5 stay unvalidated; A-4 is broken for the shipped image. Per Failure
+Routing this is a STOP: the labs go green only once the image ships a pstore-capable
+kernel (the separate ze-kernel switch spec), or the shipped kernel's config is checked
+at build time.

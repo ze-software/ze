@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
@@ -14,6 +14,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Owner decision (Thomas, 2026-10-09): the appliance kernel carries MPLS.
+
+-> Decision (owner, 2026-10-09): "we have our own kernel we should ONLY use it NOTHING ELSE". Every image path (`ze appliance build`, `./le build gokrazy`, the deployment proofs, the QEMU labs) boots ze's own runtime kernel and no other. `github.com/rtr7/kernel` leaves the tree (go.mod, vendor, builddir, deployment skeletons). The `ze.gok.kernel-package` override is DELETED, not kept: a route that lets an image carry a different kernel is the thing this decision forbids. AC-6 and the "`ze.gok.kernel-package` kept" design row are superseded by this decision and must be rewritten to it. Found the same day: crash capture (`plan/spec-crash-capture.md`) cannot work on rtr7 (no `CONFIG_PSTORE`) while the build accepted `image.crash-dump`, because every kernel floor check judges ze's kernel, not the shipped one; with ze's kernel the only kernel, the checks judge what ships.
 
 Today `ze appliance build` ships the pinned stock `github.com/rtr7/kernel`
 (`v0.0.0-20260403073601-5a996da3a37b`, Linux 6.19.11), whose embedded config
