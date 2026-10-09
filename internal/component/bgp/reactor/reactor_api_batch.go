@@ -32,14 +32,16 @@ import (
 // announceFacts is every per-peer fact that decides the bytes ONE peer receives
 // from an announce. It is the argument set of buildBatchAnnounceUpdate AND the
 // key that puts two peers on one build, and those being the same struct is the
-// point: a new per-peer wire decision reaches the builder only by becoming a
-// field here, and a field here is in the key by construction.
+// point: a fact the builder reads through this struct is in the key by
+// construction.
 //
 // Every per-peer value that changes the bytes MUST be a field here and MUST NOT
 // be a separate builder argument, because this struct is the grouping key and
 // an argument is not. The compiler cannot refuse such an argument, so
-// TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts pins the builders'
-// parameter lists and fails to build when one changes.
+// TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts pins the parameter
+// lists of the three group builders (buildBatchAnnounceUpdate,
+// buildBatchWithdrawUpdate, buildWithheldWithdrawUpdate) and fails to build
+// when one changes.
 //
 // The two used to be separate lists, and the key was kept in step by
 // remembering. Every field below arrived in its own commit, and three of them
@@ -1765,6 +1767,12 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 // and the multiprotocol unicast families carry a bare MP_UNREACH_NLRI, so both
 // leave an empty message rather than an attributes-only one. Upstream sends
 // nothing for those too, which `api-fast` records.
+//
+// withdrawBatchFromPeers builds this UPDATE once per group and sends it to
+// every unarmed peer of the group, and it reads per-peer facts through
+// planBatchAttrs. So the announce builder's rule holds here: a per-peer value
+// that changes the bytes is an announceFacts field, never a new parameter.
+// TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts pins this signature.
 func (a *reactorAPIAdapter) buildWithheldWithdrawUpdate(attrBuf []byte, batch bgptypes.NLRIBatch, facts announceFacts) *message.Update {
 	if batch.Family == family.IPv4Unicast || batch.Family.SAFI == family.SAFIUnicast {
 		return nil

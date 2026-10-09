@@ -394,11 +394,12 @@ Logs are under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scra
 | Item | Result | Evidence |
 |------|--------|----------|
 | Owner decision | "ok test is fine and comment in the code too": AC-6 and the goal are met by the test suite, not by the compiler | review round 2, ISSUE 1 |
-| Guard | `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` passes `buildBatchAnnounceUpdate` and `buildBatchWithdrawUpdate` (the withdraw rail groups on the same struct) as method expressions to parameters of the agreed function types, so the package's tests build only while both signatures are unchanged | `announce_facts_builder_signature_test.go` |
+| Guard | `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` passes `buildBatchAnnounceUpdate`, `buildBatchWithdrawUpdate` and `buildWithheldWithdrawUpdate` as method expressions to parameters of the agreed function types, so the package's tests build only while all three signatures are unchanged. These are every builder whose UPDATE one group shares: the only two maps keyed on `announceFacts` are `buildGroups` (announce) and `wdGroups` (withdraw, which sends the withheld UPDATE to every unarmed peer). `update_group.go` groups on `GroupKey` and the relay builders take no `announceFacts`, so neither is this key. `buildWithheldWithdrawUpdate` was added after review round 3, ISSUE 1 | `announce_facts_builder_signature_test.go` |
 | GREEN | `--- PASS: TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` in the shared tree | `scratch/job-unit-pkg-493263fc.log` |
 | RED | in a HEAD clone (`scratch/sigclone1/`) with `perPeer int` added to `buildBatchAnnounceUpdate` and every caller updated by `gofmt -r`, the package's only build error is in the guard's `pinBuilderSignatures` call (quoted below) | `scratch/sigclone1/tmp/session/<this session>/scratch/job-sig-red-9c83a8b2.log` |
-| Send path | No signature guard. `announceBatchToPeers` holds `targets`, and `sendBatchUpdate` is a method of `announceTarget`, which carries the `*Peer` by design (Adj-RIB-Out ownership and forward ordering are per target). A per-peer send value can be read there with no signature change, so pinning those signatures would prove nothing. The shared send reads only `facts.extended`, `facts.groupUpdates` and `facts.addPath` today (A-2), and the comment on `announceFacts` states the rule | `reactor_api_batch.go` `announceBatchToPeers`, `sendBatchUpdate` |
-| Code comment | the rule and the guard's name sit on `announceFacts`, `buildBatchAnnounceUpdate` and `buildBatchWithdrawUpdate` | `reactor_api_batch.go` |
+| RED, withheld builder (round 3) | in a HEAD clone (`scratch/sigclone2/`) with `perPeer int` added to `buildWithheldWithdrawUpdate` and its one caller in `withdrawBatchFromPeers` updated, the package's only build error is the guard's `pinBuilderSignatures` call: "cannot use (*reactorAPIAdapter).buildWithheldWithdrawUpdate (... perPeer int) *message.Update) as func(*reactorAPIAdapter, []byte, types.NLRIBatch, announceFacts) *message.Update value". GREEN in the shared tree: `--- PASS` for the guard, `TestAnnounceFactsPartitionUpdateGroups` and `TestWithdrawBuildGroupSplitsOnGroupUpdates` | `scratch/sigclone2/tmp/session/<this session>/scratch/job-sig-red2-9c83a8b2.log`, `scratch/job-unit-pkg-sig-586a2619.log` |
+| Send path | No signature guard, and none is owed. `sendBatchUpdate` is a method of `announceTarget` and runs once per target, so a value it reads from `target.peer` shapes only that peer's own send and cannot hand one peer another peer's bytes. The only send inputs shared by the group are `maxMsgSize`, from `facts.extended`, and `facts.addPath`, and both are key fields (with `facts.groupUpdates`, which sets the unit length, A-2) | `reactor_api_batch.go` `announceBatchToPeers`, `sendBatchUpdate` |
+| Code comment | the rule and the guard's name sit on `announceFacts`, `buildBatchAnnounceUpdate`, `buildBatchWithdrawUpdate` and `buildWithheldWithdrawUpdate`; the `announceFacts` opening no longer claims a fact can reach the builder only as a field | `reactor_api_batch.go` |
 | Page | `docs/architecture/core-design.md` said a builder fact "cannot be left out of the key"; it now says so for facts read through the struct, and names the guard for a separate argument | `core-design.md`, the `announceFacts` paragraph |
 
 The red run's build error:
@@ -499,8 +500,8 @@ value in argument to pinBuilderSignatures
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/announce-build-key-is-the-builder-argument-set-5620b26f-603e-4d57-826d-6ef92b7fcd64.md` (round 2, 10 files, verdict=findings: ISSUE 1, NOTE 1-3). Round 1 was `...-12d06ccf-2460-42c7-a707-30bb0a427796.md`, verdict=clean |
-| `./le spec review check` | owed: a fresh independent review over the round-2 fixes, commissioned by the main thread |
-| Rounds | 2, a third owed |
+| `./le spec review check` | owed: a fresh independent review over the round-3 fixes, commissioned by the main thread |
+| Rounds | 3 (round 3: `scratch/review-round3-announce-build-key.md`, ISSUE 1, NOTE 1-3), a fourth owed |
 | Reviewer lenses used | logic+wiring (key fields vs builder reads), vacuity (each red), style pass over the changed Go (`register_local_as_partition.go`, `register_local_as_announce_partition.go`, `announce_facts_one_build_test.go`): no panic, no discarded error, comments are sentences, registration only in `register*.go` |
 
 ### Findings fixed
@@ -511,6 +512,8 @@ value in argument to pinBuilderSignatures
 | 3 | NOTE (round 2, NOTE 1) | `ze.conf` line 27 was 116 columns | `local-as-replace-as-partition/ze.conf` | reflowed |
 | 4 | NOTE (round 2, NOTE 2) | header said Closed, Review Gate cited round 1, Integration Checklist said the `.ci` was MISSING | this spec | corrected |
 | 5 | NOTE (round 2, NOTE 3) | `iop-green.log` carries only the summary line | evidence | none owed: the reviewer verified the exports against the tree instead |
+| 6 | ISSUE (round 3, ISSUE 1) | the guard pinned two of the three group-shared builders; `buildWithheldWithdrawUpdate` was not pinned | `announce_facts_builder_signature_test.go` | third pinned parameter, rule comment, forced red (see "AC-6 guard") |
+| 7 | NOTE (round 3, NOTE 1-3) | send-path reason too thin; core-design line 136 columns; `announceFacts` opening still read as compiler enforcement | spec, `core-design.md`, `reactor_api_batch.go` | reason stated, reflowed, reworded |
 
 ## Pre-Commit Verification
 

@@ -926,12 +926,15 @@ struct cannot be left out of the key, and two peers that would be sent different
 bytes cannot share a build. The compiler would still accept a per-peer value
 passed as a separate builder argument, so
 `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` pins the parameter
-lists of `buildBatchAnnounceUpdate` and `buildBatchWithdrawUpdate`: a new
-argument fails that test's build, and the value has to become a field. A group
-is one build AND one send, so a fact that changes only the send, the RFC 8654
-extended message size that `sendUpdateWithSplit` splits at, is a field too.
-Each field names the RFC section that makes it a per-peer distinction; the
-local-as prepend (RFC 7705 Section 3.3) is the whole prepend, so two peers sharing a Local AS but differing on `replace-as` build apart.
+lists of the three builders whose UPDATE one group shares,
+`buildBatchAnnounceUpdate`, `buildBatchWithdrawUpdate` and
+`buildWithheldWithdrawUpdate`: a new argument fails that test's build, and the
+value has to become a field. A group is one build AND one send, so a fact that
+changes only the send, the RFC 8654 extended message size that
+`sendUpdateWithSplit` splits at, is a field too. Each field names the RFC
+section that makes it a per-peer distinction; the local-as prepend (RFC 7705
+Section 3.3) is the whole prepend, so two peers sharing a Local AS but
+differing on `replace-as` build apart.
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- announceFacts, announceFactsFor, AnnounceNLRIBatch -->
 <!-- test: internal/component/bgp/reactor/announce_facts_partition_test.go TestAnnounceFactsPartitionUpdateGroups -->
 <!-- test: internal/component/bgp/reactor/announce_facts_builder_signature_test.go TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts -->
