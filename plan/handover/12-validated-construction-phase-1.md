@@ -37,6 +37,13 @@ correctly in another session".
 | 1 | Step 2, T3: `command.ArgDef` private fields, per-kind constructors, accessors, D-4, D-7 | `9cbd3485ca` "command: build every ArgDef through a validating constructor" | Done. Owed: web, cmd/ze/hub and plugin/server unit runs did not finish green on a loaded machine (see commit body) |
 | 2a | Step 3, T4 precondition: Go imports follow YANG imports (generator, 47 regenerated `register.go`, 50 edges, tier admission of schema-to-schema blank imports, strict `headUsage`) | `7d69d6a669` "yang: Go imports follow YANG imports in generated register.go" | Done |
 | 2b | Step 3, T4: strict `DefaultLoader` (D-6), AC-24 | `5eaa197f32` "yang: DefaultLoader is strict, nothing is best-effort" | Done. Owed: `./le verify worktree` (never run over batches 1-2) |
+| 3 | Step 4, T1: `Resolve` returns `yang.Resolved`, the one checked-schema reader; includes the `NewCompleter` error fix and the stale-comment fixes | `180df07922` "yang: Resolve returns yang.Resolved, the one checked-schema reader" | Done. Owed: `./le verify worktree` (never run over batches 1-3) |
+| 3b | Compound-guard splits: the seven `if a \|\| b { leave }` guards in `command/argbind.go`, `command/usage.go`, `plugin/server/command.go`, `cmdutil/cmdutil.go`, one fact per guard, behavior unchanged | `93ee8363ce` "command: split compound guards into one fact per guard" | Done |
+
+Batch 3 notes for the next batch:
+
+- Gates seen after `93ee8363ce`: `./le repo compiles check` OK on every flavor. `./le go lint run scope ./internal/component/web/...` and `./le go lint run scope ./cmd/ze/hub/...`: 0 issues on every pass (owed from batch 3). `./le arch compound-guard check`: none of this phase's lines; the one finding left is in `checkZeAccessConcentratorPAP` (`internal/le/interoplab/pppoe/check_pap.go`), from another session's unpushed `62b1df5249`.
+- `./le rfc check`: 11 rfc7950 verdicts are STALE and 9 are SHIFTED, all from mechanical changes. STALE: 6.1.3-1, 6.2-1, 6.5-1, 7.6.3-1, 7.19-1, 9.3.4-1, 9.4.4-1, 9.6.4.2-1, 11-3, 7.2.2-1, 7.3.2-1. SHIFTED: 9.6-1, 9.12-1, 7.6.5-1, 7.3.4-1, 7.6.4-2, 7.7.4-1, 8.1-3, 7.9.2-2, 9.4.4-2. An independent `ze-rfc-audit` re-judge (`mode rejudge`) of these 20 is running; check `git log -- rfc/audit` before acting. Never `./le rfc reseal`.
 
 Batch 2 notes for the next batch (verified 2026-10-09 at the source):
 
@@ -86,4 +93,4 @@ RFC-tagged-test approval is NOT covered: it is still asked per unit.
 - `go mod vendor` reverts the hand-patched vishvananda/netlink (f0d9c75df4): patch `vendor/` by hand for a dependency change. Follow-up for RFC7950-9.6.4.2-1 (still weak): tag `goyang_enum_numbering_test.go` as a positive and record its discrimination against the reverted goyang `EnumType.Set`.
 - Changing an RFC-tagged test needs `./le rfc approve unit <unit> reason "<owner's words>"` before `./le commit create`.
 - Never run `./le rfc reseal`: it rewrites every RFC's audit file, not only the one in hand.
-- Lint one package: `./le go lint run scope <pkg>`.
+- Lint one package: `./le go lint run scope ./<pkg>/...`. A bare path to a feature-gated package (`internal/component/web`) fails with "go list for lint flavor host returned code 0 with no output", because the host flavor's tags exclude it.
