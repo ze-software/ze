@@ -1,5 +1,3 @@
-//go:build linux
-
 package init
 
 import (
@@ -31,7 +29,7 @@ func TestZeInitActiveConfigFollowsInstanceName(t *testing.T) {
 		t.Fatal("init named \"edge\" wrote file/active/ze.conf; want file/active/edge.conf")
 	}
 	if _, err := store.ReadFile(zefs.KeyFileActive.Key(resolve.DefaultConfig(store))); err != nil {
-		// Linux discovery always finds the loopback, so init always writes one.
+		// Discovery always finds the loopback, so init always writes one.
 		t.Fatalf("init named \"edge\" wrote no file/active/edge.conf: %v", err)
 	}
 }

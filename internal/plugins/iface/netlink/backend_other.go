@@ -15,8 +15,9 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-// stubBackend implements iface.Backend on non-Linux platforms.
-// All operations return "not supported" errors.
+// stubBackend implements iface.Backend on non-Linux platforms. Listing the
+// interfaces works through the standard library (show_other.go); every other
+// operation returns a "not supported" error.
 type stubBackend struct{}
 
 func newNetlinkBackend() (iface.Backend, error) {
@@ -60,8 +61,6 @@ func (s *stubBackend) SetMACAddress(_, _ string) error                          
 func (s *stubBackend) GetMACAddress(_ string) (string, error)                   { return "", unsupported() }
 func (s *stubBackend) GetStats(_ string) (*iface.InterfaceStats, error)         { return nil, unsupported() }
 func (s *stubBackend) LinkSpeedDuplex(_ string) (int, string)                   { return 0, "" }
-func (s *stubBackend) ListInterfaces() ([]iface.InterfaceInfo, error)           { return nil, unsupported() }
-func (s *stubBackend) GetInterface(_ string) (*iface.InterfaceInfo, error)      { return nil, unsupported() }
 func (s *stubBackend) ListNeighbors(_ int) ([]iface.NeighborInfo, error)        { return nil, unsupported() }
 func (s *stubBackend) RouteLookup(_ netip.Addr) (map[string]any, error)         { return nil, unsupported() }
 func (s *stubBackend) AddressIsLocal(_ netip.Addr) (bool, error)                { return false, unsupported() }
