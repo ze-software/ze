@@ -109,7 +109,7 @@ func TestAllowlistMatchesDirectoriesAndExactFiles(t *testing.T) {
 		"internal/plugins/ldp/register.go":                   true,
 		"internal/le/test/deployment/l2tpdiag_linux_ops.go":  true,
 		"internal/le/test/deployment/l2tpdiag_linux.go":      false,
-		"internal/le/interoplab/rawframe_linux.go":           true,
+		"internal/le/interoplab/rawframe_linux.go":           false,
 		"internal/le/interoplab/bgp/isis_inject_linux.go":    false,
 		"internal/le/interoplab/bgp/bgp.go":                  false,
 		"internal/test/fixture/routing_fixture_linux.go":     true,

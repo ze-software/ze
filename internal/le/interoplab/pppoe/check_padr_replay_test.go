@@ -134,6 +134,46 @@ func TestObserveDiscoveryFramesReadsTheCapRefusal(t *testing.T) {
 	}
 }
 
+func TestJudgeOverCapRefusalWantsOneRefusalPerPADR(t *testing.T) {
+	// VALIDATES: the over-cap verdict accepts pppd's real behavior, three PADR
+	// each answered by a refusal, and refuses a dropped PADR or an admitted one.
+	// PREVENTS: a verdict that reads only the last PADS, so one admitted
+	// session among refusals passes, or one that demands a single PADS and
+	// fails a conforming AC because pppd resends after each refusal.
+	// METHOD: captures built from BuildPADS and BuildPADSError go through
+	// observeDiscoveryFrames, then judgeOverCapRefusal.
+	padr := padrFrame(t, []byte("cookie-3"))
+	refusal := padsErrorFrame(t, padr)
+	admitted := padsFrame(t, padr, 0x0002)
+	cases := []struct {
+		name   string
+		frames [][]byte
+		valid  bool
+	}{
+		{"three PADR, three refusals", [][]byte{padr, refusal, padr, refusal, padr, refusal}, true},
+		{"one PADR, one refusal", [][]byte{padr, refusal}, true},
+		{"no PADR", [][]byte{refusal}, false},
+		{"a PADR left unanswered", [][]byte{padr, refusal, padr, refusal, padr}, false},
+		{"an admitted session before the last refusal", [][]byte{padr, admitted, padr, refusal}, false},
+		{"an admitted session last", [][]byte{padr, refusal, padr, admitted}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			observed, err := observeDiscoveryFrames(buildCapture(t, tc.frames...))
+			if err != nil {
+				t.Fatalf("observeDiscoveryFrames: %v", err)
+			}
+			err = judgeOverCapRefusal(observed)
+			if tc.valid && err != nil {
+				t.Fatalf("judgeOverCapRefusal refused a conforming exchange: %v", err)
+			}
+			if !tc.valid && err == nil {
+				t.Fatal("judgeOverCapRefusal accepted a nonconforming exchange")
+			}
+		})
+	}
+}
+
 func TestObserveDiscoveryFramesRejectsNonEthernetCapture(t *testing.T) {
 	// VALIDATES: a capture the checker cannot trust is refused explicitly.
 	// PREVENTS: silently reading a cooked-header capture as Ethernet and

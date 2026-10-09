@@ -136,9 +136,11 @@ bytes off Ze's own wire, not proving the encoder again.
 
 Ze's AC carries `max-sessions-per-mac 1`. The checker dials one session with the
 independent pppd client, waits until it is live in PPP, then replays the exact
-captured PADR frame from inside the client container's own network namespace
-(`interoplab.SendFrameInNamespace`, the same AF_PACKET/netns mechanism the BGP
-lab's IS-IS purge injector uses). It requires the PADS that replay provokes to
+captured PADR frame from inside the client container with `tcpreplay`
+(`interoplab.SendFrameInContainer`, the one frame sender every lab uses, the BGP
+lab's IS-IS purge injector included). The send runs in the container because an
+unprivileged checker cannot enter a rootful Docker container's network
+namespace. It requires the PADS that replay provokes to
 carry the SAME session id, never a second one. It then dials a second,
 genuinely independent session from the same MAC and requires the PADS it
 provokes to carry session id `0x0000` and an AC-System-Error tag, read off the

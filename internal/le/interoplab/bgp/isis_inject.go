@@ -1,4 +1,5 @@
 // Design: docs/architecture/testing/interop.md -- native own-LSP purge injection.
+// Related: ../sendframe.go -- the in-container frame sender the purge goes out through.
 package bgp
 
 import (
@@ -7,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -18,18 +20,41 @@ const (
 	isisClaimedSequence = 4096
 )
 
-type isisPurgeSender func(pid int, interfaceName string, pdu []byte) error
+// isisPurgePeer is the lab peer the purge is sent as: Ze itself, so FRR
+// receives a purge of Ze's own LSP from Ze's own interface.
+const isisPurgePeer = "ze"
 
-func injectISISOwnLSPPurge(ctx context.Context, lab interoplab.CheckerLab, send isisPurgeSender) error {
-	pid, err := lab.PeerPID(ctx, "ze")
+// injectISISOwnLSPPurge sends, from inside Ze's container, a purge of Ze's own
+// Level-1 LSP claiming a sequence above the live one. The frame's source is
+// Ze's own interface address, read from inside that container.
+func injectISISOwnLSPPurge(ctx context.Context, lab interoplab.CheckerLab, send interoplab.FrameSender) error {
+	source, err := peerHardwareAddr(ctx, lab, isisPurgePeer, containerInterface)
 	if err != nil {
-		return fmt.Errorf("resolve Ze network namespace: %w", err)
+		return err
 	}
 	pdu := buildISISL1Purge([6]byte{0, 0, 0, 0, 0, 2}, isisClaimedSequence, 0, 0)
-	if err := send(pid, containerInterface, pdu[:]); err != nil {
+	frame, err := buildISISEthernetFrame(source, pdu[:])
+	if err != nil {
+		return err
+	}
+	if err := send(ctx, lab, isisPurgePeer, containerInterface, frame); err != nil {
 		return fmt.Errorf("inject own-LSP purge: %w", err)
 	}
 	return nil
+}
+
+// peerHardwareAddr reads the hardware address of interfaceName inside the
+// named peer container from sysfs.
+func peerHardwareAddr(ctx context.Context, lab interoplab.CheckerLab, peer, interfaceName string) (net.HardwareAddr, error) {
+	output, err := lab.Query(ctx, peer, []string{cmdCat, "/sys/class/net/" + interfaceName + "/address"}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("read %s hardware address in %s: %w", interfaceName, peer, err)
+	}
+	address, err := net.ParseMAC(strings.TrimSpace(output))
+	if err != nil {
+		return nil, fmt.Errorf("parse %s hardware address in %s: %w", interfaceName, peer, err)
+	}
+	return address, nil
 }
 
 // buildISISL1Purge encodes ISO/IEC 10589 clauses 9.5 and 9.8. Remaining

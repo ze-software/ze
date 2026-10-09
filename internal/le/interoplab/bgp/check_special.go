@@ -643,10 +643,10 @@ type isisLSPRow struct {
 }
 
 func checkISISOwnLSPPurge(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkISISOwnLSPPurgeWith(ctx, check, injectISISPurgeHost)
+	return checkISISOwnLSPPurgeWith(ctx, check, interoplab.SendFrameInContainer)
 }
 
-func checkISISOwnLSPPurgeWith(ctx context.Context, check *interoplab.CheckContext, send isisPurgeSender) error {
+func checkISISOwnLSPPurgeWith(ctx context.Context, check *interoplab.CheckContext, send interoplab.FrameSender) error {
 	if err := waitContains(ctx, check.Lab, peerFRR, []string{cmdVtysh, "-c", frrShowISISNeighbor}, 90*time.Second, "Up"); err != nil {
 		return err
 	}

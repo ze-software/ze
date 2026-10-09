@@ -29,7 +29,10 @@ FROM alpine:3.21
 # iproute2 supplies `ip xfrm` for the same reason: the ospf-ipsec scenarios read
 # the RFC 4552 states and policies ze installed back out of the kernel, and the
 # BusyBox `ip` in the base image has no xfrm object.
-RUN apk add --no-cache tini nftables iproute2
+# tcpreplay: the isis-purge-reorig-frr checker sends a purge of Ze's own LSP
+# from inside this container (interoplab.SendFrameInContainer), so the send
+# needs no host privilege to enter the container's network namespace.
+RUN apk add --no-cache tini nftables iproute2 tcpreplay
 
 COPY test/interop/ze-linux /usr/local/bin/ze
 # The file MUST be named le: cmd/ze selects its personality from the name it

@@ -16,16 +16,13 @@ package pppoe
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/pcap"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
@@ -108,7 +105,7 @@ func checkZeAccessConcentratorPAP(
 	if err != nil {
 		return err
 	}
-	if err := checkPAPReanswer(ctx, check.Lab, first, sessionID, replayFrameInClient); err != nil {
+	if err := checkPAPReanswer(ctx, check.Lab, first, sessionID, interoplab.SendFrameInContainer); err != nil {
 		return err
 	}
 	return checkTeardown(ctx, check.Lab)
@@ -196,7 +193,7 @@ func checkPAPReanswer(
 	lab interoplab.CheckerLab,
 	first papObservation,
 	sessionID int,
-	send clientFrameSender,
+	send interoplab.FrameSender,
 ) error {
 	// RFC 1334 Section 2.2.1: "The Identifier field MUST be changed each time
 	// an Authenticate-Request packet is issued."
@@ -207,7 +204,7 @@ func checkPAPReanswer(
 	if err := startSessionCapture(ctx, lab); err != nil {
 		return err
 	}
-	if err := send(ctx, lab, replay); err != nil {
+	if err := send(ctx, lab, clientImageName, replayInterface, replay); err != nil {
 		return fmt.Errorf("replay the PAP Authenticate-Request: %w", err)
 	}
 	if err := waitFixed(ctx, replayRoundTripBound); err != nil {
@@ -266,41 +263,6 @@ func checkPAPReanswer(
 	}
 	if len(links) != 1 {
 		return fmt.Errorf("the repeated Authenticate-Request left %d client PPP interfaces, want 1", len(links))
-	}
-	return nil
-}
-
-// replayPCAPPath is where the one-frame replay capture is written inside the
-// client container, beside pppd's own log.
-const replayPCAPPath = "/var/log/ppp/pap-replay.pcap"
-
-// clientFrameSender puts frame on the client container's wire. The type
-// exists so TestCheckPAPReanswerJudgesTheReply can substitute a fake for the
-// Docker exec and script Ze's reply to the frame it was handed.
-type clientFrameSender func(ctx context.Context, lab interoplab.CheckerLab, frame []byte) error
-
-// replayFrameInClient writes frame as a one-record pcap inside the client
-// container and sends it on eth0 with tcpreplay. The send runs inside the
-// container, so it needs no host privilege to enter the container's network
-// namespace (interoplab.SendFrameInNamespace does).
-func replayFrameInClient(ctx context.Context, lab interoplab.CheckerLab, frame []byte) error {
-	var capture bytes.Buffer
-	if err := pcap.WriteFileHeader(&capture, uint32(len(frame)), pcap.LinkTypeEthernet); err != nil { //nolint:gosec // one captured Ethernet frame, far below 4 GiB
-		return fmt.Errorf("build replay capture: %w", err)
-	}
-	if err := pcap.WriteRecord(&capture, time.Unix(0, 0), frame, len(frame)); err != nil {
-		return fmt.Errorf("build replay capture: %w", err)
-	}
-	var tb textbuf.Buffer
-	shell := tb.Str("echo ").Str(base64.StdEncoding.EncodeToString(capture.Bytes())).
-		Str(" | base64 -d > ").Str(replayPCAPPath).
-		Str(" && tcpreplay -q -i eth0 ").Str(replayPCAPPath).String()
-	result, err := exec(ctx, lab, clientImageName, []string{"sh", "-c", shell})
-	if err != nil {
-		return err
-	}
-	if result.ExitCode != 0 {
-		return fmt.Errorf("tcpreplay exited %d: %s", result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
 	return nil
 }

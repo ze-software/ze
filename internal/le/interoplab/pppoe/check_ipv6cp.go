@@ -8,7 +8,7 @@
 // Interface-Identifier option is Naked once, then Acked on the peer's next
 // tagless request.
 // Related: check_padr_replay.go -- the wire-capture-and-replay shape both
-// checkers here follow (sendCapturedFrame, interoplab.SendFrameInNamespace),
+// checkers here follow (interoplab.SendFrameInContainer),
 // extended from the PPPoE discovery ethertype (0x8863) to the session
 // ethertype (0x8864) that carries PPP once a session is up.
 // Related: check_ac.go -- the general Ze access-concentrator checker both
@@ -362,20 +362,18 @@ func checkZeAccessConcentratorIPv6CPMissingOption(
 	ctx context.Context,
 	check *interoplab.CheckContext,
 ) error {
-	return checkZeAccessConcentratorIPv6CPMissingOptionWith(ctx, check, sendCapturedFrame)
+	return checkZeAccessConcentratorIPv6CPMissingOptionWith(ctx, check, interoplab.SendFrameInContainer)
 }
 
 // checkZeAccessConcentratorIPv6CPMissingOptionWith is
 // checkZeAccessConcentratorIPv6CPMissingOption with the frame-replay
-// mechanics injected (the frameSender indirection check_padr_replay.go
-// establishes), so a unit test can substitute a fake and so a direct call
-// to the concrete sendCapturedFrame does not read to staticcheck as an
-// always-succeeding call on platforms where SendFrameInNamespace's stub
-// always errors.
+// mechanics injected (the interoplab.FrameSender indirection
+// check_padr_replay.go also takes), so a unit test can substitute a fake for
+// the Docker exec that puts the frame on the client's wire.
 func checkZeAccessConcentratorIPv6CPMissingOptionWith(
 	ctx context.Context,
 	check *interoplab.CheckContext,
-	send frameSender,
+	send interoplab.FrameSender,
 ) (err error) {
 	if check == nil || check.Lab == nil {
 		return errors.New("PPPoE IPv6CP missing-option checker has no lab")
@@ -420,11 +418,6 @@ func checkZeAccessConcentratorIPv6CPMissingOptionWith(
 		return errIPv6CPNeverEngaged
 	}
 
-	clientPID, err := check.Lab.PeerPID(ctx, clientImageName)
-	if err != nil {
-		return fmt.Errorf("resolve %s network namespace: %w", clientImageName, err)
-	}
-
 	// First tagless request: RFC 5072 Section 4.1 requires exactly one
 	// Interface-Identifier option, so ze must Nak this rather than Ack it.
 	// A fresh LCP Identifier byte per replay (RFC 1661 Section 4.6) keeps
@@ -437,7 +430,7 @@ func checkZeAccessConcentratorIPv6CPMissingOptionWith(
 	if err := startSessionCapture(ctx, check.Lab); err != nil {
 		return err
 	}
-	if err := send(clientPID, replayInterface, firstMissing); err != nil {
+	if err := send(ctx, check.Lab, clientImageName, replayInterface, firstMissing); err != nil {
 		return fmt.Errorf("replay the missing-option Configure-Request (first): %w", err)
 	}
 	first, err := captureIPv6CPFrames(ctx, check.Lab)
@@ -457,7 +450,7 @@ func checkZeAccessConcentratorIPv6CPMissingOptionWith(
 	if err := startSessionCapture(ctx, check.Lab); err != nil {
 		return err
 	}
-	if err := send(clientPID, replayInterface, secondMissing); err != nil {
+	if err := send(ctx, check.Lab, clientImageName, replayInterface, secondMissing); err != nil {
 		return fmt.Errorf("replay the missing-option Configure-Request (second): %w", err)
 	}
 	second, err := captureIPv6CPFrames(ctx, check.Lab)

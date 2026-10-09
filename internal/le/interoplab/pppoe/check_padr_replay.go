@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"time"
 
 	discovery "github.com/ze-software/ze/internal/component/l2tp/pppoe"
@@ -55,16 +54,16 @@ func checkZeAccessConcentratorPADRReplay(
 	ctx context.Context,
 	check *interoplab.CheckContext,
 ) error {
-	return checkZeAccessConcentratorPADRReplayWith(ctx, check, sendCapturedFrame)
+	return checkZeAccessConcentratorPADRReplayWith(ctx, check, interoplab.SendFrameInContainer)
 }
 
 // checkZeAccessConcentratorPADRReplayWith is checkZeAccessConcentratorPADRReplay
 // with the frame-replay mechanics injected, so a unit test can substitute a
-// fake for the real AF_PACKET/network-namespace send.
+// fake for the Docker exec that puts the frame on the client's wire.
 func checkZeAccessConcentratorPADRReplayWith(
 	ctx context.Context,
 	check *interoplab.CheckContext,
-	send frameSender,
+	send interoplab.FrameSender,
 ) (err error) {
 	if check == nil || check.Lab == nil {
 		return errors.New("PPPoE PADR-replay checker has no lab")
@@ -91,22 +90,6 @@ func checkZeAccessConcentratorPADRReplayWith(
 	}
 
 	return checkSecondDialAtCapIsRefused(ctx, check.Lab)
-}
-
-// frameSender replays a previously captured frame as the peer at pid, on its
-// own interfaceName. The type exists so a unit test can substitute a fake for
-// the real AF_PACKET/network-namespace mechanics, the same shape
-// isis_inject.go's isisPurgeSender already uses for the BGP lab's own
-// namespace injector.
-type frameSender func(pid int, interfaceName string, frame []byte) error
-
-// sendCapturedFrame is the production frameSender: it needs nothing from
-// inside the peer's namespace, because frame already carries every header a
-// real send there produced.
-func sendCapturedFrame(pid int, interfaceName string, frame []byte) error {
-	return interoplab.SendFrameInNamespace(pid, interfaceName, func(*net.Interface) ([]byte, error) {
-		return frame, nil
-	})
 }
 
 // dialFirstSessionAndCapturePADR dials the one session the whole scenario
@@ -175,17 +158,12 @@ func checkReplayReturnsExistingSID(
 	lab interoplab.CheckerLab,
 	sid uint16,
 	originalPADR []byte,
-	send frameSender,
+	send interoplab.FrameSender,
 ) error {
-	clientPID, err := lab.PeerPID(ctx, clientImageName)
-	if err != nil {
-		return fmt.Errorf("resolve %s network namespace: %w", clientImageName, err)
-	}
-
 	if err := startDiscoveryCapture(ctx, lab); err != nil {
 		return err
 	}
-	if err := send(clientPID, replayInterface, originalPADR); err != nil {
+	if err := send(ctx, lab, clientImageName, replayInterface, originalPADR); err != nil {
 		return fmt.Errorf("replay the original PADR: %w", err)
 	}
 	if err := waitFixed(ctx, replayRoundTripBound); err != nil {
@@ -234,7 +212,8 @@ func checkReplayReturnsExistingSID(
 // AC-Cookie -- while the MAC already holds one session and the scenario's
 // max-sessions-per-mac is 1, and requires the PADS it provokes to carry
 // session id 0x0000 and an AC-System-Error tag rather than allocate a second
-// session.
+// session. pppd answers a refusal by sending its PADR again, up to its attempt
+// limit, so the capture carries one refusal for each PADR (judgeOverCapRefusal).
 func checkSecondDialAtCapIsRefused(ctx context.Context, lab interoplab.CheckerLab) error {
 	if err := startDiscoveryCapture(ctx, lab); err != nil {
 		return err
@@ -258,17 +237,8 @@ func checkSecondDialAtCapIsRefused(ctx context.Context, lab interoplab.CheckerLa
 	if err != nil {
 		return err
 	}
-	if observed.padrCount == 0 {
-		return errors.New("no PADR observed for the over-cap dial")
-	}
-	if observed.padsCount != 1 {
-		return fmt.Errorf("over-cap dial's capture carries %d PADS frames, expected exactly 1", observed.padsCount)
-	}
-	if observed.padsSID != 0 {
-		return fmt.Errorf("over-cap PADR got session id %#04x, want 0x0000", observed.padsSID)
-	}
-	if !observed.padsHadACSystemError {
-		return errors.New("over-cap PADS carries no AC-System-Error tag")
+	if err := judgeOverCapRefusal(observed); err != nil {
+		return err
 	}
 
 	sessions, err := zeSessions(ctx, lab)
@@ -281,14 +251,42 @@ func checkSecondDialAtCapIsRefused(ctx context.Context, lab interoplab.CheckerLa
 	return nil
 }
 
+// judgeOverCapRefusal requires every PADR of the over-cap dial to be answered,
+// and every answer to be a refusal: session id 0x0000 with an AC-System-Error
+// tag. A real pppd resends its PADR after each refusal (three attempts in pppd
+// 2.5.1), so the count of PADS matches the count of PADR rather than being one.
+// A PADR left unanswered is the dropped frame this scenario exists to rule
+// out, and one admitted session among the refusals breaks the per-MAC cap.
+func judgeOverCapRefusal(observed discoveryObservation) error {
+	if observed.padrCount == 0 {
+		return errors.New("no PADR observed for the over-cap dial")
+	}
+	if observed.padsCount != observed.padrCount {
+		return fmt.Errorf(
+			"over-cap dial sent %d PADR frames and got %d PADS, want one refusal for each PADR",
+			observed.padrCount, observed.padsCount,
+		)
+	}
+	if observed.padsRefusalCount != observed.padsCount {
+		return fmt.Errorf(
+			"%d of %d over-cap PADS carry session id 0x0000 with an AC-System-Error tag, want every one",
+			observed.padsRefusalCount, observed.padsCount,
+		)
+	}
+	return nil
+}
+
 // discoveryObservation is what one capture window's frames say about the PADR
-// and PADS exchange it carried.
+// and PADS exchange it carried. padsSID and padsHadACSystemError describe the
+// last PADS in the window; padsRefusalCount counts every PADS that carried
+// session id 0x0000 with an AC-System-Error tag.
 type discoveryObservation struct {
 	padrCount            int
 	firstPADR            []byte
 	padsCount            int
 	padsSID              uint16
 	padsHadACSystemError bool
+	padsRefusalCount     int
 }
 
 // observeDiscoveryFrames reads every frame in capture and requires each one to
@@ -327,6 +325,9 @@ func observeDiscoveryFrames(capture []byte) (discoveryObservation, error) {
 			observed.padsCount++
 			observed.padsSID = packet.SID
 			observed.padsHadACSystemError = packet.FindTag(discovery.TagACSystemError) != nil
+			if observed.padsSID == 0 && observed.padsHadACSystemError {
+				observed.padsRefusalCount++
+			}
 		}
 	}
 	return observed, nil

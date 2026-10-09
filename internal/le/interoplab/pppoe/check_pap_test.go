@@ -141,7 +141,7 @@ type papReplayLab struct {
 	restSID int
 }
 
-func newPAPReplayLab(t *testing.T, restSID int, reply func(sent []byte) [][]byte) (*papReplayLab, clientFrameSender) {
+func newPAPReplayLab(t *testing.T, restSID int, reply func(sent []byte) [][]byte) (*papReplayLab, interoplab.FrameSender) {
 	t.Helper()
 	lab := &papReplayLab{restSID: restSID}
 	lab.detachedFn = func(_ string, argv []string) error {
@@ -181,7 +181,13 @@ func newPAPReplayLab(t *testing.T, restSID int, reply func(sent []byte) [][]byte
 		}
 		return "", errors.New("unexpected query: " + command)
 	}
-	send := func(_ context.Context, _ interoplab.CheckerLab, frame []byte) error {
+	send := func(_ context.Context, _ interoplab.CheckerLab, peer, interfaceName string, frame []byte) error {
+		if peer != clientImageName {
+			return errors.New("replay sent from " + peer + ", want the client container")
+		}
+		if interfaceName != replayInterface {
+			return errors.New("replay sent on " + interfaceName + ", want the client's own wire")
+		}
 		lab.sent = append(lab.sent, append([]byte(nil), frame...))
 		lab.capture = buildCapture(t, reply(frame)...)
 		return nil

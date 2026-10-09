@@ -1038,6 +1038,24 @@ two tokens matched across two log lines, a peer-originated event passing as a
 received one, or an absence with no proof that the query ran.
 <!-- source: internal/le/interoplab/bgp/bgp_test.go -- TestBespokeCheckerBranches -->
 
+### Raw frame injection from inside a peer container
+
+A checker that must put a hand-built Ethernet frame on a peer's wire, as that
+peer, sends it with `interoplab.SendFrameInContainer`. The helper writes the
+frame as a one-record pcap inside the named container and runs `tcpreplay`
+there through `docker exec`, so the image MUST carry `tcpreplay`. Ze's BGP lab
+image does, for the `isis-purge-reorig-frr` own-LSP purge, and so does the
+PPPoE client image, for `pppoe-padr-replay`, `pppoe-pap-ze-ac` and the IPv6CP
+replays.
+
+The send runs in the container, never from the checker process. On a rootful
+Docker daemon a container's network namespace belongs to root: an unprivileged
+checker cannot open `/proc/<pid>/ns/net`, because the kernel's ptrace access
+check refuses another user's process, and could not `setns` into it without
+`CAP_SYS_ADMIN`. `docker exec` already runs inside the namespace and needs
+neither.
+<!-- source: internal/le/interoplab/sendframe.go -- SendFrameInContainer -->
+
 ### Querying Ze
 
 `Ze.cli(command)` is the only way to ask the Ze daemon anything. It runs
@@ -1478,6 +1496,18 @@ Measured on 2026-09-06 on a 32-core workstation: 6.1s and 4.8s for the two
 cross-compiles against a warm `cache/go-cache`, at a peak resident set of 1.03
 GiB and 0.98 GiB, then 54.7s for the `docker build`, which is now context
 transfer rather than compilation.
+
+Measured again on 2026-10-09 on the same workstation, from a `git archive`
+export of 1cfc44afd7 with an empty `cache/go-cache`, while other sessions ran
+labs: `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le test integration interop`
+reported `1 passed, 0 failed` in 9m27s of wall time, which includes building
+the launcher itself from cold. The staged binaries were written about 18s and
+9s apart. The largest process of the whole run peaked at 1524736 KiB
+(1.45 GiB) under `/usr/bin/time -v`. A separate `docker build` of
+`test/interop/Dockerfile.ze` over those staged binaries took 199.4s at a load
+average of 65, with the client peaking at 48.5 MiB, so the time is the
+contended daemon rather than any compile. Inside that image `ze --version` and
+`le test` both ran, and `/etc/alpine-release` read `3.21.7`.
 
 The shape before 2026-09-06 is what those numbers are read against. `Dockerfile.ze`
 copied the whole tree and compiled ze twice with no cache mount. One colima VM of

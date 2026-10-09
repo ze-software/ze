@@ -1,6 +1,7 @@
 package bgp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1539,17 +1540,17 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		if got := fmt.Sprintf("%x", frame[:17]); got != "0180c20000140242ac1e2c02001efefe03" {
 			t.Fatalf("802.3/LLC header = %s", got)
 		}
-		recorder := &recordingLab{}
+		recorder := &recordingLab{output: "02:42:ac:1e:2c:02\n"}
 		called := false
-		err = injectISISOwnLSPPurge(t.Context(), recorder, func(pid int, interfaceName string, sent []byte) error {
+		err = injectISISOwnLSPPurge(t.Context(), recorder, func(_ context.Context, _ interoplab.CheckerLab, peer, interfaceName string, sent []byte) error {
 			called = true
-			if pid != 4242 || interfaceName != "eth0" || fmt.Sprintf("%x", sent) != golden {
-				t.Fatalf("inject call = pid %d interface %s pdu %x", pid, interfaceName, sent)
+			if peer != "ze" || interfaceName != "eth0" || !bytes.Equal(sent, frame) {
+				t.Fatalf("inject call = peer %s interface %s frame %x, want ze eth0 %x", peer, interfaceName, sent, frame)
 			}
 			return nil
 		})
 		if err != nil || !called {
-			t.Fatalf("rootless purge injection seam = called %v, err %v", called, err)
+			t.Fatalf("in-container purge injection seam = called %v, err %v", called, err)
 		}
 		recorder.output = "ze-purge.00-00 83 0x00001001 0xc530 1176 0/0/0"
 		row, err := queryISISLSP(t.Context(), recorder)
