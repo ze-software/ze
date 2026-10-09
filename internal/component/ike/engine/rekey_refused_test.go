@@ -13,8 +13,10 @@ import (
 )
 
 // refusedNotify returns the payload chain of a CREATE_CHILD_SA response that carries
-// nothing but one error notify. RFC 7296 Section 3.10.1: an error notify in a response
-// "indicates that the request has failed", so such a response carries no keys.
+// nothing but one error notify. RFC 7296 Section 3.10.1: an implementation receiving an
+// unrecognized error type in a response "MUST assume that the corresponding request has
+// failed entirely", and a recognized error fails it too, so such a response carries no
+// keys.
 func refusedNotify(notifyType uint16, data []byte) []wire.PayloadEntry {
 	return []wire.PayloadEntry{
 		{Payload: &wire.PayloadNotify{NotifyMsgType: notifyType, NotificationData: data}},
@@ -416,7 +418,8 @@ func TestChildRekeyCompletesInTheGroupThePeerNamed(t *testing.T) {
 		return answer
 	}
 
-	// RFC 7296 Section 3.10.1: INVALID_KE_PAYLOAD carries the accepted group in two octets.
+	// RFC 7296 Section 1.3: "There are two octets of data associated with this
+	// notification: the accepted Diffie-Hellman group number in big endian order."
 	refuse := func(_ []wire.PayloadEntry, msgID uint32) []byte {
 		notify := &wire.PayloadNotify{NotifyMsgType: wire.NotifyInvalidKEPayload, NotificationData: []byte{0, 19}}
 		answer, err := buildEncryptedMessageEx(r.peer, []wire.PayloadEntry{{Payload: notify}},
@@ -525,4 +528,116 @@ func TestIKERekeyCompletesInTheGroupThePeerNamed(t *testing.T) {
 	if !bytes.Equal(out.newSA.SKKeys.SK_d, peerNew.SKKeys.SK_d) {
 		t.Fatal("the two ends derived different SK_d for the new IKE SA")
 	}
+}
+
+// The owner's wait after every configured proposal has been refused: 15 seconds, less
+// up to 10% jitter, so peers refused together do not retry together.
+const (
+	refusalWaitMax = 15 * time.Second
+	refusalWaitMin = refusalWaitMax - refusalWaitMax/10
+)
+
+// expectRefusalHold fails the test unless until, the end of a refusal hold armed between
+// before and after, lies in the owner's window of 15 seconds less up to 10%.
+func expectRefusalHold(t *testing.T, until, before, after time.Time, what string) {
+	t.Helper()
+	if until.IsZero() {
+		t.Fatalf("%s: no refusal hold was armed", what)
+	}
+	if until.Before(before.Add(refusalWaitMin)) {
+		t.Fatalf("%s: the hold ends %v after the refusal, shorter than %v", what, until.Sub(before), refusalWaitMin)
+	}
+	if until.After(after.Add(refusalWaitMax)) {
+		t.Fatalf("%s: the hold ends %v after the refusal, longer than %v", what, until.Sub(after), refusalWaitMax)
+	}
+}
+
+// VALIDATES: a rekey refused for every configured proposal waits 15 seconds less up to
+// 10% jitter before it starts over, on both rekey paths. The method answers one rekey
+// NO_PROPOSAL_CHOSEN end to end and reads the hold it armed, then refuses 64 more
+// directly through refuseRekey, so the random jitter is sampled across its range.
+// PREVENTS: a wait the owner did not set. A fixed one-second wait is the resend loop
+// this fix exists to stop, and a long one leaves an SA past its soft lifetime with no
+// rekey until the hard lifetime ends it.
+func TestRekeyRefusedForEveryProposalWaitsFifteenSeconds(t *testing.T) {
+	paths := []struct {
+		name   string
+		kind   rekeyKind
+		answer func(r *refusedRig, t *testing.T, inner []wire.PayloadEntry) ownedOutcome
+		hold   func(ps *PeerSession) time.Time
+	}{
+		{"child", rekeyChild, (*refusedRig).answerChildRekey,
+			func(ps *PeerSession) time.Time { return ps.childRekeyRefusedUntil }},
+		{"ike", rekeyIKE, (*refusedRig).answerIKERekey,
+			func(ps *PeerSession) time.Time { return ps.ikeRekeyRefusedUntil }},
+	}
+	for _, path := range paths {
+		t.Run(path.name, func(t *testing.T) {
+			log := slogutil.DiscardLogger()
+			r := newRefusedRig(t)
+			before := time.Now()
+			path.answer(r, t, refusedNotify(wire.NotifyNoProposalChosen, nil))
+			expectRefusalHold(t, path.hold(r.ps), before, time.Now(), "after NO_PROPOSAL_CHOSEN")
+
+			for range 64 {
+				before = time.Now()
+				r.ps.refuseRekey(r.sa, &pendingRekey{kind: path.kind}, dhGroupNone, log)
+				expectRefusalHold(t, path.hold(r.ps), before, time.Now(), "a direct refusal")
+			}
+		})
+	}
+}
+
+// VALIDATES: a Child SA rekey sent without KEi, because the operator left PFS off, and
+// answered INVALID_KE_PAYLOAD is a refusal of the whole offer: ze waits, and does not
+// resend. The method configures groups 14 and 19 and has the peer name 19, a group the
+// operator configured, so only the absent KEi keeps ze from retrying.
+// PREVENTS: the one-second loop again. A request without KEi has no group to change, so
+// a "retry" would resend the same KEi-less rekey, and the group it sent is never
+// recorded as refused, so every owner-loop tick would send it once more.
+func TestChildRekeyInvalidKEWithoutPFSIsARefusal(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	r := refusedRigTwoGroups(t)
+	r.old.ESPGroup.PFS = ipsec.PFSDisable
+	remote := r.sa.remoteUDPAddr()
+
+	before := time.Now()
+	r.answerChildRekey(t, refusedNotify(wire.NotifyInvalidKEPayload, []byte{0, 19}))
+	expectRefusalHold(t, r.ps.childRekeyRefusedUntil, before, time.Now(), "INVALID_KE_PAYLOAD without PFS")
+
+	r.ps.startChildRekey(r.sa, r.myTr, log)
+	rtxExpectSilence(t, r.peerTr, r.myTr, remote, "a KEi-less rekey resent after INVALID_KE_PAYLOAD")
+}
+
+// VALIDATES: INVALID_KE_PAYLOAD naming a group the operator did not configure for this
+// peer is a refusal on both rekey paths: ze waits, and sends nothing in that group. The
+// method configures groups 14 and 19 and has the peer name 20, which ze supports.
+// PREVENTS: a peer choosing the Diffie-Hellman group of an SA against the operator's
+// configuration. The owner's rule is that ze retries only in a group configured here.
+func TestRekeyInvalidKENamingAnUnconfiguredGroupIsARefusal(t *testing.T) {
+	named := []byte{0, 20}
+	t.Run("child", func(t *testing.T) {
+		log := slogutil.DiscardLogger()
+		r := refusedRigTwoGroups(t)
+		remote := r.sa.remoteUDPAddr()
+
+		before := time.Now()
+		r.answerChildRekey(t, refusedNotify(wire.NotifyInvalidKEPayload, named))
+		expectRefusalHold(t, r.ps.childRekeyRefusedUntil, before, time.Now(), "Child SA rekey, group 20 named")
+
+		r.ps.startChildRekey(r.sa, r.myTr, log)
+		rtxExpectSilence(t, r.peerTr, r.myTr, remote, "a Child SA rekey sent in a group the operator did not configure")
+	})
+	t.Run("ike", func(t *testing.T) {
+		log := slogutil.DiscardLogger()
+		r := refusedRigTwoGroups(t)
+		remote := r.sa.remoteUDPAddr()
+
+		before := time.Now()
+		r.answerIKERekey(t, refusedNotify(wire.NotifyInvalidKEPayload, named))
+		expectRefusalHold(t, r.ps.ikeRekeyRefusedUntil, before, time.Now(), "IKE SA rekey, group 20 named")
+
+		r.ps.startIKERekey(r.sa, r.sa.IKEGroup, r.myTr, log)
+		rtxExpectSilence(t, r.peerTr, r.myTr, remote, "an IKE SA rekey sent in a group the operator did not configure")
+	})
 }
