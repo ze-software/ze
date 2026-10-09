@@ -56,7 +56,7 @@ specs first; ask before resuming this one ahead of them.
 | 2a, 2b (YANG Go imports, strict `DefaultLoader`) | Done, `7d69d6a669`, `5eaa197f32` |
 | 3 (T1, `yang.Resolved`), 3b (guard splits) | Done, `180df07922`, `93ee8363ce` |
 | 4a (C-T2a, every route validates) | Done, `62842be4c7` |
-| 4b (C-T2b, `StreamingHandler` takes `ValidatedArgs`) | Running on Linux when this was written; `git log --oneline -- plan/handover/12-validated-construction-phase-1.md` shows whether it landed |
+| 4b (C-T2b, `StreamingHandler` takes `ValidatedArgs`) | Done, `eaff5d644b` |
 | 4c, 4d (`LocalDataHandler`, `LocalHandler`) | Not started. First the leaf-package decision in handover 12: `command` imports `command/registry`, so the validated type moves to a package internal to `command` |
 | 4e (`pluginserver.Handler`, ~340 handlers in 69 dirs, one commit) | Not started. Owner waiver of `.claude/rules/foreign-files.md` for this batch only, limits in handover 12 |
 | Close | `/ze-review`, then the two closure commits |
