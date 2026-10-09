@@ -35,6 +35,12 @@ import (
 // point: a new per-peer wire decision reaches the builder only by becoming a
 // field here, and a field here is in the key by construction.
 //
+// Every per-peer value that changes the bytes MUST be a field here and MUST NOT
+// be a separate builder argument, because this struct is the grouping key and
+// an argument is not. The compiler cannot refuse such an argument, so
+// TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts pins the builders'
+// parameter lists and fails to build when one changes.
+//
 // The two used to be separate lists, and the key was kept in step by
 // remembering. Every field below arrived in its own commit, and three of them
 // arrived as a FIX rather than with the feature they belong to (nextHop,
@@ -1144,6 +1150,10 @@ func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
 // a fan-out, and every peer is offered the same batch. Taking the per-peer half
 // as ONE struct is what stops the caller's grouping key from omitting a fact
 // this function reads, which is how four separate defects reached the wire.
+// A new per-peer value that changes the bytes MUST become an announceFacts
+// field, never a new parameter here: the struct is the grouping key, and a
+// parameter fed from targets[i].peer would bypass it.
+// TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts pins this signature.
 //
 // attrBuf and nlriBuf are caller-provided buffers (from getBuildBuf, session.go).
 // RFC 4271 Section 4.3: UPDATE Message Format.
@@ -1667,6 +1677,11 @@ func announceASPathASNs(dst []uint32, isIBGP bool, prepend localASPrepend, origi
 // claiming more octets than it contained. A short withdraw is not a lesser failure
 // than a short announce -- the peer keeps forwarding to prefixes it was never told
 // about.
+//
+// facts is this rail's grouping key as well, so the announce builder's rule
+// holds here: a per-peer value that changes the bytes is an announceFacts field,
+// never a new parameter. TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts
+// pins this signature too.
 func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, facts announceFacts) *message.Update {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, facts.addPath)

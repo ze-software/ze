@@ -9,8 +9,9 @@
 | Handoff | - |
 | Updated | 2026-10-09 |
 
-<!-- Backfilled after implementation began. Closed 2026-10-09 once the interop
-     scenario's forced red was observed. -->
+<!-- Backfilled after implementation began. The interop scenario's forced red
+     was observed on 2026-10-09; the spec stays in-progress until its Review
+     Gate is clean. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -34,7 +35,12 @@ the key's four original fields arrived as a FIX after the defect shipped. The ro
 is not restated here.
 
 Goal: a new per-peer wire decision cannot reach the builder without entering the
-key, and the compiler is what enforces it.
+key. The test suite enforces it, because the compiler cannot express it: the
+compiler refuses a builder fact that is not a field only while the builder's
+parameter list stays `(attrBuf, nlriBuf, batch, facts)`, and a guard test pins
+that list. Owner decision, 2026-10-09: "ok test is fine and comment in the code
+too", after the independent review showed the compiler accepts a new per-peer
+builder argument fed from `targets[i].peer`.
 
 ## Required Reading
 
@@ -128,7 +134,7 @@ key, and the compiler is what enforces it.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every per-peer fact the builder reads is now a field | read at `buildBatchAnnounceUpdate` during the change | a peer receives another peer's bytes again | reading the builder; the compiler enforces it going forward | confirmed for today's tree |
+| A-1 | Every per-peer fact the builder reads is now a field | read at `buildBatchAnnounceUpdate` during the change | a peer receives another peer's bytes again | reading the builder; `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` pins the builder's parameter list going forward | confirmed for today's tree |
 | A-2 | No per-peer fact that changes only the SEND is left outside the key | `extended` was the one such fact and it is a field | two peers are cut into a different number of messages from one build | asserted; only `extended` and `groupUpdates` were found | UNVALIDATED |
 | A-3 | `announceFacts` stays comparable as fields are added | Go refuses a map key holding a slice at compile time | the key silently becomes expensive, or fails to compile | the compiler | confirmed |
 
@@ -164,7 +170,7 @@ key, and the compiler is what enforces it.
 | AC-3 | two peers differing only on the RFC 8654 extended message size | different groups, because the SPLIT point differs even though the build does not |
 | AC-4 | two peers differing only on `group-updates` | different groups, because one batch leaves as a different number of frames |
 | AC-5 | two peers identical in every field | ONE group and ONE build, so the grouping still does its job |
-| AC-6 | a new per-peer fact is added to the builder | the code does not compile until it is a field of `announceFacts` |
+| AC-6 | a new per-peer fact is added to the builder as a separate argument rather than a field of `announceFacts` | the test suite goes red: `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` fails to build, and its comment tells the developer to make the value an `announceFacts` field. The compiler alone cannot refuse it (owner decision, 2026-10-09) |
 | AC-7 | any group, any configuration | every member receives byte-identical UPDATEs, whatever the map iteration order |
 
 ## End-to-End User Stories
@@ -181,6 +187,7 @@ key, and the compiler is what enforces it.
 | `TestAnnounceLocalASOptionsPartitionUpdateGroups` | `internal/component/bgp/reactor/local_as_announce_test.go` | AC-1 | PASS; RED with `prepend` zeroed |
 | `TestAnnounceFactsIdenticalPeersShareOneBuild` | `internal/component/bgp/reactor/announce_facts_one_build_test.go` | AC-5 | PASS; RED with a peer-unique key field |
 | `TestAnnounceBuildGroupSplitsOnGroupUpdates`, `TestWithdrawBuildGroupSplitsOnGroupUpdates` | `internal/component/bgp/reactor/group_updates_framing_test.go` | AC-4 | PASS |
+| `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` | `internal/component/bgp/reactor/announce_facts_builder_signature_test.go` | AC-6 | PASS; RED (build failure in this file only) with an extra `perPeer int` builder parameter and every caller updated |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -214,7 +221,7 @@ key, and the compiler is what enforces it.
 |-------------------|----------|---------------|
 | YANG schema | No | every field reads an existing leaf or a negotiated capability |
 | CLI commands/flags | No | no command surface changed |
-| Functional test for new RPC/API | Yes, MISSING | no `.ci` drives the two-peer partition |
+| Functional test for new RPC/API | Yes | `test/plugin/local-as-replace-as-announce-partition.ci` drives the two-peer partition |
 | Prometheus counters | No | none added |
 | BGP family surface | No | no new SAFI, capability or attribute |
 | Doctor check for runtime dependencies | N-A | no new runtime dependency |
@@ -274,7 +281,8 @@ key, and the compiler is what enforces it.
 - A key that is a hand-written list of "every fact that changes the bytes" is
   maintained by remembering, and the majority of this one's fields arrived after
   the defect they prevent had already shipped. Making the key BE the argument set
-  moves the obligation from memory to the compiler.
+  moves the obligation from memory to the compiler for every fact read through
+  the struct, and to a signature-pinning test for a fact passed beside it.
 - The failure is silent by construction: the UPDATE is well formed, the group is
   populated, and the peer that builds first is correct. Only the second peer is
   wrong, and only against a configuration nobody wrote a test for.
@@ -283,6 +291,7 @@ key, and the compiler is what enforces it.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | One struct for key and arguments | keep two lists and add a test that compares them | a test can only check the fields it knows about; the compiler checks the ones nobody thought of |
+| Pin the builder signatures with a test (owner, 2026-10-09) | claim compiler enforcement; restructure so the builder cannot see a peer | the compiler accepts a new per-peer argument; a test that compiles only against the agreed signature catches it, and the comment at the builder names the rule |
 | `extended` is a field the builder does not read | keep it in a second list beside the key | a second list is the defect this type removes |
 | The Prefix-SID field carries the operator's LEAF | carry the resolved answer | the leaf is what the four rails carry, and one extra build for two internal peers is cheaper than a key that disagrees with the builder's argument |
 
@@ -366,7 +375,7 @@ Logs are under `tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/scra
 | Scenario repair | `ze.conf` no longer originates the route. The checker waits for BOTH sessions, then runs `send bgp * unicast 10.77.6.0/24` through `ze cli` (`zeCommand`), which reaches `AnnounceNLRIBatch` once for both peers | `test/interop/scenarios/local-as-replace-as-partition/ze.conf`, `internal/le/interoplab/bgp/register_local_as_partition.go` |
 | Interop forced red and green | Superseded by the ownership agent's table below: the first row of this table was wrong, and the scenario still did not discriminate after the repair | below |
 | AC-5 test, independent read | Sound. It counts builds where a build is counted (`logAnnounceTooLarge` moves `ze_bgp_announce_dropped_oversize_total` once per refused build), calibrates the counter with update groups disabled (2), and asserts 1 with groups enabled; the two peers differ only in address and router ID, neither a field. Its red with a peer-unique key field is recorded above | `announce_facts_one_build_test.go` |
-| AC-6 ruling | Met structurally, not by the compiler alone, and accepted as such: `buildBatchAnnounceUpdate` takes per-peer input only through `announceFacts`, and the group loop carries only `bg.facts` and `bg.targets` into the build, so a new per-peer parameter fails to compile at the build call until it is fed from `bg.facts` or from a value outside the group, and the latter is visible in review as a value that is not per group. The compiler cannot refuse an author who threads a per-peer value around the struct; the field comments and this page's paragraph state the contract | `reactor_api_batch.go` `announceBatchToPeers`, `docs/architecture/core-design.md` |
+| AC-6 ruling | Superseded by the owner decision and guard test in "AC-6 guard" below; this ruling was the agents', never the owner's. Original text: Met structurally, not by the compiler alone, and accepted as such: `buildBatchAnnounceUpdate` takes per-peer input only through `announceFacts`, and the group loop carries only `bg.facts` and `bg.targets` into the build, so a new per-peer parameter fails to compile at the build call until it is fed from `bg.facts` or from a value outside the group, and the latter is visible in review as a value that is not per group. The compiler cannot refuse an author who threads a per-peer value around the struct; the field comments and this page's paragraph state the contract | `reactor_api_batch.go` `announceBatchToPeers`, `docs/architecture/core-design.md` |
 
 ## Evidence recorded 2026-10-09 (ownership agent, macOS, colima)
 
@@ -379,6 +388,27 @@ Logs are under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scra
 | Scenario repair | `bird.conf` sets `enable extended messages on;`, so both sessions carry `extended: true`; `ze.conf` comment corrected (it said ze advertises no extended message, and that neither peer sets group-updates, while both carry the default `true`) | `test/interop/scenarios/local-as-replace-as-partition/bird.conf`, `ze.conf` |
 | Forced RED | `interop: 0 passed, 1 failed`, assertion 6: FRR's `show bgp ipv4 unicast 10.77.6.0/24 json` has `"aspath":{"string":"65020"}`, missing `65020 65001`: FRR received BIRD's replace-as build. Run at load 53-68. The red export still carried the `redDiag` logging and a trailing diagnostic assertion; the run failed at assertion 6, before it | `iop-red3.log` |
 | GREEN | `interop: 1 passed, 0 failed` from `igreen/` (HEAD plus the scenario repair, no break) | `iop-green.log` |
+
+## Evidence recorded 2026-10-09 (AC-6 guard, after review round 2)
+
+| Item | Result | Evidence |
+|------|--------|----------|
+| Owner decision | "ok test is fine and comment in the code too": AC-6 and the goal are met by the test suite, not by the compiler | review round 2, ISSUE 1 |
+| Guard | `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` passes `buildBatchAnnounceUpdate` and `buildBatchWithdrawUpdate` (the withdraw rail groups on the same struct) as method expressions to parameters of the agreed function types, so the package's tests build only while both signatures are unchanged | `announce_facts_builder_signature_test.go` |
+| GREEN | `--- PASS: TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` in the shared tree | `scratch/job-unit-pkg-493263fc.log` |
+| RED | in a HEAD clone (`scratch/sigclone1/`) with `perPeer int` added to `buildBatchAnnounceUpdate` and every caller updated by `gofmt -r`, the package's only build error is in the guard's `pinBuilderSignatures` call (quoted below) | `scratch/sigclone1/tmp/session/<this session>/scratch/job-sig-red-9c83a8b2.log` |
+| Send path | No signature guard. `announceBatchToPeers` holds `targets`, and `sendBatchUpdate` is a method of `announceTarget`, which carries the `*Peer` by design (Adj-RIB-Out ownership and forward ordering are per target). A per-peer send value can be read there with no signature change, so pinning those signatures would prove nothing. The shared send reads only `facts.extended`, `facts.groupUpdates` and `facts.addPath` today (A-2), and the comment on `announceFacts` states the rule | `reactor_api_batch.go` `announceBatchToPeers`, `sendBatchUpdate` |
+| Code comment | the rule and the guard's name sit on `announceFacts`, `buildBatchAnnounceUpdate` and `buildBatchWithdrawUpdate` | `reactor_api_batch.go` |
+| Page | `docs/architecture/core-design.md` said a builder fact "cannot be left out of the key"; it now says so for facts read through the struct, and names the guard for a separate argument | `core-design.md`, the `announceFacts` paragraph |
+
+The red run's build error:
+
+```
+announce_facts_builder_signature_test.go:41:3: cannot use (*reactorAPIAdapter).buildBatchAnnounceUpdate
+(value of type func(..., facts announceFacts, perPeer int) (*message.Update, error)) as
+func(*reactorAPIAdapter, []byte, []byte, types.NLRIBatch, announceFacts) (*message.Update, error)
+value in argument to pinBuilderSignatures
+```
 
 ## Implementation Summary
 
@@ -414,7 +444,7 @@ Logs are under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scra
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| a new per-peer wire decision cannot reach the builder without entering the key | Done | `reactor_api_batch.go` `announceFacts`, `buildBatchAnnounceUpdate` | AC-6 ruling above |
+| a new per-peer wire decision cannot reach the builder without entering the key | Done | `reactor_api_batch.go` `announceFacts`, `buildBatchAnnounceUpdate`; `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` | enforced by the test suite (owner decision, 2026-10-09) |
 | peers differing in a fact the builder uses never share a build | Done | `reactor_api_batch.go` `announceBatchToPeers` | AC-1..AC-4 |
 
 ### Acceptance Criteria
@@ -425,7 +455,7 @@ Logs are under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scra
 | AC-3 | Done | subtest `extended` | forced red |
 | AC-4 | Done | `TestAnnounceBuildGroupSplitsOnGroupUpdates`, `TestWithdrawBuildGroupSplitsOnGroupUpdates` | |
 | AC-5 | Done | `TestAnnounceFactsIdenticalPeersShareOneBuild` | forced red |
-| AC-6 | Done (structural) | `buildBatchAnnounceUpdate` signature | ruling above |
+| AC-6 | Done | `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` | forced red, see "AC-6 guard" evidence above |
 | AC-7 | Done | `announceBatchToPeers` sends the one built `update` to every target | argued from the struct |
 
 ### Tests from TDD Plan
@@ -456,6 +486,7 @@ Logs are under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scra
 | two peers differing in a builder fact never share bytes | interop | `local-as-replace-as-partition`: FRR installs `65020 65001`, BIRD `65020`: GREEN `interop: 1 passed, 0 failed` (`iop-green.log`). RED with the key's prepend zeroed: assertion 6 failed, FRR installed `"aspath":{"string":"65020"}`, BIRD's replace-as build (`iop-red3.log`), both under the ownership agent's scratch named above |
 | the same, through the operator entry point | functional | `local-as-replace-as-announce-partition.ci`, RED conn=1 got `[65010]` expected `[65010 65000]` |
 | identical peers still share one build | unit | `TestAnnounceFactsIdenticalPeersShareOneBuild`, RED `expected: 1 actual: 2` with a peer-unique field |
+| a new per-peer wire decision cannot reach the builder without entering the key | unit (guard) | `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts`, RED as a build failure in the guard alone with an extra per-peer builder parameter (`job-sig-red-9c83a8b2.log`) |
 
 ## Work Not Done
 
@@ -467,15 +498,19 @@ Logs are under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scra
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/announce-build-key-is-the-builder-argument-set-12d06ccf-2460-42c7-a707-30bb0a427796.md` (6 files, verdict=clean) |
-| `./le spec review check` | `review_gate: OK (3 code files, clean, hashes match ...)` |
-| Rounds | 1 |
+| Artifact | `tmp/review/announce-build-key-is-the-builder-argument-set-5620b26f-603e-4d57-826d-6ef92b7fcd64.md` (round 2, 10 files, verdict=findings: ISSUE 1, NOTE 1-3). Round 1 was `...-12d06ccf-2460-42c7-a707-30bb0a427796.md`, verdict=clean |
+| `./le spec review check` | owed: a fresh independent review over the round-2 fixes, commissioned by the main thread |
+| Rounds | 2, a third owed |
 | Reviewer lenses used | logic+wiring (key fields vs builder reads), vacuity (each red), style pass over the changed Go (`register_local_as_partition.go`, `register_local_as_announce_partition.go`, `announce_facts_one_build_test.go`): no panic, no discarded error, comments are sentences, registration only in `register*.go` |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
 | 1 | ISSUE | interop scenario passed with the key's prepend zeroed | `local-as-replace-as-partition` | announce after both sessions, see Evidence |
+| 2 | ISSUE (round 2, ISSUE 1) | AC-6 and the goal claimed compiler enforcement; the compiler accepts a new per-peer builder argument | `reactor_api_batch.go` `buildBatchAnnounceUpdate` | owner decision 2026-10-09: guard test, code comments, AC-6 and goal reworded |
+| 3 | NOTE (round 2, NOTE 1) | `ze.conf` line 27 was 116 columns | `local-as-replace-as-partition/ze.conf` | reflowed |
+| 4 | NOTE (round 2, NOTE 2) | header said Closed, Review Gate cited round 1, Integration Checklist said the `.ci` was MISSING | this spec | corrected |
+| 5 | NOTE (round 2, NOTE 3) | `iop-green.log` carries only the summary line | evidence | none owed: the reviewer verified the exports against the tree instead |
 
 ## Pre-Commit Verification
 
@@ -491,7 +526,8 @@ Logs are under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scra
 |-------|-------|----------------|
 | AC-1 | replace-as peers split | interop GREEN `iop-green.log`; RED with prepend zeroed in the key, FRR got `65020` (`iop-red3.log`) |
 | AC-2..AC-5 | partition and one-build tests pass | `bk-green-final.log` |
-| AC-6, AC-7 | struct is the builder argument | `gopls symbols reactor_api_batch.go`: one `announceFacts`, no second key type |
+| AC-6 | builder signatures pinned | `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` PASS (`job-unit-pkg-493263fc.log`), RED with an extra parameter (`job-sig-red-9c83a8b2.log`) |
+| AC-7 | struct is the builder argument | `gopls symbols reactor_api_batch.go`: one `announceFacts`, no second key type |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
