@@ -35,6 +35,22 @@ correctly in another session".
 | # | Batch | Commit | State |
 |---|-------|--------|-------|
 | 1 | Step 2, T3: `command.ArgDef` private fields, per-kind constructors, accessors, D-4, D-7 | `9cbd3485ca` "command: build every ArgDef through a validating constructor" | Done. Owed: web, cmd/ze/hub and plugin/server unit runs did not finish green on a loaded machine (see commit body) |
+| 2a | Step 3, T4 precondition: Go imports follow YANG imports (generator, 47 regenerated `register.go`, 50 edges, tier admission of schema-to-schema blank imports, strict `headUsage`) | `7d69d6a669` "yang: Go imports follow YANG imports in generated register.go" | Done |
+| 2b | Step 3, T4: strict `DefaultLoader` (D-6), AC-24 | `5eaa197f32` "yang: DefaultLoader is strict, nothing is best-effort" | Done. Owed: `./le verify worktree` (never run over batches 1-2) |
+
+Batch 2 notes for the next batch (verified 2026-10-09 at the source):
+
+- Generator: `internal/le/yang/glue/imports.go`, `dependencyImports` parses every `.yang` with goyang and maps each `import`/`include` to the `yang/` package holding it; a dependency held by the registry's embedded bootstrap modules or by the same package gets no import; one no package holds fails with `errUnheldDependency`. `registerSource(modules, module, dependencies)` renders the blank imports. Test: `TestRegisterImportsEveryCrossPackageDependency`.
+- `TestYANGImportsFollowGoImports` (`internal/component/plugin/all/yang_imports_test.go`) checks the same property over the registered set from the Go side. It was red on exactly the 50 edges before the regeneration.
+- Tier: `schemaDependency` (`internal/le/arch/tier/ownership.go`) admits a blank import from one `yang` directory of another (owner approval 2026-10-09); a named import, or a schema package importing an implementation package, still fails (`ownership_test.go`, 3 cases).
+- `DefaultLoader` (`internal/component/config/yang/loader.go`) = `errors.Join(LoadRegistered(), Resolve())`, nil loader on any error; `LoadRegistered` attempts every module and names each failure. `Resolve` already joins `process`, `checkExtensions`, `checkPatterns`, `checkStructure`. The 21 other production callers already returned or reported the error; `startWebServer` (`cmd/ze/hub/service_web.go`) now disables the web server with a warning, as it does on a schema failure.
+- `headUsage` (`internal/le/doc/yangcontract/usage.go`) resolves strictly: it was a third policy that discarded every `Resolve` error but `ErrUndeclaredExtension` (spec T4 table row).
+- Reproducible: `./le yang glue check` reports all 162 `yang/` directories current, and `./le --update yang glue write` leaves the diff unchanged.
+- Gates seen: `./le go lint run scope` clean on plugin/all, le/doc/yangcontract, cmd/ze/hub, config/yang, le/yang/glue, le/arch/tier. `./le repo compiles check` OK on every flavor at `7d69d6a669` and at `5eaa197f32`. `./le arch compound-guard check`: no batch-2 line (an `||` guard in `imports.go` was split before the commit).
+- `./le rfc check`: the same 8 findings as after batch 1. RFC7950-9.6.4.2-1 SHIFTED is batch 1's (see the batch 1 note); the other 7 are foreign. Batch 2 added none.
+- `TestTheRealCheckoutPassesAndWasRead` (`internal/le/cli/grammar`) is red at HEAD `8b1af26f28` without batch 2 (run on a `git archive` export) on five R1 root commands. Not batch 2's; journal row in `plan/journal/gate-red-where-nothing-blocks-on-it.md`.
+- Full-tag `-race` run over every package with a `DefaultLoader` path, plus `cmd/ze` and `plugin/all`, before the commits: 29 ok, 3 red with no loader-error line: hub `TestSIGHUPQueuedBehindTransactionRunsWhenItEnds` (timing), plugin/server `TestPluginStateTransportParity/socket` (deadline, also red before batch 2), and the grammar test above. Gate-free (no feature tags) runs show reds from absent gated BGP ("unknown top-level keyword: bgp"), also with no loader-error line.
+- Open for the next batch: `./le arch compound-guard check` flags seven `if a || b { leave }` guards on unpushed lines outside batch 2: `positionalDef` and `positionalError` (`command/argbind.go`), `Usage` and `appendLeafTokens` (`command/usage.go`), `anchoredDef` and `implicitSelectorDef` (`plugin/server/command.go`), `hasImplicitSelectorArg` (`cmd/ze/internal/cmdutil/cmdutil.go`). Check which ones batch 1 introduced and split those.
 
 Batch 1 notes for the next batch:
 
