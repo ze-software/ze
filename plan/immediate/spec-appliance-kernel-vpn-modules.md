@@ -43,6 +43,12 @@ users to the published Linux source through a per-image notice (version, tarball
 URL, SHA-256, derived from the build's own declaration). Recorded with its AC in
 `spec-appliance-ships-ze-kernel.md` (AC-17). This spec ships no image of its own,
 so it owes no notice AC; its config changes ride in the image that spec builds.
+-> Decision (owner, 2026-10-09): the notice also covers Ze under AGPLv3 with a
+source link pinned to the build commit (ships-ze-kernel AC-18), and the kernel
+pin is the latest stable 7.x by exact version and digest (ships-ze-kernel AC-19:
+7.2 pinned today, 7.2.9 latest on 2026-10-09). AC-5's native builds here therefore
+run on whatever exact version AC-19 pins; if AC-19 has not landed first, AC-5 is
+built twice, so land the bump first.
 
 Goal: every kernel facility Ze's IPsec and WireGuard code asks for is BUILT IN to
 Ze's runtime kernel on both arches, the build refuses a config that drops one, the
