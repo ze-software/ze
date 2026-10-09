@@ -287,15 +287,24 @@ An offline writer refuses while the daemon owns that store.</p>
 <p><code>ze config import --dir &lt;folder&gt; &lt;file&gt;...</code> selects a destination independently
 of its input files. Without <code>--dir</code>, the destination follows <code>ze.config.dir</code>
 and then the default config folder. <code>--name</code> supplies the destination name for
-one input, including stdin. Duplicate basenames and existing destination names
-are refused before any input is written.</p>
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
+one input, including stdin. Duplicate basenames are refused before any input is
+written. A destination name the store already holds is replaced only once
+confirmed: on a terminal the command names the configs it would replace and asks,
+and <code>y</code> or <code>yes</code> replaces them while any other answer writes nothing and exits
+non-zero. Without a terminal, including when the input is stdin, it asks nothing
+and refuses, naming <code>--yes</code>; <code>--yes</code> confirms in advance. A replaced config is
+committed as a new active version and the previous one becomes its rollback, so
+<code>ze config rollback</code> restores it.</p>
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, confirmImportReplace, importOne -->
+<!-- source: internal/component/config/storage/restore.go -- RestoreConfig -->
 <h2 id="editing-modes">Editing Modes</h2>
 <p>The selected source determines the editor's mode.</p>
 <!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage, runEditor, runStoredEditor -->
 <p><strong>File mode</strong> (<code>ze config edit -f &lt;file&gt;</code>): the editor reads and writes the
 explicit loose file. It keeps its <code>.edit</code> recovery file alongside it, and
-records rollback versions in an existing store. A file changed externally
+records rollback versions in an existing store in the file's folder.
+<code>commit confirmed</code> restores from that history, so in a folder with no store it
+refuses before writing anything and names <code>ze init</code>. A file changed externally
 since it was opened causes commit to fail rather than overwrite the edit.
 <code>-f</code> cannot be combined with <code>--web</code> or <code>--insecure-web</code>; use session mode
 without <code>-f</code> to serve the web editor from the owning daemon.</p>
@@ -494,6 +503,9 @@ from configuration mode behind <code>run </code>, and the keys are in the
 </tbody>
 </table>
 <p>The seconds parameter accepts values from 1 to 3600 (one hour).</p>
+<p>The revert restores the rollback revision the commit records, so <code>commit confirmed</code> needs config history. An editor without one, such as
+<code>ze config edit -f</code> on a file whose folder holds no store, refuses before it
+writes the file and names <code>ze init</code>; a plain <code>commit</code> still works there.</p>
 <figure class="terminal-demo" data-terminal-demo="commit-confirmed">
   <div class="terminal-demo__intro">
     <div>
@@ -512,7 +524,7 @@ from configuration mode behind <code>run </code>, and the keys are in the
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/commit-confirmed.cast?v=77e5c4efab"
+      data-cast-src="../../assets/demos/commit-confirmed.cast?v=5adf8bca47"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -520,12 +532,12 @@ from configuration mode behind <code>run </code>, and the keys are in the
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=77e5c4efab">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=5adf8bca47">Download the asciicast</a> or
       <a href="../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.31</span><span>1 minute 7 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.09</span><span>1 minute 10 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -629,7 +641,7 @@ ze config archive prod config.conf # Archive to named destination
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

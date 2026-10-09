@@ -306,8 +306,9 @@ Config nodes with a broken summary: 11
     summary: ...
 </code></pre>
 <p>The gate walks FOUR corpora. A <code>-cmd.yang</code> node declares the CLI path an
-operator types. An <code>-api.yang</code> rpc declares the wire method that path reaches,
-and the plugin IPC modules in <code>internal/core/ipc/yang/</code> declare 28 more, each
+operator types and, with <code>ze:command</code>, the wire method that path reaches. An
+<code>-api.yang</code> rpc documents that method, and the node points at it with <code>ze:rpc</code>;
+the plugin IPC modules in <code>internal/core/ipc/yang/</code> declare 28 more, each
 with its own <code>ze:method</code>. Every
 loaded module is walked, so a module whose name carries no <code>-api</code> suffix is
 judged with the rest. An offline local command declares its help in a
@@ -716,7 +717,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

@@ -25,7 +25,7 @@
   "features": {
     "core_experimental": 52
   },
-  "generated_at": "2026-10-08",
+  "generated_at": "2026-10-09",
   "github_stars": 57,
   "interop": {
     "scenario_dirs_raw": 160,
@@ -34,7 +34,7 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-10-08T18:51:37Z",
+  "published_at": "2026-10-09T10:54:35Z",
   "repo": {
     "design_comments": 5990,
     "design_comments_display": "5,900+",
@@ -46,32 +46,32 @@
   "rfc": {
     "enrolled": 175,
     "enrolled_display": "175",
-    "gated_implemented": 4010,
-    "gated_implemented_display": "4,010",
-    "gated_must": 4139,
-    "gated_must_display": "4,139",
+    "gated_implemented": 4011,
+    "gated_implemented_display": "4,011",
+    "gated_must": 4140,
+    "gated_must_display": "4,140",
     "implemented": 152,
     "implemented_display": "152",
     "inspected": 171,
     "inspected_display": "171",
-    "must": 4522,
-    "must_display": "4,522",
-    "proven": 2594,
-    "proven_display": "2,594",
-    "proven_percent": "64.7",
-    "requirements": 6446,
-    "requirements_display": "6,446",
+    "must": 4523,
+    "must_display": "4,523",
+    "proven": 2593,
+    "proven_display": "2,593",
+    "proven_percent": "64.6",
+    "requirements": 6447,
+    "requirements_display": "6,447",
     "summaries": 194,
     "summaries_display": "194"
   },
   "tests": {
-    "e2e": 2151,
+    "e2e": 2155,
     "e2e_display": "2,100+",
     "editor": 172,
     "editor_display": "170+",
     "fuzz": 88,
     "fuzz_display": "88",
-    "unit": 34962,
-    "unit_display": "34,900+"
+    "unit": 35075,
+    "unit_display": "35,000+"
   }
 }

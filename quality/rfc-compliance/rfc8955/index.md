@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 29 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 29 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 29 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 39.1% | 36 of 92 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 43.5% | 40 of 92 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -63,7 +63,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Nightly-only evidence | 0 |
 | Test tags | 92 |
 | Tagged units | 92 |
-| Recorded audit verdicts | 27 |
+| Recorded audit verdicts | 28 |
 | Discrimination records | 40 |
 | Summary | `rfc/short/rfc8955.md` |
 | Requirement shard | `rfc/requirements/rfc8955.md` |
@@ -194,15 +194,15 @@ Audit verdict: not audited: no reader has judged these tests
 
 Length of the Next-Hop Network Address MUST be set to 0 (§4)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source judgment of every current tagged carrier against RFC 8955 Section 4 in its full dissemination context: 'When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.' Agree with the saved flow-vpn-final-rfc8955.pending.json for this advertisement clause only, not the distinct ignored-receipt requirement RFC8955-4-4. TestFlowSpecOriginationOmitsConfiguredNextHop drives actual config initial sync, established API batch and both queued drains to a TCP recipient; literal complete UPDATEs pin zero length, exact native NLRI, VPN RD and traffic-rate action for all four AFI 1/2 SAFI 133/134 families with absent, explicit IPv4 and explicit IPv6 configured addresses. Empty-address controls and required packet equality rule out suppression as a passing implementation. TestFlowSpecForwardingOmitsNextHop covers cached forwarding across unchanged/self/explicit-v4/explicit-v6 destination settings and empty/recipient-address/IPv6 received fields, requiring exactly one delivered rule and exact MP_REACH bytes plus action, with no legacy NLRI or MP_UNREACH. TestFlowSpecRouteServerOmitsNextHop uses negotiated TCP, registered daemon RIB and route-server ownership, real covering-route authorization and exact received native rule/RD/action for the same four families, rather than a supplied authorization callback. The mixed-UPDATE carrier additionally requires both output sections, preserves observer bytes, and retains the independent legacy NEXT_HOP announcement or peer-own-address withdrawal gate. The dedicated builder carrier pins zero length and unchanged NLRI; the full daemon flow-encode.ci frames supplement the four-family unit matrix (that fixture itself advertises only three families). These are meaningful advertised-byte assertions, not decoder-only or bare-count evidence. Read producers Family.NeedsNextHop, buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop, applyNextHopFamily and mpReachNextHopHandler plus normalization placement on both forwarding rails. Origination omits the address by family; received FlowSpec addresses cannot become a forwarding gate; normalization clears MP rewrite operations or requests removal of a received nonempty field while retaining genuine legacy operations; the handler retains NLRI and emits length zero. The saved proposal's causal argument remains supported by current source. This does not certify every FlowSpec requirement, external FRR/GoBGP interoperability, or every future rail. Existing approved native observations are not rerun or newly claimed; stored producer-panic records establish only the breaks they name, and are not substituted for these semantic assertions. No build, test, mutation, stamp or freshness check was run. The row currently has no audit entry: first stamp, without mode rejudge or upgrade_reason.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L15) | unit/verify | unproven |
 | negative | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L32) | unit/verify | revert, verified |
-| negative | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L33) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestFlowSpecForwardingKeepsLegacyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go#L16) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L33) | unit/verify | revert, verified |
+| negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27) | unit/verify | revert, verified |
+| negative | [`TestFlowSpecForwardingKeepsLegacyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go#L16) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L14) | unit/verify | unproven |
 | positive | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L31) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L32) | unit/verify | revert, verified |
@@ -489,7 +489,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. posi
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8955FlowSpecLosingPathIsNeverPublished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L159) | unit/verify | revert, verified |
-| positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, verified |
 
 ### [`RFC8955-7.3-2`](#rfc8955-7.3-2)
 

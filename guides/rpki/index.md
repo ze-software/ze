@@ -584,19 +584,20 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 
 Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.
 
-[Download the asciicast recording](../../assets/demos/rpki.cast?v=2f6b944206) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=d3a77e3773) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8c6b7276d5)
 
-Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 33 seconds.
+Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 34 seconds.
 
 ```console
 $ ze cli -c 'show bgp rpki status | no-more'
 sessions: 1
 vrp-count-ipv4: 171
 $ ze cli -c 'show bgp adj-rib-in | no-more'
-9.43.0.0/24   validation-state: 1
-11.43.0.0/24  validation-state: 2
+ipv4/unicast:9.43.0.0/24   ineligible: false  validation-state: 1
+ipv4/unicast:10.43.0.0/24  ineligible: true   validation-state: 3
+ipv4/unicast:11.43.0.0/24  ineligible: false  validation-state: 2
 
-The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, and 11.43.0.0/24 as NotFound. Policy accepts Valid and NotFound. The Invalid prefix is absent from Adj-RIB-In because Ze rejects it before installation.
+The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, and 11.43.0.0/24 as NotFound. Policy accepts Valid and NotFound. Ze keeps the Invalid prefix in Adj-RIB-In with its received attributes, marked ineligible, so the decision process never selects it.
 ```
 
 

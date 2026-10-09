@@ -311,9 +311,12 @@ and it contains no plugin grammar: not the word <code>peer</code>, <code>bgp</co
 classification rule is ownership before grammar.</p>
 <!-- source: internal/component/plugin/server/command.go -- ArgDef selector extraction -->
 <h2 id="finding-the-owner-follow-the-code-not-the-wire-method">Finding the Owner: follow the code, not the wire method</h2>
-<p>The <code>ze-&lt;ns&gt;:</code> prefix on a <code>WireMethod</code> is a label rather than an ownership
-claim, and it is often a legacy misnomer. The owner is what the handler actually
-calls.</p>
+<p>The <code>ze-&lt;owner&gt;:</code> prefix on a <code>WireMethod</code> names the package that registers the
+handler (<code>docs/architecture/api/wire-format.md</code>, "Method Naming"), and the
+command-contract gate enforces it. That records where the handler lives, which
+is not yet proof that it lives with its owner: a handler still in a central
+package carries <code>ze-cmd:</code>. The owner is what the handler actually calls, and
+carving the handler into that owner moves its prefix with it.</p>
 <table>
 <thead>
 <tr>
@@ -324,7 +327,7 @@ calls.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>ze-show:ip-route</code>, <code>ze-show:neighbors</code>, <code>ze-show:kernel-routes</code></td>
+<td><code>ze-iface:show-route</code>, <code>ze-iface:show-neighbor</code></td>
 <td><code>iface.ListKernelRoutes</code>, <code>iface.ListNeighbors</code> (kernel tables through the iface backend)</td>
 <td><code>internal/component/iface</code>, not central <code>show</code> and not the BGP RIB</td>
 </tr>
@@ -353,8 +356,8 @@ calls.</p>
 <p>A command is generic, and stays central, only when it has no single removable
 owner: it aggregates a cross-plugin registry, reads a generic core system, or is
 process-global (<code>show warnings</code>, <code>show health</code>, <code>subscribe</code>). Everything that
-reads one plugin's or one component's state belongs to that owner, whatever the
-<code>ze-&lt;ns&gt;:</code> label on its WireMethod says.</p>
+reads one plugin's or one component's state belongs to that owner, even while
+its WireMethod still carries the central <code>ze-cmd:</code> prefix.</p>
 <h2 id="carving-a-command-into-its-owner">Carving a Command Into Its Owner</h2>
 <ol>
 <li><strong>Handler.</strong> Add <code>func init() { pluginserver.RegisterRPCs(...) }</code> and the
@@ -524,7 +527,7 @@ package holds the matching presence test, such as
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

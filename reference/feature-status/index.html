@@ -259,7 +259,7 @@
 <tr>
 <td><a href="../../features/api-commands/">API Commands</a></td>
 <td>Experimental (partial)</td>
-<td>Peer management, route updates, RIB operations, event subscription <strong>Scope gaps:</strong> YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md); published RPC names that do not reach their handler (plan/immediate/spec-rpc-published-name-does-not-reach-its-handler.md).</td>
+<td>Peer management, route updates, RIB operations, event subscription <strong>Scope gaps:</strong> YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md).</td>
 </tr>
 <tr>
 <td>Archive Pruning</td>
@@ -294,7 +294,7 @@
 <tr>
 <td><a href="../../features/cli-commands/">CLI Commands</a></td>
 <td>Experimental (partial)</td>
-<td>Protocol tools, config management, schema discovery, daemon control, AS topology graph, policy dry-run testing (<code>show policy test</code>). Verb-first is now the only spelling: every command starts with <code>show</code>, <code>clear</code>, <code>monitor</code>, <code>request</code>, <code>set</code> or <code>delete</code>, and the words after it are the YANG path. The bare forms are gone from the command tree, not aliased, so the dispatcher answers <code>unknown command</code> for <code>daemon reload</code>, <code>daemon status</code>, <code>daemon quit</code>, <code>bgp summary</code>, <code>system memory</code>, <code>interface rate</code> and the rest; the verb-first spellings are <code>request reload</code>, <code>show status</code>, <code>request halt</code>, <code>show bgp</code>, <code>show system memory</code>, <code>show interface rate</code>. Three exec verbs stay bare on purpose (<code>stop</code>, <code>restart</code>, <code>reboot</code>): the SSH exec middleware intercepts them before the dispatcher, which registers no key for them. <code>show interface</code> reshaped its keywords too: <code>name &lt;n&gt; detail</code> and <code>name &lt;n&gt; counters</code> replace <code>detail &lt;n&gt;</code> and <code>counters &lt;n&gt;</code>, and <code>brief</code>, <code>scan</code>, <code>type</code>, <code>errors</code> and <code>rate</code> each answer a distinct question. <!-- source: internal/plugins/signal/main.go -- ExecCommand mapping and the removed spellings --> <!-- source: internal/component/ssh/ssh.go -- execMiddleware --> <strong>Scope gaps:</strong> YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md); published RPC names that do not reach their handler (plan/immediate/spec-rpc-published-name-does-not-reach-its-handler.md); declared commands without leaves (plan/immediate/spec-declared-commands-without-leaves.md).</td>
+<td>Protocol tools, config management, schema discovery, daemon control, AS topology graph, policy dry-run testing (<code>show policy test</code>). Verb-first is now the only spelling: every command starts with <code>show</code>, <code>clear</code>, <code>monitor</code>, <code>request</code>, <code>set</code> or <code>delete</code>, and the words after it are the YANG path. The bare forms are gone from the command tree, not aliased, so the dispatcher answers <code>unknown command</code> for <code>daemon reload</code>, <code>daemon status</code>, <code>daemon quit</code>, <code>bgp summary</code>, <code>system memory</code>, <code>interface rate</code> and the rest; the verb-first spellings are <code>request reload</code>, <code>show status</code>, <code>request halt</code>, <code>show bgp</code>, <code>show system memory</code>, <code>show interface rate</code>. Three exec verbs stay bare on purpose (<code>stop</code>, <code>restart</code>, <code>reboot</code>): the SSH exec middleware intercepts them before the dispatcher, which registers no key for them. <code>show interface</code> reshaped its keywords too: <code>name &lt;n&gt; detail</code> and <code>name &lt;n&gt; counters</code> replace <code>detail &lt;n&gt;</code> and <code>counters &lt;n&gt;</code>, and <code>brief</code>, <code>scan</code>, <code>type</code>, <code>errors</code> and <code>rate</code> each answer a distinct question. <!-- source: internal/plugins/signal/main.go -- ExecCommand mapping and the removed spellings --> <!-- source: internal/component/ssh/ssh.go -- execMiddleware --> <strong>Scope gaps:</strong> YANG RPC declarations with no handler (plan/immediate/spec-yang-rpc-declarations-with-no-handler.md); declared commands without leaves (plan/immediate/spec-declared-commands-without-leaves.md).</td>
 </tr>
 <tr>
 <td>CLI Default Output Format</td>
@@ -801,7 +801,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

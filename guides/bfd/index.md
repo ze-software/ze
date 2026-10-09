@@ -199,6 +199,16 @@ forwarding path Down, the reactor tears the BGP session with RFC 9384
 Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
 hold timer.
 
+A released session does not leave `show bfd sessions` at once when it has
+heard from its peer. It stays there in `admin-down` for three of its
+Detection Times, because RFC 5880 Section 6.8.1 says its state "MUST be
+preserved for at least one Detection Time" and Section 6.8.16 asks for
+AdminDown Control packets for at least as long. A client that asks for
+the same session inside that window revives it, discriminator included.
+
+<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, retireReleasedLocked, reviveReleasedLocked -->
+<!-- source: internal/component/bfd/session/fsm.go -- AdminDown, adminDownTransmitDetectionTimes -->
+
 Two of those sentences are about the peer WITHOUT `strict true`. A strict
 peer opens its BFD session before the BGP FSM starts and keeps it across
 every retry, releasing it only when the peer itself stops
@@ -531,9 +541,9 @@ scripts can parse the output while the interactive CLI renders them.
 
 Establish BFD and BGP with a local FRR peer, cut the peer link, and verify BFD drives BGP down before protocol timers expire.
 
-[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=912e24f2ca) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=5e444cee6f)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=84174694fb) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=3399c81481)
 
-Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 1 minute 48 seconds.
+Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 1 minute 49 seconds.
 
 ```console
 An operator needs to verify that BFD, not the 300-second BGP hold timer, protects an edge session.
@@ -549,7 +559,7 @@ The running control plane shows the complete Up BFD session.
 $ date -u +%T; ip link set bfd-p down
 $ ze cli -c 'show bfd sessions'
 $ ze cli -c 'show bgp peer list'
-Five seconds after the kernel link is cut, the full command output shows no live BFD session and BGP has left Established.
+After the kernel link is cut, BFD leaves Up and BGP leaves Established. BGP releases its BFD session, which Ze keeps in AdminDown for the retention window RFC 5880 Section 6.8.1 requires and then retires, so by the time the command runs the session list is empty.
 
 $ ip link set bfd-p up
 $ ze cli -c 'show bgp peer list'

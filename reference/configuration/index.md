@@ -575,12 +575,12 @@ A peer inherits from its group defaults. A group inherits from this global level
           An unset leaf inherits the group value, then the global value.
           - `accept`: Keep the route and write no log line.
           - `log-only`: Keep the route, marked with its state, and write a log line.
-          - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+          - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
         - **not-found** `validation-action`: Action Ze applies to a route in the NotFound validation state.
           An unset leaf inherits the group value, then the global value.
           - `accept`: Keep the route and write no log line.
           - `log-only`: Keep the route, marked with its state, and write a log line.
-          - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+          - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
       - **aspa** `container`: ASPA action overrides for this peer or group.
         These overrides apply only when ASPA validation is enabled globally.
         - **action** `container`: ASPA path-state action overrides of this peer or group.
@@ -589,12 +589,12 @@ A peer inherits from its group defaults. A group inherits from this global level
             An unset leaf inherits the group value, then the global value.
             - `accept`: Keep the route and write no log line.
             - `log-only`: Keep the route, marked with its state, and write a log line.
-            - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+            - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
           - **unknown** `validation-action`: Action Ze applies to a route in the ASPA Unknown path state.
             An unset leaf inherits the group value, then the global value.
             - `accept`: Keep the route and write no log line.
             - `log-only`: Keep the route, marked with its state, and write a log line.
-            - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+            - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
       - **blackhole-exempt** `boolean`: Keep a BLACKHOLE route when its only origin-validation fault is the prefix length.
         The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a shorter prefix than the route announces. RFC 7999 Section 3.3 states that an operator MUST ensure origin validation does not inadvertently block legitimate announcements carrying BLACKHOLE. A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for the covering block carries its maxLength at the aggregate. RFC 6811 then makes the announcement Invalid, and a session running action invalid reject drops the route before anything can honor it. The exemption is narrow. It applies only when a covering VRP names the route's own origin AS and disagrees on nothing but the length. A wrong origin AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no covering VRP is NotFound rather than Invalid, so the exemption never reaches it. The default is false. Enable it together with the blackhole honor leaf of the peer, on the same session. On its own it accepts a route it would have rejected, and it discards nothing.
     - **session** `container`: BGP session parameters for this peer or group.
@@ -888,12 +888,12 @@ A peer inherits from its group defaults. A group inherits from this global level
         An unset leaf inherits the group value, then the global value.
         - `accept`: Keep the route and write no log line.
         - `log-only`: Keep the route, marked with its state, and write a log line.
-        - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+        - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
       - **not-found** `validation-action`: Action Ze applies to a route in the NotFound validation state.
         An unset leaf inherits the group value, then the global value.
         - `accept`: Keep the route and write no log line.
         - `log-only`: Keep the route, marked with its state, and write a log line.
-        - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+        - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
     - **aspa** `container`: ASPA action overrides for this peer or group.
       These overrides apply only when ASPA validation is enabled globally.
       - **action** `container`: ASPA path-state action overrides of this peer or group.
@@ -902,12 +902,12 @@ A peer inherits from its group defaults. A group inherits from this global level
           An unset leaf inherits the group value, then the global value.
           - `accept`: Keep the route and write no log line.
           - `log-only`: Keep the route, marked with its state, and write a log line.
-          - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+          - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
         - **unknown** `validation-action`: Action Ze applies to a route in the ASPA Unknown path state.
           An unset leaf inherits the group value, then the global value.
           - `accept`: Keep the route and write no log line.
           - `log-only`: Keep the route, marked with its state, and write a log line.
-          - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+          - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
     - **blackhole-exempt** `boolean`: Keep a BLACKHOLE route when its only origin-validation fault is the prefix length.
       The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a shorter prefix than the route announces. RFC 7999 Section 3.3 states that an operator MUST ensure origin validation does not inadvertently block legitimate announcements carrying BLACKHOLE. A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for the covering block carries its maxLength at the aggregate. RFC 6811 then makes the announcement Invalid, and a session running action invalid reject drops the route before anything can honor it. The exemption is narrow. It applies only when a covering VRP names the route's own origin AS and disagrees on nothing but the length. A wrong origin AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no covering VRP is NotFound rather than Invalid, so the exemption never reaches it. The default is false. Enable it together with the blackhole honor leaf of the peer, on the same session. On its own it accepts a route it would have rejected, and it discards nothing.
   - **session** `container`: BGP session parameters for this peer or group.
@@ -1400,12 +1400,12 @@ A peer inherits from its group defaults. A group inherits from this global level
         An unset leaf inherits the group value, then the global value.
         - `accept`: Keep the route and write no log line.
         - `log-only`: Keep the route, marked with its state, and write a log line.
-        - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+        - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
       - **not-found** `validation-action`: Action Ze applies to a route in the NotFound validation state.
         An unset leaf inherits the group value, then the global value.
         - `accept`: Keep the route and write no log line.
         - `log-only`: Keep the route, marked with its state, and write a log line.
-        - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+        - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
     - **aspa** `container`: ASPA action overrides for this peer or group.
       These overrides apply only when ASPA validation is enabled globally.
       - **action** `container`: ASPA path-state action overrides of this peer or group.
@@ -1414,12 +1414,12 @@ A peer inherits from its group defaults. A group inherits from this global level
           An unset leaf inherits the group value, then the global value.
           - `accept`: Keep the route and write no log line.
           - `log-only`: Keep the route, marked with its state, and write a log line.
-          - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+          - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
         - **unknown** `validation-action`: Action Ze applies to a route in the ASPA Unknown path state.
           An unset leaf inherits the group value, then the global value.
           - `accept`: Keep the route and write no log line.
           - `log-only`: Keep the route, marked with its state, and write a log line.
-          - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+          - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
     - **blackhole-exempt** `boolean`: Keep a BLACKHOLE route when its only origin-validation fault is the prefix length.
       The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a shorter prefix than the route announces. RFC 7999 Section 3.3 states that an operator MUST ensure origin validation does not inadvertently block legitimate announcements carrying BLACKHOLE. A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for the covering block carries its maxLength at the aggregate. RFC 6811 then makes the announcement Invalid, and a session running action invalid reject drops the route before anything can honor it. The exemption is narrow. It applies only when a covering VRP names the route's own origin AS and disagrees on nothing but the length. A wrong origin AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no covering VRP is NotFound rather than Invalid, so the exemption never reaches it. The default is false. Enable it together with the blackhole honor leaf of the peer, on the same session. On its own it accepts a route it would have rejected, and it discards nothing.
   - **session** `container`: BGP session parameters for this peer or group.
@@ -1842,12 +1842,12 @@ A peer inherits from its group defaults. A group inherits from this global level
       The default is reject. The received route remains in Adj-RIB-In but is ineligible for the decision process until validation or configured policy admits it.
       - `accept`: Keep the route and write no log line.
       - `log-only`: Keep the route, marked with its state, and write a log line.
-      - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+      - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
     - **not-found** `validation-action`: Action Ze applies to a route in the NotFound validation state.
       The default is accept, which keeps the route and writes no log line.
       - `accept`: Keep the route and write no log line.
       - `log-only`: Keep the route, marked with its state, and write a log line.
-      - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+      - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
   - **aspa** `container`: AS_PATH verification against the ASPA records, and the action of each result.
     validation turns the verification on and its default is false. Ze reads an ASPA record over version 2 of the RTR protocol alone. A session Ze downgrades to version 1 carries none. Ze refuses an ASPA PDU on a version 1 session as a protocol violation. action holds the action of each path state, and a peer or a group overrides those two leaves.
     - **action** `container`: Global action Ze applies for each ASPA path state.
@@ -1856,12 +1856,12 @@ A peer inherits from its group defaults. A group inherits from this global level
         The default is reject. Ze retains the route in the Adj-RIB-In for re-evaluation and excludes it from route selection until the path becomes acceptable.
         - `accept`: Keep the route and write no log line.
         - `log-only`: Keep the route, marked with its state, and write a log line.
-        - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+        - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
       - **unknown** `validation-action`: Action Ze applies to a route in the ASPA Unknown path state.
         The default is accept, which keeps the route and writes no log line.
         - `accept`: Keep the route and write no log line.
         - `log-only`: Keep the route, marked with its state, and write a log line.
-        - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
+        - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
     - **validation** `boolean`: Verify the AS path of a route against the ASPA records.
       Ze reads the ASPA records over version 2 of the RTR protocol.
   - **cache-server <address>** `list`: RTR cache servers Ze reads the validated ROA and ASPA records from.

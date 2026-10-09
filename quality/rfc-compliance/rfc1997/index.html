@@ -122,7 +122,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>34.6%</strong><b>9 of 26 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>38.5%</strong><b>10 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>5</strong><b>of 5 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -185,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -321,8 +322,8 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L1" title="test/plugin/wellknown-no-export-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-egress.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-egress.ci#L7" title="test/plugin/wellknown-no-export-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-egress.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-withdraw-egress.ci#L1" title="test/plugin/wellknown-no-export-withdraw-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-withdraw-egress.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1051" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1052" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1048" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1049" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1997-well-2">RFC1997-Well-2</code></td><td colspan="3"><span class="rfc-subject">NO_ADVERTISE (0xFFFFFF02) All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers. (§Well-known Communities)</span></td></tr>
@@ -416,7 +417,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc1997-well-1"><code>RFC1997-Well-1</code></a></h3>
 <p>NO_EXPORT (0xFFFFFF01) All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself). (§Well-known Communities)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/wellknown-no-export-withdraw-egress.ci moved. Independent supplemental source rejudgment, 2026-10-06. RFC1997 Well-known Communities: &#34;All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself).&#34; Read all ten current tagged covers: reactor TestForwardNoExportSkipsExternalPeerOnly, TestForwardWithoutNoExportReachesExternalPeer, TestForwardNoExportStillWithdrawsFromExternalPeer; wireu TestWellKnownNoExportRefusesExternalPeer and TestWellKnownNoExportAllowsInternalPeer; both checkNoExportBoundary tags; both wellknown-no-export-egress.ci tags and wellknown-no-export-withdraw-egress.ci. The predicate and general-forward pairs discriminate external suppression against the same route internally and an ordinary community externally. The mixed carrier separately asserts exact withdrawal and announcement fields, not raw-message absence. Its helper bypasses receive validation and is credited only for egress; the complete conforming functional packets supply mandatory attributes and correct ASN4 encoding. Both functional files require an external fence, internal NO_EXPORT announcement and external withdrawal, and reject only external announced NLRI; the mixed fixture uses one three-connection process and await_eor. Read checker_update_fields.go scoped matcher: withdrawn bytes cannot satisfy announced rejection. Traced ScanWellKnown -&gt; AllowsEgressTo -&gt; wellKnownAllowsEgress on general and RS rails -&gt; SetWithdraw -&gt; buildWithdrawalPayload/writeWithdrawal, and reflection handler registry/planner rather than assuming queued operations are applied. checkNoExportBoundary remains registered in specialCheckers and requires control at both observers, NO_EXPORT internally, absence alongside the control externally and surviving sessions. Its moved unit merely removes a local showTableJSON constant; checkers.go supplies the identical string, so this is current mechanical movement, not new judgment debt. Stand-alone AS scope is the RFC-stated boundary; no absent confederation feature is inferred. No new source defect found. Live FRR/BIRD and functional execution remain pending in this supplemental judgment; no test or producer-halt record is represented as fresh semantic execution.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 1997, Well-known Communities: “All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself).” Independently re-read all ten tagged covers and both producing egress rails through final ownership admission. Predicate and forwarding pairs distinguish external suppression from internal permission and ordinary-community forwarding. The changed mixed native carrier uses three independent peer processes: all-EOR readiness releases an ordinary source-owned 198.51.100.0/24 seed, both recipients acknowledge its wire receipt, and a source-only marker releases the mixed NO_EXPORT UPDATE. It requires the original withdrawal externally, withdrawal plus permitted announcement internally, the ordinary fence on both, and no external announcement of never-seeded 10.0.0.0/24. The observer checks seeded route-message counts 4/3. The producer retains ordinary ownership for original withdrawals and distinct absent-owner handling for synthesized refused announcements. Scope is the supported stand-alone-AS boundary, not an invented confederation-member implementation or a universal prohibition on all confederation eBGP sessions. Renewed producer-halt records demonstrate reachability, not selective community-decision discrimination.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -437,7 +438,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1052" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1049" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></td>
 <td>interop/nightly</td>
 <td>revert, verified</td>
 </tr>
@@ -449,7 +450,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/wellknown-no-export-withdraw-egress.ci#L1" title="test/plugin/wellknown-no-export-withdraw-egress.ci" target="_blank" rel="noopener"><code>wellknown-no-export-withdraw-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go#L204" title="internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go" target="_blank" rel="noopener"><code>TestForwardNoExportSkipsExternalPeerOnly</code></a></td>
@@ -462,7 +463,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1051" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1048" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoExportBoundary</code></a></td>
 <td>interop/nightly</td>
 <td>revert, verified</td>
 </tr>
@@ -693,7 +694,7 @@ Gated per requirement in <a href="https://github.com/ze-software/ze/blob/main/rf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

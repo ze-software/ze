@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7432 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 103 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7432 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 103 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7432 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 102 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7432: BGP MPLS-Based Ethernet VPN. 103 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,27 +117,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9.8%</strong><b>10 of 102 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.0%</strong><b>1 of 102 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9.7%</strong><b>10 of 103 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.0%</strong><b>1 of 103 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 103 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 103 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>87.5%</strong><b>28 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>102</strong><b>of 119 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>76</strong><b>of 102 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>72.5%</strong><b>74 of 102 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 102 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>2.0%</strong><b>2 of 102 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>103</strong><b>of 120 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>77</strong><b>of 103 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>72.8%</strong><b>75 of 103 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 103 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>1.9%</strong><b>2 of 103 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>14.7%</strong><b>15 of 102 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>14.6%</strong><b>15 of 103 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>13</strong><b>of 103 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
-<p>The 8 shares marked as a part above are the whole of the 102 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 8 shares marked as a part above are the whole of the 103 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -189,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -209,13 +210,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>119</td>
+<td>120</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>102</td>
+<td>103</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>74</td>
+<td>75</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>15</td>
@@ -236,7 +237,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>32</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>10</td>
+<td>13</td>
 </tr>
 <tr><td>Discrimination records</td>
 <td>28</td>
@@ -281,7 +282,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>92</strong></td>
+<td><strong>93</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -304,12 +305,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>102</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>103</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (10):</strong> <a href="#rfc7432-5-1"><code>RFC7432-5-1</code></a>, <a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a>, <a href="#rfc7432-8.1.1-1"><code>RFC7432-8.1.1-1</code></a>, <a href="#rfc7432-8.1.1-2"><code>RFC7432-8.1.1-2</code></a>, <a href="#rfc7432-9.2.1-1"><code>RFC7432-9.2.1-1</code></a>, <a href="#rfc7432-10-1"><code>RFC7432-10-1</code></a>, <a href="#rfc7432-8.2.1-10"><code>RFC7432-8.2.1-10</code></a>, <a href="#rfc7432-8.3-2"><code>RFC7432-8.3-2</code></a>, <a href="#rfc7432-9.2.1-6"><code>RFC7432-9.2.1-6</code></a>, <a href="#rfc7432-11.1-3"><code>RFC7432-11.1-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (92):</strong> <a href="#rfc7432-7.9-1"><code>RFC7432-7.9-1</code></a>, <a href="#rfc7432-7.9-2"><code>RFC7432-7.9-2</code></a>, <a href="#rfc7432-7.9-3"><code>RFC7432-7.9-3</code></a>, <a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a>, <a href="#rfc7432-8.2.1-3"><code>RFC7432-8.2.1-3</code></a>, <a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a>, <a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a>, <a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a>, <a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a>, <a href="#rfc7432-8.2.1-8"><code>RFC7432-8.2.1-8</code></a>, <a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a>, <a href="#rfc7432-7.6-2"><code>RFC7432-7.6-2</code></a>, <a href="#rfc7432-11-1"><code>RFC7432-11-1</code></a>, <a href="#rfc7432-9.2.1-2"><code>RFC7432-9.2.1-2</code></a>, <a href="#rfc7432-9.2.1-3"><code>RFC7432-9.2.1-3</code></a>, <a href="#rfc7432-9.1-1"><code>RFC7432-9.1-1</code></a>, <a href="#rfc7432-9.2.1-4"><code>RFC7432-9.2.1-4</code></a>, <a href="#rfc7432-8.4.1-1"><code>RFC7432-8.4.1-1</code></a>, <a href="#rfc7432-10-2"><code>RFC7432-10-2</code></a>, <a href="#rfc7432-10-3"><code>RFC7432-10-3</code></a>, <a href="#rfc7432-10-4"><code>RFC7432-10-4</code></a>, <a href="#rfc7432-11.1-1"><code>RFC7432-11.1-1</code></a>, <a href="#rfc7432-11.1-2"><code>RFC7432-11.1-2</code></a>, <a href="#rfc7432-11.2-1"><code>RFC7432-11.2-1</code></a>, <a href="#rfc7432-11.2-2"><code>RFC7432-11.2-2</code></a>, <a href="#rfc7432-11.2-3"><code>RFC7432-11.2-3</code></a>, <a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a>, <a href="#rfc7432-6.1-2"><code>RFC7432-6.1-2</code></a>, <a href="#rfc7432-6.2-1"><code>RFC7432-6.2-1</code></a>, <a href="#rfc7432-6.3-1"><code>RFC7432-6.3-1</code></a>, <a href="#rfc7432-6.3-2"><code>RFC7432-6.3-2</code></a>, <a href="#rfc7432-8.3.1.1-1"><code>RFC7432-8.3.1.1-1</code></a>, <a href="#rfc7432-8.3.1.2-1"><code>RFC7432-8.3.1.2-1</code></a>, <a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a>, <a href="#rfc7432-15-1"><code>RFC7432-15-1</code></a>, <a href="#rfc7432-15-2"><code>RFC7432-15-2</code></a>, <a href="#rfc7432-15.1-1"><code>RFC7432-15.1-1</code></a>, <a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a>, <a href="#rfc7432-15.2-1"><code>RFC7432-15.2-1</code></a>, <a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a>, <a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a>, <a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a>, <a href="#rfc7432-8.4-1"><code>RFC7432-8.4-1</code></a>, <a href="#rfc7432-8.3.1.1-2"><code>RFC7432-8.3.1.1-2</code></a>, <a href="#rfc7432-8.3.1.1-3"><code>RFC7432-8.3.1.1-3</code></a>, <a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a>, <a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a>, <a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a>, <a href="#rfc7432-5-6"><code>RFC7432-5-6</code></a>, <a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a>, <a href="#rfc7432-5-8"><code>RFC7432-5-8</code></a>, <a href="#rfc7432-5-9"><code>RFC7432-5-9</code></a>, <a href="#rfc7432-5-10"><code>RFC7432-5-10</code></a>, <a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a>, <a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a>, <a href="#rfc7432-5-13"><code>RFC7432-5-13</code></a>, <a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a>, <a href="#rfc7432-12.1-1"><code>RFC7432-12.1-1</code></a>, <a href="#rfc7432-12.1-2"><code>RFC7432-12.1-2</code></a>, <a href="#rfc7432-12.2-1"><code>RFC7432-12.2-1</code></a>, <a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a>, <a href="#rfc7432-13.1-2"><code>RFC7432-13.1-2</code></a>, <a href="#rfc7432-13.1-3"><code>RFC7432-13.1-3</code></a>, <a href="#rfc7432-13.1-4"><code>RFC7432-13.1-4</code></a>, <a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a>, <a href="#rfc7432-14.1-1"><code>RFC7432-14.1-1</code></a>, <a href="#rfc7432-14.1.1-2"><code>RFC7432-14.1.1-2</code></a>, <a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a>, <a href="#rfc7432-14.1.2-1"><code>RFC7432-14.1.2-1</code></a>, <a href="#rfc7432-14.1.2-2"><code>RFC7432-14.1.2-2</code></a>, <a href="#rfc7432-9.2.2-1"><code>RFC7432-9.2.2-1</code></a>, <a href="#rfc7432-9.2.2-2"><code>RFC7432-9.2.2-2</code></a>, <a href="#rfc7432-10.1-4"><code>RFC7432-10.1-4</code></a>, <a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a>, <a href="#rfc7432-6.3-3"><code>RFC7432-6.3-3</code></a>, <a href="#rfc7432-6.3-4"><code>RFC7432-6.3-4</code></a>, <a href="#rfc7432-7.10.1-1"><code>RFC7432-7.10.1-1</code></a>, <a href="#rfc7432-7.10.1-2"><code>RFC7432-7.10.1-2</code></a>, <a href="#rfc7432-8.2.1-9"><code>RFC7432-8.2.1-9</code></a>, <a href="#rfc7432-8.2.1.1-1"><code>RFC7432-8.2.1.1-1</code></a>, <a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a>, <a href="#rfc7432-8.3.1.1-6"><code>RFC7432-8.3.1.1-6</code></a>, <a href="#rfc7432-8.3.1.1-7"><code>RFC7432-8.3.1.1-7</code></a>, <a href="#rfc7432-8.3.1.2-2"><code>RFC7432-8.3.1.2-2</code></a>, <a href="#rfc7432-8.5-2"><code>RFC7432-8.5-2</code></a>, <a href="#rfc7432-10.1-5"><code>RFC7432-10.1-5</code></a>, <a href="#rfc7432-11.2-5"><code>RFC7432-11.2-5</code></a>, <a href="#rfc7432-11.2-6"><code>RFC7432-11.2-6</code></a>, <a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a>, <a href="#rfc7432-13.1-6"><code>RFC7432-13.1-6</code></a>, <a href="#rfc7432-13.1-7"><code>RFC7432-13.1-7</code></a>, <a href="#rfc7432-17.3-3"><code>RFC7432-17.3-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (93):</strong> <a href="#rfc7432-7.9-1"><code>RFC7432-7.9-1</code></a>, <a href="#rfc7432-7.9-2"><code>RFC7432-7.9-2</code></a>, <a href="#rfc7432-7.9-3"><code>RFC7432-7.9-3</code></a>, <a href="#rfc7432-8.2.1-1"><code>RFC7432-8.2.1-1</code></a>, <a href="#rfc7432-8.2.1-3"><code>RFC7432-8.2.1-3</code></a>, <a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a>, <a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a>, <a href="#rfc7432-8.2.1-11"><code>RFC7432-8.2.1-11</code></a>, <a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a>, <a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a>, <a href="#rfc7432-8.2.1-8"><code>RFC7432-8.2.1-8</code></a>, <a href="#rfc7432-7.6-1"><code>RFC7432-7.6-1</code></a>, <a href="#rfc7432-7.6-2"><code>RFC7432-7.6-2</code></a>, <a href="#rfc7432-11-1"><code>RFC7432-11-1</code></a>, <a href="#rfc7432-9.2.1-2"><code>RFC7432-9.2.1-2</code></a>, <a href="#rfc7432-9.2.1-3"><code>RFC7432-9.2.1-3</code></a>, <a href="#rfc7432-9.1-1"><code>RFC7432-9.1-1</code></a>, <a href="#rfc7432-9.2.1-4"><code>RFC7432-9.2.1-4</code></a>, <a href="#rfc7432-8.4.1-1"><code>RFC7432-8.4.1-1</code></a>, <a href="#rfc7432-10-2"><code>RFC7432-10-2</code></a>, <a href="#rfc7432-10-3"><code>RFC7432-10-3</code></a>, <a href="#rfc7432-10-4"><code>RFC7432-10-4</code></a>, <a href="#rfc7432-11.1-1"><code>RFC7432-11.1-1</code></a>, <a href="#rfc7432-11.1-2"><code>RFC7432-11.1-2</code></a>, <a href="#rfc7432-11.2-1"><code>RFC7432-11.2-1</code></a>, <a href="#rfc7432-11.2-2"><code>RFC7432-11.2-2</code></a>, <a href="#rfc7432-11.2-3"><code>RFC7432-11.2-3</code></a>, <a href="#rfc7432-6.1-1"><code>RFC7432-6.1-1</code></a>, <a href="#rfc7432-6.1-2"><code>RFC7432-6.1-2</code></a>, <a href="#rfc7432-6.2-1"><code>RFC7432-6.2-1</code></a>, <a href="#rfc7432-6.3-1"><code>RFC7432-6.3-1</code></a>, <a href="#rfc7432-6.3-2"><code>RFC7432-6.3-2</code></a>, <a href="#rfc7432-8.3.1.1-1"><code>RFC7432-8.3.1.1-1</code></a>, <a href="#rfc7432-8.3.1.2-1"><code>RFC7432-8.3.1.2-1</code></a>, <a href="#rfc7432-8.3.1-1"><code>RFC7432-8.3.1-1</code></a>, <a href="#rfc7432-15-1"><code>RFC7432-15-1</code></a>, <a href="#rfc7432-15-2"><code>RFC7432-15-2</code></a>, <a href="#rfc7432-15.1-1"><code>RFC7432-15.1-1</code></a>, <a href="#rfc7432-15.1-2"><code>RFC7432-15.1-2</code></a>, <a href="#rfc7432-15.2-1"><code>RFC7432-15.2-1</code></a>, <a href="#rfc7432-10.1-1"><code>RFC7432-10.1-1</code></a>, <a href="#rfc7432-17.3-1"><code>RFC7432-17.3-1</code></a>, <a href="#rfc7432-14.1.1-1"><code>RFC7432-14.1.1-1</code></a>, <a href="#rfc7432-8.4-1"><code>RFC7432-8.4-1</code></a>, <a href="#rfc7432-8.3.1.1-2"><code>RFC7432-8.3.1.1-2</code></a>, <a href="#rfc7432-8.3.1.1-3"><code>RFC7432-8.3.1.1-3</code></a>, <a href="#rfc7432-5-3"><code>RFC7432-5-3</code></a>, <a href="#rfc7432-5-4"><code>RFC7432-5-4</code></a>, <a href="#rfc7432-5-5"><code>RFC7432-5-5</code></a>, <a href="#rfc7432-5-6"><code>RFC7432-5-6</code></a>, <a href="#rfc7432-5-7"><code>RFC7432-5-7</code></a>, <a href="#rfc7432-5-8"><code>RFC7432-5-8</code></a>, <a href="#rfc7432-5-9"><code>RFC7432-5-9</code></a>, <a href="#rfc7432-5-10"><code>RFC7432-5-10</code></a>, <a href="#rfc7432-5-11"><code>RFC7432-5-11</code></a>, <a href="#rfc7432-5-12"><code>RFC7432-5-12</code></a>, <a href="#rfc7432-5-13"><code>RFC7432-5-13</code></a>, <a href="#rfc7432-12-1"><code>RFC7432-12-1</code></a>, <a href="#rfc7432-12.1-1"><code>RFC7432-12.1-1</code></a>, <a href="#rfc7432-12.1-2"><code>RFC7432-12.1-2</code></a>, <a href="#rfc7432-12.2-1"><code>RFC7432-12.2-1</code></a>, <a href="#rfc7432-13.1-1"><code>RFC7432-13.1-1</code></a>, <a href="#rfc7432-13.1-2"><code>RFC7432-13.1-2</code></a>, <a href="#rfc7432-13.1-3"><code>RFC7432-13.1-3</code></a>, <a href="#rfc7432-13.1-4"><code>RFC7432-13.1-4</code></a>, <a href="#rfc7432-13.1-5"><code>RFC7432-13.1-5</code></a>, <a href="#rfc7432-14.1-1"><code>RFC7432-14.1-1</code></a>, <a href="#rfc7432-14.1.1-2"><code>RFC7432-14.1.1-2</code></a>, <a href="#rfc7432-14.1.1-3"><code>RFC7432-14.1.1-3</code></a>, <a href="#rfc7432-14.1.2-1"><code>RFC7432-14.1.2-1</code></a>, <a href="#rfc7432-14.1.2-2"><code>RFC7432-14.1.2-2</code></a>, <a href="#rfc7432-9.2.2-1"><code>RFC7432-9.2.2-1</code></a>, <a href="#rfc7432-9.2.2-2"><code>RFC7432-9.2.2-2</code></a>, <a href="#rfc7432-10.1-4"><code>RFC7432-10.1-4</code></a>, <a href="#rfc7432-6.2-2"><code>RFC7432-6.2-2</code></a>, <a href="#rfc7432-6.3-3"><code>RFC7432-6.3-3</code></a>, <a href="#rfc7432-6.3-4"><code>RFC7432-6.3-4</code></a>, <a href="#rfc7432-7.10.1-1"><code>RFC7432-7.10.1-1</code></a>, <a href="#rfc7432-7.10.1-2"><code>RFC7432-7.10.1-2</code></a>, <a href="#rfc7432-8.2.1-9"><code>RFC7432-8.2.1-9</code></a>, <a href="#rfc7432-8.2.1.1-1"><code>RFC7432-8.2.1.1-1</code></a>, <a href="#rfc7432-8.3-1"><code>RFC7432-8.3-1</code></a>, <a href="#rfc7432-8.3.1.1-6"><code>RFC7432-8.3.1.1-6</code></a>, <a href="#rfc7432-8.3.1.1-7"><code>RFC7432-8.3.1.1-7</code></a>, <a href="#rfc7432-8.3.1.2-2"><code>RFC7432-8.3.1.2-2</code></a>, <a href="#rfc7432-8.5-2"><code>RFC7432-8.5-2</code></a>, <a href="#rfc7432-10.1-5"><code>RFC7432-10.1-5</code></a>, <a href="#rfc7432-11.2-5"><code>RFC7432-11.2-5</code></a>, <a href="#rfc7432-11.2-6"><code>RFC7432-11.2-6</code></a>, <a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a>, <a href="#rfc7432-13.1-6"><code>RFC7432-13.1-6</code></a>, <a href="#rfc7432-13.1-7"><code>RFC7432-13.1-7</code></a>, <a href="#rfc7432-17.3-3"><code>RFC7432-17.3-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -398,6 +399,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute carries each route&#39;s supplied ESI Label bytes. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks community presence without comparing embedded labels across separately originated routes with the same ESI. The cross-route consistency invariant is unimplemented; one conforming per-ES example does not prove it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-11">RFC7432-8.2.1-11</code></td><td colspan="3"><span class="rfc-subject">This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs. (§8.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-8.2.1-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the label is the ESI label named in the preceding sentence. The condition binds an advertising PE receiving BUM traffic using ingress replication. Ze&#39;s selected BGP control-plane role, documented in docs/architecture/wire/nlri-evpn.md, does not fill that forwarding role, including through a delegated EVPN dataplane. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams carry explicitly supplied ESI Label bytes; internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks presence. These route producers neither instantiate ingress replication nor establish downstream label assignment</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-8.2.1-6">RFC7432-8.2.1-6</code></td><td colspan="3"><span class="rfc-subject">If the advertising PE is using P2MP MPLS LSPs for sending multicast, broadcast, or unknown unicast traffic, then this label MUST be an upstream assigned MPLS label. (§8.2.1)</span></td></tr>
 <tr><td></td>
@@ -1362,14 +1372,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze aggregates no EVPN instance onto a P-multicast tree and assigns no upstream label: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute builds no PMSI Tunnel attribute and ze holds no EVI</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-11.2-7">RFC7432-11.2-7</code></td><td colspan="3"><span class="rfc-subject">If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, then the PE MUST re-advertise those routes. (§11.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-11.2-7">RFC7432-11.2-7</code></td><td colspan="3"><span class="rfc-subject">If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, then the PE MUST re-advertise those routes. The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute. (§11.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7432-11.2-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze aggregates no EVPN instance onto a P-multicast tree, so it never re-advertises Inclusive Multicast Ethernet Tag routes for one: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute builds no PMSI Tunnel attribute</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Section 11.2 permits a PE using a P-multicast tree to aggregate EVIs onto that tree; both sentences govern re-advertisement caused by that optional aggregation. Ze&#39;s documented BGP control-plane role does not manage EVI-to-tree bindings or aggregate EVIs onto P-multicast trees, including through a delegated PE service. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams construct individually supplied routes, not an aggregation transition. Ordinary propagation, explicit route replacement and opaque PMSI carriage do not establish this procedure</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7432-13.1-6">RFC7432-13.1-6</code></td><td colspan="3"><span class="rfc-subject">If a distinct P2MP LSP is used for a given Ethernet tag in the EVPN instance, then only the PEs in the Ethernet tag MUST be the leaves of the P2MP LSP. (§13.1)</span></td></tr>
 <tr><td></td>
@@ -1434,6 +1444,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a> The MPLS label in this Extended Community is referred to as the ESI label and MUST have the same value in each Ethernet A-D per ES route advertised for the ES. (§8.2.1)</td>
 <td>{gap}, no test</td>
 <td>internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute carries each route&#39;s supplied ESI Label bytes. internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks community presence without comparing embedded labels across separately originated routes with the same ESI. The cross-route consistency invariant is unimplemented; one conforming per-ES example does not prove it</td>
+</tr>
+<tr><td><a href="#rfc7432-8.2.1-11"><code>RFC7432-8.2.1-11</code></a> This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs. (§8.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the label is the ESI label named in the preceding sentence. The condition binds an advertising PE receiving BUM traffic using ingress replication. Ze&#39;s selected BGP control-plane role, documented in docs/architecture/wire/nlri-evpn.md, does not fill that forwarding role, including through a delegated EVPN dataplane. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams carry explicitly supplied ESI Label bytes; internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination checks presence. These route producers neither instantiate ingress replication nor establish downstream label assignment</td>
 </tr>
 <tr><td><a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a> If the advertising PE is using P2MP MPLS LSPs for sending multicast, broadcast, or unknown unicast traffic, then this label MUST be an upstream assigned MPLS label. (§8.2.1)</td>
 <td>no test</td>
@@ -1755,9 +1769,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze aggregates no EVPN instance onto a P-multicast tree and assigns no upstream label: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute builds no PMSI Tunnel attribute and ze holds no EVI</td>
 </tr>
-<tr><td><a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a> If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, then the PE MUST re-advertise those routes. (§11.2)</td>
+<tr><td><a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a> If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, then the PE MUST re-advertise those routes. The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute. (§11.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze aggregates no EVPN instance onto a P-multicast tree, so it never re-advertises Inclusive Multicast Ethernet Tag routes for one: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute builds no PMSI Tunnel attribute</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Section 11.2 permits a PE using a P-multicast tree to aggregate EVIs onto that tree; both sentences govern re-advertisement caused by that optional aggregation. Ze&#39;s documented BGP control-plane role does not manage EVI-to-tree bindings or aggregate EVIs onto P-multicast trees, including through a delegated PE service. internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and encode.go::l2vpnRouteToEVPNParams construct individually supplied routes, not an aggregation transition. Ordinary propagation, explicit route replacement and opaque PMSI carriage do not establish this procedure</td>
 </tr>
 <tr><td><a href="#rfc7432-13.1-6"><code>RFC7432-13.1-6</code></a> If a distinct P2MP LSP is used for a given Ethernet tag in the EVPN instance, then only the PEs in the Ethernet tag MUST be the leaves of the P2MP LSP. (§13.1)</td>
 <td>no test</td>
@@ -1849,12 +1863,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.2.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a></h3>
 <p>If All-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. RFC 7432 Section 8.2.1 states: &#34;If All-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value.&#34; Both signaling conditions remain gaps. Registered configured/command originators carry supplied extended communities through l2vpnRouteToEVPNParams. ValidateEVPNOrigination recognizes ESI Label type/subtype and checks presence on MAX-ET Type1 advertisements, but inspects neither its flag nor embedded label against independent All-Active intent. NLRI label-width and zero-label guards constrain a different field. Missing autonomous multihoming does not make configured signaling conformant or excluded; no new PE feature is commissioned.</p>
 <p>No test carries RFC7432-8.2.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-5"><code>RFC7432-8.2.1-5</code></a></h3>
 <p>The MPLS label in this Extended Community is referred to as the ESI label and MUST have the same value in each Ethernet A-D per ES route advertised for the ES. (§8.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-8.2.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc7432-8.2.1-11"><code>RFC7432-8.2.1-11</code></a></h3>
+<p>This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs. (§8.2.1)</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. RFC 7432 Section 8.2.1 states: &#34;This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs.&#34; Its antecedent is the ESI label, not the NLRI label. The condition binds a PE receiving BUM using ingress replication, not every speaker carrying an explicitly configured ESI Label. The selected role in docs/architecture/wire/nlri-evpn.md is BGP origination/propagation without Ethernet/BUM forwarding or service-label allocation. Route producers carry supplied bytes without instantiating that PE procedure.</p>
+<p>No test carries RFC7432-8.2.1-11, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-6"><code>RFC7432-8.2.1-6</code></a></h3>
 <p>If the advertising PE is using P2MP MPLS LSPs for sending multicast, broadcast, or unknown unicast traffic, then this label MUST be an upstream assigned MPLS label. (§8.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2396,8 +2414,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7432-11.2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-11.2-7"><code>RFC7432-11.2-7</code></a></h3>
-<p>If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, then the PE MUST re-advertise those routes. (§11.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, then the PE MUST re-advertise those routes. The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute. (§11.2)</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. RFC 7432 Section 11.2 permits aggregation of two or more EVIs onto one P-multicast tree and then requires re-advertisement of the existing routes. Its restored second sentence states: &#34;The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute.&#34; Both duties are conditional on that optional aggregation transition; preservation is not a universal constraint on every explicit replacement. Configured/command producers build individually supplied routes. BuildEVPN has no EVI-to-tree binding or aggregation transition, and the selected role/system-FIB boundary does not delegate one.</p>
 <p>No test carries RFC7432-11.2-7, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-13.1-6"><code>RFC7432-13.1-6</code></a></h3>
 <p>If a distinct P2MP LSP is used for a given Ethernet tag in the EVPN instance, then only the PEs in the Ethernet tag MUST be the leaves of the P2MP LSP. (§13.1)</p>
@@ -2436,10 +2454,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/extraction/rfc7432.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>101</td>
+<td>103</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>24</td>
+<td>22</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -2958,11 +2976,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Restates the 10-octet Ethernet Segment Identifier that Section 5 defines and RFC7432-5-1 carries.</td>
 <td>The Ethernet Segment Identifier MUST be a 10-octet entity as described in Section 5 (&#34;Ethernet Segment&#34;).</td>
 </tr>
-<tr><td><code>8.2.1:9</code></td>
-<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>Restates the downstream assigned ESI label that the All-Active sentence in the same section states, which RFC7432-8.2.1-4 carries.</td>
-<td>This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs.</td>
-</tr>
 <tr><td><code>8.3:3</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>The surrounding Section 8.3 paragraph concerns the Ethernet A-D per ES route and repeats its ESI Label requirement from Section 8.2.1. The sentence cross-references Section 8.1.1, whose Ethernet Segment route actually requires ES-Import, not ESI Label.</td>
@@ -3027,11 +3040,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
 <td>Restates the MP_REACH_NLRI next-hop obligation that RFC7432-9.2.1-2 carries.</td>
 <td>The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE.</td>
-</tr>
-<tr><td><code>11.2:5</code></td>
-<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>Restates the re-advertisement obligation in the preceding sentence, which RFC7432-11.2-7 carries in full.</td>
-<td>The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute.</td>
 </tr>
 <tr><td><code>11.2:6</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
@@ -3099,7 +3107,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

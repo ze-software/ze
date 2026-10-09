@@ -191,8 +191,9 @@ Config nodes with a broken summary: 11
 ```
 
 The gate walks FOUR corpora. A `-cmd.yang` node declares the CLI path an
-operator types. An `-api.yang` rpc declares the wire method that path reaches,
-and the plugin IPC modules in `internal/core/ipc/yang/` declare 28 more, each
+operator types and, with `ze:command`, the wire method that path reaches. An
+`-api.yang` rpc documents that method, and the node points at it with `ze:rpc`;
+the plugin IPC modules in `internal/core/ipc/yang/` declare 28 more, each
 with its own `ze:method`. Every
 loaded module is walked, so a module whose name carries no `-api` suffix is
 judged with the rest. An offline local command declares its help in a

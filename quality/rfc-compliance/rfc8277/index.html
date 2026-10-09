@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.7%</strong><b>2 of 35 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 35 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 35 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>70.8%</strong><b>46 of 65 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>83.1%</strong><b>54 of 65 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>25.7%</strong><b>9 of 35 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 35 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 35 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 35 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -985,7 +985,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go#L28" title="internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go" target="_blank" rel="noopener"><code>TestRFC8277RsrvIgnoredOnReceiveLabelStack</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L24" title="internal/core/bgp/nlri/nlrisplit/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRsrvIgnoredOnReceive</code></a></td>
@@ -1067,7 +1067,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a></h3>
 <p>Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers, internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2 moved. Read full RFC8277 Section 2.4, all 17 current tagged functions and their shared matrices and actual consumers. The current 29 polarity covers require recommended, zero, S-set and other Compatibility values to produce the same withdrawal identity without rejection or label interpretation. Real direct/filtered JSON, registered codec and bidirectional SDK consumers require exact RD/prefix/Path Identifier identities, adjacent-route boundaries and negotiated identifiers zero/17; announcement controls retain labels. Expanded labeled/VPN RIB matrices exercise IPv4/IPv6 with and without ADD-PATH, exact surviving native routes and labels, and exactly one correct withdrawal or replacement publication. Cross-PE promotion requires exactly Update with the surviving PE&#39;s own native NLRI, identifier and next hop. RR/RS matrices require exact retained inventories, and VPN peer-down carriers capture and reparse native survivor commands. Withdrawal splitters, canonical keys, storage removal/election and decoder/SDK dispatch carry withdrawal context rather than decoding Compatibility as a stack. The previous family/ADD-PATH and non-exact-promotion gaps are closed. This is real consumer/state evidence, not only encoder coverage; it does not claim independent VPP or remote-session acceptance. The mechanically renamed IPC carrier and its stored records already use internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go. No residual obligation in this reception sentence was found; transmission SHOULD and absent Multiple Labels Capability work remain outside this judgment.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Read full RFC8277 Section 2.4, all 17 current tagged functions and their shared matrices and actual consumers. The current 29 polarity covers require recommended, zero, S-set and other Compatibility values to produce the same withdrawal identity without rejection or label interpretation. Real direct/filtered JSON, registered codec and bidirectional SDK consumers require exact RD/prefix/Path Identifier identities, adjacent-route boundaries and negotiated identifiers zero/17; announcement controls retain labels. Expanded labeled/VPN RIB matrices exercise IPv4/IPv6 with and without ADD-PATH, exact surviving native routes and labels, and exactly one correct withdrawal or replacement publication. Cross-PE promotion requires exactly Update with the surviving PE&#39;s own native NLRI, identifier and next hop. RR/RS matrices require exact retained inventories, and VPN peer-down carriers capture and reparse native survivor commands. Withdrawal splitters, canonical keys, storage removal/election and decoder/SDK dispatch carry withdrawal context rather than decoding Compatibility as a stack. The previous family/ADD-PATH and non-exact-promotion gaps are closed. This is real consumer/state evidence, not only encoder coverage; it does not claim independent VPP or remote-session acceptance. The mechanically renamed IPC carrier and its stored records already use internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go. No residual obligation in this reception sentence was found; transmission SHOULD and absent Multiple Labels Capability work remain outside this judgment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1155,22 +1155,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L101" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L54" title="internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8277LabeledWithdrawIgnoresCompatibility</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L118" title="internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawIgnoresCompatibilityValue</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L25" title="internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawPromotesTheOtherPE</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L152" title="internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes</code></a></td>
@@ -1185,7 +1185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L61" title="internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheWithdrawalMap</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L155" title="internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes</code></a></td>
@@ -1195,12 +1195,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L30" title="internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go" target="_blank" rel="noopener"><code>TestVPNWithdrawalLeavesExactRouteServerInventory</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L76" title="internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalLeavesTheRouteServerSet</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_labeled_consumer_test.go#L27" title="internal/component/bgp/server/rfc8277_labeled_consumer_test.go" target="_blank" rel="noopener"><code>TestLabeledWithdrawalCodecConsumersIgnoreCompatibility</code></a></td>
@@ -1381,7 +1381,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC8277-3.2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-3.2.2-3"><code>RFC8277-3.2.2-3</code></a></h3>
 <p>It can decide not to propagate the route to the given peer. In that case, if a previous route with the same AFI, SAFI, and prefix (but with fewer labels) has already been propagated to that peer, that route MUST be withdrawn from that peer using the procedure of Section 2.4. (§3.2.2)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. RFC 8277 §3.2.2 requires a Section 2.4 withdrawal of the earlier same-AFI/SAFI/prefix fewer-label route when the speaker decides not to propagate the replacement stack to a peer that cannot handle it. This is a distinct trigger from §3.2.1. mpReachNextHopHandler changes the next hop and copies the NLRI without a label-count decision, and BuildLabeledUnicastNLRIBytes encodes every supplied label. Multiple Labels Capability negotiation/count handling remains absent. The existing TestLabeledPropagationChangedNextHopReusesReceivedLabelGap observes unchanged labels with a changed next hop, not the required withdrawal. Record the missing behavior explicitly; absence does not establish vacuous conformance or authorize development.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Rejudged RFC 8277 Section 3.2.2 independently. When propagation of a changed-next-hop replacement stack is declined because the recipient cannot handle it, the earlier same-AFI/SAFI/prefix fewer-label route requires a Section 2.4 withdrawal. mpReachNextHopHandler still replaces only the next-hop field and retains the whole NLRI tail; BuildLabeledUnicastNLRIBytes serializes every supplied label. Multiple Labels capability/count admission and its coupled changed-next-hop withdrawal decision remain absent. No tagged test proves this row; TestLabeledPropagationChangedNextHopReusesReceivedLabelGap observes unchanged upstream labels after a next-hop rewrite, not the required withdrawal. Ordinary withdrawal ownership does not supply the missing label-count trigger. Preserve the explicit gap separately from RFC8277-3.2.1-4; absence is neither vacuous conformance nor authorization to implement the feature.</p>
 <p>No test carries RFC8277-3.2.2-3, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
@@ -1606,7 +1606,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

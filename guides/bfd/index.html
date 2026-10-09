@@ -314,6 +314,14 @@ session teardown the handle is released. When BFD reports the
 forwarding path Down, the reactor tears the BGP session with RFC 9384
 Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
 hold timer.</p>
+<p>A released session does not leave <code>show bfd sessions</code> at once when it has
+heard from its peer. It stays there in <code>admin-down</code> for three of its
+Detection Times, because RFC 5880 Section 6.8.1 says its state "MUST be
+preserved for at least one Detection Time" and Section 6.8.16 asks for
+AdminDown Control packets for at least as long. A client that asks for
+the same session inside that window revives it, discriminator included.</p>
+<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, retireReleasedLocked, reviveReleasedLocked -->
+<!-- source: internal/component/bfd/session/fsm.go -- AdminDown, adminDownTransmitDetectionTimes -->
 <p>Two of those sentences are about the peer WITHOUT <code>strict true</code>. A strict
 peer opens its BFD session before the BGP FSM starts and keeps it across
 every retry, releasing it only when the peer itself stops
@@ -633,7 +641,7 @@ scripts can parse the output while the interactive CLI renders them.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/bfd-failover.cast?v=912e24f2ca"
+      data-cast-src="../../assets/demos/bfd-failover.cast?v=84174694fb"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -641,13 +649,13 @@ scripts can parse the output while the interactive CLI renders them.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/bfd-failover.cast?v=912e24f2ca">Download the asciicast</a> or
-      <a href="../../assets/demos/bfd-failover.txt?v=5e444cee6f">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/bfd-failover.cast?v=84174694fb">Download the asciicast</a> or
+      <a href="../../assets/demos/bfd-failover.txt?v=3399c81481">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.31</span><span>1 minute 48 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/bfd-failover.txt?v=5e444cee6f">Plain-text transcript</a>
+    <span>Ze 26.10.09</span><span>1 minute 49 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/bfd-failover.txt?v=3399c81481">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -664,7 +672,7 @@ The running control plane shows the complete Up BFD session.
 $ date -u +%T; ip link set bfd-p down
 $ ze cli -c &#39;show bfd sessions&#39;
 $ ze cli -c &#39;show bgp peer list&#39;
-Five seconds after the kernel link is cut, the full command output shows no live BFD session and BGP has left Established.
+After the kernel link is cut, BFD leaves Up and BGP leaves Established. BGP releases its BFD session, which Ze keeps in AdminDown for the retention window RFC 5880 Section 6.8.1 requires and then retires, so by the time the command runs the session list is empty.
 
 $ ip link set bfd-p up
 $ ze cli -c &#39;show bgp peer list&#39;
@@ -967,7 +975,7 @@ document for the full gap list and the intended follow-up order.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

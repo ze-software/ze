@@ -210,9 +210,9 @@ in the build declares a config root at all.
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Download the asciicast recording](../../assets/demos/config-graph.cast?v=1ea1811466) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
+[Download the asciicast recording](../../assets/demos/config-graph.cast?v=4c952f92ac) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
 
-Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
+Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 13 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.

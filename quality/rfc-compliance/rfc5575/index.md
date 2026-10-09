@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 11.1% | 1 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 24.1% | 7 of 29 tagged units, 0 escaped and 7 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 48.3% | 14 of 29 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -155,9 +155,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L893) | unit/verify | unproven |
-| positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21) | unit/verify | revert, verified |
 
 ### [`RFC5575-4-2`](#rfc5575-4-2)
 
@@ -167,10 +167,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L24) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecIPv4Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L420) | unit/verify | unproven |
 | positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L646) | unit/verify | unproven |
-| positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L23) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L23) | unit/verify | revert, verified |
 
 ### [`RFC5575-4-3`](#rfc5575-4-3)
 
@@ -241,19 +241,19 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop, internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2 moved. RFC5575 Section 4: 'Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.' Historical identity only; live RFC8955 Section 4 requires zero Length of Next-Hop Network Address on advertisement and ignoring the received Network Address. Independently reread all five tagged functions: TestFlowSpecUpdateIgnoresConfiguredNextHop pins zero length and unchanged NLRI; TestRFC8955NextHopIgnoredForFlowSpec pins generation eligibility, one candidate and the identical nonwithdraw selected rule/action for empty, self and non-address next hops including a legacy self NEXT_HOP; TestFlowSpecOriginationOmitsConfiguredNextHop reads literal complete TCP frames for all four flow/flow-vpn families through config, API batch and both queue drains with absent/IPv4/IPv6 hop controls; TestFlowSpecForwardingOmitsNextHop and TestFlowSpecRouteServerOmitsNextHop pin exact zero-hop MP_REACH, NLRI/RD/action and no withdrawal across destination rewrites and received hops. The route-server fixture uses real RIB authorization and plugin bus, unlike the isolated forward fixture's deliberate eligibility callback. Producers are buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop/applyNextHopFamily/mpReachNextHopHandler and entryNextHopAddr. These current output and receipt assertions independently resolve the old isolated-encoder gap; stored producer halts establish reachability only. All four audit questions pass collectively and both polarities have distinct controls/challenges. No execution or fingerprint verification was performed in this read-only audit; independent live-peer/VPP acceptance remains pending.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC5575 Section 4: 'Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.' Historical identity only; live RFC8955 Section 4 requires zero Length of Next-Hop Network Address on advertisement and ignoring the received Network Address. Independently reread all five tagged functions: TestFlowSpecUpdateIgnoresConfiguredNextHop pins zero length and unchanged NLRI; TestRFC8955NextHopIgnoredForFlowSpec pins generation eligibility, one candidate and the identical nonwithdraw selected rule/action for empty, self and non-address next hops including a legacy self NEXT_HOP; TestFlowSpecOriginationOmitsConfiguredNextHop reads literal complete TCP frames for all four flow/flow-vpn families through config, API batch and both queue drains with absent/IPv4/IPv6 hop controls; TestFlowSpecForwardingOmitsNextHop and TestFlowSpecRouteServerOmitsNextHop pin exact zero-hop MP_REACH, NLRI/RD/action and no withdrawal across destination rewrites and received hops. The route-server fixture uses real RIB authorization and plugin bus, unlike the isolated forward fixture's deliberate eligibility callback. Producers are buildMPReachPlugin, buildBatchAnnounceUpdate, buildRIBRouteUpdate, payloadNextHop/applyNextHopFamily/mpReachNextHopHandler and entryNextHopAddr. These current output and receipt assertions independently resolve the old isolated-encoder gap; stored producer halts establish reachability only. All four audit questions pass collectively and both polarities have distinct controls/challenges. No execution or fingerprint verification was performed in this read-only audit; independent live-peer/VPP acceptance remains pending.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17) | unit/verify | unproven |
 | negative | [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L501) | unit/verify | revert, verified |
-| negative | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34) | unit/verify | revert, verified |
 | negative | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L35) | unit/verify | revert, verified |
-| negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L29) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L29) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L16) | unit/verify | unproven |
 | positive | [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L500) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L33) | unit/verify | revert, verified |
-| positive | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L28) | unit/verify | revert, verified |
 
 ### [`RFC5575-5.1-1`](#rfc5575-5.1-1)

@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>21.7%</strong><b>5 of 23 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>47.8%</strong><b>11 of 23 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -513,7 +513,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 </div>
 <h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-6"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6</code></a></h3>
 <p>A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState, internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2, internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates, internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2 moved. draft-abraitis-idr-addpath-paths-limit-04 Section 3: &#39;A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.&#39; Re-read all three tagged carriers and the live fixture producer. TestPathsLimitSessionAcrossUpdates negotiates limit 2 independently for IPv4/IPv6 and asserts exact socket announcement IDs [0 1 1 4] and withdrawal IDs [99 0], distinguishing excess new paths, changed-MED replacement, unknown withdrawal and actual slot release; an all-withheld later write must emit no bytes. The changed MED makes the positive replacement distinct at the ownership boundary without weakening path-count expectations. TestPathsLimitForwardWritersShareState requires [5 7], proving raw and prefiltered writers share the same per-prefix budget while a different prefix remains admissible. test/plugin/paths-limit-live.ci and fixture.pathsLimitLive use real CLI commands and a receiver advertising limits 1/2 versus Ze&#39;s own 9; ordered exact wire expectations and different-prefix sentinels distinguish remote direction, per-family capacity, replacements, withdrawal and explicit retry, rather than inferring absence from quiet time. Session.initPathsLimit selects negotiated PathsLimitSend; pathsLimitSection counts unique IDs per family/prefix and rejects new IDs at capacity; filterPathsLimit and Session.writeUpdateBody apply this before final socket emission across both writer forms. Valid ADD-PATH framing and separate prefix controls isolate this rule. Exact accepted/excluded identities would fail over-admission, all-rejection or per-message reset, and cover the whole sender obligation. No producer-halt record or ownership fixture was treated as semantic proof; no runtime checks were run by this judge.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. draft-abraitis-idr-addpath-paths-limit-04 §3 states: &#39;A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.&#39; This is a per-prefix path COUNT, not a maximum numeric Path Identifier. Re-read the primary clause, summary and unannotated checklist row, all three tagged covers, and their producers. TestPathsLimitSessionAcrossUpdates negotiates limit 2 separately for IPv4 and IPv6 and reads emitted socket frames: announcements must be exactly [0,1,1,4], withdrawals exactly [99,0], and a subsequent all-withheld batch must emit no bytes. These assertions distinguish excess admissions, same-ID changed-MED replacement, an unknown withdrawal that must not free capacity, and a real withdrawal followed by admission. TestPathsLimitForwardWritersShareState exercises raw and re-encoded writers against one session budget and requires exactly [5,7], excluding same-prefix ID 6 while admitting a different prefix; identifiers above the numeric limit therefore demonstrably remain legal. paths-limit-live.ci independently advertises IPv4=1 and IPv6=2 against Ze&#39;s receive request of 9 and requires ordered exact wire frames, including different-prefix ID-99 sentinels, replacements, withdrawals and explicit retries. Its final OK marker is printed by pathsLimitLive only after all operator commands and the independent peer workflow succeed, not merely after reaching the producer. Source tracing confirms initPathsLimit uses negotiated outbound limits, pathsLimitSection counts admitted identifiers per family/prefix, and filterPathsLimit supplies the final bytes to the shared socket writer. In job-final-selective-and-vpn-bindings-7b4c75a2.log, the genuine selective guard mutations are killed at the exact [5,7] assertion: guard=true yields [], guard=false yields [5,6,7]. Those observations discriminate admission behavior; the separate whole-function halt can fail at initial EOR and establishes reachability only. The corrected CI comment now accurately describes the existing executable assertions. No partial or implementation-gap annotation is needed for this clause.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -521,32 +521,32 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L207" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L158" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L10" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L206" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go#L157" title="internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L9" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -700,7 +700,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

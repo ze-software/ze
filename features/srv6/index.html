@@ -301,6 +301,25 @@ extra buffer or a change to the borrowed received UPDATE. The Section 3.2
 unchanged-propagation rule applies specifically to Originator SRGB: its bytes
 are never normalized on relay.</p>
 <!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
+<p>Forwarding compares the received next-hop entity with the effective address
+after export policy, configured rewriting and Link-Local scope normalization.
+An explicit third-party A-to-A rewrite keeps the Service TLVs, including their
+Reserved octets and unknown nested fields. A policy-only A-to-B rewrite removes
+them even with next-hop <code>auto</code> or <code>unchanged</code>, including raw-policy export and
+the route-server export fallback. Only the route's actual legacy or MP field
+participates: unused companion rewrite operations do not imply a change.
+IPv4-mapped and native IPv4 forms identify the same address, as do a Global
+address with or without its optional Link-Local half. For the VPN exception
+whose Global is unspecified, the Link-Local is the entity.
+RFC 9252 service carriers use MP_REACH. In a mixed UPDATE its MP next hop governs
+the Service TLVs; a legacy sibling's independent NEXT_HOP cannot change that
+decision. Legacy-only input retains the same propagation safeguard, without
+implying support for originating SRv6 services on a legacy carrier.
+When a raw export result has an empty or undecodable MP next-hop field and a
+configured rewrite repairs it before admission, the repaired address still
+governs this comparison. The MP carrier did not disappear with its intermediate
+address, and policy is not run again.</p>
+<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- applyEgressPrefixSIDNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
 <h3 id="the-api-and-readvertise-announce-rail">The API and readvertise announce rail</h3>
 <p>The fifth rail asks the same question at the same site.
@@ -435,13 +454,13 @@ the VPP dispatch logic.</p>
 </tr>
 <tr>
 <td>NH unchanged: preserve TLVs</td>
-<td>3.3</td>
-<td>Implemented (zero-copy forward)</td>
+<td>2</td>
+<td>Implemented: effective address identity, including explicit A-to-A; Reserved and unknown nested bytes are retained</td>
 </tr>
 <tr>
 <td>NH changed: SRv6 Service TLVs removed, other TLVs kept</td>
 <td>2</td>
-<td>Implemented (the Service TLVs leave because Ze allocates no local SRv6 SID; the Prefix-SID handler rewrites the attribute per route)</td>
+<td>Implemented removal after policy and configured rewrites, including policy-only changes under <code>auto</code> or <code>unchanged</code>. Local SID allocation/rebuilding remains unimplemented</td>
 </tr>
 <tr>
 <td>Malformed Service TLV: treat-as-withdraw</td>
@@ -519,7 +538,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 6 October 2026 15:21 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

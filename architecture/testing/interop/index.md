@@ -171,6 +171,25 @@ The diagnostic queries share a 15-second deadline and preserve read errors and
 the original assertion failure. They do not retry or replace the BGP session.
 <!-- source: internal/le/interoplab/bgp/check_extended_message.go -- checkExtendedMessages, extendedFailureDiagnostics -->
 
+`bgp-parsed-empty-mp-unreach-frr` drives the parsed forwarding path from an
+ASN4 source to a two-octet recipient, with real FRR behind the OPEN-only relay.
+Both sessions negotiate IPv4 and IPv6 without ADD-PATH. The FRR fixture supplies
+a local IPv6 address: IPv6-family negotiation still needs it on IPv4 transport.
+After initial synchronization, the source seeds a route, withdraws it in an
+UPDATE carrying an empty IPv6 MP_UNREACH, then sends a genuine standalone IPv6
+EOR in a separate epoch. Distinct-MED announcements fence each epoch.
+<!-- source: internal/le/interoplab/bgp/speaker_parsed_empty_mp.go -- runParsedEmptyMPSource, parsedEmptyMPPhase -->
+
+The checker requires FRR installation and removal, complete source and recipient
+wire histories, the negotiated AS_PATH widths, and unchanged FRR daemon/session
+identity. A mixed withdrawal must not manufacture an EOR; the later genuine
+marker must survive. Before teardown, pass and failure both retain `proof.json`
+under the native session scratch directory, including fixture inputs, captures,
+FRR table, PID, version and logs. Required capture or write failures fail the
+proof. Diagnostic collection has a cancellation-independent fifteen-second bound.
+<!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp.go -- checkParsedEmptyMPFRR, parsedEmptyMPDiagnostics -->
+<!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp_wire.go -- parsedEmptyMPCapture, parsedEmptyMPHistory -->
+
 ## Prerequisites
 
 | Requirement | Used By | Notes |
@@ -350,6 +369,22 @@ Container names include the runner PID, which prevents name collisions.
 Runs that share a fixed subnet or staged binary paths must run serially.
 
 <!-- source: internal/le/interoplab/bgp/prepare.go -- container naming, IP addresses -->
+
+The table gives the fixture addresses, which the runner rewrites onto its selected
+network. IPv6 scenarios also receive host addresses on a selected /64.
+`bgp-rfc2545-linklocal-nexthop-frr` uses IPv6 host 2 for Ze and host 3 for FRR:
+the speaker, its on-link global next hop and the recipient share ONE IPv6 subnet,
+not separate IPv4 and IPv6 connected prefixes. Its `@ZE_LINK_LOCAL@` token is
+rendered from the selected IPv6 lab prefix and Ze's host number. The scenario's
+startup command assigns that address to Ze's `eth0` before starting Ze, so the
+advertised link-local next hop belongs to the same router as the global address.
+The checker requires FRR to decode the global-plus-link-local pair and install
+the on-link route via that owned link-local address. A second prefix uses an
+off-link global next hop and must decode as global-only; the IPv6 session must
+remain established after both assertions. These are two routes on one session,
+not identical UPDATEs differing only in their next-hop length.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, rfc2545LinkLocal -->
+<!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
 
 Typed checker queries and their expected JSON field values are rendered onto the
 same selected network. Rendering clones the expected-field map so concurrent or

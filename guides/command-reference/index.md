@@ -90,9 +90,9 @@ from stdin (`ze -`) is unaffected.
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Download the asciicast recording](../../assets/demos/launcher.cast?v=12a2019323) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Download the asciicast recording](../../assets/demos/launcher.cast?v=34f1e25629) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 57 seconds.
+Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 58 seconds.
 
 ```console
 $ ze
@@ -169,6 +169,7 @@ skipped at apply time. See `docs/guide/config-deactivate.md`.
 ```
 ze config import <file>...       # Import files into the database
 ze config import --name <n> <file>  # Import under a different name
+ze config import --yes <file>...  # Replace existing configs without asking
 ze config rename <old> <new>     # Rename a config in the database
 ze config list [prefix]          # List files in database
 ze config list --backup <artifact>  # List the configs inside a backup
@@ -577,9 +578,9 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=130e81dfc9) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=914610af44) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 37 seconds.
+Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 39 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.

@@ -829,7 +829,7 @@ bgp {
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rpki.cast?v=2f6b944206"
+      data-cast-src="../../assets/demos/rpki.cast?v=d3a77e3773"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -837,13 +837,13 @@ bgp {
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rpki.cast?v=2f6b944206">Download the asciicast</a> or
-      <a href="../../assets/demos/rpki.txt?v=bf49f52038">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/rpki.cast?v=d3a77e3773">Download the asciicast</a> or
+      <a href="../../assets/demos/rpki.txt?v=8c6b7276d5">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.31</span><span>33 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/rpki.txt?v=bf49f52038">Plain-text transcript</a>
+    <span>Ze 26.10.09</span><span>34 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/rpki.txt?v=8c6b7276d5">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -851,10 +851,11 @@ bgp {
 sessions: 1
 vrp-count-ipv4: 171
 $ ze cli -c &#39;show bgp adj-rib-in | no-more&#39;
-9.43.0.0/24   validation-state: 1
-11.43.0.0/24  validation-state: 2
+ipv4/unicast:9.43.0.0/24   ineligible: false  validation-state: 1
+ipv4/unicast:10.43.0.0/24  ineligible: true   validation-state: 3
+ipv4/unicast:11.43.0.0/24  ineligible: false  validation-state: 2
 
-The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, and 11.43.0.0/24 as NotFound. Policy accepts Valid and NotFound. The Invalid prefix is absent from Adj-RIB-In because Ze rejects it before installation.</code></pre>
+The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, and 11.43.0.0/24 as NotFound. Policy accepts Valid and NotFound. Ze keeps the Invalid prefix in Adj-RIB-In with its received attributes, marked ineligible, so the decision process never selects it.</code></pre>
   </details>
 </figure>
 <h2 id="without-rpki">Without RPKI</h2>
@@ -934,7 +935,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

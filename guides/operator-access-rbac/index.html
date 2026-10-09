@@ -191,7 +191,7 @@ EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --yes --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 </code></pre>
 <p>If Ze is not managed by systemd yet, start it after importing:</p>
@@ -261,7 +261,7 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rbac.cast?v=5f85fa730f"
+      data-cast-src="../../assets/demos/rbac.cast?v=ad89e9aeef"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -269,12 +269,12 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rbac.cast?v=5f85fa730f">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/rbac.cast?v=ad89e9aeef">Download the asciicast</a> or
       <a href="../../assets/demos/rbac.txt?v=939addc51a">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.31</span><span>1 minute 11 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.09</span><span>1 minute 13 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/rbac.txt?v=939addc51a">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -318,7 +318,7 @@ EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --yes --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 </code></pre>
 <h2 id="6-add-tacacs-later">6. Add TACACS+ later</h2>
@@ -390,7 +390,7 @@ list, which never authenticated it.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

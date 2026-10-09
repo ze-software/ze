@@ -139,9 +139,16 @@ An offline writer refuses while the daemon owns that store.
 `ze config import --dir <folder> <file>...` selects a destination independently
 of its input files. Without `--dir`, the destination follows `ze.config.dir`
 and then the default config folder. `--name` supplies the destination name for
-one input, including stdin. Duplicate basenames and existing destination names
-are refused before any input is written.
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
+one input, including stdin. Duplicate basenames are refused before any input is
+written. A destination name the store already holds is replaced only once
+confirmed: on a terminal the command names the configs it would replace and asks,
+and `y` or `yes` replaces them while any other answer writes nothing and exits
+non-zero. Without a terminal, including when the input is stdin, it asks nothing
+and refuses, naming `--yes`; `--yes` confirms in advance. A replaced config is
+committed as a new active version and the previous one becomes its rollback, so
+`ze config rollback` restores it.
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, confirmImportReplace, importOne -->
+<!-- source: internal/component/config/storage/restore.go -- RestoreConfig -->
 
 ## Editing Modes
 
@@ -150,7 +157,9 @@ The selected source determines the editor's mode.
 
 **File mode** (`ze config edit -f <file>`): the editor reads and writes the
 explicit loose file. It keeps its `.edit` recovery file alongside it, and
-records rollback versions in an existing store. A file changed externally
+records rollback versions in an existing store in the file's folder.
+`commit confirmed` restores from that history, so in a folder with no store it
+refuses before writing anything and names `ze init`. A file changed externally
 since it was opened causes commit to fail rather than overwrite the edit.
 `-f` cannot be combined with `--web` or `--insecure-web`; use session mode
 without `-f` to serve the web editor from the owning daemon.
@@ -281,13 +290,18 @@ from configuration mode behind `run `, and the keys are in the
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
 
+The revert restores the rollback revision the commit records, so `commit
+confirmed` needs config history. An editor without one, such as
+`ze config edit -f` on a file whose folder holds no store, refuses before it
+writes the file and names `ze init`; a plain `commit` still works there.
+
 ### Demo: Watch an unconfirmed change roll back
 
 Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=77e5c4efab) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=5adf8bca47) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
 
-Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 7 seconds.
+Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
 
 ```console
 $ ze config edit -f ze.conf

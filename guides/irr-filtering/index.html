@@ -135,16 +135,20 @@ bgp {
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- named import filter execution -->
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- peer AS-SET configuration -->
 <h2 id="add-it-to-an-existing-stored-configuration">Add it to an existing stored configuration</h2>
-<p>If <code>ze.conf</code> already contains the BGP peer but no IRR filter, stop Ze and add the five required settings directly to the stored configuration:</p>
+<p>If the stored <code>ze.conf</code> already contains the BGP peer but no IRR filter, stop Ze and add the five required settings to the stored configuration. An offline <code>ze config set</code> writes the file path it is given and never resolves a stored name, so the stored configuration travels through stdin: <code>ze config cat</code> reads it, one <code>ze config set -</code> stage applies each setting, and <code>ze config import</code> stores the result as a new version.</p>
 <pre><code class="language-console">$ sudo systemctl stop ze.service
-$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
-$ ze config set ze.conf bgp policy irr server whois.radb.net
-$ ze config set ze.conf bgp policy irr refresh-interval 3600
-$ ze config set ze.conf bgp peer customer-a session irr as-set AS-CUSTOMER
-$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
+$ ze config cat ze.conf |
+&gt; ze config set - plugin internal bgp-filter-irr use bgp-filter-irr |
+&gt; ze config set - bgp policy irr server whois.radb.net |
+&gt; ze config set - bgp policy irr refresh-interval 3600 |
+&gt; ze config set - bgp peer customer-a session irr as-set AS-CUSTOMER |
+&gt; ze config set - bgp peer customer-a filter import bgp-filter-irr:65001 |
+&gt; ze config import --yes --name ze.conf -
 $ sudo systemctl start ze.service
 </code></pre>
-<p><code>ze config set</code> updates ZeFS without contacting the daemon: it does not reload by default (add <code>--reload</code> to notify a running daemon), and here the daemon is stopped anyway. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace <code>ze.conf</code>, <code>customer-a</code>, <code>AS-CUSTOMER</code>, and <code>65001</code> with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.</p>
+<p>The import replaces the stored <code>ze.conf</code> only because <code>--yes</code> confirms it; the previous version stays available to <code>ze config rollback</code>. Nothing here contacts the daemon, which is stopped anyway. Starting Ze loads the plugin, resolves the AS-SET, persists the generated prefix-list, and applies it before the customer session announces routes. Replace <code>ze.conf</code>, <code>customer-a</code>, <code>AS-CUSTOMER</code>, and <code>65001</code> with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.</p>
+<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 <p>Run <code>ze config cat ze.conf</code> before and after these commands when you want to review the exact stored changes. The terminal demonstration below starts from a configuration without any IRR settings and executes this workflow.</p>
 <h2 id="choose-the-as-set">Choose the AS-SET</h2>
 <p>Set <code>session { irr { as-set AS-CUSTOMER; } }</code> when you know the correct AS-SET. This is the most predictable production configuration.</p>
@@ -192,7 +196,7 @@ $ ze cli -c 'clear firewall irr asn 65001'
 <!-- source: internal/component/resolve/irr/client.go -- RPSL reply classification (parseReply) -->
 <!-- source: internal/component/firewall/plugins/irr/command.go -- firewall show and clear commands -->
 <h2 id="local-demonstration">Local demonstration</h2>
-<p>The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings with <code>ze config set</code>, then starts Ze against <code>le test irr</code>, a deterministic local whois server. Its <code>AS-TEST</code> object contains <code>10.0.0.0/24</code> but not <code>192.168.0.0/24</code>. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.</p>
+<p>The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings through a <code>ze config set -</code> pipeline that it imports back into ZeFS, then starts Ze against <code>le test irr</code>, a deterministic local whois server. Its <code>AS-TEST</code> object contains <code>10.0.0.0/24</code> but not <code>192.168.0.0/24</code>. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.</p>
 <!-- source: internal/test/mock/irr/irr.go -- deterministic AS-TEST responses -->
 <!-- source: demos/terminal/irr-filter/ze.conf -- baseline BGP configuration without IRR filtering -->
 <figure class="terminal-demo" data-terminal-demo="irr-filter">
@@ -213,7 +217,7 @@ $ ze cli -c 'clear firewall irr asn 65001'
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/irr-filter.cast?v=88581a4b44"
+      data-cast-src="../../assets/demos/irr-filter.cast?v=603992bcbd"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -221,28 +225,33 @@ $ ze cli -c 'clear firewall irr asn 65001'
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/irr-filter.cast?v=88581a4b44">Download the asciicast</a> or
-      <a href="../../assets/demos/irr-filter.txt?v=d98dd62b1f">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/irr-filter.cast?v=603992bcbd">Download the asciicast</a> or
+      <a href="../../assets/demos/irr-filter.txt?v=4f5412294e">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.31</span><span>4 minutes 24 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/irr-filter.txt?v=d98dd62b1f">Plain-text transcript</a>
+    <span>Ze 26.10.09</span><span>3 minutes 31 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/irr-filter.txt?v=4f5412294e">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
     <pre><code>$ ze config cat ze.conf | grep -q bgp-filter-irr || echo &#39;IRR filtering is not configured&#39;
 IRR filtering is not configured
-$ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
+$ ze config cat ze.conf |
+&gt; ze config set - plugin internal bgp-filter-irr use bgp-filter-irr |
+&gt; ze config set - bgp policy irr server 127.0.0.1:4343 |
+&gt; ze config set - bgp policy irr refresh-interval 3600 |
+&gt; ze config set - bgp peer customer-a session irr as-set AS-TEST |
+&gt; ze config set - bgp peer customer-a filter import bgp-filter-irr:65001 |
+&gt; ze config import --yes --name ze.conf -
 set plugin internal bgp-filter-irr use bgp-filter-irr
-$ ze config set ze.conf bgp policy irr server 127.0.0.1:4343
 set bgp policy irr server 127.0.0.1:4343
-$ ze config set ze.conf bgp policy irr refresh-interval 3600
 set bgp policy irr refresh-interval 3600
-$ ze config set ze.conf bgp peer customer-a session irr as-set AS-TEST
 set bgp peer customer-a session irr as-set AS-TEST
-$ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
 set bgp peer customer-a filter import bgp-filter-irr:65001
+replaced ze.conf (... bytes)
+1 file(s) imported
+$ ze config cat ze.conf | grep -E &#39;bgp-filter-irr|AS-TEST|127.0.0.1:4343&#39;
 
 $ ze cli -c &#39;show bgp irr | no-more&#39;
 asn: 65001
@@ -367,7 +376,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

@@ -154,7 +154,7 @@ EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --yes --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 </code></pre>
 <p>Expected validation output:</p>
@@ -494,7 +494,7 @@ the configuration, import it, and reload.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

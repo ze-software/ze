@@ -406,6 +406,21 @@ which is a diagnostic about the operator's own chain rather than an answer to
 their question.</p>
 <!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
 <!-- source: internal/component/command/registry/registry.go -- LocalDataHandler -->
+<p>Before the handler runs, <code>ServeLocal</code> judges the arguments against the leaves
+the command's YANG declares, with <code>command.ValidateArgs</code>, the same validator the
+daemon dispatcher calls. A refused argument is written to stderr and exits 1, and
+the handler is never called. The definitions come from the YANG package, which
+registers itself as the source (<code>command.RegisterArgDefSource</code>); a process with
+no source registered refuses every local command rather than skipping the check.</p>
+<!-- source: internal/component/command/local_data.go -- ServeLocal, validateLocalArgs, checkLocalArgs -->
+<!-- source: internal/component/config/yang/command.go -- commandArgDefs -->
+<p><code>ze &lt;verb&gt;</code> does not pass through <code>ServeLocal</code>: it runs the plain local handler
+that <code>registry.RegisterLocalData</code> builds from the same data handler. That
+handler runs the same judgment first (<code>registry.RegisterLocalDataArgCheck</code>,
+which <code>command.RegisterArgDefSource</code> installs), so <code>ze show env get &lt;key&gt;</code> and
+<code>ze cli -c "show env get &lt;key&gt;"</code> refuse the same values with the same message.</p>
+<!-- source: internal/component/command/local_data.go -- RegisterArgDefSource -->
+<!-- source: internal/component/command/registry/registry.go -- RegisterLocalData, checkLocalDataArgs -->
 <p>This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
 local-data command has no daemon side at all, registers no RPC, and therefore
@@ -2288,18 +2303,18 @@ between tokenize and handler call (two-phase: keyword extraction, then
 positional matching).</li>
 </ol>
 <p>A <code>type empty</code> leaf is a flag (<code>ArgFlag</code>): the keyword alone is the argument,
-in any position, and no value follows it. <code>validateCommandArgs</code> consumes it in
+in any position, and no value follows it. <code>ValidateArgs</code> consumes it in
 the keyword phase, and it is never an open definition, so a bare <code>force</code> never
 fills a value leaf beside it (<code>request data backup path &lt;abs&gt; force</code> once
 answered <code>invalid value "force", expected unsigned integer</code> against <code>spare</code>).
 Usage renders it <code>[force]</code>, the completer offers the keyword, and help and the
 catalog name its kind <code>flag</code>.</p>
 <!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
-<!-- source: internal/component/plugin/server/command.go -- validateCommandArgs, unmatchedDefCount -->
+<!-- source: internal/component/command/argbind.go -- ValidateArgs, unmatchedDefCount -->
 <p>A command carries more grammar than its ArgDefs hold. A modifier group states a
 keyword and a value the HANDLER parses, so the dispatcher meets tokens that
 belong to no definition of its own, and it MUST NOT read one of them as a bad
-value. <code>validateCommandArgs</code> counts the tokens it could not place against the
+value. <code>ValidateArgs</code> counts the tokens it could not place against the
 definitions still open. As many tokens as open definitions, or fewer: each token
 can be attributed to a definition, so the first one is refused by that
 definition's own message (<code>invalid value "not-an-ip", does not match expected pattern</code>). More tokens than open definitions: at least one token is a value for
@@ -2325,7 +2340,8 @@ explanation under it).</p>
     EnumValues  []string       // Valid enum values
     UintBits    int            // 8, 16, 32, or 64
     Ranges      []UintRange    // Valid ranges (disjoint segments supported)
-    Pattern     *regexp.Regexp // Compiled XSD pattern for ArgString
+    Lengths     []UintRange    // Character-count ranges for ArgString
+    Patterns    []*regexp.Regexp // Compiled XSD patterns for ArgString, all must match
     UnionDefs   []ArgDef       // Member types for ArgUnion
     Mandatory   bool           // True if YANG leaf has mandatory true
     ShortHelp   string         // The leaf's ze:help summary
@@ -2342,6 +2358,25 @@ as a BUG, not successful validation or an unconstrained argument. Invalid
 operator-supplied values still return their type's existing validation errors.</p>
 <!-- source: internal/component/config/yang/command.go -- yangTypeToArgDef -->
 <!-- source: internal/component/command/argvalidate.go -- ValidateArgString, Constraint -->
+<p>A string argument carries every restriction its YANG type chain declares.
+goyang resolves the typedef chain before <code>yangTypeToArgDef</code> reads it, so
+<code>Lengths</code> is the most restricted <code>length</code> along the chain and <code>Patterns</code> holds
+every <code>pattern</code> of every type in it. <code>validateString</code> refuses a value whose
+character count falls outside every length range (RFC 7950 Section 9.4.4
+counts Unicode characters, not bytes), naming the bound (<code>invalid value "x", length 1 out of range 2..4</code>, or <code>1..8 | 16..32</code> for a disjoint length), and a
+value that fails any one pattern. A union member is judged by the same
+definition, so its own length and patterns apply to it.</p>
+<p>A pattern is translated by <code>compilePattern</code> (<code>config/yang/pattern.go</code>), the
+same XSD translation the config validator uses, and anchored to the whole
+value: <code>up|down</code> matches <code>up</code> and <code>down</code> only. <code>Loader.Resolve</code> and
+<code>DefaultLoader</code> refuse a module holding a pattern that translation cannot
+compile, wrapping <code>ErrUncompilablePattern</code>, so no argument is ever built with
+its pattern missing. The error names the module, the leaf, leaf-list,
+typedef or deviation the pattern restricts, the source location, and the reason, which
+quotes the pattern.</p>
+<!-- source: internal/component/config/yang/command.go -- applyLength, applyPatterns -->
+<!-- source: internal/component/command/argvalidate.go -- validateString -->
+<!-- source: internal/component/config/yang/loader.go -- checkPatterns, modulePatternErrors -->
 <p>A container that names an object declares the value the operator types after
 its keyword, once, and every command under it takes that value:
 <code>request interface &lt;name&gt; up</code>, <code>&lt;name&gt; down</code>, <code>&lt;name&gt; mtu &lt;bytes&gt;</code> share one
@@ -3769,7 +3804,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

@@ -124,7 +124,7 @@ explicit blob artifact for appliance builders.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/zefs-config.cast?v=2c132bab3e"
+      data-cast-src="../../assets/demos/zefs-config.cast?v=f1701fef68"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -132,23 +132,24 @@ explicit blob artifact for appliance builders.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/zefs-config.cast?v=2c132bab3e">Download the asciicast</a> or
-      <a href="../../assets/demos/zefs-config.txt?v=e55d622677">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/zefs-config.cast?v=f1701fef68">Download the asciicast</a> or
+      <a href="../../assets/demos/zefs-config.txt?v=586e5c6ada">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.31</span><span>2 minutes 58 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/zefs-config.txt?v=e55d622677">Plain-text transcript</a>
+    <span>Ze 26.10.09</span><span>2 minutes 57 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/zefs-config.txt?v=586e5c6ada">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
-    <pre><code>$ cat $ZE_INIT_INPUT
-admin
-secret123
-127.0.0.1
-2222
-ze-demo
-$ ze init &lt; $ZE_INIT_INPUT
+    <pre><code>$ ze init
+username: admin
+password: ***
+host [127.0.0.1]: 
+port [2222]: 
+name [ze]: 
+discovered 1 interface(s), wrote initial config
+initialized /src/tmp/terminal-demos/state/zefs-config/config/database
 $ ze config list
 ze.conf
 $ ze data check
@@ -170,7 +171,7 @@ $ ze cli -c &#39;show bgp | peers&#39;
 $ ze cli -c &#39;show bgp | raw&#39; | head -14
 $ ze cli -c &#39;show bgp | raw&#39; | ze pipe text
 
-The five lines answer `ze init`&#39;s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp | text` is Ze&#39;s own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload. Three commands in the middle choose WHICH of that payload to read. `display` names the fields wanted, in the order wanted, and shows those alone. `fill` brings back the fields it did not name, and `alpha` orders them by field name. `peers` is an alias, which is a name for a pipe expression, so one word answers the per-peer rows without the totals beside them. Each command declares its own column order, so a table leads with the fields an operator reads first rather than with the alphabet.</code></pre>
+`ze init` asks for the operator account, the SSH address and port, and the instance name. The password is not echoed, and Enter accepts the default shown in brackets. The instance name defaults to the hostname, here `ze`, so Ze reads `ze.conf`, the configuration `ze init` writes. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp | text` is Ze&#39;s own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload. Three commands in the middle choose WHICH of that payload to read. `display` names the fields wanted, in the order wanted, and shows those alone. `fill` brings back the fields it did not name, and `alpha` orders them by field name. `peers` is an alias, which is a name for a pipe expression, so one word answers the per-peer rows without the totals beside them. Each command declares its own column order, so a table leads with the fields an operator reads first rather than with the alphabet.</code></pre>
   </details>
 </figure>
 <h2 id="minimal-config">Minimal Config</h2>
@@ -387,7 +388,7 @@ announce a route; the address split is what keeps it working when you do.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

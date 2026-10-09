@@ -35,6 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 35.7% | 5 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 4 | of 14 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -53,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -70,7 +71,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Nightly-only evidence | 0 |
 | Test tags | 13 |
 | Tagged units | 12 |
-| Recorded audit verdicts | 3 |
+| Recorded audit verdicts | 4 |
 | Discrimination records | 3 |
 | Summary | `rfc/short/rfc9136.md` |
 | Requirement shard | `rfc/requirements/rfc9136.md` |
@@ -193,7 +194,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 * The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of "Overlay Index" in Section 3.2). It MUST be all bytes zero otherwise. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. RFC 9136 Section 3.1 states: "The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of "Overlay Index" in Section 3.2). It MUST be all bytes zero otherwise." parseEVPNType5 copies the ten ESI octets and EVPNType5.WriteTo copies them back; EVPNType5 has no Overlay Index selection state. The reachable l2vpnRouteToEVPNParams originator likewise carries explicitly supplied ESI bytes without that selection. Byte preservation establishes neither conditional semantic obligation. Retain the existing overlay-index gap without commissioning its implementation. This verdict does not require an intermediate propagating speaker to perform IP-VRF recursive resolution or clear received ESI merely because it does not locally resolve it.
 
 No test carries RFC9136-3.1-4, so no unit is bound to it.
 

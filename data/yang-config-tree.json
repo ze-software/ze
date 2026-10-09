@@ -2278,7 +2278,7 @@
                           },
                           {
                             "name": "reject",
-                            "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                            "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                           }
                         ]
                       },
@@ -2300,7 +2300,7 @@
                           },
                           {
                             "name": "reject",
-                            "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                            "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                           }
                         ]
                       }
@@ -2333,7 +2333,7 @@
                               },
                               {
                                 "name": "reject",
-                                "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                                "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                               }
                             ]
                           },
@@ -2355,7 +2355,7 @@
                               },
                               {
                                 "name": "reject",
-                                "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                                "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                               }
                             ]
                           }
@@ -3606,7 +3606,7 @@
                       },
                       {
                         "name": "reject",
-                        "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                        "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                       }
                     ]
                   },
@@ -3628,7 +3628,7 @@
                       },
                       {
                         "name": "reject",
-                        "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                        "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                       }
                     ]
                   }
@@ -3661,7 +3661,7 @@
                           },
                           {
                             "name": "reject",
-                            "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                            "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                           }
                         ]
                       },
@@ -3683,7 +3683,7 @@
                           },
                           {
                             "name": "reject",
-                            "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                            "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                           }
                         ]
                       }
@@ -5754,7 +5754,7 @@
                       },
                       {
                         "name": "reject",
-                        "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                        "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                       }
                     ]
                   },
@@ -5776,7 +5776,7 @@
                       },
                       {
                         "name": "reject",
-                        "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                        "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                       }
                     ]
                   }
@@ -5809,7 +5809,7 @@
                           },
                           {
                             "name": "reject",
-                            "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                            "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                           }
                         ]
                       },
@@ -5831,7 +5831,7 @@
                           },
                           {
                             "name": "reject",
-                            "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                            "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                           }
                         ]
                       }
@@ -7630,7 +7630,7 @@
                   },
                   {
                     "name": "reject",
-                    "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                    "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                   }
                 ]
               },
@@ -7652,7 +7652,7 @@
                   },
                   {
                     "name": "reject",
-                    "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                    "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                   }
                 ]
               }
@@ -7685,7 +7685,7 @@
                       },
                       {
                         "name": "reject",
-                        "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                        "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                       }
                     ]
                   },
@@ -7707,7 +7707,7 @@
                       },
                       {
                         "name": "reject",
-                        "short-help": "Exclude the route from the Adj-RIB-In and the decision process."
+                        "short-help": "Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it."
                       }
                     ]
                   }

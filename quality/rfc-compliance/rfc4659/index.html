@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>2 of 18 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 18 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>60.0%</strong><b>9 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>62.5%</strong><b>10 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,6 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.8%</strong><b>5 of 18 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 18 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 18 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -189,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -230,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>15</td>
+<td>16</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>15</td>
+<td>16</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>4</td>
+<td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>9</td>
+<td>10</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4659.md</code></td>
@@ -255,14 +256,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128 capability negotiation, and single-polarity AFI/SAFI and zero-RD global-IPv6 next-hop emission. IPv4-mapped-IPv6 and global-plus-link-local next-hop gaps remain explicit; data-plane PE tunneling and multi-AS ASBR scope boundaries are retained. Newly separated requirements and the widened next-hop quotation require independent judgment, not inherited conformance.</p>
+<p>Enrolled: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv6 NLRI, AFI2/SAFI128 capability negotiation, and configured zero-RD global-IPv6 next-hop emission. The widened originator-address obligation has independent recipient-wire proof. IPv4-mapped-IPv6 and global-plus-link-local next-hop gaps remain explicit; data-plane PE tunneling and the integrated multi-AS ASBR service remain outside the implemented baseline. Generic VPNv6 origination and cross-peer forwarding do not establish the option-(b) service.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
-<p><strong>What the ledger says is covered:</strong></p>
-VPNv6 NLRI (RD + MPLS label + IPv6 prefix) encode/decode, AFI=2/SAFI=128 capability negotiation, and the zero-RD + global-IPv6 24-octet next-hop.
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+VPNv6 NLRI (RD + MPLS label + IPv6 prefix) encode/decode, AFI=2/SAFI=128 capability negotiation, and the zero-RD + global-IPv6 24-octet next-hop. Native configured self and explicit IPv6 next-hop selection is checked on actual recipient Sessions under both grouping modes, against independently speaker-owned interface addresses. This is control-plane origination proof, not tunnel creation.
+</details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a>, <a href="#rfc4659-8-4"><code>RFC4659-8-4</code></a>); no 48-octet global+link-local next-hop or common-subnet iff decision (<a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a>, <a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a>). Data-plane PE tunneling (Section 4) and multi-AS ASBR options (Section 8 a/b) are not performed. <a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a> separately records option-(b) IPv6 transport next-hop placement with an absent-path gap and pending independent applicability disposition. The widened <a href="#rfc4659-3.2.1.1-1"><code>RFC4659-3.2.1.1-1</code></a> requires whole-row rejudgment; the link-local-only unspecified-global exception remains.
+No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><code>RFC4659-3.2.1.2-1</code></a>, <a href="#rfc4659-8-4"><code>RFC4659-8-4</code></a>); no 48-octet global+link-local next-hop or common-subnet iff decision (<a href="#rfc4659-8-3"><code>RFC4659-8-3</code></a>, <a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a>). Data-plane PE tunneling (Section 4) and integrated multi-AS ASBR options (Section 8 a/b) are not performed. <a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a> remains an explicit option-(b) implementation gap: generic VPNv6 IPv6 next-hop encoding and cross-peer forwarding are implemented, but the integrated inter-ASBR label-binding/forwarding path is not. The conditional SHALL is retained without whole-requirement credit; no ASBR feature is commissioned. The widened <a href="#rfc4659-3.2.1.1-1"><code>RFC4659-3.2.1.1-1</code></a> has been independently rejudged against configured recipient-wire proof; the link-local-only unspecified-global exception remains.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -440,10 +442,11 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td>SHALL</td>
 <td>3.2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-3.2.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go#L48" title="internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4659ConfiguredIPv6TransportNextHopWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40" title="internal/component/bgp/reactor/rfc4659_link_local_peering_test.go" target="_blank" rel="noopener"><code>TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestUpdateBuilder_BuildVPN_IPv6_NextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is to EMIT a 24-octet zero-RD + global-IPv6 next-hop, which ze produces for a VPNv6 route with an IPv6 next-hop; the decode side is not RD-aware and is not a gated obligation (internal/component/bgp/message/update_build_vpn.go:246, internal/component/bgp/rib/commit.go:498)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is sender emission under the operator-selected IPv6 transport policy; native configured origination now checks the zero-RD field and independently speaker-owned global IPv6 address on recipient Session output for self and explicit selection under both grouping modes. The separate link-local-peering exception remains governed by the surrounding Section 3.2.1.1 text; this is not a receiver-rejection obligation.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.2-1">RFC4659-3.2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv4 tunneling (e.g., IPv4 MPLS LSPs, IPsec-protected IPv4 tunnels), the BGP speaker SHALL advertise to its peer a Next Hop Network Address field containing a VPN-IPv6 address: - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is encoded as an IPv4-mapped IPv6 address [V6ADDR] containing the IPv4 address of the advertising BGP speaker. (§3.2.1.2)</span></td></tr>
 <tr><td></td>
@@ -470,7 +473,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-8-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the option-(b) inter-ASBR redistribution path with an operator-selected IPv6 transport policy is absent under the existing ASBR scope boundary; buildMPReachVPN only encodes a supplied next-hop address and does not provide that path. Applicability and the producer boundary still require independent disposition; no ASBR feature is commissioned.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the integrated option-(b) inter-ASBR service path remains unimplemented under the existing no-ASBR-feature scope. Generic VPNv6 origination and cross-peer forwarding exist: internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN encodes the supplied next hop and labels, and internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler retains the received NLRI during a next-hop rewrite. These do not supply an ASBR-local label binding or inter-AS forwarding relationship; internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange does not mirror native VPN routes to the Loc-RIB, and internal/component/sysrib/sysrib.go::processEvent does not turn their native-NLRI publications into FIB entries. The SHALL remains applicable when its IPv6-transport condition holds; this gap is not an exemption or permission to develop ASBR capability.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-2">RFC4659-3.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop. (§3.2.1.1)</span></td></tr>
 <tr><td></td>
@@ -594,7 +597,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 </tr>
 <tr><td><a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a> When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)</td>
 <td>{gap}, no test</td>
-<td>the option-(b) inter-ASBR redistribution path with an operator-selected IPv6 transport policy is absent under the existing ASBR scope boundary; buildMPReachVPN only encodes a supplied next-hop address and does not provide that path. Applicability and the producer boundary still require independent disposition; no ASBR feature is commissioned.</td>
+<td>the integrated option-(b) inter-ASBR service path remains unimplemented under the existing no-ASBR-feature scope. Generic VPNv6 origination and cross-peer forwarding exist: internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN encodes the supplied next hop and labels, and internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler retains the received NLRI during a next-hop rewrite. These do not supply an ASBR-local label binding or inter-AS forwarding relationship; internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange does not mirror native VPN routes to the Loc-RIB, and internal/component/sysrib/sysrib.go::processEvent does not turn their native-NLRI publications into FIB entries. The SHALL remains applicable when its IPv6-transport condition holds; this gap is not an exemption or permission to develop ASBR capability.</td>
 </tr>
 <tr><td><a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a> The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1)</td>
 <td>{gap}, no test</td>
@@ -743,7 +746,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <p>No test carries RFC4659-8-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-3.2.1.1-1"><code>RFC4659-3.2.1.1-1</code></a></h3>
 <p>When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is set to the global IPv6 address of the advertising BGP speaker. (§3.2.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-requirement. Forbidden: a VPNv6 next hop that is not a VPN-IPv6 address (zero RD + global IPv6) when IPv6 transport is used. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6_NextHop: nhLen != 24, any non-zero RD byte, and next-hop bytes != the global address are each Errorf. Single-polarity marker.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently rejudged the full widened RFC 4659 Section 3.2.1.1 obligation. TestRFC4659ConfiguredIPv6TransportNextHopWire in internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go closes the former originator-identity proof gap: native configuration starts the real Peer and recipient Session over TCP6, with self and explicit selection under both grouping modes. Independent interface enumeration in separate namespaces establishes speaker ownership; the accepted endpoint supplies the self oracle and a distinct speaker-owned loopback supplies the explicit oracle. Literal recipient assertions require AFI 2/SAFI 128, length 24, every RD byte zero, the independently established speaker global address, both intended VPN NLRIs and completion at VPNv6 EOR. buildMPReachVPN is reached through configured static sending rather than called by the integration test. The earlier builder test remains an encoding control, and TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair remains contextual exception evidence. Section 3.2.1 leaves transport-policy definition to the operator; this tests its existing configured control-plane expression, not tunnel creation. Distinct /128s exclude the separate common-subnet/48-octet origination obligation. IPv4-mapped transport, PE dataplane and ASBR gaps remain unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -752,6 +755,11 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646" title="internal/component/bgp/message/update_build_test.go" target="_blank" rel="noopener"><code>TestUpdateBuilder_BuildVPN_IPv6_NextHop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go#L48" title="internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4659ConfiguredIPv6TransportNextHopWire</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40" title="internal/component/bgp/reactor/rfc4659_link_local_peering_test.go" target="_blank" rel="noopener"><code>TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair</code></a></td>
@@ -771,11 +779,11 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <p>No test carries RFC4659-8-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a></h3>
 <p>When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Independently judged RFC 4659 Section 8 in its option-(b) context: When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. The SHALL remains binding when that condition holds; BGP peering may use either transport family, and Section 3.2.1 leaves the transport policy to the operator. Ze has reachable generic VPNv6 origination and cross-peer forwarding: buildMPReachVPN encodes a supplied address and labels, while mpReachNextHopHandler preserves the received NLRI when replacing the next hop. Neither supplies an ASBR-local label binding or the integrated inter-AS forwarding relationship. checkRouteBestChange excludes native VPN routes from Loc-RIB mirroring, and sysrib.processEvent does not turn their native-NLRI publications into FIB entries; the separate LDP/RSVP-TE MPLS channel is not a BGP option-(b) binding producer. Retain the explicit option-(b) implementation gap under the existing no-ASBR-feature scope. Do not infer non-applicability from missing ASBR names or full enforcement from the generic IPv6 encoder or Section 3.2.1.1 origination test. No ASBR implementation is commissioned.</p>
 <p>No test carries RFC4659-8-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a></h3>
 <p>The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Independent first judgment of RFC 4659 Section 3.2.1.1: The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. Both directions remain SHALL obligations. buildMPReachVPN emits only one RD plus one address, using length 24 for an IPv6 next hop; it has no 48-octet two-VPN-address emission or recipient common-subnet decision. buildStaticRouteUpdateNew receives a linkLocal argument but its VPN branch does not pass it into VPNParams or BuildVPN. Consequently the required inclusion when the speaker and recipient share a common subnet is unimplemented. Always omitting the link-local address can satisfy the off-subnet exclusion case but does not implement the full iff. No tagged test proves this row. RFC2545 plain-unicast pair tests, preservation of the special received link-local-only VPN pair, and the configured global-only VPNv6 integration test do not establish this missing VPN origination behavior; the integration fixture deliberately uses distinct /128s. Retain the separate internal-peer stripping MAY and link-local-only unspecified-global exception without using either to erase the condition. The existing 48-octet/common-subnet implementation gap remains explicit; no new feature is commissioned.</p>
 <p>No test carries RFC4659-3.2.1.1-3, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
@@ -1015,7 +1023,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

@@ -285,7 +285,7 @@ comparison.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/config-views.cast?v=3698ec29e0"
+      data-cast-src="../../assets/demos/config-views.cast?v=74dca8e268"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -293,39 +293,50 @@ comparison.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/config-views.cast?v=3698ec29e0">Download the asciicast</a> or
-      <a href="../../assets/demos/config-views.txt?v=f4f89fbe3c">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/config-views.cast?v=74dca8e268">Download the asciicast</a> or
+      <a href="../../assets/demos/config-views.txt?v=9f1109a1a7">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.31</span><span>1 minute 21 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/config-views.txt?v=f4f89fbe3c">Plain-text transcript</a>
+    <span>Ze 26.10.09</span><span>1 minute 28 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/config-views.txt?v=9f1109a1a7">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
     <pre><code>$ ze config show router.conf bgp peer transit-a
+attach process bgp-rib {
+    receive [ update state refresh ]
+    send update
+}
 connection {
     local ip 192.0.2.1
     remote ip 192.0.2.2
 }
 session {
-    asn { local 65000; remote 65001; }
-    family ipv4/unicast { prefix maximum 1000000; }
+    asn {
+        local 65000
+        remote 65001
+    }
+    family ipv4/unicast {
+        prefix maximum 1000000
+    }
 }
 $ ze config migrate format set router.conf 2&gt;/dev/null | ze pipe match &#39;bgp peer transit-a&#39;
+set bgp peer transit-a attach process bgp-rib receive [ update state refresh ]
+set bgp peer transit-a attach process bgp-rib send update
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000
 set bgp peer transit-a session asn remote 65001
-...
-$ cmp -s router.set roundtrip.set &amp;&amp; echo &#39;canonical output: identical&#39;
+set bgp peer transit-a session family ipv4/unicast prefix maximum 1000000
+$ cmp -s $STATE/router.set $STATE/roundtrip.set &amp;&amp; echo &#39;canonical output: identical&#39;
 canonical output: identical
-$ ze show plugins | ze pipe match flowspec
-bgp-nlri-flowspec
-flowspec-firewall
-...
-$ ze show plugins | ze pipe match flowspec | ze pipe count
-{&#34;count&#34;:3,&#34;pipe&#34;:{&#34;count&#34;:true}}
+$ ze show plugin list | ze pipe match flowspec
+bgp-nlri-flowspec             FlowSpec NLRI encoding/decoding ...
+ddos-flowspec                 DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear ...
+flowspec-firewall             Translates BGP FlowSpec routes into nftables firewall rules ...
+$ ze show plugin list | ze pipe match flowspec | ze pipe count
+{&#34;count&#34;:3,&#34;pipe&#34;:[{&#34;op&#34;:&#34;count&#34;}]}
 
 Hierarchical and set syntax are alternate presentations of the same parsed configuration. Converting to set syntax and back produces identical canonical set commands. The standalone formatter composes the same match and count operators for shell pipelines.</code></pre>
   </details>
@@ -558,7 +569,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

@@ -284,30 +284,42 @@ its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated
 route withheld. IPv4 spends 127.0.0.0/8, which Linux already routes to `lo` and
 macOS does not, so setup adds 127.0.0.2 through 127.0.0.5 there. IPv6 gives a
-host exactly `::1` on every platform, so setup adds `fd00::2` on both. That
-address is unique-local (RFC 4193) and never globally routable, so a fixture
-cannot leak a packet toward a real destination. Setup checks this as
-`loopback-addresses` and, in install mode, runs:
+host exactly `::1` on every platform. Setup adds `fd00::2/128` for the speaker
+and next-hop owner, `fd00::3/127` for the recipient, and `fe80::1/128` as the
+next-hop owner's link-local. The one connected prefix `fd00::2/127` contains
+exactly the two unique-local addresses. This makes the RFC2545 compatibility
+fixture's common-subnet condition real without routing all of `fd00::/64`
+locally. Setup checks this as `loopback-addresses` and, in install mode, runs:
 
 ```bash
 sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
+sudo ifconfig lo0 inet6 fd00::3/127 alias
+sudo ifconfig lo0 inet6 fe80::1/128 alias
 sudo ip -6 addr add fd00::2/128 dev lo         # Linux
+sudo ip -6 addr add fd00::3/127 dev lo
+sudo ip -6 addr add fe80::1/128 dev lo
 ```
 
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
-Presence is decided by binding a socket to the address, which is the same
-question a fixture asks and a stronger one than reading the interface list: an
-IPv6 address is listed while duplicate-address detection still refuses it. The
-test runner cannot add either family itself (the ioctl returns EPERM
-unprivileged, and the Linux route needs CAP_NET_ADMIN), so a test that binds a
-missing address fails at once naming the command above.
+Presence requires a successful socket bind. IPv6 additionally requires the
+exact address and prefix on `lo` (`lo0` on macOS); an address elsewhere, or
+`fd00::3/128`, does not establish this fixture's common subnet. The link-local
+bind probe includes the interface zone. An unreadable interface fails the
+ownership check closed. Setup never silently removes an existing address with
+a different prefix: resolve a conflicting assignment explicitly if the add
+command fails.
+
+These changes require an explicit `setup install` or the commands above.
+`setup check` and test runners do not change host networking. The compatibility
+runner's local-address preflight checks bindability, not this complete topology;
+run setup check before the suite.
 
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 
-Neither addition survives a reboot. Re-run `./le setup install` after one;
-`./le setup check` says when it is needed. The merge gate adds the IPv6
-address the same way, as its own workflow step (`.github/workflows/verify.yml`).
+These additions do not survive a reboot. Re-run `./le setup install` after one;
+`./le setup check` says when it is needed. The merge gate adds the same IPv6
+addresses and prefix in `.github/workflows/verify.yml`.
 
 These three, and the apt installs above, are every place setup reaches for root.
 All of them go through one helper, so the table of states earlier in this

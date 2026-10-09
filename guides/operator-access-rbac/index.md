@@ -95,7 +95,7 @@ EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --yes --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 ```
 
@@ -176,9 +176,9 @@ If you never want the bootstrap admin to authenticate, disable it explicitly wit
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Download the asciicast recording](../../assets/demos/rbac.cast?v=5f85fa730f) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
+[Download the asciicast recording](../../assets/demos/rbac.cast?v=ad89e9aeef) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
 
-Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 11 seconds.
+Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 13 seconds.
 
 ```console
 $ ze config show rbac.conf system authorization profile read-only
@@ -224,7 +224,7 @@ EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --yes --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 ```
 

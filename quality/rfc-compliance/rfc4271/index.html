@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2.3%</strong><b>3 of 133 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 133 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 133 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>36.9%</strong><b>164 of 445 tagged units, 0 escaped and 48 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>48.3%</strong><b>215 of 445 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.8%</strong><b>13 of 133 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>93</strong><b>of 133 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>94</strong><b>of 133 gated MUSTs judged</b><p>5 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 133 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -237,10 +237,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>445</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>93</td>
+<td>94</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>212</td>
+<td>215</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4271.md</code></td>
@@ -275,7 +275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Full conformance is not established. The checklist below retains recorded OPEN error, next-hop resolvability, Adj-RIB-Out, MED removal, timer, connection/FSM and absent DelayOpen gaps. Current tags and audit verdicts determine proof coverage; the earlier extraction-time count of untagged rows is not a current measurement. The 2026-10-06 <a href="#rfc4271-5.1.2-3"><code>RFC4271-5.1.2-3</code></a> rejudgment is weak: the tagged absent-AS_PATH case does not exercise the RFC-defined present zero-length attribute. <code>ASPathEdit.recordPrepend</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/aspath_slot.go" target="_blank" rel="noopener"><code>internal/component/bgp/wireu/aspath_slot.go</code></a> handles those inputs through different branches. This is a missing discriminating case, not an observed implementation failure.
+Full conformance is not established. The checklist below retains recorded OPEN error, next-hop resolvability, Adj-RIB-Out, MED removal, timer, connection/FSM and absent DelayOpen gaps. Current tags and audit verdicts determine proof coverage; the earlier extraction-time count of untagged rows is not a current measurement. The earlier <a href="#rfc4271-5.1.2-3"><code>RFC4271-5.1.2-3</code></a> proof mistook an absent AS_PATH for the RFC-defined present zero-length attribute. That gap is now closed by actual Session-written recipient bytes, a selective empty-path producer break and independent whole-row rejudgment. This is proof of the existing prepend behavior, not a new AS_PATH implementation or full-RFC claim.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -328,10 +328,10 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L52" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithAllOnesMarker</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L19" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MarkerAllOnesOnSend</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L54" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithAllOnesMarker</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L42" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MarkerNotAllOnesRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L54" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithAllOnesMarker</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L20" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MarkerAllOnesOnSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L56" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithAllOnesMarker</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L43" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MarkerNotAllOnesRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-4.1-2">RFC4271-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Therefore, the Length field MUST have the smallest value required, given the rest of the message. (§4.1)</span></td></tr>
@@ -339,10 +339,10 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L126" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithSmallestLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L62" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271SmallestLengthOnSend</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L128" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithSmallestLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L95" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NonSmallestLengthRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L128" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithSmallestLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L63" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271SmallestLengthOnSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L130" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithSmallestLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L96" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NonSmallestLengthRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-4.1-3">RFC4271-4.1-3</code></td><td colspan="3"><span class="rfc-subject">The value of the Length field MUST always be at least 19 and no greater than 4096 (§4.1)</span></td></tr>
@@ -350,10 +350,10 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-4.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L124" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageLengthWithinBounds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L84" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdatesSentWithinLengthBounds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L150" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageLengthOutOfBounds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L86" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdatesSentWithinLengthBounds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L125" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageLengthWithinBounds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L86" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdatesSentWithinLengthBounds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L151" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageLengthOutOfBounds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L88" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdatesSentWithinLengthBounds</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-4.3-1">RFC4271-4.3-1</code></td><td colspan="3"><span class="rfc-subject">For well-known attributes, the Transitive bit MUST be set to 1 (§4.3)</span></td></tr>
@@ -362,7 +362,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-4.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L31" title="internal/core/bgp/attribute/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreTransitive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L500" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L501" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-4.3-2">RFC4271-4.3-2</code></td><td colspan="3"><span class="rfc-subject">For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0. (§4.3)</span></td></tr>
@@ -392,8 +392,8 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-4.3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L232" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L259" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttrFlagsHighBitsNotIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L233" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L260" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttrFlagsHighBitsNotIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-4.4-1">RFC4271-4.4-1</code></td><td colspan="3"><span class="rfc-subject">KEEPALIVE messages MUST NOT be sent more frequently than one per second (§4.4)</span></td></tr>
@@ -421,8 +421,8 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L353" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NotificationUnspecifiedSubcodeIsZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L376" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NotificationSpecifiedSubcodePreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L354" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NotificationUnspecifiedSubcodeIsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L377" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NotificationSpecifiedSubcodePreserved</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-4.2-1">RFC4271-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Hold Time MUST be either zero or at least three seconds (§4.2)</span></td></tr>
@@ -467,8 +467,8 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L463" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreRecognized</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L492" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L464" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreRecognized</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L493" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-5-2">RFC4271-5-2</code></td><td colspan="3"><span class="rfc-subject">Some of these attributes are mandatory and MUST be included in every UPDATE message that contains NLRI. (§5)</span></td></tr>
@@ -477,10 +477,10 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_send_test.go#L23" title="internal/component/bgp/message/rfc4271_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L466" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreRecognized</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L467" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreRecognized</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go#L30" title="internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go" target="_blank" rel="noopener"><code>TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_send_test.go#L26" title="internal/component/bgp/message/rfc4271_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L497" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L498" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-5-3">RFC4271-5-3</code></td><td colspan="3"><span class="rfc-subject">If a path with an unrecognized transitive optional attribute is accepted and passed to other BGP peers, then the unrecognized transitive optional attribute of that path MUST be passed, along with the path, to other BGP peers with the Partial bit in the Attribute Flags octet set to 1. (§5)</span></td></tr>
@@ -520,10 +520,10 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L293" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttributesOutOfOrderAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L294" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttributesOutOfOrderAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_out_of_order_receive_test.go#L26" title="internal/component/bgp/message/rfc4271_out_of_order_receive_test.go" target="_blank" rel="noopener"><code>TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_out_of_order_receive_test.go#L29" title="internal/component/bgp/message/rfc4271_out_of_order_receive_test.go" target="_blank" rel="noopener"><code>TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L323" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OutOfOrderDoesNotMaskMalformation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L324" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OutOfOrderDoesNotMaskMalformation</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-4.3-5">RFC4271-4.3-5</code></td><td colspan="3"><span class="rfc-subject">However, a BGP speaker MUST be able to process UPDATE messages in this form. (§4.3)</span></td></tr>
@@ -555,8 +555,8 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L441" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L7" title="test/plugin/originated-nexthop-peer-own.ci" target="_blank" rel="noopener"><code>originated-nexthop-peer-own.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L10" title="test/plugin/originated-nexthop-peer-own.ci" target="_blank" rel="noopener"><code>originated-nexthop-peer-own.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L957" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkSelfNextHopWithheld</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L958" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkSelfNextHopWithheld</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L954" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkSelfNextHopWithheld</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L955" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkSelfNextHopWithheld</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-5.1.3-2">RFC4271-5.1.3-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHALL NOT install a route with itself as the next hop (§5.1.3)</span></td></tr>
@@ -665,9 +665,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>5.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5.1.5-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L176" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L566" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefKeptOnInternalSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L567" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefKeptOnInternalSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L178" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L589" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefIgnoredOnExternalSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L590" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefIgnoredOnExternalSession</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-5.1.5-4">RFC4271-5.1.5-4</code></td><td colspan="3"><span class="rfc-subject">The higher degree of preference MUST be preferred. (§5.1.5)</span></td></tr>
@@ -1098,7 +1098,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go#L268" title="internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go" target="_blank" rel="noopener"><code>TestAnnounceBatchRail_AscendingTypeCodeOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go#L289" title="internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go" target="_blank" rel="noopener"><code>TestAnnounceQueuedRail_AscendingTypeCodeOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_attr_order_send_test.go#L24" title="internal/component/bgp/message/rfc4271_attr_order_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_update_split_attr_order_test.go#L72" title="internal/component/bgp/message/rfc4271_update_split_attr_order_test.go" target="_blank" rel="noopener"><code>TestSplitMP_PreservesAscendingAttributeOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_update_split_attr_order_test.go#L73" title="internal/component/bgp/message/rfc4271_update_split_attr_order_test.go" target="_blank" rel="noopener"><code>TestSplitMP_PreservesAscendingAttributeOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_attr_order_send_test.go#L27" title="internal/component/bgp/message/rfc4271_attr_order_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes</code></a></span></div>
 </div></td>
 </tr>
@@ -1270,11 +1270,11 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>SHALL</td>
 <td>5.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5.1.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L140" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotInsertsWhenAbsent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L97" title="internal/component/bgp/wireu/rfc4271_advertise_test.go" target="_blank" rel="noopener"><code>TestASPathSlotPrependOnlyWhenAdvertising</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L362" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotPrependsBeforeALeadingASSet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L396" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L358" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotPrependsBeforeALeadingASSet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L392" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L543" title="internal/component/bgp/reactor/rfc4271_reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_aspath_empty_test.go#L23" title="internal/component/bgp/reactor/rfc4271_aspath_empty_test.go" target="_blank" rel="noopener"><code>TestForwardPresentEmptyASPath</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L99" title="internal/component/bgp/wireu/rfc4271_advertise_test.go" target="_blank" rel="noopener"><code>TestASPathSlotPrependOnlyWhenAdvertising</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L567" title="internal/component/bgp/reactor/rfc4271_reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L429" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRelayWithdrawalShape</code></a></span></div>
@@ -1554,14 +1554,14 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never aggregates routes, so no producer can aggregate two routes with different MULTI_EXIT_DISC values. `grep -rniE &#39;aggregate-address|AggregateRoute|route aggregation&#39; --include=*.go .` returns no hit outside rfc/ and plan/, and no code path synthesizes an aggregate route from more-specifics</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2.2.2-2">RFC4271-9.2.2.2-2</code></td><td colspan="3"><span class="rfc-subject">ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. (§9.2.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2.2.2-2">RFC4271-9.2.2.2-2</code></td><td colspan="3"><span class="rfc-subject">ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP. (§9.2.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9.2.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.2.2.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never aggregates routes, so no producer computes an aggregate ORIGIN. ORIGIN is only parsed (internal/core/bgp/attribute/origin.go:146-160), interned (internal/component/bgp/plugins/rib/storage/attrparse.go) and re-emitted verbatim (internal/component/bgp/plugins/rib/storage/familyrib.go:799-801); the same aggregation grep returns nothing</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> both arms require a route-aggregation procedure, which remains outside the agreed implementation scope. Ze retains individual routes rather than synthesizing an aggregate from contributing routes. internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast emits each supplied prefix and packGroupedAttributes copies its supplied ORIGIN. Grouping NLRIs into an UPDATE is not route aggregation</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2.2.2-3">RFC4271-9.2.2.2-3</code></td><td colspan="3"><span class="rfc-subject">NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation. (§9.2.2.2)</span></td></tr>
 <tr><td></td>
@@ -1655,9 +1655,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.2-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L402" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OversizeSingleRouteNotAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L403" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OversizeSingleRouteNotAdvertised</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go#L38" title="internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go" target="_blank" rel="noopener"><code>TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L431" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271FittingRouteIsAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L432" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271FittingRouteIsAdvertised</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go#L40" title="internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go" target="_blank" rel="noopener"><code>TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld</code></a></span></div>
 </div></td>
 </tr>
@@ -2109,9 +2109,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer can aggregate two routes with different MULTI_EXIT_DISC values. `grep -rniE &#39;aggregate-address|AggregateRoute|route aggregation&#39; --include=*.go .` returns no hit outside rfc/ and plan/, and no code path synthesizes an aggregate route from more-specifics</td>
 </tr>
-<tr><td><a href="#rfc4271-9.2.2.2-2"><code>RFC4271-9.2.2.2-2</code></a> ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. (§9.2.2.2)</td>
+<tr><td><a href="#rfc4271-9.2.2.2-2"><code>RFC4271-9.2.2.2-2</code></a> ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP. (§9.2.2.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer computes an aggregate ORIGIN. ORIGIN is only parsed (internal/core/bgp/attribute/origin.go:146-160), interned (internal/component/bgp/plugins/rib/storage/attrparse.go) and re-emitted verbatim (internal/component/bgp/plugins/rib/storage/familyrib.go:799-801); the same aggregation grep returns nothing</td>
+<td>no test carries this requirement id; annotated {not-applicable}: both arms require a route-aggregation procedure, which remains outside the agreed implementation scope. Ze retains individual routes rather than synthesizing an aggregate from contributing routes. internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast emits each supplied prefix and packGroupedAttributes copies its supplied ORIGIN. Grouping NLRIs into an UPDATE is not route aggregation</td>
 </tr>
 <tr><td><a href="#rfc4271-9.2.2.2-3"><code>RFC4271-9.2.2.2-3</code></a> NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation. (§9.2.2.2)</td>
 <td>no test</td>
@@ -2143,22 +2143,22 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L54" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithAllOnesMarker</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L56" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithAllOnesMarker</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L42" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MarkerNotAllOnesRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L43" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MarkerNotAllOnesRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L52" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithAllOnesMarker</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L54" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithAllOnesMarker</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L19" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MarkerAllOnesOnSend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L20" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MarkerAllOnesOnSend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2173,22 +2173,22 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L128" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithSmallestLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L130" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithSmallestLength</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L95" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NonSmallestLengthRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L96" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NonSmallestLengthRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L126" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithSmallestLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L128" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271EveryMessageSentWithSmallestLength</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L62" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271SmallestLengthOnSend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L63" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271SmallestLengthOnSend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2197,28 +2197,28 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 </div>
 <h3><a href="#rfc4271-4.1-3"><code>RFC4271-4.1-3</code></a></h3>
 <p>The value of the Length field MUST always be at least 19 and no greater than 4096 (§4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Send half: TestRFC4271UpdatesSentWithinLengthBounds feeds the Splitter an UPDATE that needs &gt;4096 (asserted) and requires every emitted chunk&#39;s declared Length = octets written, 19..4096, all 1500 prefixes in order. Receive half held by the existing ValidateLength units. Rail proven: message.Splitter; the forward rail (wireu.SplitWireUpdate) is RFC4271-9.2-10&#39;s open item.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4271 Section 4.1: “The value of the Length field MUST always be at least 19 and no greater than 4096, and MAY be further constrained, depending on the message type.” The changed sender test supplies an equivalent all-false per-family ADD-PATH selector. It establishes that 1500 prefixes exceed one 4096-byte UPDATE, encodes every emitted chunk, requires declared Length equal to written octets within 19..4096, and requires every prefix in original order. Receive controls accept 19, 1000 and 4096 and reject 18, 4097 and 65535 without Extended Message, with exact header-error classification. Producer tracing confirms size budgets include the BGP header; the final ordinary writer sizes effective post-policy bytes, consumes split chunks synchronously and refuses unencodable output instead of emitting a truncated frame. Negotiated RFC 8654 extension remains a separate qualification. This judgment is based on assertions and current source, not producer-halt proof alone.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L86" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdatesSentWithinLengthBounds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L88" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdatesSentWithinLengthBounds</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L150" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageLengthOutOfBounds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L151" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageLengthOutOfBounds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L84" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdatesSentWithinLengthBounds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_header_send_test.go#L86" title="internal/component/bgp/message/rfc4271_header_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdatesSentWithinLengthBounds</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L124" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageLengthWithinBounds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L125" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageLengthWithinBounds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2233,7 +2233,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L500" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L501" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2308,12 +2308,12 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L259" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttrFlagsHighBitsNotIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L260" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttrFlagsHighBitsNotIgnored</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L232" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L233" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2378,12 +2378,12 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L376" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NotificationSpecifiedSubcodePreserved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L377" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NotificationSpecifiedSubcodePreserved</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L353" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NotificationUnspecifiedSubcodeIsZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L354" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NotificationUnspecifiedSubcodeIsZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2483,12 +2483,12 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L492" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L493" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L463" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreRecognized</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L464" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreRecognized</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2505,25 +2505,25 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go#L30" title="internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go" target="_blank" rel="noopener"><code>TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_send_test.go#L26" title="internal/component/bgp/message/rfc4271_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L497" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L498" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributeErrorsAreCaught</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_send_test.go#L23" title="internal/component/bgp/message/rfc4271_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L466" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreRecognized</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L467" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271WellKnownAttributesAreRecognized</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2628,7 +2628,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L323" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OutOfOrderDoesNotMaskMalformation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L324" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OutOfOrderDoesNotMaskMalformation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2638,7 +2638,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L293" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttributesOutOfOrderAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L294" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271AttributesOutOfOrderAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2703,7 +2703,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L958" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkSelfNextHopWithheld</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L955" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkSelfNextHopWithheld</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2743,7 +2743,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L957" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkSelfNextHopWithheld</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L954" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkSelfNextHopWithheld</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2815,7 +2815,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go#L41" title="internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go#L106" title="internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint</code></a></td>
@@ -3005,7 +3005,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L307" title="internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go" target="_blank" rel="noopener"><code>TestAnnounceStripsLocalPrefTowardExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L107" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefOmittedForExternalPeers</code></a></td>
@@ -3060,7 +3060,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L305" title="internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go" target="_blank" rel="noopener"><code>TestAnnounceStripsLocalPrefTowardExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L104" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefOmittedForExternalPeers</code></a></td>
@@ -3090,24 +3090,24 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L589" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefIgnoredOnExternalSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L590" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefIgnoredOnExternalSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L178" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L566" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefKeptOnInternalSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L567" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefKeptOnInternalSession</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L176" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3146,12 +3146,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L174" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L201" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L128" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderBadLengthIsReported</code></a></td>
@@ -3181,7 +3181,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L202" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L30" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderErrorIsReported</code></a></td>
@@ -3206,12 +3206,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L175" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L203" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L129" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderBadLengthIsReported</code></a></td>
@@ -3236,7 +3236,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L176" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L159" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271UnknownMessageTypeIsReported</code></a></td>
@@ -3265,12 +3265,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L130" title="internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedUpdateErrorReleasesTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L160" title="internal/component/bgp/reactor/rfc4271_session_core4271_test.go" target="_blank" rel="noopener"><code>TestSessionRFC4271RetainedUpdateNotifications</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L636" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></td>
@@ -3280,7 +3280,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go#L32" title="internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3295,7 +3295,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L131" title="internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedUpdateErrorReleasesTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go#L96" title="internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenConfirmUpdateIsAnFSMError</code></a></td>
@@ -3320,7 +3320,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L126" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentErrorReleasesTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L639" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></td>
@@ -3330,7 +3330,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L723" title="internal/component/bgp/reactor/session_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go#L90" title="internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271PrefixLimitTeardownSendsCease</code></a></td>
@@ -3747,7 +3747,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L158" title="internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedGoodMessagesKeepTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L422" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnUpdateError</code></a></td>
@@ -4089,7 +4089,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-5-7"><code>RFC4271-5-7</code></a></h3>
 <p>The sender of an UPDATE message SHOULD order path attributes within the UPDATE message in ascending order of attribute type. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the R43 signature change: TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes assertions unchanged (the call goes through mustBuildUnicast), re-recorded red. BuildUnicast, BuildGroupedUnicast, BuildLabeledUnicast emit strictly ascending codes; with raw config attributes AIGP 26 and type 20 supplied after the builder&#39;s own, they still sort before LARGE_COMMUNITY 32. Producer read: appendRawAttributes wraps each one-attribute raw slice (packRawAttributes) in fullRawAttribute so OrderAttributes places it. Originating builders only; forwarded UPDATEs keep the received order.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4271 Section 5: “The sender of an UPDATE message SHOULD order path attributes within the UPDATE message in ascending order of attribute type.” All six tagged covers were independently re-read. Unicast, grouped and labeled origination builders order raw and ordinary attributes together; batch and queued announcement rails pin exact ascending sequences, including AS4_PATH before LARGE_COMMUNITY. The changed split unit retains non-ADD-PATH framing, requires more than one emitted chunk and checks each chunk for exactly [1,2,5,14,16]. Actual producers order contributions and insert MP_REACH between lower- and higher-coded base attributes. The retained claim is the existing originating-builder recommendation and split preservation; forwarding deliberately preserves received block order rather than globally sorting it. This is not evidence that MP_REACH is first, and does not close RFC7606-5.1-1&#39;s separately disclosed stronger requirement. No selective semantic proof is inferred from a renewed whole-producer halt.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -4105,9 +4105,9 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_update_split_attr_order_test.go#L72" title="internal/component/bgp/message/rfc4271_update_split_attr_order_test.go" target="_blank" rel="noopener"><code>TestSplitMP_PreservesAscendingAttributeOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_update_split_attr_order_test.go#L73" title="internal/component/bgp/message/rfc4271_update_split_attr_order_test.go" target="_blank" rel="noopener"><code>TestSplitMP_PreservesAscendingAttributeOrder</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go#L328" title="internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go" target="_blank" rel="noopener"><code>TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity</code></a></td>
@@ -4122,7 +4122,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go#L289" title="internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go" target="_blank" rel="noopener"><code>TestAnnounceQueuedRail_AscendingTypeCodeOrder</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -4186,7 +4186,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L284" title="internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardExportASPathEditsSkipInternalPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L203" title="internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go" target="_blank" rel="noopener"><code>TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer</code></a></td>
@@ -4196,7 +4196,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L94" title="internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L146" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ASPathPrependedTowardExternalPeer</code></a></td>
@@ -4206,7 +4206,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L93" title="internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L569" title="internal/component/bgp/reactor/rfc4271_reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></td>
@@ -4223,7 +4223,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-5.1.2-3"><code>RFC4271-5.1.2-3</code></a></h3>
 <p>When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows: 1) if the first path segment of the AS_PATH is of type AS_SEQUENCE, the local system prepends its own AS number as the last element of the sequence (put it in the leftmost position with respect to the position of octets in the protocol message). If the act of prepending will cause an overflow in the AS_PATH segment (i.e., more than 255 ASes), it SHOULD prepend a new segment of type AS_SEQUENCE and prepend its own AS number to this new segment. 2) if the first path segment of the AS_PATH is of type AS_SET, the local system prepends a new path segment of type AS_SEQUENCE to the AS_PATH, including its own AS number in that segment. 3) if the AS_PATH is empty, the local system creates a path segment of type AS_SEQUENCE, places its own AS into that segment, and places that segment into the AS_PATH. (§5.1.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Independent supplemental source rejudgment 2026-10-06. RFC4271 Section 5.1.2(b): &#34;When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows: 1) if the first path segment of the AS_PATH is of type AS_SEQUENCE, the local system prepends its own AS number as the last element of the sequence (put it in the leftmost position with respect to the position of octets in the protocol message). If the act of prepending will cause an overflow in the AS_PATH segment (i.e., more than 255 ASes), it SHOULD prepend a new segment of type AS_SEQUENCE and prepend its own AS number to this new segment. 2) if the first path segment of the AS_PATH is of type AS_SET, the local system prepends a new path segment of type AS_SEQUENCE to the AS_PATH, including its own AS number in that segment. 3) if the AS_PATH is empty, the local system creates a path segment of type AS_SEQUENCE, places its own AS into that segment, and places that segment into the AS_PATH.&#34; The same section defines: &#34;(An empty AS_PATH attribute is one whose length field contains the value zero).&#34; All seven distinct functions/nine covers read: reactor explicit-path eBGP prepend/iBGP preservation; wireu advertising/withdrawal pair, absent path, leading set, full leading sequence; both checkRelayWithdrawalShape tags. Sequence/set/overflow behavior has concrete assertions, but TestASPathSlotInsertsWhenAbsent supplies only ORIGIN and NLRI, not a present zero-length AS_PATH. At internal/component/bgp/wireu/aspath_slot.go::recordPrepend (299-315), hasASPath parsing and absent construction are different branches; a regression skipping an existing empty attribute can leave these tagged units green. The implementation currently handles empty through ParseASPath/ASPath.Prepend, so this is test/judgment debt, not a proven runtime defect. Overflow checks the retained segment count rather than its complete original contents, and iBGP checks decoded numbers rather than byte identity; no stronger proof is claimed. Traced Record generators through general/RS forward rebuilds and batch rewrite/emit. The registered FRR carrier requires exact 65001 65004, disappearance plus positively decoded peer/prefix withdrawal, no attribute error and surviving session; live execution remains pending. Current checker diff only hoists relayedASPath to identical zeInjectorASPath, so its movement is mechanical. The absent/empty carrier has no diff HEAD: that conflation is preexisting judgment debt. Downgrade enforced to weak; no partial annotation, executed mutation or speculative producer fix claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent whole-row source rejudgment, 2026-10-08. Read RFC 4271 Section 5.1.2 in full: the external-advertisement condition covers leading AS_SEQUENCE prepend, a new leading AS_SEQUENCE on 255-member overflow, a new AS_SEQUENCE before a leading AS_SET, and construction of an AS_SEQUENCE when the AS_PATH is empty. The same section defines an empty AS_PATH by a zero attribute length, not absence. Read every current tagged carrier: TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS and TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim, both TestASPathSlotPrependOnlyWhenAdvertising covers, TestASPathSlotPrependsBeforeALeadingASSet, TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull, TestForwardPresentEmptyASPath, and both checkRelayWithdrawalShape covers. The retained sequence test checks [65000,65001,65002]; the set test checks both segment types and exact members; overflow checks a new [65000] sequence and a retained 255-member segment. Its retained-member assertion is count-only, not a full original-content comparison, and the retained iBGP case compares decoded numbers, not original TLV bytes; no stronger evidence is claimed. The advertisement/withdrawal pair prevents an unconditional prepend or an entirely disabled mechanism from passing. The former absent-attribute test remains intact but correctly no longer claims the empty-path clause. The new consumer root supplies explicit 40 02 00, follows notifyMessageReceiver through ForwardUpdate or reactorForwardRS to the real Session writer, and requires exactly one recipient UPDATE, unchanged NLRI and source bytes, and exactly 02 01 fd e8 or 02 01 00 00 fd e8 for ordinary external recipients. Internal and RS-client controls require the attribute to remain present and empty. Both forward producers construct the external-only intent; ASPathEdit.Record selects recordPrepend, its present-attribute branch parses the zero-length value, and attribute.ASPath.Prepend creates the one-member sequence. These are the formerly unexercised producer and consumer branches. Saved evidence read: job-joint-schema-ipv4-self-empty-aspath-race20-a9d2bfd1.log has 20 passes of this root, not a package pass; job-present-empty-aspath-selective-semantic-red-ecbbbd92.log fails all four external exact-byte cases while all eight internal/RS controls pass; job-present-empty-aspath-restored-consumer-91fea142.log restores all twelve passes. job-present-empty-aspath-native-binding-b6c62391.log separately records a producer-disabled panic at Prepend; this is a reachability binding, not a substitute for the selective semantic failure. The registered FRR checker requires the exact relayed path and positively decoded withdrawal without an attribute error and with a surviving session; its source was read, but no fresh interop execution is claimed. The concrete absent-versus-present-empty proof hole is closed, and the retained carriers cover the remaining conditional branches. Upgrade weak to enforced for this row only; this is not a claim about all RFC 4271 behavior, prepend-none/no-empty configuration variants, or whole-package race success. No edits, tests, builds, gates, Docker, or canonical writes were performed by this reviewer.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -4244,6 +4244,11 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_aspath_empty_test.go#L23" title="internal/component/bgp/reactor/rfc4271_aspath_empty_test.go" target="_blank" rel="noopener"><code>TestForwardPresentEmptyASPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L543" title="internal/component/bgp/reactor/rfc4271_reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
@@ -4254,19 +4259,14 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L140" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotInsertsWhenAbsent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L358" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotPrependsBeforeALeadingASSet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L362" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotPrependsBeforeALeadingASSet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L392" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_aspath_slot_test.go#L396" title="internal/component/bgp/wireu/rfc4271_aspath_slot_test.go" target="_blank" rel="noopener"><code>TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull</code></a></td>
-<td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L429" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRelayWithdrawalShape</code></a></td>
@@ -4472,7 +4472,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-9-3"><code>RFC4271-9-3</code></a></h3>
 <p>Once the BGP speaker updates the Adj-RIB-In, the speaker SHALL run its Decision Process. (§9)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest, internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw moved. No unit calls checkBestPathChange itself. Positive: one received UPDATE puts the route in the Loc-RIB and publishes exactly one BestChangeAdd. Negative: peer A&#39;s withdrawal of the selected route leaves peer B&#39;s route installed, which a skipped run (stale best or none) fails. Judge mutants 2026-09-30 (go test -overlay, tree untouched): removing the decision run for legacy withdrawals reddens the negative.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. No unit calls checkBestPathChange itself. Positive: one received UPDATE puts the route in the Loc-RIB and publishes exactly one BestChangeAdd. Negative: peer A&#39;s withdrawal of the selected route leaves peer B&#39;s route installed, which a skipped run (stale best or none) fails. Judge mutants 2026-09-30 (go test -overlay, tree untouched): removing the decision run for legacy withdrawals reddens the negative.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -4480,7 +4480,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L214" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L668" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
@@ -4490,7 +4490,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L194" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L704" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
@@ -4551,7 +4551,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <p>No test carries RFC4271-9.1.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4271-9.1.2-2"><code>RFC4271-9.1.2-2</code></a></h3>
 <p>The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB. (§9.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror, internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw moved. Through handleReceivedStructured: positive, peer B&#39;s better route replaces peer A&#39;s as the Loc-RIB best (next hop 10.0.0.1 -&gt; 10.0.0.2); negative, the destination&#39;s Loc-RIB group holds exactly one BGP path afterwards, peer B&#39;s, so install-beside fails. HEAD rib_bestchange_test units kept as supplementary. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit&#39;s doc comment; every assertion is byte-identical, so the judgement stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Through handleReceivedStructured: positive, peer B&#39;s better route replaces peer A&#39;s as the Loc-RIB best (next hop 10.0.0.1 -&gt; 10.0.0.2); negative, the destination&#39;s Loc-RIB group holds exactly one BGP path afterwards, peer B&#39;s, so install-beside fails. HEAD rib_bestchange_test units kept as supplementary. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit&#39;s doc comment; every assertion is byte-identical, so the judgement stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -4682,7 +4682,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go#L188" title="internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go" target="_blank" rel="noopener"><code>TestRFC4271WholeSetMEDRIBBestChange</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -4769,7 +4769,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L318" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271OverlappingRouteArrivalDisplacesNeither</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L122" title="internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go" target="_blank" rel="noopener"><code>TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered</code></a></td>
@@ -4779,7 +4779,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L291" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271OverlappingReceivedRoutesAreBothInstalled</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L99" title="internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go" target="_blank" rel="noopener"><code>TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess</code></a></td>
@@ -4818,8 +4818,8 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4271-9.2.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4271-9.2.2.2-2"><code>RFC4271-9.2.2.2-2</code></a></h3>
-<p>ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. (§9.2.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP. (§9.2.2.2)</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. RFC 4271 Section 9.2.2.2 states: &#34;Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP.&#34; The restored row also retains the preceding INCOMPLETE arm, which takes precedence. Section 9.2.2.1 makes this information reduction optional. BuildGroupedUnicast emits every supplied prefix separately; packGroupedAttributes copies the supplied ORIGIN under the identical-attributes contract. Its sendStaticRoutesGrouped caller groups configured routes by attributes without synthesizing an aggregate or computing aggregate ORIGIN.</p>
 <p>No test carries RFC4271-9.2.2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4271-9.2.2.2-3"><code>RFC4271-9.2.2.2-3</code></a></h3>
 <p>NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation. (§9.2.2.2)</p>
@@ -4882,7 +4882,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go#L35" title="internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L570" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271IBGPRedistributionAllowedForReflectorClient</code></a></td>
@@ -4899,7 +4899,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-9.2-7"><code>RFC4271-9.2-7</code></a></h3>
 <p>All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised to its peers by means of an UPDATE message. (§9.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), shifted: internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest, internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw moved. positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the &#39;newly installed routes&#39; half of the sentence carries no tag. Negative is an unchanged-best re-run</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the &#39;newly installed routes&#39; half of the sentence carries no tag. Negative is an unchanged-best re-run</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -4957,7 +4957,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_own_as_change_test.go#L102" title="internal/component/bgp/reactor/rfc4271_own_as_change_test.go" target="_blank" rel="noopener"><code>TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L401" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OwnASReachabilityChangeAdvertised</code></a></td>
@@ -4969,15 +4969,15 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-9.2-10"><code>RFC4271-9.2-10</code></a></h3>
 <p>If, due to the limits on the maximum size of an UPDATE message (see Section 4), a single route doesn&#39;t fit into the message, the BGP speaker MUST not advertise the route to its peers and MAY choose to log an error locally. (§9.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. New unit TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld drives the relay rail buildFwdBody (the path the old weak note named as unproven) toward a 4096-octet destination. Positive: one route with 900 communities fits and is relayed as one raw body byte-identical to the received. Negative: one route with 1100 communities cannot fit; buildFwdBody returns ok=false with no raw body and no parsed update, and both callers (forward_rs.go, reactor_api_forward.go) skip the destination on !ok (read at the producer). Observed-red records: + revert forward_body.go::buildFwdBody, - revert wireu/split.go::buildCombinedUpdates. The message Splitter units stay as supplementary proof of the originate rail.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4271 Section 9.2: “If, due to the limits on the maximum size of an UPDATE message (see Section 4), a single route doesn&#39;t fit into the message, the BGP speaker MUST not advertise the route to its peers and MAY choose to log an error locally.” The changed splitter pair retains equivalent non-ADD-PATH framing. Its oversized opaque-attribute case requires an error and zero callbacks; the fitting control preserves attributes and NLRI in one output. The genuine relay pair supplies protocol-shaped input: a single route with 900 communities fits and is relayed byte-identically; 1100 communities exceed the 4096-byte destination limit and yield ok=false with neither raw nor parsed output. Both forwarding callers explicitly release and skip failed items, so failure is not later dispatched. Final ordinary-write admission also refuses an indivisible effective chunk. The corrected test tag accurately says an error, not an assertion of the exact ErrAttributesTooLarge identity. Logging is optional. Whole-producer halt records are reachability evidence, not selective size-check mutations.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L431" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271FittingRouteIsAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L432" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271FittingRouteIsAdvertised</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go#L40" title="internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go" target="_blank" rel="noopener"><code>TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld</code></a></td>
@@ -4985,9 +4985,9 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L402" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OversizeSingleRouteNotAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L403" title="internal/component/bgp/message/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OversizeSingleRouteNotAdvertised</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go#L38" title="internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go" target="_blank" rel="noopener"><code>TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld</code></a></td>
@@ -5067,12 +5067,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_section5_test.go#L166" title="internal/component/bgp/reactor/rfc4271_forward_section5_test.go" target="_blank" rel="noopener"><code>TestForwardNeverTransmitsTheSupersededWellKnownAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_section5_test.go#L145" title="internal/component/bgp/reactor/rfc4271_forward_section5_test.go" target="_blank" rel="noopener"><code>TestForwardTransmitsUpdatedWellKnownAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -5087,12 +5087,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_open_error_test.go#L66" title="internal/component/bgp/reactor/rfc4271_session_open_error_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenErrorSubcodes</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_open_error_test.go#L64" title="internal/component/bgp/reactor/rfc4271_session_open_error_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenErrorSubcodes</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -5207,12 +5207,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L57" title="internal/component/bgp/reactor/rfc4271_session_update_error_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateMalformedAttributeList</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L54" title="internal/component/bgp/reactor/rfc4271_session_update_error_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateMalformedAttributeList</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -5447,12 +5447,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L38" title="internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go" target="_blank" rel="noopener"><code>TestRFC4271LeftmostASMismatchIsMalformedASPath</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L35" title="internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go" target="_blank" rel="noopener"><code>TestRFC4271LeftmostASMismatchIsMalformedASPath</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -5497,17 +5497,17 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L61" title="internal/component/bgp/reactor/rfc4271_session_update_error_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateMalformedAttributeList</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L59" title="internal/component/bgp/reactor/rfc4271_session_update_error_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateMalformedAttributeList</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go#L31" title="internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -5542,12 +5542,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L128" title="internal/component/bgp/reactor/rfc4271_session_update_error_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateWithoutNLRIIsValid</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L125" title="internal/component/bgp/reactor/rfc4271_session_update_error_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateWithoutNLRIIsValid</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -5637,10 +5637,10 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>rfc/extraction/rfc4271.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>105</td>
+<td>106</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>24</td>
+<td>23</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -6212,11 +6212,6 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>the next sentence defines the act: &#39;That is, the NLRI of this route cannot be more specific.&#39; That is the Section 5.1.6 prohibition on making the NLRI of an ATOMIC_AGGREGATE route more specific, restated where overlapping routes are discussed</td>
 <td>In particular, a route that carries the ATOMIC_AGGREGATE attribute MUST NOT be de-aggregated.</td>
 </tr>
-<tr><td><code>9.2.2.2:4</code></td>
-<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>the EGP arm is the second clause of the aggregated ORIGIN rule, and the row states both arms</td>
-<td>Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP.</td>
-</tr>
 <tr><td><code>9.2.2.2:5</code></td>
 <td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
 <td>the obligation is conditional on aggregating, and ze performs no route aggregation (the scope decision recorded in the Support remaining row of rfc/short/rfc4271.md). The RFC makes the choice the speaker&#39;s: &#34;If a BGP speaker chooses to aggregate, then it SHOULD either include&#34;</td>
@@ -6288,7 +6283,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

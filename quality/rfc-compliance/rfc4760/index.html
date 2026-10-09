@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>24.2%</strong><b>8 of 33 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>42.4%</strong><b>14 of 33 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 6 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -523,7 +523,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go#L50" title="internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go" target="_blank" rel="noopener"><code>TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L69" title="internal/component/bgp/rib/rfc4760_commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm</code></a></td>
@@ -573,7 +573,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L24" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L88" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachRequiresOriginAndASPath</code></a></td>
@@ -583,7 +583,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L22" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L85" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachRequiresOriginAndASPath</code></a></td>
@@ -603,7 +603,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L28" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L153" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IBGPMPReachCarriesLocalPref</code></a></td>
@@ -613,7 +613,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go#L26" title="internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L149" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IBGPMPReachCarriesLocalPref</code></a></td>
@@ -638,7 +638,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L256" title="internal/component/bgp/reactor/rfc4760_peer_down_link_test.go" target="_blank" rel="noopener"><code>TestRFC4760CorrectMPReachRaisesNoPeerDown</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L171" title="internal/component/bgp/reactor/rfc4760_section7_test.go" target="_blank" rel="noopener"><code>TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes</code></a></td>
@@ -916,7 +916,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

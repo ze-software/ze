@@ -117,11 +117,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>32.9%</strong><b>25 of 76 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>31.6%</strong><b>24 of 76 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.3%</strong><b>1 of 76 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>69.3%</strong><b>61 of 88 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>76.4%</strong><b>68 of 89 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>55.3%</strong><b>42 of 76 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>26</strong><b>of 76 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 11 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>31</strong><b>of 76 gated MUSTs judged</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 76 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>88</td>
+<td>89</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>88</td>
+<td>89</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>26</td>
+<td>31</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>65</td>
+<td>68</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9012.md</code></td>
@@ -268,7 +268,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Full RFC support is not established. Fresh native discrimination and independent whole-row judgments are still owed for the endpoint semantic and expanded carrier proofs. Section 11 attribute-23 scope filtering and default EBGP filtering of attribute 23 and the Encapsulation Extended Community are not implemented; configured exact-value community removal and whole-attribute egress suppression are not these defaults. Extraction site 13:7 maps to <a href="#rfc9012-13-21"><code>RFC9012-13-21</code></a>, an explicit first-occurrence consumer gap; the historical RFC9012-13-7 identity remains retired. Attribute-driven tunnel selection/feasibility, encapsulation-header construction, recursive resolution, label handling, first-occurrence and type-specific sub-TLV interpretation, Router&#39;s MAC precedence and participating-router traffic filtering remain unimplemented consumer behavior, owned by [the separate tunnel-consumption spec](../../<a href="https://github.com/ze-software/ze/blob/main/plan/spec-bgp-tunnel-encapsulation-consumption.md" target="_blank" rel="noopener"><code>plan/spec-bgp-tunnel-encapsulation-consumption.md</code></a>). In particular, signaling acceptance/propagation does not prove <a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a>/-17/-21. The optional Section 3.1.1 origin-AS procedure is not commissioned. Tag presence and producer-dependence records alone do not establish whole-requirement conformance.
+Full RFC support is not established; each canonical verdict and discrimination record bounds its own clause. Per-session outgoing attribute-23 filtering now has production cache, session-writer and downstream-receive unit proof through configured export policy, using a simulated external-plugin transport rather than a live daemon. This mechanism, configured exact-value community removal and whole-attribute egress suppression do not implement the missing default EBGP filtering of attribute 23 or the Encapsulation Extended Community. Other Section 11 scope obligations retain their checklist dispositions. Extraction site 13:7 maps to <a href="#rfc9012-13-21"><code>RFC9012-13-21</code></a>, an explicit first-occurrence consumer gap; the historical RFC9012-13-7 identity remains retired. Attribute-driven tunnel selection/feasibility, encapsulation-header construction, recursive resolution, label handling, first-occurrence and type-specific sub-TLV interpretation, Router&#39;s MAC precedence and participating-router traffic filtering remain unimplemented consumer behavior, owned by [the separate tunnel-consumption spec](../../<a href="https://github.com/ze-software/ze/blob/main/plan/spec-bgp-tunnel-encapsulation-consumption.md" target="_blank" rel="noopener"><code>plan/spec-bgp-tunnel-encapsulation-consumption.md</code></a>). In particular, signaling acceptance/propagation does not prove <a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a>/-17/-21. The optional Section 3.1.1 origin-AS procedure is not commissioned. Tag presence and producer-dependence records alone do not establish whole-requirement conformance.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -277,11 +277,11 @@ Full RFC support is not established. Fresh native discrimination and independent
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>25</strong></td>
+<td><strong>24</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>51</strong></td>
+<td><strong>52</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -308,8 +308,8 @@ Full RFC support is not established. Fresh native discrimination and independent
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (25):</strong> <a href="#rfc9012-3.1-2"><code>RFC9012-3.1-2</code></a>, <a href="#rfc9012-3.1-3"><code>RFC9012-3.1-3</code></a>, <a href="#rfc9012-3.1-4"><code>RFC9012-3.1-4</code></a>, <a href="#rfc9012-3.1-5"><code>RFC9012-3.1-5</code></a>, <a href="#rfc9012-3.1-7"><code>RFC9012-3.1-7</code></a>, <a href="#rfc9012-3.1-8"><code>RFC9012-3.1-8</code></a>, <a href="#rfc9012-3.2.1-2"><code>RFC9012-3.2.1-2</code></a>, <a href="#rfc9012-3.5-3"><code>RFC9012-3.5-3</code></a>, <a href="#rfc9012-4.3-2"><code>RFC9012-4.3-2</code></a>, <a href="#rfc9012-11-9"><code>RFC9012-11-9</code></a>, <a href="#rfc9012-11-10"><code>RFC9012-11-10</code></a>, <a href="#rfc9012-13-1"><code>RFC9012-13-1</code></a>, <a href="#rfc9012-13-2"><code>RFC9012-13-2</code></a>, <a href="#rfc9012-13-3"><code>RFC9012-13-3</code></a>, <a href="#rfc9012-13-5"><code>RFC9012-13-5</code></a>, <a href="#rfc9012-13-8"><code>RFC9012-13-8</code></a>, <a href="#rfc9012-13-9"><code>RFC9012-13-9</code></a>, <a href="#rfc9012-13-10"><code>RFC9012-13-10</code></a>, <a href="#rfc9012-13-11"><code>RFC9012-13-11</code></a>, <a href="#rfc9012-13-12"><code>RFC9012-13-12</code></a>, <a href="#rfc9012-13-13"><code>RFC9012-13-13</code></a>, <a href="#rfc9012-13-14"><code>RFC9012-13-14</code></a>, <a href="#rfc9012-13-15"><code>RFC9012-13-15</code></a>, <a href="#rfc9012-13-18"><code>RFC9012-13-18</code></a>, <a href="#rfc9012-13-19"><code>RFC9012-13-19</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (51):</strong> <a href="#rfc9012-3.1.1-3"><code>RFC9012-3.1.1-3</code></a>, <a href="#rfc9012-3.2.1-1"><code>RFC9012-3.2.1-1</code></a>, <a href="#rfc9012-3.2.1-3"><code>RFC9012-3.2.1-3</code></a>, <a href="#rfc9012-3.2.1-4"><code>RFC9012-3.2.1-4</code></a>, <a href="#rfc9012-3.2.1-5"><code>RFC9012-3.2.1-5</code></a>, <a href="#rfc9012-3.2.1-6"><code>RFC9012-3.2.1-6</code></a>, <a href="#rfc9012-3.2.4-1"><code>RFC9012-3.2.4-1</code></a>, <a href="#rfc9012-3.2.5-1"><code>RFC9012-3.2.5-1</code></a>, <a href="#rfc9012-3.3-1"><code>RFC9012-3.3-1</code></a>, <a href="#rfc9012-3.3.2-1"><code>RFC9012-3.3.2-1</code></a>, <a href="#rfc9012-3.4.1-2"><code>RFC9012-3.4.1-2</code></a>, <a href="#rfc9012-3.4.1-3"><code>RFC9012-3.4.1-3</code></a>, <a href="#rfc9012-3.4.1-4"><code>RFC9012-3.4.1-4</code></a>, <a href="#rfc9012-3.4.2-2"><code>RFC9012-3.4.2-2</code></a>, <a href="#rfc9012-3.5-1"><code>RFC9012-3.5-1</code></a>, <a href="#rfc9012-3.5-2"><code>RFC9012-3.5-2</code></a>, <a href="#rfc9012-3.5-4"><code>RFC9012-3.5-4</code></a>, <a href="#rfc9012-3.6-1"><code>RFC9012-3.6-1</code></a>, <a href="#rfc9012-3.6-2"><code>RFC9012-3.6-2</code></a>, <a href="#rfc9012-3.6-3"><code>RFC9012-3.6-3</code></a>, <a href="#rfc9012-3.6-4"><code>RFC9012-3.6-4</code></a>, <a href="#rfc9012-3.6-5"><code>RFC9012-3.6-5</code></a>, <a href="#rfc9012-3.6-6"><code>RFC9012-3.6-6</code></a>, <a href="#rfc9012-3.6-7"><code>RFC9012-3.6-7</code></a>, <a href="#rfc9012-3.6-8"><code>RFC9012-3.6-8</code></a>, <a href="#rfc9012-3.6-13"><code>RFC9012-3.6-13</code></a>, <a href="#rfc9012-3.7-2"><code>RFC9012-3.7-2</code></a>, <a href="#rfc9012-3.7-3"><code>RFC9012-3.7-3</code></a>, <a href="#rfc9012-3.7-4"><code>RFC9012-3.7-4</code></a>, <a href="#rfc9012-4.1-1"><code>RFC9012-4.1-1</code></a>, <a href="#rfc9012-4.1-2"><code>RFC9012-4.1-2</code></a>, <a href="#rfc9012-4.1-3"><code>RFC9012-4.1-3</code></a>, <a href="#rfc9012-4.2-1"><code>RFC9012-4.2-1</code></a>, <a href="#rfc9012-4.3-1"><code>RFC9012-4.3-1</code></a>, <a href="#rfc9012-6-2"><code>RFC9012-6-2</code></a>, <a href="#rfc9012-7.1-1"><code>RFC9012-7.1-1</code></a>, <a href="#rfc9012-8-1"><code>RFC9012-8-1</code></a>, <a href="#rfc9012-8-2"><code>RFC9012-8-2</code></a>, <a href="#rfc9012-10-1"><code>RFC9012-10-1</code></a>, <a href="#rfc9012-11-1"><code>RFC9012-11-1</code></a>, <a href="#rfc9012-11-2"><code>RFC9012-11-2</code></a>, <a href="#rfc9012-11-5"><code>RFC9012-11-5</code></a>, <a href="#rfc9012-11-6"><code>RFC9012-11-6</code></a>, <a href="#rfc9012-11-8"><code>RFC9012-11-8</code></a>, <a href="#rfc9012-11-11"><code>RFC9012-11-11</code></a>, <a href="#rfc9012-13-4"><code>RFC9012-13-4</code></a>, <a href="#rfc9012-13-6"><code>RFC9012-13-6</code></a>, <a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a>, <a href="#rfc9012-13-17"><code>RFC9012-13-17</code></a>, <a href="#rfc9012-13-21"><code>RFC9012-13-21</code></a>, <a href="#rfc9012-15-1"><code>RFC9012-15-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (24):</strong> <a href="#rfc9012-3.1-2"><code>RFC9012-3.1-2</code></a>, <a href="#rfc9012-3.1-3"><code>RFC9012-3.1-3</code></a>, <a href="#rfc9012-3.1-4"><code>RFC9012-3.1-4</code></a>, <a href="#rfc9012-3.1-5"><code>RFC9012-3.1-5</code></a>, <a href="#rfc9012-3.1-7"><code>RFC9012-3.1-7</code></a>, <a href="#rfc9012-3.1-8"><code>RFC9012-3.1-8</code></a>, <a href="#rfc9012-3.2.1-2"><code>RFC9012-3.2.1-2</code></a>, <a href="#rfc9012-3.5-3"><code>RFC9012-3.5-3</code></a>, <a href="#rfc9012-4.3-2"><code>RFC9012-4.3-2</code></a>, <a href="#rfc9012-11-9"><code>RFC9012-11-9</code></a>, <a href="#rfc9012-11-10"><code>RFC9012-11-10</code></a>, <a href="#rfc9012-13-1"><code>RFC9012-13-1</code></a>, <a href="#rfc9012-13-2"><code>RFC9012-13-2</code></a>, <a href="#rfc9012-13-3"><code>RFC9012-13-3</code></a>, <a href="#rfc9012-13-5"><code>RFC9012-13-5</code></a>, <a href="#rfc9012-13-8"><code>RFC9012-13-8</code></a>, <a href="#rfc9012-13-9"><code>RFC9012-13-9</code></a>, <a href="#rfc9012-13-11"><code>RFC9012-13-11</code></a>, <a href="#rfc9012-13-12"><code>RFC9012-13-12</code></a>, <a href="#rfc9012-13-13"><code>RFC9012-13-13</code></a>, <a href="#rfc9012-13-14"><code>RFC9012-13-14</code></a>, <a href="#rfc9012-13-15"><code>RFC9012-13-15</code></a>, <a href="#rfc9012-13-18"><code>RFC9012-13-18</code></a>, <a href="#rfc9012-13-19"><code>RFC9012-13-19</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (52):</strong> <a href="#rfc9012-3.1.1-3"><code>RFC9012-3.1.1-3</code></a>, <a href="#rfc9012-3.2.1-1"><code>RFC9012-3.2.1-1</code></a>, <a href="#rfc9012-3.2.1-3"><code>RFC9012-3.2.1-3</code></a>, <a href="#rfc9012-3.2.1-4"><code>RFC9012-3.2.1-4</code></a>, <a href="#rfc9012-3.2.1-5"><code>RFC9012-3.2.1-5</code></a>, <a href="#rfc9012-3.2.1-6"><code>RFC9012-3.2.1-6</code></a>, <a href="#rfc9012-3.2.4-1"><code>RFC9012-3.2.4-1</code></a>, <a href="#rfc9012-3.2.5-1"><code>RFC9012-3.2.5-1</code></a>, <a href="#rfc9012-3.3-1"><code>RFC9012-3.3-1</code></a>, <a href="#rfc9012-3.3.2-1"><code>RFC9012-3.3.2-1</code></a>, <a href="#rfc9012-3.4.1-2"><code>RFC9012-3.4.1-2</code></a>, <a href="#rfc9012-3.4.1-3"><code>RFC9012-3.4.1-3</code></a>, <a href="#rfc9012-3.4.1-4"><code>RFC9012-3.4.1-4</code></a>, <a href="#rfc9012-3.4.2-2"><code>RFC9012-3.4.2-2</code></a>, <a href="#rfc9012-3.5-1"><code>RFC9012-3.5-1</code></a>, <a href="#rfc9012-3.5-2"><code>RFC9012-3.5-2</code></a>, <a href="#rfc9012-3.5-4"><code>RFC9012-3.5-4</code></a>, <a href="#rfc9012-3.6-1"><code>RFC9012-3.6-1</code></a>, <a href="#rfc9012-3.6-2"><code>RFC9012-3.6-2</code></a>, <a href="#rfc9012-3.6-3"><code>RFC9012-3.6-3</code></a>, <a href="#rfc9012-3.6-4"><code>RFC9012-3.6-4</code></a>, <a href="#rfc9012-3.6-5"><code>RFC9012-3.6-5</code></a>, <a href="#rfc9012-3.6-6"><code>RFC9012-3.6-6</code></a>, <a href="#rfc9012-3.6-7"><code>RFC9012-3.6-7</code></a>, <a href="#rfc9012-3.6-8"><code>RFC9012-3.6-8</code></a>, <a href="#rfc9012-3.6-13"><code>RFC9012-3.6-13</code></a>, <a href="#rfc9012-3.7-2"><code>RFC9012-3.7-2</code></a>, <a href="#rfc9012-3.7-3"><code>RFC9012-3.7-3</code></a>, <a href="#rfc9012-3.7-4"><code>RFC9012-3.7-4</code></a>, <a href="#rfc9012-4.1-1"><code>RFC9012-4.1-1</code></a>, <a href="#rfc9012-4.1-2"><code>RFC9012-4.1-2</code></a>, <a href="#rfc9012-4.1-3"><code>RFC9012-4.1-3</code></a>, <a href="#rfc9012-4.2-1"><code>RFC9012-4.2-1</code></a>, <a href="#rfc9012-4.3-1"><code>RFC9012-4.3-1</code></a>, <a href="#rfc9012-6-2"><code>RFC9012-6-2</code></a>, <a href="#rfc9012-7.1-1"><code>RFC9012-7.1-1</code></a>, <a href="#rfc9012-8-1"><code>RFC9012-8-1</code></a>, <a href="#rfc9012-8-2"><code>RFC9012-8-2</code></a>, <a href="#rfc9012-10-1"><code>RFC9012-10-1</code></a>, <a href="#rfc9012-11-1"><code>RFC9012-11-1</code></a>, <a href="#rfc9012-11-2"><code>RFC9012-11-2</code></a>, <a href="#rfc9012-11-5"><code>RFC9012-11-5</code></a>, <a href="#rfc9012-11-6"><code>RFC9012-11-6</code></a>, <a href="#rfc9012-11-8"><code>RFC9012-11-8</code></a>, <a href="#rfc9012-11-11"><code>RFC9012-11-11</code></a>, <a href="#rfc9012-13-4"><code>RFC9012-13-4</code></a>, <a href="#rfc9012-13-6"><code>RFC9012-13-6</code></a>, <a href="#rfc9012-13-10"><code>RFC9012-13-10</code></a>, <a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a>, <a href="#rfc9012-13-17"><code>RFC9012-13-17</code></a>, <a href="#rfc9012-13-21"><code>RFC9012-13-21</code></a>, <a href="#rfc9012-15-1"><code>RFC9012-15-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -321,8 +321,8 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L360" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L361" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L359" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L360" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-3">RFC9012-3.1-3</code></td><td colspan="3"><span class="rfc-subject">The Reserved subfield SHOULD be originated as zero. It MUST be disregarded on receipt, and it MUST be propagated unchanged. (§3.1) Context: this identity owns unchanged propagation of the Reserved subfield; receipt-disregard remains RFC9012-3.1-2.</span></td></tr>
@@ -330,10 +330,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L332" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L352" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L335" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L353" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L333" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L351" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L336" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L352" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-4">RFC9012-3.1-4</code></td><td colspan="3"><span class="rfc-subject">If the Address Family subfield contains the value for IPv4, the Address subfield MUST contain an IPv4 address (a /32 IPv4 prefix). (§3.1)</span></td></tr>
@@ -395,10 +395,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST</td>
 <td>3.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-3.2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L345" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L354" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L348" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L355" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L346" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L353" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L349" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L354" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.2.1-3">RFC9012-3.2.1-3</code></td><td colspan="3"><span class="rfc-subject">Any receiving routers MUST ignore these bits upon receipt. (§3.2.1, §3.2.2)</span></td></tr>
@@ -532,10 +532,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST NOT</td>
 <td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-3.5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L364" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012EmbeddedLabelHandlingNotStripped</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L356" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L372" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012EmbeddedLabelHandlingNotStripped</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L357" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L365" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012EmbeddedLabelHandlingNotStripped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L355" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L373" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012EmbeddedLabelHandlingNotStripped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L356" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.5-4">RFC9012-3.5-4</code></td><td colspan="3"><span class="rfc-subject">If any value other than 1 or 2 is carried, the sub-TLV MUST be considered malformed, according to the procedures of Section 13. (§3.5)</span></td></tr>
@@ -705,10 +705,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST NOT</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L396" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ColorExtendedCommunityUnchangedOnPropagation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L358" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L399" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ColorExtendedCommunityUnchangedOnPropagation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L359" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L397" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ColorExtendedCommunityUnchangedOnPropagation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L357" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L400" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ColorExtendedCommunityUnchangedOnPropagation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L358" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-6-2">RFC9012-6-2</code></td><td colspan="3"><span class="rfc-subject">Then router R MUST send packet P through one of the feasible tunnels identified in the Tunnel Encapsulation attribute of UPDATE U. (§6)</span></td></tr>
@@ -893,7 +893,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST NOT</td>
 <td>13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L268" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012DuplicateSingleInstanceSubTLVs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L269" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012DuplicateSingleInstanceSubTLVs</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L338" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L160" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedAttributeIsRejected</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L339" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
@@ -916,10 +916,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-10">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L342" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L648" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012UnknownSubTLVEndpointProcessing</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L212" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L343" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L220" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> an unrecognized sub-TLV is legal input. Endpoint malformation and missing or duplicate endpoints exercise processing equivalence in the presence of that legal input; they do not create an invalid unknown type. Separate framing and endpoint obligations retain their own negative coverage.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-11">RFC9012-13-11</code></td><td colspan="3"><span class="rfc-subject">If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized sub-TLV MUST remain in the attribute. (§13)</span></td></tr>
 <tr><td></td>
@@ -927,9 +927,9 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L186" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012AllSubTLVsPropagate</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L344" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L343" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L196" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012AllSubTLVsPropagate</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L345" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L344" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-12">RFC9012-13-12</code></td><td colspan="3"><span class="rfc-subject">In general, if a TLV contains a sub-TLV that is malformed, the sub-TLV MUST be treated as if it were an unrecognized sub-TLV. (§13)</span></td></tr>
@@ -937,10 +937,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST</td>
 <td>13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L239" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L346" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L248" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L347" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L240" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L345" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L249" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L346" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-13">RFC9012-13-13</code></td><td colspan="3"><span class="rfc-subject">if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored (§13)</span></td></tr>
@@ -948,10 +948,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST</td>
 <td>13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-13">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L556" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L555" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L104" title="internal/component/bgp/reactor/rfc9012_receive_storage_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryStorage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L251" title="internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointInvalidTLVsRemovedOnUnicast</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L557" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L556" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L105" title="internal/component/bgp/reactor/rfc9012_receive_storage_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryStorage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L252" title="internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointInvalidTLVsRemovedOnUnicast</code></a></span></div>
 </div></td>
@@ -961,10 +961,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST</td>
 <td>13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-14">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L553" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L552" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L100" title="internal/component/bgp/reactor/rfc9012_receive_storage_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryStorage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L245" title="internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointInvalidTLVsRemovedOnUnicast</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L554" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L553" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L101" title="internal/component/bgp/reactor/rfc9012_receive_storage_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryStorage</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L246" title="internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointInvalidTLVsRemovedOnUnicast</code></a></span></div>
 </div></td>
@@ -1003,10 +1003,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST NOT</td>
 <td>13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-18">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L294" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L348" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L295" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L347" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L155" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedAttributeIsRejected</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L349" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L348" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-19">RFC9012-13-19</code></td><td colspan="3"><span class="rfc-subject">the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed. (§13)</span></td></tr>
@@ -1014,10 +1014,10 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>MUST NOT</td>
 <td>13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-19">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L315" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L350" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L318" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L351" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L316" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L349" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L319" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L350" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-21">RFC9012-13-21</code></td><td colspan="3"><span class="rfc-subject">If a Tunnel TLV has more than one of any of these sub-TLVs, all but the first occurrence of each such sub-TLV type MUST be disregarded. (§13)</span></td></tr>
@@ -1106,8 +1106,8 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>SHOULD</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-11-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L37" title="internal/component/bgp/reactor/rfc9012_session_filter_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelFilterSelectedSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L50" title="internal/component/bgp/reactor/rfc9012_session_filter_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelFilterDoesNotAffectOtherSession</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-1.5-1">RFC9012-1.5-1</code></td><td colspan="3"><span class="rfc-subject">the Load-Balancing Block sub-TLV MAY be included in any Tunnel Encapsulation attribute where load balancing is desired. (§1.5)</span></td></tr>
@@ -1457,18 +1457,18 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9012-3.1-2"><code>RFC9012-3.1-2</code></a></h3>
 <p>The Reserved subfield SHOULD be originated as zero. It MUST be disregarded on receipt, and it MUST be propagated unchanged. (§3.1) Context: this identity owns receipt-disregard of the Reserved subfield; unchanged propagation remains RFC9012-3.1-3.</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Section 3.1 receipt-disregard identity: zero and nonzero Tunnel Egress Endpoint Reserved bytes produce ActionNone, survive received-attribute comparison, and reach actual dispatch and downstream receipt in TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong; tunnelEndpointValid never reads the Reserved subfield. The complete quote is retained; propagation and the origination SHOULD retain their separate identities.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §3.1: &#34;The Reserved subfield SHOULD be originated as zero. It MUST be disregarded on receipt, and it MUST be propagated unchanged.&#34; The receipt-disregard identity is enforced: tunnelEndpointValid reads AFI after the four Reserved octets, and zero/nonzero endpoint Reserved controls both retain ActionNone, exact attribute bytes and downstream announcements. This does not credit the separately allocated origination SHOULD. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L361" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L360" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L360" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L359" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1477,28 +1477,28 @@ Full RFC support is not established. Fresh native discrimination and independent
 </div>
 <h3><a href="#rfc9012-3.1-3"><code>RFC9012-3.1-3</code></a></h3>
 <p>The Reserved subfield SHOULD be originated as zero. It MUST be disregarded on receipt, and it MUST be propagated unchanged. (§3.1) Context: this identity owns unchanged propagation of the Reserved subfield; receipt-disregard remains RFC9012-3.1-2.</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read the full Section 3.1 Reserved-subfield quote and its propagation identity. TestRFC9012ReservedOctetsPropagateUnchanged and TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong compare nonzero Reserved bytes through codec and actual receive/export/downstream paths; both forwarding rails retain the exact field. No origination or tunnel-consumer behavior is claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §3.1 requires Reserved to be propagated unchanged. Nonzero endpoint Reserved octets survive receipt, default cached export, MED rebuilding and downstream delivery byte-for-byte. ParseTunnelEncap and TunnelEncap.WriteTo also retain their opaque value; an actual-output comparison, not the fabricated clean-encoding comparison alone, supplies proof. Origination is not credited. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L353" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L335" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L352" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L336" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L332" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L351" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L333" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1591,32 +1591,32 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-3.1.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.2.1-1"><code>RFC9012-3.2.1-1</code></a></h3>
 <p>The remaining bits in the 8-bit Flags field are reserved for further use. They MUST always be set to 0 by the originator of the sub-TLV. (§3.2.1, §3.2.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. RFC 9012 Sections 3.2.1 and 3.2.2 state: &#34;The remaining bits in the 8-bit Flags field are reserved for further use. They MUST always be set to 0 by the originator of the sub-TLV.&#34; The supported SR Policy originator emits type15, not VXLAN type8 or NVGRE type9 Encapsulation sub-TLVs. Existing SR Policy field tests and intermediate-router propagation of received VXLAN/NVGRE bytes do not fill this originator role.</p>
 <p>No test carries RFC9012-3.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.2.1-2"><code>RFC9012-3.2.1-2</code></a></h3>
 <p>Intermediate routers MUST propagate them without modification. (§3.2.1, §3.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2 moved. Independent semantic rejudgment: RFC9012 Section 3.2.1 and 3.2.2: &#34;Intermediate routers MUST propagate them without modification.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Both merged halves have executed export masks: VXLAN type 8 and NVGRE type 9 flags&amp;0x3F are cleared independently. Each dirty carrier fails byte equality and clean controls survive; neither half is inferred from the other. No dataplane behavior or exhaustive per-bit mutation is claimed. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §§3.2.1/3.2.2: &#34;Intermediate routers MUST propagate them without modification.&#34; Both VXLAN type8 and NVGRE type9 occur with V/M held fixed and reserved R bits zero or set. Exact actual received and downstream values prevent masking those bits; codec round trips supplement the two cached export modes. No tunnel-header interpretation or origination is inferred. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L355" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L348" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L354" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L349" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L345" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L353" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L346" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReservedOctetsPropagateUnchanged</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1645,7 +1645,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-3.2.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.2.5-1"><code>RFC9012-3.2.5-1</code></a></h3>
 <p>Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present. (§3.2.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. RFC 9012 Section 3.2.5 states: &#34;Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present.&#34; This is the MPLS-in-GRE originator condition, distinct from GRE in Section 3.2.4. The supported parseConfigRoute/buildTunnelEncap boundary emits SR Policy tunnel type15 and its own sub-TLVs, not tunnel type11 or its Encapsulation sub-TLV. Generic serialization and received-attribute propagation are not that originator role; no receive or tunnel-consumption credit is claimed.</p>
 <p>No test carries RFC9012-3.2.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.3-1"><code>RFC9012-3.3-1</code></a></h3>
 <p>If an outer Encapsulation sub-TLV occurs in a TLV for a tunnel type that does not use the corresponding outer encapsulation, the sub-TLV MUST be treated as if it were an unrecognized type of sub-TLV. (§3.3)</p>
@@ -1681,28 +1681,28 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-3.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.5-3"><code>RFC9012-3.5-3</code></a></h3>
 <p>In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TLV before the route is propagated. (§3.5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2 moved. Independent semantic rejudgment: RFC9012 Section 3.5: &#34;In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TLV before the route is propagated.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. The carrier is non-labeled IPv4 unicast under GRE. Removing ignored ELH fails actual export equality; a no-ELH control survives. No label realization is inferred. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §3.5: &#34;In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TLV before the route is propagated.&#34; Embedded Label Handling1/2 under GRE on unlabeled IPv4 unicast supplies the applicable ignored condition. Single and duplicate inputs retain every byte through actual receipt and both cached export modes. Label interpretation/realization remains outside this non-stripping claim. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L357" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L372" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012EmbeddedLabelHandlingNotStripped</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L356" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L373" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012EmbeddedLabelHandlingNotStripped</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L364" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012EmbeddedLabelHandlingNotStripped</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L355" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L365" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012EmbeddedLabelHandlingNotStripped</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1751,7 +1751,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-3.6-13, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.7-2"><code>RFC9012-3.7-2</code></a></h3>
 <p>[RFC8669] only defines behavior when the BGP Prefix-SID attribute is attached to routes of type IPv4/IPv6 Labeled Unicast [RFC4760][RFC8277], and it only defines values of the BGP Prefix-SID attribute for those cases. Therefore, similar limitations exist for the Prefix-SID sub-TLV: it SHOULD only be included in a BGP UPDATE message for one of the address families for which [RFC8669] has a defined behavior, namely BGP IPv4/IPv6 Labeled Unicast [RFC4760] [RFC8277]. If included in a BGP UPDATE for any other address family, it MUST be ignored. (§3.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. RFC 9012 Section 3.7 limits Prefix-SID sub-TLV inclusion to address families defined by RFC8669, namely IPv4/IPv6 labeled unicast, and states: &#34;If included in a BGP UPDATE for any other address family, it MUST be ignored.&#34; The subject is type11 inside attribute23, not standalone attribute40. SubTLVs preserves its opaque bytes; tunnelTLVLayout processes framing, carriers and endpoints but does not implement Prefix-SID family-conditioned consumer semantics. checkRouteBestChange obtains labeled-unicast labels from the winning NLRI and SRv6 information from attribute40, not attribute23. Opaque receipt and propagation are not evidence of the missing consumer. Retain the gap under plan/spec-bgp-tunnel-encapsulation-consumption.md without an exclusion or new implementation authorization.</p>
 <p>No test carries RFC9012-3.7-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.7-3"><code>RFC9012-3.7-3</code></a></h3>
 <p>If an Originator SRGB is specified in the sub-TLV, that SRGB MUST be interpreted to be the SRGB used by the tunnel&#39;s egress endpoint. (§3.7)</p>
@@ -1775,7 +1775,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-4.2-1"><code>RFC9012-4.2-1</code></a></h3>
 <p>[EVPN-INTER-SUBNET] defines a router&#39;s MAC Extended Community. This extended community, as its name implies, carries the MAC address of the advertising router. Since the VXLAN and NVGRE Encapsulation sub-TLVs can also optionally carry a router&#39;s MAC, a conflict can arise if both the Router&#39;s MAC Extended Community and such an Encapsulation sub-TLV are present at the same time but have different values. In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used. (§4.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. RFC 9012 Section 4.2 states: &#34;In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used.&#34; The conflict is between that community and a different router MAC in a VXLAN/NVGRE Encapsulation sub-TLV. Received values can disagree even when stored opaquely. SubTLVs retains tunnel bytes, and the receive/forwarding boundary does not compare or select these MAC sources. checkRouteBestChange exports next-hop, metrics, NLRI labels and attribute40 SRv6 information, not an attribute23-derived encapsulation MAC. This is an absent consumer, not an impossible input or another role. Preserve the explicit gap under plan/spec-bgp-tunnel-encapsulation-consumption.md AC-3/AC-6; no opaque-propagation test establishes selected forwarding MAC or packet headers.</p>
 <p>No test carries RFC9012-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-4.3-1"><code>RFC9012-4.3-1</code></a></h3>
 <p>No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver (§4.3)</p>
@@ -1783,28 +1783,28 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-4.3-2"><code>RFC9012-4.3-2</code></a></h3>
 <p>No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver; the value MUST NOT be changed when propagating this extended community. (§4.3) Context: the Flags field of the Color Extended Community; this identity owns unchanged propagation, not the subsequent Color Value field.</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read Section 4.3: the unchanged value is the Color Extended Community Flags field, not the subsequent Color Value. The codec includes zero and nonzero Flags controls, and actual receive/export/downstream assertions preserve Flags 0x3fa5 on both forwarding rails. The applied carry claims now explicitly name that Flags field and its nonzero value. The row retains its full quote and propagation identity.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §4.3 requires the Color Extended Community Flags value not to change during propagation. Exact downstream equality includes Flags0x3fa5, not merely the Color Value, through default export and MED rebuilding. ParseExtendedCommunities and ExtendedCommunities.WriteTo copy all eight octets; actual zero/nonzero Flags round trips supplement the consumer. Origination is not credited. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L359" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L399" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ColorExtendedCommunityUnchangedOnPropagation</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L358" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L400" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ColorExtendedCommunityUnchangedOnPropagation</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L396" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ColorExtendedCommunityUnchangedOnPropagation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L357" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L397" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012ColorExtendedCommunityUnchangedOnPropagation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1897,7 +1897,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-11-11, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-1"><code>RFC9012-13-1</code></a></h3>
 <p>The final octet of a TLV MUST also be the final octet of its final sub-TLV (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts, internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts#2 moved. Independent rejudgment against RFC9012 Section 13: the accepted control ends exactly at the tunnel boundary; malformed short/long sub-TLV headers and values now follow a valid endpoint and retain exact TreatAsWithdraw assertions. The old eight-case unit survived selective omission of tunnelTLVLayout end &gt; size (job-enum-framing-blindspot-before-da6b72ea.log); after fixture isolation the identical omission failed both truncated-value cases with expected 2, actual 0 (job-enum-framing-boundary-after-red-da6b72ea.log). The real-producer race smoke passed all eight cases and endpoint-removal/composition/length/reset siblings (job-enum-framing-repaired-race-smoke-5388cca1.log). This proves structural boundary discrimination, not separate mutation observations for every header guard or daemon interoperability.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment against RFC9012 Section 13: the accepted control ends exactly at the tunnel boundary; malformed short/long sub-TLV headers and values now follow a valid endpoint and retain exact TreatAsWithdraw assertions. The old eight-case unit survived selective omission of tunnelTLVLayout end &gt; size (job-enum-framing-blindspot-before-da6b72ea.log); after fixture isolation the identical omission failed both truncated-value cases with expected 2, actual 0 (job-enum-framing-boundary-after-red-da6b72ea.log). The real-producer race smoke passed all eight cases and endpoint-removal/composition/length/reset siblings (job-enum-framing-repaired-race-smoke-5388cca1.log). This proves structural boundary discrimination, not separate mutation observations for every header guard or daemon interoperability.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1905,12 +1905,12 @@ Full RFC support is not established. Fresh native discrimination and independent
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L308" title="internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelFramingReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L307" title="internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelFramingReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1930,7 +1930,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L310" title="internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelFramingReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L30" title="internal/component/bgp/reactor/rfc9012_receive_storage_test.go" target="_blank" rel="noopener"><code>TestRFC9012ReceiveRemovesInstalledNativeRoutes</code></a></td>
@@ -1940,14 +1940,14 @@ Full RFC support is not established. Fresh native discrimination and independent
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L309" title="internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelFramingReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9012-13-3"><code>RFC9012-13-3</code></a></h3>
 <p>If a Tunnel Encapsulation attribute can be parsed correctly but contains a TLV whose tunnel type is not recognized by a particular BGP speaker, that BGP speaker MUST NOT consider the attribute to be malformed. (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2 moved. Independent semantic rejudgment: RFC9012 Section 13: &#34;If a Tunnel Encapsulation attribute can be parsed correctly but contains a TLV whose tunnel type is not recognized by a particular BGP speaker, that BGP speaker MUST NOT consider the attribute to be malformed.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Unknown type 0xFFFE is isolated against type 2. Selective receiver loss fails byte/action assertions while known-tunnel survives. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 forbids calling a correctly framed unknown tunnel type malformed. Isolated0xfffe and type2 controls share valid endpoint framing and require exact ActionNone, attribute retention and downstream delivery. applyTunnelEncap restricts tunnel types only on the separately governed SR-Policy SAFI73, not this ordinary-unicast carrier. Genuine outer-framing rejection controls remain. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1981,7 +1981,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-13-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-5"><code>RFC9012-13-5</code></a></h3>
 <p>If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized TLV MUST remain in the attribute. (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2 moved. Independent semantic rejudgment: RFC9012 Section 13: &#34;If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized TLV MUST remain in the attribute.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Selective export removal of the unknown tunnel fails actual attribute-23 equality in dirty input while clean survives; codec fabricated-shorter negatives are not credited. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13: &#34;If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized TLV MUST remain in the attribute.&#34; Isolated/combined unknown tunnel TLVs remain byte-identical before forwarding, on default/rebuilt cached socket output and at downstream receipt. Codec round trip is supplementary; the separate constructed known-only comparison is not credited as independent producer-negative proof. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2015,7 +2015,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-13-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-8"><code>RFC9012-13-8</code></a></h3>
 <p>However, the Tunnel TLV containing them MUST NOT be considered to be malformed (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2 moved. Independent semantic rejudgment: RFC9012 Section 13: &#34;However, the Tunnel TLV containing them MUST NOT be considered to be malformed, and all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulation attribute is propagated.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Two listed Embedded Label Handling instances are isolated against one. Rejecting only the duplicate fails action/byte assertions and the single-instance control survives. This row is the non-malformed clause, not first-instance semantic use. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 requires duplicate single-instance sub-TLVs not to make their Tunnel TLV malformed and requires all sub-TLVs to propagate. Duplicate Embedded Label Handling, a type actually named by this section, and its single control retain exact ActionNone and bytes with one valid endpoint. Preference is not substituted for this applicable ELH case. First-occurrence semantic consumption remains a separate explicit gap. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2036,7 +2036,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L268" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012DuplicateSingleInstanceSubTLVs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L269" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012DuplicateSingleInstanceSubTLVs</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2045,7 +2045,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 </div>
 <h3><a href="#rfc9012-13-9"><code>RFC9012-13-9</code></a></h3>
 <p>all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulation attribute is propagated. (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2 moved. Independent semantic rejudgment: RFC9012 Section 13: &#34;However, the Tunnel TLV containing them MUST NOT be considered to be malformed, and all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulation attribute is propagated.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Removing only the second listed ELH occurrence fails actual export equality; single-ELH and known-tunnel controls survive. All duplicate bytes, not a synthetic fixture comparison, are observed. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 requires every duplicate single-instance sub-TLV to propagate. Both ELH occurrences remain in order and byte-identical in actual downstream output under default and MED-rebuilt cached export; removing either would fail those comparisons. Exact ActionNone observes the companion classification clause. Fabricated shortened codec encodings alone are not credited, and no first-occurrence interpretation is inferred. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2075,43 +2075,38 @@ Full RFC support is not established. Fresh native discrimination and independent
 </div>
 <h3><a href="#rfc9012-13-10"><code>RFC9012-13-10</code></a></h3>
 <p>If a TLV of a Tunnel Encapsulation attribute contains a sub-TLV that is not recognized by a particular BGP speaker, the BGP speaker MUST process that TLV as if the unrecognized sub-TLV had not been present. (§13)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2 moved. Independent semantic rejudgment: RFC9012 Section 13: &#34;If a TLV of a Tunnel Encapsulation attribute contains a sub-TLV that is not recognized by a particular BGP speaker, the BGP speaker MUST process that TLV as if the unrecognized sub-TLV had not been present.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Selective rx-unknown-subtlv now executes and clean known-tunnel survives, closing the carrier admission counterfactual. Preference 4242 codec comparison is genuine but remains only a local accessor; no tunnel-processing/selection consumer proves the full as-if-absent obligation. Preserve that gap, not the obsolete malformed-fixture objection. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC9012 Section 13 requires the containing TLV to be processed as if an unrecognized sub-TLV were absent. TestRFC9012UnknownSubTLVEndpointProcessing now compares absent controls with framed short- and long-header unknowns before, after and between endpoints across 27 cases: valid, length-invalid, registry-disallowed, duplicate and missing endpoints. It observes exact retained TLVs through original-input Session receipt, cache/export, default and MED-rebuilt socket output and downstream receipt; real received-route storage observes replacement, removal with no surviving TLV, an unaffected independent route and same-session recovery. A selective tunnelTLVLayout break stopping at unknown types 100/200 leaves absent controls passing but fails exact exported bytes and installed-target removal, including duplicate-endpoint cases with an intervening unknown; restored claim roots pass. Existing carry assertions retain admission and opaque-propagation proof. TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing separately proves local Preference accessor equivalence and absence of a Preference in an all-unknown TLV, not SRPM selection. The positive-only annotation is appropriate: unknown types are legal inputs and surrounding endpoint errors are controls for processing equivalence, not invalid unknown types. This whole conditional receive/transit obligation is enforced without claiming the absent attribute-driven tunnel-selection, encapsulation-header or SRPM consumers, which retain their separate ownership and gaps.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L343" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L220" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L342" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L648" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012UnknownSubTLVEndpointProcessing</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L212" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9012-13-11"><code>RFC9012-13-11</code></a></h3>
 <p>If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized sub-TLV MUST remain in the attribute. (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2 moved. Independent semantic rejudgment: RFC9012 Section 13: &#34;If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized sub-TLV MUST remain in the attribute.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Isolated type-200 unknown sub-TLV reception and export loss both fail the exact retained bytes; known-tunnel survives. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 requires an unrecognized sub-TLV to remain when its attribute propagates. Isolated long-header type200 under GRE survives actual receipt, default cached export, MED rebuild and downstream receipt exactly. Actual codec round trips supplement short/long-header coverage; fabricated shorter encodings alone are not negative evidence. tunnelTLVLayout walks non-endpoint sub-TLVs by their declared framing without stripping unknown types. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L345" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L344" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2121,7 +2116,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L344" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L343" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2135,28 +2130,28 @@ Full RFC support is not established. Fresh native discrimination and independent
 </div>
 <h3><a href="#rfc9012-13-12"><code>RFC9012-13-12</code></a></h3>
 <p>In general, if a TLV contains a sub-TLV that is malformed, the sub-TLV MUST be treated as if it were an unrecognized sub-TLV. (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Malformed non-endpoint sub-TLVs receive the same actual BGP treatment as unrecognized sub-TLVs: ActionNone, unchanged retained attribute and route bytes, and successful raw/rebuilt downstream propagation. Applicable malformed-length and zero-port UDP cases have absent/valid/unknown controls; the codec also skips malformed Preference while reading a valid sibling. Section 13&#39;s general conditional receive rule does not require a new UDP or encapsulation-header consumer; 13-16/-17 retain that separate gap.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 generally treats a malformed sub-TLV as unrecognized, with the explicit malformed-endpoint exception retained. Applicable MPLS-in-UDP type13 inputs with UDP length3 or value0, against absent/valid controls, retain ActionNone and exact bytes through actual default/rebuilt cached output like unknown sub-TLVs. TunnelTLV.Preference skips malformed four-byte Preference and reads a following valid six-byte777, with standalone555 control. No UDP-header or tunnel-consumer feature is claimed. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L347" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L248" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L346" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L249" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L239" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L345" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L240" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MalformedSubTLVTreatedAsUnrecognized</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2176,7 +2171,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L557" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L556" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2191,7 +2186,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L556" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L555" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2216,7 +2211,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L554" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L553" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2231,7 +2226,7 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L553" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L552" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012EndpointAddressRegistryPropagation</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2283,13 +2278,13 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>No test carries RFC9012-13-17, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-18"><code>RFC9012-13-18</code></a></h3>
 <p>However, the sub-TLV MUST NOT be considered to be malformed (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2, internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved moved. Independent semantic rejudgment: RFC9012 Section 13: &#34;However, the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. Length-correct UDP under GRE isolates meaninglessness rather than malformed length; selective rejection fails action/bytes, and GRE-without-UDP plus applicable valid UDP survive. Only classification is awarded on this row. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 forbids classifying a meaningless sub-TLV as malformed or removing it. Well-formed two-byte nonzero UDP Destination Port under GRE isolates meaninglessness from bad length/value; it receives ActionNone and survives exact actual downstream propagation. GRE-without-UDP and applicable-valid UDP are controls; malformed outer framing remains rejected. This classification identity does not establish encapsulation-header behavior. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L349" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L348" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2299,12 +2294,12 @@ Full RFC support is not established. Fresh native discrimination and independent
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L348" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L347" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L294" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L295" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2313,28 +2308,28 @@ Full RFC support is not established. Fresh native discrimination and independent
 </div>
 <h3><a href="#rfc9012-13-19"><code>RFC9012-13-19</code></a></h3>
 <p>the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed. (§13)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong, internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2, internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved, internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2 moved. Independent semantic rejudgment: RFC9012 Section 13: &#34;However, the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed.&#34; The current TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong uses valid ASN4 AS_SEQUENCE and endpoint framing, actual processMessage/cache/ForwardUpdate/worker/writer/downstream processMessage, exact ActionNone, announced and withdrawn NLRI, one retained attribute 23, and exact bytes; default export and an asserted MED-policy rebuild are covered in the unit. The well-formed meaningless UDP/GRE field is independently discriminated on receipt and export; applicable valid UDP and known-tunnel controls survive. Both classification and preservation clauses are observed, not header construction. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 forbids removing a meaningless sub-TLV before distribution. UDP-in-GRE retains exact bytes through default and MED-rebuilt cached output and downstream delivery, with ActionNone and applicable/absent controls. Codec round trip supplements retention; constructed shorter encodings alone are not independent negative evidence. The separately owned13-16/13-17 consumer gaps remain unchanged. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L351" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L318" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L350" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L319" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L315" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L349" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L316" title="internal/core/bgp/attribute/rfc9012_test.go" target="_blank" rel="noopener"><code>TestRFC9012MeaninglessSubTLVIgnoredNotRemoved</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2349,6 +2344,26 @@ Full RFC support is not established. Fresh native discrimination and independent
 <p>RFC 8402 specifies that &#34;SR domain boundary routers MUST filter any external traffic&#34; ([RFC8402], Section 8.1). For these purposes, traffic introduced into an SR domain using the Prefix-SID sub-TLV lies within the SR domain, even though the Prefix-SIDs used by the routers at the two ends of the tunnel may be different, as discussed in Section 3.7. This implies that the duty to filter external traffic extends to all routers participating in such tunnels. (§15)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9012-15-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9012-11-7"><code>RFC9012-11-7</code></a></h3>
+<p>This filtering SHOULD be possible on a per-BGP-session basis. (§11) Context: outgoing Tunnel Encapsulation attribute filtering; RFC9012-11-6 owns the preceding filter-capability MUST.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9012 §11 says, “In addition, any BGP speaker that understands the attribute MUST be able to filter the attribute from outgoing BGP UPDATE messages. This filtering SHOULD be possible on a per-BGP-session basis.” This identity owns the per-session SHOULD, not the preceding capability MUST or default EBGP filtering. TestRFC9012TunnelFilterSelectedSession and TestRFC9012TunnelFilterDoesNotAffectOtherSession pass one valid received attribute-23 announcement through production Session receipt, dispatch, the recent-update cache and one ForwardUpdate fanout to two established-session unit fixtures. Each destination has independently populated ExportFilters and refreshed forwarding facts; the second test swaps which destination strips the attribute. The external-plugin transport fixture transforms the actual raw request produced by policyFilterFunc, removing only attribute 23 rather than returning a precomputed expected body. Production PolicyFilterChain, runEgressPolicyChainASN4 and the destination-specific forwarding loop apply its response. Both production session writers write through recordingConn, and the captured bodies are consumed by downstream Session.processMessage. Exact assertions require removal only for the configured destination, full original attribute-23 preservation for its sibling, unchanged NLRI and unrelated attribute encodings except mandatory IBGP LOCAL_PREF, no synthesized withdrawal, exactly one downstream dispatch, unchanged downstream payloads, and preservation of both the retained cached source and original receive buffer. Both unchanged tagged tests passed twenty race-enabled iterations. A selective omission of the raw replacement for destination 192.0.2.2 failed the selected-session test&#39;s actual output and downstream attribute-23 removal assertions while the swapped test passed; a separate selective substitution of the stripping chain for that destination failed the swapped test&#39;s sibling-preservation assertions while the selected-session test passed. These observed semantic failures demonstrate removal and session isolation separately. Both exact tags also have native revert records in rfc/discrimination/rfc9012.json bound to filter_ordered.go::runEgressPolicyChainASN4; their producer-halting failures establish binding and are not substituted for the semantic cuts. Evidence is bounded to production unit-level session-writer/downstream-receive paths using recordingConn and a simulated external-plugin transport: it is not a live external plugin, daemon, TCP-socket, FRR interoperability or tunnel-dataplane result.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L50" title="internal/component/bgp/reactor/rfc9012_session_filter_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelFilterDoesNotAffectOtherSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L37" title="internal/component/bgp/reactor/rfc9012_session_filter_test.go" target="_blank" rel="noopener"><code>TestRFC9012TunnelFilterSelectedSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -2851,7 +2866,7 @@ Full RFC support is not established. Fresh native discrimination and independent
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
                 </div>
             </div>
         </footer>

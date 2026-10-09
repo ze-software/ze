@@ -230,34 +230,45 @@ comparison.
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Download the asciicast recording](../../assets/demos/config-views.cast?v=3698ec29e0) · [Plain-text transcript](../../assets/demos/config-views.txt?v=f4f89fbe3c)
+[Download the asciicast recording](../../assets/demos/config-views.cast?v=74dca8e268) · [Plain-text transcript](../../assets/demos/config-views.txt?v=9f1109a1a7)
 
-Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 21 seconds.
+Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 28 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a
+attach process bgp-rib {
+    receive [ update state refresh ]
+    send update
+}
 connection {
     local ip 192.0.2.1
     remote ip 192.0.2.2
 }
 session {
-    asn { local 65000; remote 65001; }
-    family ipv4/unicast { prefix maximum 1000000; }
+    asn {
+        local 65000
+        remote 65001
+    }
+    family ipv4/unicast {
+        prefix maximum 1000000
+    }
 }
 $ ze config migrate format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
+set bgp peer transit-a attach process bgp-rib receive [ update state refresh ]
+set bgp peer transit-a attach process bgp-rib send update
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000
 set bgp peer transit-a session asn remote 65001
-...
-$ cmp -s router.set roundtrip.set && echo 'canonical output: identical'
+set bgp peer transit-a session family ipv4/unicast prefix maximum 1000000
+$ cmp -s $STATE/router.set $STATE/roundtrip.set && echo 'canonical output: identical'
 canonical output: identical
-$ ze show plugins | ze pipe match flowspec
-bgp-nlri-flowspec
-flowspec-firewall
-...
-$ ze show plugins | ze pipe match flowspec | ze pipe count
-{"count":3,"pipe":{"count":true}}
+$ ze show plugin list | ze pipe match flowspec
+bgp-nlri-flowspec             FlowSpec NLRI encoding/decoding ...
+ddos-flowspec                 DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear ...
+flowspec-firewall             Translates BGP FlowSpec routes into nftables firewall rules ...
+$ ze show plugin list | ze pipe match flowspec | ze pipe count
+{"count":3,"pipe":[{"op":"count"}]}
 
 Hierarchical and set syntax are alternate presentations of the same parsed configuration. Converting to set syntax and back produces identical canonical set commands. The standalone formatter composes the same match and count operators for shell pipelines.
 ```

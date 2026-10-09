@@ -371,9 +371,9 @@ State changes are logged as `vrrp: state change` with `from`, `to`, and a
 
 Inspect the active and live VRRP state, stop the higher-priority Ze router, and prove keepalived takes the same reachable VIP.
 
-[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=078435fe9b) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0405f1f484)
+[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=bbefea73ad) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0405f1f484)
 
-Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 1 minute 48 seconds.
+Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 1 minute 49 seconds.
 
 ```console
 An operator needs to stop the active router without changing the default gateway on every host.

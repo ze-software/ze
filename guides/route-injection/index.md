@@ -56,9 +56,9 @@ hop, native or extended.
 
 Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze's route protocol ID. Validation also proves withdrawal removes it.
 
-[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=51ebb3f282) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
+[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=01fa66b2f1) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
 
-Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 50 seconds.
+Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 52 seconds.
 
 ```console
 $ ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'

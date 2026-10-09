@@ -11,8 +11,8 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **13 / 171** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Tests with no reachable failure call | Q1 | **127 / 34928 (floor 126)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
-| Test files that expect a specific error | Q2 | **1954 / 5527** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Tests with no reachable failure call | Q1 | **135 / 35041 (floor 126)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
+| Test files that expect a specific error | Q2 | **1977 / 5568** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 5 further metric(s) are within threshold and are listed in full below.
@@ -23,7 +23,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**127 / 34928 (floor 126)** (attention)
+**135 / 35041 (floor 126)** (attention)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -64,7 +64,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### Test files that expect a specific error
 
-**1954 / 5527** (attention)
+**1977 / 5568** (attention)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -85,9 +85,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### RFC MUST requirements proven by test, over the RFCs ze implements
 
-**2594 / 4010** (ok)
+**2593 / 4011** (ok)
 
-64.7% of the 4010 gated MUSTs the 152 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4139 gated MUSTs across 171 enrolled RFCs -- and of the 1863 of those not proven in both polarities: 743 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 683 known gap (unimplemented, genuinely untested), 3 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 356 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 41 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 37 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 7 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
+64.6% of the 4011 gated MUSTs the 152 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4140 gated MUSTs across 171 enrolled RFCs -- and of the 1866 of those not proven in both polarities: 744 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 682 known gap (unimplemented, genuinely untested), 5 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 357 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 41 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 37 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 7 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
 
 *Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.
 
@@ -106,9 +106,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**34962 test functions** (ok)
+**35075 test functions** (ok)
 
-5527 Go test files, 88 fuzz targets, 137 benchmarks, 2151 .ci scenarios, 172 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+5568 Go test files, 88 fuzz targets, 137 benchmarks, 2155 .ci scenarios, 172 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
