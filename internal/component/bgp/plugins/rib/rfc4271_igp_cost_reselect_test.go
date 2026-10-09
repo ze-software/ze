@@ -104,3 +104,75 @@ func TestIGPCostChangeReselectsWithoutAIGP(t *testing.T) {
 	require.Eventually(t, func() bool { return selected() == nextHopA }, 5*time.Second, 10*time.Millisecond,
 		"AC-13: interior cost to %s fell to 5, the best path must return to it", nextHopA)
 }
+
+// VALIDATES: RFC 4271 Section 9.1.2.2(e), the unknown-cost case. The RFC skips
+// the step only when "the NEXT_HOP hop for a route is reachable, but no cost can
+// be determined". The test pins the two facts Ze's ranking rests on: every
+// Loc-RIB path that resolves a next hop carries a metric, so a reachable next
+// hop always has a cost (zero included), and an unresolved distance therefore
+// means the next hop is not reachable through the Loc-RIB, which RFC 4271
+// Section 9.1.2 excludes from Phase 2. Such a path loses step (e) to a
+// reachable one even when every later tie-breaker favors it.
+// PREVENTS: an unresolvable next hop ranked as cost zero, and the skip rule
+// applied to an unresolvable next hop, either of which lets the unreachable
+// path win on BGP Identifier or peer address.
+func TestIGPCostUnresolvedNextHopLosesToReachable(t *testing.T) {
+	loc := locrib.NewRIB()
+	r := newRIBManager(nil)
+	r.SetLocRIB(loc)
+	t.Cleanup(func() { r.SetLocRIB(nil) })
+	igpcost.Set(func(addr netip.Addr) igpcost.Distance { return igpcost.Resolve(loc, addr) })
+	t.Cleanup(func() { igpcost.Set(nil) })
+
+	reachable := netip.MustParseAddr("198.51.100.1")
+	unreachable := netip.MustParseAddr("198.51.100.200")
+	discarded := netip.MustParseAddr("198.51.100.129")
+	loc.Insert(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/25"), igpRoute(0))
+	blackhole := igpRoute(0)
+	blackhole.RouteType = routetype.Blackhole
+	loc.Insert(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.128/26"), blackhole)
+
+	// A reachable next hop has a cost even when the metric is zero.
+	got := igpcost.Resolve(loc, reachable)
+	require.True(t, got.Resolved, "a next hop covered by a Loc-RIB path is reachable with a cost")
+	require.Zero(t, got.Cost)
+	require.False(t, igpcost.Resolve(loc, unreachable).Resolved, "no covering route: not reachable")
+	require.False(t, igpcost.Resolve(loc, discarded).Resolved, "a discard route does not reach the next hop")
+
+	wirePrefix := ipv4Prefix(24, 10, 30, 0)
+	// The unresolvable next hops ride on the lower peer addresses, which the
+	// final tie-breaker prefers, so only step (e) can make the reachable path win.
+	for _, entry := range []struct {
+		peer    string
+		nextHop netip.Addr
+	}{
+		{"192.0.2.1", unreachable},
+		{"192.0.2.2", discarded},
+		{"192.0.2.3", reachable},
+	} {
+		peer := netip.MustParseAddr(entry.peer)
+		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+		routes := storage.NewPeerRIB(entry.peer)
+		r.bgpPeers[peer] = routes
+		t.Cleanup(routes.Release)
+		routes.Insert(family.IPv4Unicast, aigpSelectionAttrs(entry.nextHop.As4(), nil, 100, 1), wirePrefix)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	stopped := make(chan struct{})
+	go func() { defer close(stopped); r.runAIGPSelection(ctx) }()
+	t.Cleanup(func() { cancel(); <-stopped })
+
+	selected := func() netip.Addr {
+		path, _, found := loc.LPM(family.IPv4Unicast, netip.MustParseAddr("10.30.0.1"))
+		if !found {
+			return netip.Addr{}
+		}
+		if !path.IsBGP {
+			return netip.Addr{}
+		}
+		return path.NextHop
+	}
+	require.Eventually(t, func() bool { return selected() == reachable }, 5*time.Second, 10*time.Millisecond,
+		"the path via reachable %s must beat paths via unresolvable %s and %s", reachable, unreachable, discarded)
+}

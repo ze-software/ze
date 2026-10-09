@@ -3,6 +3,7 @@
 // Related: rib_attr_format.go — attribute formatting (asPathLength, firstASInPath shared concern)
 // Related: rib_commands.go — extractCandidate, gatherCandidatesLocked
 // Related: rib_pipeline_best.go — best-path pipeline for show bgp rib best commands
+// RFC: rfc/short/rfc4271.md -- Section 9.1.2.2 decision process
 // Related: rib_bestchange.go — best-path change tracking and Bus publishing
 //
 // Best-path selection per RFC 4271 §9.1.2 Decision Process Phase 2.
@@ -389,7 +390,16 @@ func compareAfterMED(a, b *Candidate) (int, BestStep) {
 	// RFC 4271 Section 9.1.2.2(e): "Remove from consideration any routes with
 	// less-preferred interior cost.  The interior cost of a route is determined
 	// by calculating the metric to the NEXT_HOP for the route using the Routing
-	// Table."
+	// Table.  If the NEXT_HOP hop for a route is reachable, but no cost can be
+	// determined, then this step should be skipped (equivalently, consider all
+	// routes to have equal costs)."
+	// The skip never applies here: every Loc-RIB path carries a metric, so
+	// igpcost.Resolve answers a cost for every reachable next hop, zero included.
+	// An unresolved distance means the Loc-RIB does not reach the next hop
+	// (no covering route, a discard route, a loop), and RFC 4271 Section 9.1.2
+	// excludes such a route from Phase 2. extractCandidate gives it the maximum
+	// cost so it loses this step; skipping the step instead would let it win on
+	// BGP Identifier. Full exclusion is the recorded gap RFC4271-9.1.2-1.
 	if a.IGPCost != b.IGPCost {
 		if a.IGPCost < b.IGPCost {
 			return -1, BestStepIGPCost
@@ -524,7 +534,9 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 		}
 	}
 
-	// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP metric to the BGP next-hop"
+	// RFC 4271 Section 9.1.2.2(e): "Remove from consideration any routes with
+	// less-preferred interior cost." Same step as compareAfterMED, which says why
+	// an unresolved next hop ranks last rather than skipping the step.
 	if a.IGPCost != b.IGPCost {
 		reason := fmt.Sprintf("igp-cost %d vs %d", a.IGPCost, b.IGPCost)
 		if a.IGPCost < b.IGPCost {
