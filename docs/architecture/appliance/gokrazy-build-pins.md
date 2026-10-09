@@ -119,8 +119,14 @@ the netlink XFRM readback fixes and the text-input cursor correction. Resolving
 the same upstream version from a module cache loses those patches.
 
 `bindVendoredModules` reads `vendor/modules.txt` through Ze's absolute
-self-replacement. It creates a private module directory for each declaration,
-with a minimal `go.mod` that preserves the declared Go language version.
+self-replacement. It creates a private module directory for each declared
+module that provides a vendored package, the build list Go itself derives from
+`modules.txt`, with a minimal `go.mod` that preserves the declared Go language
+version. A module the root `go.mod` replaces (`# path version => path version`
+or `=> ./dir`) keeps its original path and version, because its sources sit
+under `vendor/<original path>`. Records that only document a replacement, such
+as the trailing `# path => ...` line for a wildcard replace, provide no package
+and bind nothing. A header in any other shape stops preparation.
 Regular source and asset files are hardlinked to the canonical vendor files.
 Directories are private; nested modules are excluded from their parent module
 to preserve import ownership. Hardlinks also keep embedded assets regular:

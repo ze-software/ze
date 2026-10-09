@@ -82,38 +82,109 @@ func bindVendoredModules(goModPath string, data []byte) ([]byte, error) {
 	return f.Format()
 }
 
-// parseVendorModules reads Go's module headers and language-version annotations.
-// An unknown header fails preparation rather than dropping a source binding.
+// vendorRecord is one `# ` header of modules.txt and the lines under it.
+// A record that provides no package only documents a replacement: Go writes
+// those for unused and wildcard replace directives, and vendors no source.
+type vendorRecord struct {
+	module   vendorModule
+	wildcard bool // `# path => ...`: a replace directive with no version
+	packages bool
+}
+
+// parseVendorModules reads Go's module headers and language-version annotations,
+// and returns the modules that provide a vendored package, the same build list
+// cmd/go/internal/modload derives from modules.txt. A replaced module keeps its
+// original path and version: its sources live under vendor/<original path>, and
+// the build module requires and replaces that path. An unknown header fails
+// preparation rather than dropping a source binding.
 func parseVendorModules(data string) ([]vendorModule, error) {
-	var modules []vendorModule
+	var records []vendorRecord
 	for line := range strings.SplitSeq(data, "\n") {
-		if strings.HasPrefix(line, "# ") {
-			fields := strings.Fields(line)
-			if len(fields) != 3 {
-				return nil, fmt.Errorf("bind vendor: unsupported module declaration %q", line)
+		if header, ok := strings.CutPrefix(line, "# "); ok {
+			record, err := parseVendorHeader(header)
+			if err != nil {
+				return nil, fmt.Errorf("bind vendor: unsupported module declaration %q: %w", line, err)
 			}
-			if err := module.Check(fields[1], fields[2]); err != nil {
-				return nil, fmt.Errorf("bind vendor: %w", err)
-			}
-			modules = append(modules, vendorModule{path: fields[1], version: fields[2]})
+			records = append(records, record)
 			continue
 		}
-		if !strings.HasPrefix(line, "## ") {
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		if len(modules) == 0 {
-			return nil, fmt.Errorf("bind vendor: annotation without a module: %q", line)
+		if len(records) == 0 {
+			return nil, fmt.Errorf("bind vendor: line without a module: %q", line)
 		}
-		for annotation := range strings.SplitSeq(strings.TrimPrefix(line, "## "), ";") {
-			if version, ok := strings.CutPrefix(strings.TrimSpace(annotation), "go "); ok {
-				modules[len(modules)-1].goVersion = version
+		current := &records[len(records)-1]
+		if annotations, ok := strings.CutPrefix(line, "## "); ok {
+			for annotation := range strings.SplitSeq(annotations, ";") {
+				if version, ok := strings.CutPrefix(strings.TrimSpace(annotation), "go "); ok {
+					current.module.goVersion = version
+				}
 			}
+			continue
+		}
+		if current.wildcard {
+			return nil, fmt.Errorf("bind vendor: package %q under a replacement without a version", line)
+		}
+		current.packages = true
+	}
+	var modules []vendorModule
+	for _, r := range records {
+		if r.packages {
+			modules = append(modules, r.module)
 		}
 	}
 	if len(modules) == 0 {
-		return nil, fmt.Errorf("bind vendor: modules.txt contains no module declarations")
+		return nil, fmt.Errorf("bind vendor: modules.txt contains no module that provides a package")
 	}
 	return modules, nil
+}
+
+// parseVendorHeader reads the fields after `# ` in the forms
+// cmd/go/internal/modcmd moduleLine writes: `path version`, then optionally
+// `=> directory` or `=> path version`; a wildcard replace omits the first version.
+func parseVendorHeader(header string) (vendorRecord, error) {
+	fields := strings.Fields(header)
+	if len(fields) < 2 {
+		return vendorRecord{}, fmt.Errorf("want a path and a version or a replacement")
+	}
+	var record vendorRecord
+	record.module.path = fields[0]
+	replacement := fields[1:]
+	if fields[1] == "=>" {
+		record.wildcard = true
+		if err := module.CheckPath(fields[0]); err != nil {
+			return vendorRecord{}, err
+		}
+	} else {
+		record.module.version = fields[1]
+		if err := module.Check(fields[0], fields[1]); err != nil {
+			return vendorRecord{}, err
+		}
+		replacement = fields[2:]
+	}
+	if len(replacement) == 0 {
+		if record.wildcard {
+			return vendorRecord{}, fmt.Errorf("replacement has no target")
+		}
+		return record, nil
+	}
+	if replacement[0] != "=>" {
+		return vendorRecord{}, fmt.Errorf("want => before the replacement")
+	}
+	switch len(replacement) {
+	case 2:
+		if !modfile.IsDirectoryPath(replacement[1]) {
+			return vendorRecord{}, fmt.Errorf("replacement %q has no version and is not a directory", replacement[1])
+		}
+		return record, nil
+	case 3:
+		if err := module.Check(replacement[1], replacement[2]); err != nil {
+			return vendorRecord{}, err
+		}
+		return record, nil
+	}
+	return vendorRecord{}, fmt.Errorf("replacement wants a directory or a path and a version")
 }
 
 // linkVendorModule creates private directories with hardlinks to canonical
