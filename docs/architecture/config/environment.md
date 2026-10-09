@@ -227,8 +227,12 @@ YANG-aligned key is registered as an alias (or vice versa). `Get()` and
 canonical key value > alias key value. See `ai/rules/config.md`.
 
 **OS spellings:** Lookup ignores case and treats dots and underscores as the
-same separator. When several spellings occur in the inherited environment, the
-last entry wins. This is separate from registered alias precedence.
+same separator. A hyphen is not a separator and stays as written: the key
+`ze.test.doctor.procfs-root` answers to `ze_test_doctor_procfs-root` and to
+`ZE.TEST.DOCTOR.PROCFS-ROOT`, but `ZE_TEST_DOCTOR_PROCFS_ROOT` is a different
+name that `Get` never reads, so the value is ignored without a message
+(`plan/journal/silent-fall-through.md`, 2026-09-24). When several spellings
+occur in the inherited environment, the last entry wins. This is separate from registered alias precedence.
 `Set()` removes other spellings of the canonical key and publishes one canonical
 OS entry, so a cache reset or a child process sees the value just written.
 `ResetCache()` rereads the environment; it does not remove inherited values.

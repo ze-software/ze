@@ -1,0 +1,44 @@
+# Test: ze config validate refuses MPLS on a host with no AF_MPLS table
+# Spec: plan/immediate/spec-kernel-capability-gate.md AC-4
+# VALIDATES: the MPLS enrolment (internal/plugins/fib/kernel/kernelcap_linux.go)
+# reaches `ze config validate` with the verdict `ze doctor` renders in
+# test/plugin/mpls-doctor.ci and the daemon start refuses on in
+# kernel-capability-refuses-start-mpls.ci. The config is the appliance seed
+# shape: the kernel FIB plus LDP, with no labeled BGP family.
+# PREVENTS: a config that validates here and is then refused at start, for the
+# subsystem kernel-capability-validate-fails.ci (IPsec) does not drive. The
+# start is its own file because a daemon start does not fit beside two
+# validate runs in one test's time budget.
+#
+# The probe root is redirected through ze.test.doctor.procfs-root to a path that
+# does not exist, so /proc/sys/net/mpls/platform_labels is absent whatever the
+# host kernel holds. The key must keep its hyphen (ze.test.doctor.procfs-root or
+# ze_test_doctor_procfs-root): env.Get reads ZE_TEST_DOCTOR_PROCFS_ROOT as a
+# different key, so the probe would read the host /proc and pass on a host
+# that holds MPLS (plan/journal/silent-fall-through.md, 2026-09-24, `normalize`).
+#
+# Linux-only: the MPLS capability enrols behind //go:build linux, so nothing is
+# enrolled elsewhere and nothing here can be reached.
+option=needs-linux
+
+option=env:var=ze.test.doctor.procfs-root:value=proc-missing
+
+tmpfs=mpls-ldp.conf:terminator=EOF_CONF
+fib {
+	kernel { }
+}
+ldp {
+	lsr-id 192.0.2.1
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate mpls-ldp.conf
+expect=exit:code=1
+expect=stdout:contains=mpls: the kernel holds no CONFIG_MPLS_ROUTING
+
+# The code is the structured contract, asserted on the json rendering
+# (kernel-capability-validate-fails.ci).
+cmd=foreground:seq=2:exec=ze cli -c "validate config mpls-ldp.conf | json"
+expect=exit:code=1
+expect=stdout:contains=config-kernel-capability
+expect=stdout:contains=CONFIG_MPLS_ROUTING

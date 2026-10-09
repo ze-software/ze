@@ -1,0 +1,33 @@
+# Test: the daemon refuses to start MPLS on a host with no AF_MPLS table
+# Spec: plan/immediate/spec-kernel-capability-gate.md AC-2
+# VALIDATES: the daemon start refuses the config
+# kernel-capability-validate-refuses-mpls.ci refuses, with the same message, so
+# `ze config validate` and the start agree for MPLS as they do for IPsec
+# (kernel-capability-refuses-start.ci). The config is the appliance seed shape:
+# the kernel FIB plus LDP, with no labeled BGP family.
+# PREVENTS: a daemon that starts LDP over a kernel with no AF_MPLS table and
+# programs no label.
+#
+# The probe root is redirected through ze.test.doctor.procfs-root to a path that
+# does not exist; kernel-capability-validate-refuses-mpls.ci says why the key
+# keeps its hyphen.
+#
+# Linux-only: the MPLS capability enrols behind //go:build linux.
+option=needs-linux
+
+option=env:var=ze.test.doctor.procfs-root:value=proc-missing
+
+stdin=ze-bgp:terminator=EOF_CONF
+fib {
+	kernel { }
+}
+ldp {
+	lsr-id 192.0.2.1
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=1
+expect=stderr:contains=error: kernel capability:
+expect=stderr:contains=mpls: the kernel holds no CONFIG_MPLS_ROUTING
+expect=stderr:contains=ldp, rsvp-te
