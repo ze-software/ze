@@ -2709,6 +2709,23 @@ send bgp <sel> update b64 <b64-data>
 send bgp <sel> raw <hex|b64> <data> [type <type>]
 ```
 
+On-demand origination, tracked by tag so a later withdraw can name it:
+
+```
+send bgp <sel> unicast <prefix> [next-hop <address>] [community <value> ...] [tag <key> <value>] [for <duration>]
+send bgp <sel> blackhole <prefix> [tag <key> <value>] [for <duration>]
+send bgp <sel> flowspec <match components> (community <value>|rate-limit <bytes-per-second>|discard) [tag <key> <value>] [for <duration>]
+send bgp <sel> withdraw tag <key> [value <value>]
+send bgp <sel> withdraw id <id>
+send bgp <sel> withdraw all
+```
+
+A flowspec rule takes exactly one action, and `ze send bgp flowspec help` lists
+the seventeen match components. A word that no option claims is refused and
+names that word, so `discard rate-limit 500` announces nothing.
+<!-- source: internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang -- announce-forms, withdraw-forms -->
+<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- parseTrailingOpts -->
+
 Text format attributes:
 
 | Attribute | Syntax |

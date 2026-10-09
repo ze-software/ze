@@ -548,6 +548,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | signal, SIGHUP, SIGUSR | `behavior/signals.md` |
 | reload fence, reload generation, show reload-status, wait for reload, reject/no-op observability | `docs/architecture/api/commands.md` ("show reload-status"), `internal/component/plugin/server/reload_generation.go`, `cmd/ze/hub/main_reload.go` |
 | API, command, announce, withdraw | `docs/architecture/api/architecture.md`, `docs/architecture/api/capability-contract.md`, `docs/architecture/api/commands.md` |
+| command grammar, usage line, `ze:modifier`, `one-of`, trailing argument group, send bgp flowspec action | `docs/architecture/config/yang-config-design.md` (extension table), `docs/architecture/bgp/on-demand-origination.md`, `internal/component/command/usage.go` |
 | text format, IPC, formatter, parser | `docs/architecture/api/text-format.md`, `docs/architecture/api/text-parser.md`, `docs/architecture/api/text-coverage.md` |
 | IPC, wire format, muxconn | `docs/architecture/api/ipc_protocol.md`, `docs/architecture/api/wire-format.md`, `docs/architecture/api/process-protocol.md` |
 | JSON, event format | `docs/architecture/api/json-format.md` |

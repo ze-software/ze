@@ -151,14 +151,17 @@ spellings of one thing rather than two branches of a choice, so the model states
 a mandatory choice where one branch carries a value is what made this command
 look inexpressible, and it is why it kept an authored sentence until 2026-08-30.
 
-The generated line brackets all three, so it says an action is optional and the
-handler says it is not: `splitFlowspecArgs` answers `errFlowspecRequiresAction`
-for a tail that names none, and `handleAnnounceFlowspec` answers
-`errMissingFlowspecComponents` for a tail with no component. A group states
-`once` or `repeat`, and `required` is the wrong word for one member of a set
-where any single member satisfies the rule. The operator reads the obligation
-from the error rather than from the line, and closing that gap needs a modifier
-that states "one of these", which no command declares today.
+The model states the obligation the handler enforces. The three spellings sit in
+an `action` container carrying `ze:modifier "one-of"`, so the usage line renders
+them as a required alternation, `(community <value>|rate-limit
+<bytes-per-second>|discard)`, rather than as three bracketed options that read
+as though the command runs with none. The container's name is never typed: the
+completer offers its three members in its place and help lists them without it.
+`splitFlowspecArgs` still answers `errFlowspecRequiresAction` for a tail that
+names no action, and `handleAnnounceFlowspec` answers
+`errMissingFlowspecComponents` for a tail with no component, so the line and the
+error now say the same thing. Until 2026-09-01 the line bracketed all three and
+the operator read the obligation only from the error.
 
 **A word no keyword claims stops the command.** `parseTrailingOpts` reads the
 `tag <key> <value>` and `for <duration>` options every form ends with, and each
@@ -171,7 +174,10 @@ discard on the wire and said nothing about the rate limit the operator asked for
 
 <!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- splitFlowspecArgs -->
 <!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- parseTrailingOpts -->
-<!-- source: internal/component/command/usage.go -- modifierChildren -->
+<!-- source: internal/component/command/usage.go -- modifierChildren, usageOneOfToken -->
+<!-- source: internal/component/command/completer.go -- matchChildren -->
+<!-- test: test/ui/test-announce-forms-are-separate-commands.ci -->
+<!-- test: test/plugin/api-announce-flowspec-extra-token.ci -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/yang/ze-flowspec-cmd.yang -- augment -->
 <!-- source: internal/component/config/yang/command.go -- declaredContainerOrder -->
 <!-- source: internal/component/config/yang/command.go -- mergeYANGEntry -->

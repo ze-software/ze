@@ -1516,6 +1516,20 @@ nothing, so a missing mandatory argument is reported instead
 missing: direction`, and not a complaint about the `update` keyword the handler
 reads).
 
+A `ze:modifier "one-of"` container declares no leaf of its own: it wraps sibling
+modifier groups, and the operator types exactly one of them. The usage line
+renders it as a required alternation, `(community <value>|rate-limit
+<bytes-per-second>|discard)` on `send bgp <selector> flowspec`, so the obligation
+reads from the line. The wrapper's name is never typed: the completer offers the
+members' keywords and never the wrapper (`oneOfSuggestions`), and help lists the
+members rather than the container. The handler still refuses a word the options
+region does not claim (`announce flowspec ... discard rate-limit 500` answers
+`unexpected token rate-limit`), because the grammar states the obligation and the
+handler enforces it.
+<!-- source: internal/component/command/usage.go -- ModifierOneOf, usageOneOfToken, writeOneOfMembers -->
+<!-- source: internal/component/command/completer.go -- oneOfSuggestions -->
+<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- parseTrailingOpts, errTrailingOptUnclaimed -->
+
 A leaf's own `ze:help` and `description` travel with the argument. `argDefFor`
 (`config/yang/command.go`) reads the leaf's `type` and its `mandatory`
 statement, then fills `ShortHelp` from `GetHelpExtension` over the leaf's

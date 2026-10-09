@@ -78,7 +78,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:inherit` | Says whether a command takes the leaves its ancestor containers declare | `none` |
 | `ze:key-type` | Key type for inline-list nodes | type name |
 | `ze:listener` | Marks a list entry as a network listener endpoint, for port-conflict detection at parse time | (none) |
-| `ze:modifier` | Marks a `config false` container as a trailing argument group of its parent command | `once`, `repeat`, `required`, `choice` |
+| `ze:modifier` | Marks a `config false` container as a trailing argument group of its parent command. `one-of` declares no leaf: it wraps sibling groups, the operator types exactly one of them, and the usage line renders them as a required alternation `(a <value>\|b <value>)`. The wrapper's own name is never typed, completed or listed | `once`, `repeat`, `required`, `choice`, `one-of` |
 | `ze:ordered` | Leaf-list is an ordered sequence whose duplicates are meaningful (AS_PATH prepends, MPLS label stacks) | (none) |
 | `ze:os` | Restricts a node to one operating system. The schema drops the node elsewhere | GOOS value |
 | `ze:related` | workbench: declares an operator tool descriptor on a config node | descriptor string |
