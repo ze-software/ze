@@ -146,6 +146,19 @@ func (cp *cssProcessor) Add(item any) {
 		for _, className := range keys {
 			cp.AddClassName(className, c[className])
 		}
+	case map[CSSClass]bool:
+		// In Go, map keys are iterated in a randomized order.
+		// So the keys in the map must be sorted to produce consistent output.
+		keys := make([]CSSClass, 0, len(c))
+		for key := range c {
+			keys = append(keys, key)
+		}
+		sort.Slice(keys, func(i, j int) bool {
+			return keys[i].ClassName() < keys[j].ClassName()
+		})
+		for _, key := range keys {
+			cp.AddClassName(key.ClassName(), c[key])
+		}
 	case []KeyValue[string, bool]:
 		for _, kv := range c {
 			cp.AddClassName(kv.Key, kv.Value)
@@ -213,12 +226,14 @@ func KV[TKey comparable, TValue any](key TKey, value TValue) KeyValue[TKey, TVal
 const unknownTypeClassName = "--templ-css-class-unknown-type"
 
 // Class returns a CSS class name.
+//
 // Deprecated: use a string instead.
 func Class(name string) CSSClass {
 	return SafeClass(name)
 }
 
 // SafeClass bypasses CSS class name validation.
+//
 // Deprecated: use a string instead.
 func SafeClass(name string) CSSClass {
 	return ConstantCSSClass(name)
@@ -230,6 +245,7 @@ type CSSClass interface {
 }
 
 // ConstantCSSClass is a string constant of a CSS class name.
+//
 // Deprecated: use a string instead.
 type ConstantCSSClass string
 
@@ -386,6 +402,13 @@ func renderCSSItemsToBuilder(sb *strings.Builder, v *contextValue, classes ...an
 			// Skip. This is a class name, not a CSS class.
 		case map[string]bool:
 			// Skip. These are class names, not CSS classes.
+		case map[CSSClass]bool:
+			for key, enabled := range ccc {
+				if !enabled {
+					continue
+				}
+				renderCSSItemsToBuilder(sb, v, key)
+			}
 		case KeyValue[string, bool]:
 			// Skip. These are class names, not CSS classes.
 		case []KeyValue[string, bool]:
@@ -534,7 +557,7 @@ func ptrValue(v any) any {
 		return nil
 	}
 	rv := reflect.ValueOf(v)
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return v
 	}
 	if rv.IsNil() {
@@ -658,6 +681,10 @@ type stringable interface {
 	ints | uints | floats | complexNumbers | ~string | ~bool
 }
 
+type attributeValue interface {
+	ints | uints | floats | complexNumbers | ~string | ~bool | ComponentScript
+}
+
 // JoinStringErrs joins an optional list of errors.
 func JoinStringErrs[T stringable](s T, errs ...error) (string, error) {
 	return fmt.Sprint(s), errors.Join(errs...)
@@ -667,11 +694,11 @@ func JoinStringErrs[T stringable](s T, errs ...error) (string, error) {
 // HTML-escaped string suitable for use in an attribute value. It handles
 // ComponentScript values by returning their Call field (already escaped),
 // and falls back to HTML-escaping fmt.Sprint for other types.
-func ResolveAttributeValue(v any, errs ...error) (string, error) {
+func ResolveAttributeValue[T attributeValue](v T, errs ...error) (string, error) {
 	if err := errors.Join(errs...); err != nil {
 		return "", err
 	}
-	switch v := v.(type) {
+	switch v := any(v).(type) {
 	case ComponentScript:
 		return v.Call, nil
 	case string:

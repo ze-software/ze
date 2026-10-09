@@ -21,6 +21,15 @@ func (e *Encoder) Encode(dst []byte, src []byte, matches []matchfinder.Match, la
 		e.wroteHeader = true
 	}
 
+	if len(src) == 0 {
+		if lastBlock {
+			e.bw.writeBits(2, 3) // islast + isempty
+			e.bw.jumpToByteBoundary()
+			return e.bw.dst
+		}
+		return dst
+	}
+
 	var literalHisto [256]uint32
 	var commandHisto [704]uint32
 	var distanceHisto [64]uint32
@@ -51,7 +60,7 @@ func (e *Encoder) Encode(dst []byte, src []byte, matches []matchfinder.Match, la
 			// If the stream ends with unmatched bytes, we need a dummy copy length.
 			copyCode = 2
 		}
-		command := combineLengthCodes(insertCode, copyCode, false)
+		command := combineLengthCodes(insertCode, copyCode, i > 0 && m.Distance == matches[i-1].Distance)
 		commandHisto[command]++
 		commandCount++
 
@@ -118,7 +127,7 @@ func (e *Encoder) Encode(dst []byte, src []byte, matches []matchfinder.Match, la
 			// If the stream ends with unmatched bytes, we need a dummy copy length.
 			copyCode = 2
 		}
-		command := combineLengthCodes(insertCode, copyCode, false)
+		command := combineLengthCodes(insertCode, copyCode, i > 0 && m.Distance == matches[i-1].Distance)
 		e.bw.writeBits(uint(commandDepths[command]), uint64(commandBits[command]))
 		if kInsExtra[insertCode] > 0 {
 			e.bw.writeBits(uint(kInsExtra[insertCode]), uint64(m.Unmatched)-uint64(kInsBase[insertCode]))
