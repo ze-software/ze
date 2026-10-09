@@ -386,7 +386,10 @@ func compareAfterMED(a, b *Candidate) (int, BestStep) {
 		}
 	}
 
-	// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP metric to the BGP next-hop"
+	// RFC 4271 Section 9.1.2.2(e): "Remove from consideration any routes with
+	// less-preferred interior cost.  The interior cost of a route is determined
+	// by calculating the metric to the NEXT_HOP for the route using the Routing
+	// Table."
 	if a.IGPCost != b.IGPCost {
 		if a.IGPCost < b.IGPCost {
 			return -1, BestStepIGPCost

@@ -39,4 +39,9 @@ func init() {
 		observer02("static-kernel-test", staticKernelWeightedMultipath))
 	Register("static/static-kernel-interface-nexthop",
 		observer02("static-kernel-test", staticKernelInterfaceNextHop))
+
+	// The interior-cost driver uses static routes as the interior routes to two
+	// BGP next hops, so a reload of one static metric is an IGP cost change.
+	Register("static/static-kernel-igp-cost-reselect",
+		observer02("static-kernel-test", staticKernelIGPCostReselect))
 }

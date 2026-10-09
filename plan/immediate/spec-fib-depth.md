@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 8/12 |
 | Updated | 2026-10-09 |
 
 Set aside 2026-10-09 (owner: "fib depth can be picked when we are back to two specs in dev"): pick it up when only two specs are in development. Depends no longer names `spec-vrf-0-umbrella.md`, because the 2026-10-08 owner decision moved AC-4, AC-8, AC-9 and the TableID producer to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` and no remaining AC needs a VRF table. Next: the functional and interop evidence for AC-1, AC-2, AC-3, AC-5, AC-6, AC-7 and AC-10 to AC-15, notably AC-13 cost-change reselection and AC-15 kernel/VPP backend parity.
@@ -463,7 +463,8 @@ Add `// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP m
 - [pending]
 
 ### Documentation Updates
-- [pending]
+- `docs/architecture/route-selection.md`: states the in-process reselection on any Loc-RIB change, with or without AIGP (2026-10-09).
+- `internal/component/bgp/plugins/rib/bestpath.go`: the interior-cost comment now quotes RFC 4271 Section 9.1.2.2(e) verbatim; the old text was a paraphrase in quotation marks.
 
 ### Deviations from Plan
 - [pending]
@@ -475,8 +476,24 @@ Add `// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP m
 |-------------|--------|----------|-------|
 
 ### Acceptance Criteria
+Audit 2026-10-09 (implementation agent). "Unit" means a Go test over the producer;
+"needs-linux" means it runs only in the QEMU guest (`./le test qemu run ... all-tests test <path>`)
+and was not run in this pass (host load 33, five-minute call budget).
+
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | unit green, discriminated; functional owed a QEMU run | `TestIGPCostChangeReselectsWithoutAIGP` (`internal/component/bgp/plugins/rib/rfc4271_igp_cost_reselect_test.go`), `TestComparePairIGPCost`; `test/static/static-kernel-igp-cost-reselect.ci` (needs-linux, written, not run) | Red observed with the `compareAfterMED` interior-cost branch disabled. Cheaper hop rides on the peer the later tie-breakers reject |
+| AC-13 | unit green, discriminated; functional owed a QEMU run | same test and `.ci`: Loc-RIB metric change alone, through `runAIGPSelection`'s `OnChange` subscription, moves the best path and moves it back | Red observed with the `OnChange` send removed. Earlier evidence was AIGP-only and called `reselectAIGPRoutes` directly |
+| AC-2 | unit and needs-linux integration exist | `TestRecursiveNHResolve_*`, `TestRFC4271BGPNextHopResolvedToTheImmediateNextHop`, `TestFIBRecursiveIPv4ViaIPv6` | `test/plugin/fib-recursive.ci` asserts only presence in the system RIB, not the resolved hop |
+| AC-3 | unit exists; `.ci` partial | `TestECMPCollect_*`, `test/plugin/fib-ecmp.ci` | `.ci` asserts bgp-rib multipath siblings and system-RIB presence, not the `ECMPPaths` count |
+| AC-5 | unit exists | `TestVPPMultiPath` | no VPP functional run |
+| AC-6 | unit and one needs-linux integration exist; `.ci` vacuous | `TestKernelRouteType`, `TestNetlinkIntegration_BlackholeRouteWithNextHop`, `TestVPPRouteType` | `test/plugin/fib-blackhole.ci` asserts only `fib-kernel` on stderr, so it passes with no route programmed |
+| AC-7 | unit only | `TestKernelRouteType`, `TestVPPRouteType` | no kernel test reads an installed `unreachable` route |
+| AC-10 | needs-linux integration exists; `.ci` vacuous | `TestMPLSIntegration_Push`, `TestKernelMPLSPush` | `test/plugin/fib-mpls-kernel.ci` asserts only `fib-kernel` on stderr |
+| AC-11 | needs-linux integration and VPP unit exist | `srv6_integration_linux_test.go`, `TestSRv6SteerAdd`, `TestSRv6SteerWithdraw` | recorded delivered (learned 1113) |
+| AC-12 | unit exists | `TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB`, `TestNHResolver_Tracking` | no functional run |
+| AC-14 | unit exists | `TestECMPMemberFail`, `TestECMPRecursiveMemberLifecycle` | no functional run |
+| AC-15 | owed, no evidence | none | needs a VPP dataplane beside the kernel; no comparison test exists |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |

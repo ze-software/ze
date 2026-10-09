@@ -256,6 +256,12 @@ reloads. Live items also carry a session generation, checked before destination
 writes, so reconnect or peer replacement cannot publish an old queued item.
 A collector without a forwarding role acquires no recipients.
 
+In process, the RIB subscribes to Loc-RIB changes and reruns selection over
+every retained route after each change, coalescing bursts into one pending
+scan. A change of interior cost alone, with no BGP UPDATE, therefore moves the
+best path, whether or not the candidates carry AIGP.
+<!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- runAIGPSelection, reselectAIGPRoutes -->
+
 The RIB reads interior distances from the engine's registered `route-metrics`
 RPC when it runs in a subprocess. A one-second revision poll invalidates its
 next-hop cache and reruns selection, including recursive BGP metric changes.
