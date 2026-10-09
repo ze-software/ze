@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | config |
-| Depends | - |
+| Depends | plan/pre-release/spec-appliance-ships-ze-kernel.md (AC-15 only) |
 | Phase | 6/6 |
 | Updated | 2026-09-19 |
 
