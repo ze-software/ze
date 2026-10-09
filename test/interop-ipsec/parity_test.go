@@ -14,6 +14,7 @@ import (
 var ipsecScenarios = []string{
 	"child-rekey",
 	"child-rekey-narrowing",
+	"child-rekey-refused-keeps-the-sa",
 	"clear-reestablish",
 	"cookie-challenge",
 	"dataplane-readback",
@@ -27,6 +28,7 @@ var ipsecScenarios = []string{
 	"esp-form-change",
 	"ike-aes-ccm16",
 	"ike-padded-probe-strongswan",
+	"ike-rekey-retries-in-the-named-group",
 	"initiator-rekey-answer-narrows",
 	"invalid-ke-retry",
 	"ipsec-bgp-redistribute-frr",

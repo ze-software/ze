@@ -21,43 +21,45 @@ import (
 type scenarioChecker func(context.Context, *scenarioLab) error
 
 var scenarioCheckers = map[string]scenarioChecker{
-	"child-rekey":                        checkChildRekey,
-	"child-rekey-narrowing":              checkChildRekeyNarrowing,
-	"clear-reestablish":                  checkClearReestablish,
-	"cookie-challenge":                   checkCookieChallenge,
-	"dataplane-readback":                 checkDataplaneReadback,
-	"delete-while-window-held":           checkDeleteWhileWindowHeld,
-	"eap-mschapv2":                       checkEAPMSCHAPv2,
-	"eap-nak-method-negotiation":         checkEAPNakMethodNegotiation,
-	"eap-tls":                            checkEAPTLS,
-	"eap-tls13":                          checkEAPTLS13,
-	"esn-both-offered":                   checkESNBothOffered,
-	"esn-extended-only-refused":          checkESNExtendedOnlyRefused,
-	"esp-form-change":                    checkESPFormChange,
-	"ike-aes-ccm16":                      checkIKEAESCCM16,
-	"ike-padded-probe-strongswan":        checkIKEPaddedProbeStrongSwan,
-	"initiator-rekey-answer-narrows":     checkInitiatorRekeyAnswerNarrows,
-	"invalid-ke-retry":                   checkInvalidKERetry,
-	"ipsec-bgp-redistribute-frr":         checkIPsecBGPRedistributeFRR,
-	"mobike-initiator":                   checkMOBIKEInitiator,
-	"mobike-responder":                   checkMOBIKEResponder,
-	"mtu-nat-installed-endpoint":         checkMTUNATInstalledEndpoint,
-	"mtu-negotiated-transform":           checkMTUNegotiatedTransform,
-	"mtu-tunnel-sizing-strongswan":       checkMTUTunnelSizingStrongSwan,
-	"natt-transport-inner-checksum":      checkNATTTransportInnerChecksum,
-	"natt-tunnel-inner-checksum":         checkNATTTunnelInnerChecksum,
-	"peer-reload-narrowing":              checkPeerReloadNarrowing,
-	"psk-site-to-site":                   checkPSKSiteToSite,
-	"real-nat-transport-ze-initiator":    checkRealNATTransportZeInitiator,
-	"real-nat-transport-ze-responder":    checkRealNATTransportZeResponder,
-	"real-nat-tunnel-control":            checkRealNATTunnelControl,
-	"responder-accepts-reinit":           checkResponderAcceptsReinit,
-	"responder-eap-mschapv2":             checkResponderEAPMSCHAPv2,
-	"responder-eap-tls13":                checkResponderEAPTLS13,
-	"responder-eap-tls13-revoked-client": checkResponderEAPTLS13RevokedClient,
-	"responder-ike-rekey":                checkResponderIKERekey,
-	"responder-psk":                      checkResponderPSK,
-	"responder-raises-child-rekey":       checkResponderRaisesChildRekey,
+	"child-rekey":                          checkChildRekey,
+	"child-rekey-narrowing":                checkChildRekeyNarrowing,
+	"child-rekey-refused-keeps-the-sa":     checkChildRekeyRefusedKeepsTheSA,
+	"clear-reestablish":                    checkClearReestablish,
+	"cookie-challenge":                     checkCookieChallenge,
+	"dataplane-readback":                   checkDataplaneReadback,
+	"delete-while-window-held":             checkDeleteWhileWindowHeld,
+	"eap-mschapv2":                         checkEAPMSCHAPv2,
+	"eap-nak-method-negotiation":           checkEAPNakMethodNegotiation,
+	"eap-tls":                              checkEAPTLS,
+	"eap-tls13":                            checkEAPTLS13,
+	"esn-both-offered":                     checkESNBothOffered,
+	"esn-extended-only-refused":            checkESNExtendedOnlyRefused,
+	"esp-form-change":                      checkESPFormChange,
+	"ike-aes-ccm16":                        checkIKEAESCCM16,
+	"ike-padded-probe-strongswan":          checkIKEPaddedProbeStrongSwan,
+	"ike-rekey-retries-in-the-named-group": checkIKERekeyRetriesInTheNamedGroup,
+	"initiator-rekey-answer-narrows":       checkInitiatorRekeyAnswerNarrows,
+	"invalid-ke-retry":                     checkInvalidKERetry,
+	"ipsec-bgp-redistribute-frr":           checkIPsecBGPRedistributeFRR,
+	"mobike-initiator":                     checkMOBIKEInitiator,
+	"mobike-responder":                     checkMOBIKEResponder,
+	"mtu-nat-installed-endpoint":           checkMTUNATInstalledEndpoint,
+	"mtu-negotiated-transform":             checkMTUNegotiatedTransform,
+	"mtu-tunnel-sizing-strongswan":         checkMTUTunnelSizingStrongSwan,
+	"natt-transport-inner-checksum":        checkNATTTransportInnerChecksum,
+	"natt-tunnel-inner-checksum":           checkNATTTunnelInnerChecksum,
+	"peer-reload-narrowing":                checkPeerReloadNarrowing,
+	"psk-site-to-site":                     checkPSKSiteToSite,
+	"real-nat-transport-ze-initiator":      checkRealNATTransportZeInitiator,
+	"real-nat-transport-ze-responder":      checkRealNATTransportZeResponder,
+	"real-nat-tunnel-control":              checkRealNATTunnelControl,
+	"responder-accepts-reinit":             checkResponderAcceptsReinit,
+	"responder-eap-mschapv2":               checkResponderEAPMSCHAPv2,
+	"responder-eap-tls13":                  checkResponderEAPTLS13,
+	"responder-eap-tls13-revoked-client":   checkResponderEAPTLS13RevokedClient,
+	"responder-ike-rekey":                  checkResponderIKERekey,
+	"responder-psk":                        checkResponderPSK,
+	"responder-raises-child-rekey":         checkResponderRaisesChildRekey,
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.
@@ -1008,6 +1010,159 @@ func checkDeleteWhileWindowHeld(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	return lab.waitLog(ctx, swanPeer, "received DELETE for ESP CHILD_SA", 15*time.Second)
+}
+
+// The window a refused Child SA rekey is resent in, as strongSwan sees it. Ze waits 15 s
+// less up to 10% (refuseRekey, internal/component/ike/engine/inbound.go), then sends on
+// the next one-second owner-loop tick: 13.5 to 16 s. The checker reads strongSwan's log
+// once a second, so each end of the gap moves by up to a second and a log read.
+const (
+	childRekeyRefusedGapMin = 12 * time.Second
+	childRekeyRefusedGapMax = 18 * time.Second
+)
+
+var (
+	// swanChildRekeyRefused matches strongSwan answering a CREATE_CHILD_SA with
+	// NO_PROPOSAL_CHOSEN alone.
+	swanChildRekeyRefused = regexp.MustCompile(`generating CREATE_CHILD_SA response \d+ \[ N\(NO_PROP\) \]`)
+	// swanRekeyInvalidKE matches strongSwan answering a CREATE_CHILD_SA with
+	// INVALID_KE_PAYLOAD alone.
+	swanRekeyInvalidKE = regexp.MustCompile(`generating CREATE_CHILD_SA response \d+ \[ N\(INVAL_KE\) \]`)
+	// swanIKERekeyed matches charon's line for a completed IKE SA rekey (ike_rekey.c).
+	swanIKERekeyed = regexp.MustCompile(`IKE_SA ze\[\d+\] rekeyed between`)
+)
+
+// checkChildRekeyRefusedKeepsTheSA holds ze to the owner's rule for a Child SA rekey a
+// real peer refuses (refuseRekey): the current Child SA stays in use, and the refused
+// rekey is sent again only after 15 s less up to 10%, never on each one-second
+// owner-loop tick. strongSwan's esp_proposals carry no Diffie-Hellman group while Ze's
+// esp-group enables PFS, so strongSwan answers every rekey NO_PROPOSAL_CHOSEN. The
+// checker proves traffic over the Child SA, times the first two refusals at strongSwan,
+// and reads Ze's ESP SPIs before the first refusal and after the second.
+//
+// RFC 7296 Section 1.3.1: "A failed attempt to create a Child SA SHOULD NOT tear down
+// the IKE SA".
+func checkChildRekeyRefusedKeepsTheSA(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	initial, err := lab.espSPIs(ctx, zePeer)
+	if err != nil {
+		return err
+	}
+	if len(initial) == 0 {
+		return errors.New("ze installed no ESP SA, so there is no Child SA to keep")
+	}
+	// Traffic is proven here, before the soft lifetime at 39 s. A ping run between the
+	// two refusals would move the time the second one is read, and so the gap.
+	if err := lab.verifyTunnelTraffic(ctx, "no ESP traffic over the Child SA before its rekey"); err != nil {
+		return err
+	}
+	first, err := waitChildRekeyRefusals(ctx, lab, 1, 75*time.Second)
+	if err != nil {
+		return fmt.Errorf("strongSwan never refused Ze's Child SA rekey, so the scenario proves nothing: %w", err)
+	}
+	second, err := waitChildRekeyRefusals(ctx, lab, 2, childRekeyRefusedGapMax+2*time.Second)
+	if err != nil {
+		return fmt.Errorf("ze did not send the refused Child SA rekey again after its wait: %w", err)
+	}
+	gap := second.Sub(first)
+	if gap < childRekeyRefusedGapMin {
+		return fmt.Errorf("ze resent the refused Child SA rekey %v after strongSwan refused it, under the owner's wait of 13.5 to 15 s", gap)
+	}
+	if gap > childRekeyRefusedGapMax {
+		return fmt.Errorf("ze resent the refused Child SA rekey %v after strongSwan refused it, over the owner's wait of 13.5 to 15 s", gap)
+	}
+	kept, err := lab.espSPIs(ctx, zePeer)
+	if err != nil {
+		return err
+	}
+	if !sameStrings(initial, kept) {
+		return fmt.Errorf("ze's ESP SAs changed while strongSwan refused every rekey: before %v, after %v", initial, kept)
+	}
+	zeLogs, err := lab.logs(ctx, zePeer)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(zeLogs, "missing Nr") {
+		return errors.New("ze read strongSwan's NO_PROPOSAL_CHOSEN as a malformed response")
+	}
+	return requireContains(zeLogs, "rekey refused for every configured proposal",
+		"ze did not log strongSwan's answer as a refused rekey")
+}
+
+// waitChildRekeyRefusals waits until strongSwan has refused count Child SA rekeys, and
+// answers the time the checker read the count-th.
+func waitChildRekeyRefusals(ctx context.Context, lab *scenarioLab, count int, timeout time.Duration) (time.Time, error) {
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: timeout, Interval: time.Second, Description: "strongSwan N(NO_PROP) answer to a Child SA rekey",
+	}, func(probe context.Context) (string, error) { return lab.logs(probe, swanPeer) }, func(logs string) bool {
+		return len(swanChildRekeyRefused.FindAllStringIndex(logs, -1)) >= count
+	})
+	return time.Now(), err
+}
+
+// checkIKERekeyRetriesInTheNamedGroup holds ze to the owner's rule for an IKE SA rekey
+// a real peer answers INVALID_KE_PAYLOAD: ze rekeys at once in the group the peer named,
+// because the operator configured it. strongSwan runs ecp256 only and Ze's rekey starts
+// in group 14, its first configured proposal. The checker reads strongSwan's refusal,
+// then its completed rekey, in that order; that no new IKE_SA_INIT came between, so the
+// SA was rekeyed and not set up again; that the IKE SA runs ECP_256; and that traffic
+// still flows.
+//
+// RFC 7296 Section 1.3: "In the case of such a rejection, the CREATE_CHILD_SA exchange
+// fails, and the initiator will probably retry the exchange with a Diffie-Hellman
+// proposal and KEi in the group that the responder gave in the INVALID_KE_PAYLOAD
+// Notify payload." Ze retries there only because the operator configured that group.
+func checkIKERekeyRetriesInTheNamedGroup(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	logs, err := lab.logs(ctx, swanPeer)
+	if err != nil {
+		return err
+	}
+	inits := strings.Count(logs, "parsed IKE_SA_INIT request")
+	logs, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: 90 * time.Second, Interval: 2 * time.Second, Description: "strongSwan IKE SA rekey after INVALID_KE_PAYLOAD",
+	}, func(probe context.Context) (string, error) { return lab.logs(probe, swanPeer) }, func(current string) bool {
+		return swanIKERekeyed.MatchString(current)
+	})
+	if logs == "" {
+		return err
+	}
+	refusal := swanRekeyInvalidKE.FindStringIndex(logs)
+	if refusal == nil {
+		return fmt.Errorf("strongSwan never answered Ze's IKE SA rekey INVALID_KE_PAYLOAD, so the scenario proves nothing: %w", err)
+	}
+	if err != nil {
+		return fmt.Errorf("ze's IKE SA rekey did not complete after strongSwan named group 19: %w", err)
+	}
+	if swanIKERekeyed.FindStringIndex(logs)[0] < refusal[0] {
+		return errors.New("the IKE SA was rekeyed before strongSwan refused group 14, so the retry was not exercised")
+	}
+	if strings.Count(logs, "parsed IKE_SA_INIT request") != inits {
+		return errors.New("ze set up a new IKE SA instead of rekeying the current one")
+	}
+	sas, err := lab.listSAs(ctx)
+	if err != nil {
+		return err
+	}
+	if err := requireContains(sas, "ESTABLISHED", "strongSwan's IKE SA is not ESTABLISHED after the rekey"); err != nil {
+		return err
+	}
+	if err := requireContains(sas, "ECP_256", "the rekeyed IKE SA does not run ECP_256, group 19"); err != nil {
+		return err
+	}
+	zeLogs, err := lab.logs(ctx, zePeer)
+	if err != nil {
+		return err
+	}
+	if err := requireContains(zeLogs, "rekey refused, retrying in the group the peer named",
+		"ze did not log a retry in the group strongSwan named"); err != nil {
+		return err
+	}
+	return lab.verifyTunnelTraffic(ctx, "no ESP traffic after the IKE SA rekey")
 }
 
 // checkESNExtendedOnlyRefused holds ze to its answer when a real peer asks for a Child SA
