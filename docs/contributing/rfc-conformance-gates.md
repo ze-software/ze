@@ -1153,8 +1153,19 @@ use the mutant route inside the value that the initializer returns
 | Route | The break | The runner |
 |---|---|---|
 | `mutant` | one gomu mutant, substituted into its own line | `go test -v -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
-| `revert` on a `.ci` | the producing function's body replaced by a halt | `le test <suite> <name>`, ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay |
+| `revert` on a `.ci` | the producing function's body replaced by a halt | ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay: `le test <suite> <name>` for ordinary suites, `le test exabgp <suite> <absolute-ci-path>` for `test/exabgp-compat/` |
 | `revert` on an interop checker | the same | `./le test integration interop` with `INTEROP_SCENARIO` set to the scenario the checker's own `const name` declares |
+
+The compatibility runner's positional path selects exactly that file; `--pattern`
+is a substring filter and can select siblings, so the recorder does not use it.
+The suite comes from the tagged file's directory, not the ordinary functional
+suite table: `functional-exabgp` has its own native action. Unknown ordinary
+suites still refuse before building. Both routes keep the clean-before-break
+check and build the broken binaries with the producer overlay in `GOFLAGS`.
+Compatibility observations need the same explicit loopback setup as their native
+runner, including inside a guest; see
+[ExaBGP compatibility test ports](../functional-tests.md#exabgp-compatibility-test-ports).
+<!-- source: internal/le/rfc/discriminate_observe.go -- functionalSelection and runFunctional -->
 
 The scenario binding accepts both `const name = "<scenario>"` and a grouped
 `const` declaration containing `name = "<scenario>"`. In either form the named

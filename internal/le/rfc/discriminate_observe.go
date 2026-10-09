@@ -474,8 +474,8 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 // every other test in it: `./le test functional parse` was already red in this
 // checkout from another session's work, so a suite-wide run could never
 // attribute a red to this one carrier. testfunctional.Prepare builds the isolated
-// set the suite runner builds, and `le test <suite>` takes one test's name in place of
-// the suite's --all.
+// set the suite runner builds. Ordinary suites take one test's name in place of
+// --all; the compatibility runner takes its suite and an exact .ci path.
 //
 // The overlay reaches the compiler through GOFLAGS, which every Go build
 // command reads. It is set on THIS process because Prepare compiles in-process,
@@ -483,7 +483,7 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 // starts no goroutine of its own, so the window belongs to nobody else.
 func (o *observationRunner) runFunctional(overlay string) (bool, string, error) {
 	var tb textbuf.Buffer
-	_, selector, held := functionalSuite(strings.TrimPrefix(o.carrier.Name, "functional-"))
+	selector, held := o.functionalSelection()
 	if !held {
 		return false, "", parseErr(tb.Str(o.carrier.Name).
 			Str(" names no suite `./le test functional` runs, so this .ci has no runner"))
@@ -505,14 +505,18 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 	defer testfunctional.Release(set)
 
 	argv := append([]string{filepath.Join(set.Dir, testfunctional.LE), leTestCommand}, selector...)
-	argv = append(argv, o.names)
 	return o.exec(carrierRunDeadline, argv, set.Environment(o.toolchain), o.tree)
 }
 
-// functionalSuite answers the named suite and the arguments its runner takes,
-// with the all-tests selector removed so a single named .ci takes its place.
-
-func functionalSuite(name string) (testfunctional.Suite, []string, bool) {
+// functionalSelection answers the native runner's arguments for exactly one .ci.
+// ExaBGP has its own action outside Suites. Its positional selector matches an
+// exact path, unlike --pattern, which also selects siblings.
+func (o *observationRunner) functionalSelection() ([]string, bool) {
+	if o.carrier.Name == "functional-exabgp" {
+		suite := strings.TrimPrefix(filepath.ToSlash(filepath.Dir(o.tag.File)), o.carrier.Prefix)
+		return []string{"exabgp", suite, treePath(o.tree, o.tag.File)}, true
+	}
+	name := strings.TrimPrefix(o.carrier.Name, "functional-")
 	for _, suite := range testfunctional.Suites {
 		if suite.Name != name {
 			continue
@@ -524,9 +528,9 @@ func functionalSuite(name string) (testfunctional.Suite, []string, bool) {
 			}
 			argv = append(argv, arg)
 		}
-		return suite, argv, true
+		return append(argv, o.names), true
 	}
-	return testfunctional.Suite{}, nil, false
+	return nil, false
 }
 
 // setGoFlagsOverlay puts the overlay where every Go compile this process starts
