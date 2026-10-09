@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/fetch"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/redact"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/pkg/zefs"
 
@@ -392,7 +393,7 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 		// empty interface config.
 		//
 		// --seed skips this entirely: an appliance-image seed DB must NOT bake
-		// this build host's interfaces into file/active/ze.conf. That active
+		// this build host's interfaces into file/active/<name>.conf. That active
 		// config would hold the wrong host's NICs and would shadow any
 		// file/template/ze.conf so the appliance never applies it. Instead the
 		// appliance boots with no active config and builds one at first boot from
@@ -407,7 +408,9 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 				fmt.Fprintf(os.Stderr, "warning: interface discovery: %v\n", discErr)
 			} else if len(discovered) > 0 {
 				if config := iface.EmitConfig(discovered); config != "" {
-					configKey := zefs.KeyFileActive.Key("ze.conf")
+					// Named by the instance name written above, the file a bare
+					// `ze start` on this store reads.
+					configKey := zefs.KeyFileActive.Key(resolve.DefaultConfig(store))
 					if wErr := store.WriteKey(configKey, []byte(config)); wErr != nil {
 						if closeErr := iface.CloseBackend(); closeErr != nil {
 							return fmt.Errorf("write initial config: %w; close backend: %w", wErr, closeErr)

@@ -2293,7 +2293,10 @@ the NIC it was written for. Discovery writes no override on an ethernet for this
 ### Discovery During Init
 
 Running `ze init` discovers OS interfaces via netlink (Linux) or stdlib (other platforms)
-and writes initial config to `ze.conf`. Each discovered interface gets an entry named
+and writes initial config to `<name>.conf`, named after the instance name it asked for, which
+is the file a bare `ze start` on that store reads. An instance name that is not a valid file
+stem (letters, digits and hyphens, up to 64) falls back to `ze.conf`, as `ze start` does.
+Each discovered interface gets an entry named
 after its OS name, carrying one selector that binds it back to the device:
 
 | Discovered kind | Selector written |
