@@ -95,8 +95,8 @@ func EnumValues(path string) ([]string, error) {
 // surface that offers the values to an operator, such as a form dropdown, keeps
 // the module's order: the module puts the default first and groups what belongs
 // together. A surface that only asks whether a value is a member reads Names.
-// goyang's own values are not read: it numbers an enum after a negative value
-// from 0. The error names an entry that is no enumeration leaf, or whose
+// goyang's own values are not read: it numbers a restriction's enum statements
+// afresh rather than keeping the base type's values. The error names an entry that is no enumeration leaf, or whose
 // values the RFC forbids, which a loaded module cannot hold (checkStructure).
 func EnumNamesDeclared(entry *gyang.Entry) ([]string, error) {
 	declared := entryTypeStatement(entry)

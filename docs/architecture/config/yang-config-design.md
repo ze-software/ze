@@ -133,7 +133,7 @@ accepts. Each refusal names the module, the file location and the fault.
 | Structure refused | RFC 7950 | Why goyang misses it | Error |
 |-------------------|----------|----------------------|-------|
 | A `length` whose parts, in the order written, overlap or descend, with `min` and `max` read as the bounds of the type being restricted | 9.4.4 | it sorts and coalesces the parts before it checks them | `ErrLengthOrder` |
-| An enumeration whose values break Section 9.6.4.2: a value outside int32, a value assigned twice, an enum with no value after one holding 2147483647 | 9.6.4.2 | it numbers an enum that follows a negative value from 0, so it misses a value that repeats the one the RFC assigns | `ErrEnumValue` |
+| An enumeration whose values break Section 9.6.4.2: a value outside int32, a value assigned twice, an enum with no value after one holding 2147483647 | 9.6.4.2 | it checks only an enumeration it resolves, and it resolves none in a grouping no schema node uses | `ErrEnumValue` |
 | An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
 | A statement under an extension statement that is not a YANG keyword, that the block holding it does not admit, whose argument breaks its Section 14 argument rule, whose substatements break the counts or the alternatives of its rule's block, or that omits a block its rule requires | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
 
@@ -186,8 +186,12 @@ An enum's value is Ze's, never goyang's. `parseEnumAssignment`
 (`internal/component/config/yang/enum_assignment.go`) reads the enum statements
 of the root `type enumeration`: an enum with no `value` takes 0 when it is the
 first, and otherwise one more than the highest value before it, whatever its
-`if-feature`. goyang starts its count at 0 after a negative value, so after
-`enum p { value -5; }` it assigns the next enum 0 where the RFC assigns -4. A
+`if-feature`. goyang v1.6.3 started its count at 0 after a negative value,
+assigning the enum after `enum p { value -5; }` 0 where the RFC assigns -4, and
+refused `enum p { value -5; } enum q; enum r { value 0; }` as a conflict on 0.
+Ze builds against the `ze-software/goyang` fork, which carries the fix proposed
+in openconfig/goyang#317 (the `replace` in `go.mod`), until a goyang release
+holds it. goyang still numbers a restriction's enum statements afresh. A
 restriction, however many typedefs down, keeps the root's values. Both checks
 above, the schema node's enum list (`EnumNamesDeclared`) and a command
 argument's (`argDefFor`) read that one assignment, and the two lists are in

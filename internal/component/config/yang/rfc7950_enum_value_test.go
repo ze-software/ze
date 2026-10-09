@@ -17,13 +17,13 @@ func enumModule(body string) string {
 // Section 9.6.4.2 assigns an enum with no value statement, through a
 // restriction that restates it: the restriction loads when it states the
 // assigned value and is refused when it states any other. Each base type
-// differs from goyang's numbering in one way: after an explicit -5 the next
-// value is -4, where goyang assigns 0; after 10 then 3 it is 11; an enum
-// made conditional by if-feature still takes its value; and two typedef
-// levels down the value is still the root enumeration's.
+// exercises one clause of the rule: after an explicit -5 the next value is
+// -4, where goyang v1.6.3 assigned 0; after 10 then 3 it is 11; an enum made
+// conditional by if-feature still takes its value; and two typedef levels
+// down the value is still the root enumeration's.
 //
 // VALIDATES: the implicit enum value is one greater than the highest before it.
-// PREVENTS: goyang's numbering from 0 after a negative value deciding a value.
+// PREVENTS: any value but the one the RFC assigns deciding a restriction.
 //
 // RFC requirement: RFC7950-9.6.4.2-1 negative — restricting a base type whose enum q follows "value -5" with "enum q { value 0; }", whose c follows values 10 and 3 with "value 4", whose c follows a and if-feature b with "value 1", or two typedef levels below the -5 base with q "value 0", is each refused naming the value.
 // RFC requirement: RFC7950-9.6.4.2-1 positive — the same restrictions stating q "value -4", c "value 11", c "value 2", and q "value -4" two typedef levels down each load.
@@ -53,8 +53,7 @@ func TestRFC7950EnumImplicitValueFollowsTheHighest(t *testing.T) {
 // Section 9.6.4.2 makes of the values an enumeration assigns: an enum with no
 // value after one holding 2147483647, which the next value would carry past
 // the int32 range, and an explicit value that repeats an implicitly assigned
-// one. goyang numbers the enum after -5 as 0, so it accepts the repeat; the
-// refusals asserted here are Ze's own, by ErrEnumValue.
+// one. The refusals asserted here are Ze's own, by ErrEnumValue.
 //
 // VALIDATES: an enumeration's values stay within int32 and unique.
 // PREVENTS: an implicit value past 2147483647, or one an explicit value repeats.
@@ -79,11 +78,11 @@ func TestRFC7950EnumValueRangeAndUniqueness(t *testing.T) {
 // TestEnumNamesFollowTheAssignedValues proves the two surfaces that order an
 // enumeration's names by value, the schema node (EnumNamesDeclared) and the
 // command argument (argDefFor), read the values RFC 7950 assigns: q after
-// "value -5" is -4, so it sorts before r at -3. goyang numbers q 0 and would
-// put it last.
+// "value -5" is -4, so it sorts before r at -3. goyang v1.6.3 numbered q 0
+// and would have put it last.
 //
 // VALIDATES: names offered to an operator follow the RFC-assigned values.
-// PREVENTS: a surface ordering names by goyang's numbering.
+// PREVENTS: a surface ordering names by anything but the RFC-assigned values.
 func TestEnumNamesFollowTheAssignedValues(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.AddModuleFromText("m.yang",

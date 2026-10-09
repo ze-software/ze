@@ -686,7 +686,7 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 //
 // An enumeration's names are read from declared, in the order of the values
 // RFC 7950 assigns them (parseEnumAssignment): goyang's own EnumType numbers
-// an enum after a negative value from 0. An enumeration with no statement to
+// a restriction's enum statements afresh. An enumeration with no statement to
 // read, or whose values the RFC forbids, has no argument: a loaded module
 // holds neither (checkStructure), and offering names in an order no module
 // chose is the defect value order exists to prevent: an operator reads the

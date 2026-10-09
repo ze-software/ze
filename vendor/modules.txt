@@ -988,7 +988,7 @@ github.com/nunnatsa/ginkgolinter/version
 ## explicit; go 1.22.0
 github.com/openconfig/gnmi/proto/gnmi
 github.com/openconfig/gnmi/proto/gnmi_ext
-# github.com/openconfig/goyang v1.6.3
+# github.com/openconfig/goyang v1.6.3 => github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98
 ## explicit; go 1.22.0
 github.com/openconfig/goyang/pkg/indent
 github.com/openconfig/goyang/pkg/yang
@@ -2062,3 +2062,4 @@ mvdan.cc/unparam/check
 # mvdan.cc/xurls/v2 v2.6.0
 ## explicit; go 1.22.0
 mvdan.cc/xurls/v2
+# github.com/openconfig/goyang => github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98

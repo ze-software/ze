@@ -19,9 +19,10 @@ import (
 
 // enumAssignment is the value RFC 7950 Section 9.6.4.2 assigns each name of
 // one enumeration type, in the order its enum statements are written. It is
-// the ONE producer of an enum's value in Ze: goyang's EnumType numbers an enum
-// that follows a negative value from 0, so nothing reads EnumType.Value,
-// Values or ToString to judge or order a value.
+// the ONE producer of an enum's value in Ze: goyang builds a restricted type's
+// EnumType afresh from the restricting statements, numbering them as if they
+// were the whole enumeration, so nothing reads EnumType.Value, Values or
+// ToString to judge or order a value.
 //
 // Only parseEnumAssignment and assignEnumValues build one. Every value held is
 // within int32 and unique, and every name is unique. The zero value assigns no

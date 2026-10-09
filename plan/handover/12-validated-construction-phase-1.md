@@ -27,7 +27,7 @@ correctly in another session".
 | Item | State on 2026-10-09 |
 |------|---------------------|
 | Spec records the decisions, the D-2 A batch order and the D-6 census | Agent running when this was written; check `git log -- plan/spec-validated-construction-and-state-types.md` |
-| go.mod `replace` of goyang with the ze-software fork (enum numbering fix, journal `plan/journal/zero-value-as-valid-answer.md` row 4) | BLOCKED on a push only the owner can run. Fork https://github.com/ze-software/goyang exists. Fix commit a3cf525c4f98ce2f6946e7ba9ae9849886a20070 on branch `fix-enum-implicit-value-after-negative` (from upstream master a80f279), in a Linux-only scratch clone; if that clone is gone, redo the one-line fix in `types_builtin.go` `EnumType.Set`: record the first value unconditionally (`len(e.ToInt) == 0 \|\| value > e.last`), plus `TestTypeResolve` cases `-5, q, 0` and `-10, q`. After the push: `replace` in go.mod with a comment naming the upstream PR, `go mod tidy`, `go mod vendor` (module mode does not build this tree), add the Ze test (load `enum p { value -5; } enum q; enum r { value 0; }` via `AddModuleFromText`+`Resolve`), and update the now-stale text in `enum_assignment.go` (lines 22-23), the two `rfc7950_enum_value_test.go` doc comments, `yang-config-design.md` (~line 189) and journal row 4. Upstream PR needs the owner to sign the Google CLA |
+| go.mod `replace` of goyang with the ze-software fork (enum numbering fix, journal `plan/journal/zero-value-as-valid-answer.md` row 4) | DONE in the commit that carries this row (subject "deps: build goyang from the ze-software fork with the enum numbering fix"). go.mod replaces goyang with github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98 (branch `fix-enum-implicit-value-after-negative`); upstream PR https://github.com/openconfig/goyang/pull/317. Vendor updated by hand for goyang only, because `go mod vendor` would revert the hand-patched vishvananda/netlink (f0d9c75df4). Still owed: the owner signs the Google CLA for the PR; drop the replace once a goyang release holds the fix |
 | `./le verify worktree` over the 2026-10-08/09 commits | Owed, never run |
 
 ## Batch log
@@ -43,6 +43,7 @@ correctly in another session".
 - The style rule this phase serves: `docs/contributing/ze-go-style.md`, "One type per lifecycle state" (67f55d1b6e). `ze-implement` and `ze-review` check it (4be13ea754).
 - Known pre-existing red: `TestRFC7950MandatoryUnderAbsentNonPresenceContainer` in `internal/component/config`.
 - Run tests with the feature tags from `feature-gates.txt`. Without them you get a false "no such module: ze-bgp-conf".
+- `go mod vendor` reverts the hand-patched vishvananda/netlink (f0d9c75df4): patch `vendor/` by hand for a dependency change. Follow-up for RFC7950-9.6.4.2-1 (still weak): tag `goyang_enum_numbering_test.go` as a positive and record its discrimination against the reverted goyang `EnumType.Set`.
 - Changing an RFC-tagged test needs `./le rfc approve unit <unit> reason "<owner's words>"` before `./le commit create`.
 - Never run `./le rfc reseal`: it rewrites every RFC's audit file, not only the one in hand.
 - Lint one package: `./le go lint run scope <pkg>`.

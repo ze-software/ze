@@ -224,9 +224,9 @@ func lengthBound(text string, restricted lengthSpan) (uint64, error) {
 // RFC 7950 Section 9.6.4.2 forbids, and for each `enum` statement in a
 // restricted enumeration of mod that departs from its base type.
 //
-// goyang numbers an enum that follows a negative value from 0 and builds a
-// restricted type's values afresh from the restricting statements, so both
-// checks read the values parseEnumAssignment computes from the statements.
+// goyang builds a restricted type's values afresh from the restricting
+// statements, so both checks read the values parseEnumAssignment computes
+// from the statements.
 // An enumeration is checked whether or not goyang resolved it: one in a
 // grouping no schema node uses is still a statement the RFC binds. A
 // restriction goyang never resolved has no YangType: it restricts nothing
