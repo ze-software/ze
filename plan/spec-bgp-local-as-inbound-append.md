@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | deferred |
 | Scope | protocol |
-| Depends | `plan/immediate/spec-bgp-local-as-options.md` |
+| Depends | - (spec-bgp-local-as-options, closed 2026-10-09) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-19 |
@@ -159,7 +159,7 @@ meets it (`plan/README.md`).
 |----------|--------|
 | What breaks if this is wrong? | A route learned from the migrated peer carries the wrong AS_PATH inside the AS: too short and the legacy ASN is invisible to loop detection at every other router, too long or malformed and a neighbor drops the session's routes or the UPDATE itself. On a route server, a modified path reaches clients whose decision process RFC 7947 says must see the original. |
 | How is it reverted? | Remove the modifier from the import chain and the next UPDATE is unchanged. Revert this spec's recipe safeguards separately from the pre-existing width correction. Routes already re-advertised carry the path onward |
-| Who else touches this path? | `plan/immediate/spec-bgp-local-as-options.md` owns the outbound rail and the `local-options` semantics; `plan/immediate/spec-bgp-as-migration.md` owns RFC 7705 enrolment and the `rfc/short/` ledger. Neither is edited here. |
+| Who else touches this path? | spec-bgp-local-as-options (closed 2026-10-09) owned the outbound rail and the `local-options` semantics; `plan/immediate/spec-bgp-as-migration.md` owns RFC 7705 enrolment and the `rfc/short/` ledger. Neither is edited here. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

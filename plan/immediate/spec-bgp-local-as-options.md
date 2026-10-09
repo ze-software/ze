@@ -5,8 +5,8 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/7 |
-| Updated | 2026-09-19 |
+| Phase | 7/7 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -74,13 +74,13 @@ of the remaining proof are still required before closure.
 ## Current Behavior (MANDATORY)
 
 **Source and evidence:**
-- `internal/component/bgp/reactor/peer_forward_facts.go`: `secondaryPrependAS` returns the global ASN only for a distinct local override without `replace-as`; `localASPrependFor` supplies the same pair to announcement.
-- `internal/component/bgp/reactor/reactor_api_forward.go` and `forward_rs.go`: `ASPathEdit.Record` consumes the eBGP prepend intent; RS clients retain their AS_PATH transparency.
-- `internal/component/bgp/reactor/reactor_api_batch.go`: `announceFacts.prepend` partitions peers and reaches the announce builder.
-- `internal/component/bgp/reactor/rfc7705_local_as_test.go`: the directional tests carry both-polarity tags for Section 3.3 requirements 2 through 5, and assert both permitted equality and required inequality.
-- `internal/component/bgp/config/peers_test.go`: `TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup` carries both-polarity tags for requirement 1.
-- `docs/guide/configuration.md`: the local-AS section documents the directional table and the equal combined-option result.
-- `rfc/short/rfc7705.md`: enrolment is recorded, with the inbound SHOULD assigned to the deferred recipe.
+- [ ] `internal/component/bgp/reactor/peer_forward_facts.go`: `secondaryPrependAS` returns the global ASN only for a distinct local override without `replace-as`; `localASPrependFor` supplies the same pair to announcement.
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go` and `forward_rs.go`: `ASPathEdit.Record` consumes the eBGP prepend intent; RS clients retain their AS_PATH transparency.
+- [ ] `internal/component/bgp/reactor/reactor_api_batch.go`: `announceFacts.prepend` partitions peers and reaches the announce builder.
+- [ ] `internal/component/bgp/reactor/rfc7705_local_as_test.go`: the directional tests carry both-polarity tags for Section 3.3 requirements 2 through 5, and assert both permitted equality and required inequality.
+- [ ] `internal/component/bgp/config/peers_test.go`: `TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup` carries both-polarity tags for requirement 1.
+- [ ] `docs/guide/configuration.md`: the local-AS section documents the directional table and the equal combined-option result.
+- [ ] `rfc/short/rfc7705.md`: enrolment is recorded, with the inbound SHOULD assigned to the deferred recipe.
 
 **Behavior to preserve:**
 - A peer with `local-as` configured and no modifiers keeps today's dual prepend, with the override ASN outermost and the global ASN behind it, matching RFC 7705 Section 3.2's worked example.
@@ -138,9 +138,9 @@ of the remaining proof are still required before closure.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Both enums remain, and the missing inbound SHOULD is deferred to an operator recipe | Thomas's 2026-09-06 ruling in `plan/spec-bgp-local-as-inbound-append.md` | Reopening this choice requires an owner decision; it cannot be inferred from equal outbound bytes | The recorded ruling and the directional ACs here | resolved by owner, 2026-09-06 |
-| A-2 | No automatic Local-AS append runs at ingress | The egress helpers implement the outbound mechanism; the explicit import-policy prepend is separately configured | Inbound tests must distinguish an automatic mechanism from the optional recipe | `TestLocalASNoPrependLeavesEveryOutboundPathAlone` and the inbound functional scenario | The 2026-09-05 source classification excluded the policy action from the Local-AS mechanism; current proof remains owed at closure |
-| A-3 | Forward and announce use the same outbound prepend decision | `secondaryPrependAS` feeds `facts.secondaryAS` on both forward rails and `localASPrependFor` on announcement | A divergent rail can restore the original collapse | Compare all four combinations on each live rail | source inspected, 2026-09-19; current runtime proof remains owed |
-| A-4 | The correction can affect configurations that relied on the former `no-prepend` outbound suppression | Before the correction either enum selected the single-ASN form | An operator may receive a longer AS_PATH after upgrade | Preserve the configuration-guide explanation and the directional wire tests | Historical change recorded on 2026-09-05; no claim about deployed operator configurations |
+| A-2 | No automatic Local-AS append runs at ingress | The egress helpers implement the outbound mechanism; the explicit import-policy prepend is separately configured | Inbound tests must distinguish an automatic mechanism from the optional recipe | `TestLocalASNoPrependLeavesEveryOutboundPathAlone` and the inbound functional scenario | confirmed 2026-10-09: `TestLocalASNoPrependLeavesEveryOutboundPathAlone` passed (reactor package run, `ok` 12.7s) and `test/plugin/bgp-local-as-inbound-untouched.ci` passed: the iBGP neighbour receives the peer's AS_PATH unmodified |
+| A-3 | Forward and announce use the same outbound prepend decision | `secondaryPrependAS` feeds `facts.secondaryAS` on both forward rails and `localASPrependFor` on announcement | A divergent rail can restore the original collapse | Compare all four combinations on each live rail | confirmed 2026-10-09: the forward-rail tests in `rfc7705_local_as_test.go` and the announce-rail `TestAnnounceLocalASOptionsProduceDifferentASPaths`, `TestAnnounceLocalASOptionsPartitionUpdateGroups`, `TestAnnounceLocalASPrependIsOutermostFirst` (`local_as_announce_test.go`) all passed in one run; both rails call `secondaryPrependAS` |
+| A-4 | The correction can affect configurations that relied on the former `no-prepend` outbound suppression | Before the correction either enum selected the single-ASN form | An operator may receive a longer AS_PATH after upgrade | Preserve the configuration-guide explanation and the directional wire tests | confirmed 2026-10-09: the change is real and wire-visible (`bgp-local-as-options.ci` conn=3 carries the dual prepend), and `docs/guide/configuration.md`, "AS Migration (`local-as`)", explains the direction of each option; no claim is made about deployed operator configurations |
 | A-5 | Both mechanisms are already per-neighbour and per-neighbour-group configurable, satisfying `RFC7705-3.3-1` without code change. | The `session` container is group-to-peer inherited (`internal/component/bgp/yang/ze-bgp-conf.yang`), and the existing `peers[0].LocalASNoPrepend` coverage at `internal/component/bgp/reactor/config_test.go` exercises it. | The requirement needs implementation, not just a tag. | `TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup` (`internal/component/bgp/config/peers_test.go`). | confirmed 2026-09-05: the group's `local-options` reaches an inheriting peer, a peer that states its own REPLACES the group's leaf-list rather than accumulating, and a peer outside the group carries neither. No code change was needed. |
 
 ### A-1 history: placement alternatives before the 2026-09-06 ruling
@@ -259,14 +259,14 @@ so: the file it landed in is the one whose entry point the assertion reaches.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `bgp-local-as-options` | `test/plugin/bgp-local-as-options.ci` | all four outbound configurations in one run: no option, `no-prepend`, `replace-as`, both. conn=3 and conn=4 differ by one enum and by nine bytes | landed 43de0a5f8 |
-| `bgp-local-as-inbound-untouched` | `test/plugin/bgp-local-as-inbound-untouched.ci` | a route learned from the migrated peer reaches an iBGP neighbor byte-identical and a native eBGP neighbor with the globally configured ASN prepended | written, execution deferred |
+| `bgp-local-as-inbound-untouched` | `test/plugin/bgp-local-as-inbound-untouched.ci` | a route learned from the migrated peer reaches an iBGP neighbor byte-identical and a native eBGP neighbor with the globally configured ASN prepended | passed 2026-10-09 (`./le test bgp plugin`, beside `bgp-local-as-options`, both PASS) |
 | `session-policy-config` | existing `test/parse/session-policy-config.ci` | the parse-level coverage keeps passing | untouched |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-local-as-replace-as-bird` | `test/interop/scenarios/` | BIRD | a real peer accepts the Local-AS-only path and installs the expected AS_PATH | |
-| `NN-local-as-dual-frr` | `test/interop/scenarios/` | FRR | a real peer sees both ASNs in the documented order during a migration | |
+| `bgp-as-migration-local-as` (BIRD leg) | `test/interop/scenarios/bgp-as-migration-local-as` | BIRD | BIRD (AS 65003, peering with Local AS 65020 under `replace-as`) installs `BGP.as_path: 65020` alone, with 65001 absent | green 2026-10-09, `ee15e53be9` |
+| `bgp-as-migration-local-as` (GoBGP leg) | same | GoBGP | GoBGP (AS 64512, Local AS 65030, no option) installs `[65030,65001]`, the Local AS outermost. GoBGP replaces the planned FRR peer because the scenario's FRR holds the RFC 7705 Section 4.2 iBGP session | green 2026-10-09, `ee15e53be9` |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/peer_forward_facts.go` - preserve `secondaryPrependAS` and `localASPrependFor` while completing proof
@@ -458,3 +458,130 @@ RFC 7705 is still not enrolled, so no `RFC7705-3.3-N` tag can be written.
 
 The inbound append is now an operator decision. It is homed in
 `plan/spec-bgp-local-as-inbound-append.md`.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `secondaryPrependAS` (`internal/component/bgp/reactor/peer_forward_facts.go`) reads only `LocalASReplaceAS`, so `no-prepend` keeps the dual prepend outbound and `replace-as` alone sends the Local AS (forward fix `b60737ac8`, announce rail `5001022d13`).
+- Proof: `test/plugin/bgp-local-as-options.ci` (`43de0a5f8`), `test/plugin/bgp-local-as-inbound-untouched.ci`, and the BIRD and GoBGP legs of interop `bgp-as-migration-local-as` (`ee15e53be9`).
+
+### Bugs Found/Fixed
+- The announce rail collapsed all three configurations until `5001022d13`; covered by `TestAnnounceLocalASOptionsProduceDifferentASPaths`.
+
+### Documentation Updates
+- `docs/guide/configuration.md`, "AS Migration (`local-as`)": the directional table, anchored to `test/plugin/bgp-local-as-options.ci`. `docs/features/rfc-status.md` (generated) reads RFC 7705 `9 gated: 9 proven`.
+
+### Deviations from Plan
+- The two planned interop scenarios became the BIRD (replace-as) and GoBGP (no option) legs of `bgp-as-migration-local-as`; FRR holds the Section 4.2 session there.
+- `TestLocalASOptionRejectedIfUnsupported` not written: its A-1 arm was ruled out by the owner on 2026-09-06.
+- The Deliverables row naming `ai/RFC-REQUIREMENTS.md` is stale: that file no longer exists; the ledger is `rfc/short/rfc7705.md` and the generated `docs/features/rfc-status.md`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `no-prepend` no longer suppresses the global ASN outbound | Done | `peer_forward_facts.go` `secondaryPrependAS` | |
+| `replace-as` sends the Local AS alone | Done | same | |
+| Inbound SHOULD stays with the owner-ruled recipe | Done | `plan/spec-bgp-local-as-inbound-append.md` | not taken back |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestLocalASReplaceASSendsOnlyTheLocalAS`; `bgp-local-as-options.ci` conn=4; BIRD leg | |
+| AC-2 | Done | `bgp-local-as-options.ci` conn=3; `TestLocalASOptionsProduceDifferentASPaths` | |
+| AC-3 | Done | `bgp-local-as-options.ci` conn=2; GoBGP leg `[65030,65001]` | |
+| AC-4 | Done | `TestLocalASNoPrependLeavesEveryOutboundPathAlone` (no-override control) | |
+| AC-5 | Done | forward tests plus `TestAnnounceLocalAS*` (`local_as_announce_test.go`) | |
+| AC-6 | Done | `TestLocalASFourOctetTowardTwoOctetPeer` | |
+| AC-7 | Done | `TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup` | passed 2026-10-09 |
+| AC-8 | Done | `bgp-local-as-inbound-untouched.ci`; `TestLocalASNoPrependLeavesEveryOutboundPathAlone` | |
+| AC-9 | Done | `bgp-local-as-inbound-untouched.ci` (native eBGP neighbour gets the global AS) | |
+| AC-10 | Done | `rfc/short/rfc7705.md` carries 9 `RFC7705-3.3-[1-5]` references; `./le rfc check` names no RFC 7705 violation | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestLocalASOptionsProduceDifferentASPaths`, `TestLocalASReplaceASSendsOnlyTheLocalAS`, `TestLocalASNoPrependLeavesEveryOutboundPathAlone`, `TestLocalASFourOctetTowardTwoOctetPeer` | Done | `rfc7705_local_as_test.go` | passed 2026-10-09 |
+| `TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup` | Done | `internal/component/bgp/config/peers_test.go` | passed 2026-10-09 |
+| `TestLocalASOptionRejectedIfUnsupported` | Changed | - | dropped with A-1, owner ruling |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `peer_forward_facts.go`, `reactor_api_batch.go` | Done | earlier commits |
+| `test/plugin/bgp-local-as-options.ci`, `bgp-local-as-inbound-untouched.ci`, `internal/test/fixture/plugin_fixture_04.go` | Done | exist |
+| `docs/guide/configuration.md` | Done | |
+
+### Audit Summary
+- **Total items:** 19
+- **Done:** 18
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`TestLocalASOptionRejectedIfUnsupported`, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Per-direction behaviour toward the configured peer | functional + interop | `bgp-local-as-options.ci` four frames; BIRD installs `BGP.as_path: 65020` with 65001 absent; GoBGP installs `[65030,65001]`. Interop green twice 2026-10-09. Forced red (BIRD leg), 2026-10-09 in a `git archive` export with the `LocalASReplaceAS` arm of `secondaryPrependAS` removed: `FAIL ... assertion 9: peer output is missing "BGP.as_path: 65020\n"`, then restored |
+| Inbound untouched without the recipe | functional | `bgp-local-as-inbound-untouched.ci` passed 2026-10-09 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Automatic inbound Local-AS append (`RFC7705-3.3-9` SHOULD) | owner ruling 2026-09-06 | `plan/spec-bgp-local-as-inbound-append.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-local-as-options-12d06ccf-2460-42c7-a707-30bb0a427796.md` |
+| `./le spec review check` | clean: `review_gate: OK (2 code files, clean, hashes match)` |
+| Rounds | 1 |
+| Reviewer lenses used | evidence against producers (secondaryPrependAS, localASPrependFor), interop checker discrimination, spec record accuracy. Reviewer is the closure agent, which authored none of the reviewed code |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | NOTE | Deliverables row names the retired `ai/RFC-REQUIREMENTS.md` | Deliverables Checklist | recorded in Deviations |
+| - | NOTE | `plan/spec-bgp-local-as-inbound-append.md` cited this spec by path | Depends, Blast Radius | restated as the bare stem |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/bgp-local-as-options.ci`, `test/plugin/bgp-local-as-inbound-untouched.ci`, `internal/test/fixture/plugin_fixture_04.go` | Yes | `ls` 2026-10-09 lists all three |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-6, AC-8, AC-9 | forward and announce rails | `go test -run 'LocalAS|Migration|...' ./internal/component/bgp/reactor/`: `ok 12.686s` |
+| AC-7 | group inheritance | `TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup` absent from the FAIL list of the same run |
+| AC-10 | ledger | `grep -c "RFC7705-3.3-[1-5]" rfc/short/rfc7705.md` = 9; `./le rfc check` output has no RFC 7705 line |
+| collapse gone | | `grep -n "!s.LocalASNoPrepend && !s.LocalASReplaceAS" peer_forward_facts.go`: no match |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `replace-as`, `no-prepend`, none, both | `test/plugin/bgp-local-as-options.ci` conn=2..5 | passed 2026-10-09 (`./le test bgp plugin`) |
+| route learned from the configured peer | `test/plugin/bgp-local-as-inbound-untouched.ci` | passed 2026-10-09 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed (owner ruling) | `plan/spec-bgp-local-as-inbound-append.md` |
+| A-2 | confirmed | `TestLocalASNoPrependLeavesEveryOutboundPathAlone`, `bgp-local-as-inbound-untouched.ci` |
+| A-3 | confirmed | forward and `TestAnnounceLocalAS*` tests, one run |
+| A-4 | confirmed | `bgp-local-as-options.ci` conn=3; configuration guide |
+| A-5 | confirmed | `TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup` |
