@@ -3,6 +3,7 @@
 package yangglue
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,7 +94,7 @@ func TestGeneratedGlueIsByteExact(t *testing.T) {
 		"\nfunc init() {\n" +
 		"\tconfigyang.RegisterModule(\"ze-host-cmd.yang\", ZeHostCmdYANG)\n" +
 		"\tconfigyang.RegisterModule(\"ze-host.yang\", ZeHostYANG)\n}\n"
-	if got := string(registerSource(files, "example.test/glue")); got != wantRegister {
+	if got := string(registerSource(files, "example.test/glue", nil)); got != wantRegister {
 		t.Errorf("register.go is\n%q\nwant\n%q", got, wantRegister)
 	}
 }
@@ -260,5 +261,45 @@ func TestBothReportsRenderNativeWording(t *testing.T) {
 	written := WriteReport{Dirs: 3, Written: []string{"a/embed.go"}}
 	if got := written.Text(); got != "./le yang glue write: generated glue for 3 yang/ directories\n" {
 		t.Errorf("a write renders %q", got)
+	}
+}
+
+// VALIDATES: a module importing a module another schema package holds gets a
+// blank import of that package in its register.go; an import inside the same
+// package and an import of an embedded bootstrap module get none; an import no
+// package holds stops the run.
+// PREVENTS: a binary that links a schema package without the package
+// registering a module it imports, which the strict loader refuses.
+func TestRegisterImportsEveryCrossPackageDependency(t *testing.T) {
+	root := fixture(t)
+	write(t, root, "internal/component/config/yang/modules/ze-types.yang", "module ze-types {}\n")
+	write(t, root, "internal/plugins/host/yang/ze-host-cmd.yang",
+		"module ze-host-cmd {\n  import ze-host { prefix h; }\n  import ze-bgp { prefix b; }\n  import ze-types { prefix t; }\n  description \"import ze-fake { prefix f; }\";\n}\n")
+
+	if _, err := Write(root); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "internal", "plugins", "host", "yang", "register.go"))
+	if err != nil {
+		t.Fatalf("read register.go: %v", err)
+	}
+	wantImports := "import (\n" +
+		"\t// The packages registering the modules these modules import.\n" +
+		"\t_ \"example.test/glue/internal/component/bgp/yang\"\n" +
+		"\n\tconfigyang \"example.test/glue/internal/component/config/yang\"\n)\n"
+	if !strings.Contains(string(got), wantImports) {
+		t.Errorf("register.go is\n%s\nwant it to hold\n%s", got, wantImports)
+	}
+	bgp, err := os.ReadFile(filepath.Join(root, "internal", "component", "bgp", "yang", "register.go"))
+	if err != nil {
+		t.Fatalf("read register.go: %v", err)
+	}
+	if strings.Contains(string(bgp), "_ \"") {
+		t.Errorf("a package whose modules import nothing gained a blank import:\n%s", bgp)
+	}
+
+	write(t, root, "internal/component/bgp/yang/ze-bgp.yang", "module ze-bgp {\n  import ze-absent { prefix a; }\n}\n")
+	if _, err := Write(root); !errors.Is(err, errUnheldDependency) {
+		t.Fatalf("write over an unheld import answered %v, want errUnheldDependency", err)
 	}
 }

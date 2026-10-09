@@ -130,7 +130,12 @@ Registration is allowed only for an actual blank-import edge from `cmd/ze`'s
 main package or the import-only `internal/component/plugin/all` composition
 files. A `dispatch` or `all.go` filename alone grants no exemption. Named and dot
 imports from those roots still fail, and an arbitrary production package's
-blank import still pins the plugin and fails.
+blank import still pins the plugin and fails. One more blank edge is allowed: a
+schema package (a `yang` directory) importing another schema package, which is
+how a module's YANG `import` of a module another plugin registers is mirrored
+in Go (`command-ownership.md`, "YANG as Data, Not Code"). A schema package holds
+modules and no implementation, and the owner approved schema packages
+importing each other on 2026-10-09.
 
 Test files, test/chaos/performance harnesses, `internal/le` and `bin` tools are not
 production importers. The shared scanner excludes fixture `testdata` directories,
@@ -150,7 +155,7 @@ The process-local-call heuristic and generated-import freshness check enforce
 different properties; neither substitutes for ownership checks.
 
 <!-- source: internal/le/plugin/imports/pluginimports.go -- PluginSearchRoots -->
-<!-- source: internal/le/arch/tier/ownership.go -- pluginOwner, pluginOwnershipGate, compositionRegistration -->
+<!-- source: internal/le/arch/tier/ownership.go -- pluginOwner, pluginOwnershipGate, compositionRegistration, schemaDependency -->
 
 ## Related documents
 

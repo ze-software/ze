@@ -93,6 +93,30 @@ func compositionRegistration(rel string, file *ast.File, spec *ast.ImportSpec) b
 	return true
 }
 
+// schemaDirName is the directory name of a schema package: YANG modules and
+// their generated registration, no implementation.
+const schemaDirName = "yang"
+
+// schemaDependency admits a blank import from one schema package (a `yang`
+// directory) of another, which is how a YANG module's import of a module
+// another package registers reaches the Go linker (internal/le/yang/glue,
+// dependencyImports). A schema package holds modules and their registration
+// and no implementation, so the edge pins a schema, never a plugin's code.
+// The owner approved schema packages importing each other on 2026-10-09, so a
+// plugin's YANG can serve as a template another module imports.
+func schemaDependency(rel, imported string, spec *ast.ImportSpec) bool {
+	if spec.Name == nil {
+		return false
+	}
+	if spec.Name.Name != "_" {
+		return false
+	}
+	if path.Base(path.Dir(rel)) != schemaDirName {
+		return false
+	}
+	return path.Base(imported) == schemaDirName
+}
+
 // pluginNonProduction identifies source which exercises or inspects the product,
 // rather than implementing it. Checking every other edge also finds indirect
 // dependencies: a shared helper importing a plugin is itself a forbidden edge,

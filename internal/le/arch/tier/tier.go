@@ -174,7 +174,7 @@ func collectSourceEdges(tree, module string) (sourceGraph, error) {
 		}
 		if path.Base(rel) == "register.go" {
 			dir := path.Dir(rel)
-			if path.Base(dir) != "yang" && path.Base(dir) != "schema" {
+			if path.Base(dir) != schemaDirName && path.Base(dir) != "schema" {
 				graph.declared = append(graph.declared, dir)
 			}
 		}
@@ -188,6 +188,9 @@ func collectSourceEdges(tree, module string) (sourceGraph, error) {
 			}
 			graph.edges[imported] = append(graph.edges[imported], rel)
 			if compositionRegistration(rel, file, spec) {
+				graph.registrations[corePair{File: rel, Package: imported}] = true
+			}
+			if schemaDependency(rel, imported, spec) {
 				graph.registrations[corePair{File: rel, Package: imported}] = true
 			}
 		}

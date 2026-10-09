@@ -3,6 +3,9 @@
 package yang
 
 import (
+	// The packages registering the modules these modules import.
+	_ "github.com/ze-software/ze/internal/component/hub/yang"
+
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
 

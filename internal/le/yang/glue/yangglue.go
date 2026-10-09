@@ -127,12 +127,24 @@ func embedSource(modules []string) []byte {
 
 // registerSource renders the register.go of one schema package: an init() that
 // registers each module under its FILE NAME, which is the key the loader reads.
-func registerSource(modules []string, module string) []byte {
+//
+// dependencies are the import paths of the schema packages registering a module
+// these modules import or include (dependencyImports), sorted. Each becomes a
+// blank import, so a binary that links this package links what it needs.
+func registerSource(modules []string, module string, dependencies []string) []byte {
 	var tb textbuf.Buffer
 
 	tb.Str(generatedHeader)
 	tb.Str("\npackage yang\n")
-	tb.Str("\nimport (\n\tconfigyang \"").Str(module).Str("/internal/component/config/yang\"\n)\n")
+	tb.Str("\nimport (\n")
+	if len(dependencies) > 0 {
+		tb.Str("\t// The packages registering the modules these modules import.\n")
+		for _, dependency := range dependencies {
+			tb.Str("\t_ \"").Str(dependency).Str("\"\n")
+		}
+		tb.Byte('\n')
+	}
+	tb.Str("\tconfigyang \"").Str(module).Str("/internal/component/config/yang\"\n)\n")
 	tb.Str("\nfunc init() {\n")
 
 	for _, name := range modules {
@@ -237,6 +249,11 @@ func derive(root string) (files []glue, dirs int, err error) {
 		return nil, 0, err
 	}
 
+	dependencies, err := dependencyImports(root, module, found)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	for _, dir := range found {
 		modules, listErr := modulesIn(dir)
 		if listErr != nil {
@@ -247,7 +264,7 @@ func derive(root string) (files []glue, dirs int, err error) {
 		}
 		files = append(files,
 			glue{path: filepath.Join(dir, "embed.go"), want: embedSource(modules)},
-			glue{path: filepath.Join(dir, "register.go"), want: registerSource(modules, module)},
+			glue{path: filepath.Join(dir, "register.go"), want: registerSource(modules, module, dependencies[dir])},
 		)
 	}
 

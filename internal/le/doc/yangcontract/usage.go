@@ -17,7 +17,6 @@ package docyangcontract
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os/exec"
 	"path"
@@ -409,12 +408,10 @@ func headUsage(root string) (map[string]UsageRow, error) {
 			return nil, fmt.Errorf("load %s at HEAD: %w", module.Name, err)
 		}
 	}
-	// Import resolution is best-effort, as DefaultLoader treats it: the command
-	// tree needs the -cmd modules and the extensions they import, not the whole
-	// conf and api set, so any other Resolve error is discarded. An undeclared
-	// extension is refused, as DefaultLoader refuses it: the baseline tree would
-	// silently lack whatever the misspelled keyword names.
-	if err := loader.Resolve(); errors.Is(err, yang.ErrUndeclaredExtension) {
+	// Resolution is strict, as DefaultLoader's is: a baseline tree built from
+	// a module set that failed any check would silently lack what the failure
+	// names, and the comparison would report that loss as a usage change.
+	if err := loader.Resolve(); err != nil {
 		return nil, fmt.Errorf("resolve the modules at HEAD: %w", err)
 	}
 
