@@ -47,10 +47,14 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential curl git iproute2 iptables nftables util-linux
 
-      # IPv6 fixtures need a peer address distinct from ::1. This step needs the
-      # runner's administrative privilege and must precede every possible shard.
-      - name: Add the loopback address the functional suite binds
-        run: sudo ip -6 addr add fd00::2/128 dev lo
+      # RFC2545's positive fixture needs ONE prefix for speaker/next-hop ::2 and
+      # peer ::3, plus an assigned link-local belonging to the next-hop owner.
+      # Provision explicitly before all shards; test runners never alter the host.
+      - name: Add the loopback addresses and common subnet the functional suite needs
+        run: |
+          sudo ip -6 addr add fd00::2/128 dev lo
+          sudo ip -6 addr add fd00::3/127 dev lo
+          sudo ip -6 addr add fe80::1/128 dev lo
 
       - name: Set up Node
         uses: actions/setup-node@v7

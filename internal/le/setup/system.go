@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- machine state that is not a binary
 //
-// This file handles a kernel tunable, a group, and two loopback addresses.
+// This file handles a kernel tunable, a group, and fixture loopback addresses.
 // These items cannot be installed, so they do not belong in the tool table.
 // Each item has three questions: What is its state? Which command changes it?
 // Can that command run now?
@@ -9,6 +9,7 @@ package setup
 
 import (
 	"net"
+	"net/netip"
 	"os"
 	"os/user"
 	"slices"
@@ -266,19 +267,17 @@ func (s *Setup) applyKvm(report *Report) bool {
 // IPv4 provides 127.0.0.0/8. Linux routes the complete range to lo. Therefore,
 // only macOS needs aliases, and only for addresses that the suite uses.
 //
-// IPv6 has exactly one loopback address, ::1, on every platform. A second address
-// requires configuration. The suite uses fd00::2. The fd00::/8 range is
-// unique-local (RFC 4193) and is never globally routable. Thus, a fixture that
-// sends a packet toward fd00::2 cannot reach an actual destination on an actual
-// network. A documentation prefix (2001:db8::/32) is globally scoped and does
-// not have this property.
+// IPv6 needs explicit loopback addresses. fd00::2/128 is the speaker and next-hop
+// owner; fd00::3/127 supplies the recipient and their one common fd00::2/127
+// subnet for RFC 2545. fe80::1/128 belongs to that same interface and owner.
+// The /127 connects exactly those two unique-local addresses, not all of fd00::/64.
 //
 // This configuration belongs to setup because the runner cannot create it.
 // SIOCAIFADDR_IN6 returns EPERM to an unprivileged process on darwin. The Linux
 // route requires CAP_NET_ADMIN, but the verify gate runs as an ordinary user.
 // internal/test/runner/loopback.go reports the missing address and names setup.
 //
-// Neither addition remains after a reboot on either platform. This behavior is
+// These additions do not remain after a reboot on either platform. This behavior is
 // intentional. The persistent methods use a launchd plist, netplan, or a
 // systemd-networkd unit. These methods modify files that a developer's machine
 // can use for other purposes. Setup can run again quickly, and check mode reports
@@ -286,6 +285,9 @@ func (s *Setup) applyKvm(report *Report) bool {
 
 // LoopbackIPv6 is the second IPv6 loopback address the suite binds.
 const LoopbackIPv6 = "fd00::2"
+
+const loopbackPeerIPv6 = "fd00::3"
+const loopbackLinkLocalIPv6 = "fe80::1"
 
 // loopbackIPv4Darwin contains 127.0.0.2 through 127.0.0.5. Current multi-peer
 // fixtures bind these addresses. docs/guide/chaos-testing.md also instructs a
@@ -300,15 +302,70 @@ var loopbackIPv4Darwin = []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.
 // would be work with no effect.
 func (s *Setup) loopbackAddresses() []string {
 	if s.goos() == osDarwin {
-		return append(slices.Clone(loopbackIPv4Darwin), LoopbackIPv6)
+		return append(slices.Clone(loopbackIPv4Darwin), LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6)
 	}
-	return []string{LoopbackIPv6}
+	return []string{LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6}
+}
+
+func (s *Setup) loopbackInterface() string {
+	if s.goos() == osDarwin {
+		return "lo0"
+	}
+	return "lo"
+}
+
+// loopbackPrefixes reads only loopback, because an address on another interface
+// does not prove that the global next hop and its link-local share an owner/link.
+func (s *Setup) loopbackPrefixes() ([]netip.Prefix, error) {
+	if s.LoopbackPrefixes != nil {
+		return s.LoopbackPrefixes()
+	}
+	iface, err := net.InterfaceByName(s.loopbackInterface())
+	if err != nil {
+		return nil, err
+	}
+	addresses, err := iface.Addrs()
+	if err != nil {
+		return nil, err
+	}
+	prefixes := make([]netip.Prefix, 0, len(addresses))
+	for _, address := range addresses {
+		prefix, err := netip.ParsePrefix(address.String())
+		if err != nil {
+			return nil, err
+		}
+		prefixes = append(prefixes, prefix)
+	}
+	return prefixes, nil
+}
+
+// loopbackReady checks IPv6 ownership and the exact prefix as well as bindability.
+// A bind alone accepts a peer /128, which cannot prove the joint-subnet fixture.
+func (s *Setup) loopbackReady(addr string, prefixes []netip.Prefix) bool {
+	ip, err := netip.ParseAddr(addr)
+	if err != nil {
+		return false
+	}
+	if ip.Is6() {
+		bits := 128
+		if addr == loopbackPeerIPv6 {
+			bits = 127
+		}
+		if !slices.Contains(prefixes, netip.PrefixFrom(ip, bits)) {
+			return false
+		}
+		if ip.IsLinkLocalUnicast() {
+			var tb textbuf.Buffer
+			return s.loopbackBindable(tb.Str(addr).Byte('%').Str(s.loopbackInterface()).String())
+		}
+	}
+	return s.loopbackBindable(addr)
 }
 
 // loopbackBindable reports whether a socket can bind addr now.
 //
-// This function attempts a bind instead of scanning the interface list. Every
-// fixture must bind successfully, and the two methods can give different results.
+// This complements the IPv6 ownership/prefix check: every fixture must also bind
+// successfully, and the two probes can give different results.
 // An IPv6 address can be listed while duplicate-address detection still rejects
 // it. The test runner uses the same method (loopbackBindable,
 // internal/test/runner/loopback.go).
@@ -324,12 +381,17 @@ func (s *Setup) loopbackBindable(addr string) bool {
 	return true
 }
 
-// missingLoopback answers the subset of loopbackAddresses this host does not
-// carry.
+// missingLoopback answers the addresses whose ownership, prefix or bindability
+// does not satisfy the fixture requirements.
 func (s *Setup) missingLoopback() []string {
 	var missing []string
+	prefixes, err := s.loopbackPrefixes()
+	if err != nil {
+		// An unreadable interface cannot establish IPv6 ownership or a subnet.
+		prefixes = nil
+	}
 	for _, addr := range s.loopbackAddresses() {
-		if !s.loopbackBindable(addr) {
+		if !s.loopbackReady(addr, prefixes) {
 			missing = append(missing, addr)
 		}
 	}
@@ -339,16 +401,19 @@ func (s *Setup) missingLoopback() []string {
 // loopbackAddArgv answers the root command that puts addr on the loopback
 // interface.
 func (s *Setup) loopbackAddArgv(addr string) []string {
+	suffix := "/128"
+	if addr == loopbackPeerIPv6 {
+		suffix = "/127"
+	}
 	var tb textbuf.Buffer
-	host := tb.Str(addr).Str("/128").String()
+	host := tb.Str(addr).Str(suffix).String()
 	if s.goos() == osDarwin {
 		if strings.Contains(addr, ":") {
 			return []string{"ifconfig", "lo0", "inet6", host, "alias"}
 		}
 		return []string{"ifconfig", "lo0", "alias", addr}
 	}
-	// Linux reaches this point only for IPv6. The /128 prefix keeps the address
-	// as a host address and prevents a route to the remainder of fd00::/8.
+	// The peer's /127 is the only non-host route these additions introduce.
 	return []string{"ip", "-6", "addr", "add", host, "dev", "lo"}
 }
 
@@ -363,9 +428,9 @@ func (s *Setup) noteLoopbackFix(report *Report, missing []string) {
 // applyLoopback records, then runs, the commands that add the missing
 // addresses.
 //
-// Idempotent by construction: only addresses that failed the bind probe are
-// passed in, so a re-run on a configured host runs nothing. It answers true only
-// when every address binds afterwards.
+// Only addresses that failed the readiness probe are passed in, so a re-run on
+// a configured host runs nothing. A conflicting assignment is reported, never
+// silently removed. Success requires every ownership/prefix/bind probe to pass.
 func (s *Setup) applyLoopback(report *Report, missing []string) bool {
 	for _, addr := range missing {
 		ok, detail := s.Shell.runPrivileged(report, s.loopbackAddArgv(addr), nil, "")

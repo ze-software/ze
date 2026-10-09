@@ -119,7 +119,7 @@
       "claim-sha": "195d8222253c77d9",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::newLinkScopeFrom",
-      "producer-sha": "9dd7ee308c29af2f",
+      "producer-sha": "d36f94829f3c16c1",
       "break": "body of newLinkScopeFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "d7865d63bd4f9b2d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::newLinkScopeFrom",
-      "producer-sha": "9dd7ee308c29af2f",
+      "producer-sha": "d36f94829f3c16c1",
       "break": "body of newLinkScopeFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "c1a6e869347ea484",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
-      "producer-sha": "adb5be621f78f20a",
+      "producer-sha": "3d5d152748122653",
       "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -306,7 +306,7 @@
       "claim-sha": "826c734dd7eeed98",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "9cbd65f5cb5f2d13",
+      "producer-sha": "cc774267065876e6",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,7 +405,7 @@
       "claim-sha": "a06ece5a0d9329f0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::newLinkScopeFrom",
-      "producer-sha": "9dd7ee308c29af2f",
+      "producer-sha": "d36f94829f3c16c1",
       "break": "body of newLinkScopeFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

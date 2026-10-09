@@ -20,6 +20,7 @@
 package setup
 
 import (
+	"net/netip"
 	"os"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -58,6 +59,9 @@ type Setup struct {
 	KvmGroupMember func() bool
 	// Bindable reports whether one address can be bound right now.
 	Bindable func(addr string) bool
+	// LoopbackPrefixes reads addresses on the loopback interface, preserving host bits.
+	// Nil uses the real interface; errors fail the ownership probe closed.
+	LoopbackPrefixes func() ([]netip.Prefix, error)
 	// Gopls answers the gopls probe.
 	Gopls func() Result
 }

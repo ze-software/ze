@@ -5,16 +5,17 @@
 # conf-llnh-update.conf, so the pair varies one thing.
 #
 # RFC requirement: RFC2545-3-3 negative -- the link-local address is NOT included, because
-# one half of the Section 3 condition fails: the speaker shares no subnet with the entity
-# named by the global next hop (2001:db8::ffff sits on no locally connected subnet). The
-# asserted MP_REACH_NLRI is 800E26 0002 01 10 with one 16-octet address and nothing
-# appended.
+# no connected prefix contains both recipient fd00::3 and the global next hop
+# 2001:db8::ffff, which sits on no locally connected subnet. The asserted MP_REACH_NLRI
+# is 800E26 0002 01 10 with one 16-octet address and nothing appended.
 #
 # This config differs from conf-llnh-update.conf in ONE variable: the route's next hop.
-# Both carry `local-link-local fe80::1`, both enable the link-local-nexthop capability, and
-# both peer with ::1. So the pair pins inclusion to the shared-subnet condition rather than
-# to the leaf or the capability being on. An encoder that always appended fails this file;
-# one that never appended fails conf-llnh-update.ci.
+# Both carry `local-link-local fe80::1`, both enable the link-local-nexthop capability,
+# and both use local fd00::2 and peer fd00::3 on the connected fd00::2/127 prefix.
+# Explicit setup owns fd00::2/128, fd00::3/127 and fe80::1/128 on loopback. The pair
+# pins inclusion to the shared-subnet condition rather than the leaf or capability.
+# An encoder that always appended fails this file; one that never appended fails
+# conf-llnh-update.ci.
 option=file:conf-llnh-lla-only.conf
 option=bind:ipv6
 1:cmd:announce ipv6 unicast 2001:db8:1::1/128 next-hop 2001:db8::ffff origin igp local-preference 100

@@ -10,6 +10,8 @@ package setup
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -860,11 +862,11 @@ func TestJoiningTheKvmGroupNamesTheUser(t *testing.T) {
 
 func TestLoopbackIsIPv6OnlyOnLinuxAndBothOnDarwin(t *testing.T) {
 	linux := &Setup{GOOS: "linux"}
-	if !slices.Equal(linux.loopbackAddresses(), []string{LoopbackIPv6}) {
+	if !slices.Equal(linux.loopbackAddresses(), []string{LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6}) {
 		t.Errorf("linux wants %v", linux.loopbackAddresses())
 	}
 	darwin := &Setup{GOOS: "darwin"}
-	want := []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", LoopbackIPv6}
+	want := []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6}
 	if !slices.Equal(darwin.loopbackAddresses(), want) {
 		t.Errorf("darwin wants %v", darwin.loopbackAddresses())
 	}
@@ -884,16 +886,33 @@ func TestTheLoopbackCommandIsPerPlatform(t *testing.T) {
 	if got := darwin.loopbackAddArgv("127.0.0.2"); !slices.Equal(got, []string{"ifconfig", "lo0", "alias", "127.0.0.2"}) {
 		t.Errorf("darwin runs %v for IPv4", got)
 	}
+	for _, test := range []struct {
+		address string
+		prefix  string
+	}{
+		{loopbackPeerIPv6, "fd00::3/127"},
+		{loopbackLinkLocalIPv6, "fe80::1/128"},
+	} {
+		if got := linux.loopbackAddArgv(test.address); !slices.Equal(got, []string{"ip", "-6", "addr", "add", test.prefix, "dev", "lo"}) {
+			t.Errorf("linux address %s: %v", test.address, got)
+		}
+		if got := darwin.loopbackAddArgv(test.address); !slices.Equal(got, []string{"ifconfig", "lo0", "inet6", test.prefix, "alias"}) {
+			t.Errorf("darwin address %s: %v", test.address, got)
+		}
+	}
 }
 
 func TestOnlyTheMissingAddressesAreAdded(t *testing.T) {
 	rec := rootShell()
 	rec.euid = 0
-	carried := map[string]bool{"127.0.0.2": true, "127.0.0.3": true, LoopbackIPv6: true}
+	carried := map[string]bool{"127.0.0.2": true, "127.0.0.3": true, LoopbackIPv6: true, loopbackPeerIPv6: true, "fe80::1%lo0": true}
 	setup := &Setup{
 		GOOS:     "darwin",
 		Shell:    rec.shell(),
 		Bindable: func(addr string) bool { return carried[addr] },
+		LoopbackPrefixes: func() ([]netip.Prefix, error) {
+			return fixtureLoopbackPrefixes(), nil
+		},
 	}
 
 	missing := setup.missingLoopback()
@@ -904,6 +923,85 @@ func TestOnlyTheMissingAddressesAreAdded(t *testing.T) {
 	want := []string{"ifconfig lo0 alias 127.0.0.4", "ifconfig lo0 alias 127.0.0.5"}
 	if !slices.Equal(rec.ran(), want) {
 		t.Errorf("it ran %v, want %v", rec.ran(), want)
+	}
+}
+
+func fixtureLoopbackPrefixes() []netip.Prefix {
+	return []netip.Prefix{
+		netip.MustParsePrefix("fd00::2/128"),
+		netip.MustParsePrefix("fd00::3/127"),
+		netip.MustParsePrefix("fe80::1/128"),
+	}
+}
+
+// The RFC2545 fixture needs assigned addresses on loopback, not merely sockets
+// that bind. A peer /128 or an absent owned link-local must remain missing.
+func TestLoopbackRequiresJointPrefixAndOwnedLinkLocal(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		prefixes []netip.Prefix
+		want     []string
+	}{
+		{"ready", fixtureLoopbackPrefixes(), nil},
+		{"peer host route", []netip.Prefix{
+			netip.MustParsePrefix("fd00::2/128"),
+			netip.MustParsePrefix("fd00::3/128"),
+			netip.MustParsePrefix("fe80::1/128"),
+		}, []string{loopbackPeerIPv6}},
+		{"link-local absent", fixtureLoopbackPrefixes()[:2], []string{loopbackLinkLocalIPv6}},
+		{"addresses elsewhere", nil, []string{LoopbackIPv6, loopbackPeerIPv6, loopbackLinkLocalIPv6}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setup := &Setup{
+				GOOS:     "linux",
+				Bindable: func(string) bool { return true },
+				LoopbackPrefixes: func() ([]netip.Prefix, error) {
+					return test.prefixes, nil
+				},
+			}
+			if got := setup.missingLoopback(); !slices.Equal(got, test.want) {
+				t.Errorf("missing %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+// Scoped bindability is independent of ownership: a tentative or unusable
+// address still needs attention even when its prefix is already assigned.
+func TestLoopbackLinkLocalBindUsesInterfaceZone(t *testing.T) {
+	for _, platform := range []struct {
+		goos string
+		zone string
+	}{
+		{"linux", "lo"},
+		{"darwin", "lo0"},
+	} {
+		setup := &Setup{
+			GOOS: platform.goos,
+			Bindable: func(address string) bool {
+				if address != "fe80::1%"+platform.zone {
+					t.Errorf("link-local probe used %q", address)
+				}
+				return false
+			},
+		}
+		if setup.loopbackReady(loopbackLinkLocalIPv6, fixtureLoopbackPrefixes()) {
+			t.Error("an unbindable link-local was considered ready")
+		}
+	}
+}
+
+// Failure to read the owning interface must not turn bindability into proof.
+func TestLoopbackOwnershipReadErrorFailsClosed(t *testing.T) {
+	setup := &Setup{
+		GOOS:     "linux",
+		Bindable: func(string) bool { return true },
+		LoopbackPrefixes: func() ([]netip.Prefix, error) {
+			return fixtureLoopbackPrefixes(), errors.New("interface unavailable")
+		},
+	}
+	if got := setup.missingLoopback(); !slices.Equal(got, setup.loopbackAddresses()) {
+		t.Errorf("unreadable loopback reported missing %v", got)
 	}
 }
 
