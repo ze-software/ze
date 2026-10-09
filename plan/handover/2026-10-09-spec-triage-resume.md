@@ -33,7 +33,7 @@ Reset: six unstarted specs to ready/design (`cb4276f8c7`); yang-loader-structura
 | `spec-fixit-flap-test-cannot-build-its-own-stimulus` | already handed to the macOS showcase handover (`20a4e455be`); a stopped agent's half fixture edit was undone, saved as `backups/flap-fixture-20261009-195228.patch` on the Linux host | read `netlinkDrops08` every round, force the drops red, close |
 | `spec-feature-maturity-declared` | blocked on the design rewrite above | rewrite spec, then the verify stage |
 | `spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant` | measurement only, gated on the BGP session landing and a quiet box | owner-gated |
-| PADR replay lab (`pppoe-padr-replay`) | an agent replaced `SendFrameInNamespace` (setns refused rootless); see its commit or the uncommitted `internal/le/interoplab/sendframe.go` | finish, rerun the scenario red/green |
+| PADR replay lab (`pppoe-padr-replay`) | fix landed `3d43920131`: `SendFrameInNamespace` deleted (uid 1000 cannot open a root container's netns, setns needs CAP_SYS_ADMIN), replaced by `interoplab.SendFrameInContainer` (tcpreplay via docker exec) for every caller incl. the IS-IS purge. Not yet green: the one run that got through failed "per-MAC cap did not hold: 0 sessions" (guess, unverified: the checker's `pkill -x pppd` kills the first session's pppd) | diagnose that, run `pppoe-padr-replay` green, forced red in an export, rerun `pppoe-pap-ze-ac` and `isis-purge-reorig-frr`, scoped lint of `internal/le/interoplab` |
 
 ## Hazards found today
 
