@@ -489,7 +489,7 @@ and was not run in this pass (host load 33, five-minute call budget).
 | AC-5 | unit exists | `TestVPPMultiPath` | no VPP functional run |
 | AC-6 | unit and one needs-linux integration exist; kernel `.ci` rewritten, owed a QEMU run | `TestKernelRouteType`, `TestNetlinkIntegration_BlackholeRouteWithNextHop`, `TestVPPRouteType`, `test/plugin/fib-blackhole.ci` | the `.ci` asserted only `fib-kernel` on stderr and passed with no route programmed; it now reads the kernel for blackhole, unreachable and prohibit (needs-linux, not run) |
 | AC-7 | unit; kernel `.ci` owed a QEMU run | `TestKernelRouteType`, `TestVPPRouteType`, `test/plugin/fib-blackhole.ci` | same rewritten `.ci` reads the installed `unreachable` route |
-| AC-10 | needs-linux integration exists; `.ci` vacuous | `TestMPLSIntegration_Push`, `TestKernelMPLSPush` | `test/plugin/fib-mpls-kernel.ci` asserts only `fib-kernel` on stderr |
+| AC-10 | needs-linux integration exists; kernel `.ci` rewritten, owed a QEMU run | `TestMPLSIntegration_Push`, `TestKernelMPLSPush`, `test/plugin/fib-mpls-kernel.ci` | the `.ci` asserted only `fib-kernel` on stderr; it now reads `encap mpls 100/200 via 192.0.2.1` from the kernel (needs-linux, not run) |
 | AC-11 | needs-linux integration and VPP unit exist | `srv6_integration_linux_test.go`, `TestSRv6SteerAdd`, `TestSRv6SteerWithdraw` | recorded delivered (learned 1113) |
 | AC-12 | unit exists | `TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB`, `TestNHResolver_Tracking` | no functional run |
 | AC-14 | unit exists | `TestECMPMemberFail`, `TestECMPRecursiveMemberLifecycle` | no functional run |

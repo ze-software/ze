@@ -212,14 +212,30 @@ func fixture06FIBMetric(ctx context.Context, p *sdk.Plugin) error {
 	return fixture06WaitEOR(ctx, p, 1)
 }
 
+// fixture06MPLSPushPrefix is the labeled route's prefix. Its gateway is the
+// static kernel scenarios' gateway, which static/static-kernel-setup makes
+// reachable on the dummy link.
+const fixture06MPLSPushPrefix = "198.18.204.0/24"
+
+// fixture06FIBMPLSKernel proves spec-fib-depth AC-10 at the kernel: a
+// system-RIB change carrying the label stack 100,200 makes fib-kernel install
+// an lwtunnel MPLS encap route, outer label first, via the gateway.
 func fixture06FIBMPLSKernel(ctx context.Context, p *sdk.Plugin) error {
-	if err := fixture06DispatchDone(ctx, p, "request fakefib emit add ipv4/unicast 10.0.0.0/24 nexthop 192.168.1.1 labels 100,200"); err != nil {
+	if err := fixture06DispatchDone(ctx, p, "request fakefib emit add ipv4/unicast "+fixture06MPLSPushPrefix+" nexthop "+kernelStaticGateway+" labels 100,200"); err != nil {
 		return err
 	}
-	if err := fixture06Wait(ctx, time.Second); err != nil {
-		return err
+	var entries []string
+	if !Poll(ctx, kernelPolls, 100*time.Millisecond, func() bool {
+		entries = kernelEntries(ctx, fixture06MPLSPushPrefix)
+		return len(entries) == 1 &&
+			strings.Contains(entries[0], "encap mpls 100/200 ") &&
+			strings.Contains(entries[0], "via "+kernelStaticGateway+" ") &&
+			strings.Contains(entries[0], "proto 250")
+	}) {
+		return fmt.Errorf("%s: want one kernel entry `encap mpls 100/200 via %s ... proto 250`; ip route show table all: %q",
+			fixture06MPLSPushPrefix, kernelStaticGateway, entries)
 	}
-	fmt.Fprintln(os.Stderr, "OK AC-4: MPLS-labeled route emitted to fib-kernel via sysrib EventBus")
+	fmt.Fprintln(os.Stderr, "OK: kernel holds "+fixture06MPLSPushPrefix+" encap mpls 100/200 via "+kernelStaticGateway)
 	return fixture06WaitEOR(ctx, p, 1)
 }
 
