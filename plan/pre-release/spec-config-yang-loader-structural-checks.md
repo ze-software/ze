@@ -2,48 +2,124 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-21 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+→ Decision (2026-10-09, status audit): the AC-2 code landed (12f339513b, 6c06cb43af, 037cc25e29, a812b18c41, 7070e5861a, 66e87707f5, 180df07922) while this spec still read `skeleton`. It never passed `design` or `ready`, and no design for it was ever presented to the owner: the work ran under the owner orders quoted in the progress notes below ("fix the three tests", 2026-10-08; "deal with it now", 2026-10-09). The status moves to `in-progress` because implementation has started. The sections below record the design the landed code took, read from source and tests rather than from the progress notes. The design of the eighteen AC-1 rows still open was never written; it is owed before their implementation and needs the owner's approval like any design.
+
 ## Required Reading
 
-- `docs/architecture/config/yang-config-design.md`
-- `rfc/short/rfc7950.md`, and `rfc/full/rfc7950.txt` at each section the Task table cites
+### Architecture Docs
+- [ ] `docs/architecture/config/yang-config-design.md` - how Ze loads and resolves its YANG modules
+  → Constraint: every module passes `Loader.Resolve`, which joins goyang's own resolution with Ze's checks; only a successful `Resolve` yields a `*yang.Resolved` (180df07922).
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfc7950.md`, and `rfc/full/rfc7950.txt` at each section the Task table cites
+  → Constraint: each id in the Task table keeps `{gap}` naming this spec until it holds a positive and a negative tagged test with a discrimination record.
+
+**Key insights:**
+- goyang accepts modules RFC 7950 forbids; Ze adds `checkStructure`, `checkExtensions` and `checkPatterns`, each joined by `Resolve`.
 
 ## Current Behavior (MANDATORY)
 
-- [ ] `internal/component/config/yang/loader.go` -> goyang parses and resolves every module; Ze adds no structural check of its own
-- [ ] `internal/component/config/yang/validator.go` -> walkTree enforces type, range, length, pattern, enum, mandatory and min/max-elements
-- [ ] `internal/component/config/yang_schema.go` -> yangToNode converts the goyang entry tree to Ze schema nodes and validates defaults
-- [ ] `internal/component/config/yang/loader_rfc7950_test.go` -> pins what goyang refuses today
+**Source files read:**
+- [ ] `internal/component/config/yang/loader.go` - `Resolve` runs goyang's `Modules.Process`, then joins `checkExtensions`, `checkPatterns` and `checkStructure`; `DefaultLoader` returns the `*Resolved` of the embedded modules
+- [ ] `internal/component/config/yang/loader_structure.go` - `checkStructure`: length parts disjoint and ascending, min/max read as the restricted type's bounds (9.4.4); enum restriction a subset that keeps base values (9.6.4); enum values within int32 and unique (9.6.4.2); extension substatements are YANG statements (7.19)
+- [ ] `internal/component/config/yang/loader_abnf.go`, `loader_grammar.go`, `rfc7950.abnf` - the Section 14 grammar read from the embedded ABNF and applied to statements under an extension
+- [ ] `internal/component/config/yang/loader_source.go` - binds each module to its source text; `statementHasBlock` answers what goyang does not record
+- [ ] `internal/component/config/yang/enum_assignment.go` - `assignEnumValues` assigns enum values per Section 9.6.4.2
+- [ ] `internal/component/config/yang/loader_rfc7950_test.go` - pins, untagged, what goyang refuses
+
+**Behavior to preserve:**
+- Every embedded Ze module loads through `DefaultLoader` (`TestPublishedExtensionUsagesLoad` and the package tests).
+
+**Behavior to change:**
+- A module carrying one of the Task table's faults is refused with an error naming the fault, rather than loading or crashing goyang.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-Module text reaches `Loader.AddModuleFromText`, then `Loader.Resolve`; config data reaches `Validator.ValidateTree`.
+- Module text reaches `Loader.AddModuleFromText`, then `Loader.Resolve`.
 
 ### Transformation Path
-Module text -> goyang AST -> `yang.Entry` tree -> Ze schema nodes through `yangToNode` -> validator walk over the config data.
+1. Module text -> goyang AST (`yang.Statement`), with the source text Ze keeps beside it (`loader_source.go`).
+2. `Resolve`: goyang `Modules.Process`, then `checkExtensions`, `checkPatterns` and `checkStructure` over every loaded module and submodule; the errors are joined.
+3. `*yang.Resolved` -> Ze schema nodes through `yangToNode`.
 
 ### Boundaries Crossed
-None: every step is inside `internal/component/config`.
+| Boundary | How | Verified |
+|----------|-----|----------|
+| None | every step is inside `internal/component/config` | Yes |
 
 ### Integration Points
-The schema build error accumulator `recordSchemaBuildError` and the `ValidationError` type.
+- `Loader.Resolve` and `DefaultLoader` - the only producers of `*yang.Resolved`, so no caller builds a schema from a module that failed a check.
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers | Yes | `loader.go` `Resolve` joins `checkStructure` beside goyang's own processing |
+| No unintended coupling | Yes | the checks live in `internal/component/config/yang` |
+| No duplicated functionality | Yes | each check covers a rule goyang accepts; what goyang refuses stays pinned in `loader_rfc7950_test.go` |
+| Zero-copy preserved where applicable | Yes | load time only, no wire path |
+| Registration over hardcoding, outbound | Yes | no command, family or handler added |
+| Registration over hardcoding, inbound | Yes | the Section 14 rules are read from the embedded `rfc7950.abnf` (`loader_abnf.go::parseYANGGrammar`), not listed by hand |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | Every embedded Ze module passes the new checks | `DefaultLoader` runs at every daemon start | the daemon refuses to start | `TestPublishedExtensionUsagesLoad` and the config package tests | validated for AC-2 |
+| A-2 | The goyang fork's enum numbering fix stays until upstream ships it | `go.mod` replace comment (66e87707f5) | goyang refuses a valid module | `TestGoyangNumbersAnEnumAfterANegativeValue` | validated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | A check refuses a valid module | a Ze module stops loading | each check carries a positive tagged test |
+| R-2 | Three open AC-1 faults crash goyang (self-using grouping, self-based identity, augment of a leaf) | stack overflow or nil-map panic in `ToEntry` | the Ze check for those rows runs before goyang's `Process`; settled at their design |
+
+## Blast Radius
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | the daemon refuses its own embedded modules at start |
+| How is it reverted? | single commit revert |
+| Who else touches this path? | `plan/spec-validated-construction-and-state-types.md` Phase 1 builds on `Resolve`, `DefaultLoader` and `checkStructure` (its A-5) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
-
-| Entry Point -> Feature Code -> Test |
-|-------------------------------------|
-| To be designed -> to be designed -> to be designed |
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| `Loader.AddModuleFromText` then `Loader.Resolve` | → | `loader_structure.go::checkStructure` | `TestRFC7950LengthPartsDisjointAndAscending`, `TestRFC7950EnumRestrictionKeepsTheBaseValue`, `TestRFC7950ExtensionUsageSubstatementsAreYANGStatements` |
+| `Loader.Resolve` | → | `loader_grammar.go`, the Section 14 rules under an extension | `TestRFC7950ExtensionSubstatementContextForms` |
+| `DefaultLoader` (daemon start) | → | `Resolve` over every embedded module | `TestPublishedExtensionUsagesLoad` |
 
 ## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | a module carrying the fault of any requirement id in the Task table | `Resolve` refuses it naming the fault; each id carries a positive and a negative tagged test with a discrimination record, and its `{gap}` leaves `rfc/short/rfc7950.md` |
+| AC-2 | a module whose length parts overlap or descend (9.4.4), whose enum values leave int32 or repeat (9.6.4.2), or whose extension substatements are not Section 14 statements (7.19) | `Resolve` refuses it; an independent `ze-rfc-audit` judges RFC7950-7.19-1, RFC7950-9.4.4-1 and RFC7950-9.6.4.2-1 `enforced` |
+
+### AC audit, 2026-10-09
+
+Read from source, tests, `rfc/audit/rfc7950.json` and `rfc/short/rfc7950.md`, not from the progress notes.
+
+| AC | Part | Verdict | Evidence |
+|----|------|---------|----------|
+| AC-2 | RFC7950-7.19-1 | met | audit verdict `enforced`, re-judged after 180df07922; tagged pairs in `rfc7950_extension_grammar_test.go` and `rfc7950_loader_structural_test.go` |
+| AC-2 | RFC7950-9.4.4-1 | met | audit verdict `enforced`; `TestRFC7950LengthPartsDisjointAndAscending`, `TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds` |
+| AC-2 | RFC7950-9.6.4.2-1 | NOT met | audit verdict `weak`: the goyang numbering fix was proven only by the untagged `TestGoyangNumbersAnEnumAfterANegativeValue`, so dropping the fork reddens no tagged unit. Tagging it was tried on 2026-10-09 and withdrawn: `./le rfc discriminate-record` cannot prove a vendored producer (`vendor/github.com/openconfig/goyang/pkg/yang/types_builtin.go::Set` reads "never executes", because the coverage profile names the import path; journal row in `plan/journal/check-cannot-see-the-change-it-looks-for.md`), and a tag without its record fails `./le rfc check`. Owed: that tool fix, then the tag and record, then an independent re-judgement |
+| AC-2 | red file replaced | met | `loader_rfc7950_structural_red_test.go` is gone; `rfc7950_loader_structural_test.go` holds the tagged proofs |
+| AC-1 | RFC7950-9.6.4-2 | met in code and tests; no audit verdict yet | its `{gap}` left the summary; `TestRFC7950EnumRestrictionKeepsTheBaseValue` tagged positive and negative |
+| AC-1 | the other eighteen ids | NOT met, undesigned | each still carries `{gap}` naming this spec: 5.1-1, 5.5-1, 5.6.5-1, 6.2.1-1, 6.3.1-1, 7.1.4-1, 7.3-1, 7.9.2-1, 7.9.3-1, 7.12-1, 7.15-1, 7.16-1, 7.17-1, 7.18.2-1, 7.21.2-1, 9.2.4-2, 9.6.4-1, 9.12-2 |
+| AC-1 | RFC7950-7.2.2-1 | NOT met | carries `{gap}` naming this spec; the Task table folds its sentence under 5.1-1 |
+
+The original wording of both ACs:
 
 - AC-1: every requirement id in the Task table carries a positive and a negative tagged test with a discrimination record, and its `{gap}` annotation leaves `rfc/short/rfc7950.md`.
 - AC-2: the weak verdicts RFC7950-7.19-1 (extension substatement syntax), RFC7950-9.4.4-1 (length values non-negative, disjoint, ascending) and RFC7950-9.6.4.2-1 (enum value range and uniqueness; the last sentence of §9.6.4.2) are re-judged `enforced` once the loader performs these structural checks. The untracked red `internal/component/config/yang/loader_rfc7950_structural_red_test.go` is replaced by tagged proofs. Moved here from spec-rfc-verdict-fix-services under P-3 (ruling R4), 2026-09-30.
@@ -59,25 +135,110 @@ Progress 2026-10-09 (owner order "deal with it now", RFC7950-7.19-1 Section 14 c
 - What the ABNF does not decide: which type-body-stmts alternative a base type takes (`type int8 { length "1"; }` is grammatical; Section 9 binds restrictions to base types), and substatement order.
 - The 7.19-1 audit verdict owes an independent re-judgement.
 
-## Risks & Assumptions
-
-To be written at design.
+## End-to-End User Stories
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | a Ze developer adds a module whose length parts overlap | `AddModuleFromText` -> `Resolve` -> `checkStructure` refuses, naming the fault | `TestRFC7950LengthPartsDisjointAndAscending` |
+| 2 | the daemon starts | `DefaultLoader` -> `Resolve` over every embedded module, which loads | `TestPublishedExtensionUsagesLoad` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestRFC7950LengthPartsDisjointAndAscending` | `internal/component/config/yang/rfc7950_loader_structural_test.go` | 9.4.4 parts disjoint and ascending | landed |
+| `TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds` | same | 9.4.4 min and max read as the restricted type's bounds | landed |
+| `TestRFC7950EnumRestrictionKeepsTheBaseValue` | same | 9.6.4 subset of names, base values kept | landed |
+| `TestRFC7950ExtensionUsageSubstatementsAreYANGStatements` | same | 7.19 statements under an extension | landed |
+| the four `TestRFC7950ExtensionSubstatement*` tests | `internal/component/config/yang/rfc7950_extension_grammar_test.go` | 7.19 Section 14 grammar under an extension | landed |
+| `TestRFC7950EnumValueRangeAndUniqueness`, `TestRFC7950EnumImplicitValueFollowsTheHighest` | `internal/component/config/yang/rfc7950_enum_value_test.go` | 9.6.4.2 range, uniqueness, implicit value | landed |
+| `TestGoyangNumbersAnEnumAfterANegativeValue` | `internal/component/config/yang/goyang_enum_numbering_test.go` | 9.6.4.2 positive through goyang's own numbering | landed untagged; tag and record owed (blocked on the vendored-producer tool defect) |
+| one positive and one negative test per open AC-1 id | `internal/component/config/yang/loader_rfc7950_test.go` | each open Task row | owed after design |
 
-| Test | Asserts |
-|------|---------|
-| To be designed | To be designed |
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| enum `value` | -2147483648 to 2147483647 | -2147483648 and 2147483647 | -2147483649 (`TestRFC7950EnumValueWithinInt32`) | 2147483648 |
+| length part | 0 upward | 0 | a negative value (9.4.4) | N/A |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| none | - | the checks run at load time over Ze's own embedded modules; every daemon start runs them through `DefaultLoader`, and no operator input reaches them | N/A |
 
 ## Files to Modify
+- `internal/component/config/yang/loader.go` - `Resolve` joins `checkStructure` (landed)
+- `internal/component/config/yang/enum_assignment.go` - enum values per 9.6.4.2 (landed)
+- `internal/component/config/yang/loader_rfc7950_test.go` - one tagged pair per open AC-1 id (owed)
 
-To be decided at design.
+## Files to Create
+- `internal/component/config/yang/loader_structure.go`, `loader_abnf.go`, `loader_grammar.go`, `loader_source.go`, `rfc7950.abnf` (landed)
+- `internal/component/config/yang/rfc7950_loader_structural_test.go`, `rfc7950_extension_grammar_test.go`, `rfc7950_enum_value_test.go` (landed)
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | No | no module changes |
+| YANG validation constraints | No | the loader checks module structure, not config values |
+| CLI commands/flags | No | none |
+| Env var registration | No | none |
+| Doctor check for runtime dependencies | No | no runtime dependency |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7950.md` (`{gap}` removed for 9.6.4-2); `docs/features/rfc-status.md` is derived |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/config/yang-config-design.md`, to be checked against the loader checks at close |
+| 16 | Changed source referenced by doc anchors? | Yes | derived at close by `./le spec citation anchors spec plan/pre-release/spec-config-yang-loader-structural-checks.md` |
 
 ## Implementation Steps
 
-To be decided at design.
+1. **Phase: AC-2 (landed)** - length, enum and extension checks in `checkStructure`, joined by `Resolve`.
+   - Tests: the landed rows of the TDD table.
+   - Verify: each refused case was red before its fix (records in `rfc/discrimination/rfc7950.json`).
+2. **Phase: AC-2 remainder** - teach `internal/le/rfc/discriminate_observe.go::coverPackages` (and the coverage lookup) to map a `vendor/` producer to its import path, tag `TestGoyangNumbersAnEnumAfterANegativeValue` positive, record the discrimination of `TestGoyangNumbersAnEnumAfterANegativeValue` (`./le rfc discriminate-record id RFC7950-9.6.4.2-1 polarity positive unit internal/component/config/yang/goyang_enum_numbering_test.go::TestGoyangNumbersAnEnumAfterANegativeValue route revert producer vendor/github.com/openconfig/goyang/pkg/yang/types_builtin.go::Set`), then an independent `ze-rfc-audit` re-judges RFC7950-9.6.4.2-1 and judges RFC7950-9.6.4-2.
+3. **Phase: AC-1 design** - one design row per open id: where the check runs (before goyang's `Process` for the three rows that crash it), the error it names, its two tests. Owner approval before implementation.
+4. **Phase: AC-1 implementation** - per approved row: a failing tagged pair, the check, a discrimination record, the `{gap}` removed from the summary.
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | every Task id has a check at file:line and two tagged tests |
+| Correctness | each error names the module, the statement and the RFC section |
+| Rule: rfc-compliance | a function added from 2026-09-24 quotes the RFC 7950 sentence it implements |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| no `{gap}` naming this spec in `rfc/short/rfc7950.md` | `grep -c loader-structural-checks rfc/short/rfc7950.md` returns 0 |
+| AC-2 verdicts `enforced` | `rfc/audit/rfc7950.json` |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | module text is Ze-authored and embedded; a check still must not panic or recurse without bound on a cyclic module (R-2) |
+
+### Failure Routing
+| Failure | Route To |
+|---------|----------|
+| A Ze module is refused | the check, unless the module breaks the RFC |
+| 3 fix attempts failed | STOP, report all three |
+
+## Design Insights
+- goyang records no statement block, so a required block is read from the source text (`loader_source.go::statementHasBlock`).
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| Read Section 14 from the embedded ABNF | a hand-written statement table | the ABNF is the one declaration; a table would be a second copy |
+| Check every enumeration, used or not | only types goyang resolved | a grouping no node uses is still a statement the RFC binds |
+
+## Known Limitations
+- The ABNF does not decide which type-body-stmts alternative a base type takes, nor substatement order.
+
+## RFC Documentation (Scope: protocol)
+
+Every check carries `// RFC 7950 Section X.Y: "<quoted requirement>"` above the code that enforces it.
 
 ## Checklist
 
