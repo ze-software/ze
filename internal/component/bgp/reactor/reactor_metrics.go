@@ -122,6 +122,12 @@ type reactorMetrics struct {
 	// daemon.
 	attrSpanSpill metrics.CounterVec // labels: peer
 
+	// A received OPEN refused with NOTIFICATION 2/2 Bad Peer AS: an advertised AS of
+	// zero (RFC 7607 Section 2) or one the peer is not configured for, migration pair
+	// included (RFC 4271 Section 6.2, RFC 7705 Section 4.2). Before that check existed
+	// such a peer established, so the refusal is counted rather than only logged.
+	openBadPeerAS metrics.CounterVec // labels: peer
+
 	// Startup timing (histograms)
 	pluginStartupSeconds      metrics.Histogram    // WaitForPluginStartupComplete duration
 	apiReadySeconds           metrics.Histogram    // WaitForAPIReady duration
@@ -209,6 +215,8 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		wireWriteErrors: reg.CounterVec("ze_wire_write_errors_total", "Socket write failures.", []string{metricLabelPeer}),
 		attrSpanSpill: reg.CounterVec("ze_bgp_update_span_spill_total",
 			"Received UPDATEs whose attribute count exceeded the inline span capacity.", []string{metricLabelPeer}),
+		openBadPeerAS: reg.CounterVec("ze_bgp_open_rejected_bad_peer_as_total",
+			"Received OPENs refused with NOTIFICATION 2/2 Bad Peer AS.", []string{metricLabelPeer}),
 
 		// Startup and connection timing
 		pluginStartupSeconds: reg.Histogram("ze_plugin_startup_seconds", "WaitForPluginStartupComplete duration.",

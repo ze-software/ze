@@ -95,11 +95,17 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 // leave the connection up.
 //
 // RFC 4271 Section 6.2 defines no Data field for this subcode, so none is sent.
+//
+// It also counts the refusal in ze_bgp_open_rejected_bad_peer_as_total, so a peer whose
+// configured AS is wrong shows on the metrics endpoint and not only in the log.
 func (s *Session) rejectOpenPeerAS() {
 	s.mu.RLock()
 	conn := s.conn
 	s.mu.RUnlock()
 
+	if s.prefixMetrics != nil {
+		s.prefixMetrics.openBadPeerAS.With(s.addrLabel).Inc()
+	}
 	s.logNotifyErr(conn, message.NotifyOpenMessage, message.NotifyOpenBadPeerAS, nil)
 	s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 	s.closeConn()

@@ -381,6 +381,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 		r.rmetrics.wireReadErrors.Delete(label)
 		r.rmetrics.wireWriteErrors.Delete(label)
 		r.rmetrics.attrSpanSpill.Delete(label)
+		r.rmetrics.openBadPeerAS.Delete(label)
 		r.rmetrics.fwdCongestionEvents.Delete(label)
 		r.rmetrics.fwdCongestionResume.Delete(label)
 		r.rmetrics.prefixTeardownTotal.Delete(label)
