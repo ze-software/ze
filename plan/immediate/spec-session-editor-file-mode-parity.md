@@ -415,11 +415,11 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Copy and leaf/path deactivate/activate are each one structural op | per-leaf set entries for a copy | `change-file-structural-ops.md`: synthetic entries hide intent; one op is one pending change and conflict detection can see it |
+| Copy and leaf/path deactivate/activate are each one structural op | per-leaf set entries for a copy | `change-file-structural-ops.md`: synthetic entries hide intent; one op is one pending change and conflict detection can see it. Owner decision 2026-10-10: "ok" |
 | Load builds the target tree and diffs it into change entries written in one batch | replay each loaded leaf through `writeThroughSet` (one lock per leaf, no deletes for replace, partial on failure); a single "load" structural op holding the subtree (blame, compare and per-leaf conflict detection lose sight of it) | per-leaf entries are what session mode reads everywhere; one batch is atomic |
-| One tree-based load path for both modes; delete the text merge | keep text merge for file mode and add a tree path for session | `ai/rules/config.md` bans text surgery; `ai/rules/no-layering.md` bans keeping both |
-| The confirm window is owned by the daemon with a stored pending record | keep the Model tick in session mode | the tick dies with the SSH channel, which is the case the command exists for |
-| Commits during a pending window are refused | Junos semantics: the next `commit` confirms | an implicit confirm by another operator hides the pending window; refusal is explicit. Owner may choose Junos semantics at the design gate |
+| One tree-based load path for both modes; delete the text merge | keep text merge for file mode and add a tree path for session | `ai/rules/config.md` bans text surgery; `ai/rules/no-layering.md` bans keeping both. Owner decision 2026-10-10: "one path" |
+| The confirm window is owned by the daemon with a stored pending record | keep the Model tick in session mode | the tick dies with the SSH channel, which is the case the command exists for. Owner decision 2026-10-10: "correct" |
+| Commits during a pending window are refused | Junos semantics: the next `commit` confirms | an implicit confirm by another operator hides the pending window; refusal is explicit. OPEN (2026-10-10): still under discussion with the owner, explicit `confirm` versus a plain `commit` from the owning session confirming; AC-18 stands until he decides |
 | Seconds, 1 to 3600, kept | switch to minutes like Junos/VyOS | the unit is the existing contract; changing it is scope the owner did not ask for |
 
 ## Known Limitations
