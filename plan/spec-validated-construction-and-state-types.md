@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling, config, protocol |
-| Depends | Phase 1: `plan/pre-release/spec-config-yang-loader-structural-checks.md` lands first. Later phases: reconcile the completed enum migration before changing its producers; coordinate overlapping IKE plans below |
-| Phase | Phase 1 (YANG resolved schema, validated command arguments, `ArgDef` construction) authorized by the owner on 2026-10-08; its design awaits owner approval of decisions D-1 to D-7. Later phases not authorized |
-| Handoff | - |
-| Updated | 2026-10-08 |
+| Depends | Phase 1: `plan/pre-release/spec-config-yang-loader-structural-checks.md` lands first, and the goyang fork `replace` in `go.mod` (enum numbering fix, another agent, 2026-10-09) lands before step 1. Later phases: reconcile the completed enum migration before changing its producers; coordinate overlapping IKE plans below |
+| Phase | Phase 1 (YANG resolved schema, strict `DefaultLoader`, validated command arguments, `ArgDef` construction) authorized by the owner on 2026-10-08; design decisions D-1 to D-7 answered by the owner on 2026-10-09. Later phases not authorized |
+| Handoff | `plan/handover/12-validated-construction-phase-1.md` |
+| Updated | 2026-10-09 |
 
 ## Task
 
@@ -514,18 +514,23 @@ Preserve existing requirement comments and tests on enforcing behavior. When mov
 
 > run the state-type refactor as the spec's first phase
 
-The owner authorized a first phase of three concrete migrations. Each is a type that would have made a defect fixed on 2026-10-08 impossible to write. Everything else in this spec (the full census, the IKE families, the remaining Implementation Steps) stays a later phase, unchanged and not authorized by this decision. This section is the Phase 1 design; a design agent wrote it, it is not yet reviewed, and its open decisions (below) go to the owner before implementation starts.
+The owner authorized a first phase of three concrete migrations. Each is a type that would have made a defect fixed on 2026-10-08 impossible to write. Everything else in this spec (the full census, the IKE families, the remaining Implementation Steps) stays a later phase, unchanged and not authorized by this decision. This section is the Phase 1 design. A design agent wrote it on 2026-10-08; the owner answered its decisions D-1 to D-7 on 2026-10-09 ("Decisions" below), and the design was reworked to match the same day.
 
-→ Decision: Status stays `design`. `ze-spec` moves a spec to `ready` only after the owner approves the written design at its final gate, and the open decisions below are part of that design. The authorization to run Phase 1 is recorded here and in the metadata Phase row; the design approval is the next owner gate.
+→ Decision (2026-10-08, superseded): Status stayed `design` until the owner answered the open decisions.
+
+→ Decision (2026-10-09): Status is `ready`. The owner answered D-1 to D-7 and confirmed D-6, which were the design approval this phase waited for. Resume state for the batches lives in the committed handover `plan/handover/12-validated-construction-phase-1.md`, never under `tmp/`, because the owner moves machines.
 
 → Constraint: Phase 1 implementation starts only after `plan/pre-release/spec-config-yang-loader-structural-checks.md` lands. That work is editing `internal/component/config/yang/loader.go`, adding `loader_structure.go`, `loader_structure_test.go` and `loader_rfc7950_structural_test.go`, removing `loader_rfc7950_structural_red_test.go`, and names `validator.go` and `loader_rfc7950_test.go`. Phase 1 changes `loader.go` and `validator.go` throughout.
+
+→ Constraint: Phase 1 implementation starts only after another agent's goyang fork lands: `go.mod` gains a `replace` of `github.com/openconfig/goyang` (today `v1.6.3`) with a ze-software fork carrying the enum numbering fix (journal `plan/journal/zero-value-as-valid-answer.md`, rows of 2026-10-09: goyang `EnumType.SetNext` and `Set` count from -1, so `Modules.Process` refuses a valid `enum p { value -5; } enum q; enum r { value 0; }`, an error the `DefaultLoader` path discards today). Shared files: `go.mod`, `go.sum`, `vendor/modules.txt`, the vendored goyang tree `vendor/github.com/openconfig/goyang/` (`pkg/yang/types_builtin.go` and whatever else the fork changes), and on the Ze side `internal/component/config/yang/enum_assignment.go` and `enumRestrictionErrors` in `loader_structure.go`, which read the enum values. The ordering matters for D-6: once `DefaultLoader` stops discarding `process` errors, a valid enumeration goyang misnumbers would fail startup, so the fork must be in before step 3 (strict loader) can land.
 
 ### Phase 1 scope
 
 | Type | Defect that motivates it | Target |
 |------|--------------------------|--------|
 | T1 YANG resolved schema | `yang.Loader` is one type before and after `Resolve`. Nine callers kept using a loader whose `DefaultLoader` or `Resolve` had failed: nil dereferences and silently empty answers. Fixed by threading errors only (ac6c5ce12d, a5b3180063, 40db22a585). `applyPatterns` in `internal/component/config/yang/command.go` still carries a `BUG` panic for "a pattern Loader.Resolve refuses", guarding a state the type allows | `Resolve` returns a distinct resolved type. `BuildCommandTree` and every consumer that needs a checked module set accept only that type, so building from an unchecked or failed loader does not compile |
-| T2 Validated command arguments | Handlers take raw token slices. Three dispatch routes ran handlers with no argument validation; 40db22a585 added `command.ValidateArgs` on each (daemon dispatcher, `command.ServeLocal`, the plain local handler `registry.RegisterLocalData` builds) | `ValidateArgs` is the only producer of a validated-arguments type, and the dispatched handler type accepts only it, so a route that skips validation does not compile |
+| T2 Validated command arguments | Handlers take raw token slices. Three dispatch routes ran handlers with no argument validation; 40db22a585 added `command.ValidateArgs` on each (daemon dispatcher, `command.ServeLocal`, the plain local handler `registry.RegisterLocalData` builds) | `ValidateArgs` is the only producer of a validated-arguments type, and every author-facing handler type accepts only it (D-2 A), so a route that skips validation, or code that calls a handler with raw tokens, does not compile |
+| T4 Strict `DefaultLoader` (D-6) | `DefaultLoader` discards the errors of `LoadRegistered` and `process` (`loader.go`, two `_ =` lines). `LoadRegistered` also stops at the first parse error, so every module registered after the failing one is skipped in silence. A module set missing an imported module therefore yields a loader whose tree walk skips the unresolved modules, and every caller sees success | `DefaultLoader` returns every `LoadRegistered` and `process` error, joined with the checks, and returns no value when any is present. `LoadRegistered` loads every module and joins every parse error instead of stopping at the first |
 | T3 `command.ArgDef` construction | Every field is exported, including `Lengths` and `Patterns`, so any package can build a definition whose ranges overlap or descend, or whose kind and payload disagree. Overlaps AC-13 | A validating constructor, private invariant-bearing fields, accessors that expose no mutable slice. The YANG lowering and every manual producer go through it |
 
 | Excluded from Phase 1 | Reason |
@@ -572,6 +577,42 @@ Counts are from `gopls references` over the host build (scratch files `ref-*.txt
 | Tests | About 560 test lines in 68 test files call a handler directly with a literal token slice or nil (grep); `command_flag_test.go`, `argbind_test.go`, `local_data_test.go`, `registry/local_data_args_test.go`, `test/ui/cli-argument-length-refused.ci` |
 | Docs | `docs/architecture/api/commands.md` (typed argument validation, the routes) |
 
+##### T2 under D-2 A: every author-facing handler signature
+
+Counts from greps over production `.go` files on 2026-10-09 (the declaration line or the registration call, closures included), under `tmp/session/2026-10-08-01b175b6-ee3c-45d9-a884-71d61adff15a/scratch/d2a-*.txt`. Step 1 reconciles them with `gopls references` across build tags (A-2).
+
+| Handler type | Signature today | Production sites | Packages | Routes | Test call lines |
+|--------------|-----------------|------------------|----------|--------|-----------------|
+| `pluginserver.StreamingHandler` | `(ctx, *Server, io.Writer, username, args []string) error` | 5 handlers (`monitor vpn ipsec`, `monitor event`, `monitor traffic stat`, `monitor interface rate`, `monitor system netlink`) | `iface/cmd`, `trafficstat/cmd`, `ike/cmd`, `bgp/plugins/cmd/monitor`, `plugin/server` (declaration and registry), `cmd/ze/hub` (R8), `internal/component/ssh`, `internal/component/cli`, `internal/test/runner` | R8 | Step 1 |
+| `registry.LocalDataHandler` | `(args []string) (any, int)` | 23 `RegisterLocalData` calls | `config/schema/cli` 5, `config/cli` 5, `plugins/env` 3, `component/plugin` 3, `le/plugin/imports` 2, `config/yang/cli` 2, `config/storage/cli` 2, `le/le/root` 1 | R2, R3 | Step 1 |
+| `registry.LocalHandler` | `(args []string) int` | 8 `RegisterLocal`, 26 `RegisterLocalMeta`, 4 `RegisterOfflineFallback` calls (a call may register a table of handlers) | `plugins/debug` 8, `cmd/ze` 4, `config/cli` 3, `le/plugin/imports` 6, `traceroute/cmd` 2, `ping/cmd` 2, `bgp/cli` 2, `iface/cli`, `config/yang/cli`, `config/storage/cli`, `cmd/ze/internal/cmdutil`, `plugins/support`, `plugins/skills`, `plugins/explain`, `plugins/diag`, `component/doctor`, `plugins/host`, `plugins/crashes` | R6, R7 | Step 1 |
+| `pluginserver.Handler` (also `EnsureStep.Handler`, `RollbackHandler`) | `(ctx *CommandContext, args []string) (*plugin.Response, error)` | 339 signature lines in 69 directories (named functions and closures) | Largest: `iface/cmd` 28, `cmd/show` 25, `plugins/ospf` 24, `plugin/server` 23, `l2tp/cmd` 20, `resolve/cmd` 18, `bgp/plugins/cmd/peer` 18, `bgp/plugins/cmd/rib` 12, `plugins/isis` 10, `plugins/meta/cmd` 9, `ike/cmd` 8; 58 more directories with 1 to 7 each (full list in `d2a-handler-dirs.txt`) | R1, R4, R5 | About 560 lines in 68 test files (2026-10-08 grep) |
+
+| Census field | Content under D-2 A |
+|--------------|---------------------|
+| What changes in a handler | The parameter type only: `args []string` becomes the validated-arguments value. The body reads its tokens through one accessor, so the edit is mechanical: rename the parameter and read the tokens from it in the first statement, or replace each use. No handler changes what it does with its tokens, because `ValidateArgs` passes unmatched tokens through (A-7) |
+| What changes in a test | A direct call with a literal slice or nil becomes a call with the value `command.ValidateArgs` returns over that slice and an empty definition list, which is exactly what a route produces for a path that declares nothing (A-7). No exported helper that wraps raw tokens without validating is added outside `command`, because that helper would be a second producer and would void AC-2 |
+| Cross-calls | A handler that calls another handler with a rebuilt slice (`args[1:]`, `append`, a literal) needs a validated value for the callee's path. Step 1 censuses every such production call; each one either passes its own value through, calls `ValidateArgs` against the callee's definitions, or is an inline helper that should take `[]string` because it is not a handler. The first grep found no production cross-call in a handler package (the 35 hits are in `internal/test/fixture`, `le` test tooling and one `bgp/plugins/cmd/update` line, to classify) |
+| Not migrated | `pkg/plugin/` SDK handler types, `registry.RootHandler`, `Registration.CLIHandler`, the `internal/appliance` handler, `rib.CommandHandler` (unchanged from the Phase 1 exclusions above) |
+
+→ Decision: under D-2 A the option-B invoker is never written. The stored type and the author's type are the same func type, so there is nothing to wrap and nothing to delete later.
+
+→ Constraint: no compatibility layer (`ai/rules/no-layering.md`). The raw-args signature of each handler type is deleted in the same commit that introduces the validated one; no adapter, second registration function or `RawHandler` type exists at any commit.
+
+##### Commit order for D-2 A
+
+A Go func type has one signature. Every value stored in a field of that type, and every call through it, changes in the same compile. So a chunk can be one handler type, never one package group of a type: while a package group of `pluginserver.Handler` is migrated and the rest is not, the unmigrated groups do not compile unless the registration accepts both signatures, which is the hybrid the rule bans. The order below keeps the tree building after each commit:
+
+| Chunk | Content | Builds alone | Why |
+|-------|---------|--------------|-----|
+| C-T2a | The validated-arguments value in `command`; `ValidateArgs` returns it (its old return shape deleted). Every route R1 to R9 calls `ValidateArgs` (D-3) and hands the handler the tokens of the value it got. Handler signatures unchanged | Yes | Only the producer and its route callers change. It is not a hybrid: there is one handler signature and one producer. It already delivers D-3 (every route validates); the compile-time half arrives per type below |
+| C-T2b | `StreamingHandler` takes the value: 5 handlers, R8, its registry in `plugin/server/handler.go`, and their tests | Yes | One type, every implementation and caller together |
+| C-T2c | `LocalDataHandler`: 23 registrations, R2, R3, tests | Yes | Same |
+| C-T2d | `LocalHandler`: 38 registration calls, R6, R7, tests | Yes | Same |
+| C-T2e | `pluginserver.Handler`, `EnsureStep.Handler`, `RollbackHandler`: 339 sites in 69 directories, R1, R4, R5, about 560 test lines | Yes, and only as ONE commit | It cannot be split by package group without a second signature. Inside the batch the work proceeds by group (plugin/server and ensure first, then `component/cmd/*`, then `bgp/plugins/*`, then `internal/plugins/*`, then the other components, then the tests), but the tree builds only when every group is done |
+
+→ Decision: C-T2e is applied by a throwaway AST rewriter kept under the session scratch directory and run over an explicit list of the files that hold the 339 sites and the test call lines, never over a directory glob or "every dirty file" (`.claude/rules/foreign-files.md`). The rewriter changes only the parameter type and the token reads; the cases it cannot rewrite are fixed by hand. This keeps the window in which the shared checkout does not build short (R-18). Before C-T2e starts, every file on its list is checked for another session's uncommitted hunks; such a file waits, or the owner is asked.
+
 #### T3 `command.ArgDef` (`internal/component/command/node.go`)
 
 | Census field | Content |
@@ -583,15 +624,71 @@ Counts are from `gopls references` over the host build (scratch files `ref-*.txt
 | Zero | `ArgDef{}` is today an unnamed, unrestricted `ArgString` (the kind zero), which `ValidateArgString` accepts as any string |
 | Docs | `docs/architecture/api/commands.md`; `docs/architecture/config/yang-config-design.md` (CLI Help from YANG, command metadata) |
 
+#### T4 strict `DefaultLoader` (D-6)
+
+Best-effort lives in one place. `DefaultLoader` is the only production caller of `process` besides `Resolve`, and the only place a `LoadRegistered` error is discarded. Every other `LoadRegistered` caller already returns its error.
+
+| Caller | Calls | Discards today |
+|--------|-------|----------------|
+| `config/yang/loader.go` `DefaultLoader` | `LoadRegistered`, `process` | Both, by `_ =` |
+| `config/yang/loader.go` `Resolve` | `process` | No |
+| `config/yang_schema.go` (2), `cli/completer.go`, `cli/validator.go`, `config/schema/cli/main.go`, `aihelp/aihelp.go:243`, `le/config/claims/configclaims.go` | `LoadRegistered` | No, each returns it |
+| 22 production `DefaultLoader` call sites: `le/arch/enumeration/corpus.go`, `le/doc/yangcontract/` (`contract.go`, `usage.go`, `helpshape.go`), `le/cli/list/commandlist.go`, `le/cli/grammar/cligrammar.go`, `aihelp/aihelp.go` (2), `plugin/server/server.go`, `config/infra/authz.go`, `config/yang/command.go`, `config/yang/cli/tree.go` (4), `config/cli/cmd_edit.go`, `cli/client/main.go`, `cli/testing/headless.go`, `iface/validate.go`, `cmd/ze/hub/` (`session_factory.go`, `command_meta.go`, `service_web.go`) | `DefaultLoader` | Each inherits what `DefaultLoader` discards. `service_web.go` additionally drops a `DefaultLoader` error on its own (`if loader, loaderErr := ...; loaderErr == nil`) |
+
+What the shipped tree discards, measured on 2026-10-09 by running the real code read-only: a throwaway test entered `cmd/ze` through `go test -overlay` from the session scratch directory (no tree file touched). It loaded every registered module one by one, so one failure could not hide the rest, then ran the real `LoadRegistered`, `Resolve` and `DefaultLoader`. A second probe listed every module's registrar and its `import` and `include` edges, and `go list -deps` gave each shipped profile's non-test package set (the `./le repo compiles` matrix plus `le`).
+
+| Profile (tags) | Modules linked | `LoadRegistered` | `process` | Discarded today |
+|----------------|----------------|------------------|-----------|-----------------|
+| distro (`ze_core ze_distro` + every gate) | 212 | nil | nil | Nothing (run) |
+| appliance (`ze_core ze_appliance` + every gate) | 212 | nil | nil | Nothing (run) |
+| le (`ze_le` + every gate) | 212 | nil | nil | Nothing (run) |
+| setup (`ze_setup`), host (`ze_core ze_setup`), core only (`ze_core ze_distro`) | 89 in the shipped binary | nil | Every import edge of the 89 resolves inside the 89 (static check) | Nothing |
+| The same three, but the `cmd/ze` TEST binary | 103 | nil | `no such module: ze-bgp-conf` | Yes, see below |
+| installer (`ze_installer`) | 0 | - | - | Nothing |
+
+→ Constraint: no shipped binary discards an error today, so strict `DefaultLoader` makes no shipped startup or command fail on the 2026-10-09 tree. The goyang enum misnumbering (constraint above) is the one known input that would, which is why the fork lands first.
+
+The discarded error that does exist is structural. A module's YANG `import` is not mirrored by a Go import: each `*/yang` package registers its module and imports nothing, and only the composition root (`plugin/all`, feature-gated) makes the imported module present. 50 YANG import edges cross from one registering package to another, and all 50 have no Go import path from importer to imported (checked against `go list -deps -test` over `./cmd/ze` and `./internal/...`): 23 `bgp/plugins/*/yang` and `bgp/reactor/filter/yang` modules import `ze-bgp-conf` (`bgp/yang`); `bgp/yang` imports `ze-hub-conf`; 11 `*-cmd` modules import `ze-cli-show-cmd` or `ze-cli-clear-cmd`; `ze-flowspec-cmd` imports `ze-cli-announce-cmd`; `ze-ssh-conf` imports `ze-authz-conf`; the firewall, policyroute, anomaly, ddos, fib, trafficusage and vrrp plugin modules import their parent component's module. So any binary that links one of those packages without the composition root fails `process`. One such binary exists today: the `cmd/ze` test binary under the gate-free profiles links `bgp/plugins/route_refresh/yang` through `internal/le/doc/yangcontract`, `internal/le/cli/grammar` and `bgp/plugins/route_refresh/handler`, which import it directly, without `bgp/yang`.
+
+| Discarded error found | Where | Becomes under strict | Phase 1 fix |
+|-----------------------|-------|----------------------|-------------|
+| `no such module: ze-bgp-conf`, from `ze-route-refresh` | `cmd/ze` test binary under `ze_setup`, `ze_core ze_setup`, `ze_core ze_distro` | Every `cmd/ze` test that reaches `DefaultLoader` under those tags fails | Make Go imports follow YANG imports (below) |
+| Every other test binary that links a `*/yang` package without the package registering a module it imports | Not yet enumerated: each package whose tests reach `DefaultLoader` (the 22 sites above and their importers) | Those tests fail | Same fix; step 3 runs each such package's tests under the gate-free and full profiles before the strict change lands, and lists any further one here |
+
+→ Decision: the fix for the class is that every `*/yang` package blank-imports the Go package that registers each module its YANG imports or includes, so a module can never be linked without what it imports, in any binary. A new test, `TestYANGImportsFollowGoImports`, derives the edges from the registry (module name, registrar, `import` and `include` statements read from the parsed modules, not by regex over text, because a description can hold the word "import") and refuses any edge whose importer does not reach the imported registrar in Go. The alternative, keeping best-effort for test binaries only, is a second policy, which D-6 rules out. Feature gating is unaffected: a plugin's module imports only modules of the component it extends, and the gate that links the plugin links that component already.
+
+Behavior change under strict, stated for the owner's record:
+
+| Surface | Today | After |
+|---------|-------|-------|
+| `ze` startup and every command, every shipped profile, 2026-10-09 tree | Succeeds | Succeeds (nothing is discarded today) |
+| A future module that fails to parse, or imports a module the build does not link | Loads silently without that module (and, for a parse failure, without every module registered after it) | Startup, CLI, web, MCP and every `le` tool that loads the schema stop with the joined error |
+| Unit test binaries linking a module without what it imports | Pass with a partial schema | Fail until the Go-import fix above lands; the fix lands in the same step, before the strict change |
+| `cmd/ze/hub/service_web.go` | Drops a `DefaultLoader` error and serves without the schema | Returns the error (it is a discarded error, so D-6 covers it) |
+
 ### Phase 1 design
 
 | Type | Representation | Compile-time guarantee | Go limits and residual runtime checks |
 |------|----------------|------------------------|---------------------------------------|
 | T1 | `Loader` keeps only the loading operations and one transition, `Resolve`, which returns the resolved type or an error. `DefaultLoader` returns the resolved type. Every read operation (`GetEntry`, `GetModule`, the name lists) and every consumer in the census moves to the resolved type. The resolved type holds the module set privately, plus the patterns `checkPatterns` compiled, keyed by pattern text, so `applyPatterns` reads a compiled pattern instead of compiling again | `BuildCommandTree`, the `PathTo*` and `WireMethodTo*` maps, `PublishedRPCs`, `ExtractRPCs`, `ExtractNotifications`, `NewValidator` and `CheckAllValidatorsRegistered` cannot be called with a loader, so a caller that ignored a `Resolve` or `DefaultLoader` error has no value to pass. The `applyPatterns` compile-error branch disappears, because the resolved type holds only checked patterns | The zero value and `new()` of the exported resolved type compile in any package. Contract: safe-invalid zero; each accessor on a zero or nil resolved value ends in a `BUG` panic naming the zero, because only Ze code can construct one and no input reaches it. Code inside `config/yang` can still build one by literal: audited in step 1, covered by AC-19. A pattern lowering reads that `checkPatterns` did not compile is a lowering-versus-check coverage defect, kept as a named BUG and proved absent by AC-20. `Resolve` does not revoke the loader: shared state on the module set refuses every load after resolution (AC-7) |
-| T2 | A validated-arguments value type in package `command`, with private tokens and the lone positional binding, returned only by `ValidateArgs`. Every route calls `ValidateArgs`, including for a path with no definitions, and invokes a handler only with the value a successful call returned. The dispatched handler types take that value (D-2 chooses between changing every handler signature and changing the stored, dispatched type) | A route outside `command` cannot fabricate a non-zero validated value and cannot invoke a dispatched handler with raw tokens, so R4, R6, R7, R8 and R9 cannot stay unvalidated and a new route cannot skip the call | The zero value compiles anywhere and means no tokens and no binding. A route could pass a zero value instead of calling `ValidateArgs`; that bypass is visible as an empty literal and is caught by review and by the per-route discrimination tests (AC-22), not by the compiler. Code inside `command` can build one by literal. The token slice belongs to the handler for the call; the value does not re-expose it to the route afterwards (AC-6) |
+| T2 | A validated-arguments value type in package `command`, with private tokens and the lone positional binding, returned only by `ValidateArgs`. Every route calls `ValidateArgs`, including for a path with no definitions, and invokes a handler only with the value a successful call returned. Every author-facing handler type (`pluginserver.Handler` with `EnsureStep.Handler` and `RollbackHandler`, `registry.LocalHandler`, `registry.LocalDataHandler`, `pluginserver.StreamingHandler`) takes that value instead of a token slice (D-2 A); the raw-args signatures are deleted | A route outside `command` cannot fabricate a non-zero validated value and cannot invoke any handler, through a registry or by name, with raw tokens, so R4, R6, R7, R8 and R9 cannot stay unvalidated and a new route cannot skip the call | The zero value compiles anywhere and means no tokens and no binding. A route could pass a zero value instead of calling `ValidateArgs`; that bypass is visible as an empty literal and is caught by review and by the per-route discrimination tests (AC-22), not by the compiler. Code inside `command` can build one by literal. The token slice belongs to the handler for the call; the value does not re-expose it to the route afterwards (AC-6) |
+| T4 | `DefaultLoader` joins the `LoadRegistered` and `process` errors with the checks and returns the resolved value only when the join is empty. `LoadRegistered` attempts every module and joins every parse error. `DefaultLoader` and `Resolve` then share one policy, so the `usage.go` third policy folds into it too | A caller of `DefaultLoader` has no value when any registered module failed, exactly as with `Resolve` | None at compile time: it is an error-return change. Proved by AC-24 and by `TestYANGImportsFollowGoImports` for the binaries that link a partial set |
 | T3 | `ArgDef` stays a value type, with private fields. One constructor per kind (string, unsigned with width, enum, union, flag) validates name, payload and part order and returns an error; options carry `Mandatory`, `ShortHelp`, `Description` and `Anchor`. A copy-returning method sets the anchor for `appendAnchored`. Read accessors return scalars and iterate slices without exposing them | No package outside `command` can name a payload field, so a definition with overlapping or descending parts, a width outside {8, 16, 32, 64}, or a payload of the wrong kind cannot be written, and no accessor result can be written through | `ArgDef{}` still compiles anywhere. Contract (D-4): `ValidateArgs` refuses a zero definition with an error instead of accepting an unrestricted string. Code and tests inside `command` can still write fields: audited, and tests use constructors (AC-16). Lowering must not fail on input that resolution admitted, so a constructor error inside `BuildCommandTree` is a BUG only if resolution already refuses every restriction the constructor refuses (A-11) |
 
-### Open decisions for the owner
+### Decisions (owner answers 2026-10-09)
+
+| # | Owner answer, 2026-10-09 (verbatim) | Decision in force |
+|---|-------------------------------------|-------------------|
+| D-1 | "1 yang.Resolved" | The resolved type is `yang.Resolved` |
+| D-2 | "2 every handler signature" | Option A: every author-facing handler type (`pluginserver.Handler`, `registry.LocalHandler`, `LocalDataHandler`, `StreamingHandler`) takes the validated-arguments value, not only the stored or dispatched type. The larger scope: about 290 production handlers in about 40 packages (re-counted above: 339 signature lines in 69 directories for `pluginserver.Handler` alone, plus 61 local registrations and 5 streaming handlers) and about 560 test call lines. The recommendation of B below is superseded |
+| D-3 | "3 Validate on all of them" | Every route R1 to R9 calls `ValidateArgs` |
+| D-4 | "4 Refuse it in the validator." | `ValidateArgs` refuses a zero `ArgDef` with an error |
+| D-5 | "5 One type with per-kind constructors" | One `ArgDef` struct, private fields, one constructor per kind |
+| D-6 | "6 Keep it; make it strict", then confirmed: "change behaviour is fine, make it strict" | Keep `DefaultLoader`, make it strict: its `LoadRegistered` and `process` no longer discard errors, and every error reaches the caller. The main thread first read the answer this way; the owner confirmed that reading on 2026-10-09, so it is the decision, not a reading. The recommendation to preserve best-effort below is superseded. Census and behavior change: T4 |
+| D-7 | "7 The narrower input" | `command.WriteInvocation` takes a name-and-anchor input |
+
+The options the owner chose between, as presented on 2026-10-08:
+
 
 | # | Decision | Options | Recommendation |
 |---|----------|---------|----------------|
@@ -613,6 +710,8 @@ Counts are from `gopls references` over the host build (scratch files `ref-*.txt
 | A-8 | No consumer writes into a goyang entry or module obtained through the loader | Not yet checked | The resolved type's read-only contract is false | Step 1: uses of `GetEntry` and `GetModule` results checked for writes | Open |
 | A-9 | Ensure-chain creation handlers declare no mandatory argument | Not yet checked; R5 passes nil tokens today | Validating R5 with no tokens would refuse a working ensure step | Step 1: definitions of each ensure-step command | Open |
 | A-10 | Plugin-process commands that declare definitions in the merged model can be validated in the engine before forwarding | `inheritArgDefs` in `rpc_register.go` merges model definitions | R9 validation needs definitions the engine does not hold | Step 1: `RegisteredCommand` paths against `PathToArgDefs` | Open |
+| A-12 | The goyang fork lands before step 1 and changes no Ze-visible behavior other than enum numbering | Another agent's task on 2026-10-09; journal rows in `zero-value-as-valid-answer.md` | Strict `DefaultLoader` could fail on a valid enumeration, or the vendored tree changes under T1 | Step 1: `go.mod` carries the `replace`; re-run the D-6 probe over the new tree | Open |
+| A-13 | No shipped profile links a module without the module it imports | D-6 probe 2026-10-09: runtime over distro, appliance, le; static `go list -deps` over setup, host, core, installer | Strict `DefaultLoader` would stop a shipped binary | `TestYANGImportsFollowGoImports` makes it hold by construction; step 3 re-runs the probe | Verified 2026-10-09 |
 | A-11 | Resolution refuses every restriction the `ArgDef` constructor refuses, for the types lowering reads | `checkStructure` refuses length parts that overlap or descend (`ErrLengthOrder`); Ze checks no range order, and goyang's range parsing is unread | A module loaded from a file (`AddModuleFromFile`, used by `le` tooling) could reach a constructor error inside lowering, making a BUG input-reachable | Read goyang's range parsing; if it checks nothing, add the range-order check to resolution in coordination with the structural-checks spec, or make lowering return the error | Open |
 
 ### Phase 1 Risks
@@ -623,6 +722,9 @@ Counts are from `gopls references` over the host build (scratch files `ref-*.txt
 | R-14 | Route validation changes an operator-visible answer (text or order) | `cli-argument-length-refused.ci` or a dispatcher test changes output | Keep the held-error order in `Dispatch`; assert each route's existing refusal text |
 | R-15 | A constructor refuses a definition the lowering produces today | `BuildCommandTree` over the registered module set reports a constructor error | AC-20 builds the tree from every registered module; a refusal is a model defect, fixed in the model, never by weakening the constructor |
 | R-16 | A zero resolved value or zero validated-arguments value slips through | A test or route builds an empty literal | Positive-control probes record that it compiles; AC-4 contract tests; review of every empty literal |
+| R-18 | C-T2e leaves the shared checkout unbuildable for other sessions while its 69 directories are edited, and collides with their uncommitted hunks in handler files | Another session reports a build failure in a handler package; `git status` shows foreign hunks in a file on the C-T2e list | AST rewriter over an explicit file list; check each listed file for foreign hunks first; land C-T2e in one sitting and commit at once |
+| R-19 | Strict `DefaultLoader` turns test binaries that link a partial module set red | A package's unit tests fail with `no such module` after step 3 | The Go-import fix and `TestYANGImportsFollowGoImports` land before the strict change in the same step; each package with a `DefaultLoader` path is run under the gate-free and full profiles first |
+| R-20 | A blank import added for a YANG import creates an import cycle | `go build` reports `import cycle not allowed` | `*/yang` packages hold only registration; if a cycle appears, the module boundary is wrong and is reported to the owner, never solved by keeping best-effort |
 | R-17 | Census counts miss build-tagged or platform files | A Linux-only or tagged file fails to build after the migration | Step 1 reconciles with the build-tag populations; the final build covers them |
 
 ### Phase 1 Acceptance Criteria
@@ -632,7 +734,7 @@ Existing criteria reused, scoped to T1, T2 and T3:
 | AC ID | Phase 1 reading |
 |-------|-----------------|
 | AC-2 | Outside its package, no code can give the resolved type, the validated-arguments type or an `ArgDef` a nonzero state except through `Resolve` or `DefaultLoader`, `ValidateArgs`, and the `ArgDef` constructors. Each constructor accepts every definition the registered modules lower today and refuses an invalid one without returning a value |
-| AC-3 | A loader cannot be passed where the resolved type is required; a dispatched handler cannot be invoked with raw tokens; an `ArgDef` whose kind and payload disagree cannot be written outside `command` |
+| AC-3 | A loader cannot be passed where the resolved type is required; no handler of the four author-facing types (D-2 A) can be declared with or invoked with raw tokens; an `ArgDef` whose kind and payload disagree cannot be written outside `command` |
 | AC-4 | A zero or nil resolved value ends in a named BUG panic at the first accessor; a zero validated-arguments value carries no tokens; `ValidateArgs` refuses a zero `ArgDef` with an error. Tests record each, and the compile-positive controls show Go admits the zero |
 | AC-6 | No accessor of the three types returns a slice or map whose writes change the stored value; a write to a constructor's input slice after construction changes nothing |
 | AC-7 | After `Resolve` succeeds or fails, every load operation on the loader returns an error, and the resolved value's answers are unchanged |
@@ -650,6 +752,8 @@ Phase-specific criteria:
 | AC-21 | A module set where resolution fails, through `ze` startup, the CLI tree, API and MCP metadata, and the `le` tooling paths | Each reports the resolution error and none reaches a command tree. The `usage.go` HEAD baseline refuses on a pattern or structure failure as well as on an undeclared extension |
 | AC-22 | A token that breaks a declared length, pattern or range, on each route R1 to R9 that carries a declared argument | Each route refuses before the handler runs, with the existing refusal text, and a token at the bound reaches the handler. Removing one route's validation call turns that route's test red |
 | AC-23 | A command path with no declared definitions, on each route | Arbitrary tokens reach the handler unchanged |
+| AC-24 | A registered module that fails to parse, and a registered module that imports a module no package registers, through `DefaultLoader` | `DefaultLoader` returns an error naming each failure and no value; a module registered after the failing one is still parsed and its own error, if any, is also reported; `ze` startup over such a set stops with that error |
+| AC-25 | Every YANG `import` or `include` edge between modules of different registering packages | The importer's Go package reaches the imported module's registering package; removing one such blank import turns `TestYANGImportsFollowGoImports` red |
 
 ### Phase 1 Wiring Test
 
@@ -661,6 +765,7 @@ Phase-specific criteria:
 | Daemon command `show metrics name` with a 129-character name, over SSH | → | R1 `Dispatch` | `test/ui/cli-argument-length-refused.ci`, daemon sequence |
 | A plugin command with a declared argument, chosen in step 1 from R9's census | → | R9 engine-side validation before forwarding | New `test/ui/cli-argument-refused-plugin-route.ci` |
 | A `monitor` command with a declared argument, over SSH | → | R8 streaming route | The same new `.ci`, second sequence, if a streaming command declares an argument (step 1); otherwise AC-23's empty-definition test covers R8 |
+| `ze` daemon startup over a module set with a registered module that fails to parse | → | strict `DefaultLoader` (T4) | `TestDefaultLoaderReportsEveryRegisteredFailure` plus a `.ci` boot that registers no extra module and asserts a clean start, `test/ui/cli-argument-length-refused.ci` serving as that boot |
 | YANG lowering of every registered module | → | `ArgDef` constructors through `BuildCommandTree` | `TestYANGArgumentAdmissionPreservesValidation` (planned above), extended to every kind, plus `TestCommandTreeBuildsFromEveryRegisteredModule` |
 
 ### Phase 1 TDD plan
@@ -677,6 +782,9 @@ Phase-specific criteria:
 | `TestArgDefAccessorsDoNotAlias` | same | AC-6: mutate the constructor's input slices; the iterated payload is unchanged |
 | `TestZeroArgDefRefused` | `command/argvalidate_test.go` | AC-4, D-4 |
 | `TestWriteInvocationPlacesAnchoredValues` | `mcp/tools_anchor_test.go` | D-7, unchanged output |
+| `TestDefaultLoaderReportsEveryRegisteredFailure` | `config/yang/loader_test.go` | AC-24: one unparsable module registered before a valid one and an unresolved import; both errors reported, no value |
+| `TestYANGImportsFollowGoImports` | `internal/component/plugin/all/` test, over the full registry | AC-25, A-13 |
+| `TestHandlerTypesTakeValidatedArguments` | one per handler type: `plugin/server/handler_test.go` (`StreamingHandler`), `command/registry/local_data_args_test.go` (`LocalDataHandler`, `LocalHandler`), `plugin/server/command_flag_test.go` (`Handler`) | AC-3: a registered handler of each type receives exactly the tokens `ValidateArgs` returned |
 
 Compile-negative probes follow the procedure in the TDD plan above: one forbidden operation per case, the positive control compiled first under the same module and tags, the error text recorded in this spec, the probe files deleted at step 5.
 
@@ -684,7 +792,7 @@ Compile-negative probes follow the procedure in the TDD plan above: one forbidde
 |-------|--------------------------------------------|-----------------------------|
 | P-1 | Passing a loader to `BuildCommandTree` | Passing the value `Resolve` returned |
 | P-2 | A literal of the resolved type naming a field, from another package | The empty literal and `new()` of the resolved type |
-| P-3 | Invoking a dispatched handler with a token slice, from `plugin/server` | Invoking it with the value `ValidateArgs` returned |
+| P-3 | For each of the four handler types: declaring a handler with a `[]string` parameter and registering it, and calling a handler with a token slice, from a package outside `command` | The same with the value `ValidateArgs` returned |
 | P-4 | A literal of the validated-arguments type naming a field, from another package | Its empty literal |
 | P-5 | An `ArgDef` literal naming `Lengths`, `Patterns` or `Kind`, from `config/yang` | The constructor call; the empty literal |
 | P-6 | Assigning into an element of what an `ArgDef` accessor returns | Ranging over it |
@@ -699,22 +807,30 @@ Compile-negative probes follow the procedure in the TDD plan above: one forbidde
 | `internal/component/config/yang/` `validator.go`, `validator_registry.go`, `rpc.go`, `rpc_publish.go`, `enum.go` | Take the resolved type. `validator.go` is shared with the structural-checks spec; `rpc_publish.go` and `rpc_test.go` carry another session's uncommitted hunks on 2026-10-08 |
 | Every T1 consumer file in the census | Take the resolved type |
 | `internal/component/command/` `node.go`, `argbind.go`, `argvalidate.go`, `usage.go`, `arguments.go`, `completer.go`, `local_data.go` | `ArgDef` constructors and accessors; validated-arguments value |
-| `internal/component/command/registry/registry.go` | Stored handlers behind the validated invoker; R3, R6, R7 |
+| `internal/component/command/registry/registry.go` | `LocalHandler` and `LocalDataHandler` take the validated value (D-2 A); R3, R6, R7 |
 | `internal/component/plugin/server/` `command.go`, `server.go`, `ensure.go`, `handler.go`, `rpc_register.go`, `command_registry.go` | R1, R4, R5, R8 lookup, R9; `ArgDef` inheritance through the copy method. `handler.go`, `rpc_register.go` and `owner_prefix_test.go` carry another session's uncommitted hunks on 2026-10-08 |
 | `cmd/ze/hub/` `service_ssh.go`, `command_meta.go`, `session_factory.go`, `service_web.go`; `cmd/ze/ze_core_dispatch.go`; `cmd/ze/internal/cmdutil/cmdutil.go`; `internal/component/cli/client/main.go` | Routes and resolved-type consumers |
 | `internal/component/mcp/tools.go`, `internal/component/web/handler_admin.go`, `internal/le/doc/yangcontract/`, `internal/le/cli/dispatch/`, `internal/le/cli/grammar/`, `internal/le/cli/list/` | `ArgDef` accessors, D-7, resolved type |
 | The 16 test files with `ArgDef` literals, and every test file the T1 and T2 counts name | Constructors, resolved type, validated invocation |
+| Every package in the D-2 A census (69 directories for `pluginserver.Handler`, the local and streaming registrants), with their tests | Handler parameter type, chunks C-T2b to C-T2e |
+| Every `*/yang` package with a cross-registrar YANG import (the 50 edges in T4) | Blank import of the registering package of each imported module |
+| `internal/component/plugin/all/` test file | `TestYANGImportsFollowGoImports` |
+| `cmd/ze/hub/service_web.go` | Stop discarding the `DefaultLoader` error |
+| `go.mod`, `go.sum`, `vendor/` | Not edited by Phase 1; shared with the goyang fork, which lands first |
 | `test/ui/cli-argument-refused-plugin-route.ci` | New |
 | `docs/architecture/config/yang-config-design.md`, `docs/architecture/api/commands.md` | Updated in the step that changes the behavior each describes |
 | `docs/contributing/ze-go-style.md` | Only if D-1 picks a name other than the guide's illustrative `Schema` and the owner wants the example to match |
 
 ### Phase 1 implementation steps
 
-1. **Precondition and census.** Confirm `spec-config-yang-loader-structural-checks` has landed (A-5), and re-read at HEAD `loader.go`, `loader_structure.go`, `validator.go`, `plugin/server/handler.go`, `rpc_register.go` and `config/yang/rpc_publish.go`. Reconcile every count above with `gopls references` across build tags, classify each production call site, and resolve A-6 and A-8 to A-11. Append the reconciled census to this section before any source edit.
-2. **T3 first.** It is the leaf, and the other two read definitions. Write `TestArgDefConstructorRefuses`, `TestArgDefAccessorsDoNotAlias`, `TestZeroArgDefRefused` and probes P-5 and P-6, and watch them fail. Add the constructors and accessors, make the fields private, and migrate the lowering, `appendAnchored`, the MCP projection (D-7), every reader and every test literal in one batch. Run `TestCommandTreeBuildsFromEveryRegisteredModule`.
-3. **T1.** Write `TestResolveRefusesLoadAfterResolution`, `TestResolvedZeroValueIsABug`, `TestYANGContractBaselineRefusesFailedResolution` and probes P-1 and P-2. Introduce the resolved type, move the read operations, migrate every census consumer and its tests, fold the `usage.go` policy into the shared transition, and remove the `applyPatterns` compile-error branch. Update `yang-config-design.md` in this step.
-4. **T2.** Write `TestValidateArgsEmptyDefinitionsPassTokens`, the per-route tests and probes P-3 and P-4. Introduce the validated-arguments value, put the stored handlers behind it (D-2), make every route R1 to R9 call `ValidateArgs`, and add `cli-argument-refused-plugin-route.ci`. For each route, remove its validation call, record the red, and restore it. Update `commands.md` in this step.
-5. **Reconcile.** Re-run the census for added or removed producers, delete the probe files after recording their errors here, and hand the long gates to the main thread: `./le go lint run`, `./le test unit all`, the `ui` functional suite and `./le verify worktree`. An independent review follows under `/ze-review`.
+Each step is one commit, or the chunks it names; the tree builds after each. Resume state is the committed handover `plan/handover/12-validated-construction-phase-1.md`.
+
+1. **Precondition and census.** Confirm `spec-config-yang-loader-structural-checks` has landed (A-5) and the goyang fork `replace` is in `go.mod` (A-12). Re-read at HEAD `loader.go`, `loader_structure.go`, `enum_assignment.go`, `validator.go`, `plugin/server/handler.go`, `rpc_register.go` and `config/yang/rpc_publish.go`. Reconcile every count above, including the D-2 A table, with `gopls references` across build tags; classify each production call site and each handler cross-call; resolve A-6 and A-8 to A-11. Re-run the D-6 probe over the new tree. Append the reconciled census to this section before any source edit.
+2. **T3 first.** It is the leaf, and the other two read definitions. Write `TestArgDefConstructorRefuses`, `TestArgDefAccessorsDoNotAlias`, `TestZeroArgDefRefused` and probes P-5 and P-6, and watch them fail. Add the constructors and accessors, make the fields private, and migrate the lowering, `appendAnchored`, the MCP projection (D-7), every reader and every test literal in one commit. Run `TestCommandTreeBuildsFromEveryRegisteredModule`.
+3. **T4, strict `DefaultLoader` (D-6), two commits.** First, write `TestYANGImportsFollowGoImports`, watch it fail on the 50 edges, add the blank imports, and run the tests of every package with a `DefaultLoader` path under the gate-free and full profiles; add any further discarded error found to the T4 table and fix it. Second, write `TestDefaultLoaderReportsEveryRegisteredFailure`, watch it fail, make `LoadRegistered` join every parse error and `DefaultLoader` return every error, and stop `service_web.go` discarding it. Update `yang-config-design.md` (best-effort no longer exists) in that commit.
+4. **T1.** Write `TestResolveRefusesLoadAfterResolution`, `TestResolvedZeroValueIsABug`, `TestYANGContractBaselineRefusesFailedResolution` and probes P-1 and P-2. Introduce `yang.Resolved`, move the read operations, migrate every census consumer and its tests, fold the `usage.go` policy into the shared transition, and remove the `applyPatterns` compile-error branch. Update `yang-config-design.md` in this step.
+5. **T2, chunks C-T2a to C-T2e, one commit each, in that order.** C-T2a: write `TestValidateArgsEmptyDefinitionsPassTokens`, the per-route tests and probe P-4; introduce the value, make every route R1 to R9 call `ValidateArgs` (D-3), add `cli-argument-refused-plugin-route.ci`; for each route remove its validation call, record the red, restore it; update `commands.md`. C-T2b to C-T2e: for each handler type, write its row of `TestHandlerTypesTakeValidatedArguments` and its P-3 case, watch them fail, change the type and every implementation, route and test call together, and delete the raw-args signature. C-T2e follows the rewriter decision and R-18. Update `commands.md` with each type.
+6. **Reconcile.** Re-run the census for added or removed producers and handlers, delete the probe files after recording their errors here, and hand the long gates to the main thread: `./le go lint run`, `./le test unit all`, the `ui` functional suite and `./le verify worktree`. An independent review follows under `/ze-review`.
 
 ## Review Gate
 
