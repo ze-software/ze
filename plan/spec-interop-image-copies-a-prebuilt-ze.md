@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Scope | tooling |
-| Depends | `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` (AC-9 only: `mobike-initiator` and `mobike-responder` need Ze's pinned 7.x kernel on the Docker host) |
+| Depends | `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` (AC-9 only: `mobike-initiator` and `mobike-responder` need a Docker host kernel with every feature Ze enrols, `XFRM_MSG_MIGRATE_STATE` included) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-09 |
@@ -242,7 +242,7 @@ in `.github/workflows/evidence-nightly.yml`.
 | AC-6 | a Docker daemon whose architecture the preflight cannot read | the run fails before any image is built, with a message naming what it asked and what it got. It never guesses a `GOARCH` |
 | AC-7 | `./le rfc discriminate-record` re-run for `RFC1997-Well-1` | observes the green, applies the working-tree break, observes a red that names the interop unit, and writes a record `./le rfc check` accepts |
 | AC-8 | All five lab preflights and the shared producer | `StageBinaries` / `stageBinaries` / `stageBinary` in `internal/le/interoplab/zebuild.go` provide the one build path; no lab-local `buildZe` copy remains, and IPsec and RADIUS both call the shared path |
-| AC-9 | `./le test integration interop-ipsec` and `./le test integration interop-radius` | still pass, unchanged in behavior, on the shared producer. The Docker host runs Ze's pinned 7.x kernel (owner, 2026-10-09: "we should NEVER use docker image without the latest 7.x kernel"), so the `interop-ipsec` evidence is the run `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` AC-12 records |
+| AC-9 | `./le test integration interop-ipsec` and `./le test integration interop-radius` | still pass, unchanged in behavior, on the shared producer. The Docker host kernel carries every kernel feature Ze enrols (owner, 2026-10-09: "either our own build or a recent kernel supporting all the features we need for Ze"), so the `interop-ipsec` evidence is the run `plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md` AC-12 records |
 | AC-10 | `./le verify current mode full` | passes, `goversion` included: the Go-version gate still judges at least one carrier |
 
 ## End-to-End User Stories
