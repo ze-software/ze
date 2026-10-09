@@ -50,6 +50,7 @@ const (
 	etherTypeOffset       = 12
 	etherTypePPPoESession = 0x8864
 	pppoeCodeOffset       = 15
+	pppoeSessionIDOffset  = 16
 	pppProtocolOffset     = 20
 	papCodeOffset         = 22
 	papIdentifierOffset   = 23
@@ -62,22 +63,28 @@ const (
 
 // papObservation is what one capture window's frames say about the PAP
 // exchange it carried. request holds the bytes of the first
-// Authenticate-Request, so the checker can replay exactly that frame.
+// Authenticate-Request, so the checker can replay that frame. requestSession
+// and ackSession are the PPPoE SESSION_IDs the first request and the last Ack
+// travelled on, so a checker can tie both to the session Ze reports.
 type papObservation struct {
-	requests  int
-	acks      int
-	naks      int
-	request   []byte
-	requestID byte
-	ackID     byte
+	requests       int
+	acks           int
+	naks           int
+	request        []byte
+	requestID      byte
+	requestSession uint16
+	ackID          byte
+	ackSession     uint16
 }
 
 // checkZeAccessConcentratorPAP proves, against a real pppd client that refuses
 // CHAP, that Ze's AC negotiates PAP, acknowledges the client's credential,
 // completes IPCP and carries ICMP. It then replays the client's own captured
-// Authenticate-Request after authentication completed and requires Ze to put
-// exactly one Authenticate-Ack carrying that request's Identifier on the wire,
-// with the session still standing, before tearing down with PADT.
+// Authenticate-Request after authentication completed, with its Identifier
+// changed as a conformant retransmission changes it, and requires Ze to put
+// exactly one Authenticate-Ack carrying the new Identifier on the same PPPoE
+// session, with that session still in Ze's table, before tearing down with
+// PADT.
 func checkZeAccessConcentratorPAP(
 	ctx context.Context,
 	check *interoplab.CheckContext,
@@ -97,84 +104,110 @@ func checkZeAccessConcentratorPAP(
 		return err
 	}
 
-	first, err := dialPAPSession(ctx, check.Lab)
+	first, sessionID, err := dialPAPSession(ctx, check.Lab)
 	if err != nil {
 		return err
 	}
-	if err := checkPAPReanswer(ctx, check.Lab, first, replayFrameInClient); err != nil {
+	if err := checkPAPReanswer(ctx, check.Lab, first, sessionID, replayFrameInClient); err != nil {
 		return err
 	}
 	return checkTeardown(ctx, check.Lab)
 }
 
 // dialPAPSession dials pppd with CHAP refused, waits until the session carries
-// ICMP, and returns what the capture saw of the original PAP exchange.
-func dialPAPSession(ctx context.Context, lab interoplab.CheckerLab) (papObservation, error) {
+// ICMP, and returns what the capture saw of the original PAP exchange together
+// with the PPPoE SESSION_ID of the one session Ze reports.
+func dialPAPSession(ctx context.Context, lab interoplab.CheckerLab) (papObservation, int, error) {
 	if err := startSessionCapture(ctx, lab); err != nil {
-		return papObservation{}, err
+		return papObservation{}, 0, err
 	}
 	if err := pppdDialRefusing(ctx, lab, pppdPassword, pppoeService, refuseCHAP); err != nil {
-		return papObservation{}, err
+		return papObservation{}, 0, err
 	}
 	sessions, err := waitZeSession(ctx, lab, 45*time.Second)
 	if err != nil {
-		return papObservation{}, err
+		return papObservation{}, 0, err
 	}
 	if err := checkDiscoverySession(sessions); err != nil {
-		return papObservation{}, err
+		return papObservation{}, 0, err
 	}
 	iface, err := checkLCPIPCPWithAuth(ctx, lab, papAuthEvidence)
 	if err != nil {
-		return papObservation{}, err
+		return papObservation{}, 0, err
 	}
 	ping, err := exec(ctx, lab, clientImageName, []string{"ping", "-c", "3", "-W", "3", "-I", iface, zeGateway})
 	if err != nil {
-		return papObservation{}, fmt.Errorf("data: ping Ze gateway %s: %w", zeGateway, err)
+		return papObservation{}, 0, fmt.Errorf("data: ping Ze gateway %s: %w", zeGateway, err)
 	}
 	if ping.ExitCode != 0 {
-		return papObservation{}, fmt.Errorf("data: ICMP did not cross the PAP session to %s", zeGateway)
+		return papObservation{}, 0, fmt.Errorf("data: ICMP did not cross the PAP session to %s", zeGateway)
 	}
 
 	capture, err := stopSessionCapture(ctx, lab)
 	if err != nil {
-		return papObservation{}, err
+		return papObservation{}, 0, err
 	}
 	observed, err := observePAPFrames(capture)
 	if err != nil {
-		return papObservation{}, err
+		return papObservation{}, 0, err
 	}
 	if observed.requests != 1 {
-		return papObservation{}, fmt.Errorf("original dial's capture carries %d PAP Authenticate-Requests, expected 1", observed.requests)
+		return papObservation{}, 0, fmt.Errorf("original dial's capture carries %d PAP Authenticate-Requests, expected 1", observed.requests)
 	}
 	if observed.acks != 1 {
-		return papObservation{}, fmt.Errorf("original dial's capture carries %d PAP Authenticate-Acks, expected 1", observed.acks)
+		return papObservation{}, 0, fmt.Errorf("original dial's capture carries %d PAP Authenticate-Acks, expected 1", observed.acks)
 	}
 	if observed.naks != 0 {
-		return papObservation{}, fmt.Errorf("original dial's capture carries %d PAP Authenticate-Naks, expected none", observed.naks)
+		return papObservation{}, 0, fmt.Errorf("original dial's capture carries %d PAP Authenticate-Naks, expected none", observed.naks)
 	}
 	if observed.ackID != observed.requestID {
-		return papObservation{}, fmt.Errorf(
+		return papObservation{}, 0, fmt.Errorf(
 			"PAP Authenticate-Ack carries Identifier %d, the request carried %d",
 			observed.ackID, observed.requestID,
 		)
 	}
-	return observed, nil
+	if err := checkPAPSession(observed, sessions[0].SID); err != nil {
+		return papObservation{}, 0, err
+	}
+	return observed, sessions[0].SID, nil
+}
+
+// checkPAPSession requires the request and the Ack in observed to have
+// travelled on the PPPoE session Ze reports, so an Ack on another session
+// cannot stand in for this one's.
+func checkPAPSession(observed papObservation, sessionID int) error {
+	if int(observed.requestSession) != sessionID {
+		return fmt.Errorf("PAP Authenticate-Request travelled on PPPoE session %d, Ze reports session %d", observed.requestSession, sessionID)
+	}
+	if int(observed.ackSession) != sessionID {
+		return fmt.Errorf("PAP Authenticate-Ack travelled on PPPoE session %d, Ze reports session %d", observed.ackSession, sessionID)
+	}
+	return nil
 }
 
 // checkPAPReanswer replays the client's original Authenticate-Request from
-// inside the client container, after authentication completed
-// and IPCP opened, and requires Ze to answer it with the Code it answered the
-// first time.
+// inside the client container, after authentication completed and IPCP
+// opened, with its Identifier advanced by one, and requires Ze to answer it on
+// the same PPPoE session with the Code it answered the first time and the new
+// Identifier. Replaying the bytes unchanged could not tell an Ack that copies
+// the request's Identifier from a cached Ack resent as it was.
 func checkPAPReanswer(
 	ctx context.Context,
 	lab interoplab.CheckerLab,
 	first papObservation,
+	sessionID int,
 	send clientFrameSender,
 ) error {
+	// RFC 1334 Section 2.2.1: "The Identifier field MUST be changed each time
+	// an Authenticate-Request packet is issued."
+	replay := append([]byte(nil), first.request...)
+	replayID := first.requestID + 1
+	replay[papIdentifierOffset] = replayID
+
 	if err := startSessionCapture(ctx, lab); err != nil {
 		return err
 	}
-	if err := send(ctx, lab, first.request); err != nil {
+	if err := send(ctx, lab, replay); err != nil {
 		return fmt.Errorf("replay the PAP Authenticate-Request: %w", err)
 	}
 	if err := waitFixed(ctx, replayRoundTripBound); err != nil {
@@ -191,6 +224,9 @@ func checkPAPReanswer(
 	if replayed.requests != 1 {
 		return fmt.Errorf("replay capture carries %d PAP Authenticate-Requests, expected exactly the one replayed", replayed.requests)
 	}
+	if replayed.requestID != replayID {
+		return fmt.Errorf("replay capture's Authenticate-Request carries Identifier %d, the replay sent %d", replayed.requestID, replayID)
+	}
 	// RFC 1334 Section 2.2.1: "the authenticator MUST allow repeated
 	// Authenticate-Request packets after completing the Authentication phase."
 	if replayed.acks != 1 {
@@ -202,11 +238,16 @@ func checkPAPReanswer(
 	if replayed.naks != 0 {
 		return fmt.Errorf("RFC 1334 Section 2.2.1: Ze answered the repeated Authenticate-Request with %d Naks", replayed.naks)
 	}
-	if replayed.ackID != first.requestID {
+	// RFC 1334 Section 2.2.2: "The Identifier field MUST be copied from the
+	// Identifier field of the Authenticate-Request which caused this reply."
+	if replayed.ackID != replayID {
 		return fmt.Errorf(
-			"repeated Authenticate-Request carried Identifier %d, Ze's Ack carries %d",
-			first.requestID, replayed.ackID,
+			"RFC 1334 Section 2.2.2: repeated Authenticate-Request carried Identifier %d, Ze's Ack carries %d",
+			replayID, replayed.ackID,
 		)
+	}
+	if err := checkPAPSession(replayed, sessionID); err != nil {
+		return fmt.Errorf("repeated Authenticate-Request: %w", err)
 	}
 
 	sessions, err := zeSessions(ctx, lab)
@@ -215,6 +256,9 @@ func checkPAPReanswer(
 	}
 	if len(sessions) != 1 {
 		return fmt.Errorf("the repeated Authenticate-Request changed Ze's session table: %+v, want one session", sessions)
+	}
+	if sessions[0].SID != sessionID {
+		return fmt.Errorf("the repeated Authenticate-Request replaced Ze's session %d with session %d", sessionID, sessions[0].SID)
 	}
 	links, err := pppLinks(ctx, lab, clientImageName)
 	if err != nil {
@@ -231,7 +275,8 @@ func checkPAPReanswer(
 const replayPCAPPath = "/var/log/ppp/pap-replay.pcap"
 
 // clientFrameSender puts frame on the client container's wire. The type
-// exists so a unit test can substitute a fake for the Docker exec.
+// exists so TestCheckPAPReanswerJudgesTheReply can substitute a fake for the
+// Docker exec and script Ze's reply to the frame it was handed.
 type clientFrameSender func(ctx context.Context, lab interoplab.CheckerLab, frame []byte) error
 
 // replayFrameInClient writes frame as a one-record pcap inside the client
@@ -318,16 +363,19 @@ func observePAPFrames(capture []byte) (papObservation, error) {
 			return papObservation{}, fmt.Errorf("session capture: %d-octet PAP frame is shorter than its header", len(frame))
 		}
 		identifier := frame[papIdentifierOffset]
+		session := binary.BigEndian.Uint16(frame[pppoeSessionIDOffset:])
 		switch frame[papCodeOffset] {
 		case papCodeAuthRequest:
 			observed.requests++
 			if observed.request == nil {
 				observed.request = append([]byte(nil), frame...)
 				observed.requestID = identifier
+				observed.requestSession = session
 			}
 		case papCodeAuthAck:
 			observed.acks++
 			observed.ackID = identifier
+			observed.ackSession = session
 		case papCodeAuthNak:
 			observed.naks++
 		default:

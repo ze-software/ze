@@ -154,15 +154,24 @@ Ze's Configure-Request demanding `<auth pap>`, the client's named
 Authenticate-Request and Ze's Authenticate-Ack, with no CHAP anywhere, then
 IPCP, ICMP to Ze, and PADT teardown. It captures the session-stage frames
 (0x8864) on the client's wire and requires exactly one Authenticate-Request and
-one Authenticate-Ack carrying the same Identifier.
+one Authenticate-Ack carrying the same Identifier, both on the PPPoE SESSION_ID
+Ze's REST table reports.
 
 It then resends that captured Authenticate-Request from inside the client
-container with `tcpreplay`, after IPCP has opened, and requires Ze to put exactly
-one Authenticate-Ack carrying the request's Identifier on the wire, with the
-session still in Ze's REST table and on the client. That is RFC 1334
-Section 2.2.1: "the authenticator MUST allow repeated Authenticate-Request
-packets after completing the Authentication phase", answered with the same
-Code (`internal/component/l2tp/ppp/pap.go`, `reanswerPAP`).
+container with `tcpreplay`, after IPCP has opened, with its Identifier advanced
+by one, because a peer retransmitting MUST change it (RFC 1334 Section 2.2.1:
+"The Identifier field MUST be changed each time an Authenticate-Request packet
+is issued"). It requires Ze to put exactly one Authenticate-Ack and no Nak on
+the wire, on the same SESSION_ID, carrying the new Identifier (Section 2.2.2:
+"The Identifier field MUST be copied from the Identifier field of the
+Authenticate-Request which caused this reply"), so a cached Ack resent with the
+old Identifier fails. Afterwards Ze's REST table must still list that one
+session, under the same SESSION_ID, and the client must still hold one PPP
+interface. That is RFC 1334 Section 2.2.1: "the authenticator MUST allow
+repeated Authenticate-Request packets after completing the Authentication
+phase", answered with the same Code (`internal/component/l2tp/ppp/pap.go`,
+`reanswerPAP`). `TestCheckPAPReanswerJudgesTheReply` drives the same judgement
+over scripted replies.
 `spec-ppp-pap-reanswer-after-auth`.
 
 ### pppoe-pap-ze-client
