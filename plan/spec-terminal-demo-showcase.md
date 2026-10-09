@@ -53,6 +53,36 @@ if github can have it embedded that would be ideal".
 | Front page | Switch the hero from cli-dashboard to the super-recording (the earlier decision stands) |
 | Configuration style | Everything typed live in the SSH editor and committed. Where a live commit fails to enable a feature, that is a Ze defect to fix, not to work around in the tape |
 
+### Owner decisions (2026-10-09, at design review)
+
+Governing principle for every topic recording, verbatim: "the video should be what a
+user who is going to use the feature would have built in a lab to test it and see how
+it works and how it will be able to debug problems later".
+
+Refinement, verbatim: "the perfect lab showing everything and where everything went
+fine (not how lab usual run) but it must be the impression given. Teach them the
+feature by demo if they knew about it from another vendor and if they did not know show
+them enough to understand what they saw". Applied as: (a) every recording is a flawless
+run: no retries, no waiting on screen, no stray output; a failure shown is a deliberate,
+scripted teaching step (break on purpose, diagnose, fix), never an accident. Readiness
+waits happen hidden, before `Show`. (b) Two audiences: for the operator who knows the
+feature from another vendor, the cards name the equivalent concept and command (Junos,
+IOS, EOS, FRR, BIRD terms, each verified against that vendor's documentation, never
+guessed); for the newcomer, a short card before each step explains the concept just
+enough to read the screen (what a VRP is, what a BFD session does, what Full means in
+OSPF). Cards stay short; the terminal stays the subject (AC-17).
+
+Configuration style, verbatim (supersedes "everything typed live" above): "present the
+configuration, slow typing is slow, you can use load merge like feature and show each
+section as it is loaded, explaining it".
+
+| Decision | Answer |
+|----------|--------|
+| Topic recording shape | Five beats, in order: (1) the lab topology, shown briefly: which peers and daemons exist and why; (2) the topic's config loaded section by section into the RUNNING daemon's candidate through the SSH editor with a `load merge`-style verb, each section displayed with an explanation of what each part does, then `show \| compare` and `commit`; (3) proof it works, with the operational show commands an operator would use; (4) at least one realistic failure or misconfiguration; (5) its diagnosis with Ze's own tools (show commands, counters, logs, monitor, debug) revealing the cause, then the fix |
+| Q1, replace vs keep | Resolved: the topic recordings REPLACE the old demos and keep everything the old ones showed. VRRP shows failover AND tracking; OSPF shows neighbour, database and routes |
+| Q2, typed live vs prepared | Resolved by the configuration-style quote above: no character-by-character typing of config |
+| Missing diagnostics | Where an operator would need a diagnosis tool Ze lacks, it is listed as a finding for the owner (Diagnosis Findings below), never invented in the tape |
+
 ### Storyboard (from research, to be validated chapter by chapter)
 
 | # | Chapter | Shown | Validator proof |
@@ -70,6 +100,40 @@ if github can have it embedded that would be ideal".
 | 10 | Recap card | | |
 
 Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP.
+
+### Topic recordings by the five beats
+
+Diagnosis commands are the ones whose handler is declared today (`ze:command` in the
+YANG of the owning component, read 2026-10-10). Command paths follow the handler names;
+each is re-checked against `help` output when its tape is written. Cross-topic tools
+every recording may use: `show log recent level <level>` and `show log levels`
+(`ze-log`), `monitor event` (`ze-meta:event-monitor`), the `debug` module and profile
+commands (`ze-debug`), `show capture` (`ze-diag`), `show config history` (editor).
+
+| Topic | Lab (beat 1) | Config sections loaded (beat 2) | Proof (beat 3) | Failure shown (beat 4) | Diagnosis with existing commands (beat 5) |
+|-------|--------------|---------------------------------|----------------|------------------------|-------------------------------------------|
+| RPKI | Ze, one eBGP peer announcing Valid, NotFound and Invalid routes, local RTR cache | RTR cache server; validation policy (`invalid reject`) | `show bgp rpki status`, `show bgp rpki summary`, `show bgp adj-rib-in` (Invalid held ineligible) | an Invalid route (origin AS not in the ROA); then the RTR cache stopped | `show bgp rpki roa <prefix>` explains the Invalid; `show bgp rpki cache` and `show bgp rpki status` show the cache down; fix: restart cache, VRPs resync |
+| IRR | Ze, one customer peer, local IRR server (card says it is a test server) | IRR server and refresh; peer as-set; peer import filter | `show bgp irr status`, `show bgp irr prefix <peer>`, `show bgp irr check <peer> <prefix>` accepted | wrong as-set: the customer's route is refused | `show bgp irr check` (accepted false), `show bgp irr prefix` (set lacks the prefix); fix: load the right as-set, `update bgp irr as-set`, check again (needs AC-1) |
+| BFD | Ze and FRR (bgpd+bfdd) across a veth | BFD profile; peer `bfd` | `show bfd sessions`, `show bfd session <peer>`, `show bgp peer list` Established | link down | `show bfd sessions` (Down, diagnostic), `show bgp peer history <peer>`, `show log recent`; BGP left Established well inside hold time; fix: link up |
+| OSPF | Ze and FRR (ospfd) across a veth, FRR loopback | area and interface | `show ospf neighbor`, `show ospf database router`, `show ospf route` (FRR loopback) | Hello interval mismatch on the interface: no adjacency | `show ospf interface detail` (timers), `show ospf neighbor detail`; whether Ze names the rejected-Hello reason is Finding D-3; fix: load matching timer |
+| IPsec | Ze and a hidden far-end Ze in its own netns, a host behind each | IKE group; ESP group; peer with PSK and selectors; xfrm interface | `show vpn ipsec status`, `show vpn ipsec sa`, `show vpn ipsec dataplane sa`, ping through the tunnel, packets-in above zero | proposal mismatch (ESP group the far end does not offer) | `monitor vpn ipsec`, `show vpn ipsec peer`, `show vpn ipsec dataplane drift`, `show log recent`; whether the negotiated failure reason (NO_PROPOSAL_CHOSEN) is shown is Finding D-4; fix: load the matching group, `clear vpn ipsec sa` |
+| VRRP | Ze and keepalived on one LAN, plus an uplink Ze tracks | VRRP group; `track` on the uplink | `show vrrp`, `show vrrp interface` (master) | (a) tracked uplink down: Ze drops to backup with reduced effective priority; (b) failover: the master stops sending, the backup takes over | `show vrrp`, `show vrrp statistics`, `monitor event`; fix: uplink up, preempt back |
+| Traffic usage | Ze, a traffic namespace sending bursts on traffic0 | `traffic usage` on traffic0 | `show traffic usage name traffic0` (source and port counted) | an unexpected heavy talker | `show traffic usage`, `show traffic stat`, `monitor traffic stat`; fix: identify the source |
+| Commit confirmed | the base lab | a risky change | `commit confirmed <n>`, then rollback seen | the change is not confirmed in time | `show config history`, `show \| compare`; needs AC-14 (blocked in session mode today) |
+
+### Diagnosis Findings (for the owner)
+
+| ID | Finding | Evidence | Effect on the recordings |
+|----|---------|----------|--------------------------|
+| D-1 | The SSH editor connected to a running daemon (session mode) refuses `load`: `cmdLoadNew` returns `errLoadNotSupportedInSessionMode` when the editor holds a session. The verb exists in file mode: `load <file\|terminal> <absolute\|relative> <merge\|replace> [path]` merges into the candidate (`model_load.go`); `docs/guide/config-editor.md` lists it as blocked because it replaces the tree without per-leaf change entries | `internal/component/cli/model_load.go` `cmdLoadNew`; `editor_commands.go` | the owner's load-merge style cannot run against a running daemon until AC-13 |
+| D-2 | `commit confirmed` is blocked in session mode ("Needs session-aware rollback", `docs/guide/config-editor.md`; `errCommitConfirmedNotYetSupportedIn`) | `model_commands.go` | the commit-confirmed topic cannot run over SSH until AC-14; this resolves A-3 as broken |
+| D-3 | Not yet verified: whether OSPF exposes why a neighbour's Hello was rejected (interval, area, mask mismatch) in a show command or counter | no handler named for it among the `ze-ospf` commands; to be read at the producer when the tape is written | if absent, beat 5 for OSPF shows only the timers side by side: a finding, not invented |
+| D-4 | Not yet verified: whether IKE shows the failure reason of a refused negotiation (NO_PROPOSAL_CHOSEN) in `show vpn ipsec peer` or `monitor vpn ipsec` | handlers exist; the content is unread | same treatment as D-3 |
+| D-5 | IRR live edits are not applied (AC-1) | `filter_irr.go` | the IRR beat-5 fix cannot be shown until AC-1 |
+
+`ze config import` (the command catalogue's `load merge` equivalent) stores a file as a
+new version in the store; no path from it to a running daemon's reload was read, and it
+is not an editor verb, so it does not meet the owner's direction.
 
 ## Required Reading
 
@@ -153,6 +217,10 @@ the topic).
 | commit-confirmed | editor command, no plugin | n/a | proven in the file editor by the `commit-confirmed` demo; not yet in the SSH editor | unverified over SSH: A-3 |
 
 ### Open owner questions (asked at approval, 2026-10-09)
+
+Q1 and Q2 are answered (Owner decisions at design review, above): replace and keep
+everything; load-merge sections with explanation, no typing. Q3 stays open. The rows
+below are kept as asked.
 
 | # | Question | Recommendation | Why |
 |---|----------|----------------|-----|
@@ -298,7 +366,7 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | A running daemon with `bgp-filter-irr` loaded; the operator commits a changed IRR as-set or peer import filter (and, under A-1, a first-time IRR block) | The commit applies: a prefix outside the new set is refused at ingress and absent from Adj-RIB-In, an in-set prefix is accepted. A config the filter cannot apply fails the commit with the reason; the commit never reports success while the filter keeps its old config |
-| AC-2 | Each topic scenario (RPKI, IRR, BFD, OSPF, IPsec, VRRP tracking, traffic usage, commit-confirmed) starts its daemon with the base config only; the tape types the topic in the SSH editor and commits | The topic's validator first asserts the feature was absent before the commit (no VRPs, no IRR filter, no BFD session, no OSPF neighbour, no SA, no VRRP group, no usage counters, the original value), then asserts the storyboard's proof column after it. Any topic whose live commit does not enable it is a Ze defect fixed in this spec, with its own `.ci` |
+| AC-2 | Each topic scenario (RPKI, IRR, BFD, OSPF, IPsec, VRRP tracking, traffic usage, commit-confirmed) starts its daemon with the base config only; the tape load-merges the topic's sections in the SSH editor (AC-13) and commits | The topic's validator first asserts the feature was absent before the commit (no VRPs, no IRR filter, no BFD session, no OSPF neighbour, no SA, no VRRP group, no usage counters, the original value), then asserts the storyboard's proof column after it. Any topic whose live commit does not enable it is a Ze defect fixed in this spec, with its own `.ci` |
 | AC-3 | IPsec topic | The hidden far-end Ze and the shown Ze establish an IKE SA after the live commit; `show vpn ipsec sa` lists it, `show vpn ipsec dataplane sa` lists a kernel SPI, and a ping through the tunnel raises the SA's packets-in above zero |
 | AC-4 | VRRP tracking topic | After the commit the shown Ze is master; taking the tracked link down makes it backup with the effective priority reduced by the configured amount; the Ze process id is the same before and after |
 | AC-5 | A topic fragment outside the demo directory is edited | Both the topic recording's and the showcase recording's source digests change, and the check mode reports both stale |
@@ -309,6 +377,26 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | AC-10 | Gallery and feature pages | `docs/guide/terminal-demonstrations.md` carries one heading and marker per topic recording and one for the super; each topic recording is embedded on its feature page through `page` + `anchor`, the IPsec one on `docs/guide/ipsec.md` |
 | AC-11 | Showcase validator | Runs chapters 0 to 9's checks in order against ONE daemon whose process id never changes, each chapter's absence check before its commit and its proof after |
 | AC-12 | The replaced single-feature demos (per Owner question 1) | Their tapes, prepared `ze.conf` files, runners, validators and cards are deleted; no page marker names a deleted id; the published asset of a deleted id is removed from gh-pages by the publish action |
+| AC-13 | SSH editor connected to a running daemon; operator runs `load terminal relative merge` (paste) or `load file <absolute\|relative> merge <path>` | The section merges into the candidate as tracked per-leaf change entries (the same entries `set` produces), so `show \| compare` lists exactly the merged leaves and `commit` applies them to the running daemon; `load ... replace` stays refused in session mode with its current reason unless it gets the same treatment. The command, its error and help text follow `ai/rules/cli.md`; `docs/guide/config-editor.md` drops `load` merge from the blocked table |
+| AC-14 | SSH editor in session mode; `commit confirmed <n>` then no `confirm` | The change applies to the running daemon and is rolled back automatically after n minutes with the same message the file editor prints; `confirm` within n keeps it. `docs/guide/config-editor.md` drops it from the blocked table |
+| AC-15 | Each topic recording | Shows the five beats in order (lab, sectioned load with explanation, proof, a realistic failure, its diagnosis with existing Ze commands then the fix); the validator asserts the failure's diagnostic output and the recovery, not only the healthy state |
+| AC-17 | Every topic recording | Its cards carry the vendor mapping (the equivalent concept and command an operator knows from another vendor, verified, not guessed) and a short concept explanation before each step, and the run on screen is flawless: no visible retry or stray output, every failure a scripted teaching step. Reviewed by watching the recording; no extra test machinery |
+
+Tone reference, verbatim (owner, 2026-10-09): "like you would join a VC to be presented
+a software by a technico-commercial". Each recording feels like a sales engineer's live
+video-call demo: confident pacing, the cards narrate as the SE would talk ("here is the
+lab, we load the RPKI section, this line points at the cache, commit, and you can
+see..."), they highlight what matters to the buyer, skip nothing important, dwell on
+nothing trivial, and it always works first time. Card wording and pacing in every topic
+and in the super follow this; AC-17 covers it.
+
+Owner (2026-10-09): "it is a demo". A staged, scripted presentation that looks like a
+smooth lab session, not a test lab and not a test suite. The recording is the product;
+validators exist only so a recording cannot ship showing wrong output. Staging behind
+the scenes (pre-built lab, hidden setup, pre-seeded peers) is fine as long as what is
+shown is real Ze behaviour. Read AC-2's absence check and AC-15's failure assertions in
+that light: they guard against wrong output on screen, nothing more.
+| AC-16 | VRRP and OSPF recordings | VRRP shows tracked-link demotion AND master failover with Ze staying up; OSPF shows neighbour, database and routes. Nothing an old demo showed is lost |
 
 ## 🧪 TDD Test Plan
 
@@ -356,6 +444,10 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 - `internal/le/site/terminaldemo/cards.json` - intro and recap cards for each topic and the super's chapter cards; replaced demos' cards removed
 - `internal/le/site/home.go`, `internal/le/site/homebody.go` - hero from one declaration, pointed at `showcase`
 - `internal/component/bgp/plugins/filter_irr/filter_irr.go` - `OnConfigVerify` + `OnConfigApply` (+ rollback) for the `bgp` section
+- `internal/component/cli/model_load.go`, `editor_commands.go`, `editor_draft.go` - session-mode `load ... merge` emitting per-leaf write-through entries (AC-13)
+- `internal/component/cli/model_commands.go`, `model_commands_commit.go` - session-aware `commit confirmed` (AC-14)
+- `docs/guide/config-editor.md` - blocked-command table and load syntax (AC-13, AC-14)
+- `docs/architecture/config/yang-config-design.md` - declared by the changed editor code; updated where it describes session-mode write-through, otherwise named unaffected with the reason at implementation
 - `demos/terminal/manifest.json` - topic entries, `showcase` entry, replaced entries removed
 - `demos/terminal/Dockerfile` - only if the lab needs a package it lacks (none known; the far end is Ze)
 - `docs/guide/terminal-demonstrations.md`, `docs/contributing/gh-pages.md`, `README.md`, `docs/guide/config-reload.md`, `docs/architecture/bgp/filter-irr.md`, `docs/guide/irr-filtering.md` (live IRR edits now apply), `website/AI.md` (declared by `home.go`: the hero it describes moves to `showcase`), and each feature page in Work Plan step 8
@@ -441,7 +533,8 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
-| Live, not staged | No topic tape imports or pipes config into the store; every topic config line is typed in the SSH editor and followed by `commit` |
+| Live, not staged | No topic tape imports or pipes config into the store; every topic section is load-merged in the SSH editor against the running daemon, displayed with its explanation, followed by `show \| compare` and `commit` |
+| Diagnosis is real | every beat-5 command exists at source; no tape shows a diagnosis Ze cannot produce; gaps are Diagnosis Findings |
 | Non-vacuous validators | Each topic validator asserts absence before the commit, so it cannot pass against a boot config |
 | Single declaration | No topic `set` line or demonstration command appears in two tapes; `grep` of the topic tapes and the showcase tape shows only `Source` lines for topics |
 | Fail closed | `bgp-filter-irr` apply without a verified candidate returns an error; a failed apply undoes what it applied (SDK `OnConfigApply` contract) |
@@ -492,11 +585,12 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Topic config and demonstration as tape fragments (`configure.tape`, `show.tape`) sourced by both the topic tape and the showcase tape; topic checks as one Go function both validators call | (b) a declarative per-topic data file (config lines, commands, expected output) from which a generator writes the tapes; (c) hand-written tapes per recording | (a) uses the include the recorder already has and adds no format. (b) adds a generator and a second tape dialect for the same facts. (c) is the drift R-5 names |
+| Topic config as section snippet files (`demos/terminal/topics/<topic>/<n>-<section>.conf`) with one explanation card per section, loaded by `load file relative merge`; the beats as tape fragments (`configure.tape` loads and explains the sections, `show.tape` proves, `failure.tape` breaks and diagnoses) sourced by both the topic tape and the showcase tape; topic checks as one Go function both validators call. The snippet files are also what `sourceDigest` must cover (AC-5) | (b) a declarative per-topic data file (config lines, commands, expected output) from which a generator writes the tapes; (c) hand-written tapes per recording | (a) uses the include the recorder already has and adds no format. (b) adds a generator and a second tape dialect for the same facts. (c) is the drift R-5 names |
 | One shared lab (`showcase-lab`) that every topic and the super start | per-topic labs, as today | one code path, and the super needs it anyway; a topic recording shows the same world the super does. Costs a heavier start (R-7) |
 | Scenario registry replacing `runScenario` and `demoValidators` | add ten cases to the switch and ten entries to the map | `ai/rules/principles.md`: a new scenario registers; both lists are central enumerations |
 | Digests over the Source closure | keep fragments inside each demo directory (duplicated) | fragments must live outside any one demo to be shared; a digest that misses them reports stale recordings current |
-| Base lab config (peers, interfaces) imported at start; only topics typed | type the base too | chapter 1 is the base and is not a topic; the super types it in chapter 0/1 through the migrate output, topic recordings start from it. Owner question 2 |
+| Base lab config (peers, interfaces) imported at start; topics load-merged section by section in the SSH editor (owner, 2026-10-09) | type each config line live (rejected by the owner: slow) ; `ze config import` of the whole topic (not an editor verb, shows nothing section by section, and no reload path from it was read) | chapter 1 is the base and is not a topic. Load merge needs AC-13 because session mode refuses `load` today |
+| Session-mode `load merge` and `commit confirmed` (AC-13, AC-14) built in this spec | a separate spec each | the recordings cannot exist without them, so a separate spec would only add a Depends; the owner may still ask to split them (`plan/spec-editor-session-load-and-confirm.md` would be the name) |
 | IRR fixed in `bgp-filter-irr` | work around in the tape (restart, or stage offline) | owner decision 5 forbids the workaround, and the defect is a fail-open filter |
 
 ## Known Limitations
