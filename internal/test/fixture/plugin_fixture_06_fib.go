@@ -12,14 +12,39 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// fixture06DiscardRoutes pairs each discard route type the system RIB carries
+// with a prefix of its own, so one kernel read per prefix names the type the
+// FIB plugin programmed for it.
+var fixture06DiscardRoutes = [][2]string{
+	{"blackhole", "198.18.201.0/24"},
+	{"unreachable", "198.18.202.0/24"},
+	{"prohibit", "198.18.203.0/24"},
+}
+
+// fixture06FIBBlackhole proves spec-fib-depth AC-6 and AC-7 at the kernel: a
+// system-RIB change of each discard type reaches fib-kernel, which installs a
+// kernel route of that type (RTN_BLACKHOLE, RTN_UNREACHABLE, RTN_PROHIBIT),
+// stamped proto 250. The kernel read is the evidence; the emit alone proves
+// nothing, because fib-kernel could drop the change and log its name.
 func fixture06FIBBlackhole(ctx context.Context, p *sdk.Plugin) error {
-	if err := fixture06DispatchDone(ctx, p, "request fakefib emit add ipv4/unicast 192.0.2.0/24 routetype blackhole"); err != nil {
-		return err
+	for _, route := range fixture06DiscardRoutes {
+		if err := fixture06DispatchDone(ctx, p, "request fakefib emit add ipv4/unicast "+route[1]+" routetype "+route[0]); err != nil {
+			return err
+		}
 	}
-	if err := fixture06Wait(ctx, time.Second); err != nil {
-		return err
+	for _, route := range fixture06DiscardRoutes {
+		var entries []string
+		if !Poll(ctx, kernelPolls, 100*time.Millisecond, func() bool {
+			entries = kernelEntries(ctx, route[1])
+			return len(entries) == 1 &&
+				strings.HasPrefix(entries[0], route[0]+" "+route[1]+" ") &&
+				strings.Contains(entries[0], "proto 250")
+		}) {
+			return fmt.Errorf("%s: want one kernel entry `%s %s ... proto 250`; ip route show table all: %q",
+				route[1], route[0], route[1], entries)
+		}
+		fmt.Fprintln(os.Stderr, "OK: kernel holds "+route[0]+" "+route[1]+" proto 250")
 	}
-	fmt.Fprintln(os.Stderr, "OK AC-1: blackhole route emitted to fib-kernel via sysrib EventBus")
 	return fixture06WaitEOR(ctx, p, 1)
 }
 

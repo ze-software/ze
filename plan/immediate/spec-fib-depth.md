@@ -487,8 +487,8 @@ and was not run in this pass (host load 33, five-minute call budget).
 | AC-2 | unit and needs-linux integration exist | `TestRecursiveNHResolve_*`, `TestRFC4271BGPNextHopResolvedToTheImmediateNextHop`, `TestFIBRecursiveIPv4ViaIPv6` | `test/plugin/fib-recursive.ci` asserts only presence in the system RIB, not the resolved hop |
 | AC-3 | unit exists; `.ci` partial | `TestECMPCollect_*`, `test/plugin/fib-ecmp.ci` | `.ci` asserts bgp-rib multipath siblings and system-RIB presence, not the `ECMPPaths` count |
 | AC-5 | unit exists | `TestVPPMultiPath` | no VPP functional run |
-| AC-6 | unit and one needs-linux integration exist; `.ci` vacuous | `TestKernelRouteType`, `TestNetlinkIntegration_BlackholeRouteWithNextHop`, `TestVPPRouteType` | `test/plugin/fib-blackhole.ci` asserts only `fib-kernel` on stderr, so it passes with no route programmed |
-| AC-7 | unit only | `TestKernelRouteType`, `TestVPPRouteType` | no kernel test reads an installed `unreachable` route |
+| AC-6 | unit and one needs-linux integration exist; kernel `.ci` rewritten, owed a QEMU run | `TestKernelRouteType`, `TestNetlinkIntegration_BlackholeRouteWithNextHop`, `TestVPPRouteType`, `test/plugin/fib-blackhole.ci` | the `.ci` asserted only `fib-kernel` on stderr and passed with no route programmed; it now reads the kernel for blackhole, unreachable and prohibit (needs-linux, not run) |
+| AC-7 | unit; kernel `.ci` owed a QEMU run | `TestKernelRouteType`, `TestVPPRouteType`, `test/plugin/fib-blackhole.ci` | same rewritten `.ci` reads the installed `unreachable` route |
 | AC-10 | needs-linux integration exists; `.ci` vacuous | `TestMPLSIntegration_Push`, `TestKernelMPLSPush` | `test/plugin/fib-mpls-kernel.ci` asserts only `fib-kernel` on stderr |
 | AC-11 | needs-linux integration and VPP unit exist | `srv6_integration_linux_test.go`, `TestSRv6SteerAdd`, `TestSRv6SteerWithdraw` | recorded delivered (learned 1113) |
 | AC-12 | unit exists | `TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB`, `TestNHResolver_Tracking` | no functional run |

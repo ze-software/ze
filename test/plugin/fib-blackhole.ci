@@ -1,13 +1,20 @@
-# Test: fib-kernel receives blackhole route via sysrib EventBus
+# Test: fib-kernel programs each discard route type the system RIB carries
 #
 # Flow:
-# 1. fakefib emits sysrib BestChangeBatch with RouteType=blackhole
-# 2. fib-kernel subscribes to (system-rib, best-change) and receives it
-# 3. hasRichFields detects RouteType, dispatches to addRichRoute (Linux)
-#    or logs error (non-Linux unsupported backend)
+# 1. fakefib emits system-RIB changes with RouteType blackhole, unreachable and
+#    prohibit, one prefix each
+# 2. fib-kernel subscribes to (system-rib, best-change) and programs them
+# 3. the fixture reads the kernel and requires one proto 250 entry per prefix,
+#    of the emitted type
 #
-# VALIDATES: spec-fib-depth-3-richroute AC-1 -- blackhole route dispatched to fib-kernel
-# PREVENTS: RouteType field lost in sysrib -> fib-kernel event delivery
+# VALIDATES: spec-fib-depth AC-6 and AC-7 (kernel side) -- RTN_BLACKHOLE,
+#            RTN_UNREACHABLE and RTN_PROHIBIT installed from the event
+# PREVENTS: RouteType lost between sysrib and fib-kernel, or a discard route
+#           programmed as unicast. Until 2026-10-09 this test asserted only
+#           that stderr named fib-kernel, which held with no route installed.
+#
+# Requires Linux and CAP_NET_ADMIN: fib-kernel programs through netlink.
+option=needs-linux:caps=net-admin
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -78,7 +85,9 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-expect=stderr:pattern=fib-kernel
+expect=stderr:contains=OK: kernel holds blackhole 198.18.201.0/24 proto 250
+expect=stderr:contains=OK: kernel holds unreachable 198.18.202.0/24 proto 250
+expect=stderr:contains=OK: kernel holds prohibit 198.18.203.0/24 proto 250
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL
