@@ -11,7 +11,7 @@ The running control plane shows the complete Up BFD session.
 $ date -u +%T; ip link set bfd-p down
 $ ze cli -c 'show bfd sessions'
 $ ze cli -c 'show bgp peer list'
-Five seconds after the kernel link is cut, the full command output shows no live BFD session and BGP has left Established.
+After the kernel link is cut, BFD leaves Up and BGP leaves Established. BGP releases its BFD session, which Ze keeps in AdminDown for the retention window RFC 5880 Section 6.8.1 requires and then retires, so by the time the command runs the session list is empty.
 
 $ ip link set bfd-p up
 $ ze cli -c 'show bgp peer list'
