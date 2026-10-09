@@ -1,6 +1,7 @@
 // Design: docs/architecture/ospf/ospf-ext-1-opaque-framework.md -- negotiated DD contents.
 // Related: rfc5250_summary_entire_area_test.go -- real native LSDB fixture helpers.
 // RFC: rfc/short/rfc5250.md -- Section 3.1; rfc/short/rfc2328.md -- Section 10.6.
+// RFC naming: untagged -- regression for the observed FRR DD capability mismatch, not whole-clause conformance coverage.
 package neighbor
 
 import (

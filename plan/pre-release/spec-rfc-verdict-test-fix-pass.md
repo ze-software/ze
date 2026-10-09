@@ -158,8 +158,17 @@ RFC7950 drift, with no uncommitted record drift or changed unproven units.
 The held compatibility fixture and explicit setup/CI dependencies land as
 `0b3c569cac`, with the already-observed real-kernel setup-consumer transitions,
 both unchanged live wire assertions, native bindings and independent reviews.
-Durable retention, current whole verification and retirement publication
-remain open.
+Final canonical reconciliation and held documentation land as `907e16d30d`.
+Its five committed-source build flavors pass. The complete structured
+postcommit receipt reports seven foreign findings, no record drift, no changed
+unproven units and no missing records; RFC7950 no longer appears.
+Final native publication from that exact source revision completes22 producers
+and994 pages; Chromium verifies the retired catalog entry/detail and replacement
+replay contract. The copied artifact check passes, and165 generated files land
+locally as gh-pages `f996e9b00e`, without pushing or staging scratch metadata.
+The completed-input archive and both complete Git bundles are retained and
+verified. Whole `verify worktree` remains running; its receipt and the final
+checkpoint still owe the small completion supplement.
 Both specs remain open; no push or whole-corpus green claim is made.
 
 | Stays in the parent | Why |

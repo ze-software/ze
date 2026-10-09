@@ -944,7 +944,7 @@ whole-tree verification or closure is claimed.
 | Live suite and valid input | Latest immutable plugin run `job-final-integrated-live-plugin-all-six-9bd1dc3a.log` completes789 passing,1 failure and83 host skips,873 total. The original BFD and PATHS-LIMIT workflows both pass at the original six-way concurrency without the diagnostic readiness overlay. The remaining MCP literal-namespace assertion is separately journaled. This binary predates the later own-global/SRv6 repairs; neither a whole-green nor a final-source suite pass is claimed. BFD pipe-lifetime repair landed as `aeb7e2f4d4` with all five committed flavors passing. |
 | IPv6 claim records | All seven guest records completed, including RFC2545-3-2 replay and the compatibility/matrix claims. `job-ipv6-final-unit-native-records-728ac315.log` records all20 final IPv6 bindings with20 observed reds; `job-ordinary-writer-non2545-native-records-a8bd24c8.log` records the other37 writer bindings with37 reds. Their population manifests/censuses are retained. The later native freshness census identifies additional stale records; only its unfinished entries are being renewed, not completed qualifications. |
 | Source landing | `d3e5b4a770` landed309 coupled files; MRT landed as `9f89c5fac43a`. Later completed clauses landed independently: unknown-sub-TLV processing `a0c1e93bf5`, FlowSpec advertisement judgment `0ce4fccd27`, present-empty AS_PATH `1e2a0f25c9`, and mapped-self oracle `411d8136e1`. All five committed build flavors passed after the last two Go commits. Earlier concurrent-producer and CLI-return-arity reds remain journaled rather than rewritten as historical passes. |
-| Retirement publication | Canonical wiki cutover landed as `328c4dc`, including the retired page removal and regenerated aggregates. Native wiki snapshot `fc3b90b7` derived the site's input from committed wiki HEAD. Private site build `f20febfa` wrote 994 published pages; Chromium showed zero catalog matches and a404 former detail for bgp-persist, the bgp-rib detail, and the rendered in-memory reconnect/migration guide. Final publication landing remains owed; historical parity fixtures stay pinned. |
+| Retirement publication | Canonical wiki cutover is `328c4dc`, with native main input `b73115bc05`. Final native site build from main `907e16d30d1957d8caf3489207d6be441b43f56b` writes994 pages through22 producers. Chromium shows zero catalog matches, a404 former detail, the bgp-rib dependencies and the painted in-memory reconnect/migration contract. The copied publication check passes;165 generated files land locally as gh-pages `f996e9b00e`. Existing scratch metadata is excluded, historical parity fixtures stay pinned, and nothing is pushed. |
 | Docker authorization | The owner's 2026-10-08 "Use Docker" decision authorizes these scenarios, not pushing. Restored structured `job-final-restored-named-docker-pair-9631a78e.log` reports both repaired IPv6 joint-subnet and ADD-PATH collision scenarios passed1/failed0 against fresh Ze images and FRR10.3.1 after the mutations. Earlier endpoint/no-Docker limits are historical, not current authorization blockers. |
 | Shared-subnet condition | Restored complete FRR capture `b69d6620`, replacement replay80 and matrix80 are observed. Ordinary SDK old/final proof traverses actual `sdk.UpdateRoute` through batch/queue/commit: old common-link16 fails, final common32/off-link16 passes. Reviewed final-size, per-family ADD-PATH, directional-count and typed-error repairs pass their focused race populations and native records. A later review found own-global policy writes under auto/unchanged omitted an available own LL; all eight common-link before cases fail, repaired65 roots pass20 times, and actual public raw-export SDK old/final proof completes in `forward-owned-policy-smoke/actual-sdk-service-receipt.txt`. Independent whole-clause judgments now stamp RFC2545-3-3 partial (tested portions retained, absent third-party discovery receives zero whole-row credit) and3-4 enforced;3-6 remains unimplemented. |
 | Unknown sub-TLV processing | The27-combination recipient/RIB root passed under race. Selective legal-unknown suppression failed at actual recipient and stored-route observations in `57c0b4d1`; restored roots passed `e19c2917`, both native bindings recorded in `918cb771`, and independent whole-clause rejudgment accepted RFC9012-13-10. The proof and canonical records landed as `a0c1e93bf5`; absent attribute-driven consumers remain separate. |
@@ -968,7 +968,7 @@ new receipts and immutable inputs. No result is inferred from a pending job.
 | Completed judgments | RFC9012-13-10, RFC4271-5.1.2-3 and RFC8955-4-3 are canonical enforced. Their earlier census requests for decisions or a first stamp are obsolete. RFC9012-13-16 is canonical unimplemented, not a pending rejudge. |
 | Physical and independent-receiver proof | Replay80, matrix80, restored FRR capture, ordinary SDK, public raw-export SDK, actual SRv6 SDK/FRR old/fixed and configured VPNv6 selective proofs are complete. Parsed-empty-MP producer, cached-worker and native FRR old/fixed proof are now observed and independently accepted. Preserve all newer receipts and immutable inputs outside scratch; completed qualifications are not repeated because an old wrapper misunderstood their result. |
 | Final execution | Final-source immutable reactor race20 `2a6f2ef4` contains2446 roots,48919 root passes and one AIGP readiness failure, with no skips or race warning. The controlled stale-completion schedule reproduces that failure in `5173b7f5`; corrected exact-wire readiness and complete transition assertions pass the same schedule20 and both normal recursive roots20 under race in `bfa85e8a`. No production change or full-suite-green claim follows. The original PATHS-LIMIT live workflow passed in `9bd1dc3a`. The preserved two-octet draft remains ineligible: received-RIB storage publishes best-path events, named commits consume separately queued routes, and outbound resend reads Adj-RIB-Out; no received-RIB-to-commit producer reaches its oracle. |
-| Mechanical freshness | All original and later owned claim renewals are recorded, including the sixteen committed-drift repairs and RFC4659 reseal in `bdd77596`, four new diagnostic/filter bindings in `2bf9854a`, and four corrected AIGP bindings in `391566bc`. Structured native `c6c59f23` stamps the two independently rejudged AIGP rows and regenerates projections. Postcommit `c58edbb0` reports eight foreign findings, no uncommitted discrimination drift, zero changed unproven units and zero missing records. Six tagless historical records are reported as removable and receive no proof credit. This is not whole-corpus green; the final reconciliation still owes its postcommit C5 check. |
+| Mechanical freshness | All owned renewals are recorded, including sixteen committed-drift repairs and RFC4659 reseal in `bdd77596`, four diagnostic/filter bindings in `2bf9854a`, and four AIGP bindings in `391566bc`. Postcommit checking at `907e16d30d` is retained in `final-committed-acceptance-gate.json`: seven foreign findings, no discrimination drift, zero changed unproven units and zero missing records. No stale owned verdict or commit-added violation is reported. Six removable historical tagless records receive no proof credit. This satisfies the scoped C5 condition, not whole-corpus green. |
 | Landing and closure | Commit completed scoped repairs and canonical reconciliation, retain all newer evidence, finish retirement publication, and satisfy AC-C1–AC-C7 and the independent Review Gate. Both specs remain open. No push is authorized. |
 
 Gap accounting is separate from these evidence obligations. The canonical
@@ -1000,6 +1000,20 @@ compatibility wire assertions. The proof does not claim macOS runtime or the
 complete setup CLI. Its two independent source reviews and native bindings
 accompany the landing; no completed qualification is rerun.
 
+Final canonical reconciliation, its two new proof files and the held pages land
+as `907e16d30d`; all five committed-source build flavors pass. Final native
+publication and Chromium proof complete, with local gh-pages landing
+`f996e9b00e`. Whole verification remains running.
+
+Durable retention is under
+`/home/thomas/ze-recovery/bgp-20261005T230453160053Z/acceptance-final-2026-10-09T10-54-57-566Z-c00792ae`.
+The completed-input archive passes full comparison, SHA256
+`15e69b6457f17faed85337623d719ba0de77d94a17cdd7e2d41e148027b30770`.
+Complete source and publication bundles verify; `bundle-verification.json`
+records their heads/checksums. Browser receipts and screenshots are retained.
+The whole-verification receipt and final checkpoint still owe the small
+completion supplement; neither spec is closed.
+
 Two independent read-only lenses check the remaining acceptance bookkeeping:
 AC-C1/C4/C7 compare the derived weak/wrong listing and declared transfers with
 the receiving specs; AC-C2/C3/C5/C6 compare the completed independent judgments,
@@ -1012,8 +1026,8 @@ The ownership lens confirms A-2: the actual derived query in `e50a6d98`
 returns30 weak and zero wrong, all mapped to receiving acceptance criteria.
 The named wiring test passes in that same receipt. The twelve final first
 judgments, corrected extraction sites and bounded public claims have an
-independent clean reconciliation review. Current whole verification, durable
-retention and final retirement publication remain separate obligations.
+independent clean reconciliation review. Current whole verification, its final
+retention supplement and the formal Review Gate remain separate obligations.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
