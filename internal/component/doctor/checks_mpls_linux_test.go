@@ -240,3 +240,44 @@ func TestMPLSInUseNamesRealFamilies(t *testing.T) {
 		assert.False(t, kernelcap.MPLSInUse(tree), "MPLS support only matters for the kernel FIB")
 	})
 }
+
+// VALIDATES: a per-interface MPLS enable, written where the YANG puts it
+// (`interface <kind> <name> unit <n> mpls enable true`), counts as MPLS
+// forwarding, driven from a PARSED config.
+// PREVENTS: the predicate reading `interface` as a top-level list. It is a
+// container of per-kind lists, and the enable lives on a unit, so the branch
+// never matched and an interface-only MPLS config started on a kernel with no
+// AF_MPLS table.
+func TestMPLSInUseCountsInterfaceUnitEnable(t *testing.T) {
+	parse := func(t *testing.T, enable, fib string) *config.Tree {
+		t.Helper()
+		text := `
+interface {
+	ethernet eth0 {
+		unit 0 {
+			mpls { enable ` + enable + `; }
+		}
+	}
+}
+` + fib
+		schema, err := config.YANGSchema()
+		require.NoError(t, err)
+		tree, err := config.NewParser(schema).Parse(text)
+		require.NoError(t, err, "fixture config must parse")
+		return tree
+	}
+	kernelFIB := "fib {\n\tkernel { }\n}\n"
+
+	t.Run("enabled-unit-counts", func(t *testing.T) {
+		assert.True(t, kernelcap.MPLSInUse(parse(t, "true", kernelFIB)),
+			"an MPLS-enabled unit on the kernel FIB must count as MPLS forwarding")
+	})
+	t.Run("disabled-unit-does-not-count", func(t *testing.T) {
+		assert.False(t, kernelcap.MPLSInUse(parse(t, "false", kernelFIB)),
+			"`mpls { enable false; }` asks the kernel for nothing")
+	})
+	t.Run("another-fib-backend-is-never-gated", func(t *testing.T) {
+		assert.False(t, kernelcap.MPLSInUse(parse(t, "true", "")),
+			"MPLS support only matters for the kernel FIB")
+	})
+}

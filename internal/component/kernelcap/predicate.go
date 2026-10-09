@@ -58,10 +58,8 @@ func mplsConfigured(tree *config.Tree) bool {
 	if tree.GetContainer("ldp") != nil || tree.GetContainer("rsvp-te") != nil {
 		return true
 	}
-	for _, entry := range tree.GetListOrdered("interface") {
-		if entry.Value.GetContainer("mpls") != nil {
-			return true
-		}
+	if interfaceMPLSEnabled(tree.GetContainer("interface")) {
+		return true
 	}
 	bgp := tree.GetContainer("bgp")
 	if bgp == nil {
@@ -79,6 +77,32 @@ func mplsConfigured(tree *config.Tree) bool {
 		// peers misses that shape, and it is the idiomatic one.
 		if sessionLabeled(group.Value) || peersLabeled(group.Value) {
 			return true
+		}
+	}
+	return false
+}
+
+// interfaceMPLSEnabled reports whether any interface unit enables MPLS label
+// input. `interface` is a container of per-kind lists (ethernet, dummy, veth,
+// ...), each entry carries a `unit` list, and the enable lives on the unit
+// (internal/component/iface/yang/ze-iface-conf.yang, `container mpls`). The
+// kinds are read from the tree, so a new interface kind needs no edit here.
+// `mpls { enable false; }` asks the kernel for nothing and does not count.
+func interfaceMPLSEnabled(iface *config.Tree) bool {
+	if iface == nil {
+		return false
+	}
+	for _, kind := range iface.ListNames() {
+		for _, entry := range iface.GetListOrdered(kind) {
+			for _, unit := range entry.Value.GetListOrdered("unit") {
+				mpls := unit.Value.GetContainer("mpls")
+				if mpls == nil {
+					continue
+				}
+				if enable, _ := mpls.Get("enable"); enable == "true" {
+					return true
+				}
+			}
 		}
 	}
 	return false

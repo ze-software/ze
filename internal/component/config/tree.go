@@ -437,6 +437,21 @@ func (t *Tree) ContainerNames() []string {
 	return names
 }
 
+// ListNames returns the names of all nested lists, sorted. A reader that must
+// visit every kind under a container of per-kind lists (`interface ethernet`,
+// `interface dummy`, ...) derives the kinds from the tree rather than naming
+// them.
+func (t *Tree) ListNames() []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	names := make([]string, 0, len(t.lists))
+	for k := range t.lists {
+		names = append(names, k)
+	}
+	slices.Sort(names)
+	return names
+}
+
 // CollectContainerPaths returns all container paths present in the tree,
 // recursively walking nested containers. Paths use the config package's
 // PathSep ("/"), matching ExtractConfigSubtree and the plugin auto-loader.

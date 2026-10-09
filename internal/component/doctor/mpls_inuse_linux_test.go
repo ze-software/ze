@@ -92,9 +92,14 @@ func TestMPLSInUse(t *testing.T) {
 	ubgp.AddListEntry("peer", "p1", upeer)
 	assert.False(t, kernelcap.MPLSInUse(unlabeled), "a plain unicast peer needs no MPLS")
 
+	// The shape the YANG produces: `interface` is a container of per-kind
+	// lists, and the enable lives on a unit. TestMPLSInUseCountsInterfaceUnitEnable
+	// drives the same case from a parsed config.
 	iface := kernelFIB(config.NewTree())
+	unit := config.NewTree()
+	unit.GetOrCreateContainer("mpls").Set("enable", "true")
 	ifEntry := config.NewTree()
-	ifEntry.GetOrCreateContainer("mpls")
-	iface.AddListEntry("interface", "eth0", ifEntry)
+	ifEntry.AddListEntry("unit", "0", unit)
+	iface.GetOrCreateContainer("interface").AddListEntry("ethernet", "eth0", ifEntry)
 	assert.True(t, kernelcap.MPLSInUse(iface), "an interface with MPLS enabled needs MPLS")
 }
