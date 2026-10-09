@@ -134,18 +134,43 @@ accepts. Each refusal names the module, the file location and the fault.
 |-------------------|----------|----------------------|-------|
 | A `length` whose parts, in the order written, overlap or descend, with `min` and `max` read as the bounds of the type being restricted | 9.4.4 | it sorts and coalesces the parts before it checks them | `ErrLengthOrder` |
 | An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
-| A statement under an extension statement that is not a YANG keyword, that the block holding it does not admit, or whose argument breaks its Section 14 argument rule | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
+| A statement under an extension statement that is not a YANG keyword, that the block holding it does not admit, whose argument breaks its Section 14 argument rule, whose substatements break the counts or the alternatives of its rule's block, or that omits a block its rule requires | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
 
 The grammar under an extension is the RFC's own: `rfc7950.abnf`, embedded in
 the package, is the Section 14 code component of `rfc/full/rfc7950.txt`, and
 `TestEmbeddedGrammarIsTheRFC7950Grammar` turns red if the two differ.
-`parseStatementGrammar` reads from it, for each statement keyword, the argument
-rules and the statements its block admits. Each argument rule has a checker
-written from its ABNF rule, except `uri-str` and `path-arg-str`, which
-`uncheckedArgumentRules` names and which accept any argument. Neither the
-number of times a substatement may occur, nor the substatements a block
-requires (a `leaf` without a `type`), nor the narrower blocks of one `deviate`
-form or one base type, is checked under an extension.
+`parseYANGGrammar` parses every rule of it into an RFC 5234 expression and
+reads each `<name>-stmt` rule into a production: its keyword, its argument
+rule, whether its block is required (a bare `{`) or may be omitted (`stmtend`,
+or `";" / "{" ... "}"`), and the expression its block holds. A keyword with
+several rules has several productions: `deviate` four, `augment` two.
+
+Each statement under an extension is resolved to a production chosen among
+those its parent's block admits, the one whose argument rule its argument
+matches. The parent's rule is the context, so `augment` under `uses` is
+`uses-augment-stmt` and takes a descendant path, while `augment` in a
+submodule body is `augment-stmt` and takes an absolute one, and each `deviate`
+argument selects its own block. Directly under the extension usage the block
+is `unknown-statement`'s, `*((yang-stmt / unknown-statement) optsep)`, which
+admits every production.
+
+The statement is then checked against its production. Its argument matches
+the rule's checker; every argument rule has one, `uri-str` read as an RFC 3986
+URI and `path-arg-str` as the Section 14 `path-arg`. Its substatements, read in
+any order as the ABNF comment allows, must match the block: each repetition
+bounds a count (`[x]` at most one, `*x` any, `1*x` at least one, a bare `x`
+exactly one), and the counts together must form one reading of the block, so
+`deviate not-supported` cannot sit beside `deviate add`, and a `type` holds
+the restrictions of one alternative of `type-body-stmts` only. goyang records
+no block for a statement with no substatement, so where an empty block would
+match a rule that requires one (`refine-stmt` alone), the module text the
+loader recorded is read to tell `refine x;` from `refine x {}`.
+
+The ABNF does not decide which alternative of `type-body-stmts` a base type
+takes: the grammar accepts `type int8 { length "1"; }`, because
+`string-restrictions` is one alternative, and binding restrictions to base
+types is RFC 7950 Section 9's work, not Section 14's. Nor does it decide the
+order of substatements, which its comment frees.
 
 `min` and `max` in a `length` are the first and last bounds of the effective
 length of the type being restricted, which goyang resolves through the whole
@@ -158,8 +183,10 @@ goyang left unresolved and that names `min` or `max` is refused as unresolved
 rather than checked against a guessed span.
 
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
-<!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, restrictedLengthSpan, extensionSubstatementError -->
-<!-- source: internal/component/config/yang/loader_grammar.go -- parseStatementGrammar, argumentCheckers, uncheckedArgumentRules -->
+<!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
+<!-- source: internal/component/config/yang/loader_abnf.go -- parseYANGGrammar, rfc7950Grammar -->
+<!-- source: internal/component/config/yang/loader_grammar.go -- argumentCheckers, checkURI, checkPathArg -->
+<!-- source: internal/component/config/yang/loader_source.go -- statementHasBlock -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
 <!-- source: internal/component/cli/client/main.go -- loadYANGState, buildYANGState -->
 <!-- source: internal/component/cli/client/verb_tree.go -- IsDeclaredCommand -->

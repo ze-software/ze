@@ -8,6 +8,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 
@@ -44,13 +45,31 @@ var embeddedModules embed.FS
 
 // Loader loads and resolves YANG modules.
 type Loader struct {
-	modules *yang.Modules
+	modules *sourcedModules
+}
+
+// sourcedModules is goyang's module set, keeping the text of each module it
+// parses. goyang's Statement records no block when a statement has no
+// substatement, so "refine x;" and "refine x {}" parse alike; the text is
+// what tells them apart (statementHasBlock). Not safe for concurrent use, as
+// yang.Modules is not.
+type sourcedModules struct {
+	*yang.Modules
+	// sources is each parsed module text, by the file name goyang's
+	// Statement.Location reports for it.
+	sources map[string]string
+}
+
+// Parse records data as the text of name, then parses it into the module set.
+func (m *sourcedModules) Parse(data, name string) error {
+	m.sources[name] = data
+	return m.Modules.Parse(data, name)
 }
 
 // NewLoader creates a new YANG module loader.
 func NewLoader() *Loader {
 	return &Loader{
-		modules: yang.NewModules(),
+		modules: &sourcedModules{Modules: yang.NewModules(), sources: map[string]string{}},
 	}
 }
 
@@ -95,9 +114,15 @@ func (l *Loader) AddModuleFromText(name, content string) error {
 	return nil
 }
 
-// AddModuleFromFile adds a YANG module from a file path.
+// AddModuleFromFile adds a YANG module from a file path. The file is read
+// here rather than by goyang's Modules.Read, so its text is recorded as every
+// parsed module's is.
 func (l *Loader) AddModuleFromFile(path string) error {
-	if err := l.modules.Read(path); err != nil {
+	data, err := os.ReadFile(path) //nolint:gosec // the caller names the module file to load
+	if err != nil {
+		return fmt.Errorf("read YANG file %s: %w", path, err)
+	}
+	if err := l.modules.Parse(string(data), path); err != nil {
 		return fmt.Errorf("read YANG file %s: %w", path, err)
 	}
 	return nil
@@ -237,9 +262,9 @@ func patternOwnerName(owner *yang.Statement) string {
 // sourceModules answers every loaded module and submodule, sorted by name,
 // skipping the revision-qualified duplicate keys goyang also stores.
 func (l *Loader) sourceModules() []*yang.Module {
-	names := make([]string, 0, len(l.modules.Modules)+len(l.modules.SubModules))
+	names := make([]string, 0, len(l.modules.Modules.Modules)+len(l.modules.Modules.SubModules))
 	names = append(names, l.ModuleNames()...)
-	for name := range l.modules.SubModules {
+	for name := range l.modules.Modules.SubModules {
 		if strings.Contains(name, "@") {
 			continue
 		}
@@ -248,9 +273,9 @@ func (l *Loader) sourceModules() []*yang.Module {
 	slices.Sort(names)
 	mods := make([]*yang.Module, 0, len(names))
 	for _, name := range names {
-		mod := l.modules.Modules[name]
+		mod := l.modules.Modules.Modules[name]
 		if mod == nil {
-			mod = l.modules.SubModules[name]
+			mod = l.modules.Modules.SubModules[name]
 		}
 		mods = append(mods, mod)
 	}
@@ -331,13 +356,13 @@ func moduleDeclaresExtension(mod *yang.Module, keyword string) bool {
 
 // GetModule returns a loaded module by name.
 func (l *Loader) GetModule(name string) *yang.Module {
-	return l.modules.Modules[name]
+	return l.modules.Modules.Modules[name]
 }
 
 // GetEntry returns the processed entry tree for a module.
 // The entry tree has all imports resolved and mandatory fields properly set.
 func (l *Loader) GetEntry(name string) *yang.Entry {
-	mod := l.modules.Modules[name]
+	mod := l.modules.Modules.Modules[name]
 	if mod == nil {
 		return nil
 	}
@@ -352,8 +377,8 @@ func (l *Loader) GetEntry(name string) *yang.Entry {
 // revision. 205 of Ze's modules declare one, so a caller that walks this map
 // raw visits each of them twice and counts what it finds there twice with it.
 func (l *Loader) ModuleNames() []string {
-	names := make([]string, 0, len(l.modules.Modules))
-	for name := range l.modules.Modules {
+	names := make([]string, 0, len(l.modules.Modules.Modules))
+	for name := range l.modules.Modules.Modules {
 		if strings.Contains(name, "@") {
 			continue
 		}

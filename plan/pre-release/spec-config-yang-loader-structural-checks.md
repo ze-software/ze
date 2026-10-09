@@ -53,6 +53,12 @@ Progress 2026-10-08 (owner order "fix the three tests"):
 - AC-2, verdicts: NOT met. The audit verdicts of 7.19-1, 9.4.4-1 and 9.6.4.2-1 are stale and owe an independent `ze-rfc-audit` re-judgement; 9.6.4-2 has no verdict yet.
 - AC-1: met for RFC7950-9.6.4-2 only (its `{gap}` left the summary). Every other Task row stays open.
 
+Progress 2026-10-09 (owner order "deal with it now", RFC7950-7.19-1 Section 14 completion):
+- Statements under an extension are now checked against the whole Section 14 rule, read from the embedded ABNF by `loader_abnf.go::parseYANGGrammar`: `uri-str` (RFC 3986) and `path-arg-str` have checkers and `uncheckedArgumentRules` is gone; substatement counts follow the ABNF repetition; required substatements and required blocks are refused when missing (`refine x;` through `loader_source.go::statementHasBlock`, since goyang records no block); and the production of each statement is chosen within its parent's block, so the four deviate forms, the type-body-stmts alternatives and the two augment argument forms are context-specific.
+- Proofs: `rfc7950_extension_grammar_test.go`, four tests tagged RFC7950-7.19-1 positive and negative, each refused case red before the fix.
+- What the ABNF does not decide: which type-body-stmts alternative a base type takes (`type int8 { length "1"; }` is grammatical; Section 9 binds restrictions to base types), and substatement order.
+- The 7.19-1 audit verdict owes an independent re-judgement.
+
 ## Risks & Assumptions
 
 To be written at design.

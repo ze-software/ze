@@ -75,41 +75,137 @@ func TestStatementGrammarsMatchTheRFC7950Grammar(t *testing.T) {
 			wantArgumentless = append(wantArgumentless, keyword)
 		}
 	}
+	grammar := rfc7950Grammar()
 	var got, gotArgumentless []string
-	for keyword, grammar := range statementGrammars() {
+	for keyword, productions := range grammar.keywords {
 		got = append(got, keyword)
-		if len(grammar.arguments) == 0 {
-			gotArgumentless = append(gotArgumentless, keyword)
+		for _, production := range productions {
+			if production.argument == "" {
+				gotArgumentless = append(gotArgumentless, keyword)
+				break
+			}
 		}
 	}
 	slices.Sort(want)
 	slices.Sort(got)
 	slices.Sort(wantArgumentless)
+	wantArgumentless = slices.Compact(wantArgumentless)
 	slices.Sort(gotArgumentless)
 	assert.Equal(t, want, got, "statement keywords")
 	assert.Equal(t, wantArgumentless, gotArgumentless, "statements without an argument")
 
-	grammars := statementGrammars()
-	assert.Empty(t, grammars["description"].children, "description-stmt admits no statement")
-	assert.Equal(t, []string{"config-arg-str"}, grammars["config"].arguments)
-	assert.Contains(t, grammars["leaf"].children, "type")
-	assert.NotContains(t, grammars["leaf"].children, "leaf")
-	assert.Contains(t, grammars["type"].children, "length")
-	assert.Equal(t, []string{"add-keyword-str", "delete-keyword-str", "not-supported-keyword-str", "replace-keyword-str"},
-		grammars["deviate"].arguments)
+	production := func(rule string) *statementProduction {
+		t.Helper()
+		found, defined := grammar.productions[rule]
+		require.True(t, defined, "production %s", rule)
+		return found
+	}
+	assert.Empty(t, production("description-stmt").block.admitted, "description-stmt admits no statement")
+	assert.Equal(t, "config-arg-str", production("config-stmt").argument)
+	assert.Contains(t, production("leaf-stmt").block.admitted, "type")
+	assert.NotContains(t, production("leaf-stmt").block.admitted, "leaf")
+	assert.Contains(t, production("type-stmt").block.admitted, "length")
+	var deviate []string
+	for _, p := range grammar.keywords["deviate"] {
+		deviate = append(deviate, p.argument)
+	}
+	assert.Equal(t, []string{"add-keyword-str", "delete-keyword-str", "not-supported-keyword-str", "replace-keyword-str"}, deviate)
+	augment := grammar.keywords["augment"]
+	require.Len(t, augment, 2)
+	assert.Equal(t, "augment-arg-str", augment[0].argument)
+	assert.Equal(t, "uses-augment-arg-str", augment[1].argument)
+	assert.Equal(t, []*statementProduction{augment[0]}, production("module-stmt").block.admitted["augment"], "body-stmts holds augment-stmt")
+	assert.Equal(t, []*statementProduction{augment[1]}, production("uses-stmt").block.admitted["augment"], "uses-stmt holds uses-augment-stmt")
+	assert.Len(t, production("deviation-stmt").block.admitted["deviate"], 4)
+	assert.Len(t, grammar.extension.admitted["augment"], 2, "an extension usage holds any yang-stmt")
 }
 
 // TestEveryArgumentRuleHasAChecker proves that each argument rule the grammar
-// names is either checked by argumentCheckers or listed, by name, in
-// uncheckedArgumentRules, so no rule is accepted unchecked by omission.
+// names is checked by argumentCheckers, so no rule is accepted unchecked.
 //
-// VALIDATES: argumentCheckers and uncheckedArgumentRules cover the grammar.
+// VALIDATES: argumentCheckers covers the grammar.
 func TestEveryArgumentRuleHasAChecker(t *testing.T) {
-	for keyword, rule := range statementGrammars() {
-		for _, argument := range rule.arguments {
-			_, checked := argumentCheckers()[argument]
-			unchecked := slices.Contains(uncheckedArgumentRules, argument)
-			assert.True(t, checked != unchecked, "%s: argument rule %s must be checked or listed unchecked, not both or neither", keyword, argument)
+	for rule, production := range rfc7950Grammar().productions {
+		if production.argument == "" {
+			continue
 		}
+		_, checked := argumentCheckers()[production.argument]
+		assert.True(t, checked, "%s: argument rule %s has no checker", rule, production.argument)
+	}
+}
+
+// TestSameKeywordProductionsHaveDisjointArguments proves that where one
+// keyword has several productions (augment two, deviate four), no argument
+// drawn from the RFC's own forms matches two of them, so resolveProduction
+// never meets an argument it cannot attribute.
+//
+// VALIDATES: the disjointness resolveProduction's BUG branch relies on.
+func TestSameKeywordProductionsHaveDisjointArguments(t *testing.T) {
+	samples := []string{"add", "delete", "replace", "not-supported", "/a", "/p:a/b", "a", "a/b", "p:a"}
+	for keyword, productions := range rfc7950Grammar().keywords {
+		if len(productions) < 2 {
+			continue
+		}
+		for _, sample := range samples {
+			matching := 0
+			for _, production := range productions {
+				if checkArgument(production.argument, sample) == nil {
+					matching++
+				}
+			}
+			assert.LessOrEqual(t, matching, 1, "%s %q matches %d productions", keyword, sample, matching)
+		}
+	}
+}
+
+// TestRequiredBlocksThatMayBeEmpty names the productions whose rule opens
+// its block with a bare "{" although every statement the block names is
+// optional: the only ones where "x;" and "x {}" differ, so the only ones
+// statementHasBlock is asked about. Read from RFC 7950 Section 14, that is
+// refine-stmt alone.
+//
+// VALIDATES: blockForm and emptyAccepted as parseYANGGrammar derives them.
+func TestRequiredBlocksThatMayBeEmpty(t *testing.T) {
+	var rules []string
+	for rule, production := range rfc7950Grammar().productions {
+		if production.form == blockRequired && production.block.emptyAccepted {
+			rules = append(rules, rule)
+		}
+	}
+	slices.Sort(rules)
+	assert.Equal(t, []string{"refine-stmt"}, rules)
+	grammar := rfc7950Grammar()
+	assert.Equal(t, blockOptional, grammar.productions["config-stmt"].form, "stmtend")
+	assert.Equal(t, blockOptional, grammar.productions["container-stmt"].form)
+	assert.Equal(t, blockRequired, grammar.productions["leaf-stmt"].form)
+	assert.False(t, grammar.productions["leaf-stmt"].block.emptyAccepted, "leaf-stmt requires type-stmt")
+}
+
+// TestOccurrencesFollowTheRepetition proves the bounds occurrences reads from
+// the ABNF repetition: leaf-stmt's bare "type-stmt" is exactly one,
+// "[description-stmt]" zero or one, "*must-stmt" any number, and
+// enum-specification's "1*enum-stmt", through the alternatives of
+// type-body-stmts, at most unbounded and at least zero.
+//
+// VALIDATES: yangGrammar.occurrences.
+func TestOccurrencesFollowTheRepetition(t *testing.T) {
+	grammar := rfc7950Grammar()
+	leaf := grammar.productions["leaf-stmt"].block
+	cases := []struct {
+		block     *statementBlock
+		rule      string
+		low, high int
+	}{
+		{leaf, "type-stmt", 1, 1},
+		{leaf, "description-stmt", 0, 1},
+		{leaf, "must-stmt", 0, repeatUnbounded},
+		{grammar.productions["type-stmt"].block, "enum-stmt", 0, repeatUnbounded},
+		{grammar.productions["type-stmt"].block, "length-stmt", 0, 1},
+		{grammar.productions["module-stmt"].block, "namespace-stmt", 1, 1},
+	}
+	for _, tc := range cases {
+		low, high := grammar.occurrences(tc.block.content, grammar.productions[tc.rule])
+		assert.Equal(t, tc.low, low, "%s in %s: fewest", tc.rule, tc.block.owner)
+		assert.Equal(t, tc.high, high, "%s in %s: most", tc.rule, tc.block.owner)
 	}
 }

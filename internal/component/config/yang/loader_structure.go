@@ -29,7 +29,7 @@ var ErrEnumRestriction = errors.New("YANG enum restriction departs from the base
 
 // ErrExtensionSubstatement marks a substatement under an extension statement
 // that is not a YANG statement, that the block holding it does not admit, or
-// whose argument breaks its Section 14 argument rule. goyang keeps an
+// whose argument, substatement counts or block break its Section 14 rule. goyang keeps an
 // extension statement as raw text (ast.go, build: "it might be an
 // extension"), so it never reads these substatements.
 var ErrExtensionSubstatement = errors.New("invalid YANG statement under an extension")
@@ -42,7 +42,7 @@ func (l *Loader) checkStructure() error {
 	for _, mod := range mods {
 		errs = append(errs, moduleLengthErrors(mod)...)
 		errs = append(errs, moduleEnumErrors(mod)...)
-		errs = append(errs, moduleExtensionSubstatementErrors(mod)...)
+		errs = append(errs, moduleExtensionSubstatementErrors(mod, l.modules.sources)...)
 	}
 	return errors.Join(errs...)
 }
@@ -379,75 +379,131 @@ func substatementKeyword(f reflect.StructField) string {
 }
 
 // moduleExtensionSubstatementErrors returns one error for each statement
-// under an extension statement of mod that breaks the Section 14 grammar. A
-// nested extension statement is itself checked by checkExtensions, and its own
-// substatements here.
+// under an extension statement of mod that breaks the Section 14 grammar.
+// sources holds the module texts the loader parsed, by file name, for the
+// block a statement's rule requires and goyang does not record.
 //
 // RFC 7950 Section 7.19: "Syntactically, the substatements MUST be YANG
 // statements, including extensions defined using "extension" statements.
 // YANG statements in extensions MUST follow the syntactical rules in
-// Section 14." The rules checked are the keyword, the argument rule, and the
-// statements each block admits (extensionSubstatementError).
-func moduleExtensionSubstatementErrors(mod *yang.Module) []error {
+// Section 14." Each statement under an extension is resolved to the Section
+// 14 rule its parent's block names, and then checked against that rule
+// (extensionSubstatementError).
+func moduleExtensionSubstatementErrors(mod *yang.Module, sources map[string]string) []error {
 	if mod.Source == nil {
 		return nil
 	}
-	// parent is the unprefixed YANG statement whose block holds statement, or
-	// nil when an extension statement or no extension holds it.
+	grammar := rfc7950Grammar()
+	// production is the Section 14 rule statement was resolved to, nil when
+	// no extension holds statement or statement is an extension usage.
 	type visit struct {
-		statement      *yang.Statement
-		parent         *yang.Statement
-		underExtension bool
+		statement  *yang.Statement
+		production *statementProduction
 	}
 	var errs []error
-	var pending []visit
-	for _, statement := range mod.Source.SubStatements() {
-		pending = append(pending, visit{statement: statement})
-	}
+	pending := []visit{{statement: mod.Source}}
 	for len(pending) > 0 {
 		current := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
 		statement := current.statement
-		isExtension := strings.Contains(statement.Keyword, ":")
-		var parent *yang.Statement
-		if current.underExtension && !isExtension {
-			// RFC 7950 Section 7.19
-			if err := extensionSubstatementError(statement, current.parent); err != nil {
-				errs = append(errs, fmt.Errorf("%w: module %s: %s: %w",
-					ErrExtensionSubstatement, mod.Name, statement.Location(), err))
-			}
-			parent = statement
+		var block *statementBlock
+		if current.production != nil {
+			block = current.production.block
 		}
-		for _, sub := range statement.SubStatements() {
-			pending = append(pending, visit{sub, parent, current.underExtension || isExtension})
+		if isExtensionUsage(statement) {
+			block = grammar.extension
+		}
+		if block == nil {
+			for _, sub := range statement.SubStatements() {
+				pending = append(pending, visit{statement: sub})
+			}
+			continue
+		}
+		children, childErrs := resolveSubstatements(grammar, block, statement)
+		for _, err := range childErrs {
+			errs = append(errs, fmt.Errorf("%w: module %s: %w", ErrExtensionSubstatement, mod.Name, err))
+		}
+		for i, sub := range statement.SubStatements() {
+			pending = append(pending, visit{statement: sub, production: children[i]})
+		}
+		if current.production == nil {
+			continue
+		}
+		// RFC 7950 Section 7.19
+		if err := extensionSubstatementError(grammar, current.production, statement, children, sources); err != nil {
+			errs = append(errs, fmt.Errorf("%w: module %s: %s: %w",
+				ErrExtensionSubstatement, mod.Name, statement.Location(), err))
 		}
 	}
 	return errs
 }
 
-// extensionSubstatementError answers why an unprefixed statement under an
-// extension breaks the Section 14 grammar, or nil when it does not. parent is
-// the unprefixed statement whose block holds it, nil under the extension
-// statement itself, whose substatements "are defined by the "extension"
-// statement" (RFC 7950 Section 7.19) and so may be any YANG statement.
-//
-// The Section 14 rules checked are three: the keyword is a statement keyword,
-// the statement is one parent's block admits, and its argument matches one of
-// the statement's argument rules, or is absent when the statement takes none.
-// The grammar is statementGrammars, derived from the RFC's own text.
-func extensionSubstatementError(statement, parent *yang.Statement) error {
-	grammar, known := statementGrammars()[statement.Keyword]
-	if !known {
-		return fmt.Errorf("%q is not a YANG statement", statement.Keyword)
-	}
-	if parent != nil {
-		parentGrammar, parentKnown := statementGrammars()[parent.Keyword]
-		if parentKnown && !slices.Contains(parentGrammar.children, statement.Keyword) {
-			return fmt.Errorf("%s is not a substatement of %s", statement.Keyword, parent.Keyword)
+// isExtensionUsage reports whether statement is an extension usage, whose
+// keyword is "prefix:identifier" (RFC 7950 Section 14, unknown-statement).
+func isExtensionUsage(statement *yang.Statement) bool {
+	return strings.Contains(statement.Keyword, ":")
+}
+
+// resolveSubstatements answers, for each substatement of statement, the
+// production of block it resolves to, nil for an extension usage or a
+// substatement that resolves to none, and one error for each of those.
+func resolveSubstatements(grammar *yangGrammar, block *statementBlock, statement *yang.Statement) ([]*statementProduction, []error) {
+	subs := statement.SubStatements()
+	children := make([]*statementProduction, len(subs))
+	var errs []error
+	for i, sub := range subs {
+		if isExtensionUsage(sub) {
+			continue
 		}
+		production, err := resolveProduction(grammar, block, sub)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", sub.Location(), err))
+			continue
+		}
+		children[i] = production
 	}
+	return children, errs
+}
+
+// resolveProduction answers the production of block statement follows: the
+// one, among the productions block admits for its keyword, whose argument
+// rule its argument matches. The context is block, the parent's rule, so
+// "augment" resolves to augment-stmt in body-stmts and to uses-augment-stmt
+// under uses, and "deviate" to the one of its four rules its argument names.
+func resolveProduction(grammar *yangGrammar, block *statementBlock, statement *yang.Statement) (*statementProduction, error) {
+	candidates := block.admitted[statement.Keyword]
+	if len(candidates) == 0 {
+		if _, known := grammar.keywords[statement.Keyword]; !known {
+			return nil, fmt.Errorf("%q is not a YANG statement", statement.Keyword)
+		}
+		return nil, fmt.Errorf("%s is not a substatement of %s", statement.Keyword, block.owner)
+	}
+	var matching []*statementProduction
+	errs := make([]error, 0, len(candidates))
+	for _, candidate := range candidates {
+		err := argumentError(candidate, statement)
+		if err == nil {
+			matching = append(matching, candidate)
+			continue
+		}
+		errs = append(errs, err)
+	}
+	if len(matching) == 0 {
+		return nil, errors.Join(errs...)
+	}
+	if len(matching) > 1 {
+		// TestSameKeywordProductionsHaveDisjointArguments keeps this a Ze defect.
+		return nil, fmt.Errorf("BUG: %s %q matches %d rules of %s", statement.Keyword, statement.Argument, len(matching), block.owner)
+	}
+	return matching[0], nil
+}
+
+// argumentError answers why statement's argument breaks production's
+// argument rule, or nil when it matches: absent when the rule takes none,
+// present and matching the rule otherwise.
+func argumentError(production *statementProduction, statement *yang.Statement) error {
 	argument, hasArgument := statement.Arg()
-	if len(grammar.arguments) == 0 {
+	if production.argument == "" {
 		if hasArgument {
 			return fmt.Errorf("%s takes no argument", statement.Keyword)
 		}
@@ -456,8 +512,60 @@ func extensionSubstatementError(statement, parent *yang.Statement) error {
 	if !hasArgument {
 		return fmt.Errorf("%s requires an argument", statement.Keyword)
 	}
-	if err := checkArgument(grammar.arguments, argument); err != nil {
+	if err := checkArgument(production.argument, argument); err != nil {
 		return fmt.Errorf("%s argument: %w", statement.Keyword, err)
+	}
+	return nil
+}
+
+// extensionSubstatementError answers why statement, resolved to production
+// under an extension, breaks production's Section 14 rule, or nil when it
+// does not. children holds the production each substatement resolved to, nil
+// for an extension usage or one that resolved to none, whose error
+// resolveSubstatements already gave.
+//
+// Two rules are checked here, the keyword and argument having chosen
+// production. The block: a rule that opens it with a bare "{" requires it,
+// and goyang records no block, so where an empty block would match, the
+// module text is read (statementHasBlock). The counts: each repetition of the
+// rule's block bounds how many substatements of a rule it takes, "[x]" at
+// most one, "*x" any, "1*x" at least one, a bare "x" exactly one, and the
+// counts together must match the block (yangGrammar.matches), which is where
+// "deviate-not-supported-stmt / 1*(deviate-add-stmt / ...)" and the
+// alternatives of type-body-stmts are decided.
+func extensionSubstatementError(grammar *yangGrammar, production *statementProduction, statement *yang.Statement,
+	children []*statementProduction, sources map[string]string) error {
+	block := production.block
+	counts := make(childCounts, len(block.slots))
+	for _, child := range children {
+		if child == nil {
+			continue
+		}
+		counts[block.slots[child]]++
+	}
+	if production.form == blockRequired && block.emptyAccepted && len(statement.SubStatements()) == 0 {
+		hasBlock, err := statementHasBlock(sources, statement)
+		if err != nil {
+			return fmt.Errorf("%s: %w", production.rule, err)
+		}
+		if !hasBlock {
+			return fmt.Errorf("%s requires a block", production.rule)
+		}
+	}
+	for keyword, productions := range block.admitted {
+		for _, admitted := range productions {
+			low, high := grammar.occurrences(block.content, admitted)
+			found := counts[block.slots[admitted]]
+			if high != repeatUnbounded && found > high {
+				return fmt.Errorf("%s appears %d times in %s, %s admits at most %d", keyword, found, statement.Keyword, production.rule, high)
+			}
+			if found < low {
+				return fmt.Errorf("%s requires at least %d %s, found %d", statement.Keyword, low, keyword, found)
+			}
+		}
+	}
+	if !grammar.matches(block, counts) {
+		return fmt.Errorf("the substatements of %s do not match %s", statement.Keyword, production.rule)
 	}
 	return nil
 }

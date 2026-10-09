@@ -39,6 +39,13 @@ func TestArgumentCheckersFollowTheRFC7950Rules(t *testing.T) {
 		{"refine-arg-str", []string{"a", "a/b"}, []string{"/a", "a/"}},
 		{"if-feature-expr-str", []string{"a", "p:a", "not a", "a and b or c", "(a or b) and not c", "( a )", "or", "orange or b"},
 			[]string{"", "not(a)", "a or", "a and", "(a", "a)", "a  or(b)", "a oR b"}},
+		{"uri-str", []string{"urn:m", "urn:ietf:params:xml:ns:yang:ietf-interfaces", "http://example.com/a/b?q=1#f",
+			"http://u:p@[2001:db8::1]:830/", "http://[v1.x]/", "file:///etc/ze", "a+b-c.d:", "mailto:x@y", "urn:a%20b"},
+			[]string{"", "m", "1urn:x", ":x", "urn:a b", "urn:%zz", "http://[::1", "http://[fe80::1%25eth0]/", "http://a:x/", "urn:a\"b", "urn:<x>"}},
+		{"path-arg-str", []string{"/a", "/p:a/p:b", "../a", "../../a/b", "../a/b[k = current()/../k]",
+			"/a[k=current()/../../k]/b", "/a[ k = current ( ) / .. / x / y ]", "../a[k=current()/../k]/b"},
+			[]string{"", "a", "/", "/a/", "../", "..", "../a[k=current()/../k]", "/a[k]", "/a[k=../k]",
+				"/a[k=current()/k]", "/a[k=current()/../]", "./a", "/a[k=current()/../k", "/a /b"}},
 	}
 	for _, tc := range cases {
 		check, known := argumentCheckers()[tc.rule]
@@ -54,17 +61,27 @@ func TestArgumentCheckersFollowTheRFC7950Rules(t *testing.T) {
 	}
 }
 
-// TestCheckArgumentAcceptsAnyAlternative proves that a statement with several
-// argument rules, as deviate has one for each of its four forms, accepts an
-// argument that matches any one of them and refuses one matching none.
+// TestDeviateArgumentChoosesItsProduction proves that the four deviate
+// productions of Section 14 each take the one argument their rule names, so
+// "add", "delete", "replace" and "not-supported" each match exactly one of
+// them and "remove" matches none.
 //
-// VALIDATES: checkArgument over the deviate grammar.
-func TestCheckArgumentAcceptsAnyAlternative(t *testing.T) {
-	rules := statementGrammars()["deviate"].arguments
+// VALIDATES: checkArgument over the deviate productions, which
+// resolveProduction chooses among.
+func TestDeviateArgumentChoosesItsProduction(t *testing.T) {
+	productions := rfc7950Grammar().keywords["deviate"]
 	for _, argument := range []string{"add", "delete", "replace", "not-supported"} {
-		assert.NoError(t, checkArgument(rules, argument), "deviate %q", argument)
+		matching := 0
+		for _, production := range productions {
+			if checkArgument(production.argument, argument) == nil {
+				matching++
+			}
+		}
+		assert.Equal(t, 1, matching, "deviate %q", argument)
 	}
-	assert.Error(t, checkArgument(rules, "remove"))
+	for _, production := range productions {
+		assert.Error(t, checkArgument(production.argument, "remove"), production.rule)
+	}
 }
 
 // TestLengthSpanRefusesADescendingSpan proves newLengthSpan, the only

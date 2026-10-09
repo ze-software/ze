@@ -1,35 +1,18 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
+// Related: loader_abnf.go — the Section 14 statement grammar whose argument rules these check
 // Related: loader_structure.go — moduleExtensionSubstatementErrors applies this grammar
 // RFC: rfc/short/rfc7950.md -- Sections 7.19 and 14, statements under an extension
 package yang
 
 import (
-	_ "embed"
 	"errors"
 	"fmt"
-	"regexp"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 )
-
-// statementGrammar is the Section 14 grammar of one YANG statement keyword:
-// the argument rules its statement rules accept after "sep", none when the
-// statement takes no argument, and the statement keywords its block admits.
-// An extension usage is admitted in every block (stmtsep, unknown-statement),
-// so it is never listed.
-type statementGrammar struct {
-	arguments []string
-	children  []string
-}
-
-// uncheckedArgumentRules are the Section 14 argument rules no checker in
-// argumentCheckers implements yet: "uri-str" (an RFC 3986 URI) and
-// "path-arg-str" (the leafref path grammar). An argument under one of these
-// rules is accepted unchecked; TestEveryArgumentRuleHasAChecker keeps this
-// list and argumentCheckers covering every rule the grammar names.
-var uncheckedArgumentRules = []string{"path-arg-str", "uri-str"}
 
 // argumentChecker answers why an argument breaks one Section 14 argument
 // rule, or nil when it matches the rule.
@@ -71,33 +54,29 @@ var argumentCheckers = sync.OnceValue(func() map[string]argumentChecker {
 		"augment-arg-str":           checkAbsoluteSchemaNodeid,
 		"deviation-arg-str":         checkAbsoluteSchemaNodeid,
 		"if-feature-expr-str":       checkIfFeatureExpr,
+		"uri-str":                   checkURI,
+		"path-arg-str":              checkPathArg,
 	}
 	// RFC 7950 Section 14: "description-stmt = description-keyword sep
 	// string stmtend" and "string = < an unquoted string, as returned by the
 	// scanner, that matches the rule < yang-string > >". Every argument the
 	// scanner returns is one, so the free-text rule, named here as
 	// description's, accepts every argument.
-	checkers[statementGrammars()["description"].arguments[0]] = func(string) error { return nil }
+	checkers[rfc7950Grammar().keywords["description"][0].argument] = func(string) error { return nil }
 	return checkers
 })
 
-// checkArgument answers why argument matches none of the argument rules
-// rules, or nil when it matches one. A rule listed in uncheckedArgumentRules
-// accepts every argument.
-func checkArgument(rules []string, argument string) error {
-	errs := make([]error, 0, len(rules))
-	for _, rule := range rules {
-		check, checked := argumentCheckers()[rule]
-		if !checked {
-			return nil
-		}
-		err := check(argument)
-		if err == nil {
-			return nil
-		}
-		errs = append(errs, err)
+// checkArgument answers why argument breaks the Section 14 argument rule
+// rule, or nil when it matches. A rule with no checker is answered as an
+// error rather than accepted: TestEveryArgumentRuleHasAChecker keeps the
+// checkers covering every rule the grammar names, so that error is a Ze
+// defect surfacing, never a module fault.
+func checkArgument(rule, argument string) error {
+	check, checked := argumentCheckers()[rule]
+	if !checked {
+		return fmt.Errorf("BUG: Section 14 argument rule %s has no checker", rule)
 	}
-	return errors.Join(errs...)
+	return check(argument)
 }
 
 // literalChecker answers a checker accepting exactly one of literals. The
@@ -542,172 +521,366 @@ func (p *featureExpr) keyword(word string) bool {
 	return true
 }
 
-// rfc7950ABNF is the RFC 7950 Section 14 grammar, the "yang.abnf" code
-// component of rfc/full/rfc7950.txt with the page headers and footers removed.
-// TestEmbeddedGrammarIsTheRFC7950Grammar re-extracts it from the RFC and
-// turns red on any difference.
+// checkURI checks a uri-str, the argument of namespace.
 //
-//go:embed rfc7950.abnf
-var rfc7950ABNF string
-
-// statementGrammars answers the Section 14 statement grammar, one entry for
-// each statement keyword, parsed once from rfc7950ABNF. The text is part of
-// the binary, so a parse failure is a Ze defect.
-var statementGrammars = sync.OnceValue(func() map[string]statementGrammar {
-	grammar, err := parseStatementGrammar(rfc7950ABNF)
-	if err != nil {
-		panic("BUG: the embedded RFC 7950 grammar does not parse: " + err.Error())
+// RFC 7950 Section 14: "uri-str = < a string that matches the rule > < URI
+// in RFC 3986 >". RFC 3986 Section 3: "URI = scheme ":" hier-part [ "?"
+// query ] [ "#" fragment ]". A scheme holds no ":", a hier-part no "?" and a
+// query no "#", so the first of each ends the part before it.
+func checkURI(argument string) error {
+	scheme, rest, found := strings.Cut(argument, ":")
+	if !found {
+		return fmt.Errorf("%q is not a URI: no scheme", argument)
 	}
-	return grammar
-})
-
-// abnfRuleHead matches the head of one rule of the Section 14 grammar, which
-// the RFC sets at a three-space indent; a continuation line is indented
-// further.
-var abnfRuleHead = regexp.MustCompile(`(?m)^ {3}([A-Za-z][A-Za-z0-9-]*)\s*=`)
-
-// abnfLiteral matches what names no rule: a quoted or case-sensitive literal,
-// a numeric terminal, and the RFC's "< prose >" annotation.
-var abnfLiteral = regexp.MustCompile(`%s"[^"]*"|"[^"]*"|%x[0-9A-Fa-f.-]+|<[^>]*>`)
-
-// abnfName matches one rule name inside a rule body.
-var abnfName = regexp.MustCompile(`[A-Za-z][A-Za-z0-9-]*`)
-
-// abnfKeyword matches a keyword rule, "<name>-keyword = %s"<spelling>"".
-var abnfKeyword = regexp.MustCompile(`(?m)^\s+([a-z-]+)-keyword\s+=\s+%s"([a-z-]+)"`)
-
-// abnfStatementRule is one statement rule: the keyword it spells, the argument
-// rule after "sep" ("" when the rule reads "<keyword> optsep"), and the rule
-// names of its block.
-type abnfStatementRule struct {
-	keyword  string
-	argument string
-	block    []string
+	if !isURIScheme(scheme) {
+		return fmt.Errorf("%q is not a URI: scheme %q", argument, scheme)
+	}
+	rest, fragment, _ := strings.Cut(rest, "#")
+	// RFC 3986 Section 3.5: "fragment = *( pchar / "/" / "?" )".
+	if !isURIText(fragment, ":@/?") {
+		return fmt.Errorf("%q is not a URI: fragment %q", argument, fragment)
+	}
+	hier, query, _ := strings.Cut(rest, "?")
+	// RFC 3986 Section 3.4: "query = *( pchar / "/" / "?" )".
+	if !isURIText(query, ":@/?") {
+		return fmt.Errorf("%q is not a URI: query %q", argument, query)
+	}
+	if err := checkURIHierPart(hier); err != nil {
+		return fmt.Errorf("%q is not a URI: %w", argument, err)
+	}
+	return nil
 }
 
-// parseStatementGrammar reads the Section 14 grammar abnf and answers, for
-// every statement keyword, the argument rules its statement rules name after
-// "sep" and the statement keywords its block admits. A statement rule is a
-// "<name>-stmt" rule whose body opens, after an optional "optsep", with a
-// keyword rule. A block's statements are collected through every rule it
-// names (body-stmts, data-def-stmt, type-body-stmts, ...), stopping at
-// unknown-statement, the extension usage stmtsep admits in every block.
-func parseStatementGrammar(abnf string) (map[string]statementGrammar, error) {
-	spelled := map[string]string{}
-	for _, m := range abnfKeyword.FindAllStringSubmatch(abnf, -1) {
-		spelled[m[1]] = m[2]
+// isURIScheme reports whether scheme is an RFC 3986 scheme.
+//
+// RFC 3986 Section 3.1: "scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )".
+func isURIScheme(scheme string) bool {
+	if scheme == "" {
+		return false
 	}
-	rules := abnfRules(abnf)
-	statements := map[string]abnfStatementRule{}
-	for name, body := range rules {
-		rule, isStatement, err := abnfStatement(name, body, spelled)
-		if err != nil {
-			return nil, err
-		}
-		if isStatement {
-			statements[name] = rule
+	if !isALPHA(scheme[0]) {
+		return false
+	}
+	for i := 1; i < len(scheme); i++ {
+		c := scheme[i]
+		if !isALPHA(c) && !isDIGIT(c) && c != '+' && c != '-' && c != '.' {
+			return false
 		}
 	}
-	if len(statements) == 0 {
-		return nil, errors.New("no statement rule")
-	}
-	arguments := map[string][]string{}
-	children := map[string][]string{}
-	for _, rule := range statements {
-		if rule.argument != "" && !slices.Contains(arguments[rule.keyword], rule.argument) {
-			arguments[rule.keyword] = append(arguments[rule.keyword], rule.argument)
-		}
-		children[rule.keyword] = abnfBlockStatements(rule.block, rules, statements, children[rule.keyword])
-	}
-	grammar := make(map[string]statementGrammar, len(children))
-	for keyword, admitted := range children {
-		slices.Sort(admitted)
-		slices.Sort(arguments[keyword])
-		grammar[keyword] = statementGrammar{arguments: arguments[keyword], children: admitted}
-	}
-	return grammar, nil
+	return true
 }
 
-// abnfRules answers every rule of abnf, by name, as the rule names its body
-// holds once comments and literals are removed.
-func abnfRules(abnf string) map[string][]string {
-	var lines []string
-	for line := range strings.SplitSeq(abnf, "\n") {
-		line = abnfLiteral.ReplaceAllString(line, " ")
-		if comment := strings.IndexByte(line, ';'); comment >= 0 {
-			line = line[:comment]
+// checkURIHierPart checks an RFC 3986 hier-part.
+//
+// RFC 3986 Section 3: "hier-part = "//" authority path-abempty /
+// path-absolute / path-rootless / path-empty". Every path form is segments
+// of pchar joined by "/" (Section 3.3, "segment = *pchar"), and the forms
+// differ only in how they open, which the "//" test already decides.
+func checkURIHierPart(hier string) error {
+	rest, hasAuthority := strings.CutPrefix(hier, "//")
+	if !hasAuthority {
+		if !isURIText(hier, ":@/") {
+			return fmt.Errorf("path %q", hier)
 		}
-		lines = append(lines, line)
+		return nil
 	}
-	text := strings.Join(lines, "\n")
-	rules := map[string][]string{}
-	heads := abnfRuleHead.FindAllStringSubmatchIndex(text, -1)
-	for i, head := range heads {
-		bodyEnd := len(text)
-		if i+1 < len(heads) {
-			bodyEnd = heads[i+1][0]
-		}
-		rules[text[head[2]:head[3]]] = abnfName.FindAllString(text[head[1]:bodyEnd], -1)
+	authority, path := rest, ""
+	if slash := strings.IndexByte(rest, '/'); slash >= 0 {
+		authority, path = rest[:slash], rest[slash:]
 	}
-	return rules
+	// RFC 3986 Section 3.3: "path-abempty = *( "/" segment )".
+	if !isURIText(path, ":@/") {
+		return fmt.Errorf("path %q", path)
+	}
+	return checkURIAuthority(authority)
 }
 
-// abnfStatement answers the statement rule named name with body, and whether
-// name is a statement rule at all.
-func abnfStatement(name string, body []string, spelled map[string]string) (abnfStatementRule, bool, error) {
-	if !strings.HasSuffix(name, "-stmt") {
-		return abnfStatementRule{}, false, nil
+// checkURIAuthority checks an RFC 3986 authority.
+//
+// RFC 3986 Section 3.2: "authority = [ userinfo "@" ] host [ ":" port ]",
+// Section 3.2.1: "userinfo = *( unreserved / pct-encoded / sub-delims / ":"
+// )", Section 3.2.3: "port = *DIGIT". A userinfo holds no "@", so the first
+// "@" ends it.
+func checkURIAuthority(authority string) error {
+	hostPort := authority
+	if userinfo, rest, found := strings.Cut(authority, "@"); found {
+		if !isURIText(userinfo, ":") {
+			return fmt.Errorf("userinfo %q", userinfo)
+		}
+		hostPort = rest
 	}
-	rest := body
-	if len(rest) > 0 && rest[0] == "optsep" {
-		rest = rest[1:]
-	}
-	if len(rest) == 0 {
-		return abnfStatementRule{}, false, nil
-	}
-	base, isKeyword := strings.CutSuffix(rest[0], "-keyword")
-	if !isKeyword {
-		return abnfStatementRule{}, false, nil
-	}
-	keyword, known := spelled[base]
-	if !known {
-		return abnfStatementRule{}, false, fmt.Errorf("statement rule %s names %s, which the grammar never spells", name, rest[0])
-	}
-	rule := abnfStatementRule{keyword: keyword, block: rest[1:]}
-	if len(rule.block) > 1 && rule.block[0] == "sep" {
-		rule.argument = rule.block[1]
-		rule.block = rule.block[2:]
-	}
-	return rule, true, nil
-}
-
-// abnfBlockStatements appends to admitted, once each, the keywords of the
-// statement rules block reaches. The walk is an explicit stack over rule
-// names, each expanded once, so it ends within the grammar's rule count.
-func abnfBlockStatements(block []string, rules map[string][]string, statements map[string]abnfStatementRule, admitted []string) []string {
-	seen := map[string]bool{}
-	pending := slices.Clone(block)
-	for len(pending) > 0 {
-		name := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		if child, isStatement := statements[name]; isStatement {
-			if !slices.Contains(admitted, child.keyword) {
-				admitted = append(admitted, child.keyword)
+	host, port := hostPort, ""
+	if strings.HasPrefix(hostPort, "[") {
+		closing := strings.IndexByte(hostPort, ']')
+		if closing < 0 {
+			return fmt.Errorf("IP-literal %q has no closing bracket", hostPort)
+		}
+		if err := checkURIIPLiteral(hostPort[1:closing]); err != nil {
+			return err
+		}
+		host = ""
+		rest := hostPort[closing+1:]
+		if rest != "" {
+			after, hasPort := strings.CutPrefix(rest, ":")
+			if !hasPort {
+				return fmt.Errorf("%q follows the IP-literal", rest)
 			}
-			continue
+			port = after
 		}
-		body, defined := rules[name]
-		if !defined {
-			continue
-		}
-		if name == "unknown-statement" {
-			continue
-		}
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-		pending = append(pending, body...)
+	} else if before, after, hasPort := strings.Cut(hostPort, ":"); hasPort {
+		host, port = before, after
 	}
-	return admitted
+	// RFC 3986 Section 3.2.2: "reg-name = *( unreserved / pct-encoded /
+	// sub-delims )", which every IPv4address also matches.
+	if !isURIText(host, "") {
+		return fmt.Errorf("host %q", host)
+	}
+	for i := range len(port) {
+		if !isDIGIT(port[i]) {
+			return fmt.Errorf("port %q", port)
+		}
+	}
+	return nil
+}
+
+// checkURIIPLiteral checks the text between the brackets of an RFC 3986
+// IP-literal.
+//
+// RFC 3986 Section 3.2.2: "IP-literal = "[" ( IPv6address / IPvFuture ) "]""
+// and "IPvFuture = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )".
+// RFC 3986 defines no zone identifier, so netip's zone form is refused.
+func checkURIIPLiteral(literal string) error {
+	if future, isFuture := strings.CutPrefix(strings.ToLower(literal), "v"); isFuture {
+		version, address, dotted := strings.Cut(future, ".")
+		if !dotted || version == "" || address == "" {
+			return fmt.Errorf("IPvFuture %q", literal)
+		}
+		for i := range len(version) {
+			if !isHEXDIG(version[i]) {
+				return fmt.Errorf("IPvFuture %q", literal)
+			}
+		}
+		if !isURIText(address, ":") || strings.Contains(address, "%") {
+			return fmt.Errorf("IPvFuture %q", literal)
+		}
+		return nil
+	}
+	addr, err := netip.ParseAddr(literal)
+	if err != nil {
+		return fmt.Errorf("IPv6address %q: %w", literal, err)
+	}
+	if !addr.Is6() {
+		return fmt.Errorf("IPv6address %q is not IPv6", literal)
+	}
+	if addr.Zone() != "" {
+		return fmt.Errorf("IPv6address %q carries a zone", literal)
+	}
+	return nil
+}
+
+// isHEXDIG reports whether c is an RFC 5234 HEXDIG, which RFC 3986 reads
+// case-insensitively.
+func isHEXDIG(c byte) bool {
+	return isDIGIT(c) || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')
+}
+
+// isURIText reports whether every character of text is an RFC 3986
+// unreserved character, a pct-encoded triplet, a sub-delim, or one of extra.
+//
+// RFC 3986 Section 2.1: "pct-encoded = "%" HEXDIG HEXDIG". Section 2.2:
+// "sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" /
+// "="". Section 2.3: "unreserved = ALPHA / DIGIT / "-" / "." / "_" / "~"".
+func isURIText(text, extra string) bool {
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if c == '%' {
+			if i+2 >= len(text) {
+				return false
+			}
+			if !isHEXDIG(text[i+1]) || !isHEXDIG(text[i+2]) {
+				return false
+			}
+			i += 2
+			continue
+		}
+		if isALPHA(c) || isDIGIT(c) {
+			continue
+		}
+		if strings.IndexByte("-._~!$&'()*+,;="+extra, c) < 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// checkPathArg checks a path-arg-str, the argument of a leafref path.
+//
+// RFC 7950 Section 14: "path-arg = absolute-path / relative-path". An
+// absolute-path opens with "/" and a relative-path with "../", so the first
+// byte decides which is read.
+func checkPathArg(argument string) error {
+	path := pathArg{text: argument}
+	var matched bool
+	if strings.HasPrefix(argument, "/") {
+		matched = path.absolute()
+	} else {
+		matched = path.relative()
+	}
+	if !matched {
+		return fmt.Errorf("%q is not a path-arg", argument)
+	}
+	if path.at != len(argument) {
+		return fmt.Errorf("%q is not a path-arg", argument)
+	}
+	return nil
+}
+
+// pathArg is a reader of one Section 14 path-arg. No rule of path-arg
+// recurses into itself, so the reader is iterative and every loop consumes
+// at least one byte of text.
+type pathArg struct {
+	text string
+	at   int
+}
+
+// absolute reads "absolute-path = 1*("/" (node-identifier *path-predicate))".
+func (p *pathArg) absolute() bool {
+	steps := 0
+	for p.peek('/') {
+		p.at++
+		if !p.nodeIdentifier() {
+			return false
+		}
+		for p.peek('[') {
+			if !p.predicate() {
+				return false
+			}
+		}
+		steps++
+	}
+	return steps > 0
+}
+
+// relative reads "relative-path = 1*("../") descendant-path" and
+// "descendant-path = node-identifier [*path-predicate absolute-path]".
+func (p *pathArg) relative() bool {
+	ups := 0
+	for strings.HasPrefix(p.text[p.at:], "../") {
+		p.at += len("../")
+		ups++
+	}
+	if ups == 0 {
+		return false
+	}
+	if !p.nodeIdentifier() {
+		return false
+	}
+	if !p.peek('[') && !p.peek('/') {
+		return true
+	}
+	for p.peek('[') {
+		if !p.predicate() {
+			return false
+		}
+	}
+	return p.absolute()
+}
+
+// predicate reads "path-predicate = "[" *WSP path-equality-expr *WSP "]"",
+// "path-equality-expr = node-identifier *WSP "=" *WSP path-key-expr" and
+// "path-key-expr = current-function-invocation *WSP "/" *WSP
+// rel-path-keyexpr".
+func (p *pathArg) predicate() bool {
+	p.at++
+	p.wsp()
+	if !p.nodeIdentifier() {
+		return false
+	}
+	p.wsp()
+	if !p.byte('=') {
+		return false
+	}
+	p.wsp()
+	// RFC 7950 Section 14: "current-function-invocation = current-keyword
+	// *WSP "(" *WSP ")"".
+	if !strings.HasPrefix(p.text[p.at:], "current") {
+		return false
+	}
+	p.at += len("current")
+	p.wsp()
+	if !p.byte('(') {
+		return false
+	}
+	p.wsp()
+	if !p.byte(')') {
+		return false
+	}
+	p.wsp()
+	if !p.byte('/') {
+		return false
+	}
+	p.wsp()
+	if !p.relativeKey() {
+		return false
+	}
+	p.wsp()
+	return p.byte(']')
+}
+
+// relativeKey reads "rel-path-keyexpr = 1*(".." *WSP "/" *WSP)
+// *(node-identifier *WSP "/" *WSP) node-identifier".
+func (p *pathArg) relativeKey() bool {
+	ups := 0
+	for strings.HasPrefix(p.text[p.at:], "..") {
+		p.at += len("..")
+		p.wsp()
+		if !p.byte('/') {
+			return false
+		}
+		p.wsp()
+		ups++
+	}
+	if ups == 0 {
+		return false
+	}
+	for {
+		if !p.nodeIdentifier() {
+			return false
+		}
+		mark := p.at
+		p.wsp()
+		if !p.byte('/') {
+			p.at = mark
+			return true
+		}
+		p.wsp()
+	}
+}
+
+// nodeIdentifier reads "node-identifier = [prefix ":"] identifier".
+func (p *pathArg) nodeIdentifier() bool {
+	n := identifierRefLength(p.text[p.at:])
+	p.at += n
+	return n > 0
+}
+
+// wsp reads "*WSP", spaces and tabs only: a path-arg admits no line-break.
+func (p *pathArg) wsp() {
+	for p.at < len(p.text) && (p.text[p.at] == ' ' || p.text[p.at] == '\t') {
+		p.at++
+	}
+}
+
+// peek reports whether the next byte is c, without reading it.
+func (p *pathArg) peek(c byte) bool {
+	return p.at < len(p.text) && p.text[p.at] == c
+}
+
+// byte reads c and reports whether it was next.
+func (p *pathArg) byte(c byte) bool {
+	if !p.peek(c) {
+		return false
+	}
+	p.at++
+	return true
 }
