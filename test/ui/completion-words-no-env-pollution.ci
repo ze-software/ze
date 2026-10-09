@@ -2,11 +2,8 @@
 # VALIDATES: wireEnvHints does not pollute arbitrary command trees
 # PREVENTS: env appearing as a subcommand of bgp, signal, config, etc.
 #
-# The reject= below is FILE-level: the runner checks it against the
-# concatenated output of every command in the file (runner_exec.go,
-# rec.ClientOutput), so ONE line covers all three commands. Writing it three
-# times, once under each cmd=, reads as three per-command assertions and is
-# three copies of one.
+# Each reject= reads only the output of the cmd= line above it
+# (Record.assertionTarget, record_parse.go), so every command carries its own.
 #
 # A completion record is name-TAB-summary (completion-words-summary.ci), so the
 # anchored pattern says what this test forbids -- a candidate NAMED env -- and
@@ -15,7 +12,11 @@
 # "environment".
 
 cmd=foreground:seq=1:exec=ze completion words bgp:exit=0
+reject=stdout:pattern=(?m)^env\t
+
 cmd=foreground:seq=2:exec=ze completion words signal:exit=0
+reject=stdout:pattern=(?m)^env\t
+
 cmd=foreground:seq=3:exec=ze completion words config:exit=0
 expect=exit:code=0
 reject=stdout:pattern=(?m)^env\t

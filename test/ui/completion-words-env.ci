@@ -7,12 +7,13 @@ expect=exit:code=0
 expect=stdout:contains=get
 expect=stdout:contains=list
 expect=stdout:contains=registered
-# FILE-level, so it covers both commands below as well (runner_exec.go,
-# rec.ClientOutput). A completion record is name-TAB-summary, so the anchored
-# pattern forbids a candidate NAMED env without pinning any summary text.
+# A completion record is name-TAB-summary, so the anchored pattern forbids a
+# candidate NAMED env without pinning any summary text. It reads only this
+# command's output (Record.assertionTarget), so seq=2 carries its own.
 reject=stdout:pattern=(?m)^env\t
 
 cmd=foreground:seq=2:exec=ze completion words env get:exit=0
 expect=exit:code=0
 expect=stdout:contains=ze.log
 expect=stdout:contains=ze.web.listen
+reject=stdout:pattern=(?m)^env\t

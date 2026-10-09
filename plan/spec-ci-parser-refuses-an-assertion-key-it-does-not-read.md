@@ -192,7 +192,7 @@ this spec is not ready-to-start implementation.
 | 16 | Any changed source file referenced by existing doc anchors? | Yes | `docs/architecture/testing/ci-format.md` is the anchor for the runner's parse files, and it was updated |
 | 1-9, 11-15, 17 | - | No | no operator-facing surface changed |
 
-## Implemented Steps (landed in `8c7f0a5bf2`)
+## Implementation Steps (landed in `8c7f0a5bf2`)
 
 1. **Phase: Wiring (MANDATORY FIRST)** - add `checkKeys` and call it from one
    arm; write the refusal test and observe it red.
@@ -283,5 +283,151 @@ this spec is not ready-to-start implementation.
 | Documentation | landed in the same commit |
 | Journal rows | `plan/journal/silent-fall-through.md` and `plan/journal/green-that-could-not-have-been-red.md` |
 | PROVEN | AC-1, AC-2 and AC-3, by the tests in `record_parse_keys_test.go`. AC-4 by the corpus parse gate |
-| ASSERTED, not proven | AC-5. The 16 assertions were repaired and pass, and no discrimination walk forced each one red against the behavior it names. A repaired assertion that was never observed red is exactly the shape `plan/journal/green-that-could-not-have-been-red.md` counts |
-| Remains | the AC-5 discrimination walk over the 16, and the closure sections |
+| PROVEN at closure | AC-5, by the discrimination walk in Implementation Audit below |
+| Remains | nothing in scope; two walked-into defects are journal rows |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Product: `checkKeys` and per-arm key lists, landed at `8c7f0a5bf2`.
+- Closure: the AC-5 discrimination walk over the 16 vacuous lines `8c7f0a5bf2`
+  repaired (they are now 14 assertion sites). Run 2026-10-09 in a `git clone
+  --shared` of `cb4276f8c7` under the scratchpad, so no break touched the shared
+  tree. Each break was applied, the `.ci` run red, the source restored with
+  `git show HEAD:<file>`, `git diff --quiet` confirmed, and the `.ci` run green.
+
+### Bugs Found/Fixed
+- `test/ui/completion-words-no-env-pollution.ci` asserted only its third command,
+  and `test/ui/completion-words-env.ci` only its first. Since `c09f20d769` a
+  `reject=` reads only the cmd= line above it (`Record.assertionTarget`,
+  `internal/test/runner/record_parse.go`); both files' comments still claimed
+  FILE-level scope. Each command now carries its own `reject=stdout:pattern=(?m)^env\t`.
+
+### Documentation Updates
+- None owed: `docs/architecture/testing/ci-format.md` already states per-command scope.
+
+### Deviations from Plan
+- None.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| stale belief | two repaired completion files put one reject under the last cmd= believing it covered every command | assertions became per-command at `c09f20d769` | the walk's red named `cmd seq=3` only | fixed; six other headers carry the same false comment: row in `plan/journal/comment-describes-superseded-behaviour.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| a `.ci` naming an unread key fails, naming key, accepted keys, line | Done | `checkKeys`, `internal/test/runner/record_parse_keys.go` | `8c7f0a5bf2` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParseCIUnknownKeyIsRefused` | job `ci-keys`, ok |
+| AC-2 | Done | `TestParseCIUnknownKeyIsRefused` | hint case |
+| AC-3 | Done | `TestParseCIKnownKeysStillParse` | file arm |
+| AC-4 | Done | `TestEveryEncodingCIFileParses` | job `ci-gate`, ok, over the clone carrying the two edited files |
+| AC-5 | Done | walk table below | every site red under its break, green restored |
+
+AC-5 walk (break = producer edit; red = the step that failed):
+
+| # | `.ci` | Break | Red step |
+|---|-------|-------|----------|
+| 1 | `appliance/appliance-build-no-gok` | `runBuild` prints `running bin/gok` | `stderr-reject-contains "bin/gok"` |
+| 2 | `appliance/appliance-help-not-deprecated` | `usage()` prints `deprecated` | `stderr-reject-contains "deprecated"` |
+| 3 | `appliance/no-install-appliance` | install dispatcher summary names `appliance` | `stdout-not-contains "appliance"` |
+| 4 | `appliance/vpp-hugepages-qemu` | `ReportPrefix` respelled; run with `ze.vpp.hp.arch=arm64` (SKIP path) and `./le --update` | `stdout-regex VPP-HUGEPAGES-QEMU: (PASS\|SKIP)` |
+| 5 | `install/qemu-full` | HTTP `prefix()` respelled | `stdout-regex INSTALL-QEMU: (PASS\|SKIP)` |
+| 6 | `install/qemu-iso` line 1 | `skip()` writes `installer consumed ...` for `SKIP` | `stdout-regex INSTALL-ISO-QEMU: (PASS\|SKIP)` |
+| 7 | `install/qemu-iso` line 2 | `skip()` writes `PASS` for `SKIP` | `stdout-regex INSTALL-ISO-QEMU: (SKIP\|installer consumed ...)` |
+| 8 | `plugin/cli-show` | `listedChildren` reads `Description` not `ShortHelp` | `stderr-reject-contains "Returns audit log entries"` |
+| 9 | `plugin/vpp-doctor-hugepages-quiet` | `hugepageParamsFromTree` enabled guard removed, error severity lowered so exit stays 0 | `stdout-not-contains "doctor-vpp-hugepages"`; guard alone reds `exit-code` first |
+| 10 | `ui/completion-words-env` seq=1, seq=2 | `writeWords` emits an `env` record (all args; then only `env get`) | `stdout-reject-regex` at `cmd seq=1`, then at `cmd seq=2` |
+| 11 | `ui/completion-words-no-env-pollution` x3 | `writeWords` emits `env` only for `bgp`, `signal`, `config` in turn | `stdout-reject-regex` at `cmd seq=1`, `seq=2`, `seq=3` |
+| 12 | `ui/dash-stdio-path-scope` | `cmdShow` prints `DisplayContentAtPath(nil)` | `stdout-not-contains "router-id 1.2.3.4"` |
+| 13 | `ui/doctor-platform` | `resolveDoctorPlatform` always reports no platform | `stdout-not-contains "doctor-platform-detect"` |
+| 14 | `parse/config-dump-masks-bcrypt` | `maskWalk` writes placeholder+value AND `maskValue` returns plaintext | `stdout must not contain "UlwuiuH82Unfsq"`; either layer alone keeps the hash out (MaskBcrypt, then `$9$` encoding) |
+
+Rows 10 and 11 ran against the edited files; before the edit row 11's single
+reject went red only for `cmd seq=3`.
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| key-refusal tests | Done | `internal/test/runner/record_parse_keys_test.go` | ok |
+| corpus parse gate | Done | `internal/test/cli/ci_parse_gate_test.go` | ok |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `record_parse_keys.go`, `record_parse.go` | Done | `8c7f0a5bf2` |
+
+### Audit Summary
+All AC demonstrated; two test files corrected at closure.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| an unread key fails the file | unit + corpus test | `TestParseCIUnknownKeyIsRefused`, `TestEveryEncodingCIFileParses` |
+| the 16 vacuous lines now assert | functional discrimination | AC-5 walk, 14 sites red under break and green restored |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure |
+| `./le spec review check` | run by `./le commit create` |
+| Rounds | 1 |
+| Reviewer lenses used | assertion scope (per-command binding), weakening check, stale prose |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | reject under last cmd= covered one of three commands | `test/ui/completion-words-no-env-pollution.ci` | one reject per command, walked red per command |
+| 2 | ISSUE | reject under seq=1 did not cover seq=2 | `test/ui/completion-words-env.ci` | reject added under seq=2, walked red |
+
+Final run: 0 BLOCKER, 0 ISSUE. NOTE: six headers keep a false FILE-level comment (journal row). No Go changed, so the style pass has nothing to judge.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/runner/record_parse_keys_test.go` | yes | four `func Test` lines found by grep |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..3 | refusal and file arm | `ok internal/test/runner 0.076s` |
+| AC-4 | corpus parses | `ok internal/test/cli 2.848s`; `grep expect=stdout:!contains= test/` 0 hits |
+| AC-5 | each site discriminates | walk table above |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test <suite>` | the 14 sites in the walk table | red and green observed per site |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | every site green at `cb4276f8c7` (vpp-hugepages-qemu green on the SKIP path; red on a KVM host from the vendor-bind defect, journaled) |
+| A-2 | confirmed | 0 hits for the deleted spelling; corpus gate ok |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| per-command assertion scope | `Record.assertionTarget`, cited by `docs/architecture/testing/ci-format.md` | yes |
+
+## Core Insight
+A walk that names the failing command finds an assertion bound to fewer commands than its author meant.
