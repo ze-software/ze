@@ -12,11 +12,13 @@ do NOT travel with git: everything needed to resume is here or in the specs.
 | Kernel route | `spec-appliance-ships-ze-kernel` (ready): option (b) `ze appliance build` builds ze's kernel via the cache-or-build resolver, assumed; (a) a published pinned kernel module instead. Also: is a ~30 min cold first build acceptable, GPLv2 source-offer sign-off, N100 hardware boot |
 | feature-maturity design | Owner direction given (not yet written into the spec): each page section declares what it relies on (tests by content hash, YANG resolved definition per schema path, CLI commands); the commit that changes a dependency re-stamps or fixes the citing sections; known-false sentence still refuses; feature Doc review derived. Rewrite `spec-feature-maturity-declared` around this before code |
 
-## Closed today (9)
+## Closed today (10)
 
 ci-parser-refuses-an-assertion-key, bmp-statistics-timeout, pppoe-lcp-option-reject,
 pppoe-padt-ends-session, ppp-pap-reanswer-after-auth, pppoe-client-pap-retry,
-rsvpte-frr-backup-path-signaling, bgp-local-as-options, bgp-as-migration.
+rsvpte-frr-backup-path-signaling, bgp-local-as-options, bgp-as-migration,
+announce-grammar-stated-and-enforced (`be3b08dd73`, `9946d11d38`).
+The owner wanted the coverage-gate blind spot as its own spec; it exists only as a journal row so far.
 Reset: six unstarted specs to ready/design (`cb4276f8c7`); yang-loader-structural-checks to design (`1ed7d59966`).
 
 ## Open, with the next step
@@ -26,8 +28,7 @@ Reset: six unstarted specs to ready/design (`cb4276f8c7`); yang-loader-structura
 | `spec-appliance-ships-ze-kernel` | ready, owner decision in Task (`e1280ff02d`): ze's kernel ONLY, rtr7 and `ze.gok.kernel-package` deleted | claim (needs WIP cap), implement; two cached 7.2 amd64 builds exist on the Linux host only |
 | `spec-kernel-capability-gate` | AC-1..14 evidenced (`76a6b87730` real MPLSInUse bug fixed, `90f567bdb2`, `21ab1b1666`); AC-15 depends on the kernel spec | after the kernel switch: MPLS seed boot lab, review, close |
 | `spec-crash-capture` | Depends on the kernel spec: rtr7 has no CONFIG_PSTORE, so its QEMU labs cannot pass | rerun labs after the switch |
-| `spec-announce-build-key-is-the-builder-argument-set` | scenario rewritten to send the route by command (`daea9ec553`); interop red/green not yet observed | run red (prepend zeroed in the key, in an export) and green; close |
-| `spec-announce-grammar-stated-and-enforced` | evidence done, catalog one-of fix `08a720ad7c` | closure template, independent review, commits A/B |
+| `spec-announce-build-key-is-the-builder-argument-set` | scenario sends the route by command (`daea9ec553`), but the forced red (prepend zeroed in the key, HEAD export) still PASSES on the current scenario: `local-as-replace-as-partition` does not discriminate. A pass means FRR and BIRD never share a build group (the builder takes the first peer's facts for the group); suspected differing field: extended message or 4-byte AS (unproven). Green last died on a Docker timeout | log each peer's announce key in an export to find the differing field, align the two sessions on everything but the prepend, rerun red then green; the 3 "NOT YET OBSERVED" cells stay empty until a real red |
 | `spec-interop-image-copies-a-prebuilt-ze` | AC-1..6, 8 evidenced (`ec67061d71`) | AC-7 re-discrimination, AC-9 IPsec suite rerun, AC-10, close |
 | `spec-fixit-flap-test-cannot-build-its-own-stimulus` | already handed to the macOS showcase handover (`20a4e455be`); a stopped agent's half fixture edit was undone, saved as `backups/flap-fixture-20261009-195228.patch` on the Linux host | read `netlinkDrops08` every round, force the drops red, close |
 | `spec-feature-maturity-declared` | blocked on the design rewrite above | rewrite spec, then the verify stage |
