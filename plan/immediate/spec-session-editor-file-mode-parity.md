@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | cli |
 | Depends | - |
 | Phase | - |
@@ -129,7 +129,7 @@ command exists to survive.
 6. Copy: one `copy-entry` structural op, applied at save before leaf edits, and in memory
 7. Deactivate/activate leaf or path: a structural op recorded in the change file, applied at commit, and in memory
 8. Commit (plain, force, confirmed): `CommitSessionCandidate` then `NotifyReload` to the running daemon
-9. Confirmed: the daemon records a pending-confirm record (deadline, rollback revision, user, session) in the store and arms its one deadline worker; confirm clears it; abort or deadline restages the rollback revision as a candidate and reloads
+9. Confirmed: the daemon records a pending-confirm record (deadline, rollback revision, user, session) in the store and arms its one deadline worker; `confirm` or a plain `commit` from the owning session clears it (the commit also applying any further changes); other sessions are refused; abort or deadline restages the rollback revision as a candidate and reloads
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -172,7 +172,7 @@ command exists to survive.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | SSH drops during a confirm window and nothing reverts (today's file-mode behavior, carried over) | disconnect `.ci` keeps the trial config | the window is daemon-owned (AC-15) |
-| R-2 | A second commit lands inside a window and the revert erases it | another session commits during the window | commits during a pending window are refused (AC-18) |
+| R-2 | A second commit lands inside a window and the revert erases it | another session commits during the window | other sessions' commits are refused (AC-18); the owner's own `commit` confirms first, so the revert never runs over it (AC-23) |
 | R-3 | Daemon restarts during a window and starts on the unconfirmed config | restart `.ci` | the pending record is read at start and reverts before apply (AC-19) |
 | R-4 | A partial load leaves half the entries written | parse or schema error mid-way | parse and diff complete before the lock; one write (AC-5) |
 | R-5 | Load replace deletes structure another user has pending edits under | conflict at commit | deletes carry `Previous`; commit's LIVE/STALE detection reports them (AC-6) |
@@ -224,8 +224,9 @@ command exists to survive.
 | AC-14 | SSH editor; `commit confirmed 5`, no `confirm` | after 5 s the daemon restores the previous revision and the running daemon reports the previous values; an attached session shows the file editor's timeout message |
 | AC-15 | SSH editor; `commit confirmed 5`, then the SSH client is killed | the daemon still reverts after 5 s; the running daemon reports the previous values |
 | AC-16 | SSH editor; `commit confirmed 60` then `confirm abort` | the previous revision is applied at once; message as in file mode |
-| AC-17 | SSH session reconnects (same user) during a window | the editor shows the pending window and seconds left; `confirm` from this session confirms it |
-| AC-18 | During a pending window another session (or the same) runs `commit` or `commit confirmed` | refused, naming the pending window, its owner and seconds left, and saying to `confirm` or `confirm abort` first |
+| AC-17 | SSH session reconnects (same user, so a new session) during a window | the editor shows the pending window, its owner session and seconds left; this session is not the owner, so its `confirm`, `confirm abort` and `commit` are refused as in AC-18, and the window reverts at its deadline (owner decision 2026-10-10: only the session that ran `commit confirmed` confirms it) |
+| AC-18 | During a pending window any OTHER session runs `commit`, `commit confirmed`, `confirm` or `confirm abort` | refused, naming the pending window, its owner session and seconds left, and saying to wait for the deadline or have the owner session confirm or abort |
+| AC-23 | The session that ran `commit confirmed 60` runs a plain `commit` within 60 s, first with no further changes, then (in a second run) with further uncommitted changes in its candidate | with no further changes: the window is confirmed exactly as `confirm` does it (same message, no revert at 60 s). With further changes: the window is confirmed AND the new changes are committed and applied to the running daemon in the same step, as Junos does; neither the confirmed change nor the new one is reverted at 60 s. If the new changes fail validation or conflict, the commit is refused as any commit is, and the window stays pending with its deadline unchanged (owner decision 2026-10-10, option A) |
 | AC-19 | Daemon restarted during a pending window | at start the daemon finds the pending record, restores the rollback revision before applying config, and logs that it reverted an unconfirmed commit |
 | AC-20 | `commit confirmed 0`, `3601`, `abc`, and no argument in session mode | the file-mode errors: at least 1, at most 3600, invalid seconds, usage |
 | AC-21 | Session `commit confirmed` on a daemon store with no history | refused before writing, as `errCommitConfirmedNeedsHistory` |
@@ -254,7 +255,8 @@ command exists to survive.
 | `TestChangeFileDeactivateOpsRoundTrip` | `internal/component/config/change_file_test.go` | A-1 | |
 | `TestSessionCommitForce` | `internal/component/cli/model_commands_commit_test.go` | AC-12 | |
 | `TestConfirmWindowWorkerRevertsAtDeadline` | owning package of the worker | AC-14, AC-15 | |
-| `TestConfirmWindowRefusesCommitWhilePending` | same | AC-18 | |
+| `TestConfirmWindowRefusesCommitWhilePending` | same | AC-17, AC-18 | |
+| `TestConfirmWindowOwnerCommitConfirms` | same | AC-23, with and without further changes, and a failing commit leaving the window pending | |
 | `TestConfirmWindowRevertsOnStart` | same | AC-19 | |
 
 ### Boundary Tests (numeric inputs)
@@ -278,6 +280,7 @@ command exists to survive.
 | `session-editor-commit-confirmed-timeout` | `test/plugin/session-editor-commit-confirmed-timeout.ci` | AC-14 | |
 | `session-editor-commit-confirmed-disconnect` | `test/plugin/session-editor-commit-confirmed-disconnect.ci` | AC-15 | |
 | `session-editor-commit-confirmed-abort` | `test/plugin/session-editor-commit-confirmed-abort.ci` | AC-16, AC-18 | |
+| `session-editor-commit-confirmed-commit-confirms` | `test/plugin/session-editor-commit-confirmed-commit-confirms.ci` | AC-23: owner's plain `commit` confirms, with and without further changes | |
 | `session-editor-commit-confirmed-restart` | `test/plugin/session-editor-commit-confirmed-restart.ci` | AC-19 | |
 | `session-editor-commit-confirmed-boundary` | `test/plugin/session-editor-commit-confirmed-boundary.ci` | AC-20, AC-21 | |
 | replaces `load-blocked.et` | `test/editor/session/load-merge.et` | AC-1 at model level | |
@@ -315,7 +318,7 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 - `internal/component/cli/model_load_session_test.go`
 - the confirm-window worker and its test, in the package Phase 1 chooses
 - `internal/test/fixture/plugin_fixture_NN_session_editor.go` - SSH editor driver with one mode per `.ci`
-- the 15 `.ci` files and one `.wb` file named in the Functional Tests table
+- the 16 `.ci` files and one `.wb` file named in the Functional Tests table
 - `test/editor/session/load-merge.et`
 
 ### Integration Checklist
@@ -385,7 +388,7 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 |-------------|---------------------|
 | six refusals gone | grep for the six sentinel error names returns nothing |
 | text merge gone | grep for `mergeConfigs`, `mergeAtContext`, `replaceAtContext` returns nothing |
-| functional tests | the 15 `.ci` and 1 `.wb` pass, each observed red first |
+| functional tests | the 16 `.ci` and 1 `.wb` pass, each observed red first |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -419,7 +422,7 @@ N-A: no wire-visible change; the editor applies config through the existing relo
 | Load builds the target tree and diffs it into change entries written in one batch | replay each loaded leaf through `writeThroughSet` (one lock per leaf, no deletes for replace, partial on failure); a single "load" structural op holding the subtree (blame, compare and per-leaf conflict detection lose sight of it) | per-leaf entries are what session mode reads everywhere; one batch is atomic |
 | One tree-based load path for both modes; delete the text merge | keep text merge for file mode and add a tree path for session | `ai/rules/config.md` bans text surgery; `ai/rules/no-layering.md` bans keeping both. Owner decision 2026-10-10: "one path" |
 | The confirm window is owned by the daemon with a stored pending record | keep the Model tick in session mode | the tick dies with the SSH channel, which is the case the command exists for. Owner decision 2026-10-10: "correct" |
-| Commits during a pending window are refused | Junos semantics: the next `commit` confirms | an implicit confirm by another operator hides the pending window; refusal is explicit. OPEN (2026-10-10): still under discussion with the owner, explicit `confirm` versus a plain `commit` from the owning session confirming; AC-18 stands until he decides |
+| The owning session confirms with `confirm` or a plain `commit`; a plain `commit` carrying further changes confirms the window and commits them in one step; every other session's commit, confirm and abort are refused during the window | refuse every commit during the window; let any session confirm | Owner decision 2026-10-10, option A (Junos behavior for the owner's `commit`). Another operator cannot silently confirm or clobber a window they do not own; `confirm abort` stays |
 | Seconds, 1 to 3600, kept | switch to minutes like Junos/VyOS | the unit is the existing contract; changing it is scope the owner did not ask for |
 
 ## Known Limitations
