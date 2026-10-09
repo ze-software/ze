@@ -1,0 +1,59 @@
+# Test: RFC 4271 Section 6.2 -- an OPEN whose AS is not the configured remote AS
+# is refused with OPEN Message Error (2) / Bad Peer AS (2).
+# VALIDATES: ze compares the AS a peer opens with against `session asn remote`
+#            (validateOpenPeerAS, internal/component/bgp/reactor/session_open_as.go)
+#            and answers a mismatch with NOTIFICATION 2/2, with no Data field,
+#            before the session establishes.
+# PREVENTS: the tolerance ze had before RFC 7705 Section 4.2 work landed, when any
+#           AS was accepted because nothing compared it. A peer configured for
+#           65001 that opens with 65099 is a misconfiguration the operator must be
+#           told about, not a session.
+#
+# DISCRIMINATION: with the comparison removed, ze accepts 65099, answers with a
+# KEEPALIVE, and the NOTIFICATION below never arrives.
+#
+# The dynamic-peer exemption (AC-3 of spec-bgp-as-migration) needs no file of its
+# own: every dynamic-group .ci (dynamic-group-static-peer-wins.ci among them)
+# establishes a session whose remote AS is unknown until OPEN, which a check
+# without the exemption would refuse.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=10s
+# Open with 65099, an AS ze is not configured for.
+option=asn:value=65099
+# Expect NOTIFICATION: OPEN Message Error (code 2), Bad Peer AS (subcode 2)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030202
+EOF_PEER
+
+# ze bgp configuration -- an ordinary eBGP peer with no migration AS
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

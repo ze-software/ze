@@ -523,6 +523,31 @@ const (
 	frrShowPrependPrefixJSON = "show bgp ipv4 unicast " + prependTwoOctetPrefix + " json"
 )
 
+// The bgp-as-migration-local-as scenario, RFC 7705 judged by two other
+// implementations. Ze's globally configured AS is 65001 and it originates
+// rfc7705Prefix toward both peers.
+//
+// FRR is AS 65002 and holds an iBGP session to ze. Ze's FRR peer carries
+// `migration 65002`, so ze opens with 65001 first, FRR answers Bad Peer AS,
+// and ze's next OPEN carries 65002 (RFC 7705 Section 4.2). The session is
+// native iBGP, so FRR sees the route with no AS in its path: rfc7705GlobalAS
+// is what an external prepend would put there.
+//
+// BIRD is AS 65003 and peers with ze's Local AS rfc7705LocalAS under
+// `local-options [ replace-as ]`, so BIRD's path is that one AS alone
+// (RFC 7705 Section 3.3). rfc7705BIRDASPath ends at the newline, so the dual
+// form "65020 65001" cannot match it by prefix.
+const (
+	rfc7705Prefix      = "10.77.5.0/24"
+	rfc7705GlobalAS    = "65001"
+	rfc7705LocalAS     = "65020"
+	rfc7705BIRDASPath  = "BGP.as_path: " + rfc7705LocalAS + "\n"
+	rfc7705BIRDShowAll = "show route for " + rfc7705Prefix + " all"
+	// rfc7705GoBGPASNs is the AS_SEQUENCE GoBGP's JSON prints for the Local
+	// AS session with no option: 65030 outermost, the global 65001 behind.
+	rfc7705GoBGPASNs = "[65030,65001]"
+)
+
 // The as-path-mixed-width-relay-frr scenario, where a raw injector announces
 // mixedWidthPrefix to ze over a session ze holds to two octets, carrying
 // AS_TRANS in AS_PATH and 4200000123 in AS4_PATH, and ze relays the route to an

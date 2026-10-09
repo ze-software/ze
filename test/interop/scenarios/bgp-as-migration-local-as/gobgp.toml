@@ -1,0 +1,16 @@
+# RFC 7705 Section 3.3, the external neighbor of a Local AS session with no
+# option. GoBGP is AS 64512 and peers with ze's Local AS 65030. With neither
+# no-prepend nor replace-as, ze prepends the Local AS and the globally
+# configured 65001 behind it, so GoBGP installs AS_PATH [65030, 65001].
+[global.config]
+  as = 64512
+  router-id = "172.30.0.5"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65030
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"

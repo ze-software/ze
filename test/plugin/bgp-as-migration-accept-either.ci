@@ -1,0 +1,79 @@
+# Test: RFC 7705 Section 4.2 -- a migration peer may open with either AS.
+# VALIDATES: ze is AS 65000 with `migration 65100` and `remote 65100`, and the
+#            peer opens with 65000, the globally configured AS rather than the
+#            configured remote one. RFC 7705 Section 4.2: "a BGP speaker MUST
+#            accept BGP OPEN and establish an iBGP session from configured iBGP
+#            peers if the ASN value in "My Autonomous System" is either the
+#            globally configured ASN or a locally configured ASN provided when
+#            this capability is utilized." The session establishes, as iBGP, and
+#            the UPDATE below is its proof.
+# PREVENTS: the ordinary Bad Peer AS rule (bgp-open-bad-peer-as.ci) refusing the
+#           second AS of a migrating router.
+#
+# The other polarity, the peer opening with the migration AS 65100, is
+# bgp-as-migration-ibgp-treatment.ci, which carries the same frame.
+#
+# DISCRIMINATION: make peerASAccepted (session_as_migration.go) compare against
+# the configured remote AS alone and ze answers NOTIFICATION 2/2 Bad Peer AS
+# instead: neither frame below arrives.
+#
+# UPDATE (iBGP: empty AS_PATH, LOCAL_PREF kept):
+#   ORIGIN:     40010100          IGP
+#   AS_PATH:    400200            empty
+#   NEXT_HOP:   4003040A0001FE    10.0.1.254
+#   LOCAL_PREF: 400504000000C8    200
+#   NLRI:       180A0000          10.0.0.0/24
+# attr len = 4+3+7+7 = 21 = 0x15; total = 19+2+2+21+4 = 48 = 0x30.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Open with the GLOBALLY configured AS 65000, which is not the configured
+# remote AS 65100.
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65100
+				migration 65100
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+				local-preference 200
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

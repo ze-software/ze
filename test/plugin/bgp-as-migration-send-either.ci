@@ -1,0 +1,66 @@
+# Test: RFC 7705 Section 4.2 -- ze opens with the globally configured AS first,
+# and with the migration AS only after the peer answers Bad Peer AS.
+# VALIDATES: RFC 7705 Section 4.2: "the speaker SHOULD send BGP OPEN using the
+#            globally configured ASN first, and only send a BGP OPEN using the
+#            locally configured ASN as a fallback if the remote neighbor responds
+#            with the BGP error "Bad Peer AS"." Ze is AS 65000 with
+#            `migration 65100`.
+#              conn=1  ze's OPEN carries 65000 (0xFDE8) in My Autonomous System
+#                      and in the Four-octet AS capability. The peer answers
+#                      NOTIFICATION 2/2 Bad Peer AS.
+#              conn=2  ze's next OPEN carries 65100 (0xFE4C) in both carriers.
+#            Both carriers come from one resolution (openLocalAS,
+#            session_as_migration.go), which is RFC7705-4.2-3 and AC-9's
+#            agreement between header and capability.
+# PREVENTS: a migrating speaker that keeps sending the refused AS, which is the
+#           deadlock the SHOULD exists to avoid, and a header that names one AS
+#           while the capability names the other.
+#
+# DISCRIMINATION: make noteASMigrationRejection (session_as_migration.go) return
+# at once and conn=2's OPEN carries 65000 again, which the second expectation
+# refuses.
+#
+# The OPEN frames are matched whole by inspect-open-message, so any capability
+# ze adds changes them; only the two AS carriers are the subject here.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=40s
+option=open:value=inspect-open-message
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002B0104FDE8005A0A0000020E020C01040001000141040000FDE8
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030202
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002B0104FE4C005A0A0000020E020C01040001000141040000FE4C
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65100
+				migration 65100
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=35s

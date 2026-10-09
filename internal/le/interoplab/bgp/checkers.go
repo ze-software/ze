@@ -243,6 +243,33 @@ var scenarioOperations = map[string][]operation{
 	"bgp-4byte-asn-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// RFC 7705, both mechanisms in one lab (names.go, rfc7705Prefix).
+	//
+	// FRR: the session establishing at all is the Section 4.2 fallback, because
+	// FRR refuses ze's first OPEN (AS 65001) with Bad Peer AS and accepts only
+	// the migration AS 65002. The route arriving with no AS in its path is the
+	// "native iBGP" treatment: an external verdict would prepend 65001.
+	//
+	// BIRD: the whole AS_PATH line is the Local AS alone, which is
+	// `replace-as`. Without it ze sends "65020 65001", which the exact line
+	// does not match and the absence clause refuses.
+	//
+	// GoBGP: a Local AS session with no option carries both AS numbers, the
+	// Local AS outermost, which is the order Section 3.3 documents.
+	"bgp-as-migration-local-as": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opBIRDSession, argument: birdZeProtocol},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opGoBGPRoute, argument: rfc7705Prefix, timeout: 60 * time.Second},
+		{kind: opRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, rfc7705Prefix, "-j"}, contains: []string{rfc7705GoBGPASNs}},
+		{kind: opFRRRoute, argument: rfc7705Prefix, timeout: 60 * time.Second},
+		{kind: opFRRNoAS, argument: rfc7705Prefix, absent: []string{rfc7705GlobalAS}},
+		{kind: opBIRDRoute, argument: rfc7705Prefix, timeout: 60 * time.Second},
+		{kind: opRequireContains, peer: peerBIRD, command: []string{cmdBirdc, rfc7705BIRDShowAll}, contains: []string{rfc7705BIRDASPath}},
+		{kind: opRequireAbsent, peer: peerBIRD, command: []string{cmdBirdc, rfc7705BIRDShowAll}, absent: []string{rfc7705GlobalAS}, proof: []string{rfc7705BIRDASPath}},
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opBIRDSession, argument: birdZeProtocol},
+	},
 	// RFC 6793 Section 4.2.2, judged by BIRD rather than by ze's own encoder. The
 	// route reaches BIRD over a session ze holds to two octets, so the four-octet
 	// aggregating AS can only arrive in the AS4_AGGREGATOR companion. Asking BIRD

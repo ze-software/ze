@@ -1,0 +1,76 @@
+# Test: RFC 7705 Section 4.2 -- a session that opens with the migration AS is
+# native iBGP on the wire.
+# VALIDATES: ze is AS 65000 with `migration 65100`, and the peer opens with
+#            65100. RFC 7705 Section 4.2: "the BGP speaker MUST treat UPDATEs sent
+#            and received to this peer as if this was a natively configured iBGP
+#            session". The UPDATE ze sends therefore carries an EMPTY AS_PATH
+#            (RFC 4271 Section 5.1.2, no prepend toward an internal peer) and
+#            keeps LOCAL_PREF 200 (RFC 4271 Section 5.1.5, which forbids the
+#            attribute toward an external peer).
+# PREVENTS: the verdict being taken from the plain equality local == remote,
+#           which reads 65000 against 65100 as eBGP.
+#
+# DISCRIMINATION: two observables from one verdict, each of which an eBGP verdict
+# changes. Make isIBGPWith (session_as_migration.go) ignore the migration AS and
+# ze sends AS_PATH [65000] (4002060201 0000FDE8) and drops LOCAL_PREF, so the
+# frame below differs in length and content.
+#
+# UPDATE:
+#   ORIGIN:     40010100          IGP
+#   AS_PATH:    400200            empty
+#   NEXT_HOP:   4003040A0001FE    10.0.1.254
+#   LOCAL_PREF: 400504000000C8    200
+#   NLRI:       180A0000          10.0.0.0/24
+# attr len = 4+3+7+7 = 21 = 0x15; total = 19+2+2+21+4 = 48 = 0x30.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Open with the migration AS, which is also the configured remote AS.
+option=asn:value=65100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65100
+				migration 65100
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+				local-preference 200
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
