@@ -7,10 +7,10 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-09 |
 
-<!-- Backfilled after implementation began. The structural change is present;
-     remaining proof and documentation do not permit closure. -->
+<!-- Backfilled after implementation began. Closed 2026-10-09 once the interop
+     scenario's forced red was observed. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -197,7 +197,7 @@ key, and the compiler is what enforces it.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `local-as-replace-as-partition` | `test/interop/scenarios/` | FRR or BIRD, two sessions | each peer's received AS_PATH matches its own `replace-as` setting, so no peer receives the other's bytes | NOT WRITTEN. Named here as `ai/rules/interop-and-goal-validation.md` requires |
+| `local-as-replace-as-partition` | `test/interop/scenarios/` | FRR and BIRD, two sessions | each peer's received AS_PATH matches its own `replace-as` setting, so no peer receives the other's bytes | GREEN; RED with the key's prepend zeroed (FRR installed `65020`, expected `65020 65001`), 2026-10-09 |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/reactor_api_batch.go` - `announceFacts` replaces the key and the argument list
@@ -362,11 +362,23 @@ Logs are under `tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/scra
 
 | Item | Result | Evidence |
 |------|--------|----------|
-| Why the interop scenario did not discriminate | Not a differing key field. Read from `announceFactsFor`: ze advertises RFC 8654 extended messages only when configured (`config_capabilities.go`, "opt-in, absent = disabled"), so `extended` is false toward both; ADD-PATH send is not configured, so `addPath` is false toward both; next hop is self (172.30.0.2) toward both; both are eBGP, neither is an RS-client, neither sets the Prefix-SID leaf or `group-updates`; FRR and BIRD both speak four-octet AS. The cause was the ORIGIN of the route: the scenario originated it from a static route at startup, so each peer received it through its own initial sync as its session came up, one peer at a time, and the build key was never consulted | `ze.conf` before this change, `reactor_api_batch.go` `announceFactsFor` |
+| Why the interop scenario did not discriminate | PARTLY WRONG, see the ownership agent's table below: `extended` DID differ. Original text: Not a differing key field. Read from `announceFactsFor`: ze advertises RFC 8654 extended messages only when configured (`config_capabilities.go`, "opt-in, absent = disabled"), so `extended` is false toward both; ADD-PATH send is not configured, so `addPath` is false toward both; next hop is self (172.30.0.2) toward both; both are eBGP, neither is an RS-client, neither sets the Prefix-SID leaf or `group-updates`; FRR and BIRD both speak four-octet AS. The cause was the ORIGIN of the route: the scenario originated it from a static route at startup, so each peer received it through its own initial sync as its session came up, one peer at a time, and the build key was never consulted | `ze.conf` before this change, `reactor_api_batch.go` `announceFactsFor` |
 | Scenario repair | `ze.conf` no longer originates the route. The checker waits for BOTH sessions, then runs `send bgp * unicast 10.77.6.0/24` through `ze cli` (`zeCommand`), which reaches `AnnounceNLRIBatch` once for both peers | `test/interop/scenarios/local-as-replace-as-partition/ze.conf`, `internal/le/interoplab/bgp/register_local_as_partition.go` |
-| Interop forced red and green | NOT YET OBSERVED: the 2026-10-09 19:00 red run in `scratch/ired2/` hit its 25-minute timeout with no verdict (load 30-47, docker slow) and the green run in `scratch/igreen2/` failed at setup, `docker info failed (exit 124): context deadline exceeded`; rerun with `bash scratch/iop2.sh <scratch> <repo>` at low load | `scratch/iop2.log`, exports `scratch/ired2/` (key's prepend zeroed through `redKey`) and `scratch/igreen2/` |
+| Interop forced red and green | Superseded by the ownership agent's table below: the first row of this table was wrong, and the scenario still did not discriminate after the repair | below |
 | AC-5 test, independent read | Sound. It counts builds where a build is counted (`logAnnounceTooLarge` moves `ze_bgp_announce_dropped_oversize_total` once per refused build), calibrates the counter with update groups disabled (2), and asserts 1 with groups enabled; the two peers differ only in address and router ID, neither a field. Its red with a peer-unique key field is recorded above | `announce_facts_one_build_test.go` |
 | AC-6 ruling | Met structurally, not by the compiler alone, and accepted as such: `buildBatchAnnounceUpdate` takes per-peer input only through `announceFacts`, and the group loop carries only `bg.facts` and `bg.targets` into the build, so a new per-peer parameter fails to compile at the build call until it is fed from `bg.facts` or from a value outside the group, and the latter is visible in review as a value that is not per group. The compiler cannot refuse an author who threads a per-peer value around the struct; the field comments and this page's paragraph state the contract | `reactor_api_batch.go` `announceBatchToPeers`, `docs/architecture/core-design.md` |
+
+## Evidence recorded 2026-10-09 (ownership agent, macOS, colima)
+
+Logs are under `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/`. Exports are `git archive` of HEAD `1e54836e7d`: `ired/` with the break, `igreen/` without. The break keys `buildGroups` on a copy of `facts` with `prepend` zeroed while the group keeps the first member's `facts` for the build, which is the shipped defect.
+
+| Item | Result | Evidence |
+|------|--------|----------|
+| Red on the `daea9ec553` scenario | **PASSED** with the break: `interop: 1 passed, 0 failed`. Still vacuous after the CLI-announce repair | `iop-red.log` |
+| Diagnosis | Logged each peer's `announceFacts` in the red export (`redDiag`, export only): both peers reach `AnnounceNLRIBatch` unqueued with groups enabled, and differ in ONE field besides the prepend, `extended`: true toward FRR (172.30.0.3), false toward BIRD (172.30.0.4). Producer: `Negotiate` in `internal/core/bgp/capability/negotiated.go` sets `ExtendedMessageSend = remoteExtMsg` (RFC 8654 Section 4, send permitted when the PEER advertised), and `announceFactsFor` copies `nc.ExtendedMessage` from it. FRR advertises the capability by default, BIRD 2.15.1 does not. The earlier "ze advertises only when configured" was true and irrelevant: the send side follows the peer | `iop-diag2.log` |
+| Scenario repair | `bird.conf` sets `enable extended messages on;`, so both sessions carry `extended: true`; `ze.conf` comment corrected (it said ze advertises no extended message, and that neither peer sets group-updates, while both carry the default `true`) | `test/interop/scenarios/local-as-replace-as-partition/bird.conf`, `ze.conf` |
+| Forced RED | `interop: 0 passed, 1 failed`, assertion 6: FRR's `show bgp ipv4 unicast 10.77.6.0/24 json` has `"aspath":{"string":"65020"}`, missing `65020 65001`: FRR received BIRD's replace-as build. Run at load 53-68. The red export still carried the `redDiag` logging and a trailing diagnostic assertion; the run failed at assertion 6, before it | `iop-red3.log` |
+| GREEN | `interop: 1 passed, 0 failed` from `igreen/` (HEAD plus the scenario repair, no break) | `iop-green.log` |
 
 ## Implementation Summary
 
@@ -375,11 +387,13 @@ Logs are under `tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/scra
 - Proof added: partition subtests per field, `TestAnnounceFactsIdenticalPeersShareOneBuild` (landed `5aaa1da5b2`), the `.ci` `test/plugin/local-as-replace-as-announce-partition.ci` with its fixture `internal/test/fixture/register_local_as_announce_partition.go`, and the interop scenario `local-as-replace-as-partition` with checker `internal/le/interoplab/bgp/register_local_as_partition.go`.
 
 ### Bugs Found/Fixed
-- The first interop scenario was vacuous: a startup-originated route never reaches the group key. Fixed by announcing after both sessions are up; covered by the scenario's recorded red.
+- The first interop scenario was vacuous: a startup-originated route never reaches the group key. Fixed by announcing after both sessions are up.
+- It was still vacuous after that: FRR and BIRD differed in `announceFacts.extended`, so they never shared a group. Fixed by enabling extended messages in `bird.conf`; covered by the scenario's recorded red.
 
 ### Documentation Updates
 - `docs/architecture/core-design.md`: the key IS the builder's argument set, `extended` as the send-only field, replace-as. Anchor `reactor_api_batch.go -- announceFacts, announceFactsFor, AnnounceNLRIBatch`.
 - `docs/architecture/update-building.md`: a rail carries the operator's Prefix-SID leaf, which is what the key holds.
+- `docs/architecture/testing/interop.md`, vacuity trap 4 ("a DIFFERENT path"): two peers that a "not merged" scenario relies on colliding must not already differ in another key fact; this scenario is the example.
 - `./le doc check verify` (2026-10-09 19:13): no finding in this spec's pages or hunks; its findings sit in `docs/guide/config-editor.md`, `docs/guide/graceful-restart.md`, `docs/guide/command-reference.md` (a `checkInlineNextHop` anchor outside this work's hunk), `docs/features/cli-commands.md` and `docs/architecture/api/commands.md`, none touched here (`scratch/doccheck-close.log`).
 - Scoped lint over `internal/le/interoplab/bgp`, `internal/test/fixture`, `internal/component/bgp/reactor`, `internal/component/command`, `internal/component/bgp/plugins/cmd/announce`: no finding in this spec's files; the findings are `session_write.go` `updateIsReachable` and `isis_inject_*.go` `injectISISPurgeHost`, both unused, both another session's (`scratch/lint-close.log`).
 
@@ -393,6 +407,7 @@ Logs are under `tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/scra
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | The interop scenario originated its route from config at startup and passed with the key's prepend zeroed | A route that exists before a session is Established reaches that peer through its own initial sync and never meets the group key | forced red in a HEAD export stayed green | Scenario announces after both sessions are up; the reason is in the checker's comment and `ze.conf` |
+| assumption | The closure agent ruled out a differing key field by reading ze's capability config ("extended is opt-in, so false toward both") | `extended` copies the SEND permission, which follows the PEER's advertisement (`ExtendedMessageSend = remoteExtMsg`); FRR advertises by default and BIRD does not | the same forced red still passed after the CLI-announce repair; logging each peer's `announceFacts` in the red export showed `extended` true/false | `bird.conf` enables extended messages; interop.md trap 4 names the shape. A ruling about a field is read at the line that sets the field |
 
 ## Implementation Audit
 
@@ -418,7 +433,7 @@ Logs are under `tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/scra
 |------|--------|----------|-------|
 | partition, framing, one-build unit tests | Done | `internal/component/bgp/reactor/` | `bk-green-final.log` |
 | `.ci` two-peer replace-as | Done | `test/plugin/local-as-replace-as-announce-partition.ci` | `ci-green3-*.log`, `ci-red.log` |
-| interop `local-as-replace-as-partition` | Done | `test/interop/scenarios/local-as-replace-as-partition/` | `iop2.log` |
+| interop `local-as-replace-as-partition` | Done | `test/interop/scenarios/local-as-replace-as-partition/` | `iop-green.log`, `iop-red3.log` |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -438,7 +453,7 @@ Logs are under `tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/scra
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| two peers differing in a builder fact never share bytes | interop | `local-as-replace-as-partition`: FRR installs `65020 65001`, BIRD `65020`; red with the key's prepend zeroed (NOT YET OBSERVED: the 2026-10-09 19:00 red run in `scratch/ired2/` hit its 25-minute timeout with no verdict (load 30-47, docker slow) and the green run in `scratch/igreen2/` failed at setup, `docker info failed (exit 124): context deadline exceeded`; rerun with `bash scratch/iop2.sh <scratch> <repo>` at low load) |
+| two peers differing in a builder fact never share bytes | interop | `local-as-replace-as-partition`: FRR installs `65020 65001`, BIRD `65020`: GREEN `interop: 1 passed, 0 failed` (`iop-green.log`). RED with the key's prepend zeroed: assertion 6 failed, FRR installed `"aspath":{"string":"65020"}`, BIRD's replace-as build (`iop-red3.log`), both under the ownership agent's scratch named above |
 | the same, through the operator entry point | functional | `local-as-replace-as-announce-partition.ci`, RED conn=1 got `[65010]` expected `[65010 65000]` |
 | identical peers still share one build | unit | `TestAnnounceFactsIdenticalPeersShareOneBuild`, RED `expected: 1 actual: 2` with a peer-unique field |
 
@@ -474,7 +489,7 @@ Logs are under `tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/scra
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | replace-as peers split | interop `iop2.log` (NOT YET OBSERVED: the 2026-10-09 19:00 red run in `scratch/ired2/` hit its 25-minute timeout with no verdict (load 30-47, docker slow) and the green run in `scratch/igreen2/` failed at setup, `docker info failed (exit 124): context deadline exceeded`; rerun with `bash scratch/iop2.sh <scratch> <repo>` at low load) |
+| AC-1 | replace-as peers split | interop GREEN `iop-green.log`; RED with prepend zeroed in the key, FRR got `65020` (`iop-red3.log`) |
 | AC-2..AC-5 | partition and one-build tests pass | `bk-green-final.log` |
 | AC-6, AC-7 | struct is the builder argument | `gopls symbols reactor_api_batch.go`: one `announceFacts`, no second key type |
 
