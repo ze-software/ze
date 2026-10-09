@@ -16,7 +16,7 @@ code. Update the batch log below in the same commit as each batch.
 | D-3 | "Validate on all of them" | Routes R1 to R9 all call `command.ValidateArgs` |
 | D-4 | "Refuse it in the validator." | A zero `ArgDef` is refused by `ValidateArgs` |
 | D-5 | "One type with per-kind constructors" | `ArgDef` has private fields and one constructor per kind |
-| D-6 | "Keep it; make it strict" | Reading NOT confirmed by the owner: `DefaultLoader` stays, and becomes strict (no discarded error). This changes behaviour: whatever loads today only because an error is discarded will fail |
+| D-6 | "Keep it; make it strict", then "change behaviour is fine, make it strict" | Confirmed 2026-10-09: `DefaultLoader` stays and becomes strict (no discarded error). Whatever loads today only because an error is discarded will fail, and the owner accepts that change |
 | D-7 | "The narrower input" | MCP `WriteInvocation` takes a name-and-anchor input |
 
 Owner instruction, 2026-10-09: "do it by batches and save progress to resume
