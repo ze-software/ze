@@ -51,37 +51,22 @@ if github can have it embedded that would be ideal".
 | Super placement (amendment) | Home is the site (asciinema player). The GitHub README embeds the super inline if GitHub can render it (animated SVG, or a video GitHub plays in markdown) within GitHub's size limits; otherwise the README shows a thumbnail linking to the site player. The carrier is a measured outcome of a Work Plan probe, not an owner question (R-4) |
 | Length | Super about 7 minutes. The earlier "README gets a separate 60 to 90 s cut as an animated SVG" is superseded: the README carries the super itself, inline or as a linked thumbnail |
 | Front page | Switch the hero from cli-dashboard to the super-recording (the earlier decision stands) |
-| Configuration style | Everything typed live in the SSH editor and committed. Where a live commit fails to enable a feature, that is a Ze defect to fix, not to work around in the tape |
+| Configuration style | Superseded at design review by `docs/contributing/terminal-demos.md`, decision 1, and its "Recordings" section (a live commit that fails to enable a feature is a Ze defect) |
 
 ### Owner decisions (2026-10-09, at design review)
 
-Governing principle for every topic recording, verbatim: "the video should be what a
-user who is going to use the feature would have built in a lab to test it and see how
-it works and how it will be able to debug problems later".
-
-Refinement, verbatim: "the perfect lab showing everything and where everything went
-fine (not how lab usual run) but it must be the impression given. Teach them the
-feature by demo if they knew about it from another vendor and if they did not know show
-them enough to understand what they saw". Applied as: (a) every recording is a flawless
-run: no retries, no waiting on screen, no stray output; a failure shown is a deliberate,
-scripted teaching step (break on purpose, diagnose, fix), never an accident. Readiness
-waits happen hidden, before `Show`. (b) Two audiences: for the operator who knows the
-feature from another vendor, the cards name the equivalent concept and command (Junos,
-IOS, EOS, FRR, BIRD terms, each verified against that vendor's documentation, never
-guessed); for the newcomer, a short card before each step explains the concept just
-enough to read the screen (what a VRP is, what a BFD session does, what Full means in
-OSPF). Cards stay short; the terminal stays the subject (AC-17).
-
-Configuration style, verbatim (supersedes "everything typed live" above): "present the
-configuration, slow typing is slow, you can use load merge like feature and show each
-section as it is loaded, explaining it".
+The owner's design-review decisions on what every recording shows and how it
+sounds (sectioned config loads instead of typing, the five beats, the flawless run,
+the two audiences, "it is a demo", and the sales-engineer tone) are recorded
+verbatim, with their operational reading, in `docs/contributing/terminal-demos.md`.
+That page is their one statement; this spec applies them through AC-15 and AC-17.
 
 | Decision | Answer |
 |----------|--------|
-| Topic recording shape | Five beats, in order: (1) the lab topology, shown briefly: which peers and daemons exist and why; (2) the topic's config loaded section by section into the RUNNING daemon's candidate through the SSH editor with a `load merge`-style verb, each section displayed with an explanation of what each part does, then `show \| compare` and `commit`; (3) proof it works, with the operational show commands an operator would use; (4) at least one realistic failure or misconfiguration; (5) its diagnosis with Ze's own tools (show commands, counters, logs, monitor, debug) revealing the cause, then the fix |
+| Topic recording shape | The five beats of `docs/contributing/terminal-demos.md`, decision 2; the sectioned load of decision 1 goes into the RUNNING daemon's candidate through the SSH editor |
 | Q1, replace vs keep | Resolved: the topic recordings REPLACE the old demos and keep everything the old ones showed. VRRP shows failover AND tracking; OSPF shows neighbour, database and routes |
-| Q2, typed live vs prepared | Resolved by the configuration-style quote above: no character-by-character typing of config |
-| Missing diagnostics | Where an operator would need a diagnosis tool Ze lacks, it is listed as a finding for the owner (Diagnosis Findings below), never invented in the tape |
+| Q2, typed live vs prepared | Resolved by `docs/contributing/terminal-demos.md`, decision 1 |
+| Missing diagnostics | Per `docs/contributing/terminal-demos.md`, decision 2; this spec lists them under Diagnosis Findings below |
 
 ### Storyboard (from research, to be validated chapter by chapter)
 
@@ -382,20 +367,10 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | AC-15 | Each topic recording | Shows the five beats in order (lab, sectioned load with explanation, proof, a realistic failure, its diagnosis with existing Ze commands then the fix); the validator asserts the failure's diagnostic output and the recovery, not only the healthy state |
 | AC-17 | Every topic recording | Its cards carry the vendor mapping (the equivalent concept and command an operator knows from another vendor, verified, not guessed) and a short concept explanation before each step, and the run on screen is flawless: no visible retry or stray output, every failure a scripted teaching step. Reviewed by watching the recording; no extra test machinery |
 
-Tone reference, verbatim (owner, 2026-10-09): "like you would join a VC to be presented
-a software by a technico-commercial". Each recording feels like a sales engineer's live
-video-call demo: confident pacing, the cards narrate as the SE would talk ("here is the
-lab, we load the RPKI section, this line points at the cache, commit, and you can
-see..."), they highlight what matters to the buyer, skip nothing important, dwell on
-nothing trivial, and it always works first time. Card wording and pacing in every topic
-and in the super follow this; AC-17 covers it.
-
-Owner (2026-10-09): "it is a demo". A staged, scripted presentation that looks like a
-smooth lab session, not a test lab and not a test suite. The recording is the product;
-validators exist only so a recording cannot ship showing wrong output. Staging behind
-the scenes (pre-built lab, hidden setup, pre-seeded peers) is fine as long as what is
-shown is real Ze behaviour. Read AC-2's absence check and AC-15's failure assertions in
-that light: they guard against wrong output on screen, nothing more.
+Tone and staging: `docs/contributing/terminal-demos.md`, decisions 4 ("it is a demo")
+and 5 (the sales-engineer tone). Card wording and pacing in every topic and in the
+super follow them (AC-17). Read AC-2's absence check and AC-15's failure assertions in
+the light of decision 4: they guard against wrong output on screen, nothing more.
 | AC-16 | VRRP and OSPF recordings | VRRP shows tracked-link demotion AND master failover with Ze staying up; OSPF shows neighbour, database and routes. Nothing an old demo showed is lost |
 
 ## 🧪 TDD Test Plan

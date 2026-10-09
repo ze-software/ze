@@ -38,5 +38,6 @@ full before acting on a topic it covers.
 | Simplest Correct Solution | choosing how to fix a defect or build a feature, and whenever a change adds an abstraction, an option, or a layer the problem in hand does not need | blocking | `ai/rules/simplicity.md` |
 | No Code in Specs | writing or editing a spec | blocking | `ai/rules/spec-no-code.md` |
 | Stale Comments | when changing code behavior | blocking | `ai/rules/stale-comments.md` |
+| Terminal Demos | writing, changing, or recording a terminal demo or video | blocking | `ai/rules/terminal-demos.md` |
 | Testing | writing, changing, or deleting any test, and before writing implementation code for new behavior | blocking | `ai/rules/testing.md` |
 | Writing | writing or reviewing any prose in this repository: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison | blocking | `ai/rules/writing.md` |

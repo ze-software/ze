@@ -22,6 +22,7 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 | `navigating-the-code.md` | How to answer a question without reading a whole file: the `gopls` routes for a Go symbol, and which generated index answers which question |
 | `claude-code-cheatsheet.md` | Quick reference for the AI-assisted workflow and skills |
 | `gh-pages.md` | Publishing the documentation site |
+| `terminal-demos.md` | What a terminal demo or video shows and how it sounds: the owner's decisions on sectioned config loads, the five beats, the two audiences, and the sales-engineer tone |
 | `rfc-implementation-guide.md` | How to implement an RFC: reading, summarising, and compliance evidence |
 | `rfc-conformance-gates.md` | What `./le rfc check` measures: the artifacts, the nine ratchets, the public ledger guards, the superseded marker, the extraction sign-off, and the claim-discrimination record |
 
