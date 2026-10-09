@@ -127,12 +127,13 @@ exit 1, and `IsDeclaredCommand` returns it rather than `false`, so the
 local-handler lookup refuses the match instead of serving a handler that
 shadows a declared command.
 
-The same two callers refuse three structures RFC 7950 forbids and goyang
+The same two callers refuse four structures RFC 7950 forbids and goyang
 accepts. Each refusal names the module, the file location and the fault.
 
 | Structure refused | RFC 7950 | Why goyang misses it | Error |
 |-------------------|----------|----------------------|-------|
 | A `length` whose parts, in the order written, overlap or descend, with `min` and `max` read as the bounds of the type being restricted | 9.4.4 | it sorts and coalesces the parts before it checks them | `ErrLengthOrder` |
+| An enumeration whose values break Section 9.6.4.2: a value outside int32, a value assigned twice, an enum with no value after one holding 2147483647 | 9.6.4.2 | it numbers an enum that follows a negative value from 0, so it misses a value that repeats the one the RFC assigns | `ErrEnumValue` |
 | An `enum` in a restricted enumeration that the base type does not assign, or whose `value` differs from the base type's | 9.6.4, 9.6.4.2 | it builds the restricted values afresh and never compares them with the base | `ErrEnumRestriction` |
 | A statement under an extension statement that is not a YANG keyword, that the block holding it does not admit, whose argument breaks its Section 14 argument rule, whose substatements break the counts or the alternatives of its rule's block, or that omits a block its rule requires | 7.19 | it keeps an extension statement as raw text | `ErrExtensionSubstatement` |
 
@@ -179,7 +180,19 @@ order of substatements, which its comment frees.
 `min` and `max` in a `length` are the first and last bounds of the effective
 length of the type being restricted, which goyang resolves through the whole
 typedef chain, or 0 and 18446744073709551615 when no type in the chain carries
-a length. A restricted enumeration that sits in a grouping no schema node uses
+a length.
+
+An enum's value is Ze's, never goyang's. `parseEnumAssignment`
+(`internal/component/config/yang/enum_assignment.go`) reads the enum statements
+of the root `type enumeration`: an enum with no `value` takes 0 when it is the
+first, and otherwise one more than the highest value before it, whatever its
+`if-feature`. goyang starts its count at 0 after a negative value, so after
+`enum p { value -5; }` it assigns the next enum 0 where the RFC assigns -4. A
+restriction, however many typedefs down, keeps the root's values. Both checks
+above, the schema node's enum list (`EnumNamesDeclared`) and a command
+argument's (`argDefFor`) read that one assignment, and the two lists are in
+value order. An enumeration in a grouping no schema node uses is still checked
+for its values. A restricted enumeration that sits in such a grouping
 is never resolved by goyang, restricts nothing, and is not checked. goyang
 does resolve the type a `length` restricts in such a grouping, so its `min`
 and `max` read the typedef's bounds there too; a `length` over a typedef that
@@ -187,6 +200,7 @@ goyang left unresolved and that names `min` or `max` is refused as unresolved
 rather than checked against a guessed span.
 
 <!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
+<!-- source: internal/component/config/yang/enum_assignment.go -- parseEnumAssignment, assignEnumValues -->
 <!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
 <!-- source: internal/component/config/yang/loader_abnf.go -- parseYANGGrammar, rfc7950Grammar -->
 <!-- source: internal/component/config/yang/loader_grammar.go -- argumentCheckers, checkURI, checkPathArg -->

@@ -660,7 +660,11 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	node.Backend = getBackendExtension(entry)
 	node.Related = extractRelatedTools(entry, path)
 	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
-		node.Enums = yang.EnumNamesDeclared(entry.Type.Enum)
+		enums, err := yang.EnumNamesDeclared(entry)
+		if err != nil {
+			recordSchemaBuildError(fmt.Errorf("at %s: %w", path, err))
+		}
+		node.Enums = enums
 	}
 	node.Ranges = numericRangesFromType(entry.Type, path)
 	node.Patterns = patternsFromType(entry.Type)

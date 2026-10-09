@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -26,6 +25,9 @@ var ErrLengthOrder = errors.New("YANG length parts not disjoint and ascending")
 // builds the restricted type's values afresh from the restricting statements
 // and never compares them with the base type.
 var ErrEnumRestriction = errors.New("YANG enum restriction departs from the base type")
+
+// ErrEnumValue marks an enumeration whose assigned values break RFC 7950.
+var ErrEnumValue = errors.New("YANG enum value invalid")
 
 // ErrExtensionSubstatement marks a substatement under an extension statement
 // that is not a YANG statement, that the block holding it does not admit, or
@@ -218,24 +220,33 @@ func lengthBound(text string, restricted lengthSpan) (uint64, error) {
 	return value, nil
 }
 
-// moduleEnumErrors returns one error for each `enum` statement in a restricted
-// enumeration of mod that departs from its base type.
+// moduleEnumErrors returns one error for each enumeration of mod whose values
+// RFC 7950 Section 9.6.4.2 forbids, and for each `enum` statement in a
+// restricted enumeration of mod that departs from its base type.
 //
-// A type goyang never resolved has no YangType: it sits in a grouping no
-// schema node uses, so it restricts nothing and is skipped.
+// goyang numbers an enum that follows a negative value from 0 and builds a
+// restricted type's values afresh from the restricting statements, so both
+// checks read the values parseEnumAssignment computes from the statements.
+// An enumeration is checked whether or not goyang resolved it: one in a
+// grouping no schema node uses is still a statement the RFC binds. A
+// restriction goyang never resolved has no YangType: it restricts nothing
+// this loader can follow, and is skipped.
 func moduleEnumErrors(mod *yang.Module) []error {
 	var errs []error
 	for _, typ := range moduleTypeNodes(mod) {
 		if len(typ.Enum) == 0 {
 			continue
 		}
+		if typ.Name == enumerationType {
+			if _, err := assignEnumValues(typ); err != nil {
+				errs = append(errs, fmt.Errorf("module %s: %w", mod.Name, err))
+			}
+			continue
+		}
 		if typ.YangType == nil {
 			continue
 		}
 		if typ.YangType.Kind != yang.Yenum {
-			continue
-		}
-		if typ.Name == "enumeration" {
 			continue
 		}
 		errs = append(errs, enumRestrictionErrors(mod, typ)...)
@@ -254,16 +265,23 @@ func moduleEnumErrors(mod *yang.Module) []error {
 // RFC 7950 Section 9.6.4.2: "When an existing enumeration type is restricted,
 // the "value" statement MUST either have the same value as in the base type
 // or not be present, in which case the value is the same as in the base type."
-// The base value is the root enumeration's, which every restriction keeps.
+// The base value is the one the root enumeration assigns (assignEnumValues),
+// which every restriction keeps.
 func enumRestrictionErrors(mod *yang.Module, typ *yang.Type) []error {
-	base, root := enumBases(typ)
+	base := nearestEnumBase(typ)
 	if base == nil {
 		return []error{fmt.Errorf("%w: module %s: %s: type %s restricts no enumeration",
 			ErrEnumRestriction, mod.Name, yang.Source(typ), typ.Name)}
 	}
+	assigned, err := parseEnumAssignment(base)
+	if err != nil {
+		return []error{fmt.Errorf("%w: module %s: %s: type %s: %w",
+			ErrEnumRestriction, mod.Name, yang.Source(typ), typ.Name, err)}
+	}
 	var errs []error
 	for _, enum := range typ.Enum {
-		if !slices.ContainsFunc(base.Enum, func(e *yang.Enum) bool { return e.Name == enum.Name }) {
+		baseValue, held := assigned.Value(enum.Name)
+		if !held {
 			errs = append(errs, fmt.Errorf("%w: module %s: %s: enum %q is not an assigned name of type %s",
 				ErrEnumRestriction, mod.Name, yang.Source(enum), enum.Name, typ.Name))
 			continue
@@ -271,7 +289,6 @@ func enumRestrictionErrors(mod *yang.Module, typ *yang.Type) []error {
 		if enum.Value == nil {
 			continue
 		}
-		baseValue := root.YangType.Enum.Value(enum.Name)
 		value, err := strconv.ParseInt(strings.TrimSpace(enum.Value.Name), 10, 64)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%w: module %s: %s: enum %q: value %q is not an integer",
@@ -286,21 +303,17 @@ func enumRestrictionErrors(mod *yang.Module, typ *yang.Type) []error {
 	return errs
 }
 
-// enumBases answers, for a restricted enumeration typ, the nearest type it
-// derives from that lists enum statements, whose names bound typ's, and the
-// root `enumeration` type whose values every restriction keeps. Each answer is
-// nil when the derivation reaches neither. The loop follows the typedef chain
-// goyang resolved, so its length is the module's derivation depth.
-func enumBases(typ *yang.Type) (base, root *yang.Type) {
+// nearestEnumBase answers, for a restricted enumeration typ, the nearest type
+// it derives from that lists enum statements, whose names bound typ's, or nil
+// when the derivation reaches none. The loop follows the typedef chain goyang
+// resolved, so its length is the module's derivation depth.
+func nearestEnumBase(typ *yang.Type) *yang.Type {
 	for node := typ.YangType.Base; node != nil; node = resolvedBase(node) {
-		if base == nil && len(node.Enum) > 0 {
-			base = node
-		}
-		if node.Name == "enumeration" {
-			return base, node
+		if len(node.Enum) > 0 {
+			return node
 		}
 	}
-	return base, nil
+	return nil
 }
 
 // resolvedBase answers the type node goyang resolved typ against, or nil when

@@ -87,21 +87,42 @@ func EnumValues(path string) ([]string, error) {
 	return nil, fmt.Errorf("resolve %s in the YANG model: no loaded module declares that path", path)
 }
 
-// EnumNamesDeclared answers the names of e in the order the module declares
-// them, which is the order of their values.
+// EnumNamesDeclared answers the names of entry's enumeration in the order of
+// the values RFC 7950 assigns them (parseEnumAssignment), which is the order
+// the module declares them in for every enumeration that states no value.
 //
 // goyang's Names sorts alphabetically and loses the declaration order, and a
 // surface that offers the values to an operator, such as a form dropdown, keeps
 // the module's order: the module puts the default first and groups what belongs
 // together. A surface that only asks whether a value is a member reads Names.
-func EnumNamesDeclared(e *gyang.EnumType) []string {
-	values := e.Values()
-	slices.Sort(values)
-	names := make([]string, len(values))
-	for i, value := range values {
-		names[i] = e.Name(value)
+// goyang's own values are not read: it numbers an enum after a negative value
+// from 0. The error names an entry that is no enumeration leaf, or whose
+// values the RFC forbids, which a loaded module cannot hold (checkStructure).
+func EnumNamesDeclared(entry *gyang.Entry) ([]string, error) {
+	declared := entryTypeStatement(entry)
+	if declared == nil {
+		return nil, fmt.Errorf("%w: entry declares no type statement", ErrEnumValue)
 	}
-	return names
+	assigned, err := parseEnumAssignment(declared)
+	if err != nil {
+		return nil, err
+	}
+	return assigned.namesByValue(), nil
+}
+
+// entryTypeStatement answers the type statement entry's leaf or leaf-list
+// writes, or nil for an entry that is neither or declares none.
+func entryTypeStatement(entry *gyang.Entry) *gyang.Type {
+	if entry == nil {
+		return nil
+	}
+	switch node := entry.Node.(type) {
+	case *gyang.Leaf:
+		return node.Type
+	case *gyang.LeafList:
+		return node.Type
+	}
+	return nil
 }
 
 // moduleNames answers every loaded module once, in name order, so two runs over
@@ -133,13 +154,7 @@ func EnumValueSummaries(entry *gyang.Entry) map[string]string {
 	if entry == nil {
 		return nil
 	}
-	var declared *gyang.Type
-	switch node := entry.Node.(type) {
-	case *gyang.Leaf:
-		declared = node.Type
-	case *gyang.LeafList:
-		declared = node.Type
-	}
+	declared := entryTypeStatement(entry)
 	if declared == nil {
 		return nil
 	}

@@ -1010,7 +1010,7 @@ func TestArgDefUnionSkipsUnknownKind(t *testing.T) {
 			{Kind: gyang.TypeKind(999)},
 			{Kind: gyang.Yuint8},
 		},
-	})
+	}, nil)
 	require.True(t, ok)
 	require.Len(t, def.UnionDefs, 1)
 	assert.Equal(t, command.ArgUint, def.UnionDefs[0].Kind)

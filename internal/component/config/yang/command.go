@@ -668,7 +668,7 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 	if leaf == nil || leaf.Type == nil {
 		return command.ArgDef{}, false
 	}
-	def, ok := yangTypeToArgDef(name, leaf.Type)
+	def, ok := yangTypeToArgDef(name, leaf.Type, entryTypeStatement(leaf))
 	if !ok {
 		return command.ArgDef{}, false
 	}
@@ -680,16 +680,33 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 	return def, true
 }
 
-// yangTypeToArgDef converts a goyang YangType into an ArgDef.
-func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
+// yangTypeToArgDef converts a goyang YangType into an ArgDef. declared is the
+// type statement goyang resolved yt from (declared.YangType is yt), or nil
+// when no statement is at hand.
+//
+// An enumeration's names are read from declared, in the order of the values
+// RFC 7950 assigns them (parseEnumAssignment): goyang's own EnumType numbers
+// an enum after a negative value from 0. An enumeration with no statement to
+// read, or whose values the RFC forbids, has no argument: a loaded module
+// holds neither (checkStructure), and offering names in an order no module
+// chose is the defect value order exists to prevent: an operator reads the
+// order in a generated usage line, and handleShowPolicyChain
+// (internal/component/bgp/plugins/cmd/policy/handler.go) documents
+// `[import|export]` in it.
+func yangTypeToArgDef(name string, yt *gyang.YangType, declared *gyang.Type) (command.ArgDef, bool) {
 	def := command.ArgDef{Name: name}
 
 	switch yt.Kind {
 	case gyang.Yenum:
 		def.Kind = command.ArgEnum
-		if yt.Enum != nil {
-			def.EnumValues = enumNames(yt.Enum)
+		if declared == nil {
+			return def, false
 		}
+		assigned, err := parseEnumAssignment(declared)
+		if err != nil {
+			return def, false
+		}
+		def.EnumValues = assigned.namesByValue()
 
 	case gyang.Yempty:
 		def.Kind = command.ArgFlag
@@ -721,7 +738,7 @@ func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
 	case gyang.Yunion:
 		def.Kind = command.ArgUnion
 		for _, member := range yt.Type {
-			sub, ok := yangTypeToArgDef(name, member)
+			sub, ok := yangTypeToArgDef(name, member, unionMemberStatement(declared, member))
 			if ok {
 				def.UnionDefs = append(def.UnionDefs, sub)
 				if sub.Kind == command.ArgEnum {
@@ -742,33 +759,24 @@ func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
 	return def, true
 }
 
-// enumNames lists a goyang EnumType's value names in the order the module
-// declares them.
-//
-// The order is the enum's own assigned integers, which YANG hands out as
-// last+1 when a module states no `value`. So the sort below is declaration
-// order for every enum in this repository, and the module's stated order for
-// any that numbers its values by hand.
-//
-// It is the order an operator reads in a generated usage line, and it is what
-// makes `[import|export]` come out the way handleShowPolicyChain
-// (internal/component/bgp/plugins/cmd/policy/handler.go) documents it. Sorting
-// on the NAME renders a set no module chose, which is the same defect
-// extractArgDefs above already stopped making for leaves.
-func enumNames(enum *gyang.EnumType) []string {
-	if enum == nil || len(enum.ToString) == 0 {
-		return nil
+// unionMemberStatement answers the type statement, among the members of the
+// union declared resolves to, that goyang resolved member from, or nil when
+// none did. goyang drops a member equal to an earlier one (types.go,
+// Type.resolve), so YangType.Type and the statements do not pair by index;
+// they pair by the YangType each member statement holds. The union's members
+// sit on declared itself, or, for a typedef of a union, on the statement at
+// the end of the YangType.Base chain, which typeDepthMax bounds.
+func unionMemberStatement(declared *gyang.Type, member *gyang.YangType) *gyang.Type {
+	node := declared
+	for depth := 0; node != nil && depth <= typeDepthMax; depth++ {
+		for _, statement := range node.Type {
+			if statement.YangType == member {
+				return statement
+			}
+		}
+		node = resolvedBase(node)
 	}
-	values := make([]int64, 0, len(enum.ToString))
-	for value := range enum.ToString {
-		values = append(values, value)
-	}
-	slices.Sort(values)
-	names := make([]string, 0, len(values))
-	for _, value := range values {
-		names = append(names, enum.ToString[value])
-	}
-	return names
+	return nil
 }
 
 // applyRange converts each YangRange segment into a UintRange on the ArgDef.
