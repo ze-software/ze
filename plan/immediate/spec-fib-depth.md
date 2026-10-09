@@ -2,10 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
-| Depends | spec-vrf-0-umbrella.md |
+| Status | ready |
+| Depends | - |
 | Phase | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-10-09 |
+
+Set aside 2026-10-09 (owner: "fib depth can be picked when we are back to two specs in dev"): pick it up when only two specs are in development. Depends no longer names `spec-vrf-0-umbrella.md`, because the 2026-10-08 owner decision moved AC-4, AC-8, AC-9 and the TableID producer to `plan/immediate/spec-fib-nexthop-objects-vpp-metric.md` and no remaining AC needs a VRF table. Next: the functional and interop evidence for AC-1, AC-2, AC-3, AC-5, AC-6, AC-7 and AC-10 to AC-15, notably AC-13 cost-change reselection and AC-15 kernel/VPP backend parity.
 
 The July 22 review recorded SRv6 (learned 1113), ECMP (learned 774) and VPP
 parity (learned 798) as delivered while the header still said `7/12`.
