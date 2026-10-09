@@ -75,6 +75,32 @@ Follow-ups outside Phase 1, each already recorded:
 - Grammar R1: five root commands (`explain`, `generate wireguard keypair`, `skills`, `support`, `validate config`) need an owner grammar decision (`plan/journal/gate-red-where-nothing-blocks-on-it.md`).
 - `go mod vendor` would revert the hand-patched netlink (`f0d9c75df4`): patch `vendor/` by hand.
 
+## Open: closing the link-flap test spec
+
+`plan/spec-fixit-flap-test-cannot-build-its-own-stimulus.md` is `in-progress`.
+Its "Evidence 2026-10-09" section (`a7ca55d1bf`) records one green run of
+`iface-link-flap-during-commit` on an amd64 KVM guest against `98ee050ee9`, and
+a forced red that proves the overlap guard. Resume file:
+`tmp/session/2026-10-09-12d06ccf-2460-42c7-a707-30bb0a427796/state/session-state-spec-fixit-flap-test-cannot-build-its-own-stimulus-12d06ccf-2460-42c7-a707-30bb0a427796.md`.
+Work it in this session, not a new agent. Remaining:
+
+- The zero-drops assertion has no red. A 4 KiB monitor buffer failed on the
+  coalescing assertion instead, and a 4 KiB counter socket stayed green. Likely
+  fix: read `netlinkDrops08` every round in `ifaceLinkFlap08`
+  (`internal/test/fixture/plugin_fixture_08_flap.go`), before the coalescing
+  check, then force the red again.
+- More than one green run, for the load-dependent drop concern.
+- Add the Deliverables, Security and Documentation checklists the spec lacks.
+  Then `/ze-close`: `/ze-review`, `./le spec review record` and `check`,
+  commits A and B.
+- Commit A repoints the spec-path citation in
+  `plan/handover-verification-debt-4526b941.md` (its "resolved but not closed"
+  bullet).
+- `./le verify worktree` has never run over this work.
+- A forced red runs only in a private `git clone --depth 1` of HEAD, never in
+  the shared tree. A `git archive` export fails, because `le test qemu run`
+  fingerprints HEAD. The run recipe is in the resume file.
+
 ## Delete this handover
 
 When spec 2 is claimed, this file has done its job: remove it in that session's
