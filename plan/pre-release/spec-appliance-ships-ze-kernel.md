@@ -48,6 +48,7 @@ AC-15 depends on this spec.
 | every resolver call | rewrites `tmp/kernel/build` (`runtimeKernelOutputDir`); an output dir, not a cache | n/a; redirected by `ZE_KERNEL_TEST_OUTPUT_DIR` |
 
 -> Open (owner): the GPLv2 source offer for the shipped kernel. The owner asked what it is and is having it explained; this spec does not decide it (R-7).
+-> Decision (owner, 2026-10-09, closes the open GPLv2 question above and R-7): Ze complies by pointing users to the published Linux source. Each appliance image carries a notice that it contains Linux under GPLv2, naming the exact kernel.org version and the source tarball URL with its SHA-256; the kernel config, the patch series (`gokrazy/kernel/patches/`) and the build scripts are in the public Ze repository. The kernel source is not re-published. The notice, version, URL and checksum derive from the same declaration the build uses (`internal/appliance/kernel.version` and the tarball SHA-256 pin of AC-8/AC-9), so the notice cannot drift from the kernel built (AC-17).
 -> Decision (owner): "ignore n100 atm". N100 (amd64) is a supported BUILD target; booting on N100 hardware is owner-deferred until the owner runs real hardware again. A-3's hardware half is therefore not evidence this spec owes; its QEMU half stands.
 -> Related: `plan/immediate/spec-appliance-kernel-vpn-modules.md` is a separate spec by owner decision; its AC-6/AC-7 (default-image claim) depend on this one.
 
@@ -57,6 +58,7 @@ AC-15 depends on this spec.
 | AC-14 | `./le scratch cache-clean` and store trim run with a populated `~/.cache/ze/runtime-kernel/` | every entry survives; a unit test asserts no clean or trim target resolves inside a kernel cache namespace |
 | AC-15 | runtime-kernel cache holding an arm64 and an amd64 entry; two further arm64 builds of new variants | the amd64 entry survives, and the entry the current tree's variant names is never evicted for either arch (eviction keeps the newest per arch) |
 | AC-16 | `docs/contributing/running-commands.md` "When the disk is full" | names the kernel cache, states it is not a reclamation target and why (a cold rebuild is about 30 minutes) |
+| AC-17 | any `ze appliance build` image | carries a GPLv2 notice naming Linux, the exact kernel.org version, the tarball URL and its SHA-256, all derived from `kernel.version` and the tracked digest pin the worker verifies; a test builds the notice and asserts its version equals the built kernel's `kernel.version` provenance and its URL and digest equal the ones `downloadKernelSource` used |
 
 ## Required Reading
 

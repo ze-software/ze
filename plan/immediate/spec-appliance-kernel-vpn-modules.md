@@ -38,6 +38,11 @@ again; it is not part of this work's evidence and not a gap this spec chose.
 -> Open (owner): the GPLv2 source offer for the shipped kernel. The owner asked
 what it is; it is explained to him and NOT decided here. It belongs to
 `spec-appliance-ships-ze-kernel.md` (R-7), which changes who distributes the kernel.
+-> Decision (owner, 2026-10-09, closes the line above): GPLv2 compliance points
+users to the published Linux source through a per-image notice (version, tarball
+URL, SHA-256, derived from the build's own declaration). Recorded with its AC in
+`spec-appliance-ships-ze-kernel.md` (AC-17). This spec ships no image of its own,
+so it owes no notice AC; its config changes ride in the image that spec builds.
 
 Goal: every kernel facility Ze's IPsec and WireGuard code asks for is BUILT IN to
 Ze's runtime kernel on both arches, the build refuses a config that drops one, the
@@ -315,7 +320,7 @@ N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates
 
 ## Known Limitations
 - N100 hardware boot: owner-deferred (decision above), not evidence for this spec.
-- GPLv2 source offer: open owner question, held by `spec-appliance-ships-ze-kernel.md`.
+- GPLv2 source offer: decided by the owner 2026-10-09, carried by `spec-appliance-ships-ze-kernel.md` AC-17.
 
 ## Checklist
 
