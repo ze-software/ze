@@ -130,9 +130,8 @@ func TestResolveAcceptsParentExtensionInSubmodule(t *testing.T) {
 }
 
 // TestDefaultLoaderSurfacesUndeclaredExtension: a registered module carrying
-// `ze:hepl` makes DefaultLoader fail, although DefaultLoader discards the
-// other registered-module and import errors as best-effort. Method: append a
-// probe to the package registry for this test only.
+// `ze:hepl` makes DefaultLoader fail with ErrUndeclaredExtension. Method:
+// append a probe to the package registry for this test only.
 func TestDefaultLoaderSurfacesUndeclaredExtension(t *testing.T) {
 	saved := modules
 	t.Cleanup(func() { modules = saved })

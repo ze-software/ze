@@ -108,9 +108,8 @@ includes, does not declare with an `extension` statement. The allowed set is
 those declarations, so a module that declares its own extension, as
 `ze-traffic-control-conf` does, needs no change here. Each refusal wraps
 `ErrUndeclaredExtension` and names the module, the file location and the
-statement. `DefaultLoader`, which discards the other registered-module and
-import errors as best-effort, returns this one, so the daemon, the CLI and the
-`./le` tools all refuse the same schema. These callers return the error with
+statement. `DefaultLoader` returns this one with every other failure, so the
+daemon, the CLI and the `./le` tools all refuse the same schema. These callers return the error with
 its cause and never work from the nil loader: an SSH session and the config
 editor refuse to build their completion tree, `ze help ai` and the MCP
 `ze_reference` tool fail, `ze yang` fails, interface-name validation fails
@@ -274,7 +273,7 @@ published under no name, and the command contract gate refuses it.
 
 YANG modules are loaded in two phases at startup.
 
-<!-- source: internal/component/config/yang/loader.go -- LoadEmbedded, LoadRegistered -->
+<!-- source: internal/component/config/yang/loader.go -- LoadEmbedded, LoadRegistered, DefaultLoader -->
 
 ### Phase 1: Embedded (bootstrap)
 
@@ -291,7 +290,21 @@ YANG modules are loaded in two phases at startup.
 `yang.RegisterModule(name, content)`. Each component embeds its own `.yang` files
 and registers them at import time.
 
+`LoadRegistered()` attempts every registered module and joins every parse
+error, each naming its module, so one broken module does not hide the modules
+registered after it.
+
 After both phases, `Resolve()` resolves all cross-module imports via goyang.
+
+`DefaultLoader()` runs both phases and `Resolve()`, and it is strict: nothing is
+best-effort. A registered module that does not parse, an import that no linked
+package registers, an undeclared extension, an uncompilable pattern and a
+refused structure each come back, joined, and `DefaultLoader` then answers no
+loader. Its callers return or report that error and never serve a schema that
+silently lacks a module. A binary links every module a linked module imports,
+because the generated `register.go` of each `yang/` package blank-imports the
+packages registering its modules' imports (`command-ownership.md`, "YANG as
+Data, Not Code").
 
 ### Registration Pattern
 

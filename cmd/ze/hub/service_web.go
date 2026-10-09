@@ -351,19 +351,25 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		return nil, nil
 	}
 
-	var commandTree *command.Node
+	// The operational command tree comes from the same registered modules as
+	// the schema, and DefaultLoader is strict: a module that fails to load
+	// disables the server, as a schema failure does, rather than serving a UI
+	// whose command tree silently lacks it.
+	loader, loaderErr := yangloader.DefaultLoader()
+	if loaderErr != nil {
+		var tb textbuf.Buffer
+		tb.Str("warning: web server disabled: operational command tree: ").Err(loaderErr).Byte('\n').StdErr() //nolint:errcheck // a warning to stderr has nowhere further to report
+		return nil, nil
+	}
+	commandTree := yangloader.BuildCommandTree(loader)
 	// Strict ze:related validation against the full operational command
 	// tree. Surfaces typos and renamed-command drift at hub startup so
 	// operators see the diagnostic before any workbench click. Logged as
 	// a warning (not fatal) so a single drifted descriptor never prevents
 	// the hub from serving the rest of the UI.
-	if loader, loaderErr := yangloader.DefaultLoader(); loaderErr == nil {
-		commandTree = yangloader.BuildCommandTree(loader)
-		if validateErr := zeconfig.ValidateSchemaAgainstCommandTree(schema, commandTree); validateErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: ze:related validation: %v\n", validateErr)
-		}
-	} else {
-		fmt.Fprintf(os.Stderr, "warning: operational command tree unavailable: %v\n", loaderErr)
+	if validateErr := zeconfig.ValidateSchemaAgainstCommandTree(schema, commandTree); validateErr != nil {
+		var tb textbuf.Buffer
+		tb.Str("warning: ze:related validation: ").Err(validateErr).Byte('\n').StdErr() //nolint:errcheck // a warning to stderr has nowhere further to report
 	}
 
 	// Ensure a config file exists for the editor.
@@ -397,17 +403,15 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		})
 	}
 
+	// Plugin commands are overlaid live per completion request (plugins
+	// register after the web service is built, and may come and go), so the
+	// YANG tree stays immutable and completion always reflects the current
+	// registry. YANG-only when there is no plugin source (web-only mode).
 	var commandCompleter zeweb.CommandCompleter
-	if commandTree != nil {
-		// Plugin commands are overlaid live per completion request (plugins
-		// register after the web service is built, and may come and go), so the
-		// YANG tree stays immutable and completion always reflects the current
-		// registry. YANG-only when there is no plugin source (web-only mode).
-		if commandEntries != nil {
-			commandCompleter = newPluginAwareCommandCompleter(commandTree, commandEntries)
-		} else {
-			commandCompleter = cli.NewCommandCompleter(commandTree)
-		}
+	if commandEntries != nil {
+		commandCompleter = newPluginAwareCommandCompleter(commandTree, commandEntries)
+	} else {
+		commandCompleter = cli.NewCommandCompleter(commandTree)
 	}
 	// Create CLI completer for Tab/? autocomplete.
 	completer := cli.NewCompleter()

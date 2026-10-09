@@ -1,6 +1,7 @@
 package yang
 
 import (
+	"slices"
 	"testing"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -510,4 +511,39 @@ func TestLoaderNamesEachModuleOnce(t *testing.T) {
 	// the revisioned module under two keys, and the loader answers one.
 	require.NotNil(t, loader.GetModule("ze-fixture-revision@2026-08-31"),
 		"goyang no longer stores the revision key: this guard is measuring nothing")
+}
+
+// TestDefaultLoaderReportsEveryRegisteredFailure: DefaultLoader is strict. A
+// registered module that fails to parse, registered before a valid module that
+// imports a module nobody registers, yields no loader and an error naming both
+// failures. Method: replace the package registry for this test only; the
+// unresolved import is reported only if the module after the parse failure
+// was still parsed.
+//
+// VALIDATES: AC-24. LoadRegistered attempts every module and joins every
+// parse error; DefaultLoader returns the LoadRegistered and import-resolution
+// errors and no value.
+// PREVENTS: a startup that silently serves a schema missing every module
+// registered after a broken one, or missing a module whose import is absent.
+func TestDefaultLoaderReportsEveryRegisteredFailure(t *testing.T) {
+	saved := modules
+	t.Cleanup(func() { modules = saved })
+	modules = append(slices.Clone(saved),
+		Module{Name: "ze-probe-broken.yang", Content: "module ze-probe-broken {\n    namespace \"urn:ze:probe-broken\";\n    prefix broken;\n    leaf {\n"},
+		Module{Name: "ze-probe-late.yang", Content: `module ze-probe-late {
+    namespace "urn:ze:probe-late";
+    prefix late;
+    import ze-probe-absent { prefix absent; }
+    leaf late { type absent:missing; }
+}`},
+	)
+
+	loader, err := DefaultLoader()
+	if err == nil {
+		t.Fatal("DefaultLoader answered no error over a broken module and an unresolved import")
+	}
+	if loader != nil {
+		t.Errorf("DefaultLoader answered a loader beside its error: %v", err)
+	}
+	assertNames(t, err, "ze-probe-broken.yang", "ze-probe-absent")
 }

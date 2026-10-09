@@ -16,25 +16,19 @@ import (
 )
 
 // DefaultLoader creates a Loader with all embedded and registered modules
-// loaded and resolved. Registered module and import resolution errors are
-// discarded as best-effort: the command tree only needs the -cmd.yang modules,
-// which import ze-extensions (embedded), not the full conf/api module set.
-//
-// An extension statement that no loaded module declares is NOT best-effort.
-// Ze's extension readers match a statement by its keyword, so a misspelled
-// `ze:comand` would load and the feature it names would be absent in silence.
-// DefaultLoader returns that error, and the errors embedded loading reports.
-// A pattern compilePattern cannot compile is not best-effort either: the
-// command tree would otherwise hold an argument whose restriction vanished.
-// Nor is a structure checkStructure refuses.
+// loaded and resolved, and answers no Loader when anything failed. Nothing is
+// best-effort: a registered module that does not parse, an import nothing
+// registers, an undeclared extension, a pattern compilePattern cannot compile
+// and a structure checkStructure refuses each come back, joined, so the caller
+// cannot serve a schema that silently lacks a module or a restriction.
+// LoadRegistered attempts every module, so one broken module does not hide
+// the failures of the modules registered after it.
 func DefaultLoader() (*Loader, error) {
 	l := NewLoader()
 	if err := l.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("YANG LoadEmbedded: %w", err)
 	}
-	_ = l.LoadRegistered() // Best-effort: some modules may not be imported in this context
-	_ = l.process()        // Best-effort: unresolved modules are skipped by tree walker
-	if err := errors.Join(l.checkExtensions(), l.checkPatterns(), l.checkStructure()); err != nil {
+	if err := errors.Join(l.LoadRegistered(), l.Resolve()); err != nil {
 		return nil, err
 	}
 	return l, nil
@@ -141,14 +135,17 @@ func (l *Loader) LoadEmbedded() error {
 }
 
 // LoadRegistered loads all init()-registered YANG modules into the loader.
-// Call after LoadEmbedded() and before Resolve().
+// Call after LoadEmbedded() and before Resolve(). It attempts every module and
+// joins every parse error, each naming its module, so a module registered
+// after a broken one is still loaded and its own failure still reported.
 func (l *Loader) LoadRegistered() error {
+	var errs []error
 	for _, mod := range modules {
 		if err := l.AddModuleFromText(mod.Name, mod.Content); err != nil {
-			return err
+			errs = append(errs, fmt.Errorf("registered YANG module %s: %w", mod.Name, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // AddModuleFromText adds a YANG module from text content.
