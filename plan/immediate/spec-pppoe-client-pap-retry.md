@@ -54,10 +54,17 @@ disabled (RFC1334-2.2.1-2 and RFC1334-2.2-1, both polarities) in
 `rfc1661_lcp_reply_test.go` tags with `session.go::negotiateLCP` disabled in
 `rfc/discrimination/rfc1661.json`.
 
-Owed before closure: no interoperability scenario exercises PAP. Scenario
-`01-pppoe-chap-ipv4` (Ze client against accel-ppp) authenticates with CHAP-MD5.
-`ai/rules/interop-and-goal-validation.md` requires a Ze-client scenario against
-accel-ppp configured for PAP, asserting authentication, IPCP and teardown.
+Interoperability: scenario `pppoe-pap-ze-client`
+(`internal/le/interoplab/pppoe/check_client.go`, `checkZeClientPAP`) dials
+accel-ppp loading `auth_pap` and no CHAP module. It runs the whole
+`01-pppoe-chap-ipv4` proof (one `pppN`, address 10.11.0.2 peer 10.11.0.1,
+route, accel-ppp session, ICMP, session removed after Ze stops), then requires
+`recv [PAP AuthReq` and `send [PAP AuthAck` in accel-ppp's own trace with no
+CHAP. Forced red, 2026-10-09: `writeClientPAPRequest` made to return `nil`
+before writing, Ze image rebuilt by the lab run: FAIL "ppp0 address mismatch
+... got \"\"" (no IPCP without PAP). Restored and rebuilt:
+`interop: 1 passed, 0 failed`. The lab cannot drop a frame on demand, so the
+retry itself stays proven by the discriminated unit tests above.
 
 The parent also assigned client-side LCP reply correlation to this file.
 `negotiateLCP` retains the sent request, calls `ppp.ValidateLCPReply`, preserves an
@@ -83,4 +90,203 @@ Echo requests remain silent until LCP has opened. Reader delivery is cancellable
 for both frames and errors when its four-frame queue fills. Additional unrun
 tests are `TestClientLCPRepliesInAckReceived`, `TestClientLCPRefusalRevokesPeerAck`,
 `TestClientLCPEchoBeforeOpenDiscarded` (RFC1661-5.8-2) and
-`TestSessionReaderStopsWithFullQueue`.
+`TestSessionReaderStopsWithFullQueue`. These and the coverage named in the
+previous paragraph are in `pppoeclient` and ran in the 2026-10-09
+`go test -race` pass of that package.
+
+## Required Reading
+
+- [ ] `rfc/full/rfc1334.txt` Section 2.2.1 -> Constraint: "The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires."
+- [ ] `docs/architecture/l2tp/cpe-1-pppoe-client.md` -> Decision: the design document `session.go` declares; client PPP negotiation runs in `pppoeclient`.
+- [ ] `docs/labs/pppoe-interop.md` -> Decision: interop proof runs against accel-ppp in the PPPoE Docker lab.
+
+## Current Behavior
+
+- [ ] `internal/component/l2tp/pppoeclient/session.go` -- `runClientAuth` sends the PAP request, repeats it every `papRetryInterval` up to `papRequestsMax`, and accepts only a valid reply carrying the latest Identifier.
+
+## Data Flow
+
+### Entry Point
+`interface { pppoe-client <name> { authentication { ... } } }` dials; the AC demands PAP in LCP.
+
+### Transformation Path
+`negotiateLCP` records the auth protocol; `runClientAuth` builds the request with `buildPAPAuthRequest`, writes it with `writeClientPAPRequest`, and retries on its timer until a matching Ack or Nak.
+
+### Boundaries Crossed
+Config to the client session, then the PPPoE session socket to the AC.
+
+### Integration Points
+The client's LCP negotiation (`negotiateLCP`) chooses PAP when the AC asks for it.
+
+## Wiring Test
+
+| Entry Point -> Feature Code -> Test |
+|-------------------------------------|
+| `runClientAuth` -> PAP retry timer -> `TestClientPAPRetriesUntilMatchingReply` |
+| `ze start` with a `pppoe-client` interface against a PAP-only AC -> `runClientAuth` -> Docker lab `pppoe-pap-ze-client` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+
+| Test | File | Requirement |
+|------|------|-------------|
+| `TestClientPAPRetriesUntilMatchingReply` | `internal/component/l2tp/pppoeclient` | RFC1334-2.2.1-2 |
+| `TestClientPAPDiscardsInvalidReplies` | `internal/component/l2tp/pppoeclient` | reply validation |
+| `TestClientPAPRetryLimit` | `internal/component/l2tp/pppoeclient` | bounded retry |
+
+## Files to Modify
+
+- `internal/component/l2tp/pppoeclient/session.go` (landed in `d115e0a1d4`).
+- Closure: `internal/le/interoplab/pppoe/check_client.go`, `pppoe.go`, `test/interop-pppoe/scenarios/pppoe-pap-ze-client/`, `test/interop-pppoe/pppoe_parity_test.go`, `docs/labs/pppoe-interop.md`.
+
+## Implementation Steps
+
+1. PAP retry and reply correlation in `runClientAuth` (done, `d115e0a1d4`).
+2. Discrimination records (done, `2961683671`).
+3. Closure: interop scenario `pppoe-pap-ze-client` and its forced red (2026-10-09).
+
+## Checklist
+
+- [ ] Tests written: the PAP and LCP client tests and the lab checker tests exist.
+- [ ] Tests FAIL: unit tags observed red (`rfc/discrimination/rfc1334.json`, `rfc1661.json`); the lab observed red with the client PAP write disabled.
+- [ ] Tests PASS: `go test -race` over `pppoeclient`; lab 1 passed.
+- [ ] `./le verify worktree`: owed to the main thread; this closure agent may not run a whole-tree gate.
+
+### Integration Checklist
+
+| Item | Evidence |
+|------|----------|
+| The client selects PAP when the AC demands it | `negotiateLCP` records `authProto`; the lab session came up against an `auth_pap`-only accel-ppp |
+
+## Deliverables Checklist
+
+| Deliverable | Verification method | Result |
+|-------------|---------------------|--------|
+| Lost exchange retried, Identifier changed | `TestClientPAPRetriesUntilMatchingReply` | pass (race), discriminated |
+| Retry bounded | `TestClientPAPRetryLimit` | pass |
+| Ze's client authenticates with PAP against accel-ppp | `ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-client ./le test deployment docker-pppoe-accel-test` | 1 passed; red with the PAP write disabled |
+
+## Security Review Checklist
+
+| Concern | Check | Result |
+|---------|-------|--------|
+| A silent or hostile AC causing unbounded retries | `papRequestsMax` and the overall auth timeout | bounded (`TestClientPAPRetryLimit`) |
+| A stale or forged reply authenticating | Identifier must match the latest request | refused (`TestClientPAPDiscardsInvalidReplies`) |
+| Password in the lab log | accel-ppp logs the user name only | no secret in the checked trace |
+
+### Documentation Update Checklist
+
+| Category | Update needed | Where |
+|----------|---------------|-------|
+| Test infrastructure | Yes, this closure | `docs/labs/pppoe-interop.md`: Running list and the `pppoe-pap-ze-client` section |
+| RFC compliance | No further edit | `rfc/short/rfc1334.md` updated in `2961683671` |
+| Config, CLI, API, wire format | No | no YANG, `cmd/` or wire change |
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Product code and unit tests: `d115e0a1d4`; discrimination: `2961683671`.
+- Closure: interop scenario `pppoe-pap-ze-client`, pinned in `test/interop-pppoe/pppoe_parity_test.go`.
+
+### Bugs Found/Fixed
+- None in the product. Lab: accel-ppp writes session messages (LCP, PAP) to its general log only with `[log] copy=1`, which the scenario's `accel-ppp.conf` sets.
+
+### Documentation Updates
+- `docs/labs/pppoe-interop.md`.
+
+### Deviations from Plan
+- None.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| RFC1334-2.2.1-2 | Done | `pppoeclient/session.go::runClientAuth` | unit + interop |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| the five rows under Implementation and verification | Done | the named tests | race pass 2026-10-09 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the PAP client tests | Done | `internal/component/l2tp/pppoeclient` | |
+| `pppoe-pap-ze-client` | Done | `internal/le/interoplab/pppoe/check_client.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `pppoeclient/session.go` | Done | `d115e0a1d4` |
+
+### Audit Summary
+- **Total items:** 3
+- **Done:** 3
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The client recovers from a lost PAP request or reply without redialling | unit, discriminated | `TestClientPAPRetriesUntilMatchingReply`, observed red with `runClientAuth` reverted (`rfc/discrimination/rfc1334.json`) |
+| The changed PAP client interoperates | interop, forced red | `pppoe-pap-ze-client` passed against accel-ppp `auth_pap`; with `writeClientPAPRequest` disabled the session got no address |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/pppoe-client-pap-retry-12d06ccf-2460-42c7-a707-30bb0a427796.md` (16 files, verdict clean) |
+| `./le spec review check` | run after recording, over the same 16 files |
+| Rounds | 1 |
+| Reviewer lenses used | wiring of `checkZeClientPAP` into `checkers()`; evidence strength (accel-ppp's own trace, not Ze's log); bounded log read (`accelTraceLines`); style pass over the changed Go. The lab code was reviewed by the agent that wrote it: an independent pass is owed by the main thread |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | 0 BLOCKER, 0 ISSUE | | |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/interop-pppoe/scenarios/pppoe-pap-ze-client/accel-ppp.conf` | yes | new, pinned |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| interop | PAP client green | `pppoe-pap-ze-client`: 1 passed (2026-10-09) |
+| lab unit | pins and evidence parsers | `go test -tags ze_l2tp ./internal/le/interoplab/pppoe/ ./test/interop-pppoe/`: ok |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze start` with a `pppoe-client` interface | Docker lab `pppoe-pap-ze-client` | yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| none declared | n/a | the spec lists no A-N rows |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/labs/pppoe-interop.md` `pppoe-pap-ze-client` | `check_client.go::checkZeClientPAP` | yes |
