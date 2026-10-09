@@ -34,6 +34,30 @@ built from the tracked `runtime.config` at the same commit, and the rtr7 kernel
 leaves the build entirely. `plan/immediate/spec-kernel-capability-gate.md`
 AC-15 depends on this spec.
 
+### Owner decisions, second round (2026-10-09)
+
+-> Decision (owner): kernel route (b) confirmed: "we want to control the modules so we need to compile our own kernel". No published kernel module (option a) and no download tier (option c).
+-> Decision (owner): every kernel is built on a host of its own arch, with no CPU emulation: arm64 on the Mac, amd64 on the Linux host. Found at source: today the Docker backend passes `--platform linux/<arch>` (`internal/appliance/kernelbuilder/driver.go`, `dockerPlatforms`), which runs a foreign arch under emulation, and the QEMU backend falls back to `-accel tcg` when neither `hvf` nor `kvm` serves the target binary (`internal/appliance/kernelbuilder/qemu.go`, accelerator selection). Both routes are refused by AC-13.
+-> Decision (owner): a long cold first build is acceptable IF the result is cached and the cache is never deleted when space is reclaimed. Found at source, what removes kernel build output today:
+
+| Remover | What it touches | Reaches the runtime kernel cache? |
+|---------|-----------------|------------------------------------|
+| `evictKeepN` (`internal/appliance/cache.go`), run after every runtime build (`cmd_kernel.go`, `resolveRuntimeKernel`) and by `ze appliance kernel --evict-cache` | keeps the `evictKeepDefault` = 2 most recently modified entries of `~/.cache/ze/runtime-kernel/`, by mtime, ACROSS arches | Yes: two arm64 rebuilds evict the amd64 entry, and the reverse |
+| `./le scratch cache-clean` (`internal/le/scratch/cacheclean.go`, `cleanTargets`) | the checkout, shared, ambient and bootstrap Go caches and the lint cache | No today; nothing asserts it stays so |
+| store trim (`internal/le/scratch/storetrim.go`, `trimStores`, `livenessStores`) | Go cache entries by budget, dead session dirs and testbin sets under `tmp/` | No today; nothing asserts it |
+| every resolver call | rewrites `tmp/kernel/build` (`runtimeKernelOutputDir`); an output dir, not a cache | n/a; redirected by `ZE_KERNEL_TEST_OUTPUT_DIR` |
+
+-> Open (owner): the GPLv2 source offer for the shipped kernel. The owner asked what it is and is having it explained; this spec does not decide it (R-7).
+-> Decision (owner): "ignore n100 atm". N100 (amd64) is a supported BUILD target; booting on N100 hardware is owner-deferred until the owner runs real hardware again. A-3's hardware half is therefore not evidence this spec owes; its QEMU half stands.
+-> Related: `plan/immediate/spec-appliance-kernel-vpn-modules.md` is a separate spec by owner decision; its AC-6/AC-7 (default-image claim) depend on this one.
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-13 | `ze appliance kernel` (or a build that resolves it) for an arch other than the host's, with either backend | refuses before building, naming the host arch, the requested arch and that it is built on a host of that arch; never runs Docker with a foreign `--platform` nor QEMU under `tcg` |
+| AC-14 | `./le scratch cache-clean` and store trim run with a populated `~/.cache/ze/runtime-kernel/` | every entry survives; a unit test asserts no clean or trim target resolves inside a kernel cache namespace |
+| AC-15 | runtime-kernel cache holding an arm64 and an amd64 entry; two further arm64 builds of new variants | the amd64 entry survives, and the entry the current tree's variant names is never evicted for either arch (eviction keeps the newest per arch) |
+| AC-16 | `docs/contributing/running-commands.md` "When the disk is full" | names the kernel cache, states it is not a reclamation target and why (a cold rebuild is about 30 minutes) |
+
 ## Required Reading
 
 ### Architecture Docs
