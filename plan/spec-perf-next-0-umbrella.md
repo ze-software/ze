@@ -134,9 +134,22 @@ UPDATE/s, 296% CPU):
 | `buildModifiedPayload` | 0.18 s |
 | `Community..AppendText` | absent: no route is ever rendered while the looking glass answers an empty table |
 
-Open: why the looking glass answers no routes while bgp-rib handles every
-received UPDATE. Until that is fixed the guest run cannot pass and
-`Community.AppendText` cannot appear.
+**Resolved 2026-10-09: the empty table was cdb9cfb751's defect, already fixed.**
+The smoke-6 `ze` was built before cdb9cfb751 (`lg: fill the best-routes table`),
+whose looking glass sent `show bgp rib best <family>`, which bgp-rib refuses, and
+read the refusal as an empty table. The loopback reproduction above did not
+isolate that: its injector named `127.0.0.1` as NEXT_HOP, which RFC 7606
+treat-as-withdraw removes (`NEXT_HOP is not a unicast host address`, logged at
+Debug only), so no route reached Adj-RIB-In on any binary, and its CPU figures
+measured withdrawals, not stored routes. Rerun on loopback with next hop
+`10.9.9.9` and the full profile config (1,000 varied UPDATEs): the smoke-6
+binary answers `routes/table` `total_results: 0` beside `routes/protocol/127.0.0.1`
+`1000`; a HEAD `c3adad6f66` build answers `1000` on both. The guest's next hop
+`172.31.0.3` is the injector's own address on the shared /24, which the RFC 4271
+Section 6.3 check accepts. The guest run is unblocked; it still has to be rerun.
+Journal: `silent-fall-through.md` (Debug-only treat-as-withdraw) and
+`zero-value-as-valid-answer.md` (`routes/protocol/{name}` by configured name
+answers 0 routes).
 
 **Measurement route (AC-1 then AC-3), run by the owner on the Mac.** Both runs
 use the same guest size: set `ZE_QEMU_CPUS` and `ZE_QEMU_MEMORY` once (default
