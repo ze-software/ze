@@ -56,8 +56,8 @@ routes learned over a BGP session, and the design owes that answer before any
 code.
 
 **Why this is not one spec with the sender leaf.** The other unowned BMP leaf,
-`bmp/statistics-timeout`, is covered by
-`plan/immediate/spec-bmp-statistics-timeout-sends-no-report.md`. This spec is
+`bmp/statistics-timeout`, was covered by
+spec-bmp-statistics-timeout-sends-no-report, closed 2026-10-09. This spec is
 the BMP receiver, deciding what Ze does with routes it is told about. That one
 is the BMP sender, deciding what Ze emits to a collector. They share no code and
 no direction, so one change cannot fix both.

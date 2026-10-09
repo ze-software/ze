@@ -7,15 +7,15 @@
 | Name | BMP Delivery (RFC 7854) |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | RFC 7854 obligations the ledger marks Partial, statistics report on timeout (plan/immediate/spec-bmp-statistics-timeout-sends-no-report.md) |
+| Scope gaps | RFC 7854 obligations the ledger marks Partial |
 | Level | experimental |
 | Components | internal/component/bgp/plugins/bmp |
 | Real-path tests | test/plugin/bmp-sender-route-monitoring.ci, test/plugin/bmp-sender-peer-up-open.ci, test/plugin/bmp-sender-statistics.ci, test/plugin/bmp-sender-route-mirroring.ci, test/plugin/bmp-locrib.ci, test/plugin/bmp-sessions-show.ci |
 | Interop | bgp/bmp-frr, bgp/bmp-locrib-pmacct, bgp/bmp-statistics-pmacct |
 | RFCs | rfc7854 |
 | Docs | docs/guide/bmp.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the 256 MiB bound is txQueueLimitBytes = 256 << 20 in internal/component/bgp/plugins/bmp/txqueue.go |
-| Defect review | 2026-10-07: plan/immediate/spec-bmp-statistics-timeout-sends-no-report.md open; journal constant-reported-as-measured-state (Loc-RIB ORIGIN literal) taken as open |
+| Doc review | 2026-10-09: every source anchor in the Description resolves to its file and symbol; the 256 MiB bound is txQueueLimitBytes = 256 << 20 in internal/component/bgp/plugins/bmp/txqueue.go |
+| Defect review | 2026-10-09: spec-bmp-statistics-timeout-sends-no-report closed, the statistics-timeout leaf now drives a periodic Statistics Report (internal/component/bgp/plugins/bmp/statistics.go::sendStatisticsReports); journal constant-reported-as-measured-state (Loc-RIB ORIGIN literal) taken as open |
 | Extra criteria | supported: a collector that reads slower than Ze produces leaves the producer unblocked and resets at the byte bound = test/plugin/bmp-slow-collector-reset.ci |
 
 ## Description

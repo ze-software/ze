@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -81,12 +81,10 @@ space (`dedupSentSalt`, `dedupKey`), with the counter in a sibling map keyed the
 same way. That is one map per peer rather than two, and the tagged test compiles
 byte for byte as HEAD holds it.
 
-The implementation and pmacct evidence below were recorded on 2026-09-06.
-The functional table still records no green run for
-`test/plugin/bmp-sender-statistics.ci`, so verification and closure remain
-outstanding. The current tree contains `setStatisticsTimeout`,
-`statisticsLoop` and `sendStatisticsReports` in `statistics.go`; their presence
-does not discharge that functional gate. The interop scenario is
+The implementation and pmacct evidence below were recorded on 2026-09-06, and
+the functional gate was discharged at closure on 2026-10-09:
+`test/plugin/bmp-sender-statistics.ci` ran green, went red with the install
+call cut, and ran green again (Functional Tests table). The interop scenario is
 `test/interop/scenarios/bmp-statistics-pmacct/`; `bmp-frr` reads Ze's stream with
 Ze's own collector and cannot supply independent-decoder evidence.
 
@@ -249,12 +247,12 @@ Ze's own collector and cannot supply independent-decoder evidence.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bmp-sender-statistics` | `test/plugin/bmp-sender-statistics.ci` | An operator sets `statistics-timeout 1` and a collector reads two valid Statistics Reports, each carrying Stat Type 13 with the O flag clear | written; NOT RUN GREEN in this checkout -- every `.ci` that boots ze fails on another session's in-flight `ze-ddos-detect-conf` YANG edit, including the pre-existing `bmp-sender-route-mirroring` |
+| `bmp-sender-statistics` | `test/plugin/bmp-sender-statistics.ci` | An operator sets `statistics-timeout 1` and a collector reads two valid Statistics Reports, each carrying Stat Type 13 with the O flag clear | pass 2026-10-09 (`./le test bgp plugin -v --pattern bmp-sender-statistics`, test 152, 10.0s), and RED with the `setStatisticsTimeout` call in `applySenderConfig` cut (collector printed `BMP-COLLECTOR: done` with no valid report, FAIL in 21.3s), green again once restored |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bmp-statistics-pmacct` | `test/interop/scenarios/bmp-statistics-pmacct/` | FRR (the monitored BGP peer) and pmacct (the collector) | pmacct decodes ze's Statistics Report, attributes it to the FRR peer, reads the per-peer flags as Adj-RIB-In (the RFC 8671 Section 6.2 O flag as zero), and names stat type 13 out of its own table; and it reads more than one, so the reports are periodic | pass, and RED under a reverted wiring |
+| `bmp-statistics-pmacct` | `test/interop/scenarios/bmp-statistics-pmacct/` | FRR (the monitored BGP peer) and pmacct (the collector) | pmacct decodes ze's Statistics Report, attributes it to the FRR peer, reads the per-peer flags as Adj-RIB-In (the RFC 8671 Section 6.2 O flag as zero), and names stat type 13 out of its own table; and it reads more than one, so the reports are periodic | pass, and RED under a reverted wiring (2026-09-06); pass again 2026-10-09 after the checker stopped asserting pmacct's field order |
 
 ## Files to Modify
 - `internal/component/bgp/plugins/bmp/bmp.go` - `dedupSentSalt` and `dedupKey`, the `dedupCount` map, the two fields the ticker is held in, and the plugin's construction
@@ -462,3 +460,142 @@ Every enforcing site carries its RFC citation in the code:
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `statistics.go`: `setStatisticsTimeout` (the one place a ticker starts or stops), `statisticsLoop`, `sendStatisticsReports`, and `statTypeDuplicateUpdates` (Stat Type 13, the only type ze measures). Landed in `10d66f9dbd`.
+- `bmp.go`: `dedupSentSalt`, `dedupKey` and the `dedupCount` map; `bmp_events.go`: `duplicateUpdate` counts the received direction only, and `handleSenderUpdate` measures it whenever an interval is configured, whatever the policy.
+- `sender_config.go::applySenderConfig` installs the interval from `senderConfig.StatisticsTimeout`.
+- `test/plugin/bmp-sender-statistics.ci` with the `statistics` collector mode (`plugin_fixture_04_bmp.go::validateStatistics04`), and the interop scenario `bmp-statistics-pmacct`.
+- Closure (2026-10-09): the functional test run green and discriminated, the interop scenario re-run, `features/bmp-delivery.md` and the route-action spec citer updated, the journal row in `plan/journal/test-against-broken-path.md` marked as no longer reproducing.
+
+### Bugs Found/Fixed
+- Sent and received bodies shared one dedup hash space, so a body ze advertised counted as a received duplicate and a received body suppressed a Route Monitoring ze owed in the sent direction. Fixed by the salt in `dedupKey`; covered by `TestBMPDuplicateUpdateCountsReceivedRepeatsOnly`.
+- `liveCollectorSession` (test helper) waited on `bp.sessions` without closing `stopCh`, which hung once the ticker joined that group; fixed in `rfc8671_test.go`.
+- Closure, 2026-10-09: the interop checker matched one contiguous needle copied from pmacct's 2026-09-06 msglog line. `pmacct/pmbmpd:latest` now prints `bmp_rib_type`, `is_filtered` and `bgp_id` between those fields, so the needle matched nothing while pmacct decoded every report (`interop-bmp-stats-2.log`: assertion 3 timed out over a msglog holding a stats line per second). Root cause at the producer: `names.go::pmacctStatisticsReport` asserted pmacct's field order, which is not a pmacct contract. Fixed: it is now a `grep -F` pipeline, one filter per field, so every field is still read off one line in any order; `check_extras.go` runs it under `sh -c` and waits for `pmacctDuplicateCounterName`. Covered by `TestStatisticsPMACCTCheckerReadsOneReportInAnyFieldOrder` (`check_statistics_pmacct_test.go`), which runs the scenario's own operation after `rewriteOperation` against both pmacct field orders and three negatives; it went red (`O_flag_set` matched) with the `is_post` and `is_in` filters removed, and green restored. `go test -race ./internal/le/interoplab/bgp/` ok 8.6s.
+
+### Documentation Updates
+- `docs/guide/bmp.md`: leaf table, message-type table, sender behavior list, bounce section (`10d66f9dbd`).
+- `rfc/short/rfc8671.md`, `rfc/extraction/rfc8671.json`: RFC8671-6.2-1 no longer a gap (`10d66f9dbd`).
+- `features/bmp-delivery.md` (this closure): Scope gaps drops the statistics clause; Defect review and Doc review re-dated 2026-10-09 with the source symbol `statistics.go::sendStatisticsReports`.
+- `./le doc check verify` (2026-10-09): red on findings outside this change set only, the wiki command catalog drift and five source anchors in `docs/features/cli-commands.md`, `docs/guide/command-reference.md`, `docs/guide/config-editor.md` and `docs/guide/graceful-restart.md`; none names a BMP page or symbol. `./le spec citation`: 17 dangling references, all in the netbox, web-workbench and rfc-verdict specs, none to this spec
+
+### Deviations from Plan
+- None in the design. The functional gate was discharged at closure rather than at implementation, because every `.ci` booting ze was red on another session's in-flight YANG edit on 2026-09-06.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | A per-peer struct holding two hash sets and the counter was written first | It changed a line inside an RFC-tagged test, which needs owner approval; salting the sent direction into the one map reaches the same correctness | `./le commit create` refused the tagged-test change | Reverted to the salt (Key Design Decisions) |
+| assumption | The interop needle copied pmacct's printed line whole, assuming its field order is stable | The image is `:latest` and its JSON field order changed | Closure interop run, 2026-10-09 | Per-field filter pipeline; the reason is in `pmacctStatisticsReport`'s comment |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Nonzero `statistics-timeout` sends a Statistics Report at that interval | Done | `statistics.go::setStatisticsTimeout`, `statisticsLoop`, `sendStatisticsReports` | |
+| 0 sends none | Done | `statistics.go::setStatisticsTimeout` | starts no ticker |
+| Report only a stat type ze measures | Done | `statistics.go::statTypeDuplicateUpdates`, `bmp_events.go::duplicateUpdate` | Stat Type 13 only |
+| The encoder gains a non-test caller | Done | `statistics.go::sendStatisticsReports` calls `sender.go::writeStatisticsReport` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC7854StatisticsTimeoutSendsPeriodicReports`, `bmp-sender-statistics.ci` | |
+| AC-2 | Done | `TestRFC7854StatisticsTimeoutZeroSendsNoReport` | |
+| AC-3 | Done | `TestBMPStatisticsReportCarriesTheDuplicateCounter`, `TestRFC8671StatisticsReportOnTheWireClearsTheOFlag` | |
+| AC-4 | Done | `TestBMPDuplicateUpdateCountsReceivedRepeatsOnly` | |
+| AC-5 | Done | `TestBMPStatisticsTimeoutRunsOneTickerAtATime` | |
+| AC-6 | Done | `TestBMPStatisticsMeasuresUnderAPolicyThatStreamsNothing` | |
+| AC-7 | Done | `TestBMPStatisticsTimeoutParsesEveryValueTheLeafAccepts` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the ten tests in `statistics_test.go` | Done | `internal/component/bgp/plugins/bmp/statistics_test.go` | `go test -race` ok 17.09s, 2026-10-09 |
+| `bmp-sender-statistics` | Done | `test/plugin/bmp-sender-statistics.ci` | green, red, green 2026-10-09 |
+| `bmp-statistics-pmacct` | Done | `test/interop/scenarios/bmp-statistics-pmacct/` | pass 2026-10-09 (`interop: 1 passed, 0 failed`) after the checker fix below |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file under Files to Modify and Files to Create | Done | `10d66f9dbd`; `docs/architecture/testing/interop.md` deliberately unedited, as planned. Closure also edits `internal/le/interoplab/bgp/names.go` and `check_extras.go` (checker fix) |
+
+### Audit Summary
+- **Total items:** 16
+- **Done:** 16
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A nonzero interval puts periodic Statistics Reports on the wire | functional, discriminated | `bmp-sender-statistics.ci` green 2026-10-09 (10.0s); RED with the `setStatisticsTimeout` call in `applySenderConfig` cut (collector `done` with no valid report, 21.3s); green restored |
+| Another implementation decodes them as Stat Type 13 with the O flag clear | interop | `INTEROP_SCENARIO=bmp-statistics-pmacct ./le test integration interop` passed 2026-10-09 against FRR and `pmacct/pmbmpd:latest`; pmacct printed one `"bmp_msg_type": "stats"` line per second for peer FRR, `"is_post": 0, "is_in": 1`, `"counter_type": 13`, `"counter_type_str": "Number of duplicate update messages received"`. The rewritten checker pipeline, run over that captured msglog, matches it and matches nothing with the stats lines removed, with the O flag set, or with another peer address. The reverted-wiring red of 2026-09-06 stands for ze's side |
+| 0 sends nothing | unit over the real config-apply path | `TestRFC7854StatisticsTimeoutZeroSendsNoReport` |
+| The counter is honest: received only, measured under every policy | unit | `TestBMPDuplicateUpdateCountsReceivedRepeatsOnly`, `TestBMPStatisticsMeasuresUnderAPolicyThatStreamsNothing` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Stat types other than 13 are not in scope (Known Limitations): each needs a counter ze does not hold | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bmp-statistics-timeout-sends-no-report-12d06ccf-2460-42c7-a707-30bb0a427796.md` |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | RFC 7854 Section 4.8 and RFC 8671 Section 6.2 text against `sendStatisticsReports` and `writeStatisticsReport`; counter direction in `duplicateUpdate` and `handleSenderUpdate`; goroutine lifecycle of `statisticsLoop` against `runBMPPlugin`'s shutdown; closure prose and citers; the checker pipeline's discrimination over the captured pmacct msglog (no stats line, O flag set, wrong peer each match nothing); style pass over the two changed Go files: constants only, no panic, no allocation path, `gofmt` and `go vet` clean |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | 0 BLOCKER, 0 ISSUE. NOTE: `setStatisticsTimeout` calls `bp.sessions.Go` after shutdown may have begun `Wait`, the same shape `sender_config.go::syncSenders` already has | | |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/bmp/statistics.go`, `statistics_test.go` | yes | `ls` 2026-10-09 |
+| `test/plugin/bmp-sender-statistics.ci` | yes | `ls` 2026-10-09 |
+| `test/interop/scenarios/bmp-statistics-pmacct/{ze.conf,frr.conf,pmbmpd.conf}` | yes | `ls` 2026-10-09 |
+| `rfc/discrimination/rfc7854.json`, `rfc/discrimination/rfc8671.json` | yes | `ls` 2026-10-09 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-7 | the tests named in the audit pass | `go test -race ./internal/component/bgp/plugins/bmp/` ok 17.09s, 2026-10-09 |
+| AC-1 | end to end | `./le test bgp plugin -v --pattern bmp-sender-statistics` PASS 10.0s |
+| AC-3 | non-test caller | `grep` shows `statistics.go::sendStatisticsReports` calling `ss.writeStatisticsReport` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `statistics-timeout 1` in a running daemon's config, read on a socket | `test/plugin/bmp-sender-statistics.ci` | yes: red when `applySenderConfig` skips `setStatisticsTimeout` |
+| the same leaf read by pmacct | interop `bmp-statistics-pmacct` | yes: passed 2026-10-09 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `rfc/full/rfc7854.txt` Section 4.8 types 0..13 against `BMPPlugin` fields |
+| A-2 | confirmed | `TestBMPDuplicateUpdateCountsReceivedRepeatsOnly` |
+| A-3 | confirmed | pmacct printed `"counter_type": 13` with `"counter_type_str": "Number of duplicate update messages received"` again on 2026-10-09 |
+| A-4 | confirmed | `TestBMPStatisticsMeasuresUnderAPolicyThatStreamsNothing` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `features/bmp-delivery.md` Defect review | `statistics.go::sendStatisticsReports` exists and is called from `statisticsLoop` | yes |
+| `features/bmp-delivery.md` Doc review | `txqueue.go::txQueueLimitBytes` = 256 << 20 | yes |
+| Config, CLI, API, wire format: No | the YANG leaf and the encoder predate this spec; `10d66f9dbd` touches no `.yang` | yes |

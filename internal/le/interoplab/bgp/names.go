@@ -226,11 +226,17 @@ const (
 	pmacctUnknownPeerAS = `"peer_asn": 0`
 	pmacctUnknownBGPID  = `"bgp_id": "0.0.0.0"`
 
-	// One RFC 7854 Section 4.8 Statistics Report, as pmacct printed it on
-	// 2026-09-06 after decoding ze's bytes. One needle rather than four,
-	// because the fields have to be read off ONE message: `is_post` and `is_in`
+	// One RFC 7854 Section 4.8 Statistics Report, as pmacct decodes ze's
+	// bytes. The fields have to be read off ONE message: `is_post` and `is_in`
 	// appear on every Route Monitoring line as well, so a needle of their own
-	// would pass against a run that sent no Statistics Report at all.
+	// would pass against a run that sent no Statistics Report at all. Each
+	// `grep -F` keeps only the msglog lines that also carry its field, so a
+	// line survives the pipeline only when it carries every field. The fields
+	// are matched one by one rather than as one contiguous needle because
+	// pmacct's field order is not a contract: `pmacct/pmbmpd:latest` (run.go,
+	// defaultPMACCTImage) began printing `bmp_rib_type`, `is_filtered` and
+	// `bgp_id` between them after 2026-09-06, and the contiguous needle then
+	// matched nothing while pmacct decoded every report correctly.
 	//
 	// It carries four readings. `bmp_msg_type` is the message type pmacct
 	// parsed. `peer_ip` and `peer_asn` are the monitored FRR peer the report
@@ -240,9 +246,16 @@ const (
 	// set to zero", and pmacct prints `is_post: 1, is_out: 1` for a header that
 	// carries it. `counter_type` and `counter_type_str` are the stat type,
 	// named by pmacct's own table rather than by anything ze sent.
-	pmacctStatisticsReport = `"bmp_msg_type": "stats", "peer_ip": "172.30.0.3", "peer_asn": 65045, ` +
-		`"peer_type": 0, "is_post": 0, "is_in": 1, "counter_type": 13, ` +
-		`"counter_type_str": "Number of duplicate update messages received"`
+	pmacctStatisticsReport = `grep -F '"bmp_msg_type": "stats",' ` + pmacctMsgLogPath +
+		` | grep -F '"peer_ip": "172.30.0.3",' | grep -F '"peer_asn": 65045,'` +
+		` | grep -F '"peer_type": 0,' | grep -F '"is_post": 0,' | grep -F '"is_in": 1,'` +
+		` | grep -F '"counter_type": 13,' | grep -F '"counter_type_str": "` +
+		pmacctDuplicateCounterName + `"' | head -n 1`
+
+	// The name pmacct's own stat type table gives RFC 7854 Section 4.8 Stat
+	// Type 13. It appears in the pipeline output only on a line that passed
+	// every filter above.
+	pmacctDuplicateCounterName = "Number of duplicate update messages received"
 
 	// Reports are PERIODIC or they are not reports on a timer: a router that
 	// emitted one on connection would satisfy the needle above. The count runs

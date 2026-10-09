@@ -113,12 +113,12 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitContains, peer: peerBMP, command: []string{cmdCat, "/tmp/bmp-status.json"}, contains: []string{"initiation", "peer-up", "route-monitoring"}, timeout: 30 * time.Second},
 	},
 	// RFC 7854 Section 4.8, read back by a collector that is not ze. Every
-	// needle below is pmacct's reading of ze's bytes: the message type it
-	// parsed, the peer it attributed the report to, the per-peer flags, and
-	// the stat type named out of pmacct's own table.
+	// field the pipeline filters on is pmacct's reading of ze's bytes: the
+	// message type it parsed, the peer it attributed the report to, the
+	// per-peer flags, and the stat type named out of pmacct's own table.
 	scenarioStatisticsPMACCT: {
-		{kind: opWaitContains, peer: peerPMACCT, command: []string{cmdCat, pmacctMsgLogPath},
-			contains: []string{pmacctStatisticsReport}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctStatisticsReport},
+			contains: []string{pmacctDuplicateCounterName}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctStatisticsPeriodic},
 			contains: []string{"periodic"}, timeout: 60 * time.Second},
 	},
