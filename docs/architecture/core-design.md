@@ -918,6 +918,19 @@ Text command → ParseUpdate() → WireUpdate → Send to peer
                     └─ Create WireUpdate (struct discarded)
 ```
 
+An announce to several peers (`AnnounceNLRIBatch`) groups the peers and builds
+one UPDATE per group. The group key IS the builder's argument set: one struct,
+`announceFacts`, is both the map key and the parameter of
+`buildBatchAnnounceUpdate`, so a per-peer fact the builder reads cannot be left
+out of the key, and two peers that would be sent different bytes cannot share a
+build. A group is one build AND one send, so a fact that changes only the send,
+the RFC 8654 extended message size that `sendUpdateWithSplit` splits at, is a
+field too. Each field names the RFC section that makes it a per-peer
+distinction; the local-as prepend (RFC 7705 Section 3.3) is the whole prepend,
+so two peers sharing a Local AS but differing on `replace-as` build apart.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- announceFacts, announceFactsFor, AnnounceNLRIBatch -->
+<!-- test: internal/component/bgp/reactor/announce_facts_partition_test.go TestAnnounceFactsPartitionUpdateGroups -->
+
 ### Forwarding Path
 
 ```

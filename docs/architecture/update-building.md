@@ -736,6 +736,17 @@ When update groups are enabled, the batch API groups peers by build-equivalent p
 
 The parameter set is `announceFacts`, and both rails use it. It is the argument set of the build AND the map key that forms the group, so a per-peer fact the build reads is a fact the key holds. A peer carrying `group-updates false` therefore cannot share a build with a peer that packs: the two receive a different number of messages from one batch.
 
+The Prefix-SID field holds the operator's `propagate-srv6-prefix-sid` leaf, not
+the resolved answer to "does this peer keep the attribute", and the four rails
+in `forward_prefix_sid.go` carry the leaf for the same reason: the key holds
+what the builder is given. An internal peer keeps the attribute whatever the
+leaf says (RFC 8669 Section 8), so two internal peers differing only in the
+leaf build the same bytes twice. That costs one build, and a key that said
+something other than the builder's argument would be the defect the struct
+removes.
+<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- the rails carry the leaf -->
+<!-- test: internal/component/bgp/reactor/announce_facts_partition_test.go TestAnnounceFactsPartitionUpdateGroups -->
+
 The withdraw rail had a `withdrawFacts` of its own, carrying three fields, while a withdrawal was a bare MP_UNREACH_NLRI and nothing but the framing could tell two peers apart. A withdrawal now carries attributes (below), so every per-peer decision that shapes an announce's attribute block shapes a withdrawal's too. `withdrawFactsFor` leaves the attribute-shaping fields zero for a unicast withdrawal, which carries no attributes whatever the peer answers, so those peers still share one build.
 
 When disabled or when each peer has a unique context, the code falls back to per-peer building with no behavior change.
