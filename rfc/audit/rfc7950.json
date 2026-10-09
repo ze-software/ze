@@ -9,51 +9,51 @@
   "requirements": {
     "RFC7950-11-3": {
       "code": {
-        "internal/component/config/yang/loader.go::LoadEmbedded": "90e647228094a70b"
+        "internal/component/config/yang/loader.go::LoadEmbedded": "31aadc9bc0e3ef90"
       },
-      "note": "{gap} under OWNER RULING 4 (2026-09-30): no check compares an embedded module with its previous revision, so a reordering of data definition substatements passes. Recorded, not closed.",
+      "note": "{gap} stands, re-judged 2026-10-09 after 180df07922: LoadEmbedded only gained the refuseLoad guard and still parses ze-extensions.yang and ze-types.yang with no comparison against a previous revision, so a reordering of data definition substatements passes. RFC 11: 'In statements that have any data definition statements as substatements, those data definition substatements MUST NOT be reordered.' Recorded under OWNER RULING 4 (2026-09-30), not closed.",
       "requirement_sha": "01c29bfdc98dfa83",
       "verdict": "unimplemented"
     },
     "RFC7950-6.1.3-1": {
-      "note": "Re-judged 2026-10-09; the case edited in ModuleLoadRefused is another row's. Negative: case \"bad escape\" (description \"bad \\q escape\", the only fault) requires an error containing \"escape\". Positive: case \"valid escapes\" loads \\t \\n \\\" \\\\ in a double-quoted string. Probe 2026-10-09: a single-quoted 'bad \\q kept', where backslash is not special, loads, so the refusal is scoped to double quotes as Section 6.1.3 scopes it.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): tagged units changed only in the 64-char tail of ModuleLoadAccepted (schema.GetEntry from the Resolved); cases unchanged, package green. RFC 6.1.3: 'The backslash MUST NOT be followed by any other character.' Prior judgement, still true: Re-judged 2026-10-09; the case edited in ModuleLoadRefused is another row's. Negative: case \"bad escape\" (description \"bad \\q escape\", the only fault) requires an error containing \"escape\". Positive: case \"valid escapes\" loads \\t \\n \\\" \\\\ in a double-quoted string. Probe 2026-10-09: a single-quoted 'bad \\q kept', where backslash is not special, loads, so the refusal is scoped to double quotes as Section 6.1.3 scopes it.",
       "requirement_sha": "e534571eecd5208b",
       "tests": {
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "ab9e0bcafd430b57",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "ab9e0bcafd430b57"
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
       },
       "units": {
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "01a9529a04c3b081",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
         "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
       },
       "verdict": "enforced"
     },
     "RFC7950-6.2-1": {
-      "note": "{single-polarity} on the row. (a) forbidden: refusing or truncating a 64-character identifier. (b) TestRFC7950ModuleLoadAccepted loads a module whose leaf name is 64 characters (require.NoError on AddModuleFromText and Resolve) and assert.NotNil(entry.Dir[long]), which goes red if the name were refused or shortened.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): the 64-character leaf is now read from schema.GetEntry of the returned Resolved, same assertions. RFC 6.2: 'Implementations MUST support identifiers up to 64 characters in length and MAY support longer identifiers.' Prior judgement, still true: {single-polarity} on the row. (a) forbidden: refusing or truncating a 64-character identifier. (b) TestRFC7950ModuleLoadAccepted loads a module whose leaf name is 64 characters (require.NoError on AddModuleFromText and Resolve) and assert.NotNil(entry.Dir[long]), which goes red if the name were refused or shortened.",
       "requirement_sha": "fb43f49a7c050342",
       "tests": {
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "ab9e0bcafd430b57"
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d"
       },
       "units": {
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "01a9529a04c3b081"
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187"
       },
       "verdict": "enforced"
     },
     "RFC7950-6.5-1": {
-      "note": "Re-judged 2026-10-09; unchanged cases. Clause 1: ModuleLoadRefused case \"external typedef without prefix\" (type port with ext imported) requires \"unknown type\", against Accepted case \"prefixed external and bare local\" (ext:port and bare local l load). Clause 2 (MAY): Accepted case \"extension with own and import prefix\" loads m:e under the module's own prefix. The submodule half of the MAY clause is not driven; a MAY imposes no refusal.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 6.5: 'References to identifiers defined in external modules MUST be qualified with appropriate prefixes'. Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. Clause 1: ModuleLoadRefused case \"external typedef without prefix\" (type port with ext imported) requires \"unknown type\", against Accepted case \"prefixed external and bare local\" (ext:port and bare local l load). Clause 2 (MAY): Accepted case \"extension with own and import prefix\" loads m:e under the module's own prefix. The submodule half of the MAY clause is not driven; a MAY imposes no refusal.",
       "requirement_sha": "661d5d1d1920e101",
       "tests": {
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "ab9e0bcafd430b57",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "ab9e0bcafd430b57"
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
       },
       "units": {
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "01a9529a04c3b081",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
         "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
       },
       "verdict": "enforced"
     },
     "RFC7950-7.19-1": {
-      "note": "Re-judged 2026-10-09 after 6c06cb43af/037cc25e29. Sentence 1: TestRFC7950ExtensionUsageSubstatementsAreYANGStatements refuses m:e \"x\" { bogus \"y\"; } against description and nested m:e twins. Sentence 2 (Section 14 rules) now whole: substatements are resolved against the embedded RFC ABNF (resolveProduction) and checked for argument grammar (config maybe, namespace not a URI, path a / ../a[), cardinality (two type, two description; one type + two must loads), required substatements and blocks (leaf without type, list without data-def, refine with no block) and context forms (deviate add/not-supported mixing, type-body alternatives, augment absolute vs descendant), each tagged test with a revert record on its producer. Independent probe 2026-10-09 of ~70 valid unusual forms under a usage (quoted/unquoted/single-quoted args, + concatenation, nested usages at depth, leafref require-instance, multiple leaf-list defaults, deviate add/replace/delete in full, if-feature expressions with extra whitespace, path predicates with WSP, IPv6/percent URIs, refine across comments/newlines/tabs/UTF-8/CRLF, nested module/submodule) all load; config TRUE, max-elements 0/007, fraction-digits 19, deref() path, refine x; via comment or concatenation, empty input/augment are refused. Finding outside this verdict: sources is keyed by file name, so two texts parsed under one name overwrite each other and statementHasBlock reads the wrong text (valid refine {} refused with 'column past the end of line', invalid refine; accepted). The ModuleLoadRefused/Accepted tags drive the extension DEFINITION (extension e { bogus }), governed by the Section 14 extension-stmt rule, a neighbouring rule; their claims state what the body checks but do not bear on this sentence.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): only the ModuleLoadAccepted tail changed. RFC 7.19: 'the substatements MUST be YANG statements, including extensions defined using \"extension\" statements.' The earlier finding that sources was keyed by file name no longer holds at HEAD: sourcedModules.texts is keyed by *yang.Module (Parse binds each module added by a parse to its text). Revert records on AddModuleFromText for the ModuleLoadAccepted/Refused tags are owed a re-record. Prior judgement, still true: Re-judged 2026-10-09 after 6c06cb43af/037cc25e29. Sentence 1: TestRFC7950ExtensionUsageSubstatementsAreYANGStatements refuses m:e \"x\" { bogus \"y\"; } against description and nested m:e twins. Sentence 2 (Section 14 rules) now whole: substatements are resolved against the embedded RFC ABNF (resolveProduction) and checked for argument grammar (config maybe, namespace not a URI, path a / ../a[), cardinality (two type, two description; one type + two must loads), required substatements and blocks (leaf without type, list without data-def, refine with no block) and context forms (deviate add/not-supported mixing, type-body alternatives, augment absolute vs descendant), each tagged test with a revert record on its producer. Independent probe 2026-10-09 of ~70 valid unusual forms under a usage (quoted/unquoted/single-quoted args, + concatenation, nested usages at depth, leafref require-instance, multiple leaf-list defaults, deviate add/replace/delete in full, if-feature expressions with extra whitespace, path predicates with WSP, IPv6/percent URIs, refine across comments/newlines/tabs/UTF-8/CRLF, nested module/submodule) all load; config TRUE, max-elements 0/007, fraction-digits 19, deref() path, refine x; via comment or concatenation, empty input/augment are refused. The ModuleLoadRefused/Accepted tags drive the extension DEFINITION (extension e { bogus }), governed by the Section 14 extension-stmt rule, a neighbouring rule; their claims state what the body checks but do not bear on this sentence.",
       "requirement_sha": "ea5f245be82c092c",
       "tests": {
         "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementCardinality": "159404c0ee2abc03",
@@ -66,8 +66,8 @@
         "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementURIAndPathArguments#2": "159404c0ee2abc03",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements": "08b21c893ad470ee",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements#2": "08b21c893ad470ee",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "ab9e0bcafd430b57",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "ab9e0bcafd430b57"
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
       },
       "units": {
         "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementCardinality": "d0d9d1d9be16dad6",
@@ -80,17 +80,17 @@
         "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementURIAndPathArguments#2": "d06fce0a6d9e4687",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements": "955e027af9d6344d",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements#2": "955e027af9d6344d",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "01a9529a04c3b081",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
         "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
       },
       "verdict": "enforced"
     },
     "RFC7950-7.2.2-1": {
       "code": {
-        "internal/component/config/yang/loader.go::Resolve": "30011595c2732bf2",
-        "internal/component/config/yang/loader_structure.go::checkStructure": "dbd0bfe8e67e5c32"
+        "internal/component/config/yang/loader.go::Resolve": "62ea2509b4ab8f3b",
+        "internal/component/config/yang/loader_structure.go::checkStructure": "494e1a9ea6b11f7e"
       },
-      "note": "{gap} stands. Re-judged 2026-10-09 after checkStructure changed (7070e5861a): it now joins moduleLengthErrors, moduleEnumErrors and moduleExtensionSubstatementErrors and still compares no include with the included submodule's belongs-to; Resolve adds process, checkExtensions, checkPatterns only. The BelongsTo read in loader.go resolves extension owners, not include validity. Probe 2026-10-09: module a, submodule s { belongs-to a; } and module b { include s; } resolve with no error, against 'A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.'",
+      "note": "{gap} stands, re-judged 2026-10-09 after 180df07922: Resolve now runs once and returns *yang.Resolved, and checkStructure only switched to l.modules.sourceModules(); neither compares an include with the included submodule's belongs-to, and the only BelongsTo read in loader.go resolves extension owners. RFC 7.2.2: 'A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.' The 2026-10-09 probe (module b { include s; } with s belonging to a resolves) is not re-run; no code path that could refuse it was added.",
       "requirement_sha": "4111ba92ddb919e3",
       "verdict": "unimplemented"
     },
@@ -103,15 +103,15 @@
       "verdict": "unimplemented"
     },
     "RFC7950-7.3.2-1": {
-      "note": "negative: a typedef with only a description refused; positive: the same typedef with type uint8 loads and the leaf using it resolves to Yuint8 (proves the type defines the base type). Twins differ by the type statement alone, so the loose \"type\" substring cannot be met by another fault. Records on Resolve.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): the positive now reads the leaf from schema.GetEntry of the returned Resolved, same assertion (Yuint8). RFC 7.3.2: 'The \"type\" statement, which MUST be present, defines the base type from which this type is derived.' negative: a typedef with only a description refused; positive: the same typedef with type uint8 loads and the leaf using it resolves to Yuint8 (proves the type defines the base type). Twins differ by the type statement alone, so the loose \"type\" substring cannot be met by another fault. Records on Resolve. Those Resolve revert records no longer verify (unit-changed) and are owed a re-record.",
       "requirement_sha": "070644f6863f8a70",
       "tests": {
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent": "881aace010f385f0",
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent#2": "881aace010f385f0"
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent": "b80383bc8bec6c5c",
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent#2": "b80383bc8bec6c5c"
       },
       "units": {
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent": "fe55d0c1f2ebddbd",
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent#2": "fe55d0c1f2ebddbd"
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent": "1977e80e6caa84af",
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950TypedefTypeMustBePresent#2": "1977e80e6caa84af"
       },
       "verdict": "enforced"
     },
@@ -119,10 +119,10 @@
       "note": "all three sentences, both polarities, isolated by one-statement twins: (1) typedef default in/out of its own range (old pair, records on validateLeafDefaults); (2) a leaf of the typedef with no default carries 5, a narrowing leaf or typedef giving a new default carries 7/8 with no error (record on yangToLeaf); (3) a leaf and a typedef narrowing 1..10 to 6..10 with no new default each refused naming \"5\" (record on validateTypedefDefault).",
       "requirement_sha": "b441385f99be6f8c",
       "tests": {
-        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault": "5f71b053d96f0548",
-        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeMustReplaceAnInvalidatedDefault": "5f71b053d96f0548",
-        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "1bb08415dc3d37d6",
-        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "1bb08415dc3d37d6"
+        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault": "84d97cbfeb51f19f",
+        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeMustReplaceAnInvalidatedDefault": "84d97cbfeb51f19f",
+        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "493cd4132fb31c5c",
+        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "493cd4132fb31c5c"
       },
       "units": {
         "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault": "ec14ab80f1e6172f",
@@ -178,18 +178,18 @@
       "verdict": "unimplemented"
     },
     "RFC7950-7.6.3-1": {
-      "note": "Re-judged 2026-10-09; unchanged cases. MUST be present: ModuleLoadRefused case \"leaf without type\" refused / Accepted \"leaf with type\" loads. Names an existing type: TestRFC7950LeafTypeMustNameAnExistingType refuses type nosuch as unknown type against local typedef and imported ext:port twins that differ in the type name alone, with revert records on Resolve.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 7.6.3: 'The \"type\" statement, which MUST be present, takes as an argument the name of an existing built-in or derived type.' The revert records on Resolve and AddModuleFromText for this row no longer verify (producer/unit changed) and are owed a re-record. Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. MUST be present: ModuleLoadRefused case \"leaf without type\" refused / Accepted \"leaf with type\" loads. Names an existing type: TestRFC7950LeafTypeMustNameAnExistingType refuses type nosuch as unknown type against local typedef and imported ext:port twins that differ in the type name alone, with revert records on Resolve.",
       "requirement_sha": "18cdcdc30654418d",
       "tests": {
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType": "881aace010f385f0",
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType#2": "881aace010f385f0",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "ab9e0bcafd430b57",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "ab9e0bcafd430b57"
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType": "b80383bc8bec6c5c",
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType#2": "b80383bc8bec6c5c",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
       },
       "units": {
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType": "441444fa8ea5c6d1",
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType#2": "441444fa8ea5c6d1",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "01a9529a04c3b081",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
         "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
       },
       "verdict": "enforced"
@@ -198,12 +198,12 @@
       "note": "all three sentences, both polarities: (1) default valid for the type and (2) no default beside mandatory true, by TestRFC7950DefaultInvalidForType/ValidForType on validateLeafDefaults; (3) if-feature on the default's definition, for an enum named directly (TestRFC7950DefaultNotAnIfFeatureEnum) and through a union member enumeration, a bits type and a typedef chain (TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef: x / 'b1 b2' / x refused naming the if-feature, y / 'b1' / y load). The union branch was a D-8 defect fixed here: validateDefaultNotIfFeature now follows the first member type that accepts the default (Section 9.12 order); red observed before the fix. Records on validateDefaultNotIfFeature and validateLeafDefaults.",
       "requirement_sha": "03829072c89b74fe",
       "tests": {
-        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum": "5f71b053d96f0548",
-        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum#2": "5f71b053d96f0548",
-        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef": "5f71b053d96f0548",
-        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef#2": "5f71b053d96f0548",
-        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "1bb08415dc3d37d6",
-        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "1bb08415dc3d37d6"
+        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum": "84d97cbfeb51f19f",
+        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum#2": "84d97cbfeb51f19f",
+        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef": "84d97cbfeb51f19f",
+        "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef#2": "84d97cbfeb51f19f",
+        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "493cd4132fb31c5c",
+        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "493cd4132fb31c5c"
       },
       "units": {
         "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum": "4cdf20b902ecd08c",
@@ -219,9 +219,9 @@
       "note": "Row narrowed 2026-09-30 to the lead-in and the no-ancestor branch. The three tags prove only that yang.Validator.ValidateTree reports ErrTypeMissing for a leaf inside a container present in the data. The stack does not make the leaf exist: SectionValidationError.Blocking grades ErrTypeMissing non-blocking, so LoadConfig, ze config validate and the editor commit all accept the config; walkTree never visits a non-presence container absent from the data, so a mandatory leaf whose only ancestors are such containers is not required; and bgp is not in validatedSections. TestValidator_MandatoryField checks the type only when errors.AsType succeeds. Owner ruling 4: carried by spec-config-yang-when-unique-choice AC-2.",
       "requirement_sha": "77d3aaadf4246691",
       "tests": {
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "3196aa75a5d2a6ec"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "b3c8b0c6e89ee5b5"
       },
       "units": {
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "e1f1cd96991029ac",
@@ -251,8 +251,8 @@
       "note": "(a) forbidden: a leaf-list default invalid for its type loading; a leaf-list default beside min-elements >= 1 loading. (b) TestRFC7950DefaultInvalidForType: leaf-list range 1..10 default 30 requires an error containing `default \"30\" is not valid for type uint8`, and leaf-list min-elements 1 default 1 requires \"min-elements 1 is invalid\"; positive TestRFC7950DefaultValidForType: leaf-list default 3 inside 1..10 with no min-elements, assert.NoError. min-elements above 1 is not cased separately; 1 is the boundary.",
       "requirement_sha": "dfb02e2ae4d5fb8c",
       "tests": {
-        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "1bb08415dc3d37d6",
-        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "1bb08415dc3d37d6"
+        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "493cd4132fb31c5c",
+        "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "493cd4132fb31c5c"
       },
       "units": {
         "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "5b28008f4ac0a18b",
@@ -274,11 +274,11 @@
       "verdict": "enforced"
     },
     "RFC7950-7.9.2-2": {
-      "note": "negative: two cases named x in one choice refused as duplicate; positive: cases x and y load, and case x in two different choices loads, which pins the scope to one choice. Records on Resolve.",
+      "note": "negative: two cases named x in one choice refused as duplicate; positive: cases x and y load, and case x in two different choices loads, which pins the scope to one choice. Records on Resolve. (2026-10-09: tagged units byte-identical, re-stamped for a file shift; the Resolve revert records no longer verify since 180df07922 changed Resolve, re-record owed.)",
       "requirement_sha": "295d4360139db094",
       "tests": {
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice": "881aace010f385f0",
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice#2": "881aace010f385f0"
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice": "b80383bc8bec6c5c",
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice#2": "b80383bc8bec6c5c"
       },
       "units": {
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice": "5f924f52be7be63a",
@@ -311,13 +311,13 @@
       "note": "range: receive-hold-time 2 and port 0 refused ErrTypeRange (TestValidateTree_RangeViolation), 1 and 2 refused and 0, 3, 180, 65535 accepted (TestValidator_HoldTimeRange); pattern: router-id not-an-ip refused ErrTypePattern and 192.0.2.1 accepted; length: a 256-char isis hostname refused ErrTypeLength, and the same unit asserts a within-length hostname raises no length error (the positive half is asserted in the negative-tagged unit). Each input trips only the constraint named. Records on checkYangRange and validateString. Base-type conformance (a value of the wrong type) is carried by the Section 9 rows.",
       "requirement_sha": "5a05032565e079ea",
       "tests": {
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern#2": "3196aa75a5d2a6ec"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern#2": "b3c8b0c6e89ee5b5"
       },
       "units": {
         "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "12f5b76747db9ef4",
@@ -403,8 +403,8 @@
       "requirement_sha": "cecc88b3b36e0def",
       "tests": {
         "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "cded36b0838b1317",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "3196aa75a5d2a6ec"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "b3c8b0c6e89ee5b5"
       },
       "units": {
         "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "ad02f88c4bb32f5f",
@@ -427,45 +427,45 @@
       "verdict": "enforced"
     },
     "RFC7950-9.3.4-1": {
-      "note": "Re-judged 2026-10-09; unchanged cases. Negative: ModuleLoadRefused case \"decimal64 without fraction-digits\" (type decimal64; only fault) requires an error containing \"[1..18]\". Positive: case \"decimal64 with fraction-digits\" (2) loads. The twins differ in the fraction-digits statement alone.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 9.3.4: 'The \"fraction-digits\" statement, which is a substatement to the \"type\" statement, MUST be present if the type is \"decimal64\".' Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. Negative: ModuleLoadRefused case \"decimal64 without fraction-digits\" (type decimal64; only fault) requires an error containing \"[1..18]\". Positive: case \"decimal64 with fraction-digits\" (2) loads. The twins differ in the fraction-digits statement alone.",
       "requirement_sha": "6381a3fc5c9682a9",
       "tests": {
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "ab9e0bcafd430b57",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "ab9e0bcafd430b57"
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
       },
       "units": {
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "01a9529a04c3b081",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
         "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
       },
       "verdict": "enforced"
     },
     "RFC7950-9.4.4-1": {
-      "note": "Re-judged 2026-10-09; the earlier weak (min/max read as 0 and 2^64-1, and a one-part 5..1 tagged as parts out of order) is fixed. Non-negative: \"-1..5\" refused. Ascending: ModuleLoadRefused now drives \"10..20 | 1..5\", and TestRFC7950LengthPartsDisjointAndAscending refuses it and overlapping \"1..5 | 3..8\" (goyang coalesces both, so the refusal is checkStructure) against \"0..5 | 10..20\". min/max: TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds refuses \"min | 2\" and \"10 | max\" over typedef length 2..10 against \"min..4 | 6..max\" and \"min..max\"; revert records on both structural tests. Probe 2026-10-09: touching \"1..5 | 5..10\" and \"max | max\" refused, adjacent \"1..5 | 6..10\" and \"min | max\" load; min/max follow a two-level typedef chain and a typedef with no length of its own; a union member's length is checked.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 9.4.4: 'If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order.' Prior judgement, still true: Re-judged 2026-10-09; the earlier weak (min/max read as 0 and 2^64-1, and a one-part 5..1 tagged as parts out of order) is fixed. Non-negative: \"-1..5\" refused. Ascending: ModuleLoadRefused now drives \"10..20 | 1..5\", and TestRFC7950LengthPartsDisjointAndAscending refuses it and overlapping \"1..5 | 3..8\" (goyang coalesces both, so the refusal is checkStructure) against \"0..5 | 10..20\". min/max: TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds refuses \"min | 2\" and \"10 | max\" over typedef length 2..10 against \"min..4 | 6..max\" and \"min..max\"; revert records on both structural tests. Probe 2026-10-09: touching \"1..5 | 5..10\" and \"max | max\" refused, adjacent \"1..5 | 6..10\" and \"min | max\" load; min/max follow a two-level typedef chain and a typedef with no length of its own; a union member's length is checked.",
       "requirement_sha": "64cc86230ce16a2c",
       "tests": {
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds": "08b21c893ad470ee",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds#2": "08b21c893ad470ee",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthPartsDisjointAndAscending": "08b21c893ad470ee",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthPartsDisjointAndAscending#2": "08b21c893ad470ee",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "ab9e0bcafd430b57",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "ab9e0bcafd430b57"
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
       },
       "units": {
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds": "73642056761ed793",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds#2": "73642056761ed793",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthPartsDisjointAndAscending": "b2d679fcd8539df4",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthPartsDisjointAndAscending#2": "b2d679fcd8539df4",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "01a9529a04c3b081",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
         "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
       },
       "verdict": "enforced"
     },
     "RFC7950-9.4.4-2": {
-      "note": "negative: widening a typedef's length 2..5 to 1..10 refused naming length; positive: equal 2..5, narrowed 3..4, and split 2..3 | 5..5 load, covering the allowed restriction kinds. Records on Resolve.",
+      "note": "negative: widening a typedef's length 2..5 to 1..10 refused naming length; positive: equal 2..5, narrowed 3..4, and split 2..3 | 5..5 load, covering the allowed restriction kinds. Records on Resolve. (2026-10-09: tagged units byte-identical, re-stamped for a file shift; the Resolve revert records no longer verify since 180df07922 changed Resolve, re-record owed.)",
       "requirement_sha": "b05bfee423d77ea8",
       "tests": {
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden": "881aace010f385f0",
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden#2": "881aace010f385f0"
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden": "b80383bc8bec6c5c",
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden#2": "b80383bc8bec6c5c"
       },
       "units": {
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden": "da209fb07d115ba0",
@@ -494,10 +494,10 @@
         "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll#2": "e4e161212a27bdf8",
         "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum": "4c9eafc440ab45ec",
         "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum#2": "4c9eafc440ab45ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "3196aa75a5d2a6ec",
-        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "3196aa75a5d2a6ec"
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "b3c8b0c6e89ee5b5",
+        "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "b3c8b0c6e89ee5b5"
       },
       "units": {
         "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll": "67fd8c00e1f8af3a",
@@ -512,20 +512,19 @@
       "verdict": "enforced"
     },
     "RFC7950-9.6.4.2-1": {
-      "code": {},
-      "note": "Re-judged 2026-10-09 over the uncommitted goyang fork (go.mod replace github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98, upstream PR openconfig/goyang#317). The STACK now meets the sentence 'otherwise, the assigned value is one greater than the current highest enum value': vendored EnumType.Set sets last on the first assignment or any higher value (len(e.ToInt) == 0 || value > e.last), so SetNext after an explicit -5 yields -4, and Loader.Resolve (goyang Modules.Process) no longer refuses enumeration { enum p { value -5; } enum q; enum r { value 0; } }. Ze's own producer (assignEnumValues) is unchanged and its tags still discriminate: TestRFC7950EnumImplicitValueFollowsTheHighest pins -4 after -5, 11 after 10 then 3, if-feature counted (2), two typedef levels down, each refused twin differing only in the value; TestRFC7950EnumValueRangeAndUniqueness refuses with ErrEnumValue an implicit value past 2147483647 and an explicit repeat of the implicit -4. Both tags' claims state only what their bodies assert, and the edited comments now say only true things (goyang v1.6.3 history, Ze's own refusals). Still weak: the module that proves the stack fix is exercised only by TestGoyangNumbersAnEnumAfterANegativeValue, which carries no RFC requirement tag, and every tagged positive sidesteps the defect (uniqueness positive uses r value -3; the implicit positives restate q -4 in a restriction goyang builds afresh). Under goyang v1.6.3 every tagged unit stays green, so dropping the replace at the next goyang bump (which the go.mod comment plans) reddens no tagged test. Owed to reach enforced: tag that module as a positive of this requirement (or change the uniqueness positive's r to value 0) and record its discrimination against the reverted Set.",
+      "note": "Re-judged 2026-10-09 after 180df07922 (only the ModuleLoadAccepted tail changed; cases unchanged) over the goyang fork, now committed in 66e87707f5 (go.mod replace github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98, upstream PR openconfig/goyang#317). The STACK now meets the sentence 'otherwise, the assigned value is one greater than the current highest enum value': vendored EnumType.Set sets last on the first assignment or any higher value (len(e.ToInt) == 0 || value > e.last), so SetNext after an explicit -5 yields -4, and Loader.Resolve (goyang Modules.Process) no longer refuses enumeration { enum p { value -5; } enum q; enum r { value 0; } }. Ze's own producer (assignEnumValues) is unchanged and its tags still discriminate: TestRFC7950EnumImplicitValueFollowsTheHighest pins -4 after -5, 11 after 10 then 3, if-feature counted (2), two typedef levels down, each refused twin differing only in the value; TestRFC7950EnumValueRangeAndUniqueness refuses with ErrEnumValue an implicit value past 2147483647 and an explicit repeat of the implicit -4. Both tags' claims state only what their bodies assert, and the edited comments now say only true things (goyang v1.6.3 history, Ze's own refusals). Still weak: the module that proves the stack fix is exercised only by TestGoyangNumbersAnEnumAfterANegativeValue, which carries no RFC requirement tag, and every tagged positive sidesteps the defect (uniqueness positive uses r value -3; the implicit positives restate q -4 in a restriction goyang builds afresh). Under goyang v1.6.3 every tagged unit stays green (TestGoyangNumbersAnEnumAfterANegativeValue still carries no tag and the uniqueness positive still uses r value -3), so dropping the replace at the next goyang bump (which the go.mod comment plans) reddens no tagged test. Owed to reach enforced: tag that module as a positive of this requirement (or change the uniqueness positive's r to value 0) and record its discrimination against the reverted Set.",
       "requirement_sha": "af5bfbedbde62bb3",
       "tests": {
-        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest": "c850b0e7c7843fcf",
-        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest#2": "c850b0e7c7843fcf",
-        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness": "c850b0e7c7843fcf",
-        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness#2": "c850b0e7c7843fcf",
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32": "881aace010f385f0",
-        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32#2": "881aace010f385f0",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest": "9328693c7b58fc15",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest#2": "9328693c7b58fc15",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness": "9328693c7b58fc15",
+        "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness#2": "9328693c7b58fc15",
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32": "b80383bc8bec6c5c",
+        "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32#2": "b80383bc8bec6c5c",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue": "08b21c893ad470ee",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue#2": "08b21c893ad470ee",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "ab9e0bcafd430b57",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "ab9e0bcafd430b57"
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
       },
       "units": {
         "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest": "9cfe84ddc079134d",
@@ -536,7 +535,7 @@
         "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32#2": "cc7cdabcebfb50cb",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue": "bedbd0565b8aac39",
         "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue#2": "bedbd0565b8aac39",
-        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "01a9529a04c3b081",
+        "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
         "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
       },
       "verdict": "weak"
