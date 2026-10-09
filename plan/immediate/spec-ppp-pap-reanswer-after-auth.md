@@ -45,18 +45,26 @@ obligation stays owed and this spec is where it is scheduled.
 | Failed or short reply writes terminate the session | `TestPAPReanswerWriteFailure` |
 | Requests outside authentication and the post-authentication network phase remain silent | `TestPAPRequestOutsideAuthPhaseIsSilentlyDiscarded` |
 
-The tests are written but unrun. The parent owns the session field, dispatcher,
-cache reset and common short-write handling. The 2026-09-21 source batch explicitly
-defers all validation, builds, formatting, lint, tests and discrimination to
-integration. No owner approval, passing result or closure is recorded.
-
-Owed package command:
-`./le job run label ppp-pap-server quiet command go test -race ./internal/component/l2tp/ppp`.
-RFC discrimination is owed for the new units covering RFC1334-2.2.1-4,
-RFC1334-2.2.1-5 and RFC1334-2.3-3. The Identifier-copying proof is attached to
-`TestPAPReanswersAfterAuthentication`, which checks the authenticator's emitted
-Identifiers for the initial request and two repeats.
-
-`TestPAPInitialReplyWriteFailureDoesNotAuthenticate` additionally checks that an
+The code and tests landed in `c9258b5fe6` (2026-09-23). On 2026-10-09
+`go test -race -count=1 ./internal/component/l2tp/ppp` passed (16.9s), and
+`TestPAPInitialReplyWriteFailureDoesNotAuthenticate` runs in that package: an
 initial failed or short reply write aborts and leaves no decision for a later
-request to reuse. This test is also unrun.
+request to reuse.
+
+Discrimination (2026-10-09, `rfc/discrimination/rfc1334.json`): six revert
+records with `pap.go::reanswerPAP` disabled, each observed red. They cover
+RFC1334-2.2.1-4 positive and RFC1334-2.2.1-5 positive, and RFC1334-2.3-3 positive
+and negative, all on `TestPAPReanswersAfterAuthentication`. RFC1334-2.2.1-5
+negative is on `TestPAPReanswerPreservesDecision`, and RFC1334-2.2.1-4 negative
+on `TestPAPReanswerDiscardsMalformedRequest`.
+
+### Owed before closure
+
+No interoperability scenario exercises PAP. The PPPoE lab (`02-ze-ac-pppd-client`)
+and the L2TP lab authenticate with CHAP-MD5, and `check_ac.go` passes
+`refuse-pap` to pppd. `ai/rules/interop-and-goal-validation.md` requires a
+scenario where none matches: a Ze-AC scenario with `auth-method pap` against
+pppd (`refuse-chap`), asserting PAP Ack, IPCP and teardown. That scenario
+cannot lose an Ack on demand, so the reanswer MUST itself stays proven by the
+discriminated unit tests above; the scenario proves the changed authenticator
+interoperates.

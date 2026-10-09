@@ -45,10 +45,19 @@ obligation stays owed and this spec is where it is scheduled.
 | A silent peer cannot cause unbounded retries | `TestClientPAPRetryLimit` |
 | Initial and retry write errors and short writes abort | `TestClientPAPWriteFailure`, `TestClientPAPRetryWriteFailure` |
 
-The regression tests are written but unrun. The 2026-09-21 source batch explicitly
-defers all validation, builds, formatting, lint, tests and discrimination to the
-integrating parent. No owner approval, passing result or closure is recorded.
-The spec remains in progress until those proofs run.
+The code and tests landed in `d115e0a1d4` (2026-09-24). On 2026-10-09
+`go test -race -count=1 ./internal/component/l2tp/pppoeclient` passed.
+Discrimination (2026-10-09): four revert records on
+`TestClientPAPRetriesUntilMatchingReply` with `session.go::runClientAuth`
+disabled (RFC1334-2.2.1-2 and RFC1334-2.2-1, both polarities) in
+`rfc/discrimination/rfc1334.json`, and fourteen revert records on the
+`rfc1661_lcp_reply_test.go` tags with `session.go::negotiateLCP` disabled in
+`rfc/discrimination/rfc1661.json`.
+
+Owed before closure: no interoperability scenario exercises PAP. Scenario
+`01-pppoe-chap-ipv4` (Ze client against accel-ppp) authenticates with CHAP-MD5.
+`ai/rules/interop-and-goal-validation.md` requires a Ze-client scenario against
+accel-ppp configured for PAP, asserting authentication, IPCP and teardown.
 
 The parent also assigned client-side LCP reply correlation to this file.
 `negotiateLCP` retains the sent request, calls `ppp.ValidateLCPReply`, preserves an

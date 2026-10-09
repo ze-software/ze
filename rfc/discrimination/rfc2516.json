@@ -343,6 +343,72 @@
       "break": "body of tryReadPADS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2516-5.5-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go::TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport",
+      "unit-sha": "97a1bdcfbd8189cd",
+      "claim-sha": "939810f453b2a875",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::handlePADT",
+      "producer-sha": "33a6a147fcf2b0ae",
+      "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.5-4",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go::TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport",
+      "unit-sha": "97a1bdcfbd8189cd",
+      "claim-sha": "fb5b637514111613",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::handlePADT",
+      "producer-sha": "33a6a147fcf2b0ae",
+      "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.5-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go::TestRFC2516ACSentPADTClosesTransportBeforeSend",
+      "unit-sha": "517298089abcd1bf",
+      "claim-sha": "6d0d480c899b91b6",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/server.go::handleSessionDown",
+      "producer-sha": "a8d6a73d7a8023a9",
+      "break": "body of handleSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.5-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go::TestRFC2516ClientPADTStopsOnlyMatchingSession",
+      "unit-sha": "56fe24cedc12f3c2",
+      "claim-sha": "0f7ffec3c0dd84e4",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/dialer.go::watchPADT",
+      "producer-sha": "70dc245b55e88e2c",
+      "break": "body of watchPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.5-4",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go::TestRFC2516ClientPADTStopsOnlyMatchingSession",
+      "unit-sha": "56fe24cedc12f3c2",
+      "claim-sha": "1bdceb7a455f84ef",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/dialer.go::watchPADT",
+      "producer-sha": "70dc245b55e88e2c",
+      "break": "body of watchPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.5-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go::TestRFC2516ClientSentPADTStopsPPPBeforeSend",
+      "unit-sha": "8b9b693309830367",
+      "claim-sha": "af7d838ee0b888c1",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/dialer.go::sendPADT",
+      "producer-sha": "829c7fda5389edfb",
+      "break": "body of sendPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2516-7-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
@@ -363,6 +429,50 @@
       "producer": "internal/component/l2tp/pppoe/session.go::matchLiveCookie",
       "producer-sha": "49fe2d4ad1d53852",
       "break": "body of matchLiveCookie replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-7-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc2516_options_test.go::TestRFC2516ACRejectsForbiddenLCPOptions",
+      "unit-sha": "b705df3e6e1bbc91",
+      "claim-sha": "f37ef6fd6f06b392",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption",
+      "producer-sha": "9fd88333faf59f88",
+      "break": "body of negotiatePeerOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-7-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc2516_options_test.go::TestRFC2516ACRejectsForbiddenLCPOptions",
+      "unit-sha": "b705df3e6e1bbc91",
+      "claim-sha": "d71259fb44daa188",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption",
+      "producer-sha": "9fd88333faf59f88",
+      "break": "body of negotiatePeerOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-7-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC2516ClientRejectsForbiddenLCPOptions",
+      "unit-sha": "51599fe945662751",
+      "claim-sha": "8e8efd10a85370ed",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::clientLCPPolicy",
+      "producer-sha": "badf22421d419a6c",
+      "break": "body of clientLCPPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-7-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC2516ClientRejectsForbiddenLCPOptions",
+      "unit-sha": "51599fe945662751",
+      "claim-sha": "d0100849babeebd7",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::clientLCPPolicy",
+      "producer-sha": "badf22421d419a6c",
+      "break": "body of clientLCPPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-7-3",
