@@ -27,7 +27,7 @@ correctly in another session".
 | Item | State on 2026-10-09 |
 |------|---------------------|
 | Spec records the decisions, the D-2 A batch order and the D-6 census | Agent running when this was written; check `git log -- plan/spec-validated-construction-and-state-types.md` |
-| go.mod `replace` of goyang with the ze-software fork (enum numbering fix, journal `plan/journal/zero-value-as-valid-answer.md` row 4) | Agent running when this was written; check `grep goyang go.mod` |
+| go.mod `replace` of goyang with the ze-software fork (enum numbering fix, journal `plan/journal/zero-value-as-valid-answer.md` row 4) | BLOCKED on a push only the owner can run. Fork https://github.com/ze-software/goyang exists. Fix commit a3cf525c4f98ce2f6946e7ba9ae9849886a20070 on branch `fix-enum-implicit-value-after-negative` (from upstream master a80f279), in a Linux-only scratch clone; if that clone is gone, redo the one-line fix in `types_builtin.go` `EnumType.Set`: record the first value unconditionally (`len(e.ToInt) == 0 \|\| value > e.last`), plus `TestTypeResolve` cases `-5, q, 0` and `-10, q`. After the push: `replace` in go.mod with a comment naming the upstream PR, `go mod tidy`, `go mod vendor` (module mode does not build this tree), add the Ze test (load `enum p { value -5; } enum q; enum r { value 0; }` via `AddModuleFromText`+`Resolve`), and update the now-stale text in `enum_assignment.go` (lines 22-23), the two `rfc7950_enum_value_test.go` doc comments, `yang-config-design.md` (~line 189) and journal row 4. Upstream PR needs the owner to sign the Google CLA |
 | `./le verify worktree` over the 2026-10-08/09 commits | Owed, never run |
 
 ## Batch log
