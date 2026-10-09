@@ -14,11 +14,13 @@ import (
 
 // fixture06DiscardRoutes pairs each discard route type the system RIB carries
 // with a prefix of its own, so one kernel read per prefix names the type the
-// FIB plugin programmed for it.
-var fixture06DiscardRoutes = [][2]string{
-	{"blackhole", "198.18.201.0/24"},
-	{"unreachable", "198.18.202.0/24"},
-	{"prohibit", "198.18.203.0/24"},
+// FIB plugin programmed for it. The third field is the type as kernelEntries
+// reads it: `ip -N` prints rtm_type as its number, RTN_BLACKHOLE 6,
+// RTN_UNREACHABLE 7 and RTN_PROHIBIT 8 (linux/rtnetlink.h).
+var fixture06DiscardRoutes = [][3]string{
+	{"blackhole", "198.18.201.0/24", "6"},
+	{"unreachable", "198.18.202.0/24", "7"},
+	{"prohibit", "198.18.203.0/24", "8"},
 }
 
 // fixture06FIBBlackhole proves spec-fib-depth AC-6 and AC-7 at the kernel: a
@@ -37,11 +39,11 @@ func fixture06FIBBlackhole(ctx context.Context, p *sdk.Plugin) error {
 		if !Poll(ctx, kernelPolls, 100*time.Millisecond, func() bool {
 			entries = kernelEntries(ctx, route[1])
 			return len(entries) == 1 &&
-				strings.HasPrefix(entries[0], route[0]+" "+route[1]+" ") &&
+				strings.HasPrefix(entries[0], route[2]+" "+route[1]+" ") &&
 				strings.Contains(entries[0], "proto 250")
 		}) {
-			return fmt.Errorf("%s: want one kernel entry `%s %s ... proto 250`; ip route show table all: %q",
-				route[1], route[0], route[1], entries)
+			return fmt.Errorf("%s: want one kernel entry `%s %s ... proto 250` (%s); ip -N route show table all: %q",
+				route[1], route[2], route[1], route[0], entries)
 		}
 		fmt.Fprintln(os.Stderr, "OK: kernel holds "+route[0]+" "+route[1]+" proto 250")
 	}
@@ -148,8 +150,11 @@ func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 		return errors.New("rib plugin did not become ready")
 	}
 	const prefix = ecmpPrefix06
+	// Each peer's path carries its own next hop, 10.0.0.N to 10.0.0.1N. A sibling
+	// with no next hop names no target, so the system RIB would leave it out of
+	// the ECMP group and the path count below could not be asserted.
 	inject := func(peer string) error {
-		return fixture06DispatchDone(ctx, p, fmt.Sprintf("request bgp rib inject %s ipv4/unicast %s origin igp localpref 100 aspath 65001", peer, prefix))
+		return fixture06DispatchDone(ctx, p, fmt.Sprintf("request bgp rib inject %s ipv4/unicast %s origin igp localpref 100 aspath 65001 nexthop %s", peer, prefix, fixture06ECMPNextHop(peer)))
 	}
 	if err := inject("10.0.0.1"); err != nil {
 		return err
@@ -162,9 +167,8 @@ func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 	}
 	entry := fixture06BestEntry(ctx, p)
 	peers, _ := entry["multipath-peers"].([]any)
-	rows, err := fixture06PollArray(ctx, p, 40, func(rows []map[string]any) bool { return fixture06RIBEntry(rows, prefix) != nil })
-	if err != nil || fixture06RIBEntry(rows, prefix) == nil {
-		return fmt.Errorf("AC-1: %s not in sysrib: %w", prefix, err)
+	if err := fixture06AwaitECMP(ctx, p, prefix, "10.0.0.11", "10.0.0.12"); err != nil {
+		return fmt.Errorf("AC-1: %w", err)
 	}
 	fmt.Fprintf(os.Stderr, "OK AC-1: multipath 2-path: best=%v, siblings=%v\n", entry["best-peer"], peers)
 	if err := fixture06DispatchDone(ctx, p, "request bgp rib withdraw 10.0.0.2 ipv4/unicast "+prefix); err != nil {
@@ -174,12 +178,8 @@ func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("AC-2: multipath sibling remained after withdraw")
 	}
 	entry = fixture06BestEntry(ctx, p)
-	rows, err = fixture06DispatchArray(ctx, p, "show rib")
-	if err != nil {
-		return err
-	}
-	if fixture06RIBEntry(rows, prefix) == nil {
-		return fmt.Errorf("AC-2: %s not in sysrib after single withdraw", prefix)
+	if err := fixture06AwaitECMP(ctx, p, prefix, "10.0.0.11"); err != nil {
+		return fmt.Errorf("AC-2: %w", err)
 	}
 	fmt.Fprintf(os.Stderr, "OK AC-2: single path after withdraw: best=%v\n", entry["best-peer"])
 	if err := inject("10.0.0.2"); err != nil {
@@ -192,9 +192,43 @@ func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("AC-3: expected 2 multipath siblings for %s", prefix)
 	}
 	entry = fixture06BestEntry(ctx, p)
+	if err := fixture06AwaitECMP(ctx, p, prefix, "10.0.0.11", "10.0.0.12", "10.0.0.13"); err != nil {
+		return fmt.Errorf("AC-3: %w", err)
+	}
 	peers, _ = entry["multipath-peers"].([]any)
 	fmt.Fprintf(os.Stderr, "OK AC-3: multipath 3-path: best=%v, siblings=%v\n", entry["best-peer"], peers)
 	return fixture06WaitEOR(ctx, p, 1)
+}
+
+// fixture06ECMPNextHop answers the next hop the ECMP fixture gives a peer's
+// path: 10.0.0.N becomes 10.0.0.1N.
+func fixture06ECMPNextHop(peer string) string {
+	return "10.0.0.1" + peer[len("10.0.0."):]
+}
+
+// fixture06AwaitECMP waits until the system RIB holds prefix with exactly the
+// next hops want: the winner's next-hop plus one ecmp-paths member for each
+// other path. The member count is checked apart from the next-hop set, so a
+// duplicated member or a member the set hides still fails.
+func fixture06AwaitECMP(ctx context.Context, p *sdk.Plugin, prefix string, want ...string) error {
+	slices.Sort(want)
+	var entry map[string]any
+	_, err := fixture06PollArray(ctx, p, 40, func(rows []map[string]any) bool {
+		entry = fixture06RIBEntry(rows, prefix)
+		if entry == nil {
+			return false
+		}
+		paths, _ := entry["ecmp-paths"].([]any)
+		if len(paths) != len(want)-1 {
+			return false
+		}
+		return slices.Equal(fixture06AllNextHops(entry), want)
+	})
+	if err != nil {
+		return fmt.Errorf("system RIB %s: want next hops %v (%d ecmp-paths), last entry %v: %w", prefix, want, len(want)-1, entry, err)
+	}
+	fmt.Fprintf(os.Stderr, "OK: system RIB %s carries %d equal-cost next hops %v\n", prefix, len(want), want)
+	return nil
 }
 
 func fixture06FIBMetric(ctx context.Context, p *sdk.Plugin) error {
@@ -239,12 +273,35 @@ func fixture06FIBMPLSKernel(ctx context.Context, p *sdk.Plugin) error {
 	return fixture06WaitEOR(ctx, p, 1)
 }
 
+// fixture06NextHopEntry answers the show nexthop-table row for nextHop, or nil
+// when the resolver does not track it or the command fails.
+func fixture06NextHopEntry(ctx context.Context, p *sdk.Plugin, nextHop string) map[string]any {
+	rows, err := fixture06DispatchArray(ctx, p, "show nexthop-table")
+	if err != nil {
+		return nil
+	}
+	for _, row := range rows {
+		if row["next-hop"] == nextHop {
+			return row
+		}
+	}
+	return nil
+}
+
 func fixture06FIBRecursive(ctx context.Context, p *sdk.Plugin) error {
 	if _, err := fixture06PollObject(ctx, p, "show bgp rib status", 60, func(map[string]any) bool { return true }); err != nil {
 		return errors.New("rib plugin did not become ready")
 	}
+	// Three levels of recursion: 172.16.0.0/16 via 10.0.0.2, covered by
+	// 10.0.0.0/24 via 192.0.2.1, covered by 192.0.2.0/24 via 198.51.100.1,
+	// covered by 198.51.100.0/24, which carries no next hop and so ends the
+	// walk. The direct next hop is therefore 198.51.100.1. A resolver that stops
+	// after the first covering route answers 192.0.2.1 instead, so the chain is
+	// one level deeper than the shortest one that tells the two apart.
 	for _, command := range []string{
-		"request bgp rib inject 10.0.0.1 ipv4/unicast 10.0.0.0/24 origin igp",
+		"request bgp rib inject 10.0.0.1 ipv4/unicast 198.51.100.0/24 origin igp",
+		"request bgp rib inject 10.0.0.1 ipv4/unicast 192.0.2.0/24 origin igp nexthop 198.51.100.1",
+		"request bgp rib inject 10.0.0.1 ipv4/unicast 10.0.0.0/24 origin igp nexthop 192.0.2.1",
 		"request bgp rib inject 10.0.0.1 ipv4/unicast 172.16.0.0/16 origin igp nexthop 10.0.0.2",
 	} {
 		if err := fixture06DispatchDone(ctx, p, command); err != nil {
@@ -256,7 +313,15 @@ func fixture06FIBRecursive(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("AC-2: recursive route missing from system RIB: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "OK AC-2: recursive route 172.16.0.0/16 present in system RIB")
-	for _, command := range []string{"show nexthop-table", "show ecmp-groups"} {
+	var tracked map[string]any
+	if !Poll(ctx, 40, fixture06PollDelay, func() bool {
+		tracked = fixture06NextHopEntry(ctx, p, "10.0.0.2")
+		return tracked != nil && tracked["resolved"] == true && tracked["direct-nh"] == "198.51.100.1"
+	}) {
+		return fmt.Errorf("AC-2: show nexthop-table: want 10.0.0.2 resolved to direct next hop 198.51.100.1, got %v", tracked)
+	}
+	fmt.Fprintln(os.Stderr, "OK AC-2: next hop 10.0.0.2 resolves recursively to direct next hop 198.51.100.1")
+	for _, command := range []string{"show ecmp-groups"} {
 		rows, err := fixture06DispatchArray(ctx, p, command)
 		if err != nil {
 			return err

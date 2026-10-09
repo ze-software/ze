@@ -1,10 +1,13 @@
 # Test: Recursive next-hop resolution via sysrib NH resolver
 #
 # Flow:
-# 1. Inject a connected route (covering prefix) that provides the direct NH
-# 2. Inject a BGP route whose next-hop falls within the covering prefix
-# 3. Query "show nexthop-table" to verify NH is tracked and resolved
-# 4. Query "show rib" to verify the route appears with a resolved next-hop
+# 1. Inject 198.51.100.0/24 with no next hop: the terminal covering route
+# 2. Inject 192.0.2.0/24 via 198.51.100.1, 10.0.0.0/24 via 192.0.2.1, then
+#    172.16.0.0/16 via 10.0.0.2
+# 3. Poll "show rib" until 172.16.0.0/16 is in the system RIB
+# 4. Poll "show nexthop-table" until 10.0.0.2 is resolved to the direct
+#    next hop 198.51.100.1, three levels of recursion down: a resolver that
+#    stops at the first covering route answers 192.0.2.1 and fails
 #
 # VALIDATES: spec-fib-depth AC-2 -- recursive next-hop resolved to direct NH
 # VALIDATES: show nexthop-table command returns resolver state

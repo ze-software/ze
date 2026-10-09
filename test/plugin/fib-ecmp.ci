@@ -2,10 +2,10 @@
 #
 # Flow:
 # 1. Inject 2 routes for same prefix from different peers via bgp rib inject
-# 2. Query bgp rib show best and verify multipath-peers present (AC-1)
-# 3. Verify sysrib received the route via rib show
-# 4. Withdraw one route, verify multipath-peers empty (AC-2)
-# 5. Re-inject second + add third, verify 2 multipath siblings (AC-3)
+# 2. Verify bgp-rib reports 1 multipath sibling, and the system RIB holds the
+#    prefix with next hops 10.0.0.11 and 10.0.0.12, one of them in ecmp-paths (AC-1)
+# 3. Withdraw one route: no sibling, one next hop, empty ecmp-paths (AC-2)
+# 4. Re-inject second + add third: 2 siblings, three next hops, two ecmp-paths (AC-3)
 #
 # VALIDATES: spec-fib-depth-2-ecmp AC-1, AC-2, AC-3
 # PREVENTS: multipath not wired through bgp-rib or sysrib not receiving best-change
