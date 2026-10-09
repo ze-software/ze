@@ -16,6 +16,9 @@ import (
 const (
 	accelGateway = "10.11.0.1"
 	zeClientAddr = "10.11.0.2"
+	// accelTraceLines bounds the accel-ppp log read. One session's verbose
+	// trace is a few dozen lines, so the bound only stops a runaway log.
+	accelTraceLines = 2000
 )
 
 type accelSessions struct {
@@ -170,4 +173,40 @@ func waitAccelSessions(
 		return sessions.count == 0
 	})
 	return returnValue, err
+}
+
+// checkZeClientPAP runs checkZeClient against an accel-ppp that loads only
+// auth_pap, then reads accel-ppp's own trace for the PAP exchange: the session
+// coming up proves Ze authenticated, and the trace proves the method was PAP.
+func checkZeClientPAP(ctx context.Context, check *interoplab.CheckContext) error {
+	if err := checkZeClient(ctx, check); err != nil {
+		return err
+	}
+	logs, err := check.Lab.Logs(ctx, accelImageName, accelTraceLines)
+	if err != nil {
+		return fmt.Errorf("read accel-ppp trace: %w", err)
+	}
+	if !logs.Available {
+		return errors.New("accel-ppp trace unavailable: PAP authentication was not measured")
+	}
+	if err := accelPAPEvidence(logs.Text); err != nil {
+		return appendDiagnostics(ctx, check.Lab, err, accelImageName)
+	}
+	return nil
+}
+
+// accelPAPEvidence proves from accel-ppp's verbose PPP trace that Ze sent a
+// PAP Authenticate-Request and accel-ppp acknowledged it, with no CHAP
+// exchange at all.
+func accelPAPEvidence(trace string) error {
+	if !strings.Contains(trace, "recv [PAP AuthReq") {
+		return errors.New("auth: accel-ppp received no PAP Authenticate-Request from Ze")
+	}
+	if !strings.Contains(trace, "send [PAP AuthAck") {
+		return errors.New("auth: accel-ppp did not acknowledge Ze's PAP Authenticate-Request")
+	}
+	if strings.Contains(trace, "CHAP") {
+		return errors.New("auth: CHAP appeared in a session accel-ppp restricted to PAP")
+	}
+	return nil
 }

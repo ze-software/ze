@@ -3,8 +3,9 @@
 // Overview: pppoe.go -- checkers(), which merges wireCheckers into the two
 // scenarios that need no PPPoE codec.
 //
-// The four scenarios below build or decode PPPoE discovery frames with
-// internal/component/l2tp/pppoe, the access concentrator's own codec. That
+// The four discovery scenarios below build or decode PPPoE discovery frames with
+// internal/component/l2tp/pppoe, the access concentrator's own codec, and
+// pppoe-pap-ze-ac replays through the same capture helpers. That
 // package is compile-out-able, so the files holding those checkers carry
 // //go:build ze_l2tp and so does this table: an always-on file naming them
 // would pin the codec into every binary and defeat the compile-out
@@ -25,4 +26,5 @@ func init() {
 	wireCheckers["pppoe-padr-replay"] = checkZeAccessConcentratorPADRReplay
 	wireCheckers["ipv6cp-zero-identifier"] = checkZeAccessConcentratorIPv6CPZeroIdentifier
 	wireCheckers["ipv6cp-missing-option"] = checkZeAccessConcentratorIPv6CPMissingOption
+	wireCheckers["pppoe-pap-ze-ac"] = checkZeAccessConcentratorPAP
 }

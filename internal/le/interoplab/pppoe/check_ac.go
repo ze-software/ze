@@ -22,6 +22,8 @@ const (
 	pppdBadPassword = "wrong-secret"
 	pppoeService    = "internet"
 	pppdLogPath     = "/var/log/ppp/dial.log"
+	refusePAP       = "refuse-pap"
+	refuseCHAP      = "refuse-chap"
 	zeRESTPort      = 9099
 	zeRESTToken     = "ze-pppoe-interop" // #nosec G101 -- fixed fixture token authenticates only the isolated interop Docker network.
 )
@@ -124,6 +126,17 @@ func checkLCPAuthIPCP(
 	ctx context.Context,
 	lab interoplab.CheckerLab,
 ) (string, error) {
+	return checkLCPIPCPWithAuth(ctx, lab, chapAuthEvidence)
+}
+
+// checkLCPIPCPWithAuth waits for the client's PPP link, address and route, then
+// reads pppd's trace for bidirectional LCP and hands the same trace to auth,
+// which proves the one authentication method the scenario negotiates.
+func checkLCPIPCPWithAuth(
+	ctx context.Context,
+	lab interoplab.CheckerLab,
+	auth func(log string) error,
+) (string, error) {
 	iface, err := waitClientPPPLink(ctx, lab, 75*time.Second)
 	if err != nil {
 		return "", err
@@ -177,16 +190,6 @@ func checkLCPAuthIPCP(
 			"LCP: both ends did not offer a magic number",
 		},
 		{
-			logLineWith(log, "rcvd [LCP ConfReq", "<auth chap MD5>"),
-			"LCP: Ze's Configure-Request did not demand CHAP-MD5",
-		},
-		{strings.Contains(log, "rcvd [CHAP Challenge"), "auth: Ze sent no CHAP-MD5 Challenge"},
-		{
-			logLineWith(log, "sent [CHAP Response", `name = "`+pppdUsername+`"`),
-			"auth: the client sent no named CHAP Response",
-		},
-		{strings.Contains(log, "rcvd [CHAP Success"), "auth: Ze did not accept the CHAP Response"},
-		{
 			strings.Contains(address, firstPoolAddr) && strings.Contains(address, zeGateway),
 			"ipcp: the client did not install Ze's assigned point-to-point address",
 		},
@@ -196,7 +199,36 @@ func checkLCPAuthIPCP(
 			return "", errors.New(check.message)
 		}
 	}
+	if err := auth(log); err != nil {
+		return "", err
+	}
 	return iface, nil
+}
+
+// chapAuthEvidence proves from pppd's trace that Ze demanded CHAP-MD5 and
+// accepted the client's named Response.
+func chapAuthEvidence(log string) error {
+	checks := []struct {
+		condition bool
+		message   string
+	}{
+		{
+			logLineWith(log, "rcvd [LCP ConfReq", "<auth chap MD5>"),
+			"LCP: Ze's Configure-Request did not demand CHAP-MD5",
+		},
+		{strings.Contains(log, "rcvd [CHAP Challenge"), "auth: Ze sent no CHAP-MD5 Challenge"},
+		{
+			logLineWith(log, "sent [CHAP Response", `name = "`+pppdUsername+`"`),
+			"auth: the client sent no named CHAP Response",
+		},
+		{strings.Contains(log, "rcvd [CHAP Success"), "auth: Ze did not accept the CHAP Response"},
+	}
+	for _, check := range checks {
+		if !check.condition {
+			return errors.New(check.message)
+		}
+	}
+	return nil
 }
 
 func checkTeardown(ctx context.Context, lab interoplab.CheckerLab) error {
@@ -394,6 +426,19 @@ func pppdDial(
 	password string,
 	service string,
 ) error {
+	return pppdDialRefusing(ctx, lab, password, service, refusePAP)
+}
+
+// pppdDialRefusing starts pppd with refused naming the one of PAP and CHAP the
+// client declines, so the other is the only method it accepts. EAP and both
+// MS-CHAP variants are always refused.
+func pppdDialRefusing(
+	ctx context.Context,
+	lab interoplab.CheckerLab,
+	password string,
+	service string,
+	refused string,
+) error {
 	const username = pppdUsername
 
 	var tb textbuf.Buffer
@@ -416,7 +461,7 @@ func pppdDial(
 		"password",
 		password,
 		"noauth",
-		"refuse-pap",
+		refused,
 		"refuse-eap",
 		"refuse-mschap",
 		"refuse-mschap-v2",

@@ -16,7 +16,10 @@ FROM alpine:3.21
 # negotiated pppN; iputils: ping for the dataplane assertion; kmod: modprobe
 # ppp_generic from the shared host /lib/modules; tcpdump: the
 # pppoe-empty-service-name checker captures the discovery exchange to read the
-# Service-Name tags Ze actually put on the wire, rather than trust pppd's log.
-RUN apk add --no-cache ppp ppp-pppoe iproute2 iputils kmod tcpdump
+# Service-Name tags Ze actually put on the wire, rather than trust pppd's log;
+# tcpreplay: the pppoe-pap-ze-ac checker resends the client's own captured PAP
+# Authenticate-Request from inside this container, so the send needs no host
+# privilege to enter the container's network namespace.
+RUN apk add --no-cache ppp ppp-pppoe iproute2 iputils kmod tcpdump tcpreplay
 
 ENTRYPOINT ["sh", "-c", "modprobe ppp_generic 2>/dev/null || true; modprobe pppoe 2>/dev/null || true; mkdir -p /etc/ppp /var/log/ppp; exec tail -f /dev/null"]

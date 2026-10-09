@@ -23,8 +23,10 @@ var _ func(context.Context, string, pppoeleaf.Options) interoplab.SuiteReport = 
 // after the two numbered ones and each carries its own RFC claim:
 // pppoe-empty-service-name (0e1543cc9a, the mandatory Service-Name tag on every
 // PADO and PADS), pppoe-padr-replay (4efaa4fd8d, the per-MAC allocation bound),
-// and the two ipv6cp cases (fd7cd7b44e, whether the peer's identifier was ever
-// negotiated).
+// the two ipv6cp cases (fd7cd7b44e, whether the peer's identifier was ever
+// negotiated), and the two PAP cases: pppoe-pap-ze-ac (RFC 1334 Section 2.2.1,
+// Ze's AC re-answers a repeated Authenticate-Request) and pppoe-pap-ze-client
+// (Ze's client authenticates to a PAP-only accel-ppp).
 var pppoeScenarios = []string{
 	"01-pppoe-chap-ipv4",
 	"02-ze-ac-pppd-client",
@@ -32,6 +34,8 @@ var pppoeScenarios = []string{
 	"ipv6cp-zero-identifier",
 	"pppoe-empty-service-name",
 	"pppoe-padr-replay",
+	"pppoe-pap-ze-ac",
+	"pppoe-pap-ze-client",
 }
 
 // VALIDATES: The native selector exposes every reviewed PPPoE role under its
@@ -89,8 +93,10 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		"Dockerfile.accel": "9d64c266c9481adc00df37b70a83aa8c7bddbab8dfc75f4c7c05ddabe1bbcc6a",
 		// Repinned for 0e1543cc9a, which added tcpdump to the client image: the
 		// pppoe-empty-service-name checker captures the discovery exchange to
-		// read the Service-Name tags Ze puts on the wire.
-		"Dockerfile.client":                           "eeac1673a6a64276d24806a863f3718c7c58c98644ba4c2688603014343a706d",
+		// read the Service-Name tags Ze puts on the wire. Repinned again for
+		// pppoe-pap-ze-ac, which added tcpreplay: that checker resends the
+		// client's captured PAP Authenticate-Request from inside the container.
+		"Dockerfile.client":                           "5ce1e23c9348057a7ff71680d7d1b4abe29e2ea9cb9a0f221e237c7add859a7e",
 		"scenarios/01-pppoe-chap-ipv4/ze.conf":        "1b1427eb24d3cc599f02d7e285606a99d91ca64a7d9df1f222bb757e26d8f54b",
 		"scenarios/01-pppoe-chap-ipv4/accel-ppp.conf": "c7b096b09feb5492123e4f32fff09a167abc30b798f5a6b22ae6e007f3d5fa05",
 		"scenarios/01-pppoe-chap-ipv4/chap-secrets":   "04525c6958851189a53ea92d539f1dd5970eceff8e95d626eb7033438b912067",
@@ -108,6 +114,14 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		"scenarios/pppoe-empty-service-name/role":    "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
 		"scenarios/pppoe-padr-replay/ze.conf":        "a8cf774fccc14bac46919f33ab03db40cb05950d0bd0762ec169ea8c877a5887",
 		"scenarios/pppoe-padr-replay/role":           "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
+		// The two PAP scenarios: Ze's AC with auth-method pap, and accel-ppp
+		// loading auth_pap alone for Ze's client.
+		"scenarios/pppoe-pap-ze-ac/ze.conf":            "72702048c63ff15c4caee91b0ccdf413e1e4afd845a02fce670b7d82c6a61458",
+		"scenarios/pppoe-pap-ze-ac/role":               "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
+		"scenarios/pppoe-pap-ze-client/ze.conf":        "048ec54803b6c9154cf4e0f57780ae30480d7b9982b154ee55aab52ddb406d88",
+		"scenarios/pppoe-pap-ze-client/accel-ppp.conf": "44ed54a913d8eaf266f4a5d8b6ffce25f2348e2a96d63fc789ef58caae485dc9",
+		"scenarios/pppoe-pap-ze-client/chap-secrets":   "04525c6958851189a53ea92d539f1dd5970eceff8e95d626eb7033438b912067",
+		"scenarios/pppoe-pap-ze-client/role":           "a15ed3e38a6f9a28ca3acbe40026602dfff0c833b992f2937e4722520480f6fc",
 	}
 	for name, want := range files {
 		data, err := os.ReadFile(filepath.Clean(name))
