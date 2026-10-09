@@ -64,6 +64,26 @@ func listedChildren(node *Node) []HelpEntry {
 	return entries
 }
 
+// SubcommandNames answers the words an operator can type after node, sorted:
+// the names a help page lists, so a `ze:modifier "choice"` child is left out
+// and a `ze:modifier "one-of"` child is replaced by its members.
+//
+// The command catalogs (`ze help command --json` and the wiki catalog) read
+// this rather than every child name, so they publish the words the handler
+// accepts and never the name of a group the operator does not type. It answers
+// nil for a node that lists nothing.
+func SubcommandNames(node *Node) []string {
+	entries := listedChildren(node)
+	if len(entries) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name)
+	}
+	return names
+}
+
 // helpEntryFor answers the line one child shows: its own description, or a
 // summary of its children when it states none.
 func helpEntryFor(name string, node *Node) HelpEntry {

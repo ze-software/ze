@@ -1,6 +1,7 @@
 package clicatalog
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -191,5 +192,39 @@ func TestCatalogArgCarriesBothTexts(t *testing.T) {
 	// The wiki escapes Markdown punctuation and joins the description's lines.
 	if !strings.Contains(page, `| Filter by component name | Keeps the entries whose component name equals this value exactly\. Without it every component is shown\. |`) {
 		t.Errorf("the wiki argument row carries neither text:\n%s", page)
+	}
+}
+
+// TestCatalogListsTheOneOfMembersNotTheWrapper proves the catalog's
+// subcommands for a command with a `ze:modifier "one-of"` child name the
+// group's members, the words the operator types, and never the group itself.
+//
+// The subject is `send bgp flowspec`, whose `action` container is a one-of
+// over `community`, `rate-limit` and the other actions
+// (internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang).
+// Help and completion already list the members; the catalog read every child
+// name, so it published `action`, a word the handler rejects.
+func TestCatalogListsTheOneOfMembersNotTheWrapper(t *testing.T) {
+	var subject *Entry
+	var flowspecPaths []string
+	for _, entry := range collectForTest(t) {
+		if strings.Contains(entry.Path, "flowspec") {
+			flowspecPaths = append(flowspecPaths, entry.Path)
+		}
+		if entry.Path == "send bgp flowspec" {
+			subject = &entry
+			break
+		}
+	}
+	if subject == nil {
+		t.Fatalf("send bgp flowspec is not in the catalog; flowspec paths: %v", flowspecPaths)
+	}
+	if slices.Contains(subject.Subcommands, "action") {
+		t.Errorf("subcommands name the one-of wrapper action: %v", subject.Subcommands)
+	}
+	for _, member := range []string{"community", "rate-limit"} {
+		if !slices.Contains(subject.Subcommands, member) {
+			t.Errorf("subcommands omit the one-of member %q: %v", member, subject.Subcommands)
+		}
 	}
 }

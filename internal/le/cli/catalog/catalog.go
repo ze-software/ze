@@ -150,7 +150,7 @@ func Collect() ([]Entry, error) {
 				entry.Args = extractArgs(node)
 				entry.Grammar = command.Usage(strings.Fields(cliPath), node)
 				entry.Usage = command.UsageLine(entry.Grammar)
-				entry.Subcommands = extractSubcommands(node)
+				entry.Subcommands = command.SubcommandNames(node)
 				entry.Backend = node.Backend
 				entry.TaskSupport = node.TaskSupport
 			}
@@ -266,7 +266,7 @@ func appendPluginCommands(entries []Entry, seen map[string]bool, tree *command.N
 				entry.ShortHelp = node.ShortHelp
 				entry.Description = node.Description
 				entry.Args = extractArgs(node)
-				entry.Subcommands = extractSubcommands(node)
+				entry.Subcommands = command.SubcommandNames(node)
 				entry.Backend = node.Backend
 				entry.TaskSupport = node.TaskSupport
 				// Usage answers nil for a node carrying no wire method, which
@@ -350,18 +350,6 @@ func argumentKind(kind command.ArgKind) string {
 	default:
 		panic("BUG: command catalog has an unknown argument kind")
 	}
-}
-
-func extractSubcommands(node *command.Node) []string {
-	if len(node.Children) == 0 {
-		return nil
-	}
-	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	return names
 }
 
 // operatorsFor answers what one command supports, derived from the operator

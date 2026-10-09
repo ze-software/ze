@@ -382,7 +382,7 @@ func collectCommands() ([]commandEntry, error) {
 				e.Args = extractArgs(node)
 				e.Grammar = command.Usage(strings.Fields(cliPath), node)
 				e.Usage = command.UsageLine(e.Grammar)
-				e.Subcommands = extractSubcommands(node)
+				e.Subcommands = command.SubcommandNames(node)
 				e.Backend = node.Backend
 				if node.TaskSupport != "" {
 					e.TaskSupport = node.TaskSupport
@@ -467,7 +467,7 @@ func appendPluginCommands(entries []commandEntry, seen map[string]bool, tree *co
 				e.ShortHelp = node.ShortHelp
 				e.Description = node.Description
 				e.Args = extractArgs(node)
-				e.Subcommands = extractSubcommands(node)
+				e.Subcommands = command.SubcommandNames(node)
 				e.Backend = node.Backend
 				e.TaskSupport = node.TaskSupport
 				// Usage answers nil for a node carrying no wire method, which
@@ -556,19 +556,6 @@ func argKindString(k command.ArgKind) string {
 	default:
 		panic("BUG: unknown command argument kind")
 	}
-}
-
-// extractSubcommands returns sorted child names for a node.
-func extractSubcommands(node *command.Node) []string {
-	if len(node.Children) == 0 {
-		return nil
-	}
-	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	return names
 }
 
 // extractPipes returns command-specific pipe filters registered for a CLI path.
