@@ -251,6 +251,9 @@ func plugin01SaveRefusesASelector(ctx context.Context, plugin *sdk.Plugin) error
 	if refusal := fmt.Sprint(data); !strings.Contains(refusal, "no selector") {
 		return fmt.Errorf("the refusal does not say the command takes no selector: %s", refusal)
 	}
+	if refusal := fmt.Sprint(data); !strings.Contains(refusal, "whole running peer set") {
+		return fmt.Errorf("the refusal does not say the command acts on the whole running set: %s", refusal)
+	}
 	fmt.Fprintln(os.Stderr, "OK: a selector is refused")
 	return nil
 }

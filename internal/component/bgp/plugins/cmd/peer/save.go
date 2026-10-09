@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	errSaveTakesNoSelector = errors.New("update bgp config takes no selector")
+	errSaveTakesNoSelector = errors.New("update bgp config takes no selector: it writes the whole running peer set")
 	errSavePeerHasNoLeaf   = errors.New("the running configuration holds no leaf for this peer")
 	errSaveNameDisagrees   = errors.New("the file and the running configuration name two different peers alike")
 )
@@ -85,8 +85,7 @@ func handleBgpPeerSave(ctx *pluginserver.CommandContext, args []string) (*plugin
 		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error: tb.Str("update bgp config takes no selector: it writes the whole running peer set. ").
-				Str("Got ").Quoted(args[0]).String(),
+			Error: tb.Err(errSaveTakesNoSelector).Str(". Got ").Quoted(args[0]).String(),
 		}, fmt.Errorf("%w, got %q", errSaveTakesNoSelector, args[0])
 	}
 

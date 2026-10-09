@@ -295,6 +295,10 @@ func TestPeerSaveRefusesASelector(t *testing.T) {
 	require.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "no selector")
 	assert.Contains(t, resp.Error, "running peer set")
+	// The dispatcher answers a plugin with the returned error, not resp.Error,
+	// so the error states both halves too.
+	assert.Contains(t, err.Error(), "no selector")
+	assert.Contains(t, err.Error(), "whole running peer set")
 
 	content, err := os.ReadFile(path) //nolint:gosec // the path is the test's own temp file
 	require.NoError(t, err)
