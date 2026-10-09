@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | tooling \| docs |
-| Depends | `plan/immediate/spec-appliance-kernel-vpn-modules.md` (IPsec chapter needs esp4 and xfrm_interface on the render host) |
+| Depends | `plan/immediate/spec-appliance-kernel-vpn-modules.md` (owner order: that spec first. The 2026-10-09 probe shows the render host already carries esp4 and xfrm_interface, so the dependency is the product's, not the recording's: see Probe Results) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-09 |
@@ -74,12 +74,27 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
 ## Required Reading
 
 - [ ] `docs/guide/terminal-demonstrations.md`, `docs/contributing/gh-pages.md` - demo commands, image, assets. Silent on scenario design, validators and the README SVG.
+  → Constraint: the gallery is a list of `<!-- terminal-demo: <id> -->` markers under headings. A topic recording that replaces a demo under the same id keeps its marker; a new id needs a heading and a marker.
+  → Constraint: the page is silent on how a scenario starts its lab, on validators and on the README SVG, so those were read from source (below).
 - [ ] `internal/le/site/terminaldemo/` - `scenarios.go` (runScenario switch, constants block, `initText`, `demoInstance`, `scenarioConfigDir`), `scenarios_routing.go` (`runRPKI`, `runIRR`), `scenarios_network.go` (`runBFD`, `runOSPF`, `runTraffic`, `runVRRP`, `labCreatePair`, `startFRRPair`), `validate_runtime.go` (`demoValidators`), `render.go` (`containerCommand`, `--privileged` from the manifest), `cards.json`, `tape_wait_test.go`
+  → Constraint: `runScenario` (`scenarios.go`) is a `switch` over 15 demo ids and `demoValidators` (`validate_runtime.go`) is a literal map over 18. Both are central enumerations that every new scenario must edit, the shape `ai/rules/principles.md` forbids. → Decision: one scenario registry, filled from `init()` in each scenario file with the runner and the validator under one id; the switch and the map are deleted first (`ai/rules/no-layering.md`).
+  → Constraint: the tape `Source` directive (`tapeLines`, `pty.go`) resolves a name against the demo root, then the sourcing tape's directory, and nests. Its `seen` set is never cleared, so ANY file sourced twice in one tape is refused as "sources itself". A topic fragment MUST NOT source `common.tape`, and the showcase tape sources each fragment exactly once.
+  → Constraint: `sourceDigest` (`manifest.go`) digests `common.tape`, the Dockerfile, the recorder Go sources and the files in the demo's OWN directory; `definitionDigest` digests `common.tape` and the demo's own tape. Neither follows `Source`, so an edit to a shared fragment outside the demo directory moves no digest and a stale recording is reported current. → Decision: both digests take their tape files from the Source closure (the same `tapeLines` walk), not from a directory listing.
+  → Constraint: `Set` after the first action is refused (`parseTape`, `pty.go`), so TypingSpeed is one value per tape: every typed config line costs real seconds in the super (R-8).
+  → Constraint: no existing demo commits a topic into a RUNNING daemon. `irr-filter` types `ze config set -` pipelines offline, then starts the daemon; `commit-confirmed` uses the file editor (`ze config edit -f ze.conf`) with no daemon; `rpki`, `bfd-failover`, `ospf-adjacency`, `vrrp-failover` and `traffic-anomaly` import a prepared `ze.conf` at start. `zefs-config` is the only tape that enters the SSH editor (`sshpass -e ssh ze-demo`), sets a leaf and commits against a running daemon: the proven pattern the topic tapes follow.
+  → Constraint: `startFRRPair` (`scenarios_network.go`) starts zebra plus ONE protocol daemon under the hardcoded `/run/frr`; the shared lab needs bgpd, bfdd and ospfd under one zebra.
 - [ ] `demos/terminal/manifest.json`, `demos/terminal/Dockerfile` (frr, keepalived, iproute2, nftables; no strongSwan, no wireguard-tools)
+  → Constraint: a manifest `Demo` (`types.go`) carries id, title, description, page, anchor, platform, kind, engine, source, validate, duration, privileged, realtime and nothing else. `page` + `anchor` place a recording on a feature page; nothing in it can declare a topic's config or checks (R-5).
+  → Constraint: the image carries no IKE daemon, so the IPsec far end is a second Ze in its own netns (owner decision), started by the lab, never shown.
 - [ ] `docs/guide/ipsec.md`, `test/ipsec/ipsec-sa-installed.ci` (Ze-to-Ze IPsec config shape)
+  → Constraint: `test/ipsec/ipsec-peer-reload-applies-selectors.ci` proves an EDITED peer is applied by reload. Nothing proves that a peer ADDED by reload to a daemon with no `vpn` root brings a tunnel up, which is exactly what the IPsec topic types (AC-3).
 - [ ] `docs/guide/vrrp.md` "Tracking an interface"
+  → Constraint: tracking is the `track` container of `internal/plugins/vrrp/yang/ze-vrrp-conf.yang`, documented under "Tracking an interface" in `docs/guide/vrrp.md`. The topic shows effective priority dropping when a tracked link goes down, never a daemon kill.
 - [ ] `docs/guide/config-reload.md` (what a live commit restarts), `internal/component/plugin/server/startup_autoload.go` (`autoLoadForNewConfigPaths`)
+  → Constraint: on reload, `autoLoadForNewConfigPaths` (called from the reload path in `reload.go`) starts a plugin only when one of its `ConfigRoots` is among the ADDED diff paths and it is not already running. A plugin rooted at `bgp` is never auto-loaded by adding a sub-tree under an existing `bgp`.
+  → Constraint: `OnConfigure` is Stage 2 (boot) only. With no `OnConfigApply` handler the SDK answers config-apply OK and calls nothing (`pkg/plugin/sdk/sdk_callbacks.go`, doc comment of `OnConfigApply`), so a plugin holding `OnConfigure` alone silently ignores every live commit. `docs/guide/config-reload.md` ("Plugin config changed: Plugin reloaded") is false for such a plugin (Doc row 6).
 - [ ] `internal/le/site/home.go` (`homeHeroDemo`) and `internal/le/site/homebody.go` (hardcodes `cli-dashboard.terminal`, caption, `#live-bgp-dashboard`: a second declaration of the hero)
+  → Constraint: `homeHeroDemo` (`home.go`) feeds `heroMount`, while `homebody.go` hardcodes `cli-dashboard.terminal` and `#live-bgp-dashboard`, and `README.md` names `docs/demos/cli-dashboard.svg` and that anchor again. → Decision: the hero's file name, caption and anchor derive from `homeHeroDemo` plus its manifest entry, and the README asset is produced by a `./le` action from the same declaration.
 
 **Key insights:**
 - Every tape wait must match output only its command prints; `TestTapeWaitsAreNotSatisfiedByTheTypedCommand` enforces it.
@@ -101,6 +116,49 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
 - 18 single-feature demos exist and were all re-recorded on 2026-10-09 (gh-pages 3252810ae7).
 - The README shows `docs/demos/cli-dashboard.svg`, converted by hand from the site cast with svg-term-cli 2.1.1 (`--window --no-cursor --width 138`), after stripping `\x1b\[[>=<?][0-9;]*[mu]`, holding intro/outro cards 7 s, and embedding a JetBrains Mono subset as base64 WOFF2 (font-family ZeMono). No producer in the repo does this.
 - A 58 s cast became a 96 KB SVG. A 7-minute SVG would be several MB.
+
+### Probe Results (2026-10-09, design phase)
+
+**R-2, IPsec kernel support on the render host: RESOLVED, supported.** The Docker VM
+(colima, Ubuntu 24.04.4, kernel `6.8.0-117-generic`) builds `CONFIG_INET_ESP=m`,
+`CONFIG_XFRM_INTERFACE=m`, `CONFIG_XFRM_USER=m`. `esp4`, `esp6`, `xfrm_user` were already
+loaded. A privileged container (`--network none`, iproute2 6.11) created an xfrm
+interface and an ESP tunnel SA; the kernel auto-loaded `xfrm_interface` on the link
+creation:
+
+| Step in the container | Output |
+|-----------------------|--------|
+| `ip link add xp0 type xfrm if_id 7` | `xp0@NONE ... xfrm if_id 0x7` |
+| `ip xfrm state add ... proto esp spi 0x100 mode tunnel aead rfc4106(gcm(aes)) ... if_id 7` | `proto esp spi 0x00000100 reqid 1 mode tunnel`, rc 0 |
+| `lsmod` on the VM afterwards | `xfrm_interface 28672 0`, `esp4 28672 0` |
+
+→ Decision: the IPsec topic recording does not wait on the render host. The
+appliance spec governs whether the APPLIANCE can do what the recording shows, which is
+a publication question (Owner question 3), not a recording blocker.
+
+**R-1, does a live commit enable each topic: read at the producer, NOT yet run.** Each
+row names the reload path a commit adding the topic's config to a running daemon takes.
+The runtime proof is AC-2 (each topic validator runs against a daemon started without
+the topic).
+
+| Topic | Plugin, ConfigRoots | Loaded on the commit? | Applies the config? | Reading |
+|-------|--------------------|-----------------------|---------------------|---------|
+| RPKI | `bgp-rpki`, `bgp` | already running: `bgp` is in the base config, so it loads at boot | `OnConfigVerify` + `OnConfigApply` (`replaceConfig`) in `rpki.go` | expected to work, unverified |
+| IRR | `bgp-filter-irr`, `bgp` | never auto-loaded by a sub-tree under an existing `bgp`. The existing tape declares it explicitly (`plugin internal bgp-filter-irr`); whether adding that line in a live commit starts a fresh process, which would then get Stage 2 config, is unread (A-1) | **No, once running.** `runFilterIRR` (`filter_irr.go`) registers `OnConfigure` only. The SDK answers config-apply OK and calls nothing | **DEFECT, read at producer:** any live IRR edit to a daemon whose `bgp-filter-irr` is running (new as-set, new server, new peer filter) is accepted and not applied. It fails open: the commit reports success and the filter keeps its boot config. Owed fix: AC-1. The first-add path is probed under A-1 |
+| BFD | `bfd`, `bfd` | new top-level root, auto-loaded | `OnConfigVerify` + `OnConfigApply` in `bfd.go`; `test/reload/bgp-bfd-profile-reload-*.ci` cover edits | expected to work, unverified for a first-time add |
+| OSPF | `ospf`, `ospf` | new top-level root, auto-loaded | `OnConfigApply` in `internal/plugins/ospf/register.go` | expected to work, unverified |
+| IPsec | `ike`, `vpn` and `pki` | new top-level root, auto-loaded | `OnConfigApply` in `internal/component/ike/engine/register.go` reconciles the peer set | expected to work; only an edited peer is proven (`ipsec-peer-reload-applies-selectors.ci`) |
+| VRRP tracking | `vrrp`, `interface` | `interface` is in the base config, so whether the plugin runs before any `vrrp` block exists decides it | `OnConfigApply` in `internal/plugins/vrrp/register.go` | unverified: A-2 |
+| eBPF traffic usage | `trafficusage`, `traffic/usage` | added path, auto-loaded | `OnConfigVerify` + `OnConfigApply` in `internal/plugins/trafficusage/register.go` | expected to work, unverified |
+| commit-confirmed | editor command, no plugin | n/a | proven in the file editor by the `commit-confirmed` demo; not yet in the SSH editor | unverified over SSH: A-3 |
+
+### Open owner questions (asked at approval, 2026-10-09)
+
+| # | Question | Recommendation | Why |
+|---|----------|----------------|-----|
+| 1 | Replace each existing single-feature demo with its topic recording, or keep both | Replace, keeping the existing id where the subject is the same (`rpki`, `irr-filter`, `bfd-failover`, `ospf-adjacency`, `traffic-anomaly`, `commit-confirmed`) and renaming `vrrp-failover` to `vrrp-tracking`; add `ipsec` | `ai/rules/no-layering.md`; two recordings of one feature drift, and the old ones stage config the owner decided must be typed live. Keeping the id keeps every page marker |
+| 2 | Typed-live config in topic recordings vs the prepared-config pattern the existing demos use | Typed live for every topic, committed in the SSH editor against the running daemon; the BASE (peers, interfaces, chapter 1) stays imported at lab start | owner decision 5 already says typed live; this only confirms it overrides the existing pattern and that the base is not a topic. It makes each recording a live-reload test, which found the IRR fail-open |
+| 3 | Order relative to `plan/immediate/spec-appliance-kernel-vpn-modules.md` | Everything, IPsec included, can be built and recorded now: the render host has esp4 and xfrm_interface (Probe Results). Publish the IPsec topic and the super (which contains it) after the appliance spec lands, if the owner wants the appliance able to do what the hero shows | the dependency is the product's, not the recording's |
 
 ## Work Plan (ordered)
 
@@ -137,30 +195,44 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- Recording: `./le site terminal-demo render name <demo-id>` (one demo) or the render-all action, reading `demos/terminal/manifest.json`. Format: a tape file (`demo.tape`) of directives, executed by the native recorder in the renderer container.
+- Proof: the same action's validate mode, which calls the scenario's validator.
+- Product path under demonstration: keystrokes typed into `sshpass -e ssh ze-demo`, the SSH configuration editor, ending in `commit`.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. `parseTape` / `tapeLines` (`pty.go`) expand `Source` includes: `common.tape`, then the base-lab fragment, then the topic fragments, into one action list.
+2. The recorder drives `ze-demo shell` in a pty; `ze-demo run <scenario> <action>` dispatches to the scenario's runner (today `runScenario`, after this spec the scenario registry), which builds the lab (netns, veths, FRR, RTR cache, IRR server, keepalived, hidden second Ze) and starts the Ze daemon with the base config.
+3. Typed `set` lines land in the SSH editor's candidate; `commit` runs the config transaction: parse, validate, diff, `autoLoadForNewConfigPaths` for added roots, then per-plugin verify and apply (`reload.go`).
+4. The plugin applies the config (RTR sessions, IRR fetch, BFD sessions, OSPF adjacency, IKE SA and XFRM state, VRRP group, eBPF usage maps).
+5. Typed `show` commands print the result into the cast; `Wait+Screen` holds the tape until output only that command prints appears.
+6. The validator re-runs the topic's checks (one Go check per topic, shared by the topic scenario and the showcase) against the scenario state, outside the recording.
+7. The artifact manifest records source and definition digests; the site build mounts each cast on its gallery heading and its feature page (`page` + `anchor`), and the hero on the home page.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| Recorder ↔ demo shell | pty keystrokes from the tape; screen model reads output | Yes: `TestScreenModelReconstructsTheRenderedTerminal` |
+| Demo shell ↔ lab runner | `ze-demo run <id> <action>` argv | Yes for existing ids: `TestActionsCarryTheirContracts` |
+| Operator ↔ daemon | SSH editor session, `commit` | Yes for one leaf: the `zefs-config` demo; not for any topic (AC-2) |
+| Engine ↔ plugin | config-verify / config-apply RPC with JSON sections | Read: IRR has no apply handler (AC-1) |
+| Ze ↔ kernel | netlink XFRM, eBPF maps, VRRP raw sockets inside the privileged container | Probe: XFRM yes (Probe Results) |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- `homeHeroDemo` and `heroMount` (`internal/le/site/home.go`): the hero is pointed at the `showcase` id; `homebody.go` stops hardcoding it.
+- `nativeRecorderSources`, `sourceDigest`, `definitionDigest` (`manifest.go`): digests follow the Source closure.
+- `tapeLines` (`pty.go`): unchanged; fragments are plain tapes.
+- `startFRRPair` (`scenarios_network.go`): generalised to a list of FRR daemons.
+- `bgp-filter-irr` (`internal/component/bgp/plugins/filter_irr/filter_irr.go`): gains the verify/apply reload pair.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes, by design | topics are configured through the SSH editor and the config transaction, never by importing a prepared file mid-recording |
+| No unintended coupling (components stay isolated) | Yes, by design | the recorder package only drives `ze` commands; the IRR fix stays inside the plugin |
+| No duplicated functionality (extends existing, does not recreate) | Yes, by design | topic recordings replace the seven single-feature demos (Owner question 1); the shared lab replaces the per-demo labs it subsumes |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | tooling, no wire path; the IRR fix reuses `handleConfigure` |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes, by design | scenarios register runner + validator from `init()`; no `case` is added |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes, once AC-6 lands | lists searched: `runScenario` switch and `demoValidators` map (both replaced by the scenario registry); `cards.json` is keyed data per demo, not a list of code paths; `homebody.go` hero literals (derived from `homeHeroDemo` + manifest, AC-8) |
 
 ## Risks & Assumptions
 
@@ -174,21 +246,34 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+| A-1 | Adding `plugin internal bgp-filter-irr` plus the IRR policy in ONE live commit starts the filter with its config (Stage 2 delivery to a new process) | the existing `irr-filter` tape declares the plugin explicitly; reload path for a newly declared plugin not read | the first-add IRR topic also fails, and AC-1's fix must cover the start path as well as edits | Work Plan step 1 probe; then AC-1's `.ci` | unvalidated |
+| A-2 | The `vrrp` plugin is running when the base config holds `interface` but no `vrrp` block, so a live VRRP commit reaches its `OnConfigApply` | `ConfigRoots` is `interface` (`internal/plugins/vrrp/groups.go`), which the base config carries | the VRRP topic commit is accepted and does nothing: a defect fixed under AC-2 | Work Plan step 1 probe | unvalidated |
+| A-3 | `commit confirmed <n>` and its automatic rollback behave in the SSH editor as in the file editor | the `commit-confirmed` demo proves the file editor only | the safety-net topic needs a fix or a different editor path; the owner decision rules out the latter | Work Plan step 1 probe | unvalidated |
+| A-4 | Two Ze daemons can run in one container (the shown one, and the hidden IKE far end in its own netns) with separate `ZE_CONFIG_DIR`, SSH port and instance name | `demoInstance` is the container hostname `ze`; the scenario code runs one daemon per demo | the IPsec topic needs a second container or a different instance naming | Work Plan step 2, lab bring-up | unvalidated |
+| A-5 | A 7-minute super fits the time budget with every topic typed live at 125 ms per character | storyboard length; typing speed is one value per tape | the super runs long (R-8) | measure the super's typed characters at step 3 | unvalidated |
+| A-6 | eBPF traffic usage attaches inside the privileged renderer container on the colima 6.8 kernel | the `traffic-anomaly` demo records today with `privileged` | the traffic topic cannot run in the shared lab | the existing demo's validator passes; re-check in the shared lab | unvalidated |
 
 ### Risks
+The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by the probe (Probe Results). New failure modes:
+
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| R-6 | A topic fragment edited without its recordings re-rendering, because the digests do not follow `Source` | `./le site terminal-demo` check reports current after a fragment edit | AC-5: digests over the Source closure, with a test that edits a sourced fragment and expects drift |
+| R-7 | The shared lab is heavier than any current lab (FRR with three daemons, RTR, IRR, keepalived, second Ze) and flakes under host load, which sibling sessions raise (load 70 seen during this design) | validator timeouts in lab bring-up | per-component readiness waits on output, never sleeps; record only when `docker ps` shows no interop containers |
+| R-8 | Typed IPsec config is long; the super exceeds its length or drags | measured duration in the artifact manifest | keep each topic's typed lines to the minimum that enables it (groups pre-named, one peer); the base lab may carry PKI material files the config only references |
+| R-9 | A topic validator passes against the boot config rather than the live commit (vacuous) | validator never started a daemon without the topic | AC-2 requires each topic scenario's daemon to start with the base config only, and its validator to assert the topic was ABSENT before the commit |
+| R-10 | Replacing the seven demos drops what a replaced one showed (VRRP failover by daemon kill; IRR offline staging) | gallery diff review | the topic recording covers the feature's operator story; failover-by-kill is not kept (no-layering) |
+| R-11 | The README carrier works on github.com today and breaks later (size or sanitiser change) | the README image stops rendering | the fallback thumbnail-and-link is always produced by the same `./le` action, so switching is one README line |
+| R-12 | Hidden far-end Ze leaks into the recording (its logs or prompts) | screenshot review | the far end runs detached with logs to the state dir, started by the lab runner, never by the tape |
 
 ## Blast Radius
 
 <!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | [other plugins, components, or specs working the same files] |
+| What breaks if this is wrong? | The public site and README show a recording whose claim the product does not meet (a false public claim, corrected at once under `ai/rules/rfc-compliance.md`), or a demo render fails. The IRR fix touches the reload path of one BGP filter plugin: a wrong fix could drop or wrongly accept routes after a commit |
+| How is it reverted? | Recordings and site: one commit revert plus a gh-pages re-publish. IRR fix: one commit revert, no config migration |
+| Who else touches this path? | `internal/le/site/terminaldemo/` (any demo work), `internal/le/site/home*.go`, `README.md`; `filter_irr` is shared with `test/plugin/*irr*.ci`. Sibling specs: `plan/immediate/spec-appliance-kernel-vpn-modules.md`, `plan/spec-wireguard-runtime-proof.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -198,7 +283,13 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
      by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| `./le site terminal-demo` validate mode, any manifest id | → | scenario registry lookup replacing `runScenario` and `demoValidators` | `TestEveryManifestDemoHasARegisteredScenario` |
+| `ze-demo run showcase-lab start` from a topic tape | → | shared lab runner (FRR multi-daemon, RTR, IRR, keepalived, far-end Ze) | `TestShowcaseLabStartsEveryFixture` (runtime, Linux, under the renderer container) |
+| A topic fragment sourced by its topic tape and by the showcase tape | → | `parseTape` / `tapeLines` + `sourceDigest` / `definitionDigest` | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase`, `TestSourceDigestFollowsSourcedTapes` |
+| SSH editor `commit` adding IRR config to a running daemon | → | `bgp-filter-irr` verify/apply handlers | `test/reload/bgp-filter-irr-added-live.ci` |
+| SSH editor `commit` adding each topic's config to a daemon started without it | → | each topic's plugin apply path | each topic validator: `validateTopicRPKI`, `validateTopicIRR`, `validateTopicBFD`, `validateTopicOSPF`, `validateTopicIPsec`, `validateTopicVRRPTracking`, `validateTopicTrafficUsage`, `validateTopicCommitConfirmed` |
+| Site build home page | → | `heroMount` with `homeHeroDemo` = `showcase`, caption and anchor from the manifest | `TestHomeHeroDerivesFromTheManifest` |
+| README asset action | → | the new `./le` README-carrier action | `TestReadmeCarrierIsProducedFromTheHeroDeclaration` |
 
 ## Acceptance Criteria
 
@@ -206,29 +297,38 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
-
-## End-to-End User Stories
-
-<!-- One row per user-facing operation the feature enables. ACs verify that
-     components work; stories verify the chain is connected. A broken link in a
-     path is a spec gap: add the missing component to ACs, Files, and Test Plan
-     before proceeding. Delete this section when Scope is tooling or docs. -->
-| # | User does | Path through system | Test proving it works |
-|---|-----------|--------------------|-----------------------|
-| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| AC-1 | A running daemon with `bgp-filter-irr` loaded; the operator commits a changed IRR as-set or peer import filter (and, under A-1, a first-time IRR block) | The commit applies: a prefix outside the new set is refused at ingress and absent from Adj-RIB-In, an in-set prefix is accepted. A config the filter cannot apply fails the commit with the reason; the commit never reports success while the filter keeps its old config |
+| AC-2 | Each topic scenario (RPKI, IRR, BFD, OSPF, IPsec, VRRP tracking, traffic usage, commit-confirmed) starts its daemon with the base config only; the tape types the topic in the SSH editor and commits | The topic's validator first asserts the feature was absent before the commit (no VRPs, no IRR filter, no BFD session, no OSPF neighbour, no SA, no VRRP group, no usage counters, the original value), then asserts the storyboard's proof column after it. Any topic whose live commit does not enable it is a Ze defect fixed in this spec, with its own `.ci` |
+| AC-3 | IPsec topic | The hidden far-end Ze and the shown Ze establish an IKE SA after the live commit; `show vpn ipsec sa` lists it, `show vpn ipsec dataplane sa` lists a kernel SPI, and a ping through the tunnel raises the SA's packets-in above zero |
+| AC-4 | VRRP tracking topic | After the commit the shown Ze is master; taking the tracked link down makes it backup with the effective priority reduced by the configured amount; the Ze process id is the same before and after |
+| AC-5 | A topic fragment outside the demo directory is edited | Both the topic recording's and the showcase recording's source digests change, and the check mode reports both stale |
+| AC-6 | Any id in `demos/terminal/manifest.json` | It resolves to exactly one registered scenario carrying a runner and a validator; `runScenario`'s switch and the `demoValidators` literal map no longer exist; an id with no registration is refused by name |
+| AC-7 | Each topic's typed config and demonstration | Exist once, as fragments that both the topic tape and the showcase tape source; each topic's checks exist once, as a Go function both validators call |
+| AC-8 | Home page build | The hero is the `showcase` recording; its file name, caption and transcript anchor come from `homeHeroDemo` plus the manifest entry, and `homebody.go` names no demo id, file or anchor literally |
+| AC-9 | README carrier action, run on the recorded super | Produces the carrier the probe proved (inline SVG or a GitHub-playable video, within GitHub's size limits) or, failing both, a thumbnail image; README line 8 embeds it, linking to the site player's anchor; the measured sizes and the result of the inline-render check are recorded in this spec |
+| AC-10 | Gallery and feature pages | `docs/guide/terminal-demonstrations.md` carries one heading and marker per topic recording and one for the super; each topic recording is embedded on its feature page through `page` + `anchor`, the IPsec one on `docs/guide/ipsec.md` |
+| AC-11 | Showcase validator | Runs chapters 0 to 9's checks in order against ONE daemon whose process id never changes, each chapter's absence check before its commit and its proof after |
+| AC-12 | The replaced single-feature demos (per Owner question 1) | Their tapes, prepared `ze.conf` files, runners, validators and cards are deleted; no page marker names a deleted id; the published asset of a deleted id is removed from gh-pages by the publish action |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
+| `TestEveryManifestDemoHasARegisteredScenario` | `internal/le/site/terminaldemo/scenarios_test.go` | AC-6: every manifest id resolves to one registration; an unregistered id is refused by name | |
+| `TestScenarioRegistrationRefusesADuplicateId` | `internal/le/site/terminaldemo/scenarios_test.go` | AC-6: two registrations under one id panic at init | |
+| `TestSourceDigestFollowsSourcedTapes` | `internal/le/site/terminaldemo/terminaldemo_test.go` | AC-5: editing a fragment outside the demo dir changes source and definition digests | |
+| `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | `internal/le/site/terminaldemo/tape_wait_test.go` | AC-7: each topic fragment is in its topic tape's and the showcase tape's Source closure, exactly once | |
+| `TestTapeWaitsAreNotSatisfiedByTheTypedCommand` (existing) | `internal/le/site/terminaldemo/tape_wait_test.go` | extended over the expanded Source closure so fragment waits are checked | |
+| `TestHomeHeroDerivesFromTheManifest` | `internal/le/site/home_test.go` | AC-8: changing `homeHeroDemo` changes file name, caption and anchor; no literal remains | |
+| `TestReadmeCarrierIsProducedFromTheHeroDeclaration` | `internal/le/site/readme_carrier_test.go` | AC-9: the action names the hero's asset and anchor; it reports the carrier's size | |
+| `TestFilterIRRAppliesAReloadedAsSet` | `internal/component/bgp/plugins/filter_irr/filter_irr_test.go` | AC-1: apply after verify swaps the per-peer set; a verify failure leaves the old one | |
+| `TestFilterIRRRefusesApplyWithoutVerify` | `internal/component/bgp/plugins/filter_irr/filter_irr_test.go` | AC-1: no silent no-op apply | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+| N-A | no new numeric input: topics reuse existing YANG leaves and their existing boundary tests | | | |
 
 ### Functional Tests
 <!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
@@ -236,7 +336,9 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `bgp-filter-irr-added-live` | `test/reload/bgp-filter-irr-added-live.ci` | AC-1: operator changes the IRR as-set of a running peer and commits; an out-of-set route sent after the commit is refused and absent from Adj-RIB-In. Must go red with the apply handler removed | |
+| one `.ci` per further topic found not to enable on a live commit | `test/reload/<topic>-added-live.ci` | AC-2: named when the Work Plan step 1 probe finds the defect; none exists yet because none is proven | |
+| topic and showcase validators | `./le site terminal-demo` validate mode, Linux renderer container | AC-2, AC-3, AC-4, AC-11: the recording's claims hold against the live lab | |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -244,35 +346,48 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+| N-A | | | No wire-visible change. The IRR fix changes when config is applied, not what is sent; the demos run against FRR and keepalived already, and the existing interop suites cover the protocols | |
 
 ## Files to Modify
-<!-- MUST include feature code (internal/*, cmd/*), not only test files.
-     Check each file's // Design: annotation: if the change alters behavior the
-     referenced architecture doc describes, list that doc here too. -->
-- `internal/...` - [feature changes]
+- `internal/le/site/terminaldemo/scenarios.go` - delete the `runScenario` switch; dispatch through the scenario registry
+- `internal/le/site/terminaldemo/validate_runtime.go` - delete the `demoValidators` map; existing validators register beside their runners; replaced demos' validators deleted
+- `internal/le/site/terminaldemo/scenarios_routing.go`, `scenarios_network.go` - register existing scenarios; delete the replaced runners; generalise `startFRRPair` to several FRR daemons
+- `internal/le/site/terminaldemo/manifest.go` - `sourceDigest` and `definitionDigest` over the Source closure
+- `internal/le/site/terminaldemo/cards.json` - intro and recap cards for each topic and the super's chapter cards; replaced demos' cards removed
+- `internal/le/site/home.go`, `internal/le/site/homebody.go` - hero from one declaration, pointed at `showcase`
+- `internal/component/bgp/plugins/filter_irr/filter_irr.go` - `OnConfigVerify` + `OnConfigApply` (+ rollback) for the `bgp` section
+- `demos/terminal/manifest.json` - topic entries, `showcase` entry, replaced entries removed
+- `demos/terminal/Dockerfile` - only if the lab needs a package it lacks (none known; the far end is Ze)
+- `docs/guide/terminal-demonstrations.md`, `docs/contributing/gh-pages.md`, `README.md`, `docs/guide/config-reload.md`, `docs/architecture/bgp/filter-irr.md`, `docs/guide/irr-filtering.md` (live IRR edits now apply), `website/AI.md` (declared by `home.go`: the hero it describes moves to `showcase`), and each feature page in Work Plan step 8
 
 ## Files to Create
-- `internal/...` - [new feature file]
-- `test/.../*.ci` - [functional test for end-user behavior]
+- `internal/le/site/terminaldemo/registry.go` - the scenario registry (id to runner and validator)
+- `internal/le/site/terminaldemo/scenarios_showcase.go` - shared lab runner (`showcase-lab`) and the `showcase` scenario
+- `internal/le/site/terminaldemo/validate_topics.go` - one check function per topic, called by the topic validators and the showcase validator
+- `internal/le/site/readme_carrier.go` (+ test) - native `./le` action producing the README carrier from the hero declaration
+- `demos/terminal/topics/<topic>/configure.tape` and `show.tape` - per topic, sourced by the topic tape and the showcase tape
+- `demos/terminal/<topic-id>/demo.tape` + `transcript.txt` - per topic (replacing the seven, plus `ipsec`)
+- `demos/terminal/showcase/demo.tape` + `transcript.txt` - the super
+- `demos/terminal/showcase-lab/` - base config and lab fixtures (routes, RTR data, IRR data, far-end Ze config)
+- `test/reload/bgp-filter-irr-added-live.ci`
 
 ### Integration Checklist
 <!-- Answer every row Yes / No / N-A. Never leave a bare marker: an unanswered
      row is indistinguishable from a forgotten one. N-A needs a reason. -->
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
-| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
-| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
-| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
-| Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
-| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
-| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
-| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
-| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+| YANG schema (new RPCs/config) | N-A | topics type existing leaves only |
+| YANG validation constraints | N-A | no new leaf |
+| YANG custom validators | N-A | no new leaf |
+| CLI commands/flags | Yes | `le` only: the README-carrier action registered under `site` (`internal/le/site/`); `ze` gains nothing. A ze command found missing while typing a topic is a defect under AC-2 |
+| CLI grammar (keyword before value) | Yes | the new `le` action takes `name <demo-id>` like `render` |
+| Editor autocomplete | N-A | no new leaf or value |
+| Functional test for new RPC/API | Yes | `test/reload/bgp-filter-irr-added-live.ci` for the IRR reload path; no new RPC |
+| Pipe completeness | N-A | no new show output |
+| Env var registration | N-A | none added; the far-end Ze gets its own `ZE_CONFIG_DIR`, an existing variable |
+| Doctor check for runtime dependencies | N-A | the lab's netns, XFRM and eBPF use is inside the renderer container, not a product dependency; the appliance's IPsec modules are owned by `plan/immediate/spec-appliance-kernel-vpn-modules.md` |
+| Prometheus counters/metrics | N-A | none added |
+| BGP family surface (new SAFI / capability / attribute) | N-A | no family, capability or attribute |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Answer every row Yes / No / N-A. A No must be backed by a source-aware
@@ -280,70 +395,76 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
      files you changed. Any factual doc change carries a source anchor. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | | `features/<id>.md` (renders `docs/features.md`) |
-| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
-| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | | `docs/comparison.md` |
-| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
-| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
-| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/<this-spec>.md` lists them. A doc DECLARED by a changed file's `// Design:` header BLOCKS until named here; a doc that only `<!-- source: -->` mentions it is advisory. Naming it as unaffected, with the reason, satisfies the check |
-| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/irr-filtering` entry (or whichever `features/<id>.md` carries IRR): live IRR edits now apply; each topic's feature entry gains the recording as evidence where the entry lists demos |
+| 2 | Config syntax changed? | N-A | no syntax change |
+| 3 | CLI command added/changed? | N-A for `ze`; the `le` action is documented in `docs/contributing/gh-pages.md` |
+| 4 | API/RPC added/changed? | N-A | none |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` only if it states reload behaviour per plugin; otherwise `docs/architecture/bgp/filter-irr.md` |
+| 6 | Has a user guide page? | Yes | `docs/guide/irr-filtering.md` (live edits apply), `docs/guide/config-reload.md` (a plugin without an apply handler: state the rule), and each topic's page gains its recording: `rpki.md`, `irr-filtering.md`, `bfd.md`, `ospf.md`, `ipsec.md`, `vrrp.md`, `traffic-usage.md`, `config-editor.md` |
+| 7 | Wire format changed? | N-A | none |
+| 8 | Plugin SDK/protocol changed? | N-A | the SDK is used, not changed |
+| 9 | RFC behavior implemented, changed, or newly proven? | N-A | no RFC behaviour; the recordings are not RFC evidence |
+| 10 | Test infrastructure changed? | Yes | `docs/contributing/gh-pages.md` and `docs/guide/terminal-demonstrations.md` (scenario registry, topic fragments, shared lab, digests over the Source closure) |
+| 11 | Affects daemon comparison? | N-A | no capability change |
+| 12 | Internal architecture changed? | Check | `docs/architecture/core-design.md` is declared by `manifest.go` and mentioned by `filter_irr.go`: re-read its paragraphs on those files when the digest closure and the IRR apply path change, and edit any sentence they make false. Recorder internals otherwise live in `docs/contributing/gh-pages.md` (row 10). `docs/guide/configuration.md` is also mentioned by the changed code: same check |
+| 13 | Route metadata keys added/changed? | N-A | none |
+| 14 | Prometheus counters added/changed? | N-A | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | no registration change in `ze` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | from `./le spec citation anchors`: `website/AI.md` (declared by `home.go`, updated: hero is `showcase`); `docs/guide/irr-filtering.md` (mentions `filter_irr.go`, updated under row 6) |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the typed config of each topic fragment is checked against the guide page's example; a guide example that the topic cannot type verbatim is corrected on that page |
 
 ## Implementation Steps
 
-<!-- Concrete phases of work, not a restatement of the /ze-implement stages
-     (those live in the skill). Phase 1 is ALWAYS wiring. Order by dependency:
-     schema before resolution, resolution before CLI. Each phase follows TDD
-     (write test -> fail -> implement -> pass) and ends with a self-critical
-     review; fix what it finds before starting the next phase. -->
-
-1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
-   - Tests: [wiring test names from the Wiring Test table]
-   - Files: [register.go, handler skeleton, route registration]
-   - Verify: the entry point exists and is reachable. The wiring test fails because the feature is a stub
-2. **Phase: [name]** -- [what to implement]
-   - Tests: [test names from the TDD Plan]
-   - Files: [files from Files to Modify]
-   - Verify: tests fail → implement → tests pass → wiring test progresses
+1. **Phase: Wiring** -- scenario registry and digest closure
+   - Tests: `TestEveryManifestDemoHasARegisteredScenario`, `TestScenarioRegistrationRefusesADuplicateId`, `TestSourceDigestFollowsSourcedTapes`
+   - Files: `registry.go`, `scenarios.go`, `validate_runtime.go`, `scenarios_routing.go`, `scenarios_network.go`, `manifest.go`
+   - Verify: delete the switch and the map first, then register every existing scenario; all existing terminaldemo tests stay green
+2. **Phase: Live-commit probes** -- Work Plan step 1 inside the renderer container, one topic at a time against a daemon started with the base config
+   - Tests: the result per topic is written into Probe Results; each failing topic gets its `.ci` and its fix
+   - Files: `filter_irr.go` (AC-1), plus whatever the probes name
+   - Verify: `test/reload/bgp-filter-irr-added-live.ci` red without the apply handler, green with it
+3. **Phase: Shared lab** -- `showcase-lab` runner, FRR multi-daemon, far-end Ze, fixtures under `demos/terminal/showcase-lab/`
+   - Tests: `TestShowcaseLabStartsEveryFixture`
+   - Verify: each fixture reports ready on output, never on a sleep
+4. **Phase: Topics** -- per topic: `configure.tape`, `show.tape`, topic tape, check function, validator, manifest entry, cards; delete the replaced demo in the same change (AC-12)
+   - Tests: `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase`, `TestTapeWaitsAreNotSatisfiedByTheTypedCommand`, the topic validator
+   - Verify: absence before commit, proof after (AC-2); render and validate the topic
+5. **Phase: Super** -- `showcase` tape sourcing chapter 0, the base, every topic in order, the recap; `validateShowcase`
+   - Tests: AC-11 validator
+   - Verify: one daemon pid across chapters; measured duration recorded
+6. **Phase: Hero and README** -- hero from one declaration; README carrier action; carrier probe and measurements recorded here
+   - Tests: `TestHomeHeroDerivesFromTheManifest`, `TestReadmeCarrierIsProducedFromTheHeroDeclaration`
+7. **Phase: Pages** -- gallery and feature pages (AC-10), docs in the Documentation checklist, each in the phase whose code made it wrong
 
 ### Critical Review Checklist
 
-<!-- Feature-SPECIFIC checks. The generic ones in ai/rules/quality.md always
-     apply and are not repeated here. A row that would read the same on any spec
-     is not worth a row. -->
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
-| Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
-| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
-| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
-| Rule: [relevant rule] | [what to check] |
+| Live, not staged | No topic tape imports or pipes config into the store; every topic config line is typed in the SSH editor and followed by `commit` |
+| Non-vacuous validators | Each topic validator asserts absence before the commit, so it cannot pass against a boot config |
+| Single declaration | No topic `set` line or demonstration command appears in two tapes; `grep` of the topic tapes and the showcase tape shows only `Source` lines for topics |
+| Fail closed | `bgp-filter-irr` apply without a verified candidate returns an error; a failed apply undoes what it applied (SDK `OnConfigApply` contract) |
+| Rule: no-layering | the seven replaced demos and their runners, validators, cards and prepared configs are gone in the same change as their replacements |
+| Rule: documentation | each page edit lands with the code that made it wrong |
 
 ### Deliverables Checklist
 
-<!-- Every deliverable with a command that proves it. "Looks done" is not a
-     verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| [concrete thing that must exist] | [grep/ls/test command] |
+| Eight topic recordings and the super, validated | `./le site terminal-demo` validate mode for each id, output pasted |
+| Scenario registry, no switch, no map | `gopls symbols` of `scenarios.go` and `validate_runtime.go` show neither `runScenario`'s switch nor `demoValidators` |
+| IRR live edit applies | `test/reload/bgp-filter-irr-added-live.ci` green, and red with the handler removed (pasted) |
+| Hero and README | site build shows `showcase` as hero; README embeds the carrier; carrier measurements recorded in this spec |
+| Gallery and pages | grep for each topic id's marker in `docs/guide/terminal-demonstrations.md` and on its feature page |
 
 ### Security Review Checklist
 
-<!-- Feature-specific: untrusted input, injection, resource exhaustion, error
-     leakage, authorization that could fail open. -->
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | [what inputs need validation and how] |
+| Secrets in recordings | the IKE pre-shared key and the demo password typed on screen are demo-only values, never reused from any real config; no host path or user name leaks into a cast |
+| Fail-open filter | the IRR apply path never leaves a peer unfiltered between verify and apply; a failed fetch keeps the previous set, as at boot |
+| Privileged container | the shared lab runs `--privileged` like the existing network demos; nothing it starts listens outside the container |
 
 ### Failure Routing
 
@@ -363,22 +484,29 @@ Optional extras the owner did not add: FlowSpec into nftables, config graph, MCP
      is appropriate only when no surface governs the lesson yet; closure alone
      requires no lesson artifact. -->
 
+- The owner's "typed live" decision turns every recording into a reload test the
+  product never had: no existing demo commits a topic into a running daemon. The
+  first producer read under it found a fail-open (IRR, AC-1). Expect the probes to
+  find more; each is fixed here under owner decision 5.
+
 ## Key Design Decisions
-<!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Topic config and demonstration as tape fragments (`configure.tape`, `show.tape`) sourced by both the topic tape and the showcase tape; topic checks as one Go function both validators call | (b) a declarative per-topic data file (config lines, commands, expected output) from which a generator writes the tapes; (c) hand-written tapes per recording | (a) uses the include the recorder already has and adds no format. (b) adds a generator and a second tape dialect for the same facts. (c) is the drift R-5 names |
+| One shared lab (`showcase-lab`) that every topic and the super start | per-topic labs, as today | one code path, and the super needs it anyway; a topic recording shows the same world the super does. Costs a heavier start (R-7) |
+| Scenario registry replacing `runScenario` and `demoValidators` | add ten cases to the switch and ten entries to the map | `ai/rules/principles.md`: a new scenario registers; both lists are central enumerations |
+| Digests over the Source closure | keep fragments inside each demo directory (duplicated) | fragments must live outside any one demo to be shared; a digest that misses them reports stale recordings current |
+| Base lab config (peers, interfaces) imported at start; only topics typed | type the base too | chapter 1 is the base and is not a topic; the super types it in chapter 0/1 through the migrate output, topic recordings start from it. Owner question 2 |
+| IRR fixed in `bgp-filter-irr` | work around in the tape (restart, or stage offline) | owner decision 5 forbids the workaround, and the defect is a fail-open filter |
 
 ## Known Limitations
-<!-- Deliberate scope boundaries. Anything here that is actually outstanding work
-     is not a limitation: write it as its own spec, in the bucket that item
-     belongs to, and name that spec here (ai/rules/planning.md). -->
-- [What was deliberately not done and why]
+- WireGuard is not a chapter: `plan/spec-wireguard-runtime-proof.md` owns it (owner decision).
+- PPP and L2TP are skipped (owner decision).
+- The appliance kernel's IPsec modules are owned by `plan/immediate/spec-appliance-kernel-vpn-modules.md`; the recording runs on the renderer container, not the appliance.
 
 ## RFC Documentation (Scope: protocol)
 
-Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
-MUST document: validation rules, error conditions, state transitions, timer
-constraints, message ordering, and every MUST/MUST NOT.
+N-A: no protocol code is added. The IRR fix changes when the filter's config is applied, not any RFC-governed behaviour.
 
 ## Checklist
 
