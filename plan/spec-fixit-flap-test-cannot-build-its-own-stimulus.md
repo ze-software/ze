@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-19 |
+| Updated | 2026-10-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -25,6 +25,34 @@ Remaining work is to reconcile that evidence with the current tree, retain
 discrimination of the overlap guard and zero-drop assertion, obtain the clean
 independent review the latest update says is missing, and complete the normal
 verification and closure gates. This is no longer unstarted stimulus design.
+
+## Evidence 2026-10-09 (HEAD 98ee050ee9, amd64 KVM guest, runtime kernel 7.2)
+
+Every run used a private `git clone --depth 1` of HEAD. The daemons were
+cross-built from it with `CGO_ENABLED=0`: `ze` with tags `ze_core ze_distro
+ze_setup zetest` plus every gate in `feature-gates.txt`, `ze-stripped` with
+`ze_core ze_ssh`. The driver was `./le test qemu run kernel
+tmp/kernel/build/vmlinuz packages "coreutils iproute2 libcap kmod" command
+"ZE_BIN=bin/flap-ze ZE_STRIPPED_BIN=bin/flap-ze-stripped
+tmp/qemu/linux-amd64/le test qemu all-tests test
+test/plugin/iface-link-flap-during-commit.ci"`. The guest is amd64 under KVM,
+not the arm64 guest of the 2026-09-04 runs: this Linux host holds only the amd64
+7.2 runtime kernel.
+
+| Run | Break (in the clone only) | Result |
+|-----|---------------------------|--------|
+| green | none | `67.5s 1/1 PASS 383 iface-link-flap-during-commit` |
+| red A, overlap guard | fixture sleeps 6 s after apply-start, before the burst | FAIL: `only 0 of 3 wanted rounds overlapped a commit in 6 attempts` |
+| red B, receive buffer | `monitorReceiveBufferBytes = 1 << 12` | FAIL, on `round 2: worker was blocked and the coalesced counter did not move`, NOT on the zero-drops check |
+| red C, drops on another socket | counter socket `SetReceiveBufferSize(1<<12, false)` | PASS in 31.7s: no red |
+
+The overlap guard is discriminated. The zero-drops assertion is NOT yet
+discriminated. Red B also shows a diagnostic hazard to settle: if the small
+buffer made the kernel drop notifications, the per-round coalescing assertion
+fires first and blames the queue, because `ifaceLinkFlap08` reads
+`netlinkDrops08` only after the last round. Whether red B actually dropped was
+not read from its log. One green run on amd64 is not the multi-run standard the
+load-dependent drop concern asks for.
 
 ## The instrument landed and the test PASSES (2026-09-04 evening, session 2d2bc99a)
 
