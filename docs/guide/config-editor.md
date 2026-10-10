@@ -133,8 +133,14 @@ clear, so the operator still reads which leaf was written.
 The config commands of one session run serially, in the order the operator
 entered them. Pasting a block of `set` lines followed by `commit now` over SSH lands
 every `set` before the `commit` reads the draft. Nothing is dropped and no
-command is refused for arriving while another is in flight.
+command is refused for arriving while another is in flight. A command starts
+only once the answer of the one before it is on screen, so answers appear in
+the same order: `commit abort` typed straight after `commit confirmed` always
+ends with the abort's answer. While a command is in flight, the status line's
+two-second look at a confirmed-commit window waits, so a session's own accept
+or abort is never reported as another session's.
 <!-- source: internal/component/cli/model_commands.go -- dispatchQueue -->
+<!-- source: internal/component/cli/model.go -- handleDraftPoll -->
 
 ## Other Config Subcommands
 

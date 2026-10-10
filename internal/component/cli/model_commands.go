@@ -49,9 +49,17 @@ var (
 // that edit, and nothing on screen says so. Refusing the second command while
 // the first is in flight is a different product again. It drops half of what
 // the operator pasted.
+//
+// A turn ends when Update has applied the command's result, not when the
+// command returns. Bubble Tea sends each tea.Cmd's message from that command's
+// own goroutine, so a turn that ended on return let the next command answer
+// first, and the earlier result then overwrote the later one: `commit abort`
+// typed after `commit confirmed` left the confirmed commit's status and an
+// open window watch on screen over a closed window.
 type dispatchQueue struct {
-	mu   sync.Mutex
-	prev chan struct{} // closed when the turn before the next one ends
+	mu      sync.Mutex
+	prev    chan struct{} // closed when the turn before the next one ends
+	pending int           // turns reserved and not yet ended
 }
 
 // newDispatchQueue returns an empty queue whose first reserved turn starts
@@ -74,8 +82,22 @@ func (q *dispatchQueue) reserve() (wait <-chan struct{}, done func()) {
 	q.mu.Lock()
 	prev := q.prev
 	q.prev = mine
+	q.pending++
 	q.mu.Unlock()
-	return prev, sync.OnceFunc(func() { close(mine) })
+	return prev, sync.OnceFunc(func() {
+		q.mu.Lock()
+		q.pending--
+		q.mu.Unlock()
+		close(mine)
+	})
+}
+
+// busy reports whether a command is in flight: reserved, and its result not
+// yet applied. Safe for concurrent use.
+func (q *dispatchQueue) busy() bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.pending > 0
 }
 
 // executeCommand dispatches a command for execution.
@@ -83,14 +105,15 @@ func (q *dispatchQueue) reserve() (wait <-chan struct{}, done func()) {
 //
 // The turn is reserved here, on the Update goroutine, so pasted commands keep
 // their order. The closure waits for the previous command before it touches
-// the shared editor. See dispatchQueue.
+// the shared editor. The turn ends in handleCommandResult, once Update has
+// applied the result, so results are applied in the order the operator
+// entered the commands. See dispatchQueue.
 func (m Model) executeCommand(input string) tea.Cmd {
 	wait, done := m.dispatch.reserve()
 	return func() tea.Msg {
 		<-wait
-		defer done()
 		result, err := m.dispatchCommand(input)
-		return commandResultMsg{result: result, err: err}
+		return commandResultMsg{result: result, err: err, turnDone: done}
 	}
 }
 

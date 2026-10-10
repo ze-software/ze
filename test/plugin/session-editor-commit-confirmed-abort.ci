@@ -3,6 +3,9 @@
 #            confirmed 60`, `commit abort` applies the previous revision at once
 #            with the file editor's abort message
 # PREVENTS: an abort that waits for the deadline, or that leaves the trial config
+# The abort is matched on its tail, from "rolled back": the countdown the
+# draft poll draws on the status line also starts with "C", and the editor
+# redraws only the cells that changed, so "Changes" can arrive as "hanges"
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-confirmed-abort.conf:terminator=EOF_CONF
@@ -45,7 +48,7 @@ send commit confirmed 60
 wait commit accept
 has 5.6.7.8
 send commit abort
-wait Changes rolled back to previous configuration.
+wait rolled back to previous configuration
 has 1.2.3.4
 lacks 5.6.7.8
 kill

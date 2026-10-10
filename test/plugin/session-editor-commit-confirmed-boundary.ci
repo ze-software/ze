@@ -5,6 +5,9 @@
 #            `commit abort` reverts. Each refusal starts differently from the
 #            status before it, because the screen redraws only what changed
 # PREVENTS: an off-by-one at either bound, or a refused time that still commits
+# The abort is matched on its tail, from "rolled back": the countdown the
+# draft poll draws on the status line also starts with "C", and the editor
+# redraws only the cells that changed, so "Changes" can arrive as "hanges"
 option=timeout:value=90s
 
 tmpfs=session-editor-commit-confirmed-boundary.conf:terminator=EOF_CONF
@@ -61,7 +64,7 @@ send commit confirmed 3600
 wait Confirm within 3600s
 has 9.9.9.9
 send commit abort
-wait Changes rolled back to previous configuration
+wait rolled back to previous configuration
 has 1.2.3.4
 lacks 9.9.9.9
 kill

@@ -371,6 +371,10 @@ type (
 	commandResultMsg struct {
 		result commandResult
 		err    error
+		// turnDone ends the command's dispatch turn; handleCommandResult
+		// MUST call it once the result is applied. Nil for a command that
+		// holds no turn (an operational command).
+		turnDone func()
 	}
 	contextChangedMsg struct{}
 	successMsg        struct{}
@@ -614,6 +618,9 @@ type CommandExecutor func(string) (CommandOutput, error)
 
 // handleCommandResult applies the result of an executed command to the model.
 func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
+	if msg.turnDone != nil {
+		defer msg.turnDone()
+	}
 	var complete tea.Cmd
 	if msg.result.transportComplete != nil {
 		complete = func() tea.Msg {
@@ -944,9 +951,13 @@ func (m Model) handleDraftPoll() (tea.Model, tea.Cmd) {
 		m.statusMessage = notification
 		m.showConfigContent()
 	}
-	if notice, ok := m.pollDaemonWindow(); ok {
-		m.statusMessage = notice
-		m.showConfigContent()
+	// A command in flight may be this session's own accept or abort: its
+	// result, not the poll, says how the window ended. The next poll looks.
+	if !m.dispatch.busy() {
+		if notice, ok := m.pollDaemonWindow(); ok {
+			m.statusMessage = notice
+			m.showConfigContent()
+		}
 	}
 
 	// Reschedule next poll.

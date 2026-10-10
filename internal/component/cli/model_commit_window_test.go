@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -287,4 +288,81 @@ func TestSessionWindowPollReportsTheEnd(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, notice, "Timeout: configuration automatically rolled back.")
 	assert.NotContains(t, f.active(t), "8.8.8.8")
+}
+
+// TestCommandTurnEndsWhenItsResultIsApplied: the boundary .ci typed `commit
+// abort` right after `commit confirmed 3600` and, under load, never saw the
+// abort's answer.
+//
+// VALIDATES: a command's turn ends when Update has applied its result, so the
+// next command cannot answer first and have its result overwritten by the
+// earlier one; and the draft poll says nothing about the daemon window while a
+// command is in flight, so the session's own abort is never reported as
+// "closed by another session".
+// PREVENTS: Bubble Tea delivering the second result before the first (each
+// tea.Cmd sends from its own goroutine), which left the confirmed commit's
+// status and an open window watch on screen after the abort.
+// METHOD: two commands entered before either answers, through handleEnter;
+// the second runs on its own goroutine and must stay blocked until the first
+// result is applied.
+func TestCommandTurnEndsWhenItsResultIsApplied(t *testing.T) {
+	f := newWindowFixture(t)
+	alice := f.model(t, "alice")
+	alice.width = 80
+	alice.height = 24
+	require.NoError(t, alice.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
+	alice.textInput.SetValue("commit confirmed 60")
+	n1, confirmCmd := alice.handleEnter()
+	m1, ok := n1.(Model)
+	require.True(t, ok)
+	require.NotNil(t, confirmCmd)
+	m1.textInput.SetValue("commit abort")
+	n2, abortCmd := m1.handleEnter()
+	m2, ok := n2.(Model)
+	require.True(t, ok)
+	require.NotNil(t, abortCmd)
+
+	confirmMsg := confirmCmd()
+	abortMsgs := make(chan tea.Msg, 1)
+	go func() { abortMsgs <- abortCmd() }()
+
+	// No event marks "the abort did not run", so a bounded wait is the only
+	// way to observe that it stays blocked.
+	select {
+	case <-abortMsgs:
+		t.Fatal("commit abort answered before the result of commit confirmed was applied")
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	n3, _ := m2.Update(confirmMsg)
+	m3, ok := n3.(Model)
+	require.True(t, ok)
+	assert.Contains(t, m3.statusMessage, "Confirm within 60s")
+
+	var abortMsg tea.Msg
+	select {
+	case abortMsg = <-abortMsgs:
+	case <-time.After(5 * time.Second):
+		t.Fatal("commit abort never ran after the confirmed commit's result was applied")
+	}
+	_, open := f.window.Status()
+	require.False(t, open, "the abort closed the window")
+
+	// The abort answered and Update has not applied it yet: the poll must not
+	// report the session's own abort as another session's.
+	n4, _ := m3.handleDraftPoll()
+	m4, ok := n4.(Model)
+	require.True(t, ok)
+	assert.NotContains(t, m4.statusMessage, "closed by another session")
+
+	n5, _ := m4.Update(abortMsg)
+	m5, ok := n5.(Model)
+	require.True(t, ok)
+	assert.Contains(t, m5.statusMessage, "Changes rolled back to previous configuration.")
+	n6, _ := m5.handleDraftPoll()
+	m6, ok := n6.(Model)
+	require.True(t, ok)
+	assert.Contains(t, m6.statusMessage, "Changes rolled back to previous configuration.",
+		"the poll leaves the abort's answer alone")
 }

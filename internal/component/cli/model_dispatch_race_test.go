@@ -75,6 +75,10 @@ func TestPastedBlockDispatchesWithoutRacingTheEditor(t *testing.T) {
 					defer wg.Done()
 					<-start
 					msgs[i] = c()
+					// Update applying the result ends the command's turn.
+					if r, ok := msgs[i].(commandResultMsg); ok && r.turnDone != nil {
+						r.turnDone()
+					}
 				}(i, c)
 			}
 			close(start)
