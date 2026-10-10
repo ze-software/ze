@@ -88,9 +88,12 @@ nothing else of theirs is touched. Their next commit does not bring it back. The
 reports "Your change at <path> was discarded by <you>'s forced commit" once, at
 its next check for changes by other sessions (every two seconds, or when they
 next connect); from then on it shows the committed value in place of theirs,
-and `show | changes` there no longer lists it. The web editor does not show
-this notice. Validation errors still block a forced commit.
-<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, takeDiscardNotice -->
+and `show | changes` there no longer lists it. A web user with a page open
+gets the same notice in the notification bar within a second, and the web
+editor's tree drops the discarded value at the same moment. Validation errors
+still block a forced commit.
+<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, TakeDiscardNotice -->
+<!-- source: internal/component/web/window_notices.go -- WindowNotices.push -->
 <!-- source: internal/component/cli/editor_commit.go -- reloadSessionView -->
 <!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->
 <!-- source: internal/component/web/editor.go -- EditorManager.commit -->
@@ -390,9 +393,10 @@ status line shows "A confirmed commit by <user> is pending:
 <N>s left." A session that saw the window open reports how it closed: a
 timeout says "Timeout: configuration automatically rolled back", and an accept
 or abort from another of your sessions says the window "was closed by another
-session". The web terminal shows each command's answer but has no status
-line, so it shows neither the countdown nor how a window it did not close
-ended. Inside your own window, `commit confirmed <seconds> force` applies
+session". A web user with a page open sees the same lines in the
+notification bar, refreshed every second over the page's live-update stream:
+the countdown or whose window is pending, and how a window ended unless the
+web user closed it themselves. Inside your own window, `commit confirmed <seconds> force` applies
 your new changes and restarts the countdown at `<seconds>`; the revert still
 restores the configuration from before the first commit.
 
@@ -424,7 +428,8 @@ which reverts from the record. The countdown never shows a negative number.
 <!-- source: internal/component/config/confirm/confirm.go -- Window, Confirmed, RecoverOnStart -->
 <!-- source: internal/component/config/confirm/store.go -- StoreRecorder -->
 <!-- source: internal/component/cli/commit_window.go -- WindowCommit.Run -->
-<!-- source: internal/component/cli/model_commit_window.go -- cmdCommitWindowRequest, pollDaemonWindow -->
+<!-- source: internal/component/cli/model_commit_window.go -- cmdCommitWindowRequest, pollDaemonWindow, WindowWatch.Poll -->
+<!-- source: internal/component/web/window_notices.go -- WindowNotices -->
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
 <!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
 <!-- source: cmd/ze/hub/confirm_window.go -- startConfirmWindow, recoverConfirmWindow -->

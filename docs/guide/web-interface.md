@@ -329,9 +329,16 @@ The CLI bar provides tab completion via a JSON endpoint at `/cli/complete`. Comp
 ## Live Updates
 
 The web interface uses Server-Sent Events (SSE) to notify connected browsers when configuration changes are committed by any user. A notification banner appears with the username and a "Refresh" button.
-<!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange -->
+<!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange, SendTo -->
 
-Connect to the SSE stream at `/events` (requires authentication). The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.
+The same stream carries, to each user alone, what the SSH editor's status
+line would show that user: the countdown of a `commit confirmed` window, or
+whose window is pending, how a window ended, and that another user's forced
+commit discarded one of your changes. They arrive as `config-change` events,
+so they use the same banner. See "Commit Confirmed" in `config-editor.md`.
+<!-- source: internal/component/web/window_notices.go -- WindowNotices -->
+
+Connect to the SSE stream at `/events` (requires authentication). Each stream is registered under its user. The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.
 
 ### Event Format
 

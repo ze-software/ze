@@ -107,6 +107,29 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (
 	return answer, nil
 }
 
+// CommitNow commits username's changes as the "Review & Commit" button does:
+// `commit now` through runCommit, the daemon window and the SSH editor's
+// validation included. It answers the line shown, and an error naming why
+// when nothing was applied.
+func (m *EditorManager) CommitNow(username string) (string, error) {
+	req := contract.CommitRequest{Action: contract.CommitNow}
+	answer, err := m.runCommit(username, req)
+	if err != nil {
+		return "", err
+	}
+	if answer.refusal != "" {
+		return "", errors.New(answer.refusal)
+	}
+	if len(answer.conflicts) > 0 {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str("commit conflicts with ").Int(int64(len(answer.conflicts))).Str(" change(s) of other users").String())
+	}
+	if !answer.applied {
+		return "", errors.New(answer.message)
+	}
+	return answer.message, nil
+}
+
 // validateTransition runs the validation the SSH editor's commit runs over
 // ed's transition from the committed config to the user's view (AC-29). The
 // validator loads the YANG modules, so it is built once, at the first commit;
@@ -134,18 +157,24 @@ func notAppliedAnswer(req contract.CommitRequest, result *contract.CommitResult)
 }
 
 // appliedAnswer is the line a subcommand that succeeded shows. An abort also
-// rebuilds the user's view over the restored config.
+// rebuilds the user's view over the restored config. Each records what it
+// did to the window in username's watch (WindowNotices).
 func (m *EditorManager) appliedAnswer(username string, req contract.CommitRequest) webCommitAnswer {
 	switch req.Action {
 	case contract.CommitNow:
 		return webCommitAnswer{message: terminalOutputCommitSuccessful}
 	case contract.CommitConfirmed:
+		if window := m.daemonWindow(); window != nil {
+			m.setWindowWatch(username, cli.WatchWindow(window))
+		}
 		var tb textbuf.Buffer
 		return webCommitAnswer{message: tb.Str(terminalOutputCommitSuccessful).Str(". ").
 			Str(contract.ConfirmWithin(int64(req.Seconds))).String()}
 	case contract.CommitAccept:
+		m.setWindowWatch(username, nil)
 		return webCommitAnswer{message: contract.CommitAccepted}
 	case contract.CommitAbort:
+		m.setWindowWatch(username, nil)
 		if err := m.refreshCommittedView(username); err != nil {
 			var tb textbuf.Buffer
 			return webCommitAnswer{message: tb.Str(contract.CommitAborted).Str(" (view not refreshed: ").Err(err).Byte(')').String()}

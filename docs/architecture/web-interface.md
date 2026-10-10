@@ -22,7 +22,8 @@ All source files in `internal/component/web/` reference this document via `// De
 | `cli.go` | CLI bar (integrated + terminal modes), tab completion |
 | `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
 | `render.go` | `Renderer`: embedded assets, decorators, and the entry points the hub calls (`RenderLayout`, `RenderLogin`, `RenderWorkbench`, `RenderField`, `RenderDiffModal`) |
-| `sse.go` | `EventBroker`, SSE client management, config change broadcast |
+| `sse.go` | `EventBroker`, SSE client management (each client under its user), config change broadcast, `SendTo` one user |
+| `window_notices.go` | `WindowNotices`: one worker pushing each user the confirm window status and forced-commit discard notices the SSH status line shows |
 | `ui_mode.go` | `UIMode` selector for the workbench experiment (Phase 4 default flip pending) |
 | `handler_workbench.go` | workbench shell handler; reuses fragment data path with workbench chrome |
 | `workbench_sections.go` | Left-nav section taxonomy (Dashboard/Routing/Logs/...) |

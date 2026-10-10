@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ type sseEvent struct {
 type sseClient struct {
 	ch   chan sseEvent
 	done chan struct{}
+	user string // the authenticated user, "" when the stream has none
 }
 
 // EventBroker manages SSE client connections for the web interface and
@@ -40,6 +42,7 @@ type EventBroker struct {
 	mu         sync.Mutex
 	clients    map[*sseClient]struct{}
 	closed     bool
+	stopped    chan struct{} // closed by Close; Done answers it
 	maxClients int
 }
 
@@ -52,14 +55,15 @@ func NewEventBroker(maxClients int) *EventBroker {
 
 	return &EventBroker{
 		clients:    make(map[*sseClient]struct{}),
+		stopped:    make(chan struct{}),
 		maxClients: maxClients,
 	}
 }
 
-// Subscribe registers a new client and returns it. The client's channel has
-// a buffer of 16 events. Returns nil if the broker is closed or the maximum
-// number of clients has been reached.
-func (b *EventBroker) Subscribe() *sseClient {
+// Subscribe registers a new client for user and returns it. The client's
+// channel has a buffer of 16 events. Returns nil if the broker is closed or
+// the maximum number of clients has been reached.
+func (b *EventBroker) Subscribe(user string) *sseClient {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -70,6 +74,7 @@ func (b *EventBroker) Subscribe() *sseClient {
 	c := &sseClient{
 		ch:   make(chan sseEvent, 16),
 		done: make(chan struct{}),
+		user: user,
 	}
 	b.clients[c] = struct{}{}
 
@@ -114,6 +119,40 @@ func (b *EventBroker) Broadcast(eventType, data string) {
 	}
 }
 
+// SendTo sends an event to every client of user, as Broadcast does: a client
+// whose buffer is full loses it.
+func (b *EventBroker) SendTo(user, eventType, data string) {
+	ev := sseEvent{eventType: eventType, data: data}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for c := range b.clients {
+		if c.user == user {
+			broadcastEvent(c, ev)
+		}
+	}
+}
+
+// Users returns each user that has a connected client, once.
+func (b *EventBroker) Users() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	var users []string
+	for c := range b.clients {
+		if c.user != "" && !slices.Contains(users, c.user) {
+			users = append(users, c.user)
+		}
+	}
+	return users
+}
+
+// Done is closed when Close runs, so a worker feeding the broker stops.
+func (b *EventBroker) Done() <-chan struct{} {
+	return b.stopped
+}
+
 // ClientCount returns the number of connected clients.
 func (b *EventBroker) ClientCount() int {
 	b.mu.Lock()
@@ -127,6 +166,9 @@ func (b *EventBroker) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	if !b.closed {
+		close(b.stopped)
+	}
 	b.closed = true
 
 	for c := range b.clients {
@@ -146,7 +188,7 @@ func (b *EventBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := b.Subscribe()
+	client := b.Subscribe(GetUsernameFromRequest(r))
 	if client == nil {
 		http.Error(w, "too many SSE clients", http.StatusServiceUnavailable)
 		return

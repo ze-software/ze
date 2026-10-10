@@ -13,11 +13,51 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// windowWatch is what a session editor remembers of the daemon window it last
-// saw open, so the draft poll can say how it ended.
-type windowWatch struct {
+// WindowWatch is what one editor remembers of the daemon window it last saw
+// open, so its poll can say how the window ended. The SSH session editor
+// keeps one per session; the web keeps one per user (WindowNotices). The zero
+// value has seen no window open. Not safe for concurrent use.
+type WindowWatch struct {
 	open     bool
 	timeouts uint64
+}
+
+// WindowNews is what one poll of the daemon window has to say to its viewer:
+// the line to show, and whether the window ended, so the viewer's tree must
+// be rebuilt over the configuration it left.
+type WindowNews struct {
+	Line  string
+	Ended bool
+}
+
+// Poll looks at the daemon window for viewer. An open window answers its
+// status line (AC-17): its owner and the seconds left, or that its deadline
+// revert failed and what each user may do. A window this watch saw open and
+// that is now gone answers how it ended (AC-14): its deadline reverted it, or
+// another session closed it. False means there is nothing to say.
+func (w *WindowWatch) Poll(window *confirm.Window, viewer string) (WindowNews, bool) {
+	status, open := window.Status()
+	if open {
+		if !w.open {
+			if watched := WatchWindow(window); watched != nil {
+				*w = *watched
+			}
+		}
+		return WindowNews{Line: status.Line(viewer)}, true
+	}
+	if !w.open {
+		return WindowNews{}, false
+	}
+	watched := *w
+	*w = WindowWatch{}
+	timeouts, err := window.Timeouts()
+	if err != nil {
+		return WindowNews{}, false
+	}
+	if timeouts > watched.timeouts {
+		return WindowNews{Line: contract.CommitTimedOut, Ended: true}, true
+	}
+	return WindowNews{Line: contract.CommitClosedElsewhere, Ended: true}, true
 }
 
 // SetConfirmWindow gives a session editor the daemon's confirmed-commit
@@ -75,14 +115,14 @@ func (m *Model) cmdCommitWindowRequest(window *confirm.Window, req contract.Comm
 		}
 		return commandResult{
 			statusMessage: contract.CommitAccepted,
-			windowWatch:   &windowWatch{},
+			windowWatch:   &WindowWatch{},
 		}, nil
 	case contract.CommitAbort:
 		if err := commit.Run(req, nil); err != nil {
 			return commandResult{}, err
 		}
 		result := m.windowReverted(contract.CommitAborted)
-		result.windowWatch = &windowWatch{}
+		result.windowWatch = &WindowWatch{}
 		return result, nil
 	case contract.CommitVerify:
 		return m.cmdCommitVerify()
@@ -99,7 +139,7 @@ func (m *Model) cmdCommitConfirmedWindow(commit WindowCommit, req contract.Commi
 	if err := commit.Run(req, m.applySessionCommit(req, &result)); err != nil {
 		return windowCommitAnswer(result, err)
 	}
-	result.windowWatch = watchedWindow(commit.Window)
+	result.windowWatch = WatchWindow(commit.Window)
 	var tb textbuf.Buffer
 	result.statusMessage = tb.Str(result.statusMessage).Str(". ").Str(contract.ConfirmWithin(int64(req.Seconds))).String()
 	return result, nil
@@ -133,14 +173,14 @@ func windowCommitAnswer(result commandResult, err error) (commandResult, error) 
 	return result, nil
 }
 
-// watchedWindow is what a session remembers when it sees the window open, so
-// the draft poll can report its end; nil when the window has stopped.
-func watchedWindow(window *confirm.Window) *windowWatch {
+// WatchWindow is what an editor remembers when it sees the window open, so
+// its poll can report the window's end; nil when the window has stopped.
+func WatchWindow(window *confirm.Window) *WindowWatch {
 	timeouts, err := window.Timeouts()
 	if err != nil {
 		return nil
 	}
-	return &windowWatch{open: true, timeouts: timeouts}
+	return &WindowWatch{open: true, timeouts: timeouts}
 }
 
 // windowReverted rebuilds the view over the restored config and reports msg.
@@ -153,36 +193,21 @@ func (m *Model) windowReverted(msg string) commandResult {
 	return commandResult{statusMessage: msg, configView: m.configViewAtPath(m.contextPath), revalidate: true}
 }
 
-// pollDaemonWindow is the draft poll's look at the daemon window. An open
-// window shows its owner and the seconds left (AC-17), or that its deadline
-// revert failed and what each user may do; a window this session
-// saw open and that is now gone says how it ended (AC-14). It answers the
-// status line, and false when there is nothing to say.
+// pollDaemonWindow is the draft poll's look at the daemon window
+// (WindowWatch.Poll). A window that ended rebuilds the view over the
+// configuration it left. It answers the status line, and false when there is
+// nothing to say.
 func (m *Model) pollDaemonWindow() (string, bool) {
 	window := m.editor.daemonWindow()
 	if window == nil {
 		return "", false
 	}
-	status, open := window.Status()
-	if open {
-		if !m.windowWatch.open {
-			if watched := watchedWindow(window); watched != nil {
-				m.windowWatch = *watched
-			}
-		}
-		return status.Line(m.editor.session.User), true
-	}
-	if !m.windowWatch.open {
+	news, ok := m.windowWatch.Poll(window, m.editor.session.User)
+	if !ok {
 		return "", false
 	}
-	watched := m.windowWatch
-	m.windowWatch = windowWatch{}
-	timeouts, err := window.Timeouts()
-	if err != nil {
-		return "", false
+	if news.Ended {
+		return m.windowReverted(news.Line).statusMessage, true
 	}
-	if timeouts > watched.timeouts {
-		return m.windowReverted(contract.CommitTimedOut).statusMessage, true
-	}
-	return m.windowReverted("The confirmed commit window was closed by another session.").statusMessage, true
+	return news.Line, true
 }

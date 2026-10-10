@@ -1210,7 +1210,7 @@ func (e *Editor) checkDraftChanged() (changed bool, notification string) {
 
 	// A forced commit by another user discarded some of this user's changes
 	// (AC-32): say so before anything else, once.
-	if notice := e.takeDiscardNotice(); notice != "" {
+	if notice := e.TakeDiscardNotice(); notice != "" {
 		return true, notice
 	}
 

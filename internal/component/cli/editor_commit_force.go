@@ -67,7 +67,7 @@ func (e *Editor) discardOverridden(guard storage.WriteGuard, overlaps []liveOver
 // file until the owner saves, and in the shared draft after (SaveDraft), so
 // both are rewritten; a notice for a change found in neither would be false.
 // The owner's editor rebuilds its working tree from the rewritten files when
-// it reads the notice (takeDiscardNotice).
+// it reads the notice (TakeDiscardNotice).
 func (e *Editor) discardUserChanges(guard storage.WriteGuard, user string, owned []liveOverlap) error {
 	fromChange, err := e.discardFromChangeFile(guard, user, owned)
 	if err != nil {
@@ -277,12 +277,12 @@ func removeMetaChange(meta *config.MetaTree, schema *config.Schema, change confi
 	return true
 }
 
-// takeDiscardNotice returns, once, what forced commits by other users
+// TakeDiscardNotice returns, once, what forced commits by other users
 // discarded from this user's changes, removes the notice, and rebuilds this
 // editor's working tree without the discarded values. An empty answer
 // means there is no notice; a notice that cannot be read is said so, because
 // dropping it would hide a discarded change from its owner.
-func (e *Editor) takeDiscardNotice() string {
+func (e *Editor) TakeDiscardNotice() string {
 	noticePath := DiscardNoticePath(e.originalPath, e.session.User)
 	if !e.store.Exists(noticePath) {
 		return ""

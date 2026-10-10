@@ -54,6 +54,8 @@ type EditorManager struct {
 	readSource    func() ([]byte, error)
 	commitSource  func(expected, content []byte) error
 	confirmWindow func() *confirm.Window // The daemon's window; SetConfirmWindow.
+	watchMu       sync.Mutex
+	windowWatches map[string]*cli.WindowWatch // Per user, what WindowNotices saw of the window.
 }
 
 // NewEditorManager creates an EditorManager for the given storage backend and config path.
@@ -61,6 +63,7 @@ type EditorManager struct {
 func NewEditorManager(store storage.Storage, configPath string, schema *config.Schema, editorFactory contract.EditorFactory, editSessionFactory contract.EditSessionFactory) *EditorManager {
 	return &EditorManager{
 		sessions:           make(map[string]*userSession),
+		windowWatches:      make(map[string]*cli.WindowWatch),
 		store:              store,
 		configPath:         configPath,
 		schema:             schema,

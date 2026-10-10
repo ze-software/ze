@@ -437,6 +437,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// SSE broker for live config change notifications and log streaming.
 	broker := zeweb.NewEventBroker(0)
+	if commitHook != nil {
+		// Web users see the daemon window's countdown and how it ended, and a
+		// forced commit's discard notice, as the SSH draft poll shows them.
+		// Run ends when the broker closes (webService.Shutdown).
+		go zeweb.NewWindowNotices(editorMgr, broker).Run()
+	}
 
 	// Workbench is the normal UI. Finder remains as a server-side rollback when
 	// ze.web.ui=finder is set before startup; stale browser cookies do not switch

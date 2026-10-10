@@ -193,6 +193,9 @@ const (
 	CommitAborted = "Changes rolled back to previous configuration."
 	// CommitTimedOut reports a window its deadline reverted.
 	CommitTimedOut = "Timeout: configuration automatically rolled back."
+	// CommitClosedElsewhere reports a window that an accept or an abort typed
+	// in another session closed.
+	CommitClosedElsewhere = "The confirmed commit window was closed by another session."
 	// CommitNothingPending answers `commit now` with nothing to apply.
 	CommitNothingPending = "no changes to commit"
 	// commitNothingPendingNoWindow answers `commit confirmed <seconds>` with

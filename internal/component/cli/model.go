@@ -183,7 +183,7 @@ type Model struct {
 
 	// Commit confirmed state (VyOS-style commit with auto-revert)
 	confirmTimerActive bool        // True if waiting for confirm/abort
-	windowWatch        windowWatch // The daemon window this session last saw open (model_commit_window.go)
+	windowWatch        WindowWatch // The daemon window this session last saw open (model_commit_window.go)
 	confirmSecondsLeft int         // Countdown seconds remaining
 	confirmBackupPath  string      // Path to backup for rollback on timeout/abort
 
@@ -357,7 +357,7 @@ type commandResult struct {
 	// windowWatch, when set, replaces Model.windowWatch: the command ran on a
 	// copy of the Model, so the daemon window it saw opened or closed is
 	// propagated through the result like the confirm timer.
-	windowWatch *windowWatch
+	windowWatch *WindowWatch
 
 	// Paste mode state (for load terminal ...)
 	enterPasteMode    bool   // True to enter paste mode

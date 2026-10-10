@@ -120,6 +120,7 @@ func (a *testEditorAdapter) CommitSessionCandidateForce(stamp time.Time) (*contr
 func (a *testEditorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommittedContent(content) }
 func (a *testEditorAdapter) VerifySession() error                { return a.ed.VerifySession() }
 func (a *testEditorAdapter) RefreshCommittedView() error         { return a.ed.RefreshCommittedView() }
+func (a *testEditorAdapter) TakeDiscardNotice() string           { return a.ed.TakeDiscardNotice() }
 func (a *testEditorAdapter) OriginalContent() string             { return a.ed.OriginalContent() }
 func (a *testEditorAdapter) WorkingContent() string              { return a.ed.WorkingContent() }
 func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {

@@ -46,10 +46,10 @@ func TestWebCommitHangRepro(t *testing.T) {
 		t.Fatalf("set value: %v", err)
 	}
 
-	// Run Commit directly; the go test -timeout flag produces a full
+	// Run the commit the "Review & Commit" button runs; the go test -timeout flag produces a full
 	// goroutine dump if this ever hangs again, pinpointing the deadlock.
 	start := time.Now()
-	if _, err := mgr.Commit("insecure"); err != nil {
+	if _, err := mgr.CommitNow("insecure"); err != nil {
 		t.Fatalf("commit returned error after %v: %v", time.Since(start), err)
 	}
 
@@ -70,7 +70,7 @@ func TestWebCommitHangRepro(t *testing.T) {
 	if err := mgr.SetValue("insecure", []string{"system"}, "host", "audit-host-2"); err != nil {
 		t.Fatalf("set value 2: %v", err)
 	}
-	if _, err := mgr.Commit("insecure"); err != nil {
+	if _, err := mgr.CommitNow("insecure"); err != nil {
 		t.Fatalf("second commit failed: %v", err)
 	}
 }

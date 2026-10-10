@@ -20,7 +20,7 @@ func TestEventBrokerSubscribe(t *testing.T) {
 	broker := NewEventBroker(100)
 	defer broker.Close()
 
-	c := broker.Subscribe()
+	c := broker.Subscribe("")
 	if c == nil {
 		t.Fatal("Subscribe returned nil")
 	}
@@ -29,7 +29,7 @@ func TestEventBrokerSubscribe(t *testing.T) {
 		t.Fatalf("ClientCount() = %d, want 1", broker.ClientCount())
 	}
 
-	c2 := broker.Subscribe()
+	c2 := broker.Subscribe("")
 	if c2 == nil {
 		t.Fatal("second Subscribe returned nil")
 	}
@@ -50,8 +50,8 @@ func TestEventBrokerBroadcast(t *testing.T) {
 	broker := NewEventBroker(100)
 	defer broker.Close()
 
-	c1 := broker.Subscribe()
-	c2 := broker.Subscribe()
+	c1 := broker.Subscribe("")
+	c2 := broker.Subscribe("")
 
 	broker.Broadcast("test", "hello")
 
@@ -84,7 +84,7 @@ func TestEventBrokerUnsubscribe(t *testing.T) {
 	broker := NewEventBroker(100)
 	defer broker.Close()
 
-	c := broker.Subscribe()
+	c := broker.Subscribe("")
 	if broker.ClientCount() != 1 {
 		t.Fatalf("ClientCount() = %d, want 1", broker.ClientCount())
 	}
@@ -115,7 +115,7 @@ func TestEventBrokerNonBlocking(t *testing.T) {
 	broker := NewEventBroker(100)
 	defer broker.Close()
 
-	c := broker.Subscribe()
+	c := broker.Subscribe("")
 
 	// Fill the client buffer (capacity 16).
 	for range 16 {
@@ -163,17 +163,17 @@ func TestEventBrokerMaxClients(t *testing.T) {
 	broker := NewEventBroker(2)
 	defer broker.Close()
 
-	c1 := broker.Subscribe()
+	c1 := broker.Subscribe("")
 	if c1 == nil {
 		t.Fatal("first Subscribe returned nil")
 	}
 
-	c2 := broker.Subscribe()
+	c2 := broker.Subscribe("")
 	if c2 == nil {
 		t.Fatal("second Subscribe returned nil")
 	}
 
-	c3 := broker.Subscribe()
+	c3 := broker.Subscribe("")
 	if c3 != nil {
 		t.Fatal("third Subscribe should return nil (max 2 clients)")
 	}
@@ -193,8 +193,8 @@ func TestEventBrokerClose(t *testing.T) {
 
 	broker := NewEventBroker(100)
 
-	c1 := broker.Subscribe()
-	c2 := broker.Subscribe()
+	c1 := broker.Subscribe("")
+	c2 := broker.Subscribe("")
 
 	broker.Close()
 
@@ -215,7 +215,7 @@ func TestEventBrokerClose(t *testing.T) {
 	}
 
 	// Subscribe after close should return nil.
-	if c := broker.Subscribe(); c != nil {
+	if c := broker.Subscribe(""); c != nil {
 		t.Fatal("Subscribe after Close should return nil")
 	}
 }
@@ -231,7 +231,7 @@ func TestEventBrokerDefaultMaxClients(t *testing.T) {
 	broker := NewEventBroker(0)
 	defer broker.Close()
 
-	c := broker.Subscribe()
+	c := broker.Subscribe("")
 	if c == nil {
 		t.Fatal("Subscribe returned nil with default maxClients")
 	}
@@ -298,7 +298,7 @@ func TestEventBrokerServeHTTPMaxClients(t *testing.T) {
 	defer broker.Close()
 
 	// Fill the single slot.
-	_ = broker.Subscribe()
+	_ = broker.Subscribe("")
 
 	ts := httptest.NewServer(broker)
 	defer ts.Close()
@@ -334,7 +334,7 @@ func TestBroadcastConfigChange(t *testing.T) {
 	broker := NewEventBroker(100)
 	defer broker.Close()
 
-	client := broker.Subscribe()
+	client := broker.Subscribe("")
 
 	// Use a reason with HTML special characters to verify escaping.
 	BroadcastConfigChange(broker, "alice", "added <script>alert('xss')</script>")
