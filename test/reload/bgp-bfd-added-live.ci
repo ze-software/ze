@@ -1,0 +1,132 @@
+# Test: BFD added to a RUNNING daemon over SSH starts a BFD session for a BGP peer
+# Initial config: one iBGP peer, no `bfd` root and no peer `bfd` block, so no
+#                 BFD session exists.
+# Live change:    an SSH session editor load-merges a `bfd` root with a profile
+#                 and the peer's `connection bfd` opt-in, and commits.
+# Expected:       `show bfd sessions` lists a single-hop session to the peer
+#                 under the profile the commit added.
+#
+# VALIDATES: spec-terminal-demo-showcase AC-2 (BFD topic) -- a topic's
+#            configuration load-merged in the SSH editor and committed enables
+#            the feature on a daemon started without it.
+# PREVENTS: a commit that reports success while no BFD session is created,
+#           which the BFD topic recording would show as an empty table.
+#
+# The commit RESTARTS the BGP session, and the peer expects two connections.
+# A peer's BFD opt-in is a PeerSettings field outside the hot-swap set, so the
+# reload removes and re-adds the peer (docs/architecture/core-design.md,
+# section 18a). A non-strict peer opens its BFD session on entry to
+# Established, so the session appears once the second connection is up. With
+# tcp_connections=1 the second connection is refused and `show bfd sessions`
+# stays empty: observed on 2026-10-10.
+#
+# No pre-commit read: before the commit `show bfd sessions` answers
+# "error: bfd: plugin not loaded" (the bfd plugin loads on its config root),
+# and the fixture's lacks step polls only a command that succeeds. The base
+# config carries no `bfd` root, so the session cannot exist before the commit.
+option=timeout:value=60s
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=50s
+option=linger:value=true
+# EOR from ze on the first session, and again after the commit restarts it
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bgp-bfd-added-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+plugin {
+    internal adj-rib-in {
+        use bgp-adj-rib-in
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ]
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=bfd-topic.conf:terminator=EOF_TOPIC
+bfd {
+    enabled true
+    profile fast {
+        detect-multiplier 3
+        desired-min-tx-us 50000
+        required-min-rx-us 50000
+    }
+}
+
+bgp {
+    peer peer1 {
+        connection {
+            bfd {
+                enabled true
+                mode single-hop
+                profile fast
+            }
+        }
+    }
+}
+EOF_TOPIC
+
+tmpfs=bgp-bfd-added-live.script:terminator=EOF_SCRIPT
+send load file absolute merge bfd-topic.conf
+wait Configuration merged from
+send commit now
+wait Session committed:
+cli show bfd sessions | yaml
+has peer: 127.0.0.1
+has profile: fast
+has mode: single-hop
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start bgp-bfd-added-live.conf:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 bgp-bfd-added-live.conf bgp-bfd-added-live.script:timeout=60s
+expect=exit:code=0
