@@ -32,10 +32,7 @@ func TestVPPSRv6ServiceRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := newVPP(root)
-	if err := ensureImage(v.Image, v.Progress); err != nil {
-		t.Fatal(err)
-	}
-	if err := buildDaemon(root, v.Goarch, v.Progress); err != nil {
+	if err := v.prepareDaemon(); err != nil {
 		t.Fatal(err)
 	}
 	work, err := scratchDir(root, "vpp-srv6-")

@@ -22,9 +22,9 @@ exit 0
 `
 
 // VALIDATES: AC-3 through the deployment proofs that build their own daemon
-// (l2tp-test, vpp-test, vpp-iface-test). Each refuses a daemon kernel that lacks
-// an enrolled feature, naming it and the kernel release, before any container
-// starts.
+// (l2tp-test, vpp-test, vpp-iface-test) and the SRv6 service-route proof. Each
+// refuses a daemon kernel that lacks an enrolled feature, naming it and the
+// kernel release, before any container starts.
 // PREVENTS: a proof that runs Ze in Docker without the check the interop suites
 // make. Removing the check from any one Run turns its subtest red.
 //
@@ -47,6 +47,11 @@ func TestDaemonProofsRefuseMissingKernelFeature(t *testing.T) {
 		{"vpp-iface-test", func(tree string) string { return newVPPIface(tree).Goarch }, func(tree string) error {
 			_, err := newVPPIface(tree).Run()
 			return err
+		}},
+		// TestVPPSRv6ServiceRoute (build tag integration) starts its VPP container
+		// and Ze through the same preparation step, so it carries the same check.
+		{"vpp-srv6-service-route", func(tree string) string { return newVPP(tree).Goarch }, func(tree string) error {
+			return newVPP(tree).prepareDaemon()
 		}},
 	}
 	for _, proof := range proofs {

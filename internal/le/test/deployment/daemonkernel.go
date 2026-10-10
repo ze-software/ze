@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the Docker host kernel check
 // Related: daemonbuild.go -- the daemon this check probes with
 // Related: l2tp.go -- the L2TP proof that calls it
-// Related: vppiface.go -- the VPP interface proof that calls it
+// Related: vppiface.go -- prepareDaemon, which vpp-iface-test and the SRv6 proof call
 // Related: vppevidence.go -- the VPP evidence proof that calls it
 //
 // daemonkernel.go is the one step every proof that cross-compiles its own

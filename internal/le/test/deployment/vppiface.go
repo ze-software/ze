@@ -247,6 +247,17 @@ func (v *vppIface) writeScratch(work string) error {
 	return nil
 }
 
+// prepareDaemon readies the VPP image and the linux daemon, then refuses a
+// Docker kernel that lacks an enrolled feature: the steps a proof that starts
+// one VPP container and Ze in it takes first, vpp-iface-test and
+// TestVPPSRv6ServiceRoute (build tag integration).
+func (v *vppIface) prepareDaemon() error {
+	if err := ensureImage(v.Image, v.Progress); err != nil {
+		return err
+	}
+	return buildCheckedDaemon(v.Tree, v.Goarch, func() error { return buildDaemon(v.Tree, v.Goarch, v.Progress) })
+}
+
 // Run performs the proof and answers what happened.
 //
 // A step that the run cannot perform is an error. The operator has something to
@@ -259,10 +270,7 @@ func (v *vppIface) Run() (VPPIfaceReport, error) {
 	if err := look("docker", "go"); err != nil {
 		return report, err
 	}
-	if err := ensureImage(v.Image, v.Progress); err != nil {
-		return report, err
-	}
-	if err := buildCheckedDaemon(v.Tree, v.Goarch, func() error { return buildDaemon(v.Tree, v.Goarch, v.Progress) }); err != nil {
+	if err := v.prepareDaemon(); err != nil {
 		return report, err
 	}
 
