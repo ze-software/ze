@@ -98,6 +98,18 @@ var errMigrationAccepted = errors.New("the kernel accepted a state migration nam
 // message type above XFRM_MSG_MAX; ENOPROTOOPT is the handler built without
 // CONFIG_XFRM_MIGRATE; EPROTONOSUPPORT is no XFRM netlink at all. Those three
 // are absence. Every other errno, EPERM included, did not reach the question.
+//
+// EINVAL is absence and not an unread answer because a 7.2 handler cannot
+// return it for this probe (net/xfrm/xfrm_user.c, v7.2). xfrm_user_rcv_msg
+// answers `if (type > XFRM_MSG_MAX) return -EINVAL;` before its CAP_NET_ADMIN
+// check, so an older kernel answers EINVAL to every caller. In
+// xfrm_do_migrate_state every EINVAL before the lookup tests a field the probe
+// sets valid: `if (!um->id.spi)` (SPI 1), `if (um->reserved)` (zero),
+// `um->flags & ~XFRM_MIGRATE_STATE_KNOWN_FLAGS` (zero), and
+// verify_selector_prefixlen, which returns 0 for `case AF_UNSPEC:` (the probe's
+// selector family). The probe carries no attribute for the MIGRATE_STATE
+// attribute filter to refuse, and its body is the 132 bytes of
+// struct xfrm_user_migrate_state, so the size check passes too.
 func classifyXFRMMigration(err error) kernelcap.Result {
 	if errors.Is(err, unix.ESRCH) {
 		return kernelcap.Result{State: kernelcap.StatePresent}
