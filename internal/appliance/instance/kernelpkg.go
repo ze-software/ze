@@ -32,8 +32,9 @@ const (
 // notice derives from the tree's own provenance (readProvenance),
 // so it names the version built and the source the build verified. A tree with
 // no provenance, or one recorded before the source was, is refused: the image
-// would ship a kernel whose source it cannot name.
-func addLinuxNotice(config []byte, tree string) ([]byte, error) {
+// would ship a kernel whose source it cannot name. configPath is the file config
+// was read from, named when that file already places a file at the notice path.
+func addLinuxNotice(config []byte, configPath, tree string) ([]byte, error) {
 	record, err := readProvenance(filepath.Join(tree, kernelbuilder.ProvenanceName))
 	if err != nil {
 		return nil, fmt.Errorf("kernel package: %w", err)
@@ -59,7 +60,10 @@ func addLinuxNotice(config []byte, tree string) ([]byte, error) {
 		}
 	}
 	if _, taken := files[linuxNoticePath]; taken {
-		return nil, fmt.Errorf("instance config already places a file at %s, where the image's Linux GPLv2 notice goes", linuxNoticePath)
+		return nil, fmt.Errorf("%s already places a file at %s, where Ze writes the image's Linux GPLv2 notice, "+
+			"so the image would ship that file instead of the notice\n"+
+			"remove the entry PackageConfig[%q].ExtraFileContents[%q] from %s",
+			configPath, linuxNoticePath, noticePackage, linuxNoticePath, configPath)
 	}
 	files[linuxNoticePath] = record.LinuxNotice()
 
@@ -191,9 +195,12 @@ func checkKernelArch(vmlinuz, arch string) error {
 	if !known {
 		return fmt.Errorf("kernel architecture %q is not amd64 or arm64", arch)
 	}
+	tree := filepath.Dir(vmlinuz)
 	file, err := os.Open(vmlinuz) //nolint:gosec // a file inside the resolved kernel cache entry
 	if err != nil {
-		return fmt.Errorf("runtime kernel: %w", err)
+		return fmt.Errorf("runtime kernel %s has no %s, so the cache entry is incomplete or gone: %w\n"+
+			"remove the entry, and the next build rebuilds the kernel:\n  rm -r %s",
+			tree, filepath.Base(vmlinuz), err, tree)
 	}
 	defer file.Close() //nolint:errcheck // a read-only file
 
@@ -202,7 +209,10 @@ func checkKernelArch(vmlinuz, arch string) error {
 		return fmt.Errorf("read the kernel header of %s: %w", vmlinuz, err)
 	}
 	if string(found) != header.magic {
-		return fmt.Errorf("%s is not an %s kernel: magic %q not found at offset %#x", vmlinuz, arch, header.magic, header.offset)
+		return fmt.Errorf("%s is not an %s kernel: magic %q not found at offset %#x, "+
+			"so the cache entry %s holds a kernel for another arch, or a damaged one\n"+
+			"remove the entry, and the next build rebuilds the kernel:\n  rm -r %s",
+			vmlinuz, arch, header.magic, header.offset, tree, tree)
 	}
 	return nil
 }

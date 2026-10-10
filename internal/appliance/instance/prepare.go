@@ -122,7 +122,8 @@ func deriveConfigJSON(src []byte, extraArgs []string) ([]byte, error) {
 // ze itself from the proxy at a fresh pseudo-version each build.
 func Prepare(srcParent string, opts Options) (string, func(), error) {
 	srcInstance := filepath.Join(srcParent, Name)
-	srcData, err := os.ReadFile(filepath.Join(srcInstance, "config.json")) //nolint:gosec // trusted checked-in gokrazy instance dir
+	srcConfig := filepath.Join(srcInstance, "config.json")
+	srcData, err := os.ReadFile(srcConfig) //nolint:gosec // trusted checked-in gokrazy instance dir
 	if err != nil {
 		return "", nil, fmt.Errorf("read instance config: %w", err)
 	}
@@ -140,7 +141,7 @@ func Prepare(srcParent string, opts Options) (string, func(), error) {
 	if err := checkKernelArch(filepath.Join(opts.KernelTree, vmlinuzName), opts.Arch); err != nil {
 		return "", nil, fmt.Errorf("kernel package: %w", err)
 	}
-	patched, err = addLinuxNotice(patched, opts.KernelTree)
+	patched, err = addLinuxNotice(patched, srcConfig, opts.KernelTree)
 	if err != nil {
 		return "", nil, err
 	}

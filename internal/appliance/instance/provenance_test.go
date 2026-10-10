@@ -64,7 +64,9 @@ func TestReadProvenanceRefusesARecordWithoutItsSource(t *testing.T) {
 	if err == nil {
 		t.Fatal("a provenance with no source lines was accepted")
 	}
-	if !strings.Contains(err.Error(), "source-url") {
-		t.Errorf("refusal %q does not name the missing source-url", err)
+	for _, want := range []string{"source-url", "rm -r " + filepath.Dir(path)} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not name %q", err, want)
+		}
 	}
 }

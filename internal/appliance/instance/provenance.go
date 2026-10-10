@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
@@ -34,12 +35,16 @@ type Provenance struct {
 // readProvenance reads the provenance record kernelbuilder's writeProvenance
 // wrote beside a built kernel. A record from
 // before the build recorded its source carries no source-url or source-sha256,
-// and is refused naming the field: the kernel beside it was built from a source
-// this record cannot name, so it is rebuilt rather than shipped.
+// and is refused naming the field and the command that removes the cache entry:
+// the kernel beside it was built from a source this record cannot name, so it is
+// rebuilt rather than shipped.
 func readProvenance(path string) (Provenance, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // G304: the provenance beside a resolved kernel tree
 	if err != nil {
-		return Provenance{}, fmt.Errorf("read kernel provenance: %w", err)
+		return Provenance{}, fmt.Errorf("read kernel provenance: %w\n"+
+			"without it the image cannot name the Linux source it ships; "+
+			"remove the cache entry, and the next build rebuilds the kernel:\n  rm -r %s",
+			err, filepath.Dir(path))
 	}
 	fields := make(map[string]string)
 	scanner := bufio.NewScanner(bytes.NewReader(data))
@@ -69,10 +74,16 @@ func readProvenance(path string) (Provenance, error) {
 	return record, nil
 }
 
+// errProvenanceField refuses a record with no key. The cache serves any entry
+// that holds a vmlinuz, so no flag rebuilds this one: the fix is removing the
+// entry, after which the next build finds the cache cold and builds it again.
 func errProvenanceField(path, key string) error {
 	var tb textbuf.Buffer
 	return errors.New(tb.Str("kernel provenance ").Str(path).Str(" has no ").Str(key).
-		Str(": the kernel was built before the build recorded its source; rebuild it").String())
+		Str(": the kernel in this cache entry was built before the build recorded its source,").
+		Str(" so the image cannot name the Linux source it ships\n").
+		Str("remove the cache entry, and the next build rebuilds the kernel:\n").
+		Str("  rm -r ").Str(filepath.Dir(path)).String())
 }
 
 // LinuxNotice is the GPLv2 notice an appliance image carries for its kernel.

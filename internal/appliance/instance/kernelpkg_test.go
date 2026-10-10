@@ -140,8 +140,10 @@ func TestAssembleKernelPackageRefusesWrongArch(t *testing.T) {
 	if err == nil {
 		t.Fatal("an amd64 kernel was accepted for an arm64 image")
 	}
-	if !strings.Contains(err.Error(), "not an arm64 kernel") {
-		t.Errorf("error does not say which arch was wanted: %v", err)
+	for _, want := range []string{"not an arm64 kernel", "rm -r " + tree} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error does not name %q: %v", want, err)
+		}
 	}
 	if _, statErr := os.Stat(pkg); !os.IsNotExist(statErr) {
 		t.Errorf("a refused assembly left %s behind", pkg)
@@ -280,8 +282,10 @@ func TestPrepareRefusesAKernelWithoutProvenance(t *testing.T) {
 	if err == nil {
 		t.Fatal("Prepare accepted a kernel tree with no provenance")
 	}
-	if !strings.Contains(err.Error(), kernelbuilder.ProvenanceName) {
-		t.Errorf("refusal does not name %s: %v", kernelbuilder.ProvenanceName, err)
+	for _, want := range []string{kernelbuilder.ProvenanceName, "rm -r " + opts.KernelTree} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not name %q: %v", want, err)
+		}
 	}
 }
 
@@ -304,5 +308,56 @@ func TestPrepareRefusesWithoutKernelModule(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), KernelModule) {
 		t.Errorf("error does not name the kernel module: %v", err)
+	}
+}
+
+// TestPrepareRefusesANonexistentKernelTree verifies a kernel tree that is not
+// there is refused before anything is created, naming the tree and the command
+// that clears the entry so the next build fills it.
+//
+// VALIDATES: review round 1 NOTE 8, the open error of checkKernelArch.
+// PREVENTS: a missing tree reaching gok, which would resolve the kernel module
+// itself.
+func TestPrepareRefusesANonexistentKernelTree(t *testing.T) {
+	_, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
+	tree := filepath.Join(t.TempDir(), "7.2.9-runtime-gone")
+	opts := Options{KernelTree: tree, Arch: runtime.GOARCH}
+
+	parent, cleanup, err := Prepare(srcParent, opts)
+	if cleanup != nil {
+		cleanup()
+	}
+	if err == nil {
+		t.Fatalf("Prepare accepted a kernel tree that does not exist, into %s", parent)
+	}
+	for _, want := range []string{tree, "has no " + vmlinuzName, "rm -r " + tree} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not name %q: %v", want, err)
+		}
+	}
+}
+
+// TestPrepareRefusesATakenNoticePath verifies a checked-in instance config that
+// already places a file at the notice path is refused, naming the exact config
+// entry and the file it sits in, so the operator knows what to remove.
+//
+// VALIDATES: review round 1 ISSUE 5, addLinuxNotice's collision refusal.
+// PREVENTS: a refusal that names the notice path but not where it was set.
+func TestPrepareRefusesATakenNoticePath(t *testing.T) {
+	config := `{"Hostname":"ze","PackageConfig":{"` + noticePackage + `":{"ExtraFileContents":{"` + linuxNoticePath + `":"mine"}}}}`
+	_, srcParent := writePreparedParentFixture(t, []byte(config))
+
+	_, cleanup, err := Prepare(srcParent, testOptions(t))
+	if cleanup != nil {
+		cleanup()
+	}
+	if err == nil {
+		t.Fatal("Prepare accepted a config that already places a file at the notice path")
+	}
+	entry := `PackageConfig["` + noticePackage + `"].ExtraFileContents["` + linuxNoticePath + `"]`
+	for _, want := range []string{entry, filepath.Join(srcParent, Name, "config.json")} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not name %q: %v", want, err)
+		}
 	}
 }

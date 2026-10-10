@@ -309,7 +309,13 @@ reads that record from the resolved kernel tree and adds the notice to the ze
 package's `ExtraFileContents` in the prepared `config.json`; gokrazy copies only
 `lib/modules` from a kernel package into the root, so the kernel package cannot
 carry it. A kernel tree with no provenance, or one built before the build recorded
-its source, is refused with the field it lacks, and the kernel is rebuilt.
+its source, is refused with the record or field it lacks. The cache serves any
+entry that holds a `vmlinuz`, so the refusal prints the `rm -r` of that cache
+entry: the next build then finds the cache cold and rebuilds the kernel. A
+checked-in `gokrazy/ze/config.json` that already places a file at
+`/etc/linux-gpl-notice` is refused too, naming the entry
+`PackageConfig["github.com/ze-software/ze/cmd/ze"].ExtraFileContents["/etc/linux-gpl-notice"]`
+to remove.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- writeProvenance -->
 <!-- source: internal/appliance/instance/provenance.go -- readProvenance, Provenance.LinuxNotice -->
