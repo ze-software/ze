@@ -1,0 +1,141 @@
+# Test: the IRR topic's three sections, load-merged in the SSH editor and
+#       committed, reach the running IRR filter with no BGP restart
+# Initial config: peer customer (AS 65001) established, no `policy irr`, no
+#                 `irr as-set`, no import filter. bgp-filter-irr runs anyway:
+#                 its ConfigRoots is bgp.
+# Live change:    an SSH session editor load-merges the server, the as-set and
+#                 the import filter, one section at a time as the IRR topic
+#                 tape does (demos/terminal/topics/irr/configure.tape), then
+#                 `commit now`.
+# Expected:       `show bgp irr` lists AS-TEST for 65001, and `show bgp irr
+#                 check customer` accepts 10.0.0.0/24 (in AS-TEST) and refuses
+#                 192.168.0.0/24 (not in it).
+#
+# VALIDATES: spec-terminal-demo-showcase AC-2 (IRR topic) -- the topic's
+#            sections committed through the SSH editor, the path the recording
+#            types, enable the filter on a daemon started without them.
+# PREVENTS: a topic recording whose commit reports success while the filter
+#           holds no prefix list. AC-1's IRR probes reload by SIGHUP, which is
+#           not the path the recording takes. tcp_connections=1 proves the
+#           commit does not reset the customer session.
+#
+# The tmpfs sections are demos/terminal/topics/irr/{1-server,2-as-set,3-import}.conf
+# with the IRR server's port replaced by $PORT2.
+#
+# WAITS: the editor redraws only the cells that change, so the second and third
+# merge notices reach the terminal as the file name's differing characters, not
+# as "Configuration merged from <file>". The script therefore waits for the
+# first notice, then for `show | compare` to print the import filter, which only
+# the third section adds; the editor handles input in order.
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bgp-filter-irr-loaded-over-ssh.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT3;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer customer {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=1-server.conf:terminator=EOF_SERVER
+bgp {
+    policy {
+        irr {
+            server 127.0.0.1:$PORT2
+            refresh-interval 3600
+        }
+    }
+}
+EOF_SERVER
+
+tmpfs=2-as-set.conf:terminator=EOF_ASSET
+bgp {
+    peer customer {
+        session {
+            irr {
+                as-set AS-TEST
+            }
+        }
+    }
+}
+EOF_ASSET
+
+tmpfs=3-import.conf:terminator=EOF_IMPORT
+bgp {
+    peer customer {
+        filter {
+            import [ bgp-filter-irr:65001 ]
+        }
+    }
+}
+EOF_IMPORT
+
+tmpfs=bgp-filter-irr-loaded-over-ssh.script:terminator=EOF_SCRIPT
+cli show bgp irr | no-more
+lacks AS-TEST
+send load file absolute merge 1-server.conf
+wait Configuration merged from
+send load file absolute merge 2-as-set.conf
+send load file absolute merge 3-import.conf
+send show | compare
+wait bgp-filter-irr:65001
+send commit now
+wait Session committed:
+cli show bgp irr | no-more
+has AS-TEST
+cli show bgp irr check customer 10.0.0.0/24 | no-more | yaml
+has accepted: true
+cli show bgp irr check customer 192.168.0.0/24 | no-more | yaml
+has accepted: false
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test irr --port $PORT2
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze start bgp-filter-irr-loaded-over-ssh.conf:timeout=60s
+cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT3 bgp-filter-irr-loaded-over-ssh.conf bgp-filter-irr-loaded-over-ssh.script:timeout=60s
+expect=exit:code=0
