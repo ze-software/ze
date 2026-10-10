@@ -49,18 +49,23 @@ const (
 	sessionEditorInput
 )
 
+// sessionEditorWordInput is the script word for sessionEditorInput. It is a
+// constant because the package already spells "input" for a payload field
+// (fieldInput), and the two mean different things.
+const sessionEditorWordInput = "input"
+
 // sessionEditorVerbs maps a script word to its verb. It is the grammar, so the
 // parser refuses any word missing here.
 var sessionEditorVerbs = map[string]sessionEditorVerb{
-	"send":  sessionEditorSend,
-	"wait":  sessionEditorWait,
-	"cli":   sessionEditorCLI,
-	"has":   sessionEditorHas,
-	"lacks": sessionEditorLacks,
-	"key":   sessionEditorKey,
-	"kill":  sessionEditorKill,
-	"stop":  sessionEditorStop,
-	"input": sessionEditorInput,
+	"send":                 sessionEditorSend,
+	"wait":                 sessionEditorWait,
+	"cli":                  sessionEditorCLI,
+	"has":                  sessionEditorHas,
+	"lacks":                sessionEditorLacks,
+	"key":                  sessionEditorKey,
+	"kill":                 sessionEditorKill,
+	"stop":                 sessionEditorStop,
+	sessionEditorWordInput: sessionEditorInput,
 }
 
 // sessionEditorKeys maps a key name a key step accepts to the bytes the
