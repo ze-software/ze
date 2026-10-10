@@ -170,7 +170,7 @@
       "rid": "RFC8907-3.7-2",
       "polarity": "positive",
       "unit": "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire",
-      "unit-sha": "b9d3da6ab3e2cf40",
+      "unit-sha": "d4aec92a37c5e17e",
       "claim-sha": "cdde0c700f4a2cb0",
       "route": "revert",
       "producer": "internal/component/tacacs/text.go::validateText",
@@ -323,17 +323,6 @@
     {
       "rid": "RFC8907-4-5",
       "polarity": "positive",
-      "unit": "internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip",
-      "unit-sha": "6a83f79186e74946",
-      "claim-sha": "40597604c58a3db1",
-      "route": "revert",
-      "producer": "internal/component/tacacs/packet.go::UnmarshalPacketHeader",
-      "producer-sha": "cced01ecefec3957",
-      "break": "body of UnmarshalPacketHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC8907-4-5",
-      "polarity": "positive",
       "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder",
       "unit-sha": "a175a6eb1adfc2ae",
       "claim-sha": "82259a317b2dc2cd",
@@ -341,6 +330,17 @@
       "producer": "internal/component/tacacs/packet.go::MarshalBinary",
       "producer-sha": "9f21892fdbc520cb",
       "break": "body of MarshalBinary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-4-5",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip",
+      "unit-sha": "6a83f79186e74946",
+      "claim-sha": "40597604c58a3db1",
+      "route": "revert",
+      "producer": "internal/component/tacacs/packet.go::UnmarshalPacketHeader",
+      "producer-sha": "cced01ecefec3957",
+      "break": "body of UnmarshalPacketHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8907-4.1-1",
@@ -1116,7 +1116,7 @@
       "rid": "RFC8907-8.3-4",
       "polarity": "positive",
       "unit": "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap",
-      "unit-sha": "b58c72c88b77ef5a",
+      "unit-sha": "170df70caa771d31",
       "claim-sha": "1aab67b5fbc6d387",
       "route": "revert",
       "producer": "cmd/ze/hub/aaa_lifecycle.go::commandStop",
