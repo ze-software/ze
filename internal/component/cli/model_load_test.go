@@ -1168,3 +1168,104 @@ func TestCommitConfirmedSessionRouting(t *testing.T) {
 	assert.NotContains(t, configContent, "{",
 		"config should not contain hierarchical braces")
 }
+
+// fileModeLoadCase is one file-mode `load file` run: the editor's context,
+// the command's location and action, the file's content, and the working
+// content the load leaves.
+type fileModeLoadCase struct {
+	name     string
+	context  []string
+	location string
+	action   string
+	input    string
+	want     string
+}
+
+// runFileModeLoad loads tc.input over validBGPConfig in a file-mode editor,
+// through the `load file` command at tc.context, and answers the working
+// content.
+func runFileModeLoad(t *testing.T, tc fileModeLoadCase) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	loadPath := filepath.Join(tmpDir, "load.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(validBGPConfig), 0o600))
+	require.NoError(t, os.WriteFile(loadPath, []byte(tc.input), 0o600))
+
+	ed, err := NewLooseFileEditor(nil, configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // Best effort cleanup in test
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
+	require.NoError(t, err)
+	if len(tc.context) > 0 {
+		editResult, err := model.cmdEdit(tc.context)
+		require.NoError(t, err)
+		model.applyResult(editResult)
+	}
+
+	_, err = model.dispatchCommand("load file " + tc.location + " " + tc.action + " " + loadPath)
+	require.NoError(t, err)
+	return ed.WorkingContent()
+}
+
+// TestFileModeLoadTreeMergeMatchesPrevious verifies AC-7: in file mode, the
+// tree load gives the working content the deleted text merge gave. Each want
+// was produced by the text-merge functions (mergeAtContext, replaceAtContext,
+// and replace as a plain content swap) taken from the commit before their
+// deletion, run over the same base and input, and read back through the same
+// serializer. The cases cover replace and merge, at the root and at a
+// context; a merge that changes an existing leaf is included, since the text
+// merge took the loaded value there too.
+func TestFileModeLoadTreeMergeMatchesPrevious(t *testing.T) {
+	peer1 := []string{"bgp", "peer", "peer1"}
+	cases := []fileModeLoadCase{
+		{
+			name: "absolute replace", location: "absolute", action: "replace",
+			input: "bgp {\n\trouter-id 5.6.7.8\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000\n\t\t}\n\t}\n}\n",
+			want:  "bgp {\n\trouter-id 5.6.7.8\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+		},
+		{
+			name: "relative merge at a peer", context: peer1, location: "relative", action: "merge",
+			input: "timer {\n\tconnect-retry 30\n}\nsession {\n\tasn {\n\t\tremote 65009\n\t}\n}\n",
+			want: "bgp {\n\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65009\n\t\t}\n" +
+				"\t\ttimer {\n\t\t\tconnect-retry 30\n\t\t\treceive-hold-time 90\n\t\t}\n\t}\n\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+		},
+		{
+			name: "relative replace at a peer", context: peer1, location: "relative", action: "replace",
+			input: "connection {\n\tremote {\n\t\tip 3.3.3.3\n\t}\n}\nsession {\n\tasn {\n\t\tremote 65003\n\t}\n}\n",
+			want: "bgp {\n\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 3.3.3.3\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65003\n\t\t}\n\t}\n" +
+				"\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+		},
+		{
+			name: "relative merge at bgp", context: []string{"bgp"}, location: "relative", action: "merge",
+			input: "peer peer2 {\n\tconnection {\n\t\tremote {\n\t\t\tip 2.2.2.2\n\t\t}\n\t}\n\tsession {\n\t\tasn {\n\t\t\tremote 65002\n\t\t}\n\t}\n}\n",
+			want: "bgp {\n\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65001\n\t\t}\n\t\ttimer receive-hold-time 90\n\t}\n" +
+				"\tpeer peer2 {\n\t\tconnection {\n\t\t\tremote ip 2.2.2.2\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65002\n\t\t}\n\t}\n" +
+				"\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, runFileModeLoad(t, tc))
+		})
+	}
+}
+
+// TestFileModeLoadAbsoluteMergeNestedBlocks verifies where the tree load
+// departs from the deleted text merge, on purpose. An absolute merge that
+// adds a peer with nested blocks and changes router-id was mangled by the
+// text merge: it dropped the closing braces of the new peer, kept the old
+// router-id, and the result no longer parsed, so the editor silently held raw
+// text. The tree load adds the peer whole, takes the loaded router-id, and
+// adds the new leaf to the existing peer.
+func TestFileModeLoadAbsoluteMergeNestedBlocks(t *testing.T) {
+	tc := fileModeLoadCase{
+		location: "absolute", action: "merge",
+		input: "bgp {\n\trouter-id 5.6.7.8\n\tpeer peer2 {\n\t\tconnection {\n\t\t\tremote {\n\t\t\t\tip 2.2.2.2\n\t\t\t}\n\t\t}\n" +
+			"\t\tsession {\n\t\t\tasn {\n\t\t\t\tremote 65002\n\t\t\t}\n\t\t}\n\t}\n\tpeer peer1 {\n\t\tdescription x\n\t}\n}\n",
+		want: "bgp {\n\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tdescription x\n\t\tsession {\n\t\t\tasn remote 65001\n\t\t}\n\t\ttimer receive-hold-time 90\n\t}\n" +
+			"\tpeer peer2 {\n\t\tconnection {\n\t\t\tremote ip 2.2.2.2\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65002\n\t\t}\n\t}\n" +
+			"\trouter-id 5.6.7.8\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+	}
+	assert.Equal(t, tc.want, runFileModeLoad(t, tc))
+}

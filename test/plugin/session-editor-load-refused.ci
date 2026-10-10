@@ -1,0 +1,89 @@
+# Test: an SSH session editor refuses a load whose input does not parse
+# VALIDATES: spec-session-editor-file-mode-parity AC-5 -- over SSH against a
+#            running daemon, `load file absolute merge` of a file holding an
+#            unknown key is refused with the parser's error naming the line
+#            and the key, and the session's pending changes are exactly what
+#            they were: the load's valid router-id never lands, and the commit
+#            applies only the two edits made before the load
+# PREVENTS: a refused load that applies the part of the input before the
+#           error, or that discards the session's earlier pending changes
+option=timeout:value=60s
+
+tmpfs=session-editor-load-refused.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-load-refused-bad.conf:terminator=EOF_BAD
+bgp {
+    router-id 9.9.9.9
+    peer peer1 {
+        timerx {
+            receive-hold-time 150
+        }
+    }
+}
+EOF_BAD
+
+tmpfs=session-editor-load-refused.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send set bgp peer peer1 timer receive-hold-time 120
+send show | changes
+wait 2 pending changes
+send load file absolute merge session-editor-load-refused-bad.conf
+wait line 4:
+wait timerx
+send show | changes
+wait 2 pending changes
+send commit
+wait Session committed:
+has 5.6.7.8
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-load-refused.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-load-refused.conf session-editor-load-refused.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-load-refused.conf:contains=receive-hold-time 120
+expect=file:path=session-editor-load-refused.conf:contains=router-id 5.6.7.8
