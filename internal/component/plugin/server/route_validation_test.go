@@ -33,7 +33,8 @@ var (
 func TestDispatchInvokesWithValidatedArguments(t *testing.T) {
 	d := NewDispatcher()
 	var got []string
-	handler := func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(_ *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		got = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -73,7 +74,8 @@ func TestWrapHandlerInvokesWithValidatedArguments(t *testing.T) {
 	s := &Server{dispatcher: NewDispatcher()}
 	var got []string
 	ran := false
-	rpcHandler := s.wrapHandler(func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	rpcHandler := s.wrapHandler(func(_ *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		ran, got = true, args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, modelPath, true)
@@ -106,32 +108,33 @@ func TestWrapHandlerInvokesWithValidatedArguments(t *testing.T) {
 func TestEnsureChainInvokesWithValidatedArguments(t *testing.T) {
 	stepRan, leafRan := false, false
 	step := EnsureStep{
-		Handler: func(_ *CommandContext, args []string) (*plugin.Response, error) {
+		Handler: func(_ *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+			args := validated.Tokens()
 			stepRan = true
 			if len(args) != 0 {
 				t.Errorf("ensure step got tokens %q, want none", args)
 			}
 			return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": false}}, nil
 		},
-		RollbackHandler: func(*CommandContext, []string) (*plugin.Response, error) {
+		RollbackHandler: func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		},
 		WireMethod: "test:create",
 		ArgDefs:    []command.ArgDef{commandtest.Must(command.NewStringArg("name", []command.UintRange{{Min: 1, Max: 4}}, nil, command.ArgOptions{Mandatory: true}))},
 	}
-	leaf := func(*CommandContext, []string) (*plugin.Response, error) {
+	leaf := func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		leafRan = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 	wrapped := wrapWithEnsureChain(leaf, []EnsureStep{step})
 
-	if _, err := wrapped(&CommandContext{Selectors: map[string]string{"name": "abcde"}}, nil); err == nil {
+	if _, err := wrapped(&CommandContext{Selectors: map[string]string{"name": "abcde"}}, commandtest.Args()); err == nil {
 		t.Fatal("an over-long ancestor name was accepted")
 	}
 	if stepRan || leafRan {
 		t.Fatalf("a refused ancestor ran: step %v leaf %v", stepRan, leafRan)
 	}
-	if _, err := wrapped(&CommandContext{Selectors: map[string]string{"name": "abcd"}}, nil); err != nil {
+	if _, err := wrapped(&CommandContext{Selectors: map[string]string{"name": "abcd"}}, commandtest.Args()); err != nil {
 		t.Fatalf("an ancestor name at the bound was refused: %v", err)
 	}
 	if !stepRan || !leafRan {

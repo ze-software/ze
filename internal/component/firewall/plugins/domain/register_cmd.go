@@ -9,6 +9,7 @@
 package domain
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -52,14 +53,17 @@ func init() {
 	)
 }
 
-func forwardShowDomainGroup(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowDomainGroup(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowDomainGroup, ctx.ArgsOrSelector(args, leafName), ctx.PeerSelector())
 }
 
-func forwardUpdateDomainGroup(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardUpdateDomainGroup(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateDomainGroup, ctx.ArgsOrSelector(args, leafName), ctx.PeerSelector())
 }
 
-func forwardClearDomainGroup(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardClearDomainGroup(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearDomainGroup, ctx.ArgsOrSelector(args, leafName), ctx.PeerSelector())
 }

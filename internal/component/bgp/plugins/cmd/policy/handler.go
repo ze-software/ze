@@ -10,6 +10,7 @@ import (
 
 	selectorpkg "github.com/ze-software/ze/internal/core/selector"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -27,7 +28,8 @@ const (
 	policyDirExport  = "export"
 )
 
-func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowPolicyChain(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if ctx.Reactor() == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, nil
 	}
@@ -177,7 +179,8 @@ func parsePolicyTestArgs(args []string) (direction, filter, hexPayload string, a
 	return direction, filter, hexPayload, asn4, nil
 }
 
-func handleShowPolicyTest(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowPolicyTest(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	peerSelector := ""
 	if ctx != nil {
 		peerSelector = ctx.Selector("selector")

@@ -15,6 +15,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/engine"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -38,7 +39,7 @@ func init() {
 	)
 }
 
-func handleShowVPNIPsecSA(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowVPNIPsecSA(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	table := engine.ActiveTable()
 	if table == nil {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"peers": []map[string]any{}}}, nil
@@ -58,7 +59,7 @@ func handleShowVPNIPsecSA(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"peers": rows}}, nil
 }
 
-func handleShowVPNIPsecStatus(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowVPNIPsecStatus(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	table := engine.ActiveTable()
 	peers := engine.ActivePeers()
 
@@ -91,10 +92,11 @@ func handleShowVPNIPsecStatus(_ *pluginserver.CommandContext, _ []string) (*plug
 	}, nil
 }
 
-func handleShowVPNIPsecPeer(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowVPNIPsecPeer(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	// The peer name is the typed `name <name>` selector
 	// (`show vpn ipsec peer name <name>`); a bare positional is accepted as a
 	// fallback for programmatic callers.
+	args := validated.Tokens()
 	peerName := ""
 	if ctx != nil {
 		peerName = ctx.Selector("name")

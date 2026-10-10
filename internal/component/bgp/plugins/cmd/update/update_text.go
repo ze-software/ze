@@ -55,6 +55,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/context"
@@ -980,7 +981,8 @@ func init() {
 
 // handleUpdate dispatches update subcommands by encoding.
 // Syntax: send bgp <selector> update <encoding> ...
-func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleUpdate(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

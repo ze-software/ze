@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -314,21 +315,21 @@ func TestInfraSetupReentryReusesNoBGPBootBundle(t *testing.T) {
 	assert.False(t, oldAccountant.stoppedOnClosed,
 		"an in-flight STOP must reach the still-open accountant that emitted START")
 
-	const command = "test boot owned aaa"
-	if err := dispatcher.Register(command, func(*pluginserver.CommandContext, []string) (*plugin.Response, error) {
+	const commandName = "test boot owned aaa"
+	if err := dispatcher.Register(commandName, func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, command); err != nil {
+	}, commandName); err != nil {
 		t.Fatal(err)
 	}
 	response, err := dispatcher.Dispatch(&pluginserver.CommandContext{
 		Username:   "alice",
 		RemoteAddr: "198.51.100.8:2200",
-	}, command)
+	}, commandName)
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	assert.Equal(t, plugin.StatusDone, response.Status)
-	assert.Equal(t, []string{"show bgp", command}, oldAccountant.starts)
-	assert.Equal(t, []string{"show bgp", command}, oldAccountant.stops)
+	assert.Equal(t, []string{"show bgp", commandName}, oldAccountant.starts)
+	assert.Equal(t, []string{"show bgp", commandName}, oldAccountant.stops)
 	assert.Empty(t, candidateAccountant.starts)
 	assert.Empty(t, candidateAccountant.stops)
 
@@ -497,7 +498,7 @@ func postStartDispatcherForTest(t *testing.T, boot *aaa.Bundle) *pluginserver.Di
 // registerPostStartCommand registers one always-succeeding command.
 func registerPostStartCommand(t *testing.T, d *pluginserver.Dispatcher, name string) {
 	t.Helper()
-	require.NoError(t, d.Register(name, func(*pluginserver.CommandContext, []string) (*plugin.Response, error) {
+	require.NoError(t, d.Register(name, func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}, name))
 }

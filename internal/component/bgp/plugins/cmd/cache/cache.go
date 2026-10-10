@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -37,11 +38,12 @@ func init() {
 	)
 }
 
-func handleCacheListRPC(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleCacheListRPC(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return handleBgpCacheList(ctx)
 }
 
-func handleCacheRetainRPC(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCacheRetainRPC(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -51,7 +53,8 @@ func handleCacheRetainRPC(ctx *pluginserver.CommandContext, args []string) (*plu
 	return dispatchCacheByID(ctx, actionRetain, args[0])
 }
 
-func handleCacheReleaseRPC(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCacheReleaseRPC(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -61,7 +64,8 @@ func handleCacheReleaseRPC(ctx *pluginserver.CommandContext, args []string) (*pl
 	return dispatchCacheByID(ctx, actionRelease, args[0])
 }
 
-func handleCacheExpireRPC(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCacheExpireRPC(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -80,7 +84,8 @@ func handleCacheExpireRPC(ctx *pluginserver.CommandContext, args []string) (*plu
 // what this handler did while the command was `request cache forward <id>
 // <selector>`, and under the new path it made every forward answer "missing
 // selector".
-func handleCacheForwardRPC(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCacheForwardRPC(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,

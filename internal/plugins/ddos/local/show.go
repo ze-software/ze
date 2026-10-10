@@ -7,6 +7,7 @@
 package local
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -20,7 +21,7 @@ func init() {
 
 // handleShowDdosLocal reports whether an on-host nft drop is currently installed
 // and, if so, the target vector (prefix / proto / port) it covers.
-func handleShowDdosLocal(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowDdosLocal(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	r := activeResponder.Load()
 	if r == nil {
 		return &plugin.Response{

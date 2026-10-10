@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -478,7 +480,7 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	dispatcher := NewDispatcher()
-	if err := dispatcher.Register(gatedCommand, func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := dispatcher.Register(gatedCommand, func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		close(entered)
 		<-release
 		return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -1024,7 +1026,7 @@ func TestRemovingLastConfigPluginDoesNotStopServer(t *testing.T) {
 	cancel()
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 
-	resp, err := handleDaemonShutdown(&CommandContext{Server: s}, nil)
+	resp, err := handleDaemonShutdown(&CommandContext{Server: s}, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -1067,7 +1069,7 @@ func TestExplicitShutdownReleasesWaitBeforeRuntimeHandlerDrain(t *testing.T) {
 	})
 	<-handlerStarted
 
-	resp, err := handleDaemonShutdown(&CommandContext{Server: s}, nil)
+	resp, err := handleDaemonShutdown(&CommandContext{Server: s}, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)

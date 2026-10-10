@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -51,7 +52,7 @@ func init() {
 }
 
 // handlePluginHelp returns list of plugin subcommands.
-func handlePluginHelp(_ *CommandContext, _ []string) (*plugin.Response, error) {
+func handlePluginHelp(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
@@ -61,7 +62,7 @@ func handlePluginHelp(_ *CommandContext, _ []string) (*plugin.Response, error) {
 }
 
 // handlePluginCommandList returns plugin-registered commands (not builtins).
-func handlePluginCommandList(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handlePluginCommandList(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	var commands []map[string]any
 
 	if ctx.Dispatcher() != nil {
@@ -82,7 +83,8 @@ func handlePluginCommandList(ctx *CommandContext, _ []string) (*plugin.Response,
 }
 
 // handlePluginCommandHelp returns details for a plugin-registered command.
-func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Response, error) {
+func handlePluginCommandHelp(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	args = ctx.ArgsOrSelector(args, leafName)
 	if len(args) < 1 {
 		return &plugin.Response{
@@ -115,7 +117,8 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 }
 
 // handlePluginCommandComplete returns completions for plugin commands.
-func handlePluginCommandComplete(ctx *CommandContext, args []string) (*plugin.Response, error) {
+func handlePluginCommandComplete(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	args = ctx.ArgsOrSelector(args, leafPartial)
 	if len(args) < 1 {
 		return &plugin.Response{

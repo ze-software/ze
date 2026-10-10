@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -18,7 +19,7 @@ func TestPeerClearSoftHandler(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerClearSoft(ctx, nil)
+	resp, err := handleBgpPeerClearSoft(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -45,7 +46,7 @@ func TestPeerClearSoftWildcard(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerClearSoft(ctx, nil)
+	resp, err := handleBgpPeerClearSoft(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }

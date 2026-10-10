@@ -8,33 +8,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 func TestHandleResolveTraceroute_InvalidTarget(t *testing.T) {
-	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, []string{"foo;bar"})
+	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, commandtest.Args("foo;bar"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "invalid character")
 }
 
 func TestHandleResolveTraceroute_InvalidSource(t *testing.T) {
-	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source", "not-ip"})
+	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "source", "not-ip"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "not a valid IP address")
 }
 
 func TestHandleResolveTraceroute_UnknownOption(t *testing.T) {
-	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "bogus"})
+	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "bogus"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "unknown option")
 }
 
 func TestHandleResolveTraceroute_SourceMissingValue(t *testing.T) {
-	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source"})
+	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "source"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "requires a value")
@@ -55,7 +56,7 @@ func TestHandleResolveTraceroute_MaxHopsBoundary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, tt.args)
+			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			if tt.wantErr {
 				assert.Equal(t, plugin.StatusError, resp.Status)
@@ -81,7 +82,7 @@ func TestHandleResolveTraceroute_TimeoutBoundary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, tt.args)
+			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			if tt.wantErr {
 				assert.Equal(t, plugin.StatusError, resp.Status)
@@ -107,7 +108,7 @@ func TestHandleResolveTraceroute_ProbesBoundary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, tt.args)
+			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			if tt.wantErr {
 				assert.Equal(t, plugin.StatusError, resp.Status)
@@ -204,7 +205,7 @@ func TestHandleResolveTraceroute_SourceFamilyDrivesResolution(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, tt.args)
+			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			assert.Equal(t, plugin.StatusError, resp.Status)
 			for _, want := range tt.contains {

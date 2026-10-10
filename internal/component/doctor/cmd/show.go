@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -20,7 +21,8 @@ const (
 
 // HandleShowDoctor is the RPC handler for ze-doctor:show-doctor.
 // Registration is deferred until the central show.go entry is removed.
-func HandleShowDoctor(cmdCtx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func HandleShowDoctor(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	var configPath string
 	if len(args) > 0 {
 		configPath = args[0]

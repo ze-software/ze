@@ -11,6 +11,7 @@ import (
 
 	"github.com/miekg/dns"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -106,7 +107,8 @@ func parseHealthArgs(args []string) (string, error) {
 // whose Status carries the same exit-code semantics runHealthQuery uses, so the
 // CLI dispatcher's process exit code matches (finding M4's "shell-friendly exit
 // code" requirement), and whose Error names the target that did not answer.
-func handleAS112Health(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleAS112Health(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	targetIP, err := parseHealthArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response, not a Go error

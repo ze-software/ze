@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -48,7 +49,8 @@ const usageShowInterface = "usage: show interface [brief | type <type> | errors 
 // wire method they were alias paths of it, so the key ate the keyword and a
 // switch on args[0] could never see it: `show interface errors` answered with
 // every interface as if each one had errors.
-func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowInterface(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return showInterfaceAll()
 	}
@@ -56,7 +58,7 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 }
 
 // handleShowInterfaceBrief serves `show interface brief`.
-func handleShowInterfaceBrief(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowInterfaceBrief(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return showInterfaceBrief()
 }
 
@@ -69,7 +71,8 @@ func handleShowInterfaceBrief(_ *pluginserver.CommandContext, _ []string) (*plug
 // leaf of the same name and lifts the value out of the argument list. The args
 // fallback keeps every caller that hands the value as a bare token working,
 // which is the shape handleShowInterfaceDetail already takes.
-func handleShowInterfaceType(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowInterfaceType(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	wanted := ctx.Selector("type")
 	if wanted == "" && len(args) > 0 {
 		wanted = args[0]
@@ -81,17 +84,19 @@ func handleShowInterfaceType(ctx *pluginserver.CommandContext, args []string) (*
 }
 
 // handleShowInterfaceErrors serves `show interface errors`.
-func handleShowInterfaceErrors(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowInterfaceErrors(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return showInterfaceErrors()
 }
 
 // handleShowInterfaceRateCmd serves `show interface rate [<name>]`. The optional
 // name is the one remaining token.
-func handleShowInterfaceRateCmd(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowInterfaceRateCmd(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return handleShowInterfaceRate(args)
 }
 
-func handleShowInterfaceDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowInterfaceDetail(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ""
 	if ctx != nil {
 		name = ctx.Selector("name")
@@ -105,7 +110,8 @@ func handleShowInterfaceDetail(ctx *pluginserver.CommandContext, args []string) 
 	return showInterfaceDetail(name)
 }
 
-func handleShowInterfaceCounters(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowInterfaceCounters(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ""
 	if ctx != nil {
 		name = ctx.Selector("name")
@@ -155,7 +161,7 @@ func showInterfaceAll() (*plugin.Response, error) {
 // handleShowInterfaceScan discovers OS interfaces, classifies them by Ze
 // type, and returns a JSON array of DiscoveredInterface. The interactive
 // CLI pipe framework handles table/yaml/json rendering on the client side.
-func handleShowInterfaceScan(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowInterfaceScan(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	discovered, err := iface.DiscoverInterfaces()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response

@@ -53,7 +53,7 @@ func bgpEventTypes() []string {
 	return strings.Split(names, ", ")
 }
 
-func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpHelp(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	var commands []string
 
 	if ctx.Dispatcher() != nil {
@@ -70,7 +70,8 @@ func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Respon
 	}, nil
 }
 
-func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpCommandList(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	verbose := len(args) > 0 && args[0] == argVerbose
 
 	var commands []pluginserver.Completion
@@ -96,7 +97,8 @@ func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plu
 	}, nil
 }
 
-func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpCommandHelp(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 1 {
 		return nil, errors.New("usage: command help \"<name>\"")
 	}
@@ -230,7 +232,8 @@ func pipeFilterHelp(filters []command.PipeFilter) []map[string]any {
 	return items
 }
 
-func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpCommandComplete(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 1 {
 		return nil, errors.New("usage: command complete \"<partial>\"")
 	}
@@ -258,7 +261,7 @@ func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (
 	}, nil
 }
 
-func handleBgpEventList(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpEventList(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
@@ -267,7 +270,8 @@ func handleBgpEventList(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 	}, nil
 }
 
-func handleEventMonitor(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleEventMonitor(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	opts, err := pluginserver.ParseEventMonitorArgs(args)
 	if err != nil {
 		return nil, err

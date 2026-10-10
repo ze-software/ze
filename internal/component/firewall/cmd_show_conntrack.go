@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -21,7 +22,7 @@ func init() {
 	)
 }
 
-func handleShowSystemConntrack(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemConntrack(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	data := map[string]any{}
 
 	data["count"] = readProcSysctl("net/netfilter/nf_conntrack_count")

@@ -5,6 +5,7 @@ package show
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -44,7 +45,7 @@ func TestParseProcSelfLimits(t *testing.T) {
 }
 
 func TestShowSystemFD_Wiring(t *testing.T) {
-	resp, err := handleShowSystemFD(nil, []string{"summary"})
+	resp, err := handleShowSystemFD(nil, commandtest.Args("summary"))
 	if err != nil {
 		t.Fatal(err)
 	}

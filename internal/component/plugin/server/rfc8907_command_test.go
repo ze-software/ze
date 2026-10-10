@@ -39,7 +39,7 @@ import (
 func TestDispatcherRegister(t *testing.T) {
 	d := NewDispatcher()
 
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -65,7 +65,8 @@ func TestDispatcherDispatch(t *testing.T) {
 	d := NewDispatcher()
 
 	var receivedArgs []string
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -115,7 +116,7 @@ func TestDispatchRejectsFlagShapedArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d := NewDispatcher()
 			called := false
-			if err := d.Register("alpha show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+			if err := d.Register("alpha show", func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 				called = true
 				return &plugin.Response{Status: plugin.StatusDone}, nil
 			}, "Show alpha"); err != nil {
@@ -165,7 +166,8 @@ func TestDispatchAllowsNonFlagArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d := NewDispatcher()
 			var got []string
-			if err := d.Register("alpha show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+			if err := d.Register("alpha show", func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+				args := validated.Tokens()
 				got = args
 				return &plugin.Response{Status: plugin.StatusDone}, nil
 			}, "Show alpha"); err != nil {
@@ -189,7 +191,8 @@ func TestDispatcherDispatchNoArgs(t *testing.T) {
 	d := NewDispatcher()
 
 	var receivedArgs []string
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -244,19 +247,19 @@ func TestDispatcherLongestMatch(t *testing.T) {
 	d := NewDispatcher()
 
 	var matched string
-	if err := d.Register("alpha", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("alpha", func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		matched = "alpha"
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Register("alpha show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("alpha show", func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		matched = "alpha show"
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Register("alpha show extensive", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("alpha show extensive", func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		matched = "alpha show extensive"
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, ""); err != nil {
@@ -335,7 +338,7 @@ func TestDispatcherHandlerError(t *testing.T) {
 	d := NewDispatcher()
 
 	handlerErr := errors.New("handler failed")
-	if err := d.Register("fail", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("fail", func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return nil, handlerErr
 	}, ""); err != nil {
 		t.Fatal(err)
@@ -573,7 +576,7 @@ func TestDispatcherCaseInsensitive(t *testing.T) {
 	d := NewDispatcher()
 
 	called := false
-	if err := d.Register("alpha show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("alpha show", func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		called = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, ""); err != nil {
@@ -596,7 +599,7 @@ func TestDispatcherCaseInsensitive(t *testing.T) {
 func TestDispatchTypedSelectorMissingValue(t *testing.T) {
 	d := NewDispatcher()
 
-	if err := d.RegisterWithOptions("show demo name detail", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("show demo name detail", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("handler should not be called without selector value")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show demo detail", RegisterOptions{
@@ -618,7 +621,8 @@ func TestDispatchTypedSelectorExtractsValue(t *testing.T) {
 
 	var calledName string
 	var calledArgs []string
-	if err := d.RegisterWithOptions("show demo name detail", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("show demo name detail", func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		calledName = ctx.Selector("name")
 		calledArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -643,7 +647,8 @@ func TestDispatchImplicitSelectorExtractsValue(t *testing.T) {
 
 	var calledSelector string
 	var calledArgs []string
-	if err := d.RegisterWithOptions("show demo entry detail", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("show demo entry detail", func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		calledSelector = ctx.Selector("selector")
 		calledArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -667,7 +672,7 @@ func TestDispatchImplicitSelectorExtractsValue(t *testing.T) {
 func TestDispatchImplicitSelectorMissingValue(t *testing.T) {
 	d := NewDispatcher()
 
-	if err := d.RegisterWithOptions("show demo entry detail", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("show demo entry detail", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("handler should not be called without selector")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show entry detail", RegisterOptions{
@@ -687,7 +692,7 @@ func TestDispatchImplicitSelectorMissingValue(t *testing.T) {
 func TestDispatchNoSelectorNeeded(t *testing.T) {
 	d := NewDispatcher()
 
-	if err := d.RegisterWithOptions("show demo brief", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("show demo brief", func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		assert.Empty(t, ctx.Selector("name"))
 		assert.Empty(t, ctx.Selector("selector"))
 		return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -805,7 +810,7 @@ func TestForwardToPluginBuiltinConflict(t *testing.T) {
 	d := NewDispatcher()
 
 	// Register builtin "show bgp rib status" (the proxy handler)
-	if err := d.Register("show bgp rib status", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("show bgp rib status", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "RIB summary"); err != nil {
 		t.Fatal(err)
@@ -838,7 +843,7 @@ func TestDispatcherAuthorizationAllow(t *testing.T) {
 	d.SetAuthorizer(&mockAuthorizer{allow: true})
 
 	called := false
-	if err := d.Register("alpha show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("alpha show", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		called = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, ""); err != nil {
@@ -860,7 +865,7 @@ func TestDispatcherAuthorizationDeny(t *testing.T) {
 	d := NewDispatcher()
 	d.SetAuthorizer(&mockAuthorizer{allow: false})
 
-	if err := d.Register("restart", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("restart", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("handler should not be called when denied")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, ""); err != nil {
@@ -885,7 +890,7 @@ func TestDispatcherNoAuthorizerAllowsAll(t *testing.T) {
 	// No SetAuthorizer call
 
 	called := false
-	if err := d.Register("restart", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("restart", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		called = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, ""); err != nil {
@@ -908,13 +913,13 @@ func TestDispatcherAuthorizationUsesReadOnly(t *testing.T) {
 	var capturedReadOnly bool
 	d.SetAuthorizer(&readOnlyCapture{captured: &capturedReadOnly})
 
-	if err := d.RegisterWithOptions("alpha show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("alpha show", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "", RegisterOptions{ReadOnly: true}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := d.RegisterWithOptions("config set", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("config set", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "", RegisterOptions{ReadOnly: false}); err != nil {
 		t.Fatal(err)
@@ -984,7 +989,7 @@ func TestLegacyReadRootsHoldNoVerb(t *testing.T) {
 // PREVENTS: Lifecycle operations bypassing the unified audit trail.
 func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {
 	d := NewDispatcher()
-	if err := d.RegisterWithOptions("request reload", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("request reload", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}, "reload", RegisterOptions{}); err != nil {
 		t.Fatal(err)
@@ -1029,7 +1034,7 @@ func TestDispatcherAuthorizationUsesUsername(t *testing.T) {
 	var capturedUsername string
 	d.SetAuthorizer(&usernameCapture{captured: &capturedUsername})
 
-	if err := d.Register("alpha show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("alpha show", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, ""); err != nil {
 		t.Fatal(err)
@@ -1077,7 +1082,7 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	d.SetAuthorizer(authz.StoreAuthorizer{Store: store})
 
 	showCalled := false
-	if err := d.RegisterWithOptions("alpha show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("alpha show", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		showCalled = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "", RegisterOptions{ReadOnly: true}); err != nil {
@@ -1085,7 +1090,7 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	}
 
 	restartCalled := false
-	if err := d.RegisterWithOptions("restart", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("restart", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		restartCalled = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "", RegisterOptions{ReadOnly: true}); err != nil {
@@ -1205,7 +1210,7 @@ func TestDispatcherAccountingHook(t *testing.T) {
 	acct := &fakeAccountant{}
 	d.SetAccountingHook(acct)
 
-	if err := d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("show version", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"version": "v1.0"}}, nil
 	}, "Show version"); err != nil {
 		t.Fatal(err)
@@ -1226,7 +1231,7 @@ func TestDispatcherAccountingWithoutUsername(t *testing.T) {
 	acct := &fakeAccountant{}
 	d.SetAccountingHook(acct)
 
-	if err := d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("show version", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show version"); err != nil {
 		t.Fatal(err)
@@ -1250,7 +1255,7 @@ func TestDispatcherAccountingNilHook(t *testing.T) {
 	d := NewDispatcher()
 	// No accounting hook set.
 
-	if err := d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("show version", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show version"); err != nil {
 		t.Fatal(err)
@@ -1291,7 +1296,7 @@ func TestDispatcherAccountsRefusedCommands(t *testing.T) {
 		acct := &fakeAccountant{}
 		d.SetAccountingHook(acct)
 		d.SetAuthorizer(&mockAuthorizer{allow: false})
-		if err := d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		if err := d.Register("show version", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 			t.Fatal("denied handler ran")
 			return nil, errors.New("denied handler ran")
 		}, ""); err != nil {
@@ -1330,7 +1335,7 @@ func TestDispatcherArgValidation(t *testing.T) {
 	d := NewDispatcher()
 
 	var called bool
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		called = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -1366,7 +1371,8 @@ func TestDispatcherKeywordExtraction(t *testing.T) {
 	d := NewDispatcher()
 
 	var receivedArgs []string
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -1399,7 +1405,7 @@ func TestDispatcherKeywordExtraction(t *testing.T) {
 func TestDispatcherPositionalMatching(t *testing.T) {
 	d := NewDispatcher()
 
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -1430,7 +1436,8 @@ func TestDispatcherMixedArgs(t *testing.T) {
 	d := NewDispatcher()
 
 	var receivedArgs []string
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -1458,7 +1465,7 @@ func TestDispatcherMixedArgs(t *testing.T) {
 func TestDispatcherMandatoryMissing(t *testing.T) {
 	d := NewDispatcher()
 
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -1485,7 +1492,8 @@ func TestDispatcherNoArgDefsPassthrough(t *testing.T) {
 	d := NewDispatcher()
 
 	var receivedArgs []string
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -1507,7 +1515,7 @@ func TestDispatcherArgValidationUnion(t *testing.T) {
 	d := NewDispatcher()
 
 	var called bool
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		called = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -1548,7 +1556,7 @@ func TestDispatcherArgValidationUnion(t *testing.T) {
 func TestDispatcherDuplicateKeywordRejected(t *testing.T) {
 	d := NewDispatcher()
 
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -1574,7 +1582,7 @@ func TestDispatcherDuplicateKeywordRejected(t *testing.T) {
 func TestDispatcherPositionalErrorMessage(t *testing.T) {
 	d := NewDispatcher()
 
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -1605,7 +1613,7 @@ func TestDispatcherPositionalErrorMessage(t *testing.T) {
 // netip.ParseAddr used to answer, and the keyword list replaced it with a list
 // of one (plan/journal/guard-addition-drops-what-it-refuses.md).
 func TestPositionalErrorNamesTheOneOpenDefinition(t *testing.T) {
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -1641,7 +1649,7 @@ func TestPositionalErrorNamesTheOneOpenDefinition(t *testing.T) {
 // TestPositionalErrorNamesTheOneOpenDefinition, where one token stands against
 // one open definition and the value refusal is the answer.
 func TestMissingMandatoryOutranksAnUnplaceableToken(t *testing.T) {
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -1674,7 +1682,7 @@ func TestMissingMandatoryOutranksAnUnplaceableToken(t *testing.T) {
 // take a second value, so naming it as a keyword advertises a spelling the
 // dispatcher answers with "duplicate keyword".
 func TestPositionalErrorSkipsAFilledDefinition(t *testing.T) {
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -1739,7 +1747,7 @@ func TestTakesInlineSelector(t *testing.T) {
 	// drive it through Dispatch rather than trusting the boolean alone.
 	d := NewDispatcher()
 	var gotSelector string
-	if err := d.RegisterWithOptions("show bgp peer detail", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions("show bgp peer detail", func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		gotSelector = ctx.PeerSelector()
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Peer detail", RegisterOptions{ArgDefs: selectorDef}); err != nil {
@@ -1892,7 +1900,8 @@ func TestDispatcherPositionalTypedLeaf(t *testing.T) {
 	d := NewDispatcher()
 
 	var receivedArgs []string
-	handler := func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(_ *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -1943,7 +1952,7 @@ func TestDispatcherPositionalTypedLeaf(t *testing.T) {
 func TestDispatcherPositionalPrefersMandatory(t *testing.T) {
 	d := NewDispatcher()
 
-	handler := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	handler := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
@@ -1980,7 +1989,8 @@ func TestDispatchTerminalNounSelector(t *testing.T) {
 
 	var gotPeer string
 	var gotArgs []string
-	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		gotPeer = ctx.PeerSelector()
 		gotArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -2025,7 +2035,7 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 
 	t.Run("multi-token payload is not a selector", func(t *testing.T) {
 		d := NewDispatcher()
-		if err := d.RegisterWithOptions("announce", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		if err := d.RegisterWithOptions("announce", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 			t.Fatal("handler must not run without a selector")
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}, "Announce", RegisterOptions{RequiresSelector: true, ArgDefs: selectorDefs}); err != nil {
@@ -2039,7 +2049,7 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 
 	t.Run("no trailing token still reports the selector as missing", func(t *testing.T) {
 		d := NewDispatcher()
-		if err := d.RegisterWithOptions("delete bgp peer", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		if err := d.RegisterWithOptions("delete bgp peer", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 			t.Fatal("handler must not run without a selector")
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}, "Remove a peer", RegisterOptions{RequiresSelector: true, ArgDefs: selectorDefs}); err != nil {
@@ -2055,7 +2065,8 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 		d := NewDispatcher()
 		var gotPeer string
 		var gotArgs []string
-		if err := d.RegisterWithOptions("peer raw", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		if err := d.RegisterWithOptions("peer raw", func(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+			args := validated.Tokens()
 			gotPeer = ctx.PeerSelector()
 			gotArgs = args
 			return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -2073,7 +2084,7 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 	t.Run("a command that needs no selector is untouched", func(t *testing.T) {
 		d := NewDispatcher()
 		var gotPeer string
-		if err := d.RegisterWithOptions("show demo record", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+		if err := d.RegisterWithOptions("show demo record", func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 			gotPeer = ctx.PeerSelector()
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}, "Record", RegisterOptions{ReadOnly: true, ArgDefs: selectorDefs}); err != nil {
@@ -2088,7 +2099,7 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 }
 
 // noopHandler answers every dispatch-guard test that only cares about routing.
-func noopHandler(_ *CommandContext, _ []string) (*plugin.Response, error) {
+func noopHandler(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{Status: plugin.StatusDone}, nil
 }
 
@@ -2810,7 +2821,7 @@ func TestDispatcherRedactsDeniedSecretCommand(t *testing.T) {
 	d.SetAuthorizer(&mockAuthorizer{allow: false})
 	accountant := &fakeAccountant{}
 	d.SetAccountingHook(accountant)
-	if err := d.Register("set", func(*CommandContext, []string) (*plugin.Response, error) {
+	if err := d.Register("set", func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("denied command executed")
 		return nil, errors.New("denied command executed")
 	}, "Set configuration"); err != nil {
@@ -2859,7 +2870,7 @@ func TestPeerScopedAccountingMasksCredential(t *testing.T) {
 func TestDispatchNamesTheBoundOfAKeywordBoundValue(t *testing.T) {
 	d := NewDispatcher()
 	var got map[string]string
-	handler := func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+	handler := func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		got = ctx.Selectors
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}

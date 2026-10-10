@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -55,7 +56,7 @@ func TestHandlerPeerList(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpPeerList(ctx, nil)
+	resp, err := handleBgpPeerList(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -75,7 +76,7 @@ func TestHandlerPeerList(t *testing.T) {
 func TestHandlerPeerListNilReactor(t *testing.T) {
 	ctx := newTestContext(nil)
 
-	_, err := handleBgpPeerList(ctx, nil)
+	_, err := handleBgpPeerList(ctx, commandtest.Args())
 	require.Error(t, err)
 }
 

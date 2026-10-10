@@ -3,6 +3,7 @@ package as112
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -11,7 +12,7 @@ func TestShowAS112_MatchesServerSnapshot(t *testing.T) {
 	resetAS112State(t)
 	storeState(buildState(as112Config{Enabled: true, Hostname: "node1", AddressFamily: addressFamilyBoth}, 7))
 
-	resp, err := handleShowAS112(nil, nil)
+	resp, err := handleShowAS112(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowAS112: unexpected error: %v", err)
 	}
@@ -37,7 +38,7 @@ func TestShowAS112_MatchesServerSnapshot(t *testing.T) {
 // branch used to skip this block entirely).
 func TestShowAS112_NoStateYet(t *testing.T) {
 	resetAS112State(t)
-	resp, err := handleShowAS112(nil, nil)
+	resp, err := handleShowAS112(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowAS112: unexpected error: %v", err)
 	}
@@ -71,7 +72,7 @@ func TestShowAS112_SurfacesAddressRegistryStatus(t *testing.T) {
 	resetAS112State(t)
 	storeState(buildState(as112Config{Enabled: true, AddressFamily: addressFamilyBoth}, 1))
 
-	resp, err := handleShowAS112(nil, nil)
+	resp, err := handleShowAS112(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowAS112: unexpected error: %v", err)
 	}

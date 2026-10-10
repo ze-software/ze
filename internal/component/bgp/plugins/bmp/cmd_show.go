@@ -6,6 +6,7 @@
 package bmp
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -42,18 +43,22 @@ func init() {
 	)
 }
 
-func forwardShowBMPSessions(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowBMPSessions(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowBMPSessions, args, ctx.PeerSelector())
 }
 
-func forwardShowBMPPeers(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowBMPPeers(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowBMPPeers, args, ctx.PeerSelector())
 }
 
-func forwardShowBMPCollectors(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowBMPCollectors(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowBMPCollectors, args, ctx.PeerSelector())
 }
 
-func forwardShowBMPRib(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowBMPRib(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowBMPRib, args, ctx.PeerSelector())
 }

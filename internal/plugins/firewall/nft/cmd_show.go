@@ -5,6 +5,7 @@ package firewallnft
 import (
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -34,7 +35,8 @@ func init() {
 	)
 }
 
-func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowFirewallRuleset(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -171,7 +173,8 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 	}, nil
 }
 
-func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowFirewallGroup(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	applied := firewall.LastApplied()
 	type groupEntry struct {
 		table string

@@ -6,6 +6,7 @@
 package show
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -20,6 +21,6 @@ func init() {
 	)
 }
 
-func handleShowSystemFD(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemFD(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{Status: plugin.StatusError, Error: msgPlatformUnsupported}, nil
 }

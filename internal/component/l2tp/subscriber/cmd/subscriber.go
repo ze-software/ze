@@ -13,6 +13,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/show"
 
+	"github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/l2tp/subscriber/cmd/yang"
 )
 
@@ -25,7 +26,7 @@ func init() {
 	)
 }
 
-func handleSummary(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleSummary(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := subscriber.LookupService()
 	if svc == nil {
 		return errResponse(errRegistryUnavailable), nil
@@ -49,7 +50,8 @@ func handleSummary(_ *pluginserver.CommandContext, _ []string) (*plugin.Response
 	return jsonResponse("subscriber summary", payload)
 }
 
-func handleDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDetail(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	svc := subscriber.LookupService()
 	if svc == nil {
 		return errResponse(errRegistryUnavailable), nil

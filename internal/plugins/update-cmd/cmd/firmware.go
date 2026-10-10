@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -27,7 +28,7 @@ func reqCtx(ctx *pluginserver.CommandContext) context.Context {
 	return context.Background()
 }
 
-func handleFirmwareCheck(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleFirmwareCheck(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
@@ -59,7 +60,7 @@ func handleFirmwareCheck(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
-func handleFirmwareDownload(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleFirmwareDownload(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
@@ -76,7 +77,7 @@ func handleFirmwareDownload(ctx *pluginserver.CommandContext, _ []string) (*plug
 	}, nil
 }
 
-func handleFirmwareApply(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleFirmwareApply(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
@@ -93,7 +94,7 @@ func handleFirmwareApply(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	}, nil
 }
 
-func handleFirmwareRestart(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleFirmwareRestart(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
@@ -110,7 +111,7 @@ func handleFirmwareRestart(_ *pluginserver.CommandContext, _ []string) (*plugin.
 	}, nil
 }
 
-func handleFirmwareRollback(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleFirmwareRollback(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil

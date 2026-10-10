@@ -479,7 +479,8 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 
 			var gotArgs []string
 			var gotSelectors map[string]string
-			handler := func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+			handler := func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+				args := validated.Tokens()
 				gotArgs = args
 				gotSelectors = ctx.Selectors
 				return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -596,7 +597,8 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 
 			var gotArgs []string
 			var gotSelectors map[string]string
-			handler := func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+			handler := func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+				args := validated.Tokens()
 				gotArgs = args
 				gotSelectors = ctx.Selectors
 				return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -764,7 +766,8 @@ func TestCommandsThatTakeNoInheritedValueKeepTheirBareForm(t *testing.T) {
 
 			var gotArgs []string
 			var gotSelectors map[string]string
-			handler := func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+			handler := func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+				args := validated.Tokens()
 				gotArgs = args
 				gotSelectors = ctx.Selectors
 				return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -803,7 +806,7 @@ func TestInheritedSelectorReachesThePeerBridge(t *testing.T) {
 	assert.Equal(t, "peer", defs[0].Anchor(), "the selector is anchored to the container that declares it")
 
 	var gotPeer string
-	handler := func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	handler := func(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		gotPeer = ctx.Peer
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}

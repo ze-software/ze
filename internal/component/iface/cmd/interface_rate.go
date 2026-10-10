@@ -62,7 +62,8 @@ func sortedRates() []iface.InterfaceRate {
 	return result
 }
 
-func handleMonitorInterfaceRate(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleMonitorInterfaceRate(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	var filterName string
 	if len(args) > 0 {
 		filterName = args[0]

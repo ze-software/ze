@@ -6,6 +6,7 @@
 package static
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -22,6 +23,7 @@ func init() {
 	)
 }
 
-func forwardShowStatic(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowStatic(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowStatic, args, ctx.PeerSelector())
 }

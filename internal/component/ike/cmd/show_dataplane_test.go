@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/engine"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -162,7 +163,7 @@ func TestShowDataplaneSARendersFields(t *testing.T) {
 		UsedAt:            time.Unix(1700000500, 0).UTC(),
 	}}})
 
-	resp, err := handleShowVPNIPsecDataplaneSA(nil, nil)
+	resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -197,7 +198,7 @@ func TestShowDataplaneSASelectsOneSPI(t *testing.T) {
 		{SPI: 100}, {SPI: 200}, {SPI: 300},
 	}})
 
-	resp, err := handleShowVPNIPsecDataplaneSA(nil, []string{"spi", "200"})
+	resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args("spi", "200"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -212,7 +213,7 @@ func TestShowDataplaneSASelectsOneSPI(t *testing.T) {
 func TestShowDataplaneSARejectsSPIZero(t *testing.T) {
 	useDataplane(t, &fakeDataplane{sas: []dataplane.SAInfo{{SPI: 100}}})
 
-	resp, err := handleShowVPNIPsecDataplaneSA(nil, []string{"spi", "0"})
+	resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args("spi", "0"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "RFC 4303")
@@ -223,7 +224,7 @@ func TestShowDataplaneSARejectsSPIAboveRange(t *testing.T) {
 	useDataplane(t, &fakeDataplane{})
 
 	for _, raw := range []string{"4294967296", "-1", "not-a-number"} {
-		resp, err := handleShowVPNIPsecDataplaneSA(nil, []string{"spi", raw})
+		resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args("spi", raw))
 		require.NoError(t, err)
 		require.Equal(t, plugin.StatusError, resp.Status, "spi %q must be refused", raw)
 	}
@@ -232,7 +233,7 @@ func TestShowDataplaneSARejectsSPIAboveRange(t *testing.T) {
 func TestShowDataplaneSAAcceptsMaxSPI(t *testing.T) {
 	useDataplane(t, &fakeDataplane{sas: []dataplane.SAInfo{{SPI: ^uint32(0)}}})
 
-	resp, err := handleShowVPNIPsecDataplaneSA(nil, []string{"spi", "4294967295"})
+	resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args("spi", "4294967295"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	rows := rowsOf(t, resp, "sas")
@@ -248,13 +249,13 @@ func TestShowDataplaneUnsupportedBackendIsError(t *testing.T) {
 		polErr: dataplane.ErrNotSupported,
 	})
 
-	for name, handler := range map[string]func(*pluginserver.CommandContext, []string) (*plugin.Response, error){
+	for name, handler := range map[string]func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error){
 		"sa":     handleShowVPNIPsecDataplaneSA,
 		"policy": handleShowVPNIPsecDataplanePolicy,
 		"drift":  handleShowVPNIPsecDataplaneDrift,
 	} {
 		t.Run(name, func(t *testing.T) {
-			resp, err := handler(nil, nil)
+			resp, err := handler(nil, commandtest.Args())
 			require.NoError(t, err)
 			require.Equal(t, plugin.StatusError, resp.Status)
 			require.Contains(t, resp.Error, "cannot enumerate")
@@ -268,7 +269,7 @@ func TestShowDataplaneUnsupportedBackendIsError(t *testing.T) {
 func TestShowDataplanePermissionErrorNamesCapability(t *testing.T) {
 	useDataplane(t, &fakeDataplane{saErr: syscall.EPERM, polErr: syscall.EPERM})
 
-	resp, err := handleShowVPNIPsecDataplaneSA(nil, nil)
+	resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "CAP_NET_ADMIN")
@@ -279,13 +280,13 @@ func TestShowDataplanePermissionErrorNamesCapability(t *testing.T) {
 func TestShowDataplaneNilBackendIsError(t *testing.T) {
 	noDataplane(t)
 
-	for name, handler := range map[string]func(*pluginserver.CommandContext, []string) (*plugin.Response, error){
+	for name, handler := range map[string]func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error){
 		"sa":     handleShowVPNIPsecDataplaneSA,
 		"policy": handleShowVPNIPsecDataplanePolicy,
 		"drift":  handleShowVPNIPsecDataplaneDrift,
 	} {
 		t.Run(name, func(t *testing.T) {
-			resp, err := handler(nil, nil)
+			resp, err := handler(nil, commandtest.Args())
 			require.NoError(t, err)
 			require.Equal(t, plugin.StatusError, resp.Status)
 			require.Contains(t, resp.Error, "no ipsec dataplane backend is loaded")
@@ -317,7 +318,7 @@ func TestShowDataplanePolicyRendersFields(t *testing.T) {
 		OwnerKnown: true,
 	}}})
 
-	resp, err := handleShowVPNIPsecDataplanePolicy(nil, nil)
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -363,7 +364,7 @@ func TestShowDataplanePolicyPreservesPortMasks(t *testing.T) {
 		},
 	}})
 
-	resp, err := handleShowVPNIPsecDataplanePolicy(nil, nil)
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	want := [][2]string{
@@ -406,7 +407,7 @@ func TestShowDataplanePolicyUnknownOwnerSaysSo(t *testing.T) {
 		OwnerKnown: false,
 	}}})
 
-	resp, err := handleShowVPNIPsecDataplanePolicy(nil, nil)
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
 	require.NoError(t, err)
 	rows := rowsOf(t, resp, "policies")
 	require.Len(t, rows, 1)
@@ -423,7 +424,7 @@ func TestShowDataplanePolicyBypassRendersAsBypass(t *testing.T) {
 		Action: dataplane.SPActionBypass,
 	}}})
 
-	resp, err := handleShowVPNIPsecDataplanePolicy(nil, nil)
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
 	require.NoError(t, err)
 	rows := rowsOf(t, resp, "policies")
 	require.Equal(t, "bypass", rows[0]["action"],
@@ -438,7 +439,7 @@ func TestDriftCleanReportsNothing(t *testing.T) {
 
 	useDataplane(t, &fakeDataplane{sas: []dataplane.SAInfo{{SPI: 100}, {SPI: 200}}})
 
-	resp, err := handleShowVPNIPsecDataplaneDrift(nil, nil)
+	resp, err := handleShowVPNIPsecDataplaneDrift(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	require.Empty(t, rowsOf(t, resp, "drift"))
@@ -454,7 +455,7 @@ func TestDriftReportsMissingSPI(t *testing.T) {
 	// The kernel holds the inbound SA only. The outbound one is gone.
 	useDataplane(t, &fakeDataplane{sas: []dataplane.SAInfo{{SPI: 100}}})
 
-	resp, err := handleShowVPNIPsecDataplaneDrift(nil, nil)
+	resp, err := handleShowVPNIPsecDataplaneDrift(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status,
 		"drift must exit non-zero so a script can test it")
@@ -482,7 +483,7 @@ func TestDriftSilentDuringRekeyWindow(t *testing.T) {
 		{SPI: 100}, {SPI: 200}, {SPI: 300}, {SPI: 400},
 	}})
 
-	resp, err := handleShowVPNIPsecDataplaneDrift(nil, nil)
+	resp, err := handleShowVPNIPsecDataplaneDrift(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status,
 		"a kernel that holds MORE than the engine expects is a rekey window, not drift")
@@ -498,7 +499,7 @@ func TestDriftIgnoresPeersWithNoChild(t *testing.T) {
 
 	useDataplane(t, &fakeDataplane{sas: nil})
 
-	resp, err := handleShowVPNIPsecDataplaneDrift(nil, nil)
+	resp, err := handleShowVPNIPsecDataplaneDrift(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 }
@@ -514,7 +515,7 @@ func TestDriftNamesEveryDriftingPeer(t *testing.T) {
 
 	useDataplane(t, &fakeDataplane{sas: nil})
 
-	resp, err := handleShowVPNIPsecDataplaneDrift(nil, nil)
+	resp, err := handleShowVPNIPsecDataplaneDrift(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	for _, want := range []string{"peer-alpha", "peer-beta", "100", "200", "300", "400"} {
@@ -664,7 +665,7 @@ func TestShowIPsecSameSPIKeepsCountersAndDriftSeparate(t *testing.T) {
 		{SPI: 200, Dst: other, Proto: dataplane.ProtoESP, IfID: 7, BytesCurrent: 8192, PacketsCurrent: 24},
 	}}
 	useDataplane(t, fake)
-	resp, err := handleShowVPNIPsecSA(nil, nil)
+	resp, err := handleShowVPNIPsecSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	child, ok := rowsOf(t, resp, "peers")[0]["child-sa"].(map[string]any)
 	require.True(t, ok, "no child-sa object")
@@ -674,14 +675,14 @@ func TestShowIPsecSameSPIKeepsCountersAndDriftSeparate(t *testing.T) {
 	require.Equal(t, true, child["counters-known"])
 
 	fake.sas = append(fake.sas[:1], fake.sas[2])
-	resp, err = handleShowVPNIPsecSA(nil, nil)
+	resp, err = handleShowVPNIPsecSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	child, ok = rowsOf(t, resp, "peers")[0]["child-sa"].(map[string]any)
 	require.True(t, ok, "no child-sa object")
 	require.Nil(t, child["bytes-out"])
 	require.Nil(t, child["packets-out"])
 	require.Equal(t, true, child["counters-known"], "the missing SA was observed")
-	resp, err = handleShowVPNIPsecDataplaneDrift(nil, nil)
+	resp, err = handleShowVPNIPsecDataplaneDrift(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "peer-alpha")
@@ -699,13 +700,13 @@ func TestDriftRejectsGenerationChangeDuringDump(t *testing.T) {
 		onSAD: func() { engine.SetActivePeersForTest(nil) },
 	}
 	useDataplane(t, fake)
-	resp, err := handleShowVPNIPsecDataplaneDrift(nil, nil)
+	resp, err := handleShowVPNIPsecDataplaneDrift(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.NotContains(t, resp.Error, "ipsec dataplane drift:")
 	_, counters := readSADCounters()
 	require.False(t, counters.known)
-	resp, err = handleShowVPNIPsecDataplaneSA(nil, nil)
+	resp, err = handleShowVPNIPsecDataplaneSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	require.Equal(t, uint32(100), rowsOf(t, resp, "sas")[0]["spi"])

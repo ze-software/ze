@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -30,7 +31,8 @@ const (
 	tcpCheckResultTimeout   = "timeout"
 )
 
-func HandleTCPCheck(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func HandleTCPCheck(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	host, port, source, timeout, err := parseTCPCheckArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response, not a Go error

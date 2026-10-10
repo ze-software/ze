@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
@@ -47,7 +48,8 @@ var (
 // over the IPC transport sends arguments the CLI never checked, and because a
 // keyword this handler cannot honor must be refused BY NAME rather than dropped
 // (ai/rules/principles.md).
-func handleBgpPeerCreate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPeerCreate(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

@@ -18,6 +18,7 @@
 package rsvpte
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -42,19 +43,23 @@ func init() {
 	)
 }
 
-func forwardShowSession(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowSession(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToRSVPTE(ctx, cmdShowSession, args)
 }
 
-func forwardShowInterface(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowInterface(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToRSVPTE(ctx, cmdShowInterface, args)
 }
 
-func forwardShowTunnel(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowTunnel(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToRSVPTE(ctx, cmdShowTunnel, args)
 }
 
-func forwardShowFastReroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowFastReroute(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToRSVPTE(ctx, cmdShowFastReroute, args)
 }
 

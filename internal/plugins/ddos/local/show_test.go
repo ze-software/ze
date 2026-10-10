@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/ddosevent"
@@ -19,7 +20,7 @@ import (
 func TestShowDdosLocalNoResponder(t *testing.T) {
 	activeResponder.Store(nil)
 
-	resp, err := handleShowDdosLocal(nil, nil)
+	resp, err := handleShowDdosLocal(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +42,7 @@ func TestShowDdosLocalActive(t *testing.T) {
 	activeResponder.Store(r)
 	t.Cleanup(func() { activeResponder.Store(nil) })
 
-	resp, err := handleShowDdosLocal(nil, nil)
+	resp, err := handleShowDdosLocal(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +120,7 @@ func TestShowDdosLocalAnswersDuringWedgedReconcile(t *testing.T) {
 	}
 	answered := make(chan answer, 1)
 	go func() {
-		resp, err := handleShowDdosLocal(nil, nil)
+		resp, err := handleShowDdosLocal(nil, commandtest.Args())
 		answered <- answer{resp: resp, err: err}
 	}()
 

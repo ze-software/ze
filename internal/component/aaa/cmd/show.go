@@ -7,6 +7,7 @@ package cmd
 
 import (
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -20,7 +21,7 @@ func init() {
 	)
 }
 
-func handleShowAAAAccounting(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowAAAAccounting(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	data := aaa.AAAAccountingData()
 	if data == nil {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"dropped-records": uint64(0)}}, nil

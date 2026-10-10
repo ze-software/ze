@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/iface"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
@@ -193,9 +194,7 @@ func TestParseIfaceUnit(t *testing.T) {
 
 func TestHandleInterfaceMigrateNoBus(t *testing.T) {
 	// With no bus set, should return error response.
-	resp, err := handleInterfaceMigrate(nil, []string{
-		"from", "eth0.0", "to", "lo1.0", "address", "10.0.0.1/24",
-	})
+	resp, err := handleInterfaceMigrate(nil, commandtest.Args("from", "eth0.0", "to", "lo1.0", "address", "10.0.0.1/24"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
@@ -224,7 +223,7 @@ func TestHandleInterfaceMTU_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
-			resp, err := handleInterfaceMTU(ctx, tt.args)
+			resp, err := handleInterfaceMTU(ctx, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
@@ -255,7 +254,7 @@ func TestHandleInterfaceMAC_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
-			resp, err := handleInterfaceMAC(ctx, tt.args)
+			resp, err := handleInterfaceMAC(ctx, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
@@ -301,13 +300,13 @@ func TestIsValidMACAddress(t *testing.T) {
 // backend and is rejected by it with a less helpful error.
 func TestHandleInterfaceUpDown_UsageGate(t *testing.T) {
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleInterfaceUp(ctx, nil)
+	resp, err := handleInterfaceUp(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
 	assert.Contains(t, resp.Error, "usage: request interface")
 
-	resp, err = handleInterfaceDown(ctx, nil)
+	resp, err = handleInterfaceDown(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
@@ -332,7 +331,7 @@ func TestHandleUnitAdd_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
-			resp, err := handleUnitAdd(ctx, tt.args)
+			resp, err := handleUnitAdd(ctx, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
@@ -361,7 +360,7 @@ func TestHandleUnitDel_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
-			resp, err := handleUnitDel(ctx, tt.args)
+			resp, err := handleUnitDel(ctx, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
@@ -374,7 +373,7 @@ func TestHandleUnitDel_Validation(t *testing.T) {
 // rejects an empty arg list with the usage line.
 func TestHandleCreateBridge_UsageGate(t *testing.T) {
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleCreateBridge(ctx, nil)
+	resp, err := handleCreateBridge(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)

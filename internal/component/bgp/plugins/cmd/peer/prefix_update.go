@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -49,7 +50,7 @@ type peerResult struct {
 	Error   string         `json:"error,omitempty"`
 }
 
-func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

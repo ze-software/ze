@@ -5,6 +5,7 @@ package cmd
 import (
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -27,7 +28,7 @@ func RPCs() []pluginserver.RPCRegistration {
 	}
 }
 
-func handleLogLevels(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleLogLevels(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	levels := slogutil.ListLevels()
 
 	return &plugin.Response{
@@ -39,7 +40,8 @@ func handleLogLevels(_ *pluginserver.CommandContext, _ []string) (*plugin.Respon
 	}, nil
 }
 
-func handleLogSet(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleLogSet(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 2 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -53,7 +55,8 @@ func handleLogSet(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 	return setLevel(subsystem, levelStr), nil
 }
 
-func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleLogRecent(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	ring := slogutil.GlobalLogRing()
 	level, component, limit := "", "", 0
 	for i := 0; i < len(args); i++ {

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/anomalyevent"
 )
@@ -15,7 +16,7 @@ import (
 // handler errors or answers with anything else.
 func showData(t *testing.T) plugin.Map {
 	t.Helper()
-	resp, err := handleShowAnomalyObserve(nil, nil)
+	resp, err := handleShowAnomalyObserve(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}

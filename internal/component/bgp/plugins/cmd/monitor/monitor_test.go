@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
@@ -294,7 +295,7 @@ func TestHandleMonitor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleMonitor(nil, tt.args)
+			resp, err := handleMonitor(nil, commandtest.Args(tt.args...))
 			if tt.wantErr {
 				require.Error(t, err)
 				require.NotNil(t, resp)
@@ -318,7 +319,7 @@ func TestHandleMonitor(t *testing.T) {
 // VALIDATES: Response data reflects the parsed peer, event-types, and direction.
 // PREVENTS: Response data out of sync with parsed options.
 func TestHandleMonitorResponseContent(t *testing.T) {
-	resp, err := handleMonitor(nil, []string{"peer", "10.0.0.1", "event", "update,state", "direction", "received"})
+	resp, err := handleMonitor(nil, commandtest.Args("peer", "10.0.0.1", "event", "update,state", "direction", "received"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 

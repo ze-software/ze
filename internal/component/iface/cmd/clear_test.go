@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -56,7 +57,7 @@ func TestHandleClearInterfaceCounters_Grammars(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleClearInterfaceCounters(nil, tt.args)
+			resp, err := handleClearInterfaceCounters(nil, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			// Backend may not be loaded in the unit-test environment; in
@@ -86,7 +87,7 @@ func TestHandleClearInterfaceCounters_RejectBadGrammar(t *testing.T) {
 		{"foo", "bar"},          // no `counters` token anywhere
 	}
 	for _, args := range bad {
-		resp, err := handleClearInterfaceCounters(nil, args)
+		resp, err := handleClearInterfaceCounters(nil, commandtest.Args(args...))
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, plugin.StatusError, resp.Status, "args=%v should reject", args)
@@ -107,7 +108,7 @@ func TestClearInterface_DeprecatedNameFirst(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleClearInterfaceCounters(nil, tt.args)
+			resp, err := handleClearInterfaceCounters(nil, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			if resp.Status != plugin.StatusDone {
@@ -135,7 +136,7 @@ func TestClearInterface_CanonicalNoDeprecation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleClearInterfaceCounters(nil, tt.args)
+			resp, err := handleClearInterfaceCounters(nil, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			if resp.Status != plugin.StatusDone {

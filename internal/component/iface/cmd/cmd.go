@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -93,7 +94,8 @@ func errResp(msg string) (*plugin.Response, error) {
 
 // handleInterfaceMigrate performs a make-before-break IP migration.
 // Reads the keyword grammar migrateGrammar states.
-func handleInterfaceMigrate(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleInterfaceMigrate(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	eb := iface.GetEventBus()
 	if eb == nil {
 		return errResp("interface plugin event bus not available")

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/anomalyevent"
 )
@@ -26,7 +27,7 @@ func showRows(t *testing.T, inc []anomalyevent.AnomalyDetected) []plugin.Map {
 	t.Cleanup(func() { setGlobalDetector(prev) })
 	setGlobalDetector(&detector{inc: inc})
 
-	resp, err := handleShowAnomaly(nil, nil)
+	resp, err := handleShowAnomaly(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowAnomaly: %v", err)
 	}
@@ -135,7 +136,7 @@ func TestShowAnomalyWithNoDetector(t *testing.T) {
 	t.Cleanup(func() { setGlobalDetector(prev) })
 	setGlobalDetector(nil)
 
-	resp, err := handleShowAnomaly(nil, nil)
+	resp, err := handleShowAnomaly(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowAnomaly: %v", err)
 	}

@@ -12,6 +12,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -71,7 +72,8 @@ var (
 // internal/component/bgp/reactor/reactor_api.go). So the file and the daemon
 // agree once this command returns, and a later commit of an unrelated leaf
 // reconciles against a configuration that still names every running peer.
-func handleBgpPeerSave(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPeerSave(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -20,7 +21,7 @@ import (
 // row count inconsistent with the "count" field.
 func TestHandlePoolStats(t *testing.T) {
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handlePoolStats(ctx, nil)
+	resp, err := handlePoolStats(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

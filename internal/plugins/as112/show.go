@@ -5,6 +5,7 @@ package as112
 import (
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -17,7 +18,7 @@ import (
 // signature.
 //
 //nolint:unparam // handler signature fixed by pluginserver.RPCRegistration
-func handleShowAS112(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowAS112(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	st := loadState()
 	if st == nil {
 		data := plugin.Map{"enabled": false}

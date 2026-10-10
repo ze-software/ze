@@ -16,7 +16,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
-	_ "github.com/ze-software/ze/internal/component/l2tp/pppoe/yang" // register ze-pppoe-api.yang
+	"github.com/ze-software/ze/internal/component/command" // register ze-pppoe-api.yang
+	_ "github.com/ze-software/ze/internal/component/l2tp/pppoe/yang"
 )
 
 var (
@@ -36,7 +37,7 @@ func init() {
 	)
 }
 
-func handleSummary(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleSummary(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := pppoe.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -50,7 +51,7 @@ func handleSummary(_ *pluginserver.CommandContext, _ []string) (*plugin.Response
 	return jsonResponse("pppoe summary", payload)
 }
 
-func handleSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleSessions(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := pppoe.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -63,7 +64,8 @@ func handleSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Respons
 	return jsonResponse("pppoe sessions", out)
 }
 
-func handleSession(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleSession(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	sid, err := parseIDArg(args)
 	if err != nil {
 		return errResponse(err), nil
@@ -79,7 +81,7 @@ func handleSession(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	return jsonResponse("pppoe session", sessionJSON(&ss))
 }
 
-func handleStatistics(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleStatistics(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := pppoe.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -100,7 +102,7 @@ func handleStatistics(_ *pluginserver.CommandContext, _ []string) (*plugin.Respo
 	return jsonResponse("pppoe statistics", payload)
 }
 
-func handleInterfaces(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleInterfaces(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := pppoe.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -15,7 +16,7 @@ import (
 //
 //	contains runtime MemStats fields with kebab-case keys.
 func TestHandleShowSystemMemory(t *testing.T) {
-	resp, err := handleShowSystemMemory(nil, nil)
+	resp, err := handleShowSystemMemory(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
@@ -46,7 +47,7 @@ func TestHandleShowSystemMemory(t *testing.T) {
 //
 // VALIDATES: AC-3 of spec-op-1-easy-wins.md.
 func TestHandleShowSystemCPU(t *testing.T) {
-	resp, err := handleShowSystemCPU(nil, nil)
+	resp, err := handleShowSystemCPU(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
@@ -84,7 +85,7 @@ func TestHandleShowSystemCPU(t *testing.T) {
 // VALIDATES: AC-4 of spec-op-1-easy-wins.md.
 func TestHandleShowSystemDate(t *testing.T) {
 	before := time.Now()
-	resp, err := handleShowSystemDate(nil, nil)
+	resp, err := handleShowSystemDate(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

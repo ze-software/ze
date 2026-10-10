@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	l2tppkg "github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -98,7 +99,7 @@ func TestHandleSummaryReturnsAggregate(t *testing.T) {
 		listeners: []l2tppkg.ListenerSnapshot{{Addr: netip.MustParseAddrPort("0.0.0.0:1701")}},
 	})
 
-	resp, err := handleSummary(nil, nil)
+	resp, err := handleSummary(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	var got map[string]any
@@ -114,7 +115,7 @@ func TestHandlerSubsystemDownReturnsStatusError(t *testing.T) {
 	// Nothing published. LookupService returns nil.
 	l2tppkg.PublishService(nil)
 
-	resp, err := handleSummary(nil, nil)
+	resp, err := handleSummary(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "not running")
@@ -138,7 +139,7 @@ func TestHandleTunnelReturnsDetail(t *testing.T) {
 		},
 	})
 
-	resp, err := handleTunnel(nil, []string{"100"})
+	resp, err := handleTunnel(nil, commandtest.Args("100"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	var got map[string]any
@@ -152,7 +153,7 @@ func TestHandleTunnelReturnsDetail(t *testing.T) {
 func TestHandleTunnelUnknownIDErrors(t *testing.T) {
 	publishFake(t, &fakeService{})
 
-	resp, err := handleTunnel(nil, []string{"999"})
+	resp, err := handleTunnel(nil, commandtest.Args("999"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "999")
@@ -181,7 +182,7 @@ func TestParseIDArgRejectsInvalid(t *testing.T) {
 func TestHandleTunnelTeardownSuccess(t *testing.T) {
 	publishFake(t, &fakeService{})
 
-	resp, err := handleTunnelTeardown(nil, []string{"42"})
+	resp, err := handleTunnelTeardown(nil, commandtest.Args("42"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	var got map[string]any
@@ -196,7 +197,7 @@ func TestHandleTunnelTeardownUnknownID(t *testing.T) {
 		teardownTunnelErr: errors.New("l2tp: tunnel not found: local-tid=999"),
 	})
 
-	resp, err := handleTunnelTeardown(nil, []string{"999"})
+	resp, err := handleTunnelTeardown(nil, commandtest.Args("999"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "tunnel not found")
@@ -206,7 +207,7 @@ func TestHandleTunnelTeardownUnknownID(t *testing.T) {
 func TestHandleTunnelTeardownAllReportsCount(t *testing.T) {
 	publishFake(t, &fakeService{teardownAllTunnelsN: 5})
 
-	resp, err := handleTunnelTeardownAll(nil, nil)
+	resp, err := handleTunnelTeardownAll(nil, commandtest.Args())
 	require.NoError(t, err)
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(responseString(t, resp)), &got))
@@ -226,7 +227,7 @@ func TestHandleConfigRedactsSecret(t *testing.T) {
 		},
 	})
 
-	resp, err := handleConfig(nil, nil)
+	resp, err := handleConfig(nil, commandtest.Args())
 	require.NoError(t, err)
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(responseString(t, resp)), &got))
@@ -286,7 +287,7 @@ func TestHandleOutgoingCall_Success(t *testing.T) {
 			}, nil
 		},
 	})
-	resp, err := handleOutgoingCall(outgoingCtx("lns1", "5551234"), nil)
+	resp, err := handleOutgoingCall(outgoingCtx("lns1", "5551234"), commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	var got map[string]any
@@ -305,7 +306,7 @@ func TestHandleOutgoingCall_FailureSurfacesResultCode(t *testing.T) {
 				errors.New("tunnel authentication rejected")
 		},
 	})
-	resp, err := handleOutgoingCall(outgoingCtx("lns1", "555"), nil)
+	resp, err := handleOutgoingCall(outgoingCtx("lns1", "555"), commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "failed")
@@ -318,12 +319,12 @@ func TestHandleOutgoingCall_FailureSurfacesResultCode(t *testing.T) {
 // VALIDATES: AC-4 -- a missing selector is rejected with a clear error.
 func TestHandleOutgoingCall_MissingArgs(t *testing.T) {
 	publishFake(t, &fakeService{})
-	resp, err := handleOutgoingCall(outgoingCtx("", "555"), nil)
+	resp, err := handleOutgoingCall(outgoingCtx("", "555"), commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "remote")
 
-	resp, err = handleOutgoingCall(outgoingCtx("lns1", ""), nil)
+	resp, err = handleOutgoingCall(outgoingCtx("lns1", ""), commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	require.Contains(t, resp.Error, "called")

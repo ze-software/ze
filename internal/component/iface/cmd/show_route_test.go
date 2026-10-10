@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -31,7 +32,7 @@ func TestShowRoute_RegisteredWireMethod(t *testing.T) {
 // TestHandleShowRoute_DispatchShape verifies the handler dispatches to the
 // backend and wraps the result under the `routes` key.
 func TestHandleShowRoute_DispatchShape(t *testing.T) {
-	resp, err := handleShowRoute(nil, nil)
+	resp, err := handleShowRoute(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
@@ -63,7 +64,7 @@ func TestHandleShowRoute_InvalidPrefixRejects(t *testing.T) {
 		"not-a-cidr",
 	}
 	for _, arg := range bad {
-		resp, err := handleShowRoute(nil, []string{arg})
+		resp, err := handleShowRoute(nil, commandtest.Args(arg))
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, plugin.StatusError, resp.Status, "arg=%q should reject", arg)
@@ -71,7 +72,7 @@ func TestHandleShowRoute_InvalidPrefixRejects(t *testing.T) {
 	}
 
 	// "default" is the documented synonym -- MUST NOT reject at parse time.
-	resp, err := handleShowRoute(nil, []string{"default"})
+	resp, err := handleShowRoute(nil, commandtest.Args("default"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	if resp.Status == plugin.StatusError {
@@ -89,7 +90,7 @@ func TestHandleShowRoute_LimitParsing(t *testing.T) {
 		{"limit", "abc"}, // not a number
 	}
 	for _, args := range bad {
-		resp, err := handleShowRoute(nil, args)
+		resp, err := handleShowRoute(nil, commandtest.Args(args...))
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, plugin.StatusError, resp.Status, "args=%v should reject", args)
@@ -100,7 +101,7 @@ func TestHandleShowRoute_LimitParsing(t *testing.T) {
 // form is rejected (filters are keyword grammar, not flags); the operator is
 // pointed at the `limit N` keyword.
 func TestHandleShowRoute_RejectsDashLimitFlag(t *testing.T) {
-	resp, err := handleShowRoute(nil, []string{"--limit", "50"})
+	resp, err := handleShowRoute(nil, commandtest.Args("--limit", "50"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)

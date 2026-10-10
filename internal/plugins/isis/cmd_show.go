@@ -23,6 +23,7 @@
 package isis
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -59,43 +60,53 @@ func init() {
 	)
 }
 
-func forwardShowNeighbor(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowNeighbor(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdShowNeighbor, args)
 }
 
-func forwardShowDatabase(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowDatabase(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdShowDatabase, args)
 }
 
-func forwardShowDatabaseDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowDatabaseDetail(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdShowDatabaseDetail, args)
 }
 
-func forwardShowRoute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowRoute(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdShowRoute, args)
 }
 
-func forwardShowRouteIPv6(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowRouteIPv6(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdShowRouteIPv6, args)
 }
 
-func forwardShowInterface(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowInterface(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdShowInterface, args)
 }
 
-func forwardShowHostname(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowHostname(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdShowHostname, args)
 }
 
-func forwardShowSPFLog(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowSPFLog(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdShowSPFLog, args)
 }
 
-func forwardClearAdjacency(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardClearAdjacency(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdClearAdjacency, args)
 }
 
-func forwardClearCounters(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardClearCounters(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToISIS(ctx, cmdClearCounters, args)
 }
 

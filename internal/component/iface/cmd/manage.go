@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -39,7 +40,7 @@ func handleCreateTyped(ctx *pluginserver.CommandContext, ifType string, create f
 	}, nil
 }
 
-func handleCreateDummy(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCreateDummy(ctx *pluginserver.CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 	return handleCreateTyped(ctx, "dummy", iface.CreateDummy)
 }
 
@@ -57,7 +58,8 @@ const ifTypeVeth = "veth"
 // The peer name is closed over rather than passed as a second create argument
 // because handleCreateTyped owns the exists/type-conflict/report shape and only
 // varies by the name-keyed constructor.
-func handleCreateVeth(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCreateVeth(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if ctx.Selector("name") == "" || len(args) == 0 {
 		return errResp("usage: create interface veth name <name> <peer>")
 	}
@@ -67,11 +69,11 @@ func handleCreateVeth(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	})
 }
 
-func handleCreateBridge(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCreateBridge(ctx *pluginserver.CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 	return handleCreateTyped(ctx, "bridge", iface.CreateBridge)
 }
 
-func handleDelete(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDelete(ctx *pluginserver.CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 	name := ctx.Selector("name")
 	if name == "" {
 		return errResp("usage: delete interface <name>")
@@ -86,7 +88,8 @@ func handleDelete(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	}, nil
 }
 
-func handleAddrAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleAddrAdd(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ctx.Selector("name")
 	if name == "" || len(args) == 0 {
 		return errResp("usage: create interface <name> address <prefix>")
@@ -102,7 +105,8 @@ func handleAddrAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	}, nil
 }
 
-func handleAddrDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleAddrDel(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ctx.Selector("name")
 	if name == "" || len(args) == 0 {
 		return errResp("usage: delete interface <name> address <prefix>")
@@ -136,7 +140,8 @@ func parseVID(token string) (int, error) {
 	return vid, nil
 }
 
-func handleUnitAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleUnitAdd(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ctx.Selector("name")
 	if name == "" || len(args) == 0 {
 		return errResp("usage: create interface <name> unit <vid>")
@@ -155,7 +160,8 @@ func handleUnitAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	}, nil
 }
 
-func handleUnitDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleUnitDel(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ctx.Selector("name")
 	if name == "" || len(args) == 0 {
 		return errResp("usage: delete interface <name> unit <vid>")
@@ -177,7 +183,7 @@ func handleUnitDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 }
 
 // handleInterfaceUp brings an interface administratively up.
-func handleInterfaceUp(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleInterfaceUp(ctx *pluginserver.CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 	name := ctx.Selector("name")
 	if name == "" {
 		return errResp("usage: request interface <name> up")
@@ -193,7 +199,7 @@ func handleInterfaceUp(ctx *pluginserver.CommandContext, args []string) (*plugin
 }
 
 // handleInterfaceDown brings an interface administratively down.
-func handleInterfaceDown(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleInterfaceDown(ctx *pluginserver.CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 	name := ctx.Selector("name")
 	if name == "" {
 		return errResp("usage: request interface <name> down")
@@ -224,7 +230,8 @@ const (
 // requested MTU is within MTUMin..MTUMax before calling the backend;
 // returning a range error here keeps the message consistent regardless
 // of how the backend would have phrased its own rejection.
-func handleInterfaceMTU(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleInterfaceMTU(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ctx.Selector("name")
 	if name == "" || len(args) == 0 {
 		return errResp("usage: request interface <name> mtu <bytes>")
@@ -267,7 +274,8 @@ func IsValidMACAddress(s string) bool {
 // the MAC format before calling the backend; malformed input rejects
 // with a clear error rather than passing through to a backend syscall
 // that returns a less specific EINVAL.
-func handleInterfaceMAC(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleInterfaceMAC(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ctx.Selector("name")
 	if name == "" || len(args) == 0 {
 		return errResp("usage: request interface <name> mac <address>")

@@ -16,6 +16,7 @@
 package ospf
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -182,12 +183,14 @@ func init() {
 
 // forwardOSPFInjectV4 proxies `debug ip ospf inject opaque ...` to the OSPF engine, passing
 // the trailing scope/id/type/hex tokens through as args (the inject grammar is variable).
-func forwardOSPFInjectV4(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardOSPFInjectV4(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPFArgs(ctx, cmdDebugInjectOpaque, args)
 }
 
 // forwardOSPFInjectV6 proxies `debug ipv6 ospf inject lsa ...` to the OSPF engine.
-func forwardOSPFInjectV6(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardOSPFInjectV6(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPFArgs(ctx, cmdDebugInjectLSA, args)
 }
 
@@ -201,98 +204,120 @@ func forwardToOSPFArgs(ctx *pluginserver.CommandContext, command string, args []
 	return d.ForwardToPlugin(ctx, command, args, ctx.PeerSelector())
 }
 
-func forwardShowOSPFProcess(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFProcess(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowProcess, args)
 }
 
-func forwardShowOSPFIPv6(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFIPv6(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowIPv6, args)
 }
 
-func forwardShowOSPFInstance(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFInstance(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowInstance, args)
 }
 
-func forwardShowOSPFNeighbor(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFNeighbor(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowNeighbor, args)
 }
 
-func forwardShowOSPFInterface(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFInterface(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowInterface, args)
 }
 
-func forwardShowOSPFIPv6Interface(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFIPv6Interface(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowIPv6Interface, args)
 }
 
-func forwardShowOSPFDatabase(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFDatabase(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowDatabase, args)
 }
 
-func forwardShowOSPFRoute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFRoute(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowRoute, args)
 }
 
-func forwardShowOSPFRouteFastReroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFRouteFastReroute(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowRouteFastReroute, args)
 }
 
-func forwardShowOSPFVirtualLinks(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFVirtualLinks(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowVirtualLinks, args)
 }
 
-func forwardShowOSPFBorderRouters(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFBorderRouters(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowBorderRouters, args)
 }
 
-func forwardShowOSPFSPF(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFSPF(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowSPF, args)
 }
 
-func forwardShowOSPFLDPSync(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFLDPSync(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowLDPSync, args)
 }
 
-func forwardShowOSPFGracefulRestart(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFGracefulRestart(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowGracefulRestart, args)
 }
 
-func forwardShowOSPFIPv6GracefulRestart(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFIPv6GracefulRestart(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowIPv6GracefulRestart, args)
 }
 
-func forwardShowOSPFSegmentRouting(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFSegmentRouting(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowSegmentRouting, args)
 }
 
-func forwardShowOSPFIPv6SegmentRouting(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowOSPFIPv6SegmentRouting(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowIPv6SegmentRouting, args)
 }
 
-func forwardClearOSPFProcess(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardClearOSPFProcess(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdClearProcess, args)
 }
 
-func forwardClearOSPFNeighbor(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardClearOSPFNeighbor(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdClearNeighbor, args)
 }
 
-func forwardClearOSPFCounters(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardClearOSPFCounters(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdClearCounters, args)
 }
 
 // forwardOSPFGRPrepare proxies the operator `request ospf graceful-restart` action to the OSPF
 // engine, which runs prepareRestart against its live state (RFC 3623 sec 2.1). Same forwarding
 // contract as the clear commands: the noun is fixed in the grammar, so no arguments are taken.
-func forwardOSPFGRPrepare(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardOSPFGRPrepare(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdGRPrepare, args)
 }
 
 // dbSubviewForwarder builds a handler that proxies one `show ospf database <type>`
 // subview to the engine. A closure avoids six near-identical named functions.
-func dbSubviewForwarder(command string) pluginserver.Handler {
-	return func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-		return forwardToOSPF(ctx, command, args)
+func dbSubviewForwarder(pluginCommand string) pluginserver.Handler {
+	return func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
+		return forwardToOSPF(ctx, pluginCommand, args)
 	}
 }
 

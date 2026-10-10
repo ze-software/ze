@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -18,7 +19,7 @@ func registerSetFD() {
 	)
 }
 
-func handleSetSystemFD(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleSetSystemFD(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusError,
 		Error:  "set system file-descriptors is only supported on Linux",

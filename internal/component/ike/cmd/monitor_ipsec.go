@@ -26,7 +26,7 @@ func init() {
 	)
 }
 
-func handleMonitorIPsec(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleMonitorIPsec(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   plugin.Map{"status": "monitor-configured"},

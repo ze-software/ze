@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -14,49 +15,49 @@ import (
 // moved here with the handler from internal/component/resolve/cmd.
 
 func TestHandleResolvePing_InvalidTarget(t *testing.T) {
-	resp, err := handleResolvePing(&pluginserver.CommandContext{}, []string{"foo;bar"})
+	resp, err := handleResolvePing(&pluginserver.CommandContext{}, commandtest.Args("foo;bar"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "invalid character")
 }
 
 func TestHandleResolvePing_InvalidSource(t *testing.T) {
-	resp, err := handleResolvePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source", "not-ip"})
+	resp, err := handleResolvePing(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "source", "not-ip"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "not a valid IP address")
 }
 
 func TestHandleResolvePing_InvalidCount(t *testing.T) {
-	resp, err := handleResolvePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count", "abc"})
+	resp, err := handleResolvePing(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "count", "abc"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "not a valid number")
 }
 
 func TestHandleResolvePing_CountOutOfRange(t *testing.T) {
-	resp, err := handleResolvePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count", "200"})
+	resp, err := handleResolvePing(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "count", "200"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "out of range")
 }
 
 func TestHandleResolvePing_SizeOutOfRange(t *testing.T) {
-	resp, err := handleResolvePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "size", "99999"})
+	resp, err := handleResolvePing(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "size", "99999"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "out of range")
 }
 
 func TestHandleResolvePing_UnknownOption(t *testing.T) {
-	resp, err := handleResolvePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "bogus", "val"})
+	resp, err := handleResolvePing(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "bogus", "val"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "unknown option")
 }
 
 func TestHandleResolvePing_TrailingKeyword(t *testing.T) {
-	resp, err := handleResolvePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count"})
+	resp, err := handleResolvePing(&pluginserver.CommandContext{}, commandtest.Args("192.168.1.1", "count"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "requires a value")

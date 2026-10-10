@@ -7,6 +7,7 @@ package cmd
 import (
 	"errors"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -26,7 +27,7 @@ var (
 // cause and RFC 2661 Result Code when the call did not come up, so an
 // operator sees why (tunnel auth reject, tie-breaker loss, peer CDN, or
 // timeout) rather than a bare error.
-func handleOutgoingCall(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleOutgoingCall(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	remote := ctx.Selector("remote")
 	called := ctx.Selector("called")
 	if remote == "" {

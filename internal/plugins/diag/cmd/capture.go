@@ -5,11 +5,13 @@ package cmd
 import (
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-func HandleShowCapture(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func HandleShowCapture(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	protocol := ""
 	tunnelIDFilter := uint16(0)
 	peerFilter := ""

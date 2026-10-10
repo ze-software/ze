@@ -5,12 +5,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // handlerMarking returns a handler that records it ran in *ran.
 func handlerMarking(ran *bool) Handler {
-	return func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	return func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		*ran = true
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}
@@ -45,7 +47,7 @@ func TestDispatcherRefusesADuplicateName(t *testing.T) {
 	if held.Owner != "ze-alpha:show" {
 		t.Errorf("holder after refusal = %q, want ze-alpha:show", held.Owner)
 	}
-	if _, err := held.Handler(nil, nil); err != nil {
+	if _, err := held.Handler(nil, commandtest.Args()); err != nil {
 		t.Fatalf("holder handler: %v", err)
 	}
 	if !firstRan {

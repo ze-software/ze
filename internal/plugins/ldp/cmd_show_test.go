@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -32,7 +33,7 @@ func TestLDPShowRPCsRegistered(t *testing.T) {
 // VALIDATES: the proxy handler degrades gracefully when no dispatcher is wired
 // (server unavailable) instead of panicking on a nil dereference.
 func TestProxyShowNilDispatcher(t *testing.T) {
-	resp, err := forwardShowNeighbor(&pluginserver.CommandContext{}, nil)
+	resp, err := forwardShowNeighbor(&pluginserver.CommandContext{}, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -42,7 +43,7 @@ func TestProxyShowNilDispatcher(t *testing.T) {
 // VALIDATES: the proxy handler rejects extra arguments (the proxied plugin
 // commands take none) before it ever touches the dispatcher.
 func TestProxyShowRejectsArgs(t *testing.T) {
-	resp, err := forwardShowBinding(&pluginserver.CommandContext{}, []string{"extra"})
+	resp, err := forwardShowBinding(&pluginserver.CommandContext{}, commandtest.Args("extra"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)

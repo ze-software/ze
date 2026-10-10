@@ -199,7 +199,7 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 			return nil, rpc.NewCodedError("invalid-params", argErr.Error())
 		}
 
-		resp, err := handler(ctx, validated.Tokens())
+		resp, err := handler(ctx, validated)
 		if err != nil {
 			// Use CLI-facing command name, not internal plugin command name
 			if errors.Is(err, ErrUnknownCommand) {

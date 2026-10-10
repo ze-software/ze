@@ -11,6 +11,7 @@ import (
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -26,9 +27,9 @@ import (
 func startAndWithdraw(t *testing.T, reactor *mockReactor, name string) *pluginserver.CommandContext {
 	t.Helper()
 	ctx := newTestContext(reactor)
-	_, err := handleCommit(ctx, []string{"start", name})
+	_, err := handleCommit(ctx, commandtest.Args("start", name))
 	require.NoError(t, err)
-	_, err = handleCommit(ctx, []string{"withdraw", name, "route", "10.0.0.0/24"})
+	_, err = handleCommit(ctx, commandtest.Args("withdraw", name, "route", "10.0.0.0/24"))
 	require.NoError(t, err)
 	return ctx
 }
@@ -59,7 +60,7 @@ func twoPeerShortfall() *bgptypes.TransactionResult {
 func TestCommitEndAnswersErrorAndKeepsThePeerRows(t *testing.T) {
 	ctx := startAndWithdraw(t, &mockReactor{commitResult: twoPeerShortfall()}, "short")
 
-	resp, err := handleCommit(ctx, []string{"end", "short"})
+	resp, err := handleCommit(ctx, commandtest.Args("end", "short"))
 	require.ErrorIs(t, err, errCommitNotCarriedInFull)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -98,7 +99,7 @@ func TestCommitEndAnswersErrorAndKeepsThePeerRows(t *testing.T) {
 func TestCommitEndAnswersDoneWhenEveryPeerTookEverything(t *testing.T) {
 	ctx := startAndWithdraw(t, &mockReactor{}, "full")
 
-	resp, err := handleCommit(ctx, []string{"end", "full"})
+	resp, err := handleCommit(ctx, commandtest.Args("end", "full"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.Empty(t, resp.Error)
@@ -143,7 +144,7 @@ func TestCommitEORReportsTheMarkersThatLeft(t *testing.T) {
 	}
 	ctx := startAndWithdraw(t, &mockReactor{commitResult: result}, "markers")
 
-	resp, err := handleCommit(ctx, []string{"eor", "markers"})
+	resp, err := handleCommit(ctx, commandtest.Args("eor", "markers"))
 	require.ErrorIs(t, err, errCommitNotCarriedInFull)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 
@@ -185,7 +186,7 @@ func TestCommitAnswerKeysAreKebabCase(t *testing.T) {
 		{"end", "keys"},
 	}
 	for _, args := range commands {
-		resp, _ := handleCommit(ctx, args)
+		resp, _ := handleCommit(ctx, commandtest.Args(args...))
 		require.NotNil(t, resp, "%v", args)
 		data, ok := resp.Data.(plugin.Map)
 		if !ok {
@@ -220,7 +221,7 @@ func TestCommitAnswerKeysAreKebabCase(t *testing.T) {
 func TestCommitEndAnswerRendersAsRows(t *testing.T) {
 	ctx := startAndWithdraw(t, &mockReactor{commitResult: twoPeerShortfall()}, "render")
 
-	resp, _ := handleCommit(ctx, []string{"end", "render"})
+	resp, _ := handleCommit(ctx, commandtest.Args("end", "render"))
 	require.NotNil(t, resp)
 
 	encoded, err := json.Marshal(resp.Data)

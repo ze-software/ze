@@ -11,6 +11,7 @@ import (
 	"io"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
@@ -54,7 +55,8 @@ func init() {
 // handleMonitor is the RPC handler for non-streaming callers (interactive CLI dispatch).
 // Returns the parsed monitor configuration as JSON. Actual streaming is handled
 // by StreamMonitor which is called from the SSH exec streaming path.
-func handleMonitor(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleMonitor(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	opts, err := parseMonitorArgs(args)
 	if err != nil {
 		return &plugin.Response{

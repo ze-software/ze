@@ -26,7 +26,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
-	_ "github.com/ze-software/ze/internal/component/bfd/yang" // register ze-bfd-cmd.yang + ze-bfd-api.yang
+	_ "github.com/ze-software/ze/internal/component/bfd/yang"
+	"github.com/ze-software/ze/internal/component/command" // register ze-bfd-cmd.yang + ze-bfd-api.yang
 )
 
 // errBFDServiceUnavailable is returned when a show command runs while
@@ -56,7 +57,7 @@ func init() {
 // handleShowSessions returns every live session as a JSON array.
 // Called via `ze show bfd sessions` or the interactive CLI
 // `show bfd sessions`.
-func handleShowSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSessions(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := bfdapi.GetService()
 	if svc == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: errBFDServiceUnavailable.Error()}, nil
@@ -66,7 +67,8 @@ func handleShowSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 
 // handleShowSession returns one session matched by peer address.
 // Called via `show bfd session address <peer>`.
-func handleShowSession(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowSession(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	peer := ""
 	if ctx != nil {
 		peer = ctx.Selector("address")
@@ -101,7 +103,8 @@ func handleShowSession(ctx *pluginserver.CommandContext, args []string) (*plugin
 // argument list returns every profile; `show bfd profile name <name>`
 // filters to one entry. An unknown profile returns an error so operators see
 // a clear "not found" message.
-func handleShowProfile(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowProfile(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	svc := bfdapi.GetService()
 	if svc == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: errBFDServiceUnavailable.Error()}, nil

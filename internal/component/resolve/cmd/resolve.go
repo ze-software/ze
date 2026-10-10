@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/resolve"
 
 	// Blank import triggers YANG schema registration.
+	"github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/resolve/yang"
 )
 
@@ -108,7 +109,8 @@ func dnsResult(records []string, resolveErr error) (*plugin.Response, error) {
 
 // DNS handlers.
 
-func handleDNSA(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDNSA(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.DNS == nil {
 		return errResponse("DNS resolver not available")
 	}
@@ -120,7 +122,8 @@ func handleDNSA(_ *pluginserver.CommandContext, args []string) (*plugin.Response
 	return dnsResult(records, err)
 }
 
-func handleDNSAAAA(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDNSAAAA(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.DNS == nil {
 		return errResponse("DNS resolver not available")
 	}
@@ -132,7 +135,8 @@ func handleDNSAAAA(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	return dnsResult(records, err)
 }
 
-func handleDNSTXT(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDNSTXT(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.DNS == nil {
 		return errResponse("DNS resolver not available")
 	}
@@ -144,7 +148,8 @@ func handleDNSTXT(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 	return dnsResult(records, err)
 }
 
-func handleDNSPTR(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDNSPTR(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.DNS == nil {
 		return errResponse("DNS resolver not available")
 	}
@@ -158,7 +163,8 @@ func handleDNSPTR(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 
 // Cymru handler.
 
-func handleCymruASNName(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCymruASNName(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.Cymru == nil {
 		return errResponse("Cymru resolver not available")
 	}
@@ -178,7 +184,8 @@ func handleCymruASNName(ctx *pluginserver.CommandContext, args []string) (*plugi
 
 // PeeringDB handlers.
 
-func handlePeeringDBMaxPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handlePeeringDBMaxPrefix(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.PeeringDB == nil {
 		return errResponse("PeeringDB client not available")
 	}
@@ -200,7 +207,8 @@ func handlePeeringDBMaxPrefix(ctx *pluginserver.CommandContext, args []string) (
 	}, nil
 }
 
-func handlePeeringDBASSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handlePeeringDBASSet(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.PeeringDB == nil {
 		return errResponse("PeeringDB client not available")
 	}
@@ -220,7 +228,8 @@ func handlePeeringDBASSet(ctx *pluginserver.CommandContext, args []string) (*plu
 
 // IRR handlers.
 
-func handleIRRExpand(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleIRRExpand(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.IRR == nil {
 		return errResponse("IRR client not available")
 	}
@@ -242,7 +251,8 @@ func handleIRRExpand(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 	}, nil
 }
 
-func handleIRRPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleIRRPrefix(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resolvers == nil || resolvers.IRR == nil {
 		return errResponse("IRR client not available")
 	}

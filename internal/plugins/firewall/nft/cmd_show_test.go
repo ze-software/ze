@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -34,7 +35,7 @@ func TestShowFirewall_RegisteredWireMethods(t *testing.T) {
 
 // VALIDATES: show firewall ruleset without a name is a usage error, not a silent full dump.
 func TestHandleShowFirewallRuleset_MissingArg(t *testing.T) {
-	resp, err := handleShowFirewallRuleset(nil, nil)
+	resp, err := handleShowFirewallRuleset(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -50,7 +51,7 @@ func TestHandleShowFirewallRuleset_NoBackend(t *testing.T) {
 			t.Fatalf("close previous backend: %v", err)
 		}
 	}
-	resp, err := handleShowFirewallRuleset(nil, []string{"wan"})
+	resp, err := handleShowFirewallRuleset(nil, commandtest.Args("wan"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -62,7 +63,7 @@ func TestHandleShowFirewallRuleset_NoBackend(t *testing.T) {
 func TestHandleShowFirewallGroup_Empty(t *testing.T) {
 	firewall.StoreLastApplied(nil)
 
-	resp, err := handleShowFirewallGroup(nil, nil)
+	resp, err := handleShowFirewallGroup(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -90,7 +91,7 @@ func TestHandleShowFirewallGroup_Lookup(t *testing.T) {
 	}})
 	defer firewall.StoreLastApplied(nil)
 
-	resp, err := handleShowFirewallGroup(nil, []string{"allow-src"})
+	resp, err := handleShowFirewallGroup(nil, commandtest.Args("allow-src"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -106,7 +107,7 @@ func TestHandleShowFirewallGroup_Lookup(t *testing.T) {
 	assert.Contains(t, elems, "10.0.0.0/8")
 	assert.Contains(t, elems, "192.168.0.0/16")
 
-	resp, err = handleShowFirewallGroup(nil, []string{"nonexistent"})
+	resp, err = handleShowFirewallGroup(nil, commandtest.Args("nonexistent"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)

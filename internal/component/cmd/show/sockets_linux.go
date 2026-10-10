@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/procfs"
@@ -20,7 +21,8 @@ func init() {
 	)
 }
 
-func handleShowSystemSockets(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowSystemSockets(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	const protoTCP = "tcp"
 	proto := ""
 	state := ""

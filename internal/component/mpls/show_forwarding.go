@@ -14,6 +14,7 @@ package mpls
 import (
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -42,7 +43,8 @@ func init() {
 	)
 }
 
-func handleShowMPLSForwarding(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowMPLSForwarding(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	const usage = "usage: show mpls forwarding [limit N]"
 	var tb textbuf.Buffer
 	limit := defaultForwardingLimit

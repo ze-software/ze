@@ -6,6 +6,7 @@ package cmd
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -18,7 +19,7 @@ func TestHandleDebugState(t *testing.T) {
 	_ = slogutil.SetLevel("test.show.debug", "debug")
 	slogutil.ConfigureFilter("test.show.debug", []string{"update"}, map[string]string{"neighbor": "192.0.2.1"})
 
-	resp, err := handleDebugState(nil, nil)
+	resp, err := handleDebugState(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleDebugState: %v", err)
 	}
@@ -66,7 +67,7 @@ func TestHandleDebugStateNoFilters(t *testing.T) {
 	_ = slogutil.Logger("test.show.nofilter")
 	_ = slogutil.SetLevel("test.show.nofilter", "info")
 
-	resp, err := handleDebugState(nil, nil)
+	resp, err := handleDebugState(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleDebugState: %v", err)
 	}

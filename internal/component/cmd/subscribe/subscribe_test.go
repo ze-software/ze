@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -51,7 +52,7 @@ func TestSubscribeInvalidArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := newTestContext(process.NewProcess(plugin.PluginConfig{Name: "test"}))
 
-			resp, err := handleSubscribe(ctx, tt.args)
+			resp, err := handleSubscribe(ctx, commandtest.Args(tt.args...))
 			require.Error(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusError, resp.Status)
@@ -66,7 +67,7 @@ func TestSubscribeInvalidArgs(t *testing.T) {
 func TestSubscribeNoProcess(t *testing.T) {
 	ctx := newTestContext(nil)
 
-	resp, err := handleSubscribe(ctx, validSubscribeArgs())
+	resp, err := handleSubscribe(ctx, commandtest.Args(validSubscribeArgs()...))
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -83,7 +84,7 @@ func TestSubscribeNoSubscriptionManager(t *testing.T) {
 		// Server is nil, so Subscriptions() returns nil
 	}
 
-	resp, err := handleSubscribe(ctx, validSubscribeArgs())
+	resp, err := handleSubscribe(ctx, commandtest.Args(validSubscribeArgs()...))
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -130,7 +131,7 @@ func TestSubscribeSuccess(t *testing.T) {
 			proc := process.NewProcess(plugin.PluginConfig{Name: "test-plugin"})
 			ctx := newTestContext(proc)
 
-			resp, err := handleSubscribe(ctx, tt.args)
+			resp, err := handleSubscribe(ctx, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -171,7 +172,7 @@ func TestUnsubscribeInvalidArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := newTestContext(process.NewProcess(plugin.PluginConfig{Name: "test"}))
 
-			resp, err := handleUnsubscribe(ctx, tt.args)
+			resp, err := handleUnsubscribe(ctx, commandtest.Args(tt.args...))
 			require.Error(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusError, resp.Status)
@@ -186,7 +187,7 @@ func TestUnsubscribeInvalidArgs(t *testing.T) {
 func TestUnsubscribeNoProcess(t *testing.T) {
 	ctx := newTestContext(nil)
 
-	resp, err := handleUnsubscribe(ctx, validSubscribeArgs())
+	resp, err := handleUnsubscribe(ctx, commandtest.Args(validSubscribeArgs()...))
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -203,12 +204,12 @@ func TestUnsubscribeSuccess(t *testing.T) {
 
 	// Subscribe first.
 	args := validSubscribeArgs()
-	_, err := handleSubscribe(ctx, args)
+	_, err := handleSubscribe(ctx, commandtest.Args(args...))
 	require.NoError(t, err)
 	assert.Equal(t, 1, ctx.Subscriptions().Count(proc))
 
 	// Unsubscribe with same args.
-	resp, err := handleUnsubscribe(ctx, args)
+	resp, err := handleUnsubscribe(ctx, commandtest.Args(args...))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -232,7 +233,7 @@ func TestUnsubscribeNotFound(t *testing.T) {
 	ctx := newTestContext(proc)
 
 	// Unsubscribe without subscribing first.
-	resp, err := handleUnsubscribe(ctx, validSubscribeArgs())
+	resp, err := handleUnsubscribe(ctx, commandtest.Args(validSubscribeArgs()...))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)

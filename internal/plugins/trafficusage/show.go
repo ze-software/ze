@@ -6,6 +6,7 @@
 package trafficusage
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -23,7 +24,8 @@ func init() {
 // handleShowTrafficUsage renders the current per-interface byte counters.
 // Without arguments it lists every monitored interface; `name <interface>`
 // filters to one. Reports not-configured when the plugin is idle.
-func handleShowTrafficUsage(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowTrafficUsage(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	mon := getMonitor()
 	if mon == nil {
 		return &plugin.Response{

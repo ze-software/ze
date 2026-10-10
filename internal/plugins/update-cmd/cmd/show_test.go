@@ -5,6 +5,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/host"
 )
@@ -17,7 +18,7 @@ func TestShowSystemUpdateBackendField(t *testing.T) {
 	system.SetActiveBackend(backend)
 	t.Cleanup(func() { system.SetActiveBackend(nil) })
 
-	resp, err := handleShowSystemUpdate(nil, nil)
+	resp, err := handleShowSystemUpdate(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowSystemUpdate() error = %v", err)
 	}

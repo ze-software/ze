@@ -7,6 +7,7 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -37,7 +38,8 @@ func init() {
 // a neighbor table (VPP today) reject per exact-or-reject via
 // iface.ListNeighbors; the error string carries the backend name so the
 // operator knows what is unsupported.
-func handleShowNeighbor(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowNeighbor(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	const usage = "usage: show neighbor [ipv4|ipv6|any]"
 	var tb textbuf.Buffer
 	family := iface.NeighborFamilyAny
@@ -65,7 +67,8 @@ func handleShowNeighbor(_ *pluginserver.CommandContext, args []string) (*plugin.
 // handleShowArp is the IPv4 alias for `show neighbor ipv4`. ARP is an IPv4
 // protocol, so this view never shows IPv6 ND entries; use `show neighbor` for
 // both families or `show neighbor ipv6` for ND. It takes no argument.
-func handleShowArp(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowArp(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) > 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,

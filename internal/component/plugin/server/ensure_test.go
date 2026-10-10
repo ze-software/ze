@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -62,15 +63,15 @@ func TestWasCreated(t *testing.T) {
 func TestWrapWithEnsureChain_ParentSilentOnCreated_AbortsNoLeaf(t *testing.T) {
 	var calls []string
 
-	parent := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	parent := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-parent")
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"message": "created veth pair"}}, nil
 	}
-	rollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	rollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-parent")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	leaf := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "leaf")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -78,7 +79,7 @@ func TestWrapWithEnsureChain_ParentSilentOnCreated_AbortsNoLeaf(t *testing.T) {
 	chain := []EnsureStep{{Handler: parent, RollbackHandler: rollback, WireMethod: "ze-iface:interface-create-veth"}}
 	wrapped := wrapWithEnsureChain(leaf, chain)
 
-	_, err := wrapped(nil, []string{"100"})
+	_, err := wrapped(nil, commandtest.Args("100"))
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrEnsureContract)
 	assert.Contains(t, err.Error(), "ze-iface:interface-create-veth", "the error must name the offending handler")
@@ -92,23 +93,23 @@ func TestWrapWithEnsureChain_ParentSilentOnCreated_AbortsNoLeaf(t *testing.T) {
 func TestWrapWithEnsureChain_ContractBreakRollsBackEarlierCreated(t *testing.T) {
 	var calls []string
 
-	first := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	first := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-first")
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": true}}, nil
 	}
-	firstRollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	firstRollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-first")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	second := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	second := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-second")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	secondRollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	secondRollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-second")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	leaf := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "leaf")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -119,7 +120,7 @@ func TestWrapWithEnsureChain_ContractBreakRollsBackEarlierCreated(t *testing.T) 
 	}
 	wrapped := wrapWithEnsureChain(leaf, chain)
 
-	_, err := wrapped(nil, nil)
+	_, err := wrapped(nil, commandtest.Args())
 	require.ErrorIs(t, err, ErrEnsureContract)
 	assert.Equal(t, []string{"create-first", "create-second", "rollback-first"}, calls)
 }
@@ -127,15 +128,15 @@ func TestWrapWithEnsureChain_ContractBreakRollsBackEarlierCreated(t *testing.T) 
 func TestWrapWithEnsureChain_ParentCreated_LeafSucceeds(t *testing.T) {
 	var calls []string
 
-	parent := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	parent := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-parent")
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": true}}, nil
 	}
-	rollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	rollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-parent")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	leaf := func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	leaf := func(_ *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "leaf")
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"message": "unit created"}}, nil
 	}
@@ -143,7 +144,7 @@ func TestWrapWithEnsureChain_ParentCreated_LeafSucceeds(t *testing.T) {
 	chain := []EnsureStep{{Handler: parent, RollbackHandler: rollback}}
 	wrapped := wrapWithEnsureChain(leaf, chain)
 
-	resp, err := wrapped(nil, []string{"100"})
+	resp, err := wrapped(nil, commandtest.Args("100"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.Equal(t, []string{"create-parent", "leaf"}, calls)
@@ -152,15 +153,15 @@ func TestWrapWithEnsureChain_ParentCreated_LeafSucceeds(t *testing.T) {
 func TestWrapWithEnsureChain_ParentExists_NoRollback(t *testing.T) {
 	var calls []string
 
-	parent := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	parent := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-parent")
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": false}}, nil
 	}
-	rollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	rollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-parent")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	leaf := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "leaf")
 		return nil, errors.New("unit creation failed")
 	}
@@ -168,7 +169,7 @@ func TestWrapWithEnsureChain_ParentExists_NoRollback(t *testing.T) {
 	chain := []EnsureStep{{Handler: parent, RollbackHandler: rollback}}
 	wrapped := wrapWithEnsureChain(leaf, chain)
 
-	_, err := wrapped(nil, nil)
+	_, err := wrapped(nil, commandtest.Args())
 	assert.Error(t, err)
 	assert.Equal(t, []string{"create-parent", "leaf"}, calls, "no rollback when parent already existed")
 }
@@ -176,15 +177,15 @@ func TestWrapWithEnsureChain_ParentExists_NoRollback(t *testing.T) {
 func TestWrapWithEnsureChain_LeafFails_RollsBackCreated(t *testing.T) {
 	var calls []string
 
-	parent := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	parent := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-parent")
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": true}}, nil
 	}
-	rollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	rollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-parent")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	leaf := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "leaf")
 		return nil, errors.New("unit creation failed")
 	}
@@ -192,7 +193,7 @@ func TestWrapWithEnsureChain_LeafFails_RollsBackCreated(t *testing.T) {
 	chain := []EnsureStep{{Handler: parent, RollbackHandler: rollback}}
 	wrapped := wrapWithEnsureChain(leaf, chain)
 
-	_, err := wrapped(nil, nil)
+	_, err := wrapped(nil, commandtest.Args())
 	assert.Error(t, err)
 	assert.Equal(t, []string{"create-parent", "leaf", "rollback-parent"}, calls)
 }
@@ -200,15 +201,15 @@ func TestWrapWithEnsureChain_LeafFails_RollsBackCreated(t *testing.T) {
 func TestWrapWithEnsureChain_LeafStatusError_RollsBack(t *testing.T) {
 	var calls []string
 
-	parent := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	parent := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-parent")
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"created": true}}, nil
 	}
-	rollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	rollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-parent")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	leaf := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "leaf")
 		return &plugin.Response{Status: plugin.StatusError, Error: "invalid VLAN ID"}, nil
 	}
@@ -216,7 +217,7 @@ func TestWrapWithEnsureChain_LeafStatusError_RollsBack(t *testing.T) {
 	chain := []EnsureStep{{Handler: parent, RollbackHandler: rollback}}
 	wrapped := wrapWithEnsureChain(leaf, chain)
 
-	resp, err := wrapped(nil, nil)
+	resp, err := wrapped(nil, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Equal(t, []string{"create-parent", "leaf", "rollback-parent"}, calls)
@@ -225,15 +226,15 @@ func TestWrapWithEnsureChain_LeafStatusError_RollsBack(t *testing.T) {
 func TestWrapWithEnsureChain_ParentFails_AbortNoLeaf(t *testing.T) {
 	var calls []string
 
-	parent := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	parent := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-parent")
 		return nil, errors.New("backend unavailable")
 	}
-	rollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	rollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-parent")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	leaf := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "leaf")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -241,16 +242,16 @@ func TestWrapWithEnsureChain_ParentFails_AbortNoLeaf(t *testing.T) {
 	chain := []EnsureStep{{Handler: parent, RollbackHandler: rollback}}
 	wrapped := wrapWithEnsureChain(leaf, chain)
 
-	_, err := wrapped(nil, nil)
+	_, err := wrapped(nil, commandtest.Args())
 	assert.Error(t, err)
 	assert.Equal(t, []string{"create-parent"}, calls, "leaf must not run when parent fails")
 }
 
 func TestBuildEnsureChain(t *testing.T) {
 	nop := &plugin.Response{Status: plugin.StatusDone}
-	handlerA := func(_ *CommandContext, _ []string) (*plugin.Response, error) { return nop, nil }
-	handlerB := func(_ *CommandContext, _ []string) (*plugin.Response, error) { return nop, nil }
-	handlerDelete := func(_ *CommandContext, _ []string) (*plugin.Response, error) { return nop, nil }
+	handlerA := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) { return nop, nil }
+	handlerB := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) { return nop, nil }
+	handlerDelete := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) { return nop, nil }
 
 	tree := &command.Node{
 		Children: map[string]*command.Node{
@@ -310,18 +311,18 @@ func TestBuildEnsureChain(t *testing.T) {
 func TestWrapWithEnsureChain_ParentTypeConflict_AbortNoLeaf(t *testing.T) {
 	var calls []string
 
-	parent := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	parent := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "create-parent")
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  "interface br0 exists with type bridge, not dummy",
 		}, nil
 	}
-	rollback := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	rollback := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "rollback-parent")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	leaf := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	leaf := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		calls = append(calls, "leaf")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -329,7 +330,7 @@ func TestWrapWithEnsureChain_ParentTypeConflict_AbortNoLeaf(t *testing.T) {
 	chain := []EnsureStep{{Handler: parent, RollbackHandler: rollback}}
 	wrapped := wrapWithEnsureChain(leaf, chain)
 
-	resp, err := wrapped(nil, nil)
+	resp, err := wrapped(nil, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "not dummy")

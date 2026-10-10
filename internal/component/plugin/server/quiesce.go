@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -157,7 +158,7 @@ func registerPluginEventQuiescer(s *Server) {
 // handleQuiesce implements `request quiesce` (ze-plugin:system-quiesce): drain every
 // registered subsystem and reply when all have settled. Tests use it as a
 // barrier in place of a fixed sleep.
-func handleQuiesce(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handleQuiesce(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	var quiescers []Quiescer
 	if ctx.Server != nil {
 		quiescers = ctx.Server.Quiescers()

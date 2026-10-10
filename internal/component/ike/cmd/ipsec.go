@@ -3,6 +3,7 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/ike/engine"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -19,7 +20,8 @@ func init() {
 	)
 }
 
-func handleClearIPsecSA(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleClearIPsecSA(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	for i := range args {
 		if args[i] != "peer" {
 			continue

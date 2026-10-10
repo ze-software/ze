@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -29,7 +30,7 @@ func skipWithoutBackend(t *testing.T, resp *plugin.Response) {
 }
 
 func TestHandleShowInterface(t *testing.T) {
-	resp, err := handleShowInterface(nil, nil)
+	resp, err := handleShowInterface(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	skipWithoutBackend(t, resp)
@@ -42,7 +43,7 @@ func TestHandleShowInterface(t *testing.T) {
 // text rather than silently listing every interface.
 func TestHandleShowInterfaceRejectsStrayToken(t *testing.T) {
 	for _, arg := range []string{"lo", "brief", "errors", "type", "rate"} {
-		resp, err := handleShowInterface(nil, []string{arg})
+		resp, err := handleShowInterface(nil, commandtest.Args(arg))
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, "error", resp.Status, "stray token %q must not be served", arg)
@@ -56,7 +57,7 @@ func TestHandleShowInterfaceRejectsStrayToken(t *testing.T) {
 // VALIDATES: show interface brief reaches showInterfaceBrief.
 // PREVENTS: brief falling back to the full-detail listing.
 func TestHandleShowInterfaceBrief(t *testing.T) {
-	resp, err := handleShowInterfaceBrief(nil, nil)
+	resp, err := handleShowInterfaceBrief(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	skipWithoutBackend(t, resp)
@@ -82,7 +83,7 @@ func TestHandleShowInterfaceBrief(t *testing.T) {
 // type token there is nothing to filter on, so the handler must refuse rather
 // than answer with the unfiltered list.
 func TestHandleShowInterfaceTypeNeedsAType(t *testing.T) {
-	resp, err := handleShowInterfaceType(nil, nil)
+	resp, err := handleShowInterfaceType(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
@@ -93,11 +94,11 @@ func TestHandleShowInterfaceTypeNeedsAType(t *testing.T) {
 // refused and that the refusal derives the valid list from the running set
 // (ai/rules/evidence.md, derive never hardcode).
 func TestHandleShowInterfaceTypeRejectsUnknown(t *testing.T) {
-	all, err := handleShowInterface(nil, nil)
+	all, err := handleShowInterface(nil, commandtest.Args())
 	require.NoError(t, err)
 	skipWithoutBackend(t, all)
 
-	resp, err := handleShowInterfaceType(nil, []string{"zz-not-an-interface-type"})
+	resp, err := handleShowInterfaceType(nil, commandtest.Args("zz-not-an-interface-type"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, "error", resp.Status)
@@ -111,7 +112,7 @@ func TestHandleShowInterfaceTypeRejectsUnknown(t *testing.T) {
 // TestHandleShowInterfaceErrorsShape checks the errors view returns the wrapper
 // the table renderer unwraps, and that every row carries all four counters.
 func TestHandleShowInterfaceErrorsShape(t *testing.T) {
-	resp, err := handleShowInterfaceErrors(nil, nil)
+	resp, err := handleShowInterfaceErrors(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	skipWithoutBackend(t, resp)
@@ -144,7 +145,7 @@ func TestHandleShowInterfaceErrorsShape(t *testing.T) {
 func TestHandleShowInterfaceRateNamedFormUsesTheName(t *testing.T) {
 	const name = "zz-not-an-interface0"
 
-	resp, err := handleShowInterfaceRateCmd(nil, []string{name})
+	resp, err := handleShowInterfaceRateCmd(nil, commandtest.Args(name))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, plugin.StatusError, resp.Status)

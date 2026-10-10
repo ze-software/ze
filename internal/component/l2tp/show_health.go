@@ -6,6 +6,7 @@ package l2tp
 import (
 	"sort"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -16,7 +17,7 @@ func init() {
 	)
 }
 
-func handleShowL2TPHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowL2TPHealth(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := LookupService()
 	if svc == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "l2tp subsystem not running"}, nil

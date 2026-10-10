@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -25,7 +26,8 @@ func init() {
 	)
 }
 
-func handleBgpPluginEncoding(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPluginEncoding(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return nil, errMissingEncodingBgpPluginEncodingJsontext
 	}
@@ -48,7 +50,8 @@ func handleBgpPluginEncoding(ctx *pluginserver.CommandContext, args []string) (*
 	}, nil
 }
 
-func handleBgpPluginFormat(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPluginFormat(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return nil, errMissingFormatBgpPluginFormatHexbase64parsedfull
 	}
@@ -71,7 +74,8 @@ func handleBgpPluginFormat(ctx *pluginserver.CommandContext, args []string) (*pl
 	}, nil
 }
 
-func handleBgpPluginAck(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPluginAck(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return nil, errMissingModeBgpPluginAckSyncasync
 	}

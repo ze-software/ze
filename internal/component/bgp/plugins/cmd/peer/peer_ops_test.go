@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
@@ -25,7 +26,7 @@ func TestHandlerPeerDetailAllPeers(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpPeerDetail(ctx, nil)
+	resp, err := handleBgpPeerDetail(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -65,7 +66,7 @@ func TestHandlerPeerDetailReportsConnectRetryCounter(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpPeerDetail(ctx, nil)
+	resp, err := handleBgpPeerDetail(ctx, commandtest.Args())
 	require.NoError(t, err)
 
 	data, ok := resp.Data.(plugin.Map)
@@ -94,7 +95,7 @@ func TestHandlerPeerDetailFilterByIP(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerDetail(ctx, nil)
+	resp, err := handleBgpPeerDetail(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -116,7 +117,7 @@ func TestHandlerTeardown(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleTeardown(ctx, []string{"2"})
+	resp, err := handleTeardown(ctx, commandtest.Args("2"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -134,7 +135,7 @@ func TestHandlerTeardownWithMessage(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleTeardown(ctx, []string{"2", "maintenance", "window"})
+	resp, err := handleTeardown(ctx, commandtest.Args("2", "maintenance", "window"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -158,7 +159,7 @@ func TestHandlerTeardownWithoutMessage(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleTeardown(ctx, []string{"2"})
+	resp, err := handleTeardown(ctx, commandtest.Args("2"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -180,7 +181,7 @@ func TestHandlerTeardownMissingSubcode(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleTeardown(ctx, nil)
+	resp, err := handleTeardown(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -193,7 +194,7 @@ func TestHandlerTeardownWildcardPeer(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "*"
 
-	resp, err := handleTeardown(ctx, []string{"2"})
+	resp, err := handleTeardown(ctx, commandtest.Args("2"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -206,7 +207,7 @@ func TestHandlerTeardownInvalidSubcode(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleTeardown(ctx, []string{"abc"})
+	resp, err := handleTeardown(ctx, commandtest.Args("abc"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -224,7 +225,7 @@ func TestHandlerPeerRemove(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerDelete(ctx, nil)
+	resp, err := handleBgpPeerDelete(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -240,7 +241,7 @@ func TestHandlerPeerRemoveWildcardPeer(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerDelete(ctx, nil)
+	resp, err := handleBgpPeerDelete(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -355,7 +356,7 @@ func TestPeerPauseHandler(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerPause(ctx, nil)
+	resp, err := handleBgpPeerPause(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -372,7 +373,7 @@ func TestPeerResumeHandler(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerResume(ctx, nil)
+	resp, err := handleBgpPeerResume(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -390,19 +391,19 @@ func TestPeerPauseUnknown(t *testing.T) {
 
 	// Wildcard selector should be rejected
 	ctx.Peer = "*"
-	resp, err := handleBgpPeerPause(ctx, nil)
+	resp, err := handleBgpPeerPause(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 
 	// Empty selector should be rejected
 	ctx.Peer = ""
-	resp, err = handleBgpPeerPause(ctx, nil)
+	resp, err = handleBgpPeerPause(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 
 	// Invalid IP should be rejected
 	ctx.Peer = "not-an-ip"
-	resp, err = handleBgpPeerPause(ctx, nil)
+	resp, err = handleBgpPeerPause(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -438,7 +439,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, nil)
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -473,7 +474,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 // PREVENTS: Nil pointer dereference.
 func TestBgpSummaryNilReactor(t *testing.T) {
 	ctx := newTestContext(nil)
-	_, err := handleBgpSummary(ctx, nil)
+	_, err := handleBgpSummary(ctx, commandtest.Args())
 	require.Error(t, err)
 }
 
@@ -499,7 +500,7 @@ func TestBgpPeerCapabilitiesHandler(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerCapabilities(ctx, nil)
+	resp, err := handleBgpPeerCapabilities(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -525,7 +526,7 @@ func TestBgpPeerCapabilitiesNoPeer(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerCapabilities(ctx, nil)
+	resp, err := handleBgpPeerCapabilities(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -543,7 +544,7 @@ func TestBgpPeerCapabilitiesNotFound(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.99"
 
-	resp, err := handleBgpPeerCapabilities(ctx, nil)
+	resp, err := handleBgpPeerCapabilities(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -562,7 +563,7 @@ func TestHandlerTeardownByName(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "router-east"
 
-	resp, err := handleTeardown(ctx, []string{"2"})
+	resp, err := handleTeardown(ctx, commandtest.Args("2"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -593,7 +594,7 @@ func TestHandlerTeardownUnknownName(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "nonexistent"
 
-	resp, err := handleTeardown(ctx, []string{"2"})
+	resp, err := handleTeardown(ctx, commandtest.Args("2"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "teardown", "error must name the action")
@@ -622,7 +623,7 @@ func TestHandlerTeardownSelectorParity(t *testing.T) {
 		ctx := newTestContext(reactor)
 		ctx.Peer = "as65001"
 
-		resp, err := handleTeardown(ctx, []string{"2"})
+		resp, err := handleTeardown(ctx, commandtest.Args("2"))
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		require.Len(t, reactor.teardownCalls, 1)
@@ -637,7 +638,7 @@ func TestHandlerTeardownSelectorParity(t *testing.T) {
 		ctx := newTestContext(reactor)
 		ctx.Peer = "!router-east"
 
-		resp, err := handleTeardown(ctx, []string{"2"})
+		resp, err := handleTeardown(ctx, commandtest.Args("2"))
 		require.Error(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 		assert.Empty(t, reactor.teardownCalls, "an exclusion selector must tear down nothing")
@@ -660,7 +661,7 @@ func TestHandlerFlushUnresolvedSelectorFailsClosed(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "router-easr" // typo
 
-	resp, err := handleBgpPeerFlush(ctx, nil)
+	resp, err := handleBgpPeerFlush(ctx, commandtest.Args())
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -682,7 +683,7 @@ func TestHandlerFlushWildcardStillFlushesAll(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerFlush(ctx, nil)
+	resp, err := handleBgpPeerFlush(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -706,7 +707,7 @@ func TestHandlerFlushByName(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "router-east"
 
-	resp, err := handleBgpPeerFlush(ctx, nil)
+	resp, err := handleBgpPeerFlush(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -726,7 +727,7 @@ func TestHandlerTeardownSubcodeOutOfRange(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleTeardown(ctx, []string{"256"})
+	resp, err := handleTeardown(ctx, commandtest.Args("256"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "invalid subcode")

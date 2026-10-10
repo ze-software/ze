@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -43,7 +44,8 @@ func registerShowKernelLog() {
 	)
 }
 
-func handleShowSystemKernelLog(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowSystemKernelLog(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	count, maxLevel := parseKernelLogArgs(args)
 
 	entries, err := readKmsg(count, maxLevel)

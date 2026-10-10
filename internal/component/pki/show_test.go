@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -23,7 +24,7 @@ import (
 func exportedRoot(t *testing.T, args []string) plugin.Map {
 	t.Helper()
 
-	resp, err := handleShowPKILocalCAPEM(nil, args)
+	resp, err := handleShowPKILocalCAPEM(nil, commandtest.Args(args...))
 	if err != nil {
 		t.Fatalf("export handler returned an error: %v", err)
 	}
@@ -117,7 +118,7 @@ func TestExportRootRefusesWhenNoRootIsLoaded(t *testing.T) {
 	currentRoot.Store(nil)
 	t.Cleanup(func() { currentRoot.Store(loaded) })
 
-	resp, err := handleShowPKILocalCAPEM(nil, nil)
+	resp, err := handleShowPKILocalCAPEM(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("export handler returned an error: %v", err)
 	}
@@ -135,7 +136,7 @@ func TestExportRootRefusesAnUnexpectedArgument(t *testing.T) {
 		t.Fatalf("LoadOrGenerateRoot: %v", err)
 	}
 
-	resp, err := handleShowPKILocalCAPEM(nil, []string{"garbage"})
+	resp, err := handleShowPKILocalCAPEM(nil, commandtest.Args("garbage"))
 	if err != nil {
 		t.Fatalf("export handler returned an error: %v", err)
 	}

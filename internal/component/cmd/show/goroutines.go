@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -35,7 +36,8 @@ func init() {
 	)
 }
 
-func handleShowSystemGoroutines(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowSystemGoroutines(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	mode := goroutineModeSummary
 	for _, a := range args {
 		switch a {

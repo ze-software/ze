@@ -233,7 +233,8 @@ var familyArgRE = regexp.MustCompile(`^[a-z0-9/_-]+$`)
 // The dispatcher hands over every trailing token it could not consume
 // (matchBuiltinTokens), and a handler that indexes args[0] alone answers a
 // different question than the operator asked.
-func handleBgpOverview(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpOverview(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) > 0 && !isFamilyArg(args[0]) {
 		return unknownBgpPath(args[:1],
 			"names no subcommand and no address family")
@@ -246,7 +247,7 @@ func handleBgpOverview(ctx *pluginserver.CommandContext, args []string) (*plugin
 		return unknownBgpPath(args[:2],
 			"names no subcommand: show bgp takes one address family and nothing after it")
 	}
-	return handleBgpSummary(ctx, args)
+	return handleBgpSummary(ctx, validated)
 }
 
 // unknownBgpPath answers the refusal for tokens below `show bgp` that name no
@@ -302,7 +303,8 @@ func isFamilyArg(in string) bool {
 // Any other shorthand (e.g. `bgp-ls`, IPv4/VPN, labeled-unicast)
 // requires the full `afi/safi` form — the shorthand table is
 // deliberately small to avoid masking typos.
-func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpSummary(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if ctx == nil || ctx.Reactor() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -477,7 +479,8 @@ func expandFamilyShorthand(in string) string {
 // several, so its shape followed its input and no declaration could describe
 // it: `show bgp peer capabilities | count` answered on a router with several
 // peers and was refused on a router with one.
-func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err
@@ -529,7 +532,8 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) 
 //
 // The answer is one row for each matched peer, under "peers", whatever the
 // number matched, for the reason handleBgpPeerCapabilities states.
-func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err

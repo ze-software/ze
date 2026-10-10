@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -55,7 +56,8 @@ func init() {
 	)
 }
 
-func handleMonitorSystemNetlink(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleMonitorSystemNetlink(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	group, err := netlinkGroupFromArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response

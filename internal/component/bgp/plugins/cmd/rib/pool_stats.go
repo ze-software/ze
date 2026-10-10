@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -32,7 +33,7 @@ var poolNames = [...]string{
 	"aggregator", "other-attrs",
 }
 
-func handlePoolStats(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handlePoolStats(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	pools := pool.AllPools()
 	rows := make([]map[string]any, 0, len(pools))
 	var totalLive, totalDead int32

@@ -184,7 +184,7 @@ func registerDefaultHandlers(d *Dispatcher, wireToPath map[string]string) error 
 }
 
 // Handler processes a command and returns a response.
-type Handler func(ctx *CommandContext, args []string) (*plugin.Response, error)
+type Handler func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error)
 
 // CommandContext provides access to reactor and session state.
 // Dependencies are accessed through Server; per-request state is stored directly.
@@ -1134,7 +1134,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// reports a successful match. When the matched node has no leaves it has
 		// no ArgDefs, so the validation below is skipped and the tail is handed
 		// to a handler that may ignore it. `show l2tp --user alice tunnels` then
-		// matches `show l2tp`, whose handler takes `_ []string`, and the operator
+		// matches `show l2tp`, whose handler takes `_ command.ValidatedArgs`, and the operator
 		// silently gets the summary for the DEFAULT user with exit 0.
 		//
 		// Only FLAG-shaped tokens are rejected, never leftovers generally: zero
@@ -1167,7 +1167,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
 
-		resp, handlerErr := matchedCmd.Handler(ctx, validated.Tokens())
+		resp, handlerErr := matchedCmd.Handler(ctx, validated)
 		d.recordCommandAudit(ctx, input, resp, handlerErr)
 		return resp, handlerErr
 	}

@@ -10,6 +10,7 @@
 package observe
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -31,7 +32,7 @@ func init() {
 // No store means the plugin is not running, which is reported as enabled false and
 // an empty list rather than as an error: absence of a plugin is not a failure of
 // the command.
-func handleShowAnomalyObserve(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowAnomalyObserve(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	s := activeStore.Load()
 	if s == nil {
 		return &plugin.Response{

@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
@@ -63,7 +64,8 @@ type dataBackupArgs struct {
 }
 
 // handleDataBackup answers `request data backup path <abs> [spare <n>] [force]`.
-func handleDataBackup(_ *pluginserver.CommandContext, args []string) (*zePlugin.Response, error) {
+func handleDataBackup(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*zePlugin.Response, error) {
+	args := validated.Tokens()
 	target := dataRPC.Load()
 	if target == nil {
 		return dataRefusal(errors.New("request data backup: this daemon serves no store")), nil
@@ -142,7 +144,8 @@ type dataRestoreArgs struct {
 // rollback stay as they were. It is refused while a confirmed-commit window is
 // open, with the window's own refusal naming its owner. With client, see
 // restoreClientConfig: the client's config is not the one a window reverts.
-func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlugin.Response, error) {
+func handleDataRestore(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*zePlugin.Response, error) {
+	args := validated.Tokens()
 	target := dataRPC.Load()
 	if target == nil {
 		return dataRefusal(errors.New("request data restore: this daemon serves no store")), nil

@@ -18,6 +18,7 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/probe"
@@ -51,7 +52,8 @@ const (
 	maxTracerouteProbes      = 10
 )
 
-func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleTraceroute(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	req, err := parseTracerouteArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response

@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/engine"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -86,7 +87,8 @@ func activeDataplane() (dataplane.Dataplane, *plugin.Response) {
 	return dp, nil
 }
 
-func handleShowVPNIPsecDataplaneSA(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowVPNIPsecDataplaneSA(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	spi, errResp := dataplaneSPISelector(ctx, args)
 	if errResp != nil {
 		return errResp, nil
@@ -187,7 +189,7 @@ func saInfoToMap(sa *dataplane.SAInfo) map[string]any {
 	}
 }
 
-func handleShowVPNIPsecDataplanePolicy(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowVPNIPsecDataplanePolicy(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	dp, errResp := activeDataplane()
 	if errResp != nil {
 		return errResp, nil
@@ -231,7 +233,7 @@ func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
 	}
 }
 
-func handleShowVPNIPsecDataplaneDrift(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowVPNIPsecDataplaneDrift(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	observation, err := observeDataplane()
 	if err != nil {
 		return dataplaneReadError("SAD", err), nil

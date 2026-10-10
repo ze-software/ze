@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/procfs"
@@ -21,7 +22,8 @@ func init() {
 	)
 }
 
-func handleShowSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowSystemFD(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	const detailMode = "detail"
 	mode := "summary"
 	for _, a := range args {

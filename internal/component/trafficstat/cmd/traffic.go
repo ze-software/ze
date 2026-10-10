@@ -34,7 +34,8 @@ func init() {
 	)
 }
 
-func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowTraffic(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	svc := trafficstat.EnsureGlobal()
 	if svc == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "trafficstat service not available"}, nil
@@ -56,7 +57,8 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	}, nil
 }
 
-func handleMonitorTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleMonitorTraffic(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	var filterName string
 	if len(args) > 0 {
 		filterName = args[0]

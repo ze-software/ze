@@ -8,6 +8,7 @@ package flowexport
 import (
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -28,7 +29,8 @@ func init() {
 	)
 }
 
-func handleShowFlowExport(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowFlowExport(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	exp := getExporter()
 	if exp == nil {
 		return &plugin.Response{
@@ -72,7 +74,8 @@ func handleShowFlowExport(_ *pluginserver.CommandContext, args []string) (*plugi
 // The filter is by destination prefix, not interface: conntrack is host-global
 // and carries no ingress interface, so a `name <iface>` filter is not derivable
 // from the data (see spec Deviations).
-func handleShowFlowRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowFlowRecent(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	exp := getExporter()
 	if exp == nil {
 		return &plugin.Response{

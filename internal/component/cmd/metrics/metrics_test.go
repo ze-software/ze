@@ -10,6 +10,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/metrics"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	registry "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
@@ -27,7 +28,7 @@ func TestMetricsShowWithRegistry(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleMetricsValues(ctx, nil)
+	resp, err := handleMetricsValues(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -48,7 +49,7 @@ func TestMetricsShowNoRegistry(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleMetricsValues(ctx, nil)
+	resp, err := handleMetricsValues(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "metrics not available")
@@ -69,7 +70,7 @@ func TestMetricsListWithRegistry(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleMetricsList(ctx, nil)
+	resp, err := handleMetricsList(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -92,7 +93,7 @@ func TestMetricsListNoRegistry(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleMetricsList(ctx, nil)
+	resp, err := handleMetricsList(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "metrics not available")

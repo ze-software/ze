@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -16,7 +17,7 @@ import (
 func TestHandlerCommitList(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCommit(ctx, []string{"list"})
+	resp, err := handleCommit(ctx, commandtest.Args("list"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -33,12 +34,12 @@ func TestHandlerCommitStartAndShow(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
 	// Start a commit.
-	resp, err := handleCommit(ctx, []string{"test-commit", "start"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
 	// Show the commit.
-	resp, err = handleCommit(ctx, []string{"test-commit", "show"})
+	resp, err = handleCommit(ctx, commandtest.Args("test-commit", "show"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -55,11 +56,11 @@ func TestHandlerCommitStartAndShow(t *testing.T) {
 func TestHandlerCommitStartAndEnd(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCommit(ctx, []string{"test-commit", "start"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	resp, err = handleCommit(ctx, []string{"test-commit", "end"})
+	resp, err = handleCommit(ctx, commandtest.Args("test-commit", "end"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -76,10 +77,10 @@ func TestHandlerCommitStartAndEnd(t *testing.T) {
 func TestHandlerCommitStartAndEOR(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	_, err := handleCommit(ctx, []string{"test-commit", "start"})
+	_, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.NoError(t, err)
 
-	resp, err := handleCommit(ctx, []string{"test-commit", "eor"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "eor"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -95,10 +96,10 @@ func TestHandlerCommitStartAndEOR(t *testing.T) {
 func TestHandlerCommitRollback(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	_, err := handleCommit(ctx, []string{"test-commit", "start"})
+	_, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.NoError(t, err)
 
-	resp, err := handleCommit(ctx, []string{"test-commit", "rollback"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "rollback"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -114,7 +115,7 @@ func TestHandlerCommitRollback(t *testing.T) {
 func TestHandlerCommitUnknownAction(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCommit(ctx, []string{"test-commit", "bogus"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "bogus"))
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
 	assert.Contains(t, resp.Error, "unknown commit action")
@@ -127,7 +128,7 @@ func TestHandlerCommitUnknownAction(t *testing.T) {
 func TestHandlerCommitMissingName(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCommit(ctx, []string{"test-commit"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit"))
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
 }
@@ -141,7 +142,7 @@ func TestHandlerCommitNilReactor(t *testing.T) {
 
 	// "list" checks CommitManager (on Server), not reactor directly.
 	// "start" checks reactor via RequireReactor.
-	resp, err := handleCommit(ctx, []string{"test-commit", "start"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -154,11 +155,11 @@ func TestHandlerCommitWithdrawRoute(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
 	// Start a commit.
-	_, err := handleCommit(ctx, []string{"test-commit", "start"})
+	_, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.NoError(t, err)
 
 	// Withdraw a route.
-	resp, err := handleCommit(ctx, []string{"test-commit", "withdraw", "route", "10.0.0.0/24"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "withdraw", "route", "10.0.0.0/24"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -175,10 +176,10 @@ func TestHandlerCommitWithdrawRoute(t *testing.T) {
 func TestHandlerCommitWithdrawIPv6(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	_, err := handleCommit(ctx, []string{"test-commit", "start"})
+	_, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.NoError(t, err)
 
-	resp, err := handleCommit(ctx, []string{"test-commit", "withdraw", "route", "2001:db8::/32"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "withdraw", "route", "2001:db8::/32"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -194,10 +195,10 @@ func TestHandlerCommitWithdrawIPv6(t *testing.T) {
 func TestHandlerCommitWithdrawInvalidPrefix(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	_, err := handleCommit(ctx, []string{"test-commit", "start"})
+	_, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.NoError(t, err)
 
-	resp, err := handleCommit(ctx, []string{"test-commit", "withdraw", "route", "not-a-prefix"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "withdraw", "route", "not-a-prefix"))
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
 }
@@ -209,10 +210,10 @@ func TestHandlerCommitWithdrawInvalidPrefix(t *testing.T) {
 func TestHandlerCommitWithdrawMissingPrefix(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	_, err := handleCommit(ctx, []string{"test-commit", "start"})
+	_, err := handleCommit(ctx, commandtest.Args("test-commit", "start"))
 	require.NoError(t, err)
 
-	resp, err := handleCommit(ctx, []string{"test-commit", "withdraw", "route"})
+	resp, err := handleCommit(ctx, commandtest.Args("test-commit", "withdraw", "route"))
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
 }
@@ -224,10 +225,10 @@ func TestHandlerCommitWithdrawMissingPrefix(t *testing.T) {
 func TestHandlerCommitListAfterStart(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	_, err := handleCommit(ctx, []string{"my-commit", "start"})
+	_, err := handleCommit(ctx, commandtest.Args("my-commit", "start"))
 	require.NoError(t, err)
 
-	resp, err := handleCommit(ctx, []string{"list"})
+	resp, err := handleCommit(ctx, commandtest.Args("list"))
 	require.NoError(t, err)
 
 	data, ok := resp.Data.(plugin.Map)
@@ -242,7 +243,7 @@ func TestHandlerCommitListAfterStart(t *testing.T) {
 func TestHandlerCommitShowNotFound(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCommit(ctx, []string{"nonexistent", "show"})
+	resp, err := handleCommit(ctx, commandtest.Args("nonexistent", "show"))
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
 }
@@ -251,7 +252,7 @@ func TestHandlerCommitShowNotFound(t *testing.T) {
 func TestCommit_ActionFirst(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCommit(ctx, []string{"start", "my-commit"})
+	resp, err := handleCommit(ctx, commandtest.Args("start", "my-commit"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	data, ok := resp.Data.(plugin.Map)
@@ -259,7 +260,7 @@ func TestCommit_ActionFirst(t *testing.T) {
 	_, hasDeprecated := data["deprecated"]
 	assert.False(t, hasDeprecated, "canonical grammar should not have deprecation")
 
-	resp, err = handleCommit(ctx, []string{"show", "my-commit"})
+	resp, err = handleCommit(ctx, commandtest.Args("show", "my-commit"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	data, ok = resp.Data.(plugin.Map)
@@ -273,7 +274,7 @@ func TestCommit_ActionFirst(t *testing.T) {
 func TestCommit_DeprecatedNameFirst(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCommit(ctx, []string{"my-commit", "start"})
+	resp, err := handleCommit(ctx, commandtest.Args("my-commit", "start"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	data, ok := resp.Data.(plugin.Map)
@@ -287,10 +288,10 @@ func TestCommit_DeprecatedNameFirst(t *testing.T) {
 func TestCommit_ActionFirstWithdraw(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	_, err := handleCommit(ctx, []string{"start", "my-commit"})
+	_, err := handleCommit(ctx, commandtest.Args("start", "my-commit"))
 	require.NoError(t, err)
 
-	resp, err := handleCommit(ctx, []string{"withdraw", "my-commit", "route", "10.0.0.0/24"})
+	resp, err := handleCommit(ctx, commandtest.Args("withdraw", "my-commit", "route", "10.0.0.0/24"))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	data, ok := resp.Data.(plugin.Map)

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -28,7 +29,7 @@ func TestShowRouteLookup_RegisteredWireMethod(t *testing.T) {
 // TestHandleRouteLookup_MissingArg verifies the handler rejects when no
 // destination IP is supplied.
 func TestHandleRouteLookup_MissingArg(t *testing.T) {
-	resp, err := handleRouteLookup(nil, nil)
+	resp, err := handleRouteLookup(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -38,7 +39,7 @@ func TestHandleRouteLookup_MissingArg(t *testing.T) {
 // TestHandleRouteLookup_InvalidDest verifies a malformed destination IP
 // rejects with a clear error rather than reaching the backend.
 func TestHandleRouteLookup_InvalidDest(t *testing.T) {
-	resp, err := handleRouteLookup(nil, []string{"not-an-ip"})
+	resp, err := handleRouteLookup(nil, commandtest.Args("not-an-ip"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)

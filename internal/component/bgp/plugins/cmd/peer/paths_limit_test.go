@@ -18,6 +18,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -105,7 +106,7 @@ func TestPeerCapabilitiesShowsBothPathsLimitDirections(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	response, err := handleBgpPeerCapabilities(ctx, nil)
+	response, err := handleBgpPeerCapabilities(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, response.Status)
 
@@ -127,7 +128,7 @@ func TestPeerCapabilitiesOmitsPathsLimitWhenAddPathCarriesNoLimit(t *testing.T) 
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	response, err := handleBgpPeerCapabilities(ctx, nil)
+	response, err := handleBgpPeerCapabilities(ctx, commandtest.Args())
 	require.NoError(t, err)
 
 	negotiated, isMap := firstPeerRow(t, response)["negotiated"].(map[string]any)

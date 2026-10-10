@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -24,7 +25,7 @@ import (
 // heap-objects, num-gc). The `hardware` nested object surfaces the
 // physical memory sizes and ECC counters from host inventory (Linux only;
 // omitted entirely on platforms where inventory returns ErrUnsupported).
-func handleShowSystemMemory(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemMemory(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	data := map[string]any{
@@ -52,7 +53,7 @@ func handleShowSystemMemory(_ *pluginserver.CommandContext, _ []string) (*plugin
 // surfaces the physical CPU inventory (model, cores, hybrid layout,
 // frequencies) on Linux; omitted on platforms where inventory returns
 // ErrUnsupported so operators still get the runtime fields.
-func handleShowSystemCPU(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemCPU(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	data := map[string]any{
 		"num-cpu":        runtime.NumCPU(),
 		"num-goroutines": runtime.NumGoroutine(),
@@ -68,7 +69,7 @@ func handleShowSystemCPU(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 }
 
 // handleShowSystemSubsystemList returns available subsystems with their state.
-func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
@@ -106,7 +107,7 @@ func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string)
 }
 
 // handleShowSystemPlatform reports the runtime platform type and capabilities.
-func handleShowSystemPlatform(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemPlatform(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	p, err := host.DetectPlatform()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
@@ -120,7 +121,7 @@ func handleShowSystemPlatform(_ *pluginserver.CommandContext, _ []string) (*plug
 
 // handleShowSystemDate reports the daemon's current wall-clock view in
 // RFC3339, Unix seconds, and the configured timezone name.
-func handleShowSystemDate(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemDate(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	now := time.Now()
 	zone, offset := now.Zone()
 	data := map[string]any{

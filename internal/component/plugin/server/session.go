@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -25,7 +26,7 @@ func init() {
 // under the `pid` output leaf ze-plugin-api.yang declares as uint32. The id is
 // what a caller reads to tell one daemon from another after a restart; any
 // answer at all says the daemon is alive.
-func handlePluginSessionPing(_ *CommandContext, _ []string) (*plugin.Response, error) {
+func handlePluginSessionPing(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
@@ -36,7 +37,7 @@ func handlePluginSessionPing(_ *CommandContext, _ []string) (*plugin.Response, e
 
 // handlePluginSessionBye handles client disconnect cleanup.
 // Called when a client is disconnecting from the API.
-func handlePluginSessionBye(_ *CommandContext, _ []string) (*plugin.Response, error) {
+func handlePluginSessionBye(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	// Currently just acknowledges the disconnect.
 	// Future: could clean up client-specific state.
 	return &plugin.Response{
@@ -49,7 +50,7 @@ func handlePluginSessionBye(_ *CommandContext, _ []string) (*plugin.Response, er
 
 // handlePluginSessionReady signals that an API process has completed initialization.
 // Unblocks reactor startup. Peer-specific ready is handled in bgp/plugins/cmd/peer/session.go.
-func handlePluginSessionReady(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handlePluginSessionReady(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx.Reactor() != nil {
 		ctx.Reactor().SignalAPIReady()
 	}

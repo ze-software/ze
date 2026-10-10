@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -184,7 +185,7 @@ func TestPeerSaveWritesACreatedPeerToTheFile(t *testing.T) {
 		"peer-192.0.2.7": runtimePeerTree(),
 	})
 
-	resp, err := handleBgpPeerSave(ctx, nil)
+	resp, err := handleBgpPeerSave(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -233,7 +234,7 @@ func subtree(t *testing.T, tree map[string]any, path ...string) map[string]any {
 func TestPeerSaveTakesADeletedPeerOutOfTheFile(t *testing.T) {
 	ctx, path := newSaveContext(t, map[string]any{})
 
-	resp, err := handleBgpPeerSave(ctx, nil)
+	resp, err := handleBgpPeerSave(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -260,7 +261,7 @@ func TestPeerSaveTakesADeletedPeerOutOfTheFile(t *testing.T) {
 func TestPeerSaveLeavesAnAgreeingFileAlone(t *testing.T) {
 	ctx, path := newSaveContext(t, map[string]any{"peer1": configuredPeerTree()})
 
-	resp, err := handleBgpPeerSave(ctx, nil)
+	resp, err := handleBgpPeerSave(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -290,7 +291,7 @@ func TestPeerSaveLeavesAnAgreeingFileAlone(t *testing.T) {
 func TestPeerSaveRefusesASelector(t *testing.T) {
 	ctx, path := newSaveContext(t, map[string]any{})
 
-	resp, err := handleBgpPeerSave(ctx, []string{"192.0.2.7"})
+	resp, err := handleBgpPeerSave(ctx, commandtest.Args("192.0.2.7"))
 	require.ErrorIs(t, err, errSaveTakesNoSelector)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "no selector")
@@ -321,7 +322,7 @@ func TestPeerSaveRefusesWithNoConfigFile(t *testing.T) {
 	require.NoError(t, err)
 	ctx := &pluginserver.CommandContext{Server: server}
 
-	resp, err := handleBgpPeerSave(ctx, nil)
+	resp, err := handleBgpPeerSave(ctx, commandtest.Args())
 	require.ErrorIs(t, err, errConfigPathNotSet)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -345,7 +346,7 @@ func TestPeerSaveRefusesANameTwoPeersShare(t *testing.T) {
 
 	ctx, path := newSaveContext(t, map[string]any{"peer1": running})
 
-	resp, err := handleBgpPeerSave(ctx, nil)
+	resp, err := handleBgpPeerSave(ctx, commandtest.Args())
 	require.ErrorIs(t, err, errSaveNameDisagrees)
 	require.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "127.0.0.1")

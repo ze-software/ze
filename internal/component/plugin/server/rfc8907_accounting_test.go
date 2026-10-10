@@ -8,6 +8,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	_ "github.com/ze-software/ze/internal/component/tacacs/yang"
@@ -64,7 +65,8 @@ func TestDispatcherQuotedArgumentsReachPolicyAndAccounting(t *testing.T) {
 	authorizer := &captureCommandArgsAuthorizer{allow: true}
 	d.SetAuthorizer(authorizer)
 	var handled []string
-	if err := d.Register("request target echo", func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("request target echo", func(_ *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		handled = slices.Clone(args)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}, ""); err != nil {
@@ -89,7 +91,8 @@ func TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution(t *testing
 	accountant := &typedAccountingCapture{}
 	d.SetAccountingHook(accountant)
 	var handled []string
-	if err := d.Register("set", func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("set", func(_ *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		handled = slices.Clone(args)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}, ""); err != nil {

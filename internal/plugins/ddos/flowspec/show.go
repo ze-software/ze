@@ -7,6 +7,7 @@
 package flowspec
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -20,7 +21,7 @@ func init() {
 
 // handleShowDdosFlowspec reports whether an upstream FlowSpec rule is currently
 // announced, the target vector it covers, and whether the leak-probe is running.
-func handleShowDdosFlowspec(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowDdosFlowspec(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	r := activeResponder.Load()
 	if r == nil {
 		return &plugin.Response{

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -507,7 +508,7 @@ func TestShowPKICertificates(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificates(nil, nil)
+	resp, err := handleShowPKICertificates(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowPKICertificates: %v", err)
 	}
@@ -527,7 +528,7 @@ func TestShowPKICertificateByName(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"dev-1"})
+	resp, err := handleShowPKICertificate(nil, commandtest.Args("dev-1"))
 	if err != nil {
 		t.Fatalf("handleShowPKICertificate: %v", err)
 	}
@@ -549,7 +550,7 @@ func TestShowPKICertificateNotFound(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"nonexistent"})
+	resp, err := handleShowPKICertificate(nil, commandtest.Args("nonexistent"))
 	if err != nil {
 		t.Fatalf("handleShowPKICertificate: %v", err)
 	}
@@ -559,7 +560,7 @@ func TestShowPKICertificateNotFound(t *testing.T) {
 }
 
 func TestShowPKICertificateNoArgs(t *testing.T) {
-	resp, err := handleShowPKICertificate(nil, nil)
+	resp, err := handleShowPKICertificate(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowPKICertificate: %v", err)
 	}
@@ -574,7 +575,7 @@ func TestShowPKICertPEM(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificatePEM(nil, []string{"dev-1"})
+	resp, err := handleShowPKICertificatePEM(nil, commandtest.Args("dev-1"))
 	if err != nil {
 		t.Fatalf("show pki certificate name dev-1 pem: %v", err)
 	}
@@ -600,7 +601,7 @@ func TestShowPKICertPEMCA(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificatePEM(nil, []string{"test-ca"})
+	resp, err := handleShowPKICertificatePEM(nil, commandtest.Args("test-ca"))
 	if err != nil {
 		t.Fatalf("show pki certificate name test-ca pem: %v", err)
 	}
@@ -623,7 +624,7 @@ func TestShowPKICertPEMNotFound(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificatePEM(nil, []string{"nonexistent"})
+	resp, err := handleShowPKICertificatePEM(nil, commandtest.Args("nonexistent"))
 	if err != nil {
 		t.Fatalf("show pki certificate name nonexistent pem: %v", err)
 	}
@@ -638,7 +639,7 @@ func TestShowPKICertBundlePEM(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateBundlePEM(nil, []string{"dev-1"})
+	resp, err := handleShowPKICertificateBundlePEM(nil, commandtest.Args("dev-1"))
 	if err != nil {
 		t.Fatalf("show pki certificate name dev-1 bundle pem: %v", err)
 	}
@@ -669,7 +670,7 @@ func TestShowPKICertBundlePEMRejectsCA(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateBundlePEM(nil, []string{"test-ca"})
+	resp, err := handleShowPKICertificateBundlePEM(nil, commandtest.Args("test-ca"))
 	if err != nil {
 		t.Fatalf("show pki certificate name test-ca bundle pem: %v", err)
 	}
@@ -702,7 +703,7 @@ func TestShowPKICertBundlePEMNoKey(t *testing.T) {
 		t.Fatalf("Load: %v", lErr)
 	}
 
-	resp, rErr := handleShowPKICertificateBundlePEM(nil, []string{"no-key"})
+	resp, rErr := handleShowPKICertificateBundlePEM(nil, commandtest.Args("no-key"))
 	if rErr != nil {
 		t.Fatalf("show pki certificate name no-key bundle pem: %v", rErr)
 	}
@@ -717,7 +718,7 @@ func TestShowPKICertFingerprint(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateFingerprint(nil, []string{"dev-1"})
+	resp, err := handleShowPKICertificateFingerprint(nil, commandtest.Args("dev-1"))
 	if err != nil {
 		t.Fatalf("show pki certificate name dev-1 fingerprint: %v", err)
 	}
@@ -746,7 +747,7 @@ func TestShowPKICertFingerprintSHA512(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateFingerprint(nil, []string{"dev-1", "sha512"})
+	resp, err := handleShowPKICertificateFingerprint(nil, commandtest.Args("dev-1", "sha512"))
 	if err != nil {
 		t.Fatalf("show pki certificate name dev-1 fingerprint sha512: %v", err)
 	}
@@ -773,7 +774,7 @@ func TestShowPKICertFingerprintBadAlgo(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateFingerprint(nil, []string{"dev-1", "md5"})
+	resp, err := handleShowPKICertificateFingerprint(nil, commandtest.Args("dev-1", "md5"))
 	if err != nil {
 		t.Fatalf("show pki certificate name dev-1 fingerprint md5: %v", err)
 	}
@@ -788,7 +789,7 @@ func TestShowPKICertFingerprintNotFound(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateFingerprint(nil, []string{"nonexistent"})
+	resp, err := handleShowPKICertificateFingerprint(nil, commandtest.Args("nonexistent"))
 	if err != nil {
 		t.Fatalf("show pki certificate name nonexistent fingerprint: %v", err)
 	}
@@ -806,7 +807,7 @@ func TestShowPKICertFingerprintRejectsExtraArgument(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateFingerprint(nil, []string{"dev-1", "sha512", "extra"})
+	resp, err := handleShowPKICertificateFingerprint(nil, commandtest.Args("dev-1", "sha512", "extra"))
 	if err != nil {
 		t.Fatalf("show pki certificate name dev-1 fingerprint sha512 extra: %v", err)
 	}
@@ -824,7 +825,7 @@ func TestShowPKICertRejectsUnexpectedArgument(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "garbage"})
+	resp, err := handleShowPKICertificate(nil, commandtest.Args("dev-1", "garbage"))
 	if err != nil {
 		t.Fatalf("show pki certificate name dev-1 garbage: %v", err)
 	}

@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -13,6 +14,6 @@ import (
 // driven client-side by the CLI model through NewTracerouteSession (see
 // stream.go); this RPC runs a single parallel probe round for non-streaming
 // callers, identical to `show probe-round`.
-func handleMonitorTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return HandleProbeRound(ctx, args)
+func handleMonitorTraceroute(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	return HandleProbeRound(ctx, validated)
 }

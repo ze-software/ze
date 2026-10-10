@@ -37,7 +37,8 @@ func TestDispatchGeneratedBindsAnAnchoredValueThroughTheDispatcher(t *testing.T)
 	d := pluginserver.NewDispatcher()
 	var gotSelector string
 	var gotArgs []string
-	if err := d.RegisterWithOptions(name, func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.RegisterWithOptions(name, func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		gotSelector = ctx.PeerSelector()
 		gotArgs = args
 		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"announced": "1"}), nil

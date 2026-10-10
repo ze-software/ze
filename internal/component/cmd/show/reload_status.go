@@ -7,6 +7,7 @@ package show
 import (
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -37,7 +38,7 @@ func init() {
 // correctly left this alone" has nothing else to wait on. It reads the
 // generation, triggers the reload, polls until the generation advances, then
 // asserts. See internal/component/plugin/server/reload_generation.go.
-func handleShowReloadStatus(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowReloadStatus(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

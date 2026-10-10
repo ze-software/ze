@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
@@ -50,7 +51,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, nil)
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -92,7 +93,7 @@ func TestBgpSummaryNoPeers(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, nil)
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -135,7 +136,7 @@ func TestBgpSummary_FilterByFamily(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, []string{"ipv6/unicast"})
+	resp, err := handleBgpSummary(ctx, commandtest.Args("ipv6/unicast"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -167,7 +168,7 @@ func TestBgpSummary_FamilyShorthand(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, []string{"ipv4"})
+	resp, err := handleBgpSummary(ctx, commandtest.Args("ipv4"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	data, ok := resp.Data.(plugin.Map)
@@ -192,7 +193,7 @@ func TestBgpSummary_UnknownFamilyRejects(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, []string{"ipv6/unicast"})
+	resp, err := handleBgpSummary(ctx, commandtest.Args("ipv6/unicast"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	msg := resp.Error
@@ -206,13 +207,13 @@ func TestBgpSummary_UnknownFamilyRejects(t *testing.T) {
 // VALIDATES: daemon-not-running path; no nil-pointer dereference.
 func TestBgpSummary_NilReactor(t *testing.T) {
 	t.Run("nil ctx", func(t *testing.T) {
-		resp, err := handleBgpSummary(nil, nil)
+		resp, err := handleBgpSummary(nil, commandtest.Args())
 		require.Error(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 		assert.Equal(t, "reactor not available", resp.Error)
 	})
 	t.Run("nil reactor on ctx", func(t *testing.T) {
-		resp, err := handleBgpSummary(newTestContext(nil), nil)
+		resp, err := handleBgpSummary(newTestContext(nil), commandtest.Args())
 		require.Error(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 		assert.Equal(t, "reactor not available", resp.Error)
@@ -239,7 +240,7 @@ func TestBgpSummary_FamilyArgValidation(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := handleBgpSummary(ctx, []string{tc.arg})
+			resp, err := handleBgpSummary(ctx, commandtest.Args(tc.arg))
 			require.NoError(t, err)
 			assert.Equal(t, plugin.StatusError, resp.Status)
 			msg := resp.Error
@@ -267,7 +268,7 @@ func TestPeerCapabilitiesHandler(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerCapabilities(ctx, nil)
+	resp, err := handleBgpPeerCapabilities(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -310,7 +311,7 @@ func TestPeerShowStatistics(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerStatistics(ctx, nil)
+	resp, err := handleBgpPeerStatistics(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -351,7 +352,7 @@ func TestPeerShowStatisticsZeroUptime(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerStatistics(ctx, nil)
+	resp, err := handleBgpPeerStatistics(ctx, commandtest.Args())
 	require.NoError(t, err)
 
 	data := firstPeerRow(t, resp)
@@ -389,7 +390,7 @@ func TestBgpSummaryUptimeTruncatedToSecond(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, nil)
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
 	require.NoError(t, err)
 
 	data, ok := resp.Data.(plugin.Map)
@@ -427,7 +428,7 @@ func TestBgpPeerStatisticsUptimeTruncatedRatesExact(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerStatistics(ctx, nil)
+	resp, err := handleBgpPeerStatistics(ctx, commandtest.Args())
 	require.NoError(t, err)
 
 	data := firstPeerRow(t, resp)
@@ -466,7 +467,7 @@ func TestBgpSummaryEmitsStateChangedAndLastError(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, nil)
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
 	require.NoError(t, err)
 
 	data, ok := resp.Data.(plugin.Map)
@@ -499,7 +500,7 @@ func TestBgpSummaryStateChangedAndLastErrorEmpty(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, nil)
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
 	require.NoError(t, err)
 
 	data, ok := resp.Data.(plugin.Map)
@@ -637,7 +638,7 @@ func TestBgpSummaryWithoutRibOmitsRouteCounts(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, nil)
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -666,7 +667,7 @@ func TestPeerCapabilitiesNotEstablished(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerCapabilities(ctx, nil)
+	resp, err := handleBgpPeerCapabilities(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -691,7 +692,7 @@ func firstPeerRow(t *testing.T, resp *plugin.Response) plugin.Map {
 
 // peerRowHandler is the shape of a `show bgp peer` handler that builds one row
 // for each matched peer.
-type peerRowHandler func(*pluginserver.CommandContext, []string) (*plugin.Response, error)
+type peerRowHandler func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error)
 
 // answerSpelling describes the externally visible spelling of an answer: its
 // sorted top-level keys and the number of rows `| count` finds in its encoded
@@ -730,7 +731,7 @@ func spellingOf(t *testing.T, handler peerRowHandler, peers []plugin.PeerInfo, s
 	ctx := newTestContext(reactor)
 	ctx.Peer = selector
 
-	resp, err := handler(ctx, nil)
+	resp, err := handler(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -844,7 +845,7 @@ func TestBgpSummaryColumnsMatchPayload(t *testing.T) {
 
 	// The family argument is what adds "family" and "peers-in-family", so the
 	// filtered call is the one whose outer record carries every key.
-	resp, err := handleBgpSummary(ctx, []string{"ipv4/unicast"})
+	resp, err := handleBgpSummary(ctx, commandtest.Args("ipv4/unicast"))
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -892,7 +893,7 @@ func TestBgpPeerListColumnsMatchPayload(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpPeerList(ctx, nil)
+	resp, err := handleBgpPeerList(ctx, commandtest.Args())
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -935,7 +936,7 @@ func TestBgpSummaryPayloadIsFlat(t *testing.T) {
 		},
 	}
 
-	resp, err := handleBgpSummary(newTestContext(reactor), nil)
+	resp, err := handleBgpSummary(newTestContext(reactor), commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -988,7 +989,7 @@ func TestBgpSummaryFamilyKeysAreSiblings(t *testing.T) {
 		stats: plugin.ReactorStats{PeerCount: 2, RouterID: 0x0a000001, LocalAS: 65000},
 	}
 
-	resp, err := handleBgpSummary(newTestContext(reactor), []string{"ipv4"})
+	resp, err := handleBgpSummary(newTestContext(reactor), commandtest.Args("ipv4"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -1026,11 +1027,11 @@ func TestBgpOverviewAnswersTheSummary(t *testing.T) {
 	}
 
 	t.Run("bare", func(t *testing.T) {
-		resp, err := handleBgpOverview(newTestContext(reactor), nil)
+		resp, err := handleBgpOverview(newTestContext(reactor), commandtest.Args())
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 
-		want, err := handleBgpSummary(newTestContext(reactor), nil)
+		want, err := handleBgpSummary(newTestContext(reactor), commandtest.Args())
 		require.NoError(t, err)
 		assert.Equal(t, want.Data, resp.Data, "the object command must give the summary")
 	})
@@ -1039,7 +1040,7 @@ func TestBgpOverviewAnswersTheSummary(t *testing.T) {
 	// longer path is gone, so the scoping is asserted here rather than only on
 	// handleBgpSummary (TestBgpSummary_FilterByFamily).
 	t.Run("family argument", func(t *testing.T) {
-		resp, err := handleBgpOverview(newTestContext(reactor), []string{"ipv4"})
+		resp, err := handleBgpOverview(newTestContext(reactor), commandtest.Args("ipv4"))
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status, "a family still scopes the overview")
 
@@ -1050,14 +1051,14 @@ func TestBgpOverviewAnswersTheSummary(t *testing.T) {
 	})
 
 	t.Run("an oversized token is bounded in the message", func(t *testing.T) {
-		resp, err := handleBgpOverview(newTestContext(reactor), []string{strings.Repeat("z", 4096)})
+		resp, err := handleBgpOverview(newTestContext(reactor), commandtest.Args(strings.Repeat("z", 4096)))
 		require.Error(t, err)
 		assert.ErrorIs(t, err, pluginserver.ErrUnknownCommand)
 		assert.Less(t, len(resp.Error), 128, "operator input must not reach the envelope unbounded")
 	})
 
 	t.Run("unregistered subcommand", func(t *testing.T) {
-		resp, err := handleBgpOverview(newTestContext(reactor), []string{"nonsense"})
+		resp, err := handleBgpOverview(newTestContext(reactor), commandtest.Args("nonsense"))
 		require.Error(t, err)
 		assert.ErrorIs(t, err, pluginserver.ErrUnknownCommand)
 		assert.Equal(t, plugin.StatusError, resp.Status)
@@ -1071,7 +1072,7 @@ func TestBgpOverviewAnswersTheSummary(t *testing.T) {
 	// family, so the operator is told the command is unknown rather than that
 	// the word is a bad AFI/SAFI.
 	t.Run("the retired summary subcommand", func(t *testing.T) {
-		resp, err := handleBgpOverview(newTestContext(reactor), []string{"summary"})
+		resp, err := handleBgpOverview(newTestContext(reactor), commandtest.Args("summary"))
 		require.Error(t, err)
 		assert.ErrorIs(t, err, pluginserver.ErrUnknownCommand)
 		assert.Equal(t, plugin.StatusError, resp.Status)

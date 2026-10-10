@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -52,7 +54,7 @@ func TestISISShowClearRPCsRegistered(t *testing.T) {
 // TestISISProxyNilDispatcher: a proxy degrades gracefully when no dispatcher is
 // wired instead of panicking on a nil dereference.
 func TestISISProxyNilDispatcher(t *testing.T) {
-	resp, err := forwardShowNeighbor(&pluginserver.CommandContext{}, nil)
+	resp, err := forwardShowNeighbor(&pluginserver.CommandContext{}, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -62,13 +64,13 @@ func TestISISProxyNilDispatcher(t *testing.T) {
 // TestISISShowProxyArgsRejected: every proxy rejects extra args before touching
 // the dispatcher (the proxied plugin commands take none).
 func TestISISShowProxyArgsRejected(t *testing.T) {
-	handlers := []func(*pluginserver.CommandContext, []string) (*plugin.Response, error){
+	handlers := []func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error){
 		forwardShowNeighbor, forwardShowDatabase, forwardShowDatabaseDetail,
 		forwardShowRoute, forwardShowRouteIPv6, forwardShowInterface, forwardShowHostname,
 		forwardShowSPFLog, forwardClearAdjacency, forwardClearCounters,
 	}
 	for _, h := range handlers {
-		resp, err := h(&pluginserver.CommandContext{}, []string{"extra"})
+		resp, err := h(&pluginserver.CommandContext{}, commandtest.Args("extra"))
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, plugin.StatusError, resp.Status)

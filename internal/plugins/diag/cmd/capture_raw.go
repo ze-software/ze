@@ -5,6 +5,7 @@ package cmd
 import (
 	"encoding/base64"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -45,7 +46,8 @@ func SetBFDRawCaptureProvider(p BFDRawCaptureProvider) {
 	bfdRawCapture = p
 }
 
-func HandleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func HandleCaptureRaw(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	action := ""
 	protocol := ""
 	format := "json"

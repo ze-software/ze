@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -18,7 +19,7 @@ func TestHandleShowAAAAccounting(t *testing.T) {
 	})
 	t.Cleanup(func() { aaa.RegisterAAAAccountingProvider(nil) })
 
-	resp, err := handleShowAAAAccounting(nil, nil)
+	resp, err := handleShowAAAAccounting(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)

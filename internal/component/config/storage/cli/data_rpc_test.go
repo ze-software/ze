@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -49,7 +50,7 @@ func dataArtifact(t *testing.T, name, text string) string {
 
 func dataCall(t *testing.T, handler pluginserver.Handler, args ...string) *zePlugin.Response {
 	t.Helper()
-	response, err := handler(&pluginserver.CommandContext{}, args)
+	response, err := handler(&pluginserver.CommandContext{}, commandtest.Args(args...))
 	require.NoError(t, err)
 	return response
 }

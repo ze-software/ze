@@ -9,6 +9,7 @@ package cmd
 import (
 	"math"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/trafficfeature"
@@ -23,7 +24,8 @@ func init() {
 	)
 }
 
-func handleShowTrafficFeature(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowTrafficFeature(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	svc := trafficfeature.EnsureGlobal()
 	if svc == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "trafficfeature service not available"}, nil

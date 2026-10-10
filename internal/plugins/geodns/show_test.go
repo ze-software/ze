@@ -3,6 +3,7 @@ package geodns
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -16,7 +17,7 @@ func TestHandleShowGeoDNS(t *testing.T) {
 	}
 	storeApplied(cfg, 42)
 
-	resp, err := handleShowGeoDNS(nil, nil)
+	resp, err := handleShowGeoDNS(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowGeoDNS: %v", err)
 	}

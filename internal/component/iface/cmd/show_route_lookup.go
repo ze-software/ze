@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -22,7 +23,8 @@ func init() {
 	)
 }
 
-func handleRouteLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleRouteLookup(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show route lookup <destination-ip>"}, nil
 	}

@@ -8,6 +8,7 @@ import (
 
 	mdns "github.com/miekg/dns"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -27,7 +28,8 @@ func dnsCacheUnavailableResponse() *plugin.Response {
 	return nil
 }
 
-func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleClearDNSCache(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resp := dnsCacheUnavailableResponse(); resp != nil {
 		return resp, nil
 	}
@@ -38,7 +40,8 @@ func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{keyAction: "clear-all"}}, nil
 }
 
-func handleClearDNSCacheStats(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleClearDNSCacheStats(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resp := dnsCacheUnavailableResponse(); resp != nil {
 		return resp, nil
 	}
@@ -49,7 +52,8 @@ func handleClearDNSCacheStats(_ *pluginserver.CommandContext, args []string) (*p
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{keyAction: "reset-stats"}}, nil
 }
 
-func handleClearDNSCacheRecord(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleClearDNSCacheRecord(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if resp := dnsCacheUnavailableResponse(); resp != nil {
 		return resp, nil
 	}

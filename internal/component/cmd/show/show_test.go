@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -26,7 +27,7 @@ func TestHandleShowWarningsEmpty(t *testing.T) {
 	report.ResetForTest()
 	defer report.ResetForTest()
 
-	resp, err := handleShowWarnings(nil, nil)
+	resp, err := handleShowWarnings(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -56,7 +57,7 @@ func TestHandleShowAuditFilters(t *testing.T) {
 	})
 	t.Cleanup(func() { RegisterAuditProvider(nil) })
 
-	resp, err := handleShowAudit(nil, []string{"action", audit.ActionConfigCommit, "since", since.Format(time.RFC3339), "until", until.Format(time.RFC3339), "count", "5"})
+	resp, err := handleShowAudit(nil, commandtest.Args("action", audit.ActionConfigCommit, "since", since.Format(time.RFC3339), "until", until.Format(time.RFC3339), "count", "5"))
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -97,7 +98,7 @@ func TestHandleShowWarningsPopulated(t *testing.T) {
 	report.RaiseWarning("bgp", "prefix-threshold", "10.0.0.2/ipv4/unicast",
 		"over warning", map[string]any{"family": "ipv4/unicast"})
 
-	resp, err := handleShowWarnings(nil, nil)
+	resp, err := handleShowWarnings(nil, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -138,7 +139,7 @@ func TestHandleShowErrorsEmpty(t *testing.T) {
 	report.ResetForTest()
 	defer report.ResetForTest()
 
-	resp, err := handleShowErrors(nil, nil)
+	resp, err := handleShowErrors(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -170,7 +171,7 @@ func TestHandleShowErrorsPopulated(t *testing.T) {
 	report.RaiseError("bgp", "notification-received", "10.0.0.2",
 		"second", map[string]any{"code": uint8(2), "subcode": uint8(4)})
 
-	resp, err := handleShowErrors(nil, nil)
+	resp, err := handleShowErrors(nil, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -208,7 +209,7 @@ func TestHandleShowErrorsPopulated(t *testing.T) {
 // PREVENTS: Panic when reactor is nil.
 func TestHandleShowUptime_NilReactor(t *testing.T) {
 	// nil CommandContext -> Reactor() returns nil.
-	resp, err := handleShowUptime(nil, nil)
+	resp, err := handleShowUptime(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
@@ -222,13 +223,13 @@ func TestWarningsFilterBySource(t *testing.T) {
 	report.RaiseWarning("l2tp", "echo-loss", "user1", "high loss", nil)
 	report.RaiseWarning("bgp", "prefix-stale", "10.0.0.2", "stale", nil)
 
-	resp, err := handleShowWarnings(nil, []string{"source", "bgp"})
+	resp, err := handleShowWarnings(nil, commandtest.Args("source", "bgp"))
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 2, data["count"])
 
-	resp2, err := handleShowWarnings(nil, []string{"source", "l2tp"})
+	resp2, err := handleShowWarnings(nil, commandtest.Args("source", "l2tp"))
 	require.NoError(t, err)
 	data2, ok := resp2.Data.(plugin.Map)
 	require.True(t, ok)
@@ -242,7 +243,7 @@ func TestWarningsNoFilter(t *testing.T) {
 	report.RaiseWarning("bgp", "test", "peer1", "msg", nil)
 	report.RaiseWarning("l2tp", "test", "user1", "msg", nil)
 
-	resp, err := handleShowWarnings(nil, nil)
+	resp, err := handleShowWarnings(nil, commandtest.Args())
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -258,7 +259,7 @@ func TestErrorsFilterBySource(t *testing.T) {
 	report.RaiseError("bgp", "hold-timer", "10.0.0.2", "expired", nil)
 	report.RaiseError("l2tp", "session-fail", "peer2", "cdn received", nil)
 
-	resp, err := handleShowErrors(nil, []string{"source", "l2tp", "count", "1"})
+	resp, err := handleShowErrors(nil, commandtest.Args("source", "l2tp", "count", "1"))
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -310,7 +311,7 @@ func TestShowMetricsQueryRefusesAMalformedLabelFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleShowMetricsQuery(ctx, tt.args)
+			resp, err := handleShowMetricsQuery(ctx, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusError, resp.Status)
@@ -343,7 +344,7 @@ func TestShowMetricsQueryFiltersSeriesByLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleShowMetricsQuery(ctx, tt.args)
+			resp, err := handleShowMetricsQuery(ctx, commandtest.Args(tt.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			require.Equal(t, plugin.StatusDone, resp.Status)

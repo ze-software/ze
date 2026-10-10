@@ -6,6 +6,7 @@
 package shape
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -19,7 +20,7 @@ func init() {
 	)
 }
 
-func handleShowAnomalyShape(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowAnomalyShape(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	r := loadGlobalResponder()
 	if r == nil {
 		return &plugin.Response{

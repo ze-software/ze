@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -52,7 +53,8 @@ func init() {
 // This enables API socket clients to invoke any command reachable through the text
 // dispatcher, including plugin-registered commands (e.g., "request bgp watchdog announce dnsr").
 // Args are joined into a single command string for the dispatcher.
-func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response, error) {
+func handleSystemDispatch(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -73,7 +75,7 @@ func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response,
 }
 
 // handleSystemHelp returns list of available commands.
-func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handleSystemHelp(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	var commands []string
 
 	// Use dispatcher if available
@@ -120,7 +122,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 }
 
 // handleSystemVersionSoftware returns ze version information.
-func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*plugin.Response, error) {
+func handleSystemVersionSoftware(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
@@ -131,7 +133,7 @@ func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*plugin.Respons
 }
 
 // handleSystemVersionAPI returns IPC protocol version.
-func handleSystemVersionAPI(_ *CommandContext, _ []string) (*plugin.Response, error) {
+func handleSystemVersionAPI(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
@@ -145,7 +147,7 @@ func handleSystemVersionAPI(_ *CommandContext, _ []string) (*plugin.Response, er
 // teardown cannot close the requesting process connection first. A BGP daemon
 // stops its real reactor; a reactorless daemon uses the daemon-provided
 // shutdownFunc that triggers the same signal-based teardown as SIGTERM.
-func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handleDaemonShutdown(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	// Coordinator.FullReactor returns the coordinator ITSELF as a no-op fallback
 	// when no BGP reactor is registered, so ctx.Reactor() is non-nil even for an
 	// OSPF-only daemon and its Stop() does nothing. Only a real reactor (not the
@@ -187,7 +189,7 @@ func shutdownInitiated(action func()) *plugin.Response {
 // handleDaemonReboot accepts a system reboot after graceful shutdown. The
 // reboot function and Server.Wait notification run only after the requesting
 // command transport has written the accepted response.
-func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handleDaemonReboot(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -228,7 +230,7 @@ func (s *Server) SetRebootFunc(fn func()) {
 // lifecycle action follows the written accepted response, and it does not rely
 // on a BGP reactor: a reactorless daemon uses shutdownFunc instead of the no-op
 // Coordinator fallback.
-func handleDaemonQuit(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handleDaemonQuit(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	buf := make([]byte, 1<<20) // 1MB
 	n := runtime.Stack(buf, true)
 	slog.Warn("goroutine dump (quit)", "stacks", string(buf[:n]))
@@ -266,7 +268,7 @@ func quitInitiated(action func()) *plugin.Response {
 }
 
 // handleDaemonStatus returns daemon status.
-func handleDaemonStatus(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handleDaemonStatus(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -286,7 +288,7 @@ func handleDaemonStatus(ctx *CommandContext, _ []string) (*plugin.Response, erro
 // Routes through the coordinator (verify→apply across all plugins) when a config loader
 // is available. Falls back to direct Reactor.Reload() when no coordinator is configured
 // (e.g., no Server, or no config loader set).
-func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handleDaemonReload(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -340,7 +342,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 }
 
 // handleSystemSubsystemList returns available subsystems with their state.
-func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+func handleSystemSubsystemList(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
@@ -385,7 +387,8 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 // through `| first 10` or `| match bgp` pays for the rows it keeps, and one that
 // wants the whole list still receives the document it always received
 // (rpc.CollapseRecords, pkg/plugin/rpc/collapse.go).
-func handleSystemCommandList(ctx *CommandContext, args []string) (*plugin.Response, error) {
+func handleSystemCommandList(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	verbose := len(args) > 0 && args[0] == argVerbose
 	dispatcher := ctx.Dispatcher()
 
@@ -470,7 +473,8 @@ type completionFault struct {
 }
 
 // handleSystemCommandHelp returns detailed help for a specific command.
-func handleSystemCommandHelp(ctx *CommandContext, args []string) (*plugin.Response, error) {
+func handleSystemCommandHelp(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	args = ctx.ArgsOrSelector(args, leafName)
 	if len(args) < 1 {
 		return &plugin.Response{
@@ -526,7 +530,8 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 //	system command complete "<partial>"                   - the same, positional
 //	system command complete args "<cmd>" "<partial>"      - arg completion
 //	system command complete args "<cmd>" <done...> "<partial>"
-func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Response, error) {
+func handleSystemCommandComplete(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	args = ctx.ArgsOrSelector(args, leafPartial)
 	if len(args) < 1 {
 		return &plugin.Response{

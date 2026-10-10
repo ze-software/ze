@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/probe"
 )
@@ -58,7 +59,7 @@ func recordingOpener(t *testing.T) *probe.DFMode {
 // keyword was swallowed by the target branch and the constructor saw DFOff.
 func TestTracerouteDoNotFragmentReachesTheSocketOption(t *testing.T) {
 	got := recordingOpener(t)
-	if _, err := handleTraceroute(nil, []string{"192.0.2.1", "max-hops", "1", "probes", "1", "timeout", "1s", probe.DFKeyword, "honor-cache"}); err != nil {
+	if _, err := handleTraceroute(nil, commandtest.Args("192.0.2.1", "max-hops", "1", "probes", "1", "timeout", "1s", probe.DFKeyword, "honor-cache")); err != nil {
 		t.Fatalf("handleTraceroute: %v", err)
 	}
 	if *got != probe.DFHonorCache {
@@ -83,7 +84,7 @@ func TestTracerouteDoNotFragmentWithoutValueIsRefused(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := recordingOpener(t)
-			resp, err := handleTraceroute(nil, tc.args)
+			resp, err := handleTraceroute(nil, commandtest.Args(tc.args...))
 			if err != nil {
 				t.Fatalf("handleTraceroute: %v", err)
 			}
@@ -101,7 +102,7 @@ func TestTracerouteDoNotFragmentWithoutValueIsRefused(t *testing.T) {
 // explicit value word after the keyword selects the bypass mode.
 func TestTracerouteDoNotFragmentBypassCacheReachesTheSocketOption(t *testing.T) {
 	got := recordingOpener(t)
-	if _, err := handleTraceroute(nil, []string{"192.0.2.1", "max-hops", "1", "probes", "1", "timeout", "1s", probe.DFKeyword, "bypass-cache"}); err != nil {
+	if _, err := handleTraceroute(nil, commandtest.Args("192.0.2.1", "max-hops", "1", "probes", "1", "timeout", "1s", probe.DFKeyword, "bypass-cache")); err != nil {
 		t.Fatalf("handleTraceroute: %v", err)
 	}
 	if *got != probe.DFBypassCache {
@@ -113,7 +114,7 @@ func TestTracerouteDoNotFragmentBypassCacheReachesTheSocketOption(t *testing.T) 
 // constructor: with no keyword the handler asks for DFOff, never the zero mode.
 func TestTracerouteWithoutDoNotFragmentOpensWithDFOff(t *testing.T) {
 	got := recordingOpener(t)
-	if _, err := handleTraceroute(nil, []string{"192.0.2.1", "max-hops", "1", "probes", "1", "timeout", "1s"}); err != nil {
+	if _, err := handleTraceroute(nil, commandtest.Args("192.0.2.1", "max-hops", "1", "probes", "1", "timeout", "1s")); err != nil {
 		t.Fatalf("handleTraceroute: %v", err)
 	}
 	if *got != probe.DFOff {

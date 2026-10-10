@@ -126,26 +126,32 @@ func registerIRRShapes() {
 	command.RegisterAddressFields([]string{cmdShowIRR, cmdShowIRRPrefix, cmdShowIRRCheck})
 }
 
-func forwardShowIRR(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowIRR(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowIRR, args, ctx.PeerSelector())
 }
 
-func forwardShowIRRPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowIRRPrefix(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowIRRPrefix, args, ctx.PeerSelector())
 }
 
-func forwardShowIRRCheck(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowIRRCheck(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowIRRCheck, args, ctx.PeerSelector())
 }
 
-func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAll, args, ctx.PeerSelector())
 }
 
-func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, args, ctx.PeerSelector())
 }
 
-func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, args, ctx.PeerSelector())
 }

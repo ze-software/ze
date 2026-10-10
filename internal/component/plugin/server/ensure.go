@@ -38,7 +38,7 @@ var ErrEnsureContract = errors.New("ensure-exists contract violation")
 // If the leaf handler fails after an ancestor was newly created, the
 // wrapper rolls back by calling the rollback handler.
 func wrapWithEnsureChain(leaf Handler, chain []EnsureStep) Handler {
-	return func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	return func(ctx *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		var rollbacks []func()
 
 		for _, step := range chain {
@@ -55,7 +55,7 @@ func wrapWithEnsureChain(leaf Handler, chain []EnsureStep) Handler {
 				runRollbacks(rollbacks)
 				return nil, argErr
 			}
-			resp, err := step.Handler(ctx, validated.Tokens())
+			resp, err := step.Handler(ctx, validated)
 			if err != nil {
 				runRollbacks(rollbacks)
 				return nil, err
@@ -75,7 +75,7 @@ func wrapWithEnsureChain(leaf Handler, chain []EnsureStep) Handler {
 			if created {
 				rb := step.RollbackHandler
 				rollbacks = append(rollbacks, func() {
-					if _, rbErr := rb(ctx, validated.Tokens()); rbErr != nil {
+					if _, rbErr := rb(ctx, validated); rbErr != nil {
 						logger().Warn("ensure-exists rollback failed", "error", rbErr)
 					}
 				})

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/probe"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func TestTraceroute_Wiring(t *testing.T) {
-	resp, err := handleTraceroute(nil, []string{"127.0.0.1", "max-hops", "1", "timeout", "1s", "probes", "1"})
+	resp, err := handleTraceroute(nil, commandtest.Args("127.0.0.1", "max-hops", "1", "timeout", "1s", "probes", "1"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	if resp.Status == "error" {

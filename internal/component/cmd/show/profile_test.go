@@ -3,11 +3,12 @@ package show
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 func TestShowSystemProfile_Wiring(t *testing.T) {
-	resp, err := handleShowSystemProfile(nil, []string{profileTypeHeap})
+	resp, err := handleShowSystemProfile(nil, commandtest.Args(profileTypeHeap))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +30,7 @@ func TestShowSystemProfile_Wiring(t *testing.T) {
 func TestProfileCPUMutex(t *testing.T) {
 	cpuProfileMu.Lock()
 
-	resp, err := handleShowSystemProfile(nil, []string{profileTypeCPU})
+	resp, err := handleShowSystemProfile(nil, commandtest.Args(profileTypeCPU))
 	if err != nil {
 		cpuProfileMu.Unlock()
 		t.Fatal(err)
@@ -52,7 +53,7 @@ func TestProfileCPUDurationBoundary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleShowSystemProfile(nil, []string{profileTypeCPU, "duration", tt.dur})
+			resp, err := handleShowSystemProfile(nil, commandtest.Args(profileTypeCPU, "duration", tt.dur))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -64,7 +65,7 @@ func TestProfileCPUDurationBoundary(t *testing.T) {
 }
 
 func TestProfileCPUDurationInvalid(t *testing.T) {
-	resp, err := handleShowSystemProfile(nil, []string{profileTypeCPU, "duration", "notaduration"})
+	resp, err := handleShowSystemProfile(nil, commandtest.Args(profileTypeCPU, "duration", "notaduration"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +75,7 @@ func TestProfileCPUDurationInvalid(t *testing.T) {
 }
 
 func TestProfileUnknownArgIgnored(t *testing.T) {
-	resp, err := handleShowSystemProfile(nil, []string{"invalid-type"})
+	resp, err := handleShowSystemProfile(nil, commandtest.Args("invalid-type"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,6 +7,7 @@ package cmd
 import (
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -25,7 +26,8 @@ func init() {
 	)
 }
 
-func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowTraffic(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	backend := traffic.GetBackend()
 	if backend == nil {
 		return &plugin.Response{

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	zeaudit "github.com/ze-software/ze/internal/core/audit"
@@ -25,7 +26,8 @@ func RegisterAuditProvider(fn func(zeaudit.Filter) []zeaudit.Entry) {
 	auditProvider.Unlock()
 }
 
-func handleShowAudit(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowAudit(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	filter, parseErr := parseAuditFilter(args)
 	if parseErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: parseErr.Error()}, nil //nolint:nilerr // operational error in Response

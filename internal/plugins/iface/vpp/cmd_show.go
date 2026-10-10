@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
@@ -32,7 +33,8 @@ func init() {
 	)
 }
 
-func handleVPPTraceStart(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleVPPTraceStart(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	inputNode := "dpdk-input"
 	count := 100
 	for i, a := range args {
@@ -67,7 +69,7 @@ func handleVPPTraceStart(_ *pluginserver.CommandContext, args []string) (*plugin
 	}, nil
 }
 
-func handleVPPTraceShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleVPPTraceShow(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	output, err := vppcomp.TraceShow()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error
@@ -83,7 +85,7 @@ func handleVPPTraceShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 	}, nil
 }
 
-func handleVPPTraceClear(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleVPPTraceClear(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	output, err := vppcomp.TraceClear()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error
@@ -97,7 +99,7 @@ func handleVPPTraceClear(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 	}, nil
 }
 
-func handleVPPRuntime(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleVPPRuntime(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	output, err := vppcomp.ShowRuntime()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error

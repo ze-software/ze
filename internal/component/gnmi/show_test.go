@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -15,7 +16,7 @@ func TestShowGNMIStatus_NotRunning(t *testing.T) {
 	RegisterGlobal(nil)
 	defer RegisterGlobal(nil)
 
-	resp, err := handleShowGNMI(nil, nil)
+	resp, err := handleShowGNMI(nil, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -33,7 +34,7 @@ func TestShowGNMIStatus_Running(t *testing.T) {
 	RegisterGlobal(srv)
 	defer RegisterGlobal(nil)
 
-	resp, err := handleShowGNMI(nil, nil)
+	resp, err := handleShowGNMI(nil, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

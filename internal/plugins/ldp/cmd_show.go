@@ -17,6 +17,7 @@
 package ldp
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -37,11 +38,13 @@ func init() {
 	)
 }
 
-func forwardShowNeighbor(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowNeighbor(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToLDP(ctx, cmdShowNeighbor, args)
 }
 
-func forwardShowBinding(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowBinding(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return forwardToLDP(ctx, cmdShowBinding, args)
 }
 

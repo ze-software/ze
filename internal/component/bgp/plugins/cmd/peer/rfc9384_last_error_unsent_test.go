@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -66,7 +67,7 @@ func TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpSummary(ctx, nil)
+	resp, err := handleBgpSummary(ctx, commandtest.Args())
 	require.NoError(t, err)
 
 	data, ok := resp.Data.(plugin.Map)

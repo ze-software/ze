@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -54,7 +55,7 @@ func TestPeerPathsLimitOutputAbsence(t *testing.T) {
 						}
 					}
 					require.NotNil(t, handler)
-					response, err := handler(ctx, []string{p.Settings().Address.String()})
+					response, err := handler(ctx, commandtest.Args(p.Settings().Address.String()))
 					require.NoError(t, err)
 					require.Equal(t, plugin.StatusDone, response.Status)
 					payload, err := json.Marshal(response.Data)

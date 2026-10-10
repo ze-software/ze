@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	peeryang "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/peer/yang"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -204,7 +205,7 @@ func TestCreateBgpPeerNamesTheKeywordItRefuses(t *testing.T) {
 			ctx := newTestContext(reactor)
 			ctx.Peer = tc.selector
 
-			resp, err := handleBgpPeerCreate(ctx, tc.args)
+			resp, err := handleBgpPeerCreate(ctx, commandtest.Args(tc.args...))
 			require.Error(t, err)
 			assert.Equal(t, plugin.StatusError, resp.Status)
 			assert.Contains(t, resp.Error, tc.says, "the refusal names what it refused")

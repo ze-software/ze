@@ -5,6 +5,7 @@ package show
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -48,7 +49,7 @@ func TestParseProcNetTCP_Short(t *testing.T) {
 }
 
 func TestShowSystemSockets_Wiring(t *testing.T) {
-	resp, err := handleShowSystemSockets(nil, nil)
+	resp, err := handleShowSystemSockets(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +77,7 @@ func TestSocketsPortBoundary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleShowSystemSockets(nil, tt.args)
+			resp, err := handleShowSystemSockets(nil, commandtest.Args(tt.args...))
 			if err != nil {
 				t.Fatal(err)
 			}

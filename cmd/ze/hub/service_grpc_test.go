@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	zepb "github.com/ze-software/ze/api/proto"
+	"github.com/ze-software/ze/internal/component/command"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -72,9 +73,9 @@ func TestGRPCBuildAuthenticatesConfigUserWithoutSSH(t *testing.T) {
 	resetAAABundleForTest(t)
 	clearAPIEnv(t)
 	const (
-		username = "grpc-config-user"
-		password = "grpc-pass"
-		command  = "test grpc no ssh auth"
+		username    = "grpc-config-user"
+		password    = "grpc-pass"
+		commandName = "test grpc no ssh auth"
 	)
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	require.NoError(t, err)
@@ -118,9 +119,9 @@ system {
 	originalBuild := grpcBuild
 	t.Cleanup(func() { grpcBuild = originalBuild })
 	grpcBuild = func(in *apiBuildInputs, shared *apiShared) (apiServerHandle, error) {
-		if err := in.Server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		if err := in.Server.Dispatcher().Register(commandName, func(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
-		}, command); err != nil {
+		}, commandName); err != nil {
 			t.Fatal(err)
 		}
 		handle, buildErr := grpcBuildImpl(in, shared)
@@ -182,14 +183,14 @@ system {
 	goodCtx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs(
 		"authorization", "Bearer "+username+":"+password,
 	))
-	response, err := client.Execute(goodCtx, &zepb.CommandRequest{Command: command})
+	response, err := client.Execute(goodCtx, &zepb.CommandRequest{Command: commandName})
 	require.NoError(t, err)
 	assert.Equal(t, "done", response.GetStatus())
 
 	wrongCtx := metadata.NewOutgoingContext(t.Context(), metadata.Pairs(
 		"authorization", "Bearer "+username+":wrong",
 	))
-	_, err = client.Execute(wrongCtx, &zepb.CommandRequest{Command: command})
+	_, err = client.Execute(wrongCtx, &zepb.CommandRequest{Command: commandName})
 	assert.Equal(t, codes.Unauthenticated, status.Code(err))
 
 	booted.server.Stop()

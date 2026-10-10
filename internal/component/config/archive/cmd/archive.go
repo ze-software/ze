@@ -5,6 +5,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/ze-software/ze/internal/component/command"
 	iconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/archive"
 	"github.com/ze-software/ze/internal/component/config/system"
@@ -22,7 +23,8 @@ func init() {
 	)
 }
 
-func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleArchiveTrigger(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,

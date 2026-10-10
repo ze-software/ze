@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/probe"
@@ -19,7 +20,8 @@ var errResolveTargetEmpty = errors.New("target must not be empty")
 
 // handleResolvePing is the RPC handler for `resolve ping` (ze-ping:resolve-ping):
 // ICMP echo requests with optional source binding, count, and payload size.
-func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleResolvePing(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	target, errResp := requireResolveArg(args, "target")
 	if errResp != nil {
 		return errResp, nil

@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -58,7 +59,7 @@ func TestPluginRemovalCallbackKeepsEngineConnection(t *testing.T) {
 				return 0
 			})
 			s, spawner := newLifecycleStartupServer(t)
-			if err := s.dispatcher.Register(commandName, func(*CommandContext, []string) (*plugin.Response, error) {
+			if err := s.dispatcher.Register(commandName, func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 				return &plugin.Response{Status: plugin.StatusDone}, nil
 			}, "Read removal probe"); err != nil {
 				t.Fatal(err)

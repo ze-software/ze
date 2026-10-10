@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/engine"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -35,7 +36,7 @@ func TestShowIPsecSA_RegisteredWireMethods(t *testing.T) {
 
 func TestShowIPsecSA_NoEngine(t *testing.T) {
 	engine.SetActiveTableForTest(nil)
-	resp, err := handleShowVPNIPsecSA(nil, nil)
+	resp, err := handleShowVPNIPsecSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -69,7 +70,7 @@ func TestShowIPsecSA_WithSAs(t *testing.T) {
 		engine.SetActivePeersForTest(nil)
 	}()
 
-	resp, err := handleShowVPNIPsecSA(nil, nil)
+	resp, err := handleShowVPNIPsecSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -135,7 +136,7 @@ func TestShowIPsecSAReportsThePreSubstitutionSelectorAddresses(t *testing.T) {
 		engine.SetActivePeersForTest(nil)
 	}()
 
-	resp, err := handleShowVPNIPsecSA(nil, nil)
+	resp, err := handleShowVPNIPsecSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	m, ok := resp.Data.(plugin.Map)
@@ -162,7 +163,7 @@ func TestShowIPsecStatus_WithSAs(t *testing.T) {
 		engine.SetActivePeersForTest(nil)
 	}()
 
-	resp, err := handleShowVPNIPsecStatus(nil, nil)
+	resp, err := handleShowVPNIPsecStatus(nil, commandtest.Args())
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -174,7 +175,7 @@ func TestShowIPsecStatus_WithSAs(t *testing.T) {
 func TestShowIPsecStatus_NoEngine(t *testing.T) {
 	engine.SetActiveTableForTest(nil)
 	engine.SetActivePeersForTest(nil)
-	resp, err := handleShowVPNIPsecStatus(nil, nil)
+	resp, err := handleShowVPNIPsecStatus(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -195,7 +196,7 @@ func TestShowIPsecPeer_Found(t *testing.T) {
 		engine.SetActivePeersForTest(nil)
 	}()
 
-	resp, err := handleShowVPNIPsecPeer(nil, []string{"mgmt-peer"})
+	resp, err := handleShowVPNIPsecPeer(nil, commandtest.Args("mgmt-peer"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	data, ok := resp.Data.(plugin.Map)
@@ -207,7 +208,7 @@ func TestShowIPsecPeer_Found(t *testing.T) {
 }
 
 func TestShowIPsecPeer_MissingArg(t *testing.T) {
-	resp, err := handleShowVPNIPsecPeer(nil, nil)
+	resp, err := handleShowVPNIPsecPeer(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -217,14 +218,14 @@ func TestShowIPsecPeer_MissingArg(t *testing.T) {
 
 func TestShowIPsecPeer_NoEngine(t *testing.T) {
 	engine.SetActiveTableForTest(nil)
-	resp, err := handleShowVPNIPsecPeer(nil, []string{"test-peer"})
+	resp, err := handleShowVPNIPsecPeer(nil, commandtest.Args("test-peer"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
 
 func TestShowIPsecPeer_InvalidName(t *testing.T) {
-	resp, err := handleShowVPNIPsecPeer(nil, []string{""})
+	resp, err := handleShowVPNIPsecPeer(nil, commandtest.Args(""))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -235,7 +236,7 @@ func TestShowIPsecPeer_NotFound(t *testing.T) {
 	engine.SetActiveTableForTest(table)
 	defer engine.SetActiveTableForTest(nil)
 
-	resp, err := handleShowVPNIPsecPeer(nil, []string{"nonexistent"})
+	resp, err := handleShowVPNIPsecPeer(nil, commandtest.Args("nonexistent"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	msg := resp.Error

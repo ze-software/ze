@@ -16,6 +16,7 @@ import (
 	"github.com/packetcap/go-pcap/filter"
 	"golang.org/x/net/bpf"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -25,7 +26,8 @@ import (
 
 const maxPcapBufSize = 64 << 20
 
-func HandleCaptureInterface(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func HandleCaptureInterface(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	ca, err := parseCaptureArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response

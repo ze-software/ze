@@ -7,6 +7,7 @@
 package observe
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -37,7 +38,7 @@ func init() {
 
 // handleShowDdos returns a one-line status: whether observation is running, how
 // many attacks are currently active, and how many incidents are held in the ring.
-func handleShowDdos(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowDdos(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	s := activeStore.Load()
 	if s == nil {
 		return &plugin.Response{
@@ -58,7 +59,7 @@ func handleShowDdos(_ *pluginserver.CommandContext, _ []string) (*plugin.Respons
 // handleShowDdosIncidents returns the incident ring newest-first (the JSON-tagged
 // incident struct: id, interface, target vector, family, top-sources, peak
 // pps/bps, start/end time, active flag).
-func handleShowDdosIncidents(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowDdosIncidents(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	s := activeStore.Load()
 	if s == nil {
 		return &plugin.Response{

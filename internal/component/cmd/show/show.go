@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -128,7 +129,7 @@ func init() {
 // asking "why is my program not fed" sees the answer the daemon acts on. A
 // granted token the event registry does not know appears under `unresolved`,
 // which is the one way an edge can go missing.
-func handleShowEventDelivery(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowEventDelivery(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "delivery graph not available"}, nil
 	}
@@ -141,7 +142,8 @@ func handleShowEventDelivery(ctx *pluginserver.CommandContext, _ []string) (*plu
 
 // handleShowWarnings returns the snapshot of all active warnings on the report bus.
 // Optional args: "source <name>" filters by source.
-func handleShowWarnings(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowWarnings(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	issues := report.Warnings()
 	if source := extractSourceFilter(args); source != "" {
 		issues = filterIssuesBySource(issues, source)
@@ -158,7 +160,8 @@ func handleShowWarnings(_ *pluginserver.CommandContext, args []string) (*plugin.
 // handleShowErrors returns the most-recent error events on the report bus,
 // newest first. Optional args: "source <name>" filters by source,
 // "count <N>" limits results.
-func handleShowErrors(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowErrors(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	issues := report.Errors(0)
 	if source := extractSourceFilter(args); source != "" {
 		issues = filterIssuesBySource(issues, source)
@@ -239,7 +242,8 @@ var errLabelIncomplete = errors.New(argLabel + " needs a key and a value: " + me
 // (internal/component/plugin/server/command.go) matches the keyword against the
 // leaf of the same name and lifts the value out of the argument list. What
 // remains in args is label filters and nothing else.
-func handleShowMetricsQuery(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowMetricsQuery(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	reg := registry.GetMetricsRegistry()
 	if reg == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "metrics not available"}, nil
@@ -355,7 +359,8 @@ func hasEveryLabel(line string, labelFilters []string) bool {
 	return true
 }
 
-func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowEventRecent(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: msgEventRingUnavailable}, nil
 	}
@@ -380,7 +385,7 @@ func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*pl
 	}, nil
 }
 
-func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: msgEventRingUnavailable}, nil
 	}
@@ -407,7 +412,7 @@ func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*p
 	}, nil
 }
 
-func handleShowHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowHealth(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	report := health.Check()
 	components := make([]map[string]any, 0, len(report.Components))
 	for i := range report.Components {
@@ -433,7 +438,7 @@ func handleShowHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Respo
 }
 
 // handleShowVersion returns the ze version and build date.
-func handleShowVersion(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowVersion(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	v, d := pluginserver.GetVersion()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
@@ -442,7 +447,7 @@ func handleShowVersion(_ *pluginserver.CommandContext, _ []string) (*plugin.Resp
 }
 
 // handleShowUptime returns daemon start time and uptime duration.
-func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowUptime(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

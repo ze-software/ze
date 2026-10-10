@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/probe"
@@ -30,7 +31,8 @@ type tracerouteRequest struct {
 
 // handleResolveTraceroute is the RPC handler for `resolve traceroute`
 // (ze-traceroute:resolve-traceroute): ICMP traceroute with optional source binding.
-func handleResolveTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleResolveTraceroute(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	target, errResp := requireResolveArg(args, "target")
 	if errResp != nil {
 		return errResp, nil

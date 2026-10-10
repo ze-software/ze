@@ -27,6 +27,7 @@ import (
 	vplspkg "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpls"
 	vpn "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/vpn"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
@@ -1671,7 +1672,7 @@ func TestHandleUpdate_TextSubcommand(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
-	resp, err := handleUpdate(ctx, args)
+	resp, err := handleUpdate(ctx, commandtest.Args(args...))
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	require.Len(t, reactor.announceCalls, 1)
@@ -1690,7 +1691,7 @@ func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 
 	args := []string{"unknown", "some", "args"}
 
-	_, err := handleUpdate(ctx, args)
+	_, err := handleUpdate(ctx, commandtest.Args(args...))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown encoding")
 }

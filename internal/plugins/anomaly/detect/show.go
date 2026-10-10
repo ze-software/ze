@@ -8,6 +8,7 @@ package detect
 import (
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/anomalyevent"
@@ -23,7 +24,7 @@ func init() {
 	)
 }
 
-func handleShowAnomaly(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowAnomaly(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	d := loadGlobalDetector()
 	if d == nil {
 		return &plugin.Response{

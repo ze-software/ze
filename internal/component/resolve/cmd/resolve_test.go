@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve"
@@ -161,7 +163,7 @@ func TestDnsResult_SingleRecord(t *testing.T) {
 // handlerEntry is a table entry for nil-resolver guard tests.
 type handlerEntry struct {
 	name    string
-	handler func(*pluginserver.CommandContext, []string) (*plugin.Response, error)
+	handler func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error)
 	args    []string // valid args that would succeed with a real resolver
 	errMsg  string   // expected error message substring
 }
@@ -191,7 +193,7 @@ func TestHandlers_NilResolvers(t *testing.T) {
 
 	for _, h := range allHandlers() {
 		t.Run(h.name, func(t *testing.T) {
-			resp, err := h.handler(nil, h.args)
+			resp, err := h.handler(nil, commandtest.Args(h.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusError, resp.Status)
@@ -210,7 +212,7 @@ func TestHandlers_ZeroValueResolvers(t *testing.T) {
 
 	for _, h := range allHandlers() {
 		t.Run(h.name, func(t *testing.T) {
-			resp, err := h.handler(nil, h.args)
+			resp, err := h.handler(nil, commandtest.Args(h.args...))
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusError, resp.Status)

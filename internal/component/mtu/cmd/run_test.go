@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -158,7 +159,7 @@ var (
 // showMTU drives the registered handler and answers the document.
 func showMTU(t *testing.T, args ...string) map[string]any {
 	t.Helper()
-	resp, err := registeredShowMTU(t)(nil, args)
+	resp, err := registeredShowMTU(t)(nil, commandtest.Args(args...))
 	if err != nil {
 		t.Fatalf("show mtu %v: %v", args, err)
 	}
@@ -737,7 +738,7 @@ func TestShowMTUEveryPipeRendersOnePayload(t *testing.T) {
 	f.xfrms = []xfrmInterface{{name: "xfrm1", ifID: 1, mtu: 1500, up: true}, {name: "xfrm2", ifID: 2, mtu: 1500, up: true}}
 	f.install(t)
 
-	resp, err := registeredShowMTU(t)(nil, nil)
+	resp, err := registeredShowMTU(t)(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("show mtu: %v", err)
 	}

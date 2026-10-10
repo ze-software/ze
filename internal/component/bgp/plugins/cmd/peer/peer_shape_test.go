@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -281,7 +282,7 @@ func TestDeclaredColumnsExistInPayload(t *testing.T) {
 			ctx := newTestContext(reactor)
 			ctx.Peer = peer.Address.String()
 
-			resp, err := tc.handler(ctx, nil)
+			resp, err := tc.handler(ctx, commandtest.Args())
 			require.NoError(t, err)
 			require.Equal(t, plugin.StatusDone, resp.Status, "handler answered %q", resp.Error)
 
@@ -333,7 +334,7 @@ func TestDeclaredAddressFieldsHoldAnAddress(t *testing.T) {
 			ctx := newTestContext(reactor)
 			ctx.Peer = peer.Address.String()
 
-			resp, err := tc.handler(ctx, nil)
+			resp, err := tc.handler(ctx, commandtest.Args())
 			require.NoError(t, err)
 			row := tc.record(t, resp)
 

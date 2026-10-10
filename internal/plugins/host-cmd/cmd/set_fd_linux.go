@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -22,7 +23,8 @@ func registerSetFD() {
 	)
 }
 
-func handleSetSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleSetSystemFD(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return &plugin.Response{Status: plugin.StatusError, Error: "usage: set system file-descriptors <limit|max>"}, nil
 	}

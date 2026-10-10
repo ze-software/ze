@@ -4,12 +4,13 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	ext := system.ActiveExtendedUpdateStatus()
 	st := ext.UpdateStatus
 
@@ -87,7 +88,7 @@ func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
-func handleShowSystemUpdateHistory(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemUpdateHistory(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	backend := system.ActiveBackend()
 	if backend == nil {
 		return &plugin.Response{

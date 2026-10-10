@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -74,7 +75,7 @@ func TestGoroutineSingleflight(t *testing.T) {
 }
 
 func TestShowSystemGoroutines_Wiring(t *testing.T) {
-	resp, err := handleShowSystemGoroutines(nil, []string{"summary"})
+	resp, err := handleShowSystemGoroutines(nil, commandtest.Args("summary"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +107,7 @@ func TestGoroutinesBufferGrowth(t *testing.T) {
 }
 
 func TestGoroutinesBlockedMode(t *testing.T) {
-	resp, err := handleShowSystemGoroutines(nil, []string{goroutineModeBlocked})
+	resp, err := handleShowSystemGoroutines(nil, commandtest.Args(goroutineModeBlocked))
 	if err != nil {
 		t.Fatal(err)
 	}

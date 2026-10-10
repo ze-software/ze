@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -58,7 +59,7 @@ func payloadOf(t *testing.T, resp *plugin.Response) map[string]any {
 func TestShowMTUReachesTheHandler(t *testing.T) {
 	newFakeDeps().install(t)
 	handler := registeredShowMTU(t)
-	resp, err := handler(nil, nil)
+	resp, err := handler(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("show mtu: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestShowMTUHostMeasuresOneAddress(t *testing.T) {
 	f.paths[netip.MustParseAddr("192.0.2.1")] = clampedAt(1400)
 	f.install(t)
 	handler := registeredShowMTU(t)
-	resp, err := handler(nil, []string{argHost, "192.0.2.1"})
+	resp, err := handler(nil, commandtest.Args(argHost, "192.0.2.1"))
 	if err != nil {
 		t.Fatalf("show mtu host: %v", err)
 	}
@@ -123,7 +124,7 @@ func TestShowMTUHostMeasuresOneAddress(t *testing.T) {
 func TestShowMTUPayloadRendersAsJSON(t *testing.T) {
 	newFakeDeps().install(t)
 	handler := registeredShowMTU(t)
-	resp, err := handler(nil, nil)
+	resp, err := handler(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("show mtu: %v", err)
 	}
@@ -250,7 +251,7 @@ func TestReferenceAddressReadsTheDefaultAndRefusesAMalformedOverride(t *testing.
 		t.Error("a reference address that is a name was accepted; want a refusal")
 	}
 	newFakeDeps().install(t)
-	resp, err := handleShowMTU(nil, nil)
+	resp, err := handleShowMTU(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("show mtu: %v", err)
 	}

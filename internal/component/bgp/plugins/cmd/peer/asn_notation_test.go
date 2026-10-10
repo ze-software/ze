@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
@@ -78,7 +79,7 @@ func TestCreatedPeerEchoFollowsTheConfiguredNotation(t *testing.T) {
 // marshalPeerDetail runs `show bgp peer detail` and returns its payload JSON.
 func marshalPeerDetail(t *testing.T, reactor *mockReactor) string {
 	t.Helper()
-	resp, err := handleBgpPeerDetail(newTestContext(reactor), nil)
+	resp, err := handleBgpPeerDetail(newTestContext(reactor), commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleBgpPeerDetail: %v", err)
 	}

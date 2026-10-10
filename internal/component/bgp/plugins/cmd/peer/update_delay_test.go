@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -28,7 +29,7 @@ func TestBgpUpdateDelayReportsAHoldInProgress(t *testing.T) {
 		PeersConverged:       1,
 	}}
 
-	response, err := handleBgpUpdateDelay(newTestContext(reactor), nil)
+	response, err := handleBgpUpdateDelay(newTestContext(reactor), commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, response.Status)
 
@@ -50,7 +51,7 @@ func TestBgpUpdateDelayReportsAHoldInProgress(t *testing.T) {
 // must be able to tell "the feature is off" from "the feature is holding", and
 // both answer the same command.
 func TestBgpUpdateDelayReportsAnUnconfiguredDaemon(t *testing.T) {
-	response, err := handleBgpUpdateDelay(newTestContext(&mockReactor{}), nil)
+	response, err := handleBgpUpdateDelay(newTestContext(&mockReactor{}), commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, response.Status)
 
@@ -71,7 +72,7 @@ func TestBgpUpdateDelayReportsAnUnconfiguredDaemon(t *testing.T) {
 // daemon whose engine is absent, which is a different fact wearing the same
 // shape (ai/rules/principles.md).
 func TestBgpUpdateDelayFailsClosedWithoutAReactor(t *testing.T) {
-	response, err := handleBgpUpdateDelay(newTestContext(nil), nil)
+	response, err := handleBgpUpdateDelay(newTestContext(nil), commandtest.Args())
 	require.Error(t, err)
 	require.Equal(t, plugin.StatusError, response.Status)
 	require.Contains(t, response.Error, "reactor")

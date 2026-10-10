@@ -15,6 +15,7 @@ import (
 
 	mdns "github.com/miekg/dns"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve/dns"
@@ -145,28 +146,32 @@ func init() {
 	)
 }
 
-func handleDNSCacheStats(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDNSCacheStats(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) != 0 {
 		return &plugin.Response{Status: plugin.StatusError, Error: "dns cache stats: unexpected arguments"}, nil
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheStats())}, nil
 }
 
-func handleDNSCacheList(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDNSCacheList(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) != 0 {
 		return &plugin.Response{Status: plugin.StatusError, Error: "dns cache list: unexpected arguments"}, nil
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheEntries(""))}, nil
 }
 
-func handleDNSCacheRecord(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDNSCacheRecord(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) != 1 || args[0] == "" {
 		return &plugin.Response{Status: plugin.StatusError, Error: "dns cache record: missing name"}, nil
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheEntries(args[0]))}, nil
 }
 
-func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDNSLookup(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ""
 	qtype := "A"
 

@@ -14,6 +14,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
@@ -37,7 +38,7 @@ func TestGoroutineModesMatchTheModel(t *testing.T) {
 	}
 
 	for _, mode := range model {
-		resp, err := handleShowSystemGoroutines(nil, []string{mode})
+		resp, err := handleShowSystemGoroutines(nil, commandtest.Args(mode))
 		if err != nil {
 			t.Fatalf("mode %q: %v", mode, err)
 		}

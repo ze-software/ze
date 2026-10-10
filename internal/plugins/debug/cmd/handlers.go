@@ -6,6 +6,7 @@ package cmd
 import (
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -18,7 +19,7 @@ func RPCs() []pluginserver.RPCRegistration {
 	}
 }
 
-func handleDebugState(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleDebugState(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	levels := slogutil.ListLevels()
 
 	names := make([]string, 0, len(levels))

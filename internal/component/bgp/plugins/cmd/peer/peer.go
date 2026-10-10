@@ -451,7 +451,8 @@ func excludePeer(all []plugin.PeerInfo, idx int) []plugin.PeerInfo {
 // handleBgpPeerList returns a brief list of peer(s) indexed by IP.
 // Used by "peer <selector> list" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPeerList(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err
@@ -492,7 +493,8 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin
 // handleBgpPeerDetail returns detailed peer information indexed by IP.
 // Used by "show bgp peer <selector> detail" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err
@@ -663,7 +665,8 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
 // RFC 8203: optional message is included in the NOTIFICATION for subcodes 2/4.
-func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleTeardown(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -747,7 +750,7 @@ func parseUint(s string) (uint64, error) {
 
 // handleBgpPeerDelete handles "delete bgp peer <ip>" command.
 // Removes a peer dynamically at runtime.
-func handleBgpPeerDelete(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerDelete(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -779,7 +782,7 @@ func handleBgpPeerDelete(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 
 // handleBgpPeerPause handles "request peer <sel> pause" command.
 // Pauses the peer's read loop for flow control (backpressure from plugins).
-func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "pause", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
 		return r.PausePeer(addr)
 	})
@@ -787,7 +790,7 @@ func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 
 // handleBgpPeerResume handles "request peer <sel> resume" command.
 // Resumes the peer's read loop after a flow-control pause.
-func handleBgpPeerResume(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerResume(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "resume", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
 		return r.ResumePeer(addr)
 	})
@@ -826,7 +829,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 // handleBgpPeerFlush handles "request peer <sel> flush" command.
 // Blocks until the forward pool has drained all queued items for the targeted peers.
 // If selector is "*", flushes all peers. If a specific peer, flushes only that peer.
-func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -910,7 +913,8 @@ func parseRouterID(s string) (uint32, error) {
 	return uint32(n), nil
 }
 
-func handlePeerHistory(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handlePeerHistory(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 && ctx.PeerSelector() == "*" {
 		return &plugin.Response{Status: plugin.StatusError, Error: "no peer specified"}, nil
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -25,7 +26,7 @@ func TestClearIPsecSA_RegisteredWireMethod(t *testing.T) {
 }
 
 func TestClearIPsecSA_AllNoEngine(t *testing.T) {
-	resp, err := handleClearIPsecSA(nil, nil)
+	resp, err := handleClearIPsecSA(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -36,14 +37,14 @@ func TestClearIPsecSA_AllNoEngine(t *testing.T) {
 }
 
 func TestClearIPsecSA_PeerMissingName(t *testing.T) {
-	resp, err := handleClearIPsecSA(nil, []string{"peer"})
+	resp, err := handleClearIPsecSA(nil, commandtest.Args("peer"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
 
 func TestClearIPsecSA_PeerNotFound(t *testing.T) {
-	resp, err := handleClearIPsecSA(nil, []string{"peer", "nonexistent"})
+	resp, err := handleClearIPsecSA(nil, commandtest.Args("peer", "nonexistent"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)

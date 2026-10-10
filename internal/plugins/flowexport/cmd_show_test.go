@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -25,7 +26,7 @@ func TestShowFlowExportRPCRegistered(t *testing.T) {
 // VALIDATES: with no exporter configured the handler reports not-configured
 // rather than panicking on a nil exporter.
 func TestShowFlowExportNotConfigured(t *testing.T) {
-	resp, err := handleShowFlowExport(nil, nil)
+	resp, err := handleShowFlowExport(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -46,7 +47,7 @@ func TestShowFlowRecentRPCRegistered(t *testing.T) {
 // VALIDATES: with no exporter configured the handler reports not-configured
 // rather than panicking on a nil exporter.
 func TestShowFlowRecentNotConfigured(t *testing.T) {
-	resp, err := handleShowFlowRecent(nil, nil)
+	resp, err := handleShowFlowRecent(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)

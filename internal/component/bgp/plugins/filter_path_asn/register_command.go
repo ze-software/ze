@@ -103,7 +103,8 @@ func registerRejectASNShapes() {
 	command.RegisterAddressFields([]string{cmdShowRejectASN, cmdShowRejectASNName, cmdShowRejectASNTransitFree})
 }
 
-func forwardShowRejectASN(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowRejectASN(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowRejectASN, args, ctx.PeerSelector())
 }
 
@@ -116,13 +117,15 @@ func forwardShowRejectASN(ctx *pluginserver.CommandContext, args []string) (*plu
 // handler an empty args slice (internal/component/plugin/server/command.go,
 // "Explicit typed selectors"). That binding is what the keyword-before-value
 // grammar buys, and reading args alone would send the plugin no name at all.
-func forwardShowRejectASNName(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowRejectASNName(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if name := ctx.Selector(columnName); name != "" {
 		args = []string{name}
 	}
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowRejectASNName, args, ctx.PeerSelector())
 }
 
-func forwardShowRejectASNTransitFree(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowRejectASNTransitFree(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowRejectASNTransitFree, args, ctx.PeerSelector())
 }

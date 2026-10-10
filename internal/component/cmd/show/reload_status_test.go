@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -18,7 +19,7 @@ import (
 // PREVENTS: a nil-pointer panic taking down the command dispatcher when the
 // command is invoked offline, the same guard handleShowUptime carries.
 func TestHandleShowReloadStatusNilServer(t *testing.T) {
-	resp, err := handleShowReloadStatus(nil, nil)
+	resp, err := handleShowReloadStatus(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -36,7 +37,7 @@ func TestHandleShowReloadStatusBeforeReload(t *testing.T) {
 	srv := &pluginserver.Server{}
 	ctx := &pluginserver.CommandContext{Server: srv}
 
-	resp, err := handleShowReloadStatus(ctx, nil)
+	resp, err := handleShowReloadStatus(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -75,7 +76,7 @@ func TestHandleShowReloadStatusReportsRejectedReload(t *testing.T) {
 
 			srv.MarkReloadProcessed(tt.applied)
 
-			resp, err := handleShowReloadStatus(ctx, nil)
+			resp, err := handleShowReloadStatus(ctx, commandtest.Args())
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -103,7 +104,7 @@ func TestHandleShowReloadStatusTracksMultipleReloads(t *testing.T) {
 	for i := 1; i <= 3; i++ {
 		srv.MarkReloadProcessed(false)
 
-		resp, err := handleShowReloadStatus(ctx, nil)
+		resp, err := handleShowReloadStatus(ctx, commandtest.Args())
 		require.NoError(t, err)
 		data, ok := resp.Data.(plugin.Map)
 		require.True(t, ok)

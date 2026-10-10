@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -16,7 +17,7 @@ import (
 // return is mandated by the pluginserver.RPCRegistration.Handler signature.
 //
 //nolint:unparam // handler signature fixed by pluginserver.RPCRegistration
-func handleShowGeoDNS(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowGeoDNS(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	st := loadState()
 	if st == nil {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"enabled": false}}, nil

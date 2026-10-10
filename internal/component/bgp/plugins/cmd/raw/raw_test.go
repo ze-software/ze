@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -19,7 +20,7 @@ func TestHandlerRawUpdateHex(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleRaw(ctx, []string{"type", "update", "hex", "DEADBEEF"})
+	resp, err := handleRaw(ctx, commandtest.Args("type", "update", "hex", "DEADBEEF"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -37,7 +38,7 @@ func TestHandlerRawMissingPeer(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "*"
 
-	resp, err := handleRaw(ctx, []string{"type", "update", "hex", "DEADBEEF"})
+	resp, err := handleRaw(ctx, commandtest.Args("type", "update", "hex", "DEADBEEF"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }

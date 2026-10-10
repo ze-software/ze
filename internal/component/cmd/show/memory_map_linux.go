@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/procfs"
@@ -20,7 +21,7 @@ func init() {
 	)
 }
 
-func handleShowSystemMemoryMap(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemMemoryMap(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	status, err := parseProcSelfStatus()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response

@@ -5,6 +5,7 @@
 package peer
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -39,7 +40,7 @@ const (
 // says WHICH neighbor has not finished.
 //
 // Takes no argument. The hold is a property of the speaker, not of a peer.
-func handleBgpUpdateDelay(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpUpdateDelay(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil || ctx.Reactor() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

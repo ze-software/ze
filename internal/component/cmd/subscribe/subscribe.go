@@ -6,6 +6,7 @@ package subscribe
 import (
 	"errors"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -27,7 +28,8 @@ func init() {
 }
 
 // handleSubscribe handles the "subscribe" command.
-func handleSubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleSubscribe(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	sub, err := pluginserver.ParseSubscription(args)
 	if err != nil {
 		return &plugin.Response{
@@ -68,7 +70,8 @@ func handleSubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 }
 
 // handleUnsubscribe handles the "unsubscribe" command.
-func handleUnsubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleUnsubscribe(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	sub, err := pluginserver.ParseSubscription(args)
 	if err != nil {
 		return &plugin.Response{

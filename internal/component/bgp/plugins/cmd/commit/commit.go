@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/transaction"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -156,7 +157,8 @@ var commitActionKeywords = map[string]bool{
 // Deprecated grammar (accepted with deprecation warning):
 //
 //	commit <name> start|end|eor|rollback|show|withdraw ...
-func handleCommit(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCommit(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,

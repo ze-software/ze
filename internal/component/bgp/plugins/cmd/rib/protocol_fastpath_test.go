@@ -111,7 +111,8 @@ func TestProtocolAndFastpathDispatchTheDeclaredValues(t *testing.T) {
 			var gotArgs []string
 			var gotSelectors map[string]string
 			called := false
-			handler := func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+			handler := func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+				args := validated.Tokens()
 				called = true
 				gotArgs = args
 				gotSelectors = ctx.Selectors

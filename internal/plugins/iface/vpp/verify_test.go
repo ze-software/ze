@@ -12,12 +12,13 @@ import (
 
 	interfaces "go.fd.io/govpp/binapi/interface"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/iface"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 )
 
 func TestHandleVPPTraceStart_InvalidNodeName(t *testing.T) {
-	resp, err := handleVPPTraceStart(nil, []string{"node", "invalid;name"})
+	resp, err := handleVPPTraceStart(nil, commandtest.Args("node", "invalid;name"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Contains(t, resp.Error, "invalid node name")

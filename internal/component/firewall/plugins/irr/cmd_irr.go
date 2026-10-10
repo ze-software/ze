@@ -8,6 +8,7 @@
 package irr
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -64,31 +65,38 @@ func init() {
 	)
 }
 
-func forwardShowIRR(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowIRR(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowIRR, args, ctx.PeerSelector())
 }
 
-func forwardShowIRRPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowIRRPrefix(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowIRRPrefix, args, ctx.PeerSelector())
 }
 
-func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAll, args, ctx.PeerSelector())
 }
 
-func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, ctx.ArgsOrSelector(args, leafASN), ctx.PeerSelector())
 }
 
-func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, ctx.ArgsOrSelector(args, leafASSet), ctx.PeerSelector())
 }
 
-func forwardClearIRRAsn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardClearIRRAsn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsn, ctx.ArgsOrSelector(args, leafASN), ctx.PeerSelector())
 }
 
-func forwardClearIRRAsSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardClearIRRAsSet(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsSet, ctx.ArgsOrSelector(args, leafASSet), ctx.PeerSelector())
 }
 

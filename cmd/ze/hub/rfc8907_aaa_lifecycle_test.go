@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -240,24 +241,24 @@ func TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap(t *testing.T) {
 
 	dispatcher := pluginserver.NewDispatcher()
 	installNoBGPAAADispatch(dispatcher)
-	const command = "test live accounting"
-	if err := dispatcher.Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	const commandName = "test live accounting"
+	if err := dispatcher.Register(commandName, func(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		swapAAABundle(&aaa.Bundle{Accountant: second}, nil)
 		assert.False(t, firstClosed, "reload closed the accountant before the command's STOP")
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}, command); err != nil {
+	}, commandName); err != nil {
 		t.Fatal(err)
 	}
 
 	response, err := dispatcher.Dispatch(&pluginserver.CommandContext{
 		Username:   "alice",
 		RemoteAddr: "198.51.100.8:2200",
-	}, command)
+	}, commandName)
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	assert.Equal(t, plugin.StatusDone, response.Status)
-	assert.Equal(t, []string{command}, first.starts)
-	assert.Equal(t, []string{command}, first.stops)
+	assert.Equal(t, []string{commandName}, first.starts)
+	assert.Equal(t, []string{commandName}, first.stops)
 	assert.Empty(t, second.starts, "a swap must not mint a second START for one command")
 	assert.Empty(t, second.stops, "the replacement server never received this command's START")
 	assert.Equal(t, "first-task", first.stopTaskID)

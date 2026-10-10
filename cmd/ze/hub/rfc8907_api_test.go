@@ -60,7 +60,7 @@ func TestAPIRequestCarriesAuthenticatedAuthorizationGeneration(t *testing.T) {
 	newAuthorizer := &apiStreamTestAuthorizer{allow: false}
 	server.Dispatcher().SetAuthorizer(newAuthorizer)
 	const command = "test generation command"
-	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
 	}, command); err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestAPIRequestTACACSDenialOverridesAcceptedLocalAllow(t *testing.T) {
 	require.NoError(t, err)
 	const command = "test tacacs denied api command"
 	ran := false
-	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
 		ran = true
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"unexpected"`)), nil
 	}, command); err != nil {
@@ -127,7 +127,7 @@ func TestServerDispatcherUsesContextAuthorizer(t *testing.T) {
 	newAuthorizer := &apiStreamTestAuthorizer{allow: false}
 	server.Dispatcher().SetAuthorizer(newAuthorizer)
 	const command = "test web session generation"
-	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
 	}, command); err != nil {
 		t.Fatal(err)
@@ -152,7 +152,7 @@ func TestBuildAPIEngineTranslatesDispatcherAuthorizationDenial(t *testing.T) {
 
 	const command = "test api denied"
 	ran := false
-	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
 		ran = true
 		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "should not run"}), nil
 	}, command); err != nil {
@@ -213,7 +213,7 @@ func TestAPIExecutorPropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	type ctxKey struct{}
 
 	var seen *pluginserver.CommandContext
-	if err := server.Dispatcher().Register("test api", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register("test api", func(ctx *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
 		seen = ctx
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}, "test api"); err != nil {
@@ -251,7 +251,7 @@ func TestServerDispatcherContextThreading(t *testing.T) {
 	require.NoError(t, err)
 
 	var seen *pluginserver.CommandContext
-	if err := server.Dispatcher().Register("test ctx", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := server.Dispatcher().Register("test ctx", func(ctx *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
 		seen = ctx
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "test ctx"); err != nil {

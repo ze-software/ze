@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/probe"
@@ -19,7 +20,8 @@ import (
 const defaultProbeMaxHops = 16
 
 // HandleProbeRound runs a single parallel traceroute probe round.
-func HandleProbeRound(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func HandleProbeRound(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	req, err := parseTracerouteArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response

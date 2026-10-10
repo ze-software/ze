@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 )
@@ -18,7 +19,7 @@ import (
 func TestShowDdosNoStore(t *testing.T) {
 	activeStore.Store(nil)
 
-	resp, err := handleShowDdos(nil, nil)
+	resp, err := handleShowDdos(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +31,7 @@ func TestShowDdosNoStore(t *testing.T) {
 		t.Errorf("enabled = %v, want false", m["enabled"])
 	}
 
-	resp, err = handleShowDdosIncidents(nil, nil)
+	resp, err = handleShowDdosIncidents(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +56,7 @@ func TestShowDdosWithActiveIncident(t *testing.T) {
 	activeStore.Store(s)
 	t.Cleanup(func() { activeStore.Store(nil) })
 
-	statusResp, err := handleShowDdos(nil, nil)
+	statusResp, err := handleShowDdos(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,7 @@ func TestShowDdosWithActiveIncident(t *testing.T) {
 		t.Errorf("incidents = %v, want 1", status["incidents"])
 	}
 
-	listResp, err := handleShowDdosIncidents(nil, nil)
+	listResp, err := handleShowDdosIncidents(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}

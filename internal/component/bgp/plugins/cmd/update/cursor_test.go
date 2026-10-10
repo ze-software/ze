@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
@@ -356,7 +357,7 @@ func TestHandleUpdateCursorViaSwitch(t *testing.T) {
 	})
 
 	args := []string{"cursor", "origin", "igp", "next-hop", "10.0.0.1", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}
-	resp, err := handleUpdate(ctx, args)
+	resp, err := handleUpdate(ctx, commandtest.Args(args...))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -33,7 +34,7 @@ func TestShowNeighbor_RegisteredWireMethods(t *testing.T) {
 // TestHandleShowNeighbor_UnknownFamilyRejects verifies an invalid positional
 // family rejects with the valid-set in the message.
 func TestHandleShowNeighbor_UnknownFamilyRejects(t *testing.T) {
-	resp, err := handleShowNeighbor(nil, []string{"ipv5"})
+	resp, err := handleShowNeighbor(nil, commandtest.Args("ipv5"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -50,7 +51,7 @@ func TestHandleShowNeighbor_UnknownFamilyRejects(t *testing.T) {
 // TestHandleShowNeighbor_TooManyArgsRejects verifies a second positional arg
 // rejects rather than being silently ignored.
 func TestHandleShowNeighbor_TooManyArgsRejects(t *testing.T) {
-	resp, err := handleShowNeighbor(nil, []string{"ipv4", "extra"})
+	resp, err := handleShowNeighbor(nil, commandtest.Args("ipv4", "extra"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -60,7 +61,7 @@ func TestHandleShowNeighbor_TooManyArgsRejects(t *testing.T) {
 // TestHandleShowNeighbor_DispatchShape verifies the handler dispatches to the
 // backend and wraps the result under the `neighbors` key.
 func TestHandleShowNeighbor_DispatchShape(t *testing.T) {
-	resp, err := handleShowNeighbor(nil, nil)
+	resp, err := handleShowNeighbor(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
@@ -84,7 +85,7 @@ func TestHandleShowNeighbor_DispatchShape(t *testing.T) {
 // TestHandleShowArp_RejectsArgs verifies the IPv4 alias takes no argument and
 // points the operator at `show neighbor` for family selection.
 func TestHandleShowArp_RejectsArgs(t *testing.T) {
-	resp, err := handleShowArp(nil, []string{"ipv6"})
+	resp, err := handleShowArp(nil, commandtest.Args("ipv6"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -95,7 +96,7 @@ func TestHandleShowArp_RejectsArgs(t *testing.T) {
 // TestHandleShowArp_DispatchShape verifies `show arp` dispatches to the backend
 // (forcing the IPv4 family) and wraps the result under the `neighbors` key.
 func TestHandleShowArp_DispatchShape(t *testing.T) {
-	resp, err := handleShowArp(nil, nil)
+	resp, err := handleShowArp(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 

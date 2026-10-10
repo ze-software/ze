@@ -52,7 +52,7 @@ func registerHealthShape() {
 	command.RegisterAddressFields([]string{cmdBgpHealth}, fieldPeer)
 }
 
-func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil || ctx.Reactor() == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: errReactorNotAvailable.Error()}, nil
 	}

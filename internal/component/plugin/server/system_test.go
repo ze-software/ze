@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -28,7 +30,8 @@ func TestHandleSystemDispatch(t *testing.T) {
 	d := NewDispatcher()
 
 	var receivedArgs []string
-	handler := func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(_ *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}
@@ -39,7 +42,7 @@ func TestHandleSystemDispatch(t *testing.T) {
 	srv := &Server{dispatcher: d}
 	ctx := &CommandContext{Server: srv, Peer: "*"}
 
-	resp, err := handleSystemDispatch(ctx, []string{"watchdog announce dnsr"})
+	resp, err := handleSystemDispatch(ctx, commandtest.Args("watchdog announce dnsr"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.Equal(t, []string{"dnsr"}, receivedArgs)
@@ -65,7 +68,7 @@ func TestHandleDaemonReloadUsesFullReload(t *testing.T) {
 		return nil, fmt.Errorf("plugin-only reload should not be used")
 	})
 
-	resp, err := handleDaemonReload(&CommandContext{Server: server}, nil)
+	resp, err := handleDaemonReload(&CommandContext{Server: server}, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -79,7 +82,7 @@ func TestHandleDaemonReloadUsesFullReload(t *testing.T) {
 func TestHandleSystemDispatchMissingCommand(t *testing.T) {
 	ctx := &CommandContext{}
 
-	resp, err := handleSystemDispatch(ctx, nil)
+	resp, err := handleSystemDispatch(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -100,7 +103,7 @@ func TestHandleDaemonShutdownReactorlessUsesShutdownFunc(t *testing.T) {
 	srv := &Server{reactor: plugin.NewCoordinator(nil)}
 	srv.SetShutdownFunc(func() { called = true })
 
-	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, nil)
+	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.False(t, called, "shutdown must wait for transport completion")
@@ -117,7 +120,7 @@ func TestHandleDaemonShutdownRealReactorStops(t *testing.T) {
 	srv := &Server{reactor: reactor}
 	srv.SetShutdownFunc(func() { funcCalled = true })
 
-	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, nil)
+	resp, err := handleDaemonShutdown(&CommandContext{Server: srv}, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.False(t, reactor.stopped, "shutdown must wait for transport completion")
@@ -129,7 +132,7 @@ func TestHandleDaemonShutdownRealReactorStops(t *testing.T) {
 // TestHandleDaemonShutdownNoReactorNoFuncErrors verifies a clean error when
 // neither a reactor nor a shutdownFunc is available (fail closed, no panic).
 func TestHandleDaemonShutdownNoReactorNoFuncErrors(t *testing.T) {
-	resp, err := handleDaemonShutdown(&CommandContext{Server: &Server{}}, nil)
+	resp, err := handleDaemonShutdown(&CommandContext{Server: &Server{}}, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -141,7 +144,7 @@ func TestHandleDaemonShutdownNoReactorNoFuncErrors(t *testing.T) {
 func TestHandleSystemDispatchNoDispatcher(t *testing.T) {
 	ctx := &CommandContext{Server: &Server{}}
 
-	resp, err := handleSystemDispatch(ctx, []string{"test"})
+	resp, err := handleSystemDispatch(ctx, commandtest.Args("test"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -154,7 +157,8 @@ func TestHandleSystemDispatchJoinsArgs(t *testing.T) {
 	d := NewDispatcher()
 
 	var receivedArgs []string
-	handler := func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(_ *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		receivedArgs = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
@@ -165,7 +169,7 @@ func TestHandleSystemDispatchJoinsArgs(t *testing.T) {
 	srv := &Server{dispatcher: d}
 	ctx := &CommandContext{Server: srv, Peer: "*"}
 
-	resp, err := handleSystemDispatch(ctx, []string{"watchdog", "withdraw", "dnsr"})
+	resp, err := handleSystemDispatch(ctx, commandtest.Args("watchdog", "withdraw", "dnsr"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.Equal(t, []string{"dnsr"}, receivedArgs)
@@ -315,7 +319,7 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 // for every command.
 func TestCommandRowsCarryDescription(t *testing.T) {
 	d := NewDispatcher()
-	handler := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	handler := func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 	if err := d.RegisterWithOptions("show explained", handler, "Show the explained thing",

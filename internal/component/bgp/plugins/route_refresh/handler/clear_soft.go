@@ -7,6 +7,7 @@ package handler
 import (
 	"fmt"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -21,7 +22,7 @@ func init() {
 // handleBgpPeerClearSoft performs a soft clear by sending ROUTE-REFRESH
 // for all negotiated families of the specified peer.
 // RFC 2918 Section 3: soft reset via route refresh.
-func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err

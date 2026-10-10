@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -43,7 +44,7 @@ func TestHandleLogRecentErrors(t *testing.T) {
 		{"count zero", []string{"count", "0"}},
 		{"unknown option", []string{"bogus"}},
 	} {
-		resp, err := handleLogRecent(nil, tc.args)
+		resp, err := handleLogRecent(nil, commandtest.Args(tc.args...))
 		if err != nil {
 			t.Errorf("%s: unexpected transport error %v", tc.name, err)
 			continue
@@ -55,7 +56,7 @@ func TestHandleLogRecentErrors(t *testing.T) {
 }
 
 func TestHandleLogRecentHappyPath(t *testing.T) {
-	resp, err := handleLogRecent(nil, []string{"count", "5"})
+	resp, err := handleLogRecent(nil, commandtest.Args("count", "5"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -72,7 +73,7 @@ func TestHandleLogRecentHappyPath(t *testing.T) {
 }
 
 func TestHandleLogSetUsage(t *testing.T) {
-	resp, err := handleLogSet(nil, []string{"onlyone"})
+	resp, err := handleLogSet(nil, commandtest.Args("onlyone"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -110,7 +111,7 @@ func TestLogSetDisabledSilencesSubsystem(t *testing.T) {
 	}
 
 	set := registeredHandler(t, "ze-log:bgp-log-set")
-	resp, err := set(nil, []string{subsystem, "disabled"})
+	resp, err := set(nil, commandtest.Args(subsystem, "disabled"))
 	if err != nil {
 		t.Fatalf("log-set transport error: %v", err)
 	}
@@ -122,7 +123,7 @@ func TestLogSetDisabledSilencesSubsystem(t *testing.T) {
 	}
 
 	levels := registeredHandler(t, "ze-log:bgp-log-levels")
-	resp, err = levels(nil, nil)
+	resp, err = levels(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("log-levels transport error: %v", err)
 	}
@@ -138,7 +139,7 @@ func TestLogSetDisabledSilencesSubsystem(t *testing.T) {
 		t.Fatalf("show log levels reports %q for %s, want disabled", reported[subsystem], subsystem)
 	}
 
-	resp, err = set(nil, []string{subsystem, "info"})
+	resp, err = set(nil, commandtest.Args(subsystem, "info"))
 	if err != nil {
 		t.Fatalf("log-set transport error: %v", err)
 	}
@@ -155,7 +156,7 @@ func TestLogSetDisabledSilencesSubsystem(t *testing.T) {
 func recentMessages(t *testing.T, args []string) []string {
 	t.Helper()
 	recent := registeredHandler(t, "ze-log:bgp-log-recent")
-	resp, err := recent(nil, args)
+	resp, err := recent(nil, commandtest.Args(args...))
 	if err != nil {
 		t.Fatalf("log-recent %v transport error: %v", args, err)
 	}
@@ -224,7 +225,7 @@ func TestLogRecentLevelFilterMatchesTypedWord(t *testing.T) {
 	}
 
 	recent := registeredHandler(t, "ze-log:bgp-log-recent")
-	resp, err := recent(nil, []string{"level", "verbose"})
+	resp, err := recent(nil, commandtest.Args("level", "verbose"))
 	if err != nil {
 		t.Fatalf("log-recent transport error: %v", err)
 	}

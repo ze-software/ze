@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -24,7 +25,8 @@ func init() {
 //
 //	clear interface counters               -> all
 //	clear interface name <name> counters   -> one
-func handleClearInterfaceCounters(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleClearInterfaceCounters(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	name := ""
 	if ctx != nil {
 		name = ctx.Selector("name")

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/env"
@@ -175,7 +176,8 @@ type mtuRequest struct {
 // the request, validates the configured reference address, and answers the
 // payload of one run (run.go, runMTU) over the live dependencies. The
 // command is read-only: no path from here reaches a configuration write.
-func handleShowMTU(cctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowMTU(cctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	req, err := parseMTUArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response

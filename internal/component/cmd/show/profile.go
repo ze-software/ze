@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -32,7 +33,8 @@ func init() {
 	)
 }
 
-func handleShowSystemProfile(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowSystemProfile(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	profileType := profileTypeHeap
 	duration := defaultCPUProfileDuration
 

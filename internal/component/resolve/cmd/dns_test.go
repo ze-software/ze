@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/resolve"
 	"github.com/ze-software/ze/internal/component/resolve/dns"
@@ -36,14 +37,14 @@ func TestClearDNSCache_NoResolver(t *testing.T) {
 	resolvers = nil
 	defer func() { resolvers = old }()
 
-	resp, err := handleClearDNSCache(nil, nil)
+	resp, err := handleClearDNSCache(nil, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
 
 func TestClearDNSCache_All(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCache(nil, nil)
+		resp, err := handleClearDNSCache(nil, commandtest.Args())
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)
@@ -53,7 +54,7 @@ func TestClearDNSCache_All(t *testing.T) {
 
 func TestClearDNSCache_Stats(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCacheStats(nil, nil)
+		resp, err := handleClearDNSCacheStats(nil, commandtest.Args())
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)
@@ -63,7 +64,7 @@ func TestClearDNSCache_Stats(t *testing.T) {
 
 func TestClearDNSCacheStats_RejectsActionLikeArgs(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCacheStats(nil, []string{"record", "example.com", "type", "AAAA"})
+		resp, err := handleClearDNSCacheStats(nil, commandtest.Args("record", "example.com", "type", "AAAA"))
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 		assert.Contains(t, resp.Error, "unexpected arguments")
@@ -73,7 +74,7 @@ func TestClearDNSCacheStats_RejectsActionLikeArgs(t *testing.T) {
 
 func TestClearDNSCache_EntryWithType(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCacheRecord(nil, []string{"example.com", "type", "AAAA"})
+		resp, err := handleClearDNSCacheRecord(nil, commandtest.Args("example.com", "type", "AAAA"))
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)
@@ -85,7 +86,7 @@ func TestClearDNSCache_EntryWithType(t *testing.T) {
 
 func TestClearDNSCache_EntryNoType(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCacheRecord(nil, []string{"example.com"})
+		resp, err := handleClearDNSCacheRecord(nil, commandtest.Args("example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)
@@ -96,7 +97,7 @@ func TestClearDNSCache_EntryNoType(t *testing.T) {
 
 func TestClearDNSCache_EntryMissingName(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCacheRecord(nil, nil)
+		resp, err := handleClearDNSCacheRecord(nil, commandtest.Args())
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 	})
@@ -104,7 +105,7 @@ func TestClearDNSCache_EntryMissingName(t *testing.T) {
 
 func TestClearDNSCache_UnknownType(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleClearDNSCacheRecord(nil, []string{"example.com", "type", "BOGUS"})
+		resp, err := handleClearDNSCacheRecord(nil, commandtest.Args("example.com", "type", "BOGUS"))
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := clearData(t, resp)

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -27,7 +28,7 @@ func TestShowTrafficUsageRegistered(t *testing.T) {
 
 func TestShowTrafficUsageNotConfigured(t *testing.T) {
 	activeMonitor.Store(nil)
-	resp, err := handleShowTrafficUsage(nil, nil)
+	resp, err := handleShowTrafficUsage(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -47,7 +48,7 @@ func TestShowTrafficUsage(t *testing.T) {
 	defer activeMonitor.Store(nil)
 
 	// No args -> list of interface maps.
-	resp, err := handleShowTrafficUsage(nil, nil)
+	resp, err := handleShowTrafficUsage(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	list, ok := resp.Data.(plugin.Slice[plugin.Map])
@@ -58,7 +59,7 @@ func TestShowTrafficUsage(t *testing.T) {
 	assert.NotNil(t, list[0]["ingress-ips"]) // present because track-ip populated them
 
 	// name filter -> single interface map.
-	resp, err = handleShowTrafficUsage(nil, []string{"name", "eth0"})
+	resp, err = handleShowTrafficUsage(nil, commandtest.Args("name", "eth0"))
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
 	one, ok := resp.Data.(plugin.Map)
@@ -66,6 +67,6 @@ func TestShowTrafficUsage(t *testing.T) {
 	assert.Equal(t, "eth0", one["interface"])
 
 	// unknown interface -> error.
-	resp, _ = handleShowTrafficUsage(nil, []string{"name", "missing"})
+	resp, _ = handleShowTrafficUsage(nil, commandtest.Args("name", "missing"))
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }

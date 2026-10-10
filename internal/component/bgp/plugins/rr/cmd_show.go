@@ -6,6 +6,7 @@
 package rr
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -30,10 +31,12 @@ func init() {
 	)
 }
 
-func forwardShowRRStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowRRStatus(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowRRStatus, args, ctx.PeerSelector())
 }
 
-func forwardShowRRPeers(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowRRPeers(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowRRPeers, args, ctx.PeerSelector())
 }

@@ -6,6 +6,7 @@
 package policyroute
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -22,6 +23,7 @@ func init() {
 	)
 }
 
-func forwardShowPolicyRoutes(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardShowPolicyRoutes(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowPolicyRoutes, args, ctx.PeerSelector())
 }

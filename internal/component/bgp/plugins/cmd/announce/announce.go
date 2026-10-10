@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -132,7 +133,8 @@ func announceRegistry(ctx *pluginserver.CommandContext) (bgptypes.BGPReactor, *R
 }
 
 // handleAnnounceUnicastCmd answers `send bgp <selector> unicast <prefix> ...`.
-func handleAnnounceUnicastCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleAnnounceUnicastCmd(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	bgpReactor, reg, errResp, err := announceRegistry(ctx)
 	if err != nil {
 		return errResp, err
@@ -141,7 +143,8 @@ func handleAnnounceUnicastCmd(ctx *pluginserver.CommandContext, args []string) (
 }
 
 // handleAnnounceBlackholeCmd answers `send bgp <selector> blackhole <prefix> ...`.
-func handleAnnounceBlackholeCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleAnnounceBlackholeCmd(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	bgpReactor, reg, errResp, err := announceRegistry(ctx)
 	if err != nil {
 		return errResp, err
@@ -150,7 +153,8 @@ func handleAnnounceBlackholeCmd(ctx *pluginserver.CommandContext, args []string)
 }
 
 // handleAnnounceFlowspecCmd answers `send bgp <selector> flowspec <components> ...`.
-func handleAnnounceFlowspecCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleAnnounceFlowspecCmd(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	bgpReactor, reg, errResp, err := announceRegistry(ctx)
 	if err != nil {
 		return errResp, err
@@ -580,7 +584,8 @@ func withdrawRegistry(ctx *pluginserver.CommandContext) (*Registry, *plugin.Resp
 }
 
 // handleWithdrawTag answers `send bgp <selector> withdraw tag <key> [value <value>]`.
-func handleWithdrawTag(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleWithdrawTag(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	reg, errResp, err := withdrawRegistry(ctx)
 	if err != nil {
 		return errResp, err
@@ -596,7 +601,7 @@ func handleWithdrawTag(ctx *pluginserver.CommandContext, args []string) (*plugin
 // leaf of the same name and lifted the value out of the argument list. That is
 // the same route `request l2tp outgoing-call remote <remote> called <called>`
 // takes, and the model states the type in one place because of it.
-func handleWithdrawID(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleWithdrawID(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	reg, errResp, err := withdrawRegistry(ctx)
 	if err != nil {
 		return errResp, err
@@ -610,7 +615,7 @@ func handleWithdrawID(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 // `bgp` container the model anchors the selector to. That is why `withdraw all`
 // takes no tail: the scope is the destination an operator typed, never a keyword
 // after the form word.
-func handleWithdrawAll(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleWithdrawAll(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	reg, errResp, err := withdrawRegistry(ctx)
 	if err != nil {
 		return errResp, err
@@ -715,7 +720,8 @@ func withdrawEvery(reg *Registry, peer string) (*plugin.Response, error) {
 	}, nil
 }
 
-func handleShowAnnouncements(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowAnnouncements(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	_, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err

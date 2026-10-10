@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -318,7 +319,7 @@ func ntpSyncInfo() map[string]any {
 const fieldEnabled = "enabled"
 
 // handleShowSystemNTP returns the NTP sync status summary.
-func handleShowSystemNTP(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemNTP(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	st := loadState()
 	if st == nil {
 		return &plugin.Response{
@@ -347,7 +348,7 @@ func handleShowSystemNTP(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 }
 
 // handleShowSystemNTPPeers returns per-server NTP state.
-func handleShowSystemNTPPeers(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemNTPPeers(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	st := loadState()
 	if st == nil || len(st.Servers) == 0 {
 		return &plugin.Response{

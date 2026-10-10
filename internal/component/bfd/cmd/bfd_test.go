@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -49,7 +50,7 @@ func TestHandleShowSessions(t *testing.T) {
 		{Peer: "203.0.113.1", VRF: "default", Mode: "single-hop", State: "up"},
 		{Peer: "203.0.113.2", VRF: "default", Mode: "single-hop", State: "down"},
 	}})
-	resp, err := handleShowSessions(nil, nil)
+	resp, err := handleShowSessions(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowSessions: %v", err)
 	}
@@ -71,7 +72,7 @@ func TestHandleShowSessions(t *testing.T) {
 // check.
 func TestHandleShowSessions_ServiceUnavailable(t *testing.T) {
 	withStubService(t, nil)
-	resp, err := handleShowSessions(nil, nil)
+	resp, err := handleShowSessions(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowSessions: %v", err)
 	}
@@ -89,7 +90,7 @@ func TestHandleShowSessions_ServiceUnavailable(t *testing.T) {
 // PREVENTS: silent empty response for typos.
 func TestHandleShowSession_NotFound(t *testing.T) {
 	withStubService(t, &stubService{sessions: []bfdapi.SessionState{{Peer: "203.0.113.1"}}})
-	resp, err := handleShowSession(nil, []string{"198.51.100.9"})
+	resp, err := handleShowSession(nil, commandtest.Args("198.51.100.9"))
 	if err != nil {
 		t.Fatalf("handleShowSession: %v", err)
 	}
@@ -107,7 +108,7 @@ func TestHandleShowSession_NotFound(t *testing.T) {
 // PREVENTS: confusing error when the operator types garbage.
 func TestHandleShowSession_InvalidPeer(t *testing.T) {
 	withStubService(t, &stubService{})
-	resp, err := handleShowSession(nil, []string{"not-an-ip"})
+	resp, err := handleShowSession(nil, commandtest.Args("not-an-ip"))
 	if err != nil {
 		t.Fatalf("handleShowSession: %v", err)
 	}
@@ -132,7 +133,7 @@ func TestHandleShowProfile(t *testing.T) {
 	withStubService(t, svc)
 
 	// AC-5: empty args returns every profile.
-	resp, err := handleShowProfile(nil, nil)
+	resp, err := handleShowProfile(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleShowProfile empty: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestHandleShowProfile(t *testing.T) {
 	}
 
 	// AC-4: specific profile returns single object.
-	resp, err = handleShowProfile(nil, []string{"fast"})
+	resp, err = handleShowProfile(nil, commandtest.Args("fast"))
 	if err != nil {
 		t.Fatalf("handleShowProfile fast: %v", err)
 	}
@@ -164,7 +165,7 @@ func TestHandleShowProfile(t *testing.T) {
 	}
 
 	// Unknown name: error.
-	resp, err = handleShowProfile(nil, []string{"nope"})
+	resp, err = handleShowProfile(nil, commandtest.Args("nope"))
 	if err != nil {
 		t.Fatalf("handleShowProfile nope: %v", err)
 	}

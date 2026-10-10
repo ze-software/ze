@@ -5,6 +5,7 @@ package show
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -24,7 +25,7 @@ func TestParseProcSelfStatus(t *testing.T) {
 }
 
 func TestShowSystemMemoryMap_Wiring(t *testing.T) {
-	resp, err := handleShowSystemMemoryMap(nil, nil)
+	resp, err := handleShowSystemMemoryMap(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}

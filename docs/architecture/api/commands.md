@@ -1510,22 +1510,28 @@ R6 and R7 run their handler through `command.InvokeLocal(path, handler, args)`,
 which judges the tokens with `ValidateModelArgs` and runs the handler on the
 value it returned; a process that registered no definition source refuses both.
 
-A streaming handler (`pluginserver.StreamingHandler`), a data handler
-(`command.LocalDataHandler`) and a local handler or offline fallback
-(`command.LocalHandler`) take the `command.ValidatedArgs` itself, so no route
-can declare or invoke one with a token slice: R8 hands a streaming handler the
-value `GetStreamingHandlerForCommand` answered, R2 hands a data handler the
-value it judged, R6 and R7 hand a local handler, and through it the plain form
-of a data handler (R3), the value `InvokeLocal` judged, and the handler reads
-`Tokens()` or `Positional(leaf)`. A test that calls a handler directly builds
-its value with `commandtest.Args`, which goes through `ValidateArgs`. The other
-handler types still take a token slice, and their routes pass
-`ValidatedArgs.Tokens()`.
+Every handler type takes the `command.ValidatedArgs` itself: a daemon handler
+(`pluginserver.Handler`, which is also the type of an ensure-exists step's
+creation and rollback handlers), a streaming handler
+(`pluginserver.StreamingHandler`), a data handler (`command.LocalDataHandler`)
+and a local handler or offline fallback (`command.LocalHandler`). No route can
+declare or invoke one with a token slice: R1 hands a daemon handler the value
+`Dispatch` judged, R4 the value `wrapHandler` judged, R5 hands an ensure step
+and its rollback the value judged against the ancestor's definitions, R8 hands
+a streaming handler the value `GetStreamingHandlerForCommand` answered, R2
+hands a data handler the value it judged, R6 and R7 hand a local handler, and
+through it the plain form of a data handler (R3), the value `InvokeLocal`
+judged, and the handler reads `Tokens()` or `Positional(leaf)`. A handler that
+passes part of its tokens on (the `update` command hands the words after the
+encoding to that encoding's parser) passes a token slice to a helper that is
+not a handler type. A test that calls a handler directly builds its value with
+`commandtest.Args`, which goes through `ValidateArgs`.
+<!-- source: internal/component/plugin/server/command.go -- Handler -->
+<!-- source: internal/component/plugin/server/ensure.go -- EnsureStep, wrapWithEnsureChain -->
 <!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
 <!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource, LocalDataHandler -->
 <!-- source: internal/component/command/local.go -- LocalHandler, InvokeLocal, LookupLocal, LookupOfflineFallback -->
 <!-- source: internal/component/command/commandtest/commandtest.go -- Args -->
-<!-- source: internal/component/command/registry/registry.go -- ValidateLocalArgs, RegisterLocalArgCheck -->
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
 <!-- source: internal/component/plugin/server/server.go -- wrapHandler -->
 <!-- source: internal/component/plugin/server/ensure.go -- wrapWithEnsureChain -->

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -26,7 +27,7 @@ func assertDNSCacheKeys(t *testing.T, data plugin.Map, want ...string) {
 }
 
 func TestDNSLookup_Wiring(t *testing.T) {
-	resp, err := handleDNSLookup(nil, []string{"localhost"})
+	resp, err := handleDNSLookup(nil, commandtest.Args("localhost"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +45,7 @@ func TestDNSLookup_Wiring(t *testing.T) {
 
 func TestDNSCacheStats_WithResolver(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleDNSCacheStats(nil, nil)
+		resp, err := handleDNSCacheStats(nil, commandtest.Args())
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := dnsCacheMap(t, resp)
@@ -63,7 +64,7 @@ func TestDNSCacheStats_WithResolver(t *testing.T) {
 
 func TestDNSCacheStats_RejectsActionLikeArgs(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleDNSCacheStats(nil, []string{"record", "example.com"})
+		resp, err := handleDNSCacheStats(nil, commandtest.Args("record", "example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 		assert.Contains(t, resp.Error, "unexpected arguments")
@@ -76,7 +77,7 @@ func TestDNSCacheEntries_NoResolver(t *testing.T) {
 	resolvers = nil
 	defer func() { resolvers = old }()
 
-	resp, err := handleDNSCacheList(nil, nil)
+	resp, err := handleDNSCacheList(nil, commandtest.Args())
 	require.NoError(t, err)
 	data := dnsCacheMap(t, resp)
 	assert.Equal(t, plugin.Map{"status": "DNS cache not available"}, data)
@@ -84,7 +85,7 @@ func TestDNSCacheEntries_NoResolver(t *testing.T) {
 
 func TestDNSCacheList_WithResolver(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleDNSCacheList(nil, nil)
+		resp, err := handleDNSCacheList(nil, commandtest.Args())
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := dnsCacheMap(t, resp)
@@ -108,7 +109,7 @@ func TestDNSCacheList_RejectsActionLikeArgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			withTestResolver(t, func() {
-				resp, err := handleDNSCacheList(nil, tt.args)
+				resp, err := handleDNSCacheList(nil, commandtest.Args(tt.args...))
 				require.NoError(t, err)
 				assert.Equal(t, plugin.StatusError, resp.Status)
 				assert.Contains(t, resp.Error, "unexpected arguments")
@@ -120,7 +121,7 @@ func TestDNSCacheList_RejectsActionLikeArgs(t *testing.T) {
 
 func TestDNSCacheRecords_FilterByName(t *testing.T) {
 	withTestResolver(t, func() {
-		resp, err := handleDNSCacheRecord(nil, []string{"example.com"})
+		resp, err := handleDNSCacheRecord(nil, commandtest.Args("example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status)
 		data := dnsCacheMap(t, resp)
@@ -130,7 +131,7 @@ func TestDNSCacheRecords_FilterByName(t *testing.T) {
 }
 
 func TestDNSCacheRecords_MissingName(t *testing.T) {
-	resp, err := handleDNSCacheRecord(nil, nil)
+	resp, err := handleDNSCacheRecord(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -22,7 +23,8 @@ func init() {
 // ctx.Sender names the reporter and the token identifies the peer-UP replay
 // being completed. Only that reporter's share of the current session's live
 // forward fence can be released; EOR publication has its own lifetime.
-func handlePeerSessionReady(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handlePeerSessionReady(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	var initialReplay uint64
 	if len(args) != 0 {
 		if len(args) != 2 || args[0] != "session" {

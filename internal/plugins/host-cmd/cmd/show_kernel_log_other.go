@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -15,6 +16,6 @@ func registerShowKernelLog() {
 	)
 }
 
-func handleShowSystemKernelLog(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowSystemKernelLog(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{Status: plugin.StatusError, Error: "not available on this platform"}, nil
 }

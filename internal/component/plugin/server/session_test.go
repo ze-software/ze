@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -20,7 +21,7 @@ func TestPluginSessionPing(t *testing.T) {
 		Server: &Server{reactor: &mockReactor{}},
 	}
 
-	resp, err := handlePluginSessionPing(ctx, nil)
+	resp, err := handlePluginSessionPing(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
@@ -40,7 +41,7 @@ func TestPluginSessionBye(t *testing.T) {
 		Server: &Server{reactor: &mockReactor{}},
 	}
 
-	resp, err := handlePluginSessionBye(ctx, nil)
+	resp, err := handlePluginSessionBye(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
@@ -56,7 +57,7 @@ func TestPluginSessionReady(t *testing.T) {
 		Server: &Server{reactor: &mockReactor{}},
 	}
 
-	resp, err := handlePluginSessionReady(ctx, nil)
+	resp, err := handlePluginSessionReady(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)

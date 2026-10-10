@@ -15,6 +15,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -63,24 +64,26 @@ func init() {
 // forwardNoArgs proxies a command that takes no arguments (the nouns are baked
 // into the command string by the grammar), rejecting extras rather than
 // silently ignoring them.
-func forwardNoArgs(command string) pluginserver.Handler {
-	return func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardNoArgs(pluginCommand string) pluginserver.Handler {
+	return func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		if len(args) > 0 {
 			var tb textbuf.Buffer
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  tb.Str("unexpected argument; ").Str(command).Str(" takes none").String(),
+				Error:  tb.Str("unexpected argument; ").Str(pluginCommand).Str(" takes none").String(),
 			}, nil
 		}
-		return forward(ctx, command, nil)
+		return forward(ctx, pluginCommand, nil)
 	}
 }
 
 // forwardWithArgs proxies a command that carries a selector value
 // (`show vrrp interface name <name>`).
-func forwardWithArgs(command string) pluginserver.Handler {
-	return func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-		return forward(ctx, command, args)
+func forwardWithArgs(pluginCommand string) pluginserver.Handler {
+	return func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
+		return forward(ctx, pluginCommand, args)
 	}
 }
 

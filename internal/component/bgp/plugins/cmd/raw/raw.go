@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -54,7 +55,8 @@ func init() {
 //
 // With a type keyword ze writes the marker and the header, and the data carries
 // the message body alone. Without one the data carries the whole packet.
-func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleRaw(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	_, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err

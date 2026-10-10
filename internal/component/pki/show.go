@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -62,7 +63,8 @@ const afterLocalCAPEM = "the local certificate authority export"
 // The subject and the expiry travel with the PEM because an operator
 // distributing a root has to know which root they copied and how long it lasts,
 // and reading either out of the PEM needs a second tool.
-func handleShowPKILocalCAPEM(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowPKILocalCAPEM(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if extra := unexpectedAfter(args, afterLocalCAPEM); extra != nil {
 		return extra, nil
 	}
@@ -86,7 +88,7 @@ func handleShowPKILocalCAPEM(_ *pluginserver.CommandContext, args []string) (*pl
 	}, nil
 }
 
-func handleShowPKICertificates(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowPKICertificates(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	now := time.Now()
 	s := get()
 
@@ -190,7 +192,8 @@ const afterCertName = "the certificate name"
 
 // handleShowPKICertificate answers the detail form: everything the store knows
 // about one certificate.
-func handleShowPKICertificate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowPKICertificate(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	cert, errResp := certNamed(ctx, args)
 	if errResp != nil {
 		return errResp, nil
@@ -203,7 +206,8 @@ func handleShowPKICertificate(ctx *pluginserver.CommandContext, args []string) (
 
 // handleShowPKICertificatePEM answers the `pem` form: the certificate and its
 // intermediates, and never a private key.
-func handleShowPKICertificatePEM(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowPKICertificatePEM(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	cert, errResp := certNamed(ctx, args)
 	if errResp != nil {
 		return errResp, nil
@@ -216,7 +220,8 @@ func handleShowPKICertificatePEM(ctx *pluginserver.CommandContext, args []string
 
 // handleShowPKICertificateBundlePEM answers the `bundle pem` form: the
 // certificate, its intermediates and its private key.
-func handleShowPKICertificateBundlePEM(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowPKICertificateBundlePEM(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	cert, errResp := certNamed(ctx, args)
 	if errResp != nil {
 		return errResp, nil
@@ -230,7 +235,8 @@ func handleShowPKICertificateBundlePEM(ctx *pluginserver.CommandContext, args []
 // handleShowPKICertificateFingerprint answers the `fingerprint` form. The
 // algorithm is the one word the model offers after the keyword, and SHA-256
 // when the operator types none.
-func handleShowPKICertificateFingerprint(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowPKICertificateFingerprint(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	cert, errResp := certNamed(ctx, args)
 	if errResp != nil {
 		return errResp, nil

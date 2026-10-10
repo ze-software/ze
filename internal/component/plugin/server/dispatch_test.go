@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -216,7 +217,7 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	d := NewDispatcher()
-	if err := d.Register("test command", func(_ *CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("test command", func(_ *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data:   plugin.Map{"last-index": float64(42)},
@@ -283,7 +284,7 @@ func TestHandleDispatchCommandRPCPreservesPluginIdentity(t *testing.T) {
 	)
 
 	d := NewDispatcher()
-	if err := d.Register("test command", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("test command", func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		gotUsername = ctx.Username
 		gotContext = ctx.Context()
 		return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -388,7 +389,7 @@ func TestDispatchCommandPluginError(t *testing.T) {
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	d := NewDispatcher()
-	if err := d.Register("failing command", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("failing command", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  "something went wrong",
@@ -492,7 +493,7 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	d := NewDispatcher()
 	handlerReturned := false
 	completed := false
-	if err := d.Register("bridge test", func(_ *CommandContext, _ []string) (resp *plugin.Response, err error) {
+	if err := d.Register("bridge test", func(_ *CommandContext, _ command.ValidatedArgs) (resp *plugin.Response, err error) {
 		defer func() { handlerReturned = true }()
 		resp = &plugin.Response{
 			Status: plugin.StatusDone,

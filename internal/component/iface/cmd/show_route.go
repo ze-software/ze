@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -46,7 +47,8 @@ func init() {
 // Invalid prefixes reject with the usage line rather than silently
 // returning an empty result. "default" is accepted as a synonym for the
 // 0.0.0.0/0 / ::/0 entries.
-func handleShowRoute(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowRoute(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return dumpKernelRoutes(args, "usage: show route [<cidr>|default] [limit N]", defaultRouteLimit)
 }
 

@@ -265,39 +265,48 @@ func registerRibAnswerShapes() {
 	command.RegisterAddressFields([]string{cmdRibStatus, cmdRibBestStatus})
 }
 
-func forwardRibStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibStatus(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibStatus, args, ctx.PeerSelector())
 }
 
-func forwardRibRoutes(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibRoutes(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibShow, args, ctx.PeerSelector())
 }
 
-func forwardRibBest(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibBest(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibBest, args, ctx.PeerSelector())
 }
 
-func forwardRibBestStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibBestStatus(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibBestStatus, args, ctx.PeerSelector())
 }
 
-func forwardRibClearIn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibClearIn(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibClearIn, args, ctx.PeerSelector())
 }
 
-func forwardRibClearOut(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibClearOut(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibClearOut, args, ctx.PeerSelector())
 }
 
-func forwardRibInject(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibInject(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibInject, args, ctx.PeerSelector())
 }
 
-func forwardRibWithdraw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibWithdraw(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibWithdraw, args, ctx.PeerSelector())
 }
 
-func forwardRibRPF(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibRPF(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibRPF, args, ctx.PeerSelector())
 }
 
@@ -317,10 +326,12 @@ func protocolArgs(ctx *pluginserver.CommandContext, args []string) []string {
 	return append(out, args...)
 }
 
-func forwardRibProtocol(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibProtocol(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibProtocol, protocolArgs(ctx, args), ctx.PeerSelector())
 }
 
-func forwardRibFastpath(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibFastpath(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibFastpath, args, ctx.PeerSelector())
 }

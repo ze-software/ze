@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
+	"github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/l2tp/yang" // register ze-l2tp-api.yang
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -91,7 +92,7 @@ func init() {
 // -----------------------------------------------------------------
 
 // handleSummary returns aggregate counters.
-func handleSummary(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleSummary(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -108,7 +109,7 @@ func handleSummary(_ *pluginserver.CommandContext, _ []string) (*plugin.Response
 }
 
 // handleTunnels returns the tunnel table.
-func handleTunnels(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleTunnels(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -134,7 +135,8 @@ func idSelectorArgs(ctx *pluginserver.CommandContext, args []string) []string {
 }
 
 // handleTunnel returns one tunnel by ID.
-func handleTunnel(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleTunnel(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	tid, err := parseIDArg(idSelectorArgs(ctx, args), argTunnelID)
 	if err != nil {
 		return errResponse(err), nil
@@ -151,7 +153,7 @@ func handleTunnel(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 }
 
 // handleSessions returns the session table (flattened across tunnels).
-func handleSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleSessions(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -167,7 +169,8 @@ func handleSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Respons
 }
 
 // handleSession returns one session by ID.
-func handleSession(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleSession(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	sid, err := parseIDArg(idSelectorArgs(ctx, args), argSessionID)
 	if err != nil {
 		return errResponse(err), nil
@@ -186,7 +189,7 @@ func handleSession(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 // handleStatistics returns protocol counters. spec-l2tp-10 will add
 // per-message counters; spec-l2tp-7 returns the basic aggregates
 // already available.
-func handleStatistics(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleStatistics(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -200,7 +203,7 @@ func handleStatistics(_ *pluginserver.CommandContext, _ []string) (*plugin.Respo
 }
 
 // handleListeners returns the bound UDP endpoints.
-func handleListeners(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleListeners(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -217,7 +220,7 @@ func handleListeners(_ *pluginserver.CommandContext, _ []string) (*plugin.Respon
 }
 
 // handleConfig returns the effective runtime configuration.
-func handleConfig(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleConfig(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -245,7 +248,8 @@ func handleConfig(_ *pluginserver.CommandContext, _ []string) (*plugin.Response,
 // Diagnostic handlers (spec-diag-1-runtime-state)
 // -----------------------------------------------------------------
 
-func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleObserver(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -312,7 +316,8 @@ func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 	})
 }
 
-func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCQM(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -362,7 +367,8 @@ func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response,
 	})
 }
 
-func handleEcho(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleEcho(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -387,7 +393,8 @@ func handleEcho(_ *pluginserver.CommandContext, args []string) (*plugin.Response
 	return jsonResponse("l2tp echo", m)
 }
 
-func handleReliable(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleReliable(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	tid, err := parseIDArg(args, argTunnelID)
 	if err != nil {
 		return errResponse(err), nil
@@ -427,7 +434,8 @@ func firstPositionalArg(args []string) string {
 // FSM history handlers (spec-diag-2)
 // -----------------------------------------------------------------
 
-func handleTunnelHistory(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleTunnelHistory(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	tid, err := parseIDArg(args, argTunnelID)
 	if err != nil {
 		return errResponse(err), nil
@@ -443,7 +451,8 @@ func handleTunnelHistory(_ *pluginserver.CommandContext, args []string) (*plugin
 	return jsonResponse("l2tp tunnel history", fsmTransitionsJSON(history))
 }
 
-func handleSessionHistory(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleSessionHistory(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	sid, err := parseIDArg(args, argSessionID)
 	if err != nil {
 		return errResponse(err), nil
@@ -482,7 +491,8 @@ func fsmTransitionsJSON(transitions []l2tp.FSMTransition) map[string]any {
 // Destructive handlers
 // -----------------------------------------------------------------
 
-func handleTunnelTeardown(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleTunnelTeardown(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	tid, err := parseIDArg(args, argTunnelID)
 	if err != nil {
 		return errResponse(err), nil
@@ -501,7 +511,7 @@ func handleTunnelTeardown(_ *pluginserver.CommandContext, args []string) (*plugi
 	})
 }
 
-func handleTunnelTeardownAll(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleTunnelTeardownAll(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -513,7 +523,8 @@ func handleTunnelTeardownAll(_ *pluginserver.CommandContext, _ []string) (*plugi
 	})
 }
 
-func handleSessionTeardown(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleSessionTeardown(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	sid, err := parseIDArg(args, argSessionID)
 	if err != nil {
 		return errResponse(err), nil
@@ -545,7 +556,7 @@ func handleSessionTeardown(_ *pluginserver.CommandContext, args []string) (*plug
 	return jsonResponse("l2tp session teardown", result)
 }
 
-func handleSessionTeardownAll(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleSessionTeardownAll(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
@@ -713,7 +724,8 @@ func parseKeywordArgs(args []string) (actor, reason string, cause uint32) {
 // Per-session traffic handler (diag-0 remaining gap)
 // -----------------------------------------------------------------
 
-func handleSessionTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleSessionTraffic(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil

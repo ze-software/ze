@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -221,7 +222,8 @@ func TestMigrateCommandReachesTheDaemonHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	var got []string
-	handler := func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	handler := func(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		got = args
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}

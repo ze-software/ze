@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -13,7 +14,7 @@ func TestHandlerCacheList(t *testing.T) {
 	reactor := &mockReactor{cachedIDs: []uint64{100, 200, 300}}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheListRPC(ctx, nil)
+	resp, err := handleCacheListRPC(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -25,7 +26,7 @@ func TestHandlerCacheList(t *testing.T) {
 func TestHandlerCacheListEmpty(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCacheListRPC(ctx, nil)
+	resp, err := handleCacheListRPC(ctx, commandtest.Args())
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -38,7 +39,7 @@ func TestHandlerCacheRetain(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheRetainRPC(ctx, []string{"42"})
+	resp, err := handleCacheRetainRPC(ctx, commandtest.Args("42"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -50,7 +51,7 @@ func TestHandlerCacheRelease(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheReleaseRPC(ctx, []string{"42"})
+	resp, err := handleCacheReleaseRPC(ctx, commandtest.Args("42"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -62,7 +63,7 @@ func TestHandlerCacheExpire(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheExpireRPC(ctx, []string{"42"})
+	resp, err := handleCacheExpireRPC(ctx, commandtest.Args("42"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -88,7 +89,7 @@ func TestHandlerCacheForward(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.9"
 
-	resp, err := handleCacheForwardRPC(ctx, []string{"42"})
+	resp, err := handleCacheForwardRPC(ctx, commandtest.Args("42"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -109,7 +110,7 @@ func TestHandlerCacheForwardMissingID(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "192.0.2.9"
 
-	resp, err := handleCacheForwardRPC(ctx, nil)
+	resp, err := handleCacheForwardRPC(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "send bgp <selector> cached <id>",
@@ -119,7 +120,7 @@ func TestHandlerCacheForwardMissingID(t *testing.T) {
 func TestHandlerCacheRetainMissingID(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCacheRetainRPC(ctx, nil)
+	resp, err := handleCacheRetainRPC(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -127,7 +128,7 @@ func TestHandlerCacheRetainMissingID(t *testing.T) {
 func TestHandlerCacheInvalidID(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 
-	resp, err := handleCacheRetainRPC(ctx, []string{"notanumber"})
+	resp, err := handleCacheRetainRPC(ctx, commandtest.Args("notanumber"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -135,7 +136,7 @@ func TestHandlerCacheInvalidID(t *testing.T) {
 func TestHandlerCacheNilReactor(t *testing.T) {
 	ctx := newTestContext(nil)
 
-	_, err := handleCacheListRPC(ctx, nil)
+	_, err := handleCacheListRPC(ctx, commandtest.Args())
 	require.Error(t, err)
 }
 
@@ -143,7 +144,7 @@ func TestHandlerCacheBatchForward(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheForwardRPC(ctx, []string{"10,20,30"})
+	resp, err := handleCacheForwardRPC(ctx, commandtest.Args("10,20,30"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -157,7 +158,7 @@ func TestHandlerCacheBatchRelease(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheReleaseRPC(ctx, []string{"10,20,30"})
+	resp, err := handleCacheReleaseRPC(ctx, commandtest.Args("10,20,30"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -168,7 +169,7 @@ func TestHandlerCacheBatchPartialFailure(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleCacheForwardRPC(ctx, []string{"10,abc,30"})
+	resp, err := handleCacheForwardRPC(ctx, commandtest.Args("10,abc,30"))
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 

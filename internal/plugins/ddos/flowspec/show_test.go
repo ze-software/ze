@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 )
@@ -17,7 +18,7 @@ import (
 func TestShowDdosFlowspecNoResponder(t *testing.T) {
 	activeResponder.Store(nil)
 
-	resp, err := handleShowDdosFlowspec(nil, nil)
+	resp, err := handleShowDdosFlowspec(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +46,7 @@ func TestShowDdosFlowspecActive(t *testing.T) {
 	activeResponder.Store(r)
 	t.Cleanup(func() { activeResponder.Store(nil) })
 
-	resp, err := handleShowDdosFlowspec(nil, nil)
+	resp, err := handleShowDdosFlowspec(nil, commandtest.Args())
 	if err != nil {
 		t.Fatal(err)
 	}

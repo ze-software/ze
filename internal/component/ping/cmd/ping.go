@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/clock"
@@ -163,7 +164,8 @@ func parseMonitorPingArgs(args []string) (monitorPingArgs, error) {
 // handleShowPing is the RPC handler for `show ping` (ze-ping:show-ping): a bounded
 // batch of ICMP echo requests sent from the router, returning per-reply RTT
 // and an aggregate summary.
-func handleShowPing(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowPing(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	dest, count, timeout, opts, err := parsePingArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response

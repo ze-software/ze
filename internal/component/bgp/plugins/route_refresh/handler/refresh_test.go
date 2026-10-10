@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -17,7 +18,7 @@ func TestHandlerRefresh(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleRefresh(ctx, []string{"ipv4/unicast"})
+	resp, err := handleRefresh(ctx, commandtest.Args("ipv4/unicast"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.True(t, reactor.sendRefreshCalled)
@@ -31,7 +32,7 @@ func TestHandlerBoRR(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBoRR(ctx, []string{"ipv4/unicast"})
+	resp, err := handleBoRR(ctx, commandtest.Args("ipv4/unicast"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.True(t, reactor.sendBoRRCalled)
@@ -45,7 +46,7 @@ func TestHandlerEoRR(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleEoRR(ctx, []string{"ipv4/unicast"})
+	resp, err := handleEoRR(ctx, commandtest.Args("ipv4/unicast"))
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.True(t, reactor.sendEoRRCalled)
@@ -59,7 +60,7 @@ func TestHandlerRefreshMissingFamily(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBoRR(ctx, nil)
+	resp, err := handleBoRR(ctx, commandtest.Args())
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }

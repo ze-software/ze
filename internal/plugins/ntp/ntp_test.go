@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
 )
 
@@ -333,7 +334,7 @@ func TestShowSystemNTPWiring(t *testing.T) {
 	storeState(nil)
 
 	// No state published -> disabled.
-	resp, err := handleShowSystemNTP(nil, nil)
+	resp, err := handleShowSystemNTP(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	data, ok := resp.Data.(plugin.Map)
@@ -352,7 +353,7 @@ func TestShowSystemNTPPeersWiring(t *testing.T) {
 	storeState(nil)
 
 	// No state published -> empty peers.
-	resp, err := handleShowSystemNTPPeers(nil, nil)
+	resp, err := handleShowSystemNTPPeers(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	data, ok := resp.Data.(plugin.Map)
@@ -383,7 +384,7 @@ func TestShowSystemNTPEnabled(t *testing.T) {
 	globalState.Store(st)
 	defer globalState.Store(nil)
 
-	resp, err := handleShowSystemNTP(nil, nil)
+	resp, err := handleShowSystemNTP(nil, commandtest.Args())
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -408,7 +409,7 @@ func TestShowSystemNTPDisabled(t *testing.T) {
 	globalState.Store(st)
 	defer globalState.Store(nil)
 
-	resp, err := handleShowSystemNTP(nil, nil)
+	resp, err := handleShowSystemNTP(nil, commandtest.Args())
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -446,7 +447,7 @@ func TestShowSystemNTPPeers(t *testing.T) {
 	globalState.Store(st)
 	defer globalState.Store(nil)
 
-	resp, err := handleShowSystemNTPPeers(nil, nil)
+	resp, err := handleShowSystemNTPPeers(nil, commandtest.Args())
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
@@ -476,7 +477,7 @@ func TestShowSystemNTPPeersEmpty(t *testing.T) {
 	globalState.Store(st)
 	defer globalState.Store(nil)
 
-	resp, err := handleShowSystemNTPPeers(nil, nil)
+	resp, err := handleShowSystemNTPPeers(nil, commandtest.Args())
 	require.NoError(t, err)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)

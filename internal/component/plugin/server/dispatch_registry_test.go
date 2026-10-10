@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -50,7 +51,7 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	t.Parallel()
 
 	d := NewDispatcher()
-	if err := d.Register("parity test", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("parity test", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"ok": true}}, nil
 	}, "parity test"); err != nil {
 		t.Fatal(err)
@@ -101,7 +102,7 @@ func TestUpdateRouteRPCWithAuthorization(t *testing.T) {
 			d := NewDispatcher()
 			d.SetAuthorizer(authz.StoreAuthorizer{Store: authz.NewStore()})
 			executed := 0
-			if err := d.Register("send bgp", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+			if err := d.Register("send bgp", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 				executed++
 				return &plugin.Response{Status: plugin.StatusDone}, nil
 			}, "send bgp"); err != nil {
@@ -336,7 +337,7 @@ func TestUpdateRouteDirectCancellation(t *testing.T) {
 			s.ctx, s.cancel = context.WithCancel(t.Context())
 			defer s.cancel()
 			entered := make(chan struct{})
-			if err := s.dispatcher.Register("send bgp", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+			if err := s.dispatcher.Register("send bgp", func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 				close(entered)
 				<-ctx.Context().Done()
 				return nil, ctx.Context().Err()

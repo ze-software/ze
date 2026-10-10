@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -58,7 +59,7 @@ func captureMetricsText(handler http.Handler) (string, error) {
 }
 
 // handleMetricsValues returns Prometheus text format output.
-func handleMetricsValues(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleMetricsValues(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	handler, errResp := getPrometheusHandler()
 	if errResp != nil {
 		return errResp, nil
@@ -68,7 +69,7 @@ func handleMetricsValues(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 }
 
 // handleMetricsList returns a sorted list of every registered metric name.
-func handleMetricsList(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleMetricsList(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	promReg, errResp := getPrometheusRegistry()
 	if errResp != nil {
 		return errResp, nil

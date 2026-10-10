@@ -6,6 +6,7 @@ package storage
 import (
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -26,7 +27,7 @@ func init() {
 	)
 }
 
-func handleShowStorageSmart(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowStorageSmart(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	m := storageManagerPtr.Load()
 	if m == nil {
 		return &plugin.Response{

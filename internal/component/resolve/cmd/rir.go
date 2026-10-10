@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -35,7 +36,8 @@ var delegationFetch irr.DelegationFetch
 // handleRIRASN answers which registry holds one AS number. An AS number in no
 // delegated range and a table that could not be read are two different
 // answers, and this handler keeps them apart (ai/rules/principles.md).
-func handleRIRASN(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleRIRASN(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	asn, errResp := requireASN(args)
 	if errResp != nil {
 		return errResp, nil
@@ -71,7 +73,8 @@ func handleRIRASN(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 // handle. This process MUST NOT open a second one: the config store's next
 // flush would then re-encode from a stale tree and drop every state key
 // (internal/core/statestore package doc).
-func handleRIRRefresh(cc *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleRIRRefresh(cc *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	if len(args) != 0 {
 		return errResponse("update resolve rir: unexpected arguments")
 	}

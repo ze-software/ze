@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
@@ -27,7 +28,8 @@ func init() {
 // handleRefresh sends a normal ROUTE-REFRESH message.
 // RFC 2918 Section 3: "A BGP speaker may send a ROUTE-REFRESH message to
 // its peer only if it has received the Route Refresh Capability from its peer.".
-func handleRefresh(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleRefresh(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -38,7 +40,8 @@ func handleRefresh(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 // handleBoRR sends a Beginning of Route Refresh marker.
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
-func handleBoRR(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBoRR(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -49,7 +52,8 @@ func handleBoRR(ctx *pluginserver.CommandContext, args []string) (*plugin.Respon
 // handleEoRR sends an End of Route Refresh marker.
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
-func handleEoRR(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleEoRR(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	args := validated.Tokens()
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -18,7 +19,7 @@ func registerShowHost() {
 		section := name
 		regs = append(regs, pluginserver.RPCRegistration{
 			WireMethod: "ze-host:show-" + section,
-			Handler: func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+			Handler: func(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 				return dispatchHostSection(section)
 			},
 		})

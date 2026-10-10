@@ -16,6 +16,7 @@ import (
 	// binary imported leaves every block it declares unknown, which the
 	// lenient parse then drops in silence. The daemon registers this one
 	// through the composition root; this test binary registers it here.
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	_ "github.com/ze-software/ze/internal/component/config/system/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -88,7 +89,7 @@ func registerTempStore(t *testing.T) string {
 // wire method and require the payload to name the registry that holds AS15169,
 // which is ARIN.
 func TestShowResolveRIRReachesTheTable(t *testing.T) {
-	resp, err := handlerFor(t, "ze-resolve:show-rir")(nil, []string{"15169"})
+	resp, err := handlerFor(t, "ze-resolve:show-rir")(nil, commandtest.Args("15169"))
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -113,7 +114,7 @@ func TestShowResolveRIRReachesTheTable(t *testing.T) {
 // which is in no delegated range, and require the message to name the range
 // rather than the table.
 func TestShowResolveRIRSeparatesNoRangeFromNoTable(t *testing.T) {
-	resp, err := handlerFor(t, "ze-resolve:show-rir")(nil, []string{"0"})
+	resp, err := handlerFor(t, "ze-resolve:show-rir")(nil, commandtest.Args("0"))
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -138,7 +139,7 @@ func TestUpdateResolveRIRWritesTheStoredCopy(t *testing.T) {
 	registerTempStore(t)
 	useDelegationFetch(t, serveDelegation(fixtureDelegation))
 
-	resp, err := handlerFor(t, "ze-resolve:update-rir")(nil, nil)
+	resp, err := handlerFor(t, "ze-resolve:update-rir")(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -175,7 +176,7 @@ func TestRefreshReportsAnUnstoredWrite(t *testing.T) {
 	statestore.SetStore(nil)
 	useDelegationFetch(t, serveDelegation(fixtureDelegation))
 
-	resp, err := handlerFor(t, "ze-resolve:update-rir")(nil, nil)
+	resp, err := handlerFor(t, "ze-resolve:update-rir")(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -213,7 +214,7 @@ func TestRefreshStoresNothingWhenAFetchFails(t *testing.T) {
 		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
 	})
 
-	resp, err := handlerFor(t, "ze-resolve:update-rir")(nil, nil)
+	resp, err := handlerFor(t, "ze-resolve:update-rir")(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -245,7 +246,7 @@ func TestRefreshStoresNothingWhenNoRecordIsParsed(t *testing.T) {
 	registerTempStore(t)
 	useDelegationFetch(t, serveDelegation("2|ripencc|20260826|0|0|20260826|+0000\n"))
 
-	resp, err := handlerFor(t, "ze-resolve:update-rir")(nil, nil)
+	resp, err := handlerFor(t, "ze-resolve:update-rir")(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -300,7 +301,7 @@ func TestRefreshReadsTheSourcesCommittedAfterStartup(t *testing.T) {
 		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
 	})
 
-	resp, err := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, nil)
+	resp, err := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -349,7 +350,7 @@ func TestRefreshNamesAConfiguredSourceItCannotRead(t *testing.T) {
 	// A table is stored first, so the assertion is about what a failed refresh
 	// LEAVES rather than about an empty store.
 	useDelegationFetch(t, serveDelegation(fixtureDelegation))
-	if resp, refreshErr := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, nil); refreshErr != nil || resp.Status != plugin.StatusDone {
+	if resp, refreshErr := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, commandtest.Args()); refreshErr != nil || resp.Status != plugin.StatusDone {
 		t.Fatalf("the first refresh did not store: %v, %q", refreshErr, resp.Error)
 	}
 	stored, held := statestore.Get(zefs.KeyRIRDelegation.Pattern)
@@ -364,7 +365,7 @@ func TestRefreshNamesAConfiguredSourceItCannotRead(t *testing.T) {
 		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
 	})
 
-	resp, err := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, nil)
+	resp, err := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -417,7 +418,7 @@ func TestRefreshRefusesASourceTheFetchRuleRefuses(t *testing.T) {
 		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
 	})
 
-	resp, err := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, nil)
+	resp, err := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -450,7 +451,7 @@ func TestRefreshStopsWhenTheConfigCannotBeRead(t *testing.T) {
 		return io.NopCloser(strings.NewReader(fixtureDelegation)), nil
 	})
 
-	resp, err := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, nil)
+	resp, err := handlerFor(t, "ze-resolve:update-rir")(&pluginserver.CommandContext{Server: srv}, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}

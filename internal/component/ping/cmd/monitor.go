@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -12,7 +13,7 @@ import (
 // The live, continuously-refreshing ping view is driven client-side by the CLI
 // model through NewPingSession (see stream.go); this RPC only acknowledges the
 // non-streaming dispatch path.
-func handleMonitorPing(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleMonitorPing(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   plugin.Map{fieldStatus: "monitor-ping-configured"},

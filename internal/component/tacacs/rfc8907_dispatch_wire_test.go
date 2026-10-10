@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/redact"
@@ -180,7 +181,8 @@ func TestRFC8907TrustedDispatchIdentitiesReachWire(t *testing.T) {
 	d.SetAccountingHook(accountant)
 	d.SetAuthorizer(newTacacsAuthorizer(client, authz.StoreAuthorizer{Store: authz.NewStore()}))
 	var handled []string
-	if err := d.Register("show", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("show", func(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		handled = append(handled, args...)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}, ""); err != nil {
@@ -244,7 +246,7 @@ func TestTACACSWireIdentityCannotForgeLocalTrust(t *testing.T) {
 	d.SetAccountingHook(accountant)
 	d.SetAuthorizer(newTacacsAuthorizer(dispatchWireClient(t, unreachableAddress), authz.StoreAuthorizer{Store: authz.NewStore()}))
 	called := 0
-	if err := d.Register("show", func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if err := d.Register("show", func(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		called++
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}, ""); err != nil {
@@ -307,7 +309,8 @@ func TestRFC8907OversizedCommandAccountingStillReachesWire(t *testing.T) {
 	d := pluginserver.NewDispatcher()
 	d.SetAccountingHook(accountant)
 	var handled []string
-	if err := d.Register("show", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("show", func(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		handled = append([]string(nil), args...)
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}, ""); err != nil {
@@ -362,7 +365,8 @@ func TestTACACSDisplayDigestOnlyUsesRedactedArguments(t *testing.T) {
 	d := pluginserver.NewDispatcher()
 	d.SetAccountingHook(accountant)
 	var handled string
-	if err := d.Register("set", func(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if err := d.Register("set", func(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args := validated.Tokens()
 		handled = args[len(args)-1]
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}, ""); err != nil {

@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // VALIDATES: RegisterStreamingHandler stores handlers by prefix.
@@ -142,6 +144,23 @@ func TestHandlerTypesTakeValidatedArguments(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, handler)
 		require.NoError(t, handler(context.Background(), nil, io.Discard, "", validated))
+		require.Equal(t, []string{nameAtBound}, received.Tokens())
+		name, found := received.Positional("name")
+		require.True(t, found, "the lone positional token did not reach the handler bound to its leaf")
+		require.Equal(t, nameAtBound, name)
+	})
+	t.Run("Handler", func(t *testing.T) {
+		d := NewDispatcher()
+		var received command.ValidatedArgs
+		handler := func(_ *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
+			received = args
+			return &plugin.Response{Status: plugin.StatusDone}, nil
+		}
+		defs := []command.ArgDef{commandtest.Must(command.NewStringArg("name", []command.UintRange{{Min: 1, Max: 128}}, nil, command.ArgOptions{Mandatory: true}))}
+		require.NoError(t, d.RegisterWithOptions("show handler probe", handler, "", RegisterOptions{ReadOnly: true, ArgDefs: defs}))
+
+		_, err := d.Dispatch(nil, "show handler probe "+nameAtBound)
+		require.NoError(t, err)
 		require.Equal(t, []string{nameAtBound}, received.Tokens())
 		name, found := received.Positional("name")
 		require.True(t, found, "the lone positional token did not reach the handler bound to its leaf")

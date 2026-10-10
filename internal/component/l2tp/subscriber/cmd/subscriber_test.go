@@ -6,6 +6,7 @@ package cmd
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/show"
@@ -32,7 +33,7 @@ func TestSubscriberDetailCallsEnrich(t *testing.T) {
 	ctx := &pluginserver.CommandContext{
 		Selectors: map[string]string{"id": "test-1"},
 	}
-	resp, err := handleDetail(ctx, nil)
+	resp, err := handleDetail(ctx, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleDetail error: %v", err)
 	}
@@ -62,7 +63,7 @@ func TestSubscriberSummaryCallsEnrichBrief(t *testing.T) {
 		},
 	})
 
-	resp, err := handleSummary(nil, nil)
+	resp, err := handleSummary(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handleSummary error: %v", err)
 	}

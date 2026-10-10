@@ -5,6 +5,7 @@ package show
 import (
 	"sort"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -19,7 +20,7 @@ func init() {
 	)
 }
 
-func handleShowPolicyList(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleShowPolicyList(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	typesMap := registry.FilterTypesMap()
 
 	type filterTypeEntry struct {

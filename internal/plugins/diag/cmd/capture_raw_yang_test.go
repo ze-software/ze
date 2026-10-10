@@ -18,6 +18,7 @@ import (
 
 	// The blank import registers ze-diag-cmd with the loader, which declares
 	// the leaf read below.
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	_ "github.com/ze-software/ze/internal/plugins/diag/yang"
 )
 
@@ -40,7 +41,7 @@ func TestCaptureRawActionsMatchTheModel(t *testing.T) {
 	}
 
 	for _, action := range model {
-		resp, err := HandleCaptureRaw(nil, []string{action})
+		resp, err := HandleCaptureRaw(nil, commandtest.Args(action))
 		if err != nil {
 			t.Fatalf("action %q: %v", action, err)
 		}
@@ -57,7 +58,7 @@ func TestCaptureRawActionsMatchTheModel(t *testing.T) {
 		}
 	}
 
-	resp, err := HandleCaptureRaw(nil, []string{"pause"})
+	resp, err := HandleCaptureRaw(nil, commandtest.Args("pause"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -42,6 +42,7 @@ import (
 
 	// Trigger every builtin RPC init() registration, matching the composition
 	// root the running daemon assembles (mirrors all_import_test.go).
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )
 
@@ -65,7 +66,7 @@ func invokeOffline(h pluginserver.Handler) (resp *plugin.Response, survived bool
 			resp, survived = nil, false
 		}
 	}()
-	r, err := h(&pluginserver.CommandContext{}, nil)
+	r, err := h(&pluginserver.CommandContext{}, commandtest.Args())
 	if err != nil {
 		return nil, true
 	}

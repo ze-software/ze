@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/probe"
@@ -42,7 +43,7 @@ func TestPingDoNotFragmentReachesTheSocketOption(t *testing.T) {
 		fc.injectReply(testPID(), w.seq)
 	}()
 
-	resp, err := handleShowPing(nil, []string{"192.0.2.1", "count", "1", "timeout", "1s", probe.DFKeyword, "honor-cache"})
+	resp, err := handleShowPing(nil, commandtest.Args("192.0.2.1", "count", "1", "timeout", "1s", probe.DFKeyword, "honor-cache"))
 	if err != nil {
 		t.Fatalf("handleShowPing: %v", err)
 	}
@@ -96,7 +97,7 @@ func TestPingDoNotFragmentSummaryCarriesTheKernelEstimate(t *testing.T) {
 			fixedPathMTU(t, tc.mtu)
 			go answerOne(fc)
 
-			resp, err := handleShowPing(nil, tc.args)
+			resp, err := handleShowPing(nil, commandtest.Args(tc.args...))
 			if err != nil {
 				t.Fatalf("handleShowPing: %v", err)
 			}
@@ -139,7 +140,7 @@ func TestPingDoNotFragmentWithoutValueIsRefused(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fc := newFakePingConn(clock.RealClock{})
 			got := recordingOpener(t, fc)
-			resp, err := handleShowPing(nil, tc.args)
+			resp, err := handleShowPing(nil, commandtest.Args(tc.args...))
 			if err != nil {
 				t.Fatalf("handleShowPing: %v", err)
 			}
@@ -163,7 +164,7 @@ func TestPingDoNotFragmentBypassCacheReachesTheSocketOption(t *testing.T) {
 		fc.injectReply(testPID(), w.seq)
 	}()
 
-	resp, err := handleShowPing(nil, []string{"192.0.2.1", "count", "1", "timeout", "1s", probe.DFKeyword, "bypass-cache"})
+	resp, err := handleShowPing(nil, commandtest.Args("192.0.2.1", "count", "1", "timeout", "1s", probe.DFKeyword, "bypass-cache"))
 	if err != nil {
 		t.Fatalf("handleShowPing: %v", err)
 	}
@@ -186,7 +187,7 @@ func TestPingWithoutDoNotFragmentOpensWithDFOff(t *testing.T) {
 		fc.injectReply(testPID(), w.seq)
 	}()
 
-	resp, err := handleShowPing(nil, []string{"192.0.2.1", "count", "1", "timeout", "1s"})
+	resp, err := handleShowPing(nil, commandtest.Args("192.0.2.1", "count", "1", "timeout", "1s"))
 	if err != nil {
 		t.Fatalf("handleShowPing: %v", err)
 	}

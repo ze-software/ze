@@ -21,6 +21,7 @@ import (
 
 	// The blank import registers ze-resolve-cmd with the loader, which declares
 	// the two leaves read below.
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	_ "github.com/ze-software/ze/internal/plugins/resolve-cmd/yang"
 )
 
@@ -50,7 +51,7 @@ func TestDNSLookupTypesMatchTheModel(t *testing.T) {
 // answers an error rather than an empty record list for a type it never
 // looked up.
 func TestDNSLookupRefusesATypeNoLeafHolds(t *testing.T) {
-	resp, err := handleDNSLookup(nil, []string{"localhost", argType, "SRV"})
+	resp, err := handleDNSLookup(nil, commandtest.Args("localhost", argType, "SRV"))
 	if err != nil {
 		t.Fatal(err)
 	}
