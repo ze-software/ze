@@ -269,3 +269,39 @@ func TestIncompleteEnrolmentPanics(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: docker-hosts spec AC-1. ProbeAll probes EVERY enrolment, whatever
+// the configuration, and answers one row per enrolled subsystem; a probe that
+// gave no verdict reads unknown, never present.
+// PREVENTS: a Docker host passing because no config asked for a feature, and a
+// row set that drifts from the enrolment.
+// Method: enroll capabilities no configuration uses and read the rows back.
+func TestDoctorAllCapabilitiesIgnoresConfig(t *testing.T) {
+	absentCause := errors.New("no such family")
+	present := capabilityFor("alpha", StatePresent, nil)
+	absent := capabilityFor("bravo", StateAbsent, absentCause)
+	silent := capabilityFor("charlie", StateUnspecified, nil)
+	for _, capability := range []*Capability{&present, &absent, &silent} {
+		capability.InUse = neverInUse
+	}
+	withEnrolment(t, silent, absent, present)
+
+	rows := ProbeAll()
+	enrolled := Enrolled()
+	if len(rows) != len(enrolled) {
+		t.Fatalf("%d rows for %d enrolled capabilities", len(rows), len(enrolled))
+	}
+	want := []Row{
+		{Subsystem: "alpha", Kernel: "CONFIG_ALPHA", State: "present"},
+		{Subsystem: "bravo", Kernel: "CONFIG_BRAVO", State: "absent", Reason: "no such family"},
+		{Subsystem: "charlie", Kernel: "CONFIG_CHARLIE", State: "unknown", Reason: errProbeNoVerdict.Error()},
+	}
+	for i := range want {
+		if rows[i].Subsystem != enrolled[i] {
+			t.Errorf("row %d is %s, enrolment order says %s", i, rows[i].Subsystem, enrolled[i])
+		}
+		if rows[i] != want[i] {
+			t.Errorf("row %d = %+v, want %+v", i, rows[i], want[i])
+		}
+	}
+}

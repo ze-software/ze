@@ -83,6 +83,15 @@ produced at read time, in the reader's own process, and it keeps no memory of a
 start. It cannot move into the setup registry, whose records are written before
 `main()` and therefore cannot see the configuration this verdict depends on.
 
+`ProbeAll` asks the other question: does this kernel hold every enrolled
+feature, whatever the configuration uses. It probes each enrolment with `InUse`
+ignored and returns one `Row` per subsystem (subsystem, kernel symbol, state,
+reason), and a probe that gave no verdict reads `unknown`. A host that runs Ze's
+Docker labs must answer it with every row present
+(`plan/pre-release/spec-docker-hosts-run-the-ze-kernel.md`).
+
+<!-- source: internal/component/kernelcap/kernelcap.go -- ProbeAll, Row -->
+
 `MustRegister` registers the doctor check too, so one call from the owner puts
 the capability on all four surfaces. A second registration would be a second
 declaration of the same fact.

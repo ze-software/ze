@@ -224,6 +224,46 @@ func Evaluate(tree *config.Tree) []diagnostic.Diagnostic {
 	return diags
 }
 
+// Row is one enrolled capability's answer when every enrolment is probed with
+// the configuration ignored (ProbeAll). It is the JSON a Docker-host check reads,
+// so its State is the spelled word, never the numeric enum.
+type Row struct {
+	Subsystem string `json:"subsystem"`
+	Kernel    string `json:"kernel"`
+	State     string `json:"state"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// ProbeAll probes EVERY enrolled capability, whether or not any configuration
+// uses its subsystem, and returns one row per enrolment in Enrolled order.
+//
+// Evaluate asks "does this configuration's subsystem have its feature". This
+// asks "does this kernel hold every feature Ze can use", which is what a host
+// that runs Ze's labs must answer, so InUse is the one switch between the two.
+// A probe that gave no verdict is reported unknown with errProbeNoVerdict:
+// StateUnspecified is never spelled as an answer, and never as present.
+func ProbeAll() []Row {
+	capabilities.Lock()
+	entries := append([]Capability(nil), capabilities.entries...)
+	capabilities.Unlock()
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Subsystem < entries[j].Subsystem })
+
+	rows := make([]Row, 0, len(entries))
+	for i := range entries {
+		result := entries[i].Probe()
+		if result.State == StateUnspecified {
+			result = Result{State: StateUnknown, Reason: errProbeNoVerdict}
+		}
+		row := Row{Subsystem: entries[i].Subsystem, Kernel: entries[i].Kernel, State: result.State.String()}
+		if result.Reason != nil {
+			row.Reason = result.Reason.Error()
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
 // Refuse returns the error a caller that must not run on a missing capability
 // prints, or nil when every enrolled subsystem the configuration uses is
 // supported by this host.
