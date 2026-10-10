@@ -1,0 +1,65 @@
+# Test: during a pending window the owner's `commit now [force]` is refused
+# VALIDATES: spec-session-editor-file-mode-parity AC-18 (a), AC-23 -- `commit
+#            now`, `commit now force` and a plain nested `commit confirmed` are
+#            refused naming `commit accept`, `commit abort` and `commit confirmed
+#            <seconds> force`; nothing is committed and the window still reverts.
+#            The first refusal is read on screen; the screen redraws only what
+#            changed, so the identical later ones are proven by the daemon state
+# PREVENTS: a commit inside the window that its revert would silently erase
+option=timeout:value=90s
+
+tmpfs=session-editor-commit-confirmed-commit-now-refused.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-commit-now-refused.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit confirmed 10
+wait commit accept
+send set bgp router-id 9.9.9.9
+send commit now
+wait a confirmed commit is pending
+send commit now force
+send commit confirmed 30
+has 5.6.7.8
+lacks 9.9.9.9
+has 1.2.3.4
+kill
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-commit-now-refused.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-commit-now-refused.conf session-editor-commit-confirmed-commit-now-refused.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-commit-now-refused.conf:contains=router-id 1.2.3.4
+expect=file:path=session-editor-commit-confirmed-commit-now-refused.conf:not-contains=9.9.9.9
+expect=file:path=session-editor-commit-confirmed-commit-now-refused.conf:not-contains=5.6.7.8

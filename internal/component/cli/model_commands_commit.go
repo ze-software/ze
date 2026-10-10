@@ -12,13 +12,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (
 	errUsageRollbackNumber        = errors.New("usage: rollback <number>")
-	errCommitWindowPending        = errors.New("a confirmed commit is pending: use 'commit accept' to keep it, 'commit abort' to revert it, or 'commit confirmed <seconds> force' to add changes and reset the countdown")
 	errDiscardRequiresPathOrAllIn = errors.New("discard requires path or 'all' in session mode")
 )
 
@@ -138,12 +138,17 @@ func (m *Model) cmdSave() (commandResult, error) {
 
 // cmdCommitRequest runs one parsed commit subcommand. A pending confirm window
 // refuses `commit now` and a plain nested `commit confirmed`, because a commit
-// inside the window would be reverted with it (AC-18, AC-23).
+// inside the window would be reverted with it (AC-18, AC-23). A session editor
+// of the daemon's own config commits through the daemon's window
+// (model_commit_window.go); file mode keeps its in-process countdown.
 func (m *Model) cmdCommitRequest(req contract.CommitRequest) (commandResult, error) {
+	if window := m.editor.daemonWindow(); window != nil {
+		return m.cmdCommitWindowRequest(window, req)
+	}
 	switch req.Action {
 	case contract.CommitNow:
 		if m.confirmTimerActive {
-			return commandResult{}, errCommitWindowPending
+			return commandResult{}, confirm.ErrPending
 		}
 		if m.editor.HasSession() {
 			return m.cmdCommitSession(req.Force)
@@ -154,10 +159,10 @@ func (m *Model) cmdCommitRequest(req contract.CommitRequest) (commandResult, err
 		return m.cmdCommit()
 	case contract.CommitConfirmed:
 		if m.editor.HasSession() {
-			return commandResult{}, errCommitConfirmedNotYetSupportedIn
+			return commandResult{}, errCommitConfirmedNeedsDaemon
 		}
 		if m.confirmTimerActive {
-			return commandResult{}, errCommitWindowPending
+			return commandResult{}, confirm.ErrPending
 		}
 		return m.cmdCommitConfirmed(req.Seconds, req.Force)
 	case contract.CommitAccept:
@@ -312,6 +317,15 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 // With force, warnings and conflicts do not block and the status counts the
 // warnings; errors always block.
 func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
+	result, _, err := m.runCommitSession(force)
+	return result, err
+}
+
+// runCommitSession is cmdCommitSession, also answering whether the commit
+// reached the config. A commit that validation, a conflict or the daemon's
+// reload refused answers false with the status saying why, so the daemon's
+// confirm window opens only over a commit that happened.
+func (m *Model) runCommitSession(force bool) (commandResult, bool, error) {
 	detail := m.editor.Diff()
 	// Validate the current config before attempting commit.
 	// Session mode uses set/delete commands that validate per-field, but
@@ -326,7 +340,7 @@ func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 		return commandResult{
 			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(issues)), " issue(s), type 'errors' for details"),
 			configView:    m.configViewAtPath(m.contextPath),
-		}, nil
+		}, false, nil
 	}
 	if force && len(result.Warnings) > 0 {
 		m.statusMessage = textbuf.StrIntStr("commit now force: skipping ", int64(len(result.Warnings)), " warning(s)")
@@ -350,7 +364,7 @@ func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 		commitResult, err = m.editor.CommitSession()
 	}
 	if err != nil {
-		return commandResult{}, err
+		return commandResult{}, false, err
 	}
 
 	if len(commitResult.Conflicts) > 0 {
@@ -370,7 +384,7 @@ func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 		return commandResult{
 			output:        b.String(),
 			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(commitResult.Conflicts)), " conflict(s)"),
-		}, nil
+		}, false, nil
 	}
 
 	if transactional && commitResult.Applied > 0 {
@@ -386,7 +400,7 @@ func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 				statusMessage: tb3.Str("commit failed: ").Err(err).String(),
 				configView:    m.configViewAtPath(m.contextPath),
 				revalidate:    true,
-			}, nil
+			}, false, nil
 		}
 		m.editor.MarkCommittedContent(content)
 	}
@@ -412,7 +426,7 @@ func (m *Model) cmdCommitSession(force bool) (commandResult, error) {
 		}
 	}
 
-	return commandResult{statusMessage: tb4.String(), refreshConfig: true, revalidate: true}, nil
+	return commandResult{statusMessage: tb4.String(), refreshConfig: true, revalidate: true}, true, nil
 }
 
 // cmdDiscardSession discards session changes, requiring path or cmdAll.

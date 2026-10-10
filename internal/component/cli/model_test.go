@@ -40,7 +40,7 @@ var knownModelFields = map[string]bool{
 	"showHelp": true, "showHints": true, "statusMessage": true, "cliFormat": true,
 	"err": true, "width": true, "height": true, "quitting": true,
 	"confirmQuit": true, "confirmExitConfig": true,
-	"confirmTimerActive": true, "confirmSecondsLeft": true, "confirmBackupPath": true,
+	"confirmTimerActive": true, "confirmSecondsLeft": true, "confirmBackupPath": true, "windowWatch": true,
 	"pasteMode": true, "pasteBuffer": true, "pasteModeLocation": true, "pasteModeAction": true,
 	"history": true, "outputBuf": true, "lastCommand": true,
 	"mode": true, "modeStates": true, "commandCompleter": true, "commandExecutor": true,

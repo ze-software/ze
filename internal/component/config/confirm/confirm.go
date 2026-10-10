@@ -11,6 +11,7 @@ package confirm
 import (
 	"errors"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -52,12 +53,6 @@ type Pending struct {
 	Rollback []byte
 }
 
-// Status is what an editor shows of an open window.
-type Status struct {
-	User string
-	Left time.Duration
-}
-
 // Commit is one commit the window runs on its worker, so a commit and a
 // revert never interleave. Snapshot returns the config the daemon runs before
 // Apply; it is called only when the commit opens a window. Apply writes and
@@ -79,8 +74,11 @@ type Recorder interface {
 
 // Window is the daemon's confirmed-commit window. NewWindow starts its one
 // worker goroutine, which owns the state and the deadline timer and runs every
-// request in order; Stop ends it. Safe for concurrent use: every exported
-// method hands its work to the worker and waits for the answer.
+// request in order; Stop ends it. Safe for concurrent use: every method that
+// changes the window hands its work to the worker and waits for the answer.
+// Status and Timeouts never wait for the worker: they read what it published,
+// because an editor polls them from its UI loop, and a worker busy reloading
+// the daemon must not freeze, or wait on, that loop.
 type Window struct {
 	revert   Reverter
 	record   Recorder
@@ -88,9 +86,25 @@ type Window struct {
 	quit     chan struct{}
 	done     chan struct{}
 
+	// Written by the worker, read by Status and Timeouts.
+	shown    atomic.Pointer[Status]
+	timeouts atomic.Uint64
+
 	// Owned by the worker goroutine alone.
 	pending *Pending
 	timer   *time.Timer
+}
+
+// Status is what an editor shows of an open window: its owner, and the
+// deadline it reverts at.
+type Status struct {
+	User     string
+	Deadline time.Time
+}
+
+// Left is the time until the window reverts.
+func (s Status) Left() time.Duration {
+	return time.Until(s.Deadline)
 }
 
 // NewWindow starts the window's worker. The caller MUST call Stop.
@@ -140,6 +154,7 @@ func (w *Window) run() {
 				confirmLog.Error("confirmed commit not accepted, and the revert failed", "error", err)
 				continue
 			}
+			w.timeouts.Add(1)
 			confirmLog.Info("confirmed commit not accepted: reverted to the previous configuration")
 		}
 	}
@@ -223,6 +238,7 @@ func (w *Window) arm(p Pending) error {
 		w.timer.Stop()
 	}
 	w.pending = &p
+	w.shown.Store(&Status{User: p.User, Deadline: p.Deadline})
 	w.timer = time.NewTimer(time.Until(p.Deadline))
 	return nil
 }
@@ -283,22 +299,35 @@ func (w *Window) close() {
 		w.timer = nil
 	}
 	w.pending = nil
+	w.shown.Store(nil)
 }
 
 // Status reports the open window, and false when none is open or the worker
-// has stopped.
+// has stopped. It does not wait for the worker.
 func (w *Window) Status() (Status, bool) {
-	var status Status
-	open := false
-	_ = w.do(func() error { //nolint:errcheck // the closure answers nil; ErrStopped reads as no window
-		if w.pending == nil {
-			return nil
-		}
-		status = Status{User: w.pending.User, Left: time.Until(w.pending.Deadline)}
-		open = true
-		return nil
-	})
-	return status, open
+	select {
+	case <-w.done:
+		return Status{}, false
+	default:
+	}
+	shown := w.shown.Load()
+	if shown == nil {
+		return Status{}, false
+	}
+	return *shown, true
+}
+
+// Timeouts counts the windows the deadline reverted, so an editor that saw a
+// window open can tell, once it is gone, a timeout from an accept or an abort
+// another session of the owner ran. It does not wait for the worker; a
+// stopped worker answers ErrStopped.
+func (w *Window) Timeouts() (uint64, error) {
+	select {
+	case <-w.done:
+		return 0, ErrStopped
+	default:
+	}
+	return w.timeouts.Load(), nil
 }
 
 // RecoverOnStart reverts a window a stopped daemon left open (AC-19). It runs

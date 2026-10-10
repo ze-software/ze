@@ -30,7 +30,8 @@ const (
 //
 // The notifier routes `commit` through the transactional
 // CommitSessionCandidate + NotifyReload path. A session commit then reaches the
-// running daemons instead of only writing config.conf.
+// running daemons instead of only writing config.conf. With a reload the editor
+// also gets the daemon's confirmed-commit window.
 func newSessionEditor(store storage.Storage, configPath, username, origin string, reloadFn func() error) (*cli.Editor, error) {
 	if err := cli.ValidateUser(username); err != nil {
 		return nil, fmt.Errorf("invalid username: %w", err)
@@ -47,6 +48,9 @@ func newSessionEditor(store storage.Storage, configPath, username, origin string
 	}
 	if reloadFn != nil {
 		ed.SetReloadNotifier(reloadFn)
+		// The daemon's own config: commits go through its confirmed-commit
+		// window, read at each commit (confirm_window.go).
+		ed.SetConfirmWindow(daemonConfirmWindow.Load)
 	}
 	return ed, nil
 }

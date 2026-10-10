@@ -116,6 +116,9 @@ func TestConfirmWindowWorkerRevertsAtDeadline(t *testing.T) {
 	assert.Nil(t, d.saved(), "the record is cleared after the revert")
 	_, pending := w.Status()
 	assert.False(t, pending)
+	timeouts, err := w.Timeouts()
+	require.NoError(t, err)
+	assert.Equal(t, uint64(1), timeouts, "a deadline revert is counted, so an editor can say it timed out")
 }
 
 // TestConfirmWindowOwnerIsTheUser proves AC-17 at the worker: the window
@@ -129,7 +132,7 @@ func TestConfirmWindowOwnerIsTheUser(t *testing.T) {
 	status, pending := w.Status()
 	require.True(t, pending)
 	assert.Equal(t, "alice", status.User)
-	assert.Positive(t, status.Left)
+	assert.Positive(t, status.Left())
 
 	require.NoError(t, w.Accept("alice"), "a new session of alice is the owner")
 	assert.Nil(t, d.saved())

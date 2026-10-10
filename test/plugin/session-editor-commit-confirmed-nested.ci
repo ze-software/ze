@@ -1,0 +1,67 @@
+# Test: a nested `commit confirmed <s> force` restarts the countdown and reverts with the first
+# VALIDATES: spec-session-editor-file-mode-parity AC-23 -- inside admin's
+#            window a plain `commit confirmed 5` is refused; with `force` the new
+#            change applies and the countdown restarts at 5 s; at its deadline
+#            the revert restores the config from before the FIRST commit. The
+#            first window is 120 s, so a revert seen within the fixture's 60 s
+#            proves the countdown restarted
+# PREVENTS: a nested commit that survives the revert, or a revert to the
+#           state between the two commits
+option=timeout:value=90s
+
+tmpfs=session-editor-commit-confirmed-nested.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-nested.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit confirmed 120
+wait commit accept
+has 5.6.7.8
+send set bgp router-id 9.9.9.9
+send commit confirmed 5
+wait a confirmed commit is pending
+send commit confirmed 5 force
+has 9.9.9.9
+has 1.2.3.4
+lacks 9.9.9.9
+lacks 5.6.7.8
+kill
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-nested.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-nested.conf session-editor-commit-confirmed-nested.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-nested.conf:contains=router-id 1.2.3.4
+expect=file:path=session-editor-commit-confirmed-nested.conf:not-contains=9.9.9.9
+expect=file:path=session-editor-commit-confirmed-nested.conf:not-contains=5.6.7.8

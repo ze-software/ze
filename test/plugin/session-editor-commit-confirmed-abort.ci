@@ -1,0 +1,58 @@
+# Test: `commit abort` over SSH reverts the running daemon at once
+# VALIDATES: spec-session-editor-file-mode-parity AC-16 -- after `commit
+#            confirmed 60`, `commit abort` applies the previous revision at once
+#            with the file editor's abort message
+# PREVENTS: an abort that waits for the deadline, or that leaves the trial config
+option=timeout:value=90s
+
+tmpfs=session-editor-commit-confirmed-abort.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-abort.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit confirmed 60
+wait commit accept
+has 5.6.7.8
+send commit abort
+wait Changes rolled back to previous configuration.
+has 1.2.3.4
+lacks 5.6.7.8
+kill
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-abort.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-abort.conf session-editor-commit-confirmed-abort.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-abort.conf:contains=router-id 1.2.3.4
+expect=file:path=session-editor-commit-confirmed-abort.conf:not-contains=5.6.7.8

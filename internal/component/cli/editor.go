@@ -20,6 +20,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/archive"
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -51,6 +52,7 @@ type Editor struct {
 	draftMtime        time.Time                            // Last known draft file mtime (for polling)
 	commitWriter      func(expected, content []byte) error // Daemon-owned source publication.
 	onReload          ReloadNotifier                       // Optional: called after successful save
+	confirmWindow     func() *confirm.Window               // Optional: the daemon's confirmed-commit window (model_commit_window.go)
 	offlinePromotion  bool                                 // onReload promotes in the editor's own store; no daemon.
 	onArchive         archive.Notifier                     // Optional: called after successful save to archive config
 	preCommitValidate func(candidate string) error         // Optional: validate candidate config before writing
@@ -60,7 +62,7 @@ type Editor struct {
 	// loadStage is non-nil only while a session load runs: every write-through
 	// step then edits the one parsed copy of the change file it holds, under
 	// the one lock the load holds, and the load writes the file once at the end.
-	loadStage  *loadStage
+	loadStage *loadStage
 	// overridden holds the other users' LIVE-conflicting changes a forced
 	// candidate commit overrode, until MarkCommittedContent discards them. Each
 	// candidate commit resets it, so a failed reload discards nothing.

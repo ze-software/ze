@@ -1,0 +1,79 @@
+# Test: `commit confirmed` then `commit accept` over SSH keeps the change on a running daemon
+# VALIDATES: spec-session-editor-file-mode-parity AC-13 -- `commit confirmed 5`
+#            applies at once and says to run `commit accept`; after `commit
+#            accept` the change stays applied past the deadline: a second,
+#            unaccepted window reverts to the accepted state, not the original
+# PREVENTS: the session editor refusing `commit confirmed`, and a window that
+#           reverts after it was accepted
+option=timeout:value=60s
+
+tmpfs=session-editor-commit-confirmed-accept.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-accept.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit confirmed 5
+wait commit accept
+has 5.6.7.8
+send commit accept
+wait accepted
+# A second window that is left to expire: its revert lands after the first
+# window's deadline, and restores the accepted state, not the original one.
+send set bgp router-id 9.9.9.9
+send show | changes
+wait 1 pending change
+send commit confirmed 5
+wait commit accept
+has 9.9.9.9
+has 5.6.7.8
+lacks 9.9.9.9
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-accept.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-accept.conf session-editor-commit-confirmed-accept.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-accept.conf:contains=5.6.7.8

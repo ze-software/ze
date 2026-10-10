@@ -295,6 +295,8 @@ func TestPrivateKeysMarked(t *testing.T) {
 		// operator copies that certificate into a peer's trust anchor.
 		"meta/ca/key":                    true,
 		"meta/config/{name}/file-commit": true,
+		// The confirmed-commit record carries a whole rollback config.
+		"meta/config/{name}/confirm-pending": true,
 	}
 
 	for _, e := range AllEntries() {

@@ -182,9 +182,10 @@ type Model struct {
 	confirmExitConfig bool // True when confirmQuit was triggered by "exit" in config mode (switch to operational, not quit)
 
 	// Commit confirmed state (VyOS-style commit with auto-revert)
-	confirmTimerActive bool   // True if waiting for confirm/abort
-	confirmSecondsLeft int    // Countdown seconds remaining
-	confirmBackupPath  string // Path to backup for rollback on timeout/abort
+	confirmTimerActive bool        // True if waiting for confirm/abort
+	windowWatch        windowWatch // The daemon window this session last saw open (model_commit_window.go)
+	confirmSecondsLeft int         // Countdown seconds remaining
+	confirmBackupPath  string      // Path to backup for rollback on timeout/abort
 
 	// Paste mode state (for load terminal ...)
 	pasteMode         bool             // True if accumulating paste input
@@ -353,6 +354,10 @@ type commandResult struct {
 	confirmTimerValue     bool   // Value to set confirmTimerActive to
 	confirmBackupPath     string // Backup path for rollback (empty to clear)
 	startConfirmCountdown int    // Seconds for countdown timer (0 = no countdown)
+	// windowWatch, when set, replaces Model.windowWatch: the command ran on a
+	// copy of the Model, so the daemon window it saw opened or closed is
+	// propagated through the result like the confirm timer.
+	windowWatch *windowWatch
 
 	// Paste mode state (for load terminal ...)
 	enterPasteMode    bool   // True to enter paste mode
@@ -663,6 +668,9 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Apply confirm timer state (must be propagated through result)
+	if r.windowWatch != nil {
+		m.windowWatch = *r.windowWatch
+	}
 	if r.setConfirmTimer {
 		m.confirmTimerActive = r.confirmTimerValue
 		m.confirmBackupPath = r.confirmBackupPath
@@ -929,6 +937,10 @@ func (m Model) handleDraftPoll() (tea.Model, tea.Cmd) {
 		m.statusMessage = notification
 		m.showConfigContent()
 	}
+	if notice, ok := m.pollDaemonWindow(); ok {
+		m.statusMessage = notice
+		m.showConfigContent()
+	}
 
 	// Reschedule next poll.
 	return m, tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} })
@@ -1165,6 +1177,9 @@ func (m *Model) applyResult(r commandResult) {
 	m.statusMessage = r.statusMessage
 	if r.showHelp {
 		m.showHelp = true
+	}
+	if r.windowWatch != nil {
+		m.windowWatch = *r.windowWatch
 	}
 	if r.setConfirmTimer {
 		m.confirmTimerActive = r.confirmTimerValue

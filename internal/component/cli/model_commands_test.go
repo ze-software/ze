@@ -1787,10 +1787,13 @@ func TestCmdShowChangesAllGrouping(t *testing.T) {
 	assert.NotNil(t, result.configView, "should include tree view")
 }
 
-// TestCmdCommitConfirmedRejectedInSession verifies commit confirmed is rejected in session mode.
+// TestCmdCommitConfirmedRejectedInSession verifies commit confirmed is refused
+// by a session editor that has no daemon window: one editing a configuration
+// the daemon does not run. A session of the daemon's own config commits
+// through the window (model_commit_window_test.go).
 //
-// VALIDATES: "commit confirmed N" in session mode returns explicit error (AC-37).
-// PREVENTS: Silent misrouting of commit confirmed through session commit path.
+// VALIDATES: "commit confirmed N" with no daemon window returns an explicit error.
+// PREVENTS: Silent misrouting of commit confirmed through the plain session commit path.
 func TestCmdCommitConfirmedRejectedInSession(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -1809,8 +1812,7 @@ func TestCmdCommitConfirmedRejectedInSession(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = model.dispatchCommand("commit confirmed 30")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not yet supported in session mode")
+	require.ErrorIs(t, err, errCommitConfirmedNeedsDaemon)
 }
 
 // TestHasPendingChangesSessionAware verifies pending changes detection uses session.

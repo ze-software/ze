@@ -1,0 +1,69 @@
+# Test: a window belongs to its user: a new session of that user owns it
+# VALIDATES: spec-session-editor-file-mode-parity AC-17 -- admin starts a
+#            window and the client is killed; bob's session shows the window and
+#            is refused; admin's new session shows the seconds left and accepts
+# PREVENTS: a window owned by the SSH session, which a reconnect cannot answer
+option=timeout:value=90s
+
+tmpfs=session-editor-commit-confirmed-reconnect.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-reconnect-admin.script:terminator=EOF_ADMIN
+send set bgp router-id 5.6.7.8
+send commit confirmed 60
+wait commit accept
+kill
+EOF_ADMIN
+
+tmpfs=session-editor-commit-confirmed-reconnect-bob.script:terminator=EOF_BOB
+wait A confirmed commit by admin is pending
+send commit abort
+wait a confirmed commit by admin is pending
+kill
+EOF_BOB
+
+tmpfs=session-editor-commit-confirmed-reconnect-admin-back.script:terminator=EOF_ADMIN_BACK
+wait Confirm within
+send commit accept
+wait accepted: the confirmed configuration
+cli show bgp
+has 5.6.7.8
+kill
+EOF_ADMIN_BACK
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-reconnect.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-reconnect.conf session-editor-commit-confirmed-reconnect-admin.script:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-reconnect.conf session-editor-commit-confirmed-reconnect-bob.script user bob:timeout=60s
+cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-reconnect.conf session-editor-commit-confirmed-reconnect-admin-back.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-reconnect.conf:contains=router-id 5.6.7.8
+expect=file:path=session-editor-commit-confirmed-reconnect.conf:not-contains=1.2.3.4

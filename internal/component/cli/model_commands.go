@@ -25,7 +25,6 @@ import (
 const emptyConfiguration = "(empty configuration)"
 
 var (
-	errCommitConfirmedNotYetSupportedIn         = errors.New("commit confirmed not yet supported in session mode (use 'commit now')")
 	errWhoRequiresAnActiveEditingSession        = errors.New("who requires an active editing session")
 	errDisconnectRequiresAnActiveEditingSession = errors.New("disconnect requires an active editing session")
 	errUsageEditPath                            = errors.New("usage: edit <path>")

@@ -188,6 +188,10 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		fmt.Fprintf(os.Stderr, "error: recover explicit config commit: %v\n", recoverErr)
 		return 1
 	}
+	if recoverErr := recoverConfirmWindow(store, configPath); recoverErr != nil {
+		fmt.Fprintf(os.Stderr, "error: recover confirmed commit: %v\n", recoverErr)
+		return 1
+	}
 	var err error
 	switch configPath {
 	case "-":
@@ -1056,6 +1060,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Publish the reload for SSH session editors created by the infra hook
 	// (registered before this closure could exist).
 	sessionReloadHolder.Store(&reloadAfterCommit)
+	// The confirmed-commit window reverts through the same reload, so it
+	// starts here; the deferred stop covers an early return.
+	confirmWindow := startConfirmWindow(store, configPath, reloadAfterCommit)
+	defer stopConfirmWindow(confirmWindow)
 	// The request data RPCs act on this store through the same reload. The
 	// deferred clear runs before the store closes, so no RPC reaches a closed one.
 	// The managed clients this hub serves are published once the managed
@@ -1520,6 +1528,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	close(reloadCh)
 	awaitReloadWorker(reloadDone, reloadShutdownGrace, reloadCancel)
+	// A window still open stays recorded for the next start; a revert in
+	// flight reloads, so the window stops before the reloads close.
+	stopConfirmWindow(confirmWindow)
 	// A commit-driven reload still running here would promote its candidate
 	// into a store the caller closes when Run returns: wait for it.
 	commitReloads.close()

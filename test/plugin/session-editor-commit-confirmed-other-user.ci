@@ -1,0 +1,81 @@
+# Test: another user is refused every applying subcommand during a window
+# VALIDATES: spec-session-editor-file-mode-parity AC-18 (b), (c) -- while
+#            admin's window is pending, bob's `commit now`, `commit now force`,
+#            `commit confirmed`, `commit accept` and `commit abort` are refused
+#            naming admin and the seconds left; bob's `commit verify` runs. The
+#            first refusal is read on screen; the screen redraws only what
+#            changed, so the later ones are proven by the daemon state and by
+#            admin still owning the window
+# PREVENTS: a second user's commit landing inside a window that reverts it, or
+#           a second user accepting or aborting a window that is not theirs
+option=timeout:value=90s
+
+tmpfs=session-editor-commit-confirmed-other-user.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-other-user-admin.script:terminator=EOF_ADMIN
+send set bgp router-id 5.6.7.8
+send commit confirmed 60
+wait commit accept
+kill
+EOF_ADMIN
+
+tmpfs=session-editor-commit-confirmed-other-user-bob.script:terminator=EOF_BOB
+wait A confirmed commit by admin is pending
+send set bgp router-id 9.9.9.9
+send commit now
+wait a confirmed commit by admin is pending with
+send commit now force
+send commit confirmed 30 force
+send commit accept
+send commit abort
+send commit verify
+wait commit verify: the candidate is valid
+cli show bgp
+has 5.6.7.8
+lacks 9.9.9.9
+kill
+EOF_BOB
+
+tmpfs=session-editor-commit-confirmed-other-user-admin-back.script:terminator=EOF_ADMIN_BACK
+send commit accept
+wait accepted: the confirmed configuration
+kill
+EOF_ADMIN_BACK
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-other-user.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-other-user.conf session-editor-commit-confirmed-other-user-admin.script:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-other-user.conf session-editor-commit-confirmed-other-user-bob.script user bob:timeout=60s
+cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-other-user.conf session-editor-commit-confirmed-other-user-admin-back.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-other-user.conf:contains=router-id 5.6.7.8
+expect=file:path=session-editor-commit-confirmed-other-user.conf:not-contains=9.9.9.9

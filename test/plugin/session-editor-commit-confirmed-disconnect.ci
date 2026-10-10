@@ -1,0 +1,68 @@
+# Test: a `commit confirmed` reverts on a running daemon after the SSH client that issued it dies
+# VALIDATES: spec-session-editor-file-mode-parity AC-15 -- after `commit confirmed 5`
+#            the SSH client is killed, and the daemon still reverts at the deadline
+# PREVENTS: a confirm window owned by the SSH channel, which dies with it and
+#           leaves the operator locked out on the trial config
+option=timeout:value=60s
+
+tmpfs=session-editor-commit-confirmed-disconnect.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-disconnect.script:terminator=EOF_SCRIPT
+cli show bgp
+has 1.2.3.4
+send set bgp router-id 5.6.7.8
+send commit confirmed 5
+wait commit accept
+has 5.6.7.8
+kill
+has 1.2.3.4
+lacks 5.6.7.8
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-disconnect.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-disconnect.conf session-editor-commit-confirmed-disconnect.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-disconnect.conf:not-contains=5.6.7.8

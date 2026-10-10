@@ -1,0 +1,60 @@
+# Test: `commit accept` keeps the applied config and leaves later edits pending
+# VALIDATES: spec-session-editor-file-mode-parity AC-24 -- admin edits again
+#            inside the window without committing and runs `commit accept`: the
+#            window ends, the applied config stays, the further edit stays
+#            pending and the running daemon does not have it
+# PREVENTS: accept committing the pending edits, or accept dropping them
+option=timeout:value=90s
+
+tmpfs=session-editor-commit-confirmed-accept-keeps-candidate.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-confirmed-accept-keeps-candidate.script:terminator=EOF_SCRIPT
+send set bgp router-id 5.6.7.8
+send commit confirmed 60
+wait commit accept
+send set bgp router-id 9.9.9.9
+send commit accept
+wait accepted: the confirmed configuration
+send show | changes
+wait 1 pending change
+cli show bgp
+has 5.6.7.8
+lacks 9.9.9.9
+kill
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-confirmed-accept-keeps-candidate.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-confirmed-accept-keeps-candidate.conf session-editor-commit-confirmed-accept-keeps-candidate.script:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-confirmed-accept-keeps-candidate.conf:contains=router-id 5.6.7.8
+expect=file:path=session-editor-commit-confirmed-accept-keeps-candidate.conf:not-contains=9.9.9.9
