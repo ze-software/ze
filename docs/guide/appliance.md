@@ -43,7 +43,7 @@ sudo dnf install -y e2fsprogs qemu-system-x86       # Fedora
 The build needs `mkfs.ext4`, `debugfs`, and `e2fsck` from e2fsprogs. The native
 builder resolves each tool independently from the Homebrew keg, standard sbin
 directories, and `PATH`.
-<!-- source: internal/appliance/cmd_build.go -- resolveE2FSTool -->
+<!-- source: internal/appliance/cmd_build.go -- ResolveE2FSTool -->
 
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
 plus `xorriso`.
@@ -399,7 +399,11 @@ The image boots ze's own runtime kernel and no other. `config.json` names
 never resolves on its own. Each build resolves the runtime kernel for the image's
 architecture (the cache entry, else a native build), assembles a gokrazy kernel
 package from that cache entry inside the prepared copy, and replaces the kernel
-module's require to point at it. Preparation with no resolved kernel is refused,
+module's require to point at it. The package carries the kernel, its modules and
+a `cmdline.txt` naming `root=/dev/sda2`, which gokrazy rewrites to the image's
+root partition UUID before it appends the instance's extra kernel arguments. It
+also carries an empty `config.txt`, the Raspberry Pi bootloader file gokrazy
+reads from every kernel package and no ze target uses. Preparation with no resolved kernel is refused,
 so `gok` never fetches a kernel. No setting selects another kernel package.
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
 <!-- source: internal/appliance/instance/prepare.go -- Prepare, replaceKernel -->

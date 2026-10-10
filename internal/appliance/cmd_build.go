@@ -19,6 +19,7 @@ import (
 	"github.com/gokrazy/tools/gok"
 
 	"github.com/ze-software/ze/internal/appliance/instance"
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -37,13 +38,14 @@ const (
 )
 
 var (
-	// Each e2fsprogs tool is resolved on its own; see resolveE2FSTool for why a
+	// Each e2fsprogs tool is resolved on its own; see ResolveE2FSTool for why a
 	// single shared directory was the wrong assumption.
-	e2fsMkfs      = resolveE2FSTool("mkfs.ext4")
-	e2fsDebugfs   = resolveE2FSTool("debugfs")
-	e2fsE2fsck    = resolveE2FSTool("e2fsck")
+	e2fsMkfs      = ResolveE2FSTool("mkfs.ext4")
+	e2fsDebugfs   = ResolveE2FSTool("debugfs")
+	e2fsE2fsck    = ResolveE2FSTool("e2fsck")
 	runExternalFn = runExternal
 	gokBuildFn    = runGokInProcess
+	gokExecuteFn  = executeGok
 )
 
 // e2fsSearchDirs are the directories searched for each e2fsprogs tool, in order.
@@ -79,7 +81,7 @@ func e2fsSearchDirs() []string {
 	return unique
 }
 
-// resolveE2FSTool returns the absolute path of one e2fsprogs tool, or "" when it
+// ResolveE2FSTool returns the absolute path of one e2fsprogs tool, or "" when it
 // is not installed.
 //
 // Each tool is resolved INDEPENDENTLY. Requiring them all in one directory was
@@ -89,7 +91,7 @@ func e2fsSearchDirs() []string {
 // absent -- injectZeFS logged "e2fsck not found" and "debugfs write silently
 // failed" while the binaries sat on disk. PATH is consulted last so a tool
 // installed anywhere else is still found.
-func resolveE2FSTool(name string) string {
+func ResolveE2FSTool(name string) string {
 	for _, dir := range e2fsSearchDirs() {
 		p := filepath.Join(dir, name)
 		if _, err := os.Stat(p); err == nil {
@@ -306,6 +308,17 @@ func runGokInProcess(args []string) error {
 		}
 	}
 
+	// gok does not return its error: packer.Main prints "ERROR:" to os.Stderr
+	// and calls os.Exit(1). crashlog.Init pointed os.Stderr at a relay pipe, and
+	// os.Exit kills the relay before it copies that line out, so the build ended
+	// with status 1 and no error at all. Flush puts the real stderr back first,
+	// as crashlog.Exec does before an execve.
+	crashlog.Flush()
+	return gokExecuteFn(ctx, args)
+}
+
+// executeGok runs gok's command line over args.
+func executeGok(ctx context.Context, args []string) error {
 	return gok.Context{
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,

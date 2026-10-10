@@ -51,11 +51,21 @@ const (
 	vmlinuzName  = "vmlinuz"
 	overlaysName = "overlays"
 	dtbPattern   = "*.dtb"
+	cmdlineName  = "cmdline.txt"
+	configName   = "config.txt"
 )
 
+// kernelCmdline is the kernel command line the package carries. gokrazy's
+// packer reads <kernel package>/cmdline.txt and fails the build without it
+// (writeCmdline in the vendored packer's write.go). It rewrites root=/dev/sda2
+// to the image's root PARTUUID, so this spelling is what makes the root device
+// right on every disk; KernelExtraArgs from the instance config is appended
+// after it. The line is the one the rtr7 kernel package carried.
+const kernelCmdline = "root=/dev/sda2 ro init=/gokrazy/init panic=10 oops=panic\n"
+
 // assembleKernelPackage writes the gokrazy kernel package for a resolved runtime
-// kernel tree into destination: a go.mod naming KernelModule, one Go file, and
-// the tree's vmlinuz, lib/modules, device trees and overlays.
+// kernel tree into destination: a go.mod naming KernelModule, one Go file, the
+// boot files the packer reads (cmdline.txt, config.txt), and the tree's vmlinuz, lib/modules, device trees and overlays.
 //
 // tree MUST be the arch-keyed cache entry the resolver answered, never
 // tmp/kernel/build, which every resolver call rewrites. destination MUST NOT
@@ -83,6 +93,15 @@ func assembleKernelPackage(tree, destination, arch string) error {
 		return fmt.Errorf("write kernel package source: %w", err)
 	}
 
+	if err := os.WriteFile(filepath.Join(destination, cmdlineName), []byte(kernelCmdline), 0o600); err != nil {
+		return fmt.Errorf("write kernel package %s: %w", cmdlineName, err)
+	}
+	// writeConfig in the vendored packer reads config.txt as well. It is the
+	// Raspberry Pi bootloader's file, which no ze target reads, so it is empty,
+	// as the rtr7 package's was.
+	if err := os.WriteFile(filepath.Join(destination, configName), nil, 0o600); err != nil {
+		return fmt.Errorf("write kernel package %s: %w", configName, err)
+	}
 	if err := copyKernelFile(filepath.Join(tree, vmlinuzName), filepath.Join(destination, vmlinuzName)); err != nil {
 		return err
 	}

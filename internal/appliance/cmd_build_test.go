@@ -40,7 +40,7 @@ func fakeLoopbackMount(name string, args []string, dbContent []byte) {
 // useE2FSDir points every e2fsprogs tool at dir for the duration of the test, or
 // marks them all absent when dir is "".
 //
-// Production resolves each tool INDEPENDENTLY (resolveE2FSTool), because
+// Production resolves each tool INDEPENDENTLY (ResolveE2FSTool), because
 // requiring one shared directory broke on distributions that split the package
 // -- Alpine ships debugfs in e2fsprogs-extra. A test wanting a fake toolchain
 // therefore has to redirect each one, which is all this does.

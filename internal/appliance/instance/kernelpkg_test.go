@@ -83,6 +83,43 @@ func TestAssembleKernelPackage(t *testing.T) {
 	}
 }
 
+// TestAssembleKernelPackageWritesCmdline verifies the package carries the two
+// boot files gokrazy's packer reads: the kernel command line and config.txt.
+//
+// VALIDATES: writeBoot finds <kernel package>/cmdline.txt, and its root= is the
+// spelling the packer rewrites to the image's PARTUUID.
+// PREVENTS: `ze appliance build` failing at "Creating boot file system" with
+// "open .../kernel/cmdline.txt: no such file or directory", which is what the
+// first arm64 build of ze's own kernel answered on 2026-10-10, and then the
+// same for config.txt.
+func TestAssembleKernelPackageWritesCmdline(t *testing.T) {
+	tree := writeKernelTree(t, "arm64")
+	pkg := filepath.Join(t.TempDir(), "kernel")
+
+	if err := assembleKernelPackage(tree, pkg, "arm64"); err != nil {
+		t.Fatalf("assembleKernelPackage: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(pkg, "cmdline.txt"))
+	if err != nil {
+		t.Fatalf("assembled package lacks cmdline.txt: %v", err)
+	}
+	const want = "root=/dev/sda2 ro init=/gokrazy/init panic=10 oops=panic"
+	if got := strings.TrimSpace(string(data)); got != want {
+		t.Errorf("cmdline.txt = %q, want %q", got, want)
+	}
+
+	// writeConfig reads config.txt too; it is the Raspberry Pi bootloader's file,
+	// which no ze target reads, so it is empty as rtr7's was.
+	config, err := os.ReadFile(filepath.Join(pkg, "config.txt"))
+	if err != nil {
+		t.Fatalf("assembled package lacks config.txt: %v", err)
+	}
+	if len(config) != 0 {
+		t.Errorf("config.txt = %q, want it empty", config)
+	}
+}
+
 // TestAssembleKernelPackageRefusesWrongArch verifies an amd64 vmlinuz is refused
 // for an arm64 image before any file is written.
 //

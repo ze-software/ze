@@ -36,13 +36,13 @@ func TestResolveE2FSToolFindsSplitPackageLayout(t *testing.T) {
 
 	t.Setenv("PATH", dirA+string(os.PathListSeparator)+dirB)
 
-	if got := resolveE2FSTool(toolA); got != pathA {
-		t.Errorf("resolveE2FSTool(%s) = %q, want %q", toolA, got, pathA)
+	if got := ResolveE2FSTool(toolA); got != pathA {
+		t.Errorf("ResolveE2FSTool(%s) = %q, want %q", toolA, got, pathA)
 	}
-	if got := resolveE2FSTool(toolB); got != pathB {
-		t.Errorf("resolveE2FSTool(%s) = %q, want %q; a tool in a DIFFERENT directory from its sibling must still resolve", toolB, got, pathB)
+	if got := ResolveE2FSTool(toolB); got != pathB {
+		t.Errorf("ResolveE2FSTool(%s) = %q, want %q; a tool in a DIFFERENT directory from its sibling must still resolve", toolB, got, pathB)
 	}
-	if got := resolveE2FSTool("ze-fake-absent-tool"); got != "" {
-		t.Errorf("resolveE2FSTool of an absent tool = %q, want empty", got)
+	if got := ResolveE2FSTool("ze-fake-absent-tool"); got != "" {
+		t.Errorf("ResolveE2FSTool of an absent tool = %q, want empty", got)
 	}
 }
