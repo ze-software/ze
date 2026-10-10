@@ -70,10 +70,16 @@ resolves the kernel (`GokrazyRuntimeKernelReachable`), and its refusal ends
 with `GOARCH=<host> ./le build gokrazy <args>`, with each argument quoted for
 the shell. A bare `ze appliance kernel --target runtime` for that
 architecture ends with the kernel command to run on a host of it. An
-architecture Ze builds no kernel for at all (`kernelbuilder.ArchSupported`,
-the arches the Docker backend names a platform for) is refused before the
-cache is asked, and each of these refusals then offers only the host's own
-architecture, never a host of the unsupported one. The host's
+architecture Ze builds no kernel for at all (`kernelbuilder.SupportedArches`,
+the arches the Docker backend names a platform for) never reaches a host's
+cache or builder. `ze appliance kernel --arch` refuses it first, ending with
+`ze appliance kernel --target <target> --arch <host>`; the appliance config's
+`image.arch` is refused when the config is validated, ending with the
+`"image": {"arch": "<host>"}` line to set; and `./le build gokrazy`, whose
+`GOARCH` arrives unchecked, is refused by `runtimeKernelReachable` before the
+cache is asked, ending with the `GOARCH=<host>` command. Each refusal names
+the arches Ze builds and offers only the host's own, never a host of the
+unsupported one. The host's
 architecture is declared once, `kernelbuilder.HostArch`, and the arch check
 (`kernelbuilder.CheckArch`) runs before the installer firmware is fetched. A cold cache that cannot build on this
 host, for example with no network for the kernel.org tarball, fails with the

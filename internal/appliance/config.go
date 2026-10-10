@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/cpulist"
 	"github.com/ze-software/ze/internal/core/crashlog"
@@ -313,8 +315,8 @@ func (c *applianceConfig) Validate() error {
 	if c.TLS.ValidityYears > 25 {
 		return fmt.Errorf("tls.validity-years %d: maximum is 25", c.TLS.ValidityYears)
 	}
-	if c.Image.Arch != archAMD64 && c.Image.Arch != archARM64 {
-		return fmt.Errorf("image.arch %q: must be amd64 or arm64", c.Image.Arch)
+	if !slices.Contains(kernelbuilder.SupportedArches(), c.Image.Arch) {
+		return errors.New(unsupportedArch("image.arch", c.Image.Arch, "set this host's arch in the appliance's config file:\n\"image\": {\"arch\": \""+kernelbuilder.HostArch()+"\"}"))
 	}
 	if c.Image.KernelProfile != "" {
 		if err := validateKernelProfileName(c.Image.KernelProfile); err != nil {

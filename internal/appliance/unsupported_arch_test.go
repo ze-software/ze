@@ -1,0 +1,116 @@
+package appliance
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+// captureStdout redirects os.Stdout for the duration of fn and returns what was
+// written. Needed because runKernel reports its refusals through cliErrorf.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "stdout.txt")
+	f, err := os.Create(path) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stdout
+	os.Stdout = f
+	fn()
+	os.Stdout = orig
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path) //nolint:gosec // test-controlled path
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+// TestUnsupportedArchRefusedBeforeAnyHost proves an arch Ze builds no kernel
+// for is refused as unsupported at each entry point an operator types, before
+// any kernel build or image build starts, and that no refusal sends the
+// operator to a host of that arch: none exists that could build it. Each
+// refusal names the arches Ze builds and ends with a fix for this host's arch.
+//
+// VALIDATES: round-4 NOTE 1, round-5 ISSUE 2.
+// PREVENTS: "build it on a riscv64 host", advice no host can follow, and an
+// arch refusal with no fix.
+func TestUnsupportedArchRefusedBeforeAnyHost(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	const unsupported = "riscv64"
+	host := runtime.GOARCH
+	setTestKernelBuild(t, func(kernelBuildSpec) error {
+		t.Fatal("a kernel build started for an unsupported arch")
+		return nil
+	})
+	oldGok := gokBuildFn
+	gokBuildFn = func([]string) error { t.Fatal("the image builder ran for an unsupported arch"); return nil }
+	defer func() { gokBuildFn = oldGok }()
+
+	// ze appliance kernel --arch riscv64.
+	var code int
+	kernel := captureStdout(t, func() { code = runKernel([]string{"--target", "runtime", "--arch", unsupported}) })
+	if code != exitError {
+		t.Errorf("runKernel(--arch %s) = %d, want %d", unsupported, code, exitError)
+	}
+
+	// ze appliance build lab, whose config asks for riscv64.
+	oldBase := baseDir
+	baseDir = t.TempDir()
+	defer func() { baseDir = oldBase }()
+	if err := os.MkdirAll(filepath.Join(baseDir, "lab"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	cfg := DefaultConfig("lab")
+	cfg.Image.Arch = unsupported
+	if err := saveConfig(ConfigPath(baseDir, "lab"), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	image := captureStderr(t, func() { code = buildOne("lab") })
+	if code != exitError {
+		t.Errorf("buildOne with image.arch %s = %d, want %d", unsupported, code, exitError)
+	}
+
+	// GOARCH=riscv64 ./le build gokrazy reaches runtimeKernelReachable unchecked.
+	reach := runtimeKernelReachable(unsupported)
+	if foreign, ok := errors.AsType[*foreignArchKernelError](reach); !ok || !foreign.unsupported {
+		t.Fatalf("runtimeKernelReachable(%s) = %v, want the unsupported-arch refusal", unsupported, reach)
+	}
+	gokrazy := GokrazyRuntimeKernelReachable(unsupported, []string{"overwrite"}).Error()
+
+	refusals := map[string]string{"kernel": kernel, "image": image, "gokrazy": gokrazy}
+	for caller, refusal := range refusals {
+		if !strings.Contains(refusal, "Ze builds kernels for amd64 and arm64 only") {
+			t.Errorf("%s refusal does not say the arch is unsupported:\n%s", caller, refusal)
+		}
+		if strings.Contains(refusal, unsupported+" host") || strings.Contains(refusal, "--arch "+unsupported) {
+			t.Errorf("%s refusal sends the operator to a %s host:\n%s", caller, unsupported, refusal)
+		}
+	}
+	lastLine := func(text string) string {
+		lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+		return lines[len(lines)-1]
+	}
+	if !strings.Contains(kernel, `--arch "riscv64" names an architecture Ze builds no kernel for`) {
+		t.Errorf("kernel refusal does not name the flag the operator typed:\n%s", kernel)
+	}
+	if got, want := lastLine(kernel), "ze appliance kernel --target runtime --arch "+host; got != want {
+		t.Errorf("kernel refusal ends %q, want %q", got, want)
+	}
+	if !strings.Contains(image, `image.arch "riscv64" names an architecture Ze builds no kernel for`) {
+		t.Errorf("image refusal does not name the config field:\n%s", image)
+	}
+	if got, want := lastLine(image), `"image": {"arch": "`+host+`"}`; got != want {
+		t.Errorf("image refusal ends %q, want %q", got, want)
+	}
+	if got, want := lastLine(gokrazy), "GOARCH="+host+" ./le build gokrazy overwrite"; got != want {
+		t.Errorf("gokrazy refusal ends %q, want %q", got, want)
+	}
+}

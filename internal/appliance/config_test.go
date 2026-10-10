@@ -163,7 +163,7 @@ func TestConfigValidation(t *testing.T) {
 		{
 			name:    "bad arch",
 			modify:  func(c *applianceConfig) { c.Image.Arch = "mips" },
-			wantErr: "must be amd64 or arm64",
+			wantErr: "names an architecture Ze builds no kernel for: Ze builds kernels for amd64 and arm64 only",
 		},
 		{
 			name:   "arm64 valid",

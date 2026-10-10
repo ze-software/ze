@@ -15,6 +15,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -167,7 +169,7 @@ func majorAtLeast(major string, min int) bool {
 
 func runKernel(args []string) int {
 	fs := flag.NewFlagSet("appliance kernel", flag.ContinueOnError)
-	archFlag := fs.String("arch", "", "Target architecture: amd64 or arm64 (default: from appliance config or host)")
+	archFlag := fs.String("arch", "", "Target architecture: "+strings.Join(kernelbuilder.SupportedArches(), " or ")+" (default: from appliance config or host)")
 	profileFlag := fs.String("profile", "", "Kernel profile token (default: from appliance config or target default)")
 	builderFlag := fs.String("builder", "", "Build backend: docker or qemu (default: docker if available, else qemu)")
 	targetFlag := fs.String("target", defaultKernelTarget, "Kernel target: installer (default) or runtime")
@@ -183,7 +185,7 @@ func runKernel(args []string) int {
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--target <target>", Desc: "Kernel target: installer (default, monolithic PXE Image) or runtime (modules + vmlinuz tree for the gokrazy appliance)"},
-					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: from appliance config or host)"},
+					{Name: "--arch <arch>", Desc: "Target architecture: " + strings.Join(kernelbuilder.SupportedArches(), " or ") + " (default: from appliance config or host)"},
 					{Name: "--profile <profile>", Desc: "Kernel profile token (default: from appliance config or the target default: qemu for installer, runtime for runtime)"},
 					{Name: "--builder <backend>", Desc: "Build backend: docker or qemu (default: docker if available, else qemu)"},
 					{Name: "--version <ver>", Desc: func() string {
@@ -242,8 +244,9 @@ func runKernel(args []string) int {
 		profile = td.defaultProfile
 	}
 
-	if arch != archAMD64 && arch != archARM64 {
-		cliErrorf("arch %q must be amd64 or arm64", arch)
+	if !slices.Contains(kernelbuilder.SupportedArches(), arch) {
+		host := kernelbuilder.HostArch()
+		cliErrorf("%s\nze appliance kernel --target %s --arch %s", unsupportedArch("--arch", arch, "build this host's arch instead:"), target, host)
 		return exitError
 	}
 	if err := validateKernelProfileName(profile); err != nil {
@@ -456,9 +459,11 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 // foreignArchKernelError refuses a runtime kernel this host cannot build: the
 // cache holds no entry for arch, and Ze builds every kernel on a host of its own
 // arch (AC-13). unsupported marks an arch Ze builds no kernel for on any host,
-// whose fix can only be this host's arch. Error answers the fix for a bare
-// kernel request; forInstance answers it for an image build, naming the
-// instance file and the build command.
+// whose fix can only be this host's arch; only `./le build gokrazy` meets it,
+// since its GOARCH reaches runtimeKernelReachable unchecked, while runKernel
+// and applianceConfig.Validate refuse such an arch first (unsupportedArch).
+// Error answers the fix for a bare kernel request; forInstance answers it for
+// an image build, naming the instance file and the build command.
 type foreignArchKernelError struct {
 	version, arch, cachedDir string
 	unsupported              bool
@@ -479,10 +484,6 @@ func (e *foreignArchKernelError) refusal(fix string) string {
 }
 
 func (e *foreignArchKernelError) Error() string {
-	if e.unsupported {
-		host := kernelbuilder.HostArch()
-		return e.refusal("build this host's arch, " + host + ", instead:\nze appliance kernel --target runtime --arch " + host)
-	}
 	return e.refusal("run this on an " + e.arch + " host, which builds it into that host's cache:\nze appliance kernel --target runtime --arch " + e.arch)
 }
 
@@ -492,10 +493,6 @@ func (e *foreignArchKernelError) Error() string {
 // of this host's arch here; both end in the same command.
 func (e *foreignArchKernelError) forInstance(dir, name string) error {
 	host := kernelbuilder.HostArch()
-	if e.unsupported {
-		return errors.New(e.refusal("set \"image\": {\"arch\": \"" + host + "\"} in " + ConfigPath(dir, name) +
-			" to build an " + host + " image here; then run:\nze appliance --dir " + shellArg(dir) + " build " + shellArg(name)))
-	}
 	return errors.New(e.refusal("build the image on an " + e.arch + " host, or set \"image\": {\"arch\": \"" + host +
 		"\"} in " + ConfigPath(dir, name) + " to build an " + host + " image here; then run:\nze appliance --dir " + shellArg(dir) + " build " + shellArg(name)))
 }
@@ -524,6 +521,15 @@ func shellArg(value string) string {
 		return value
 	}
 	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
+}
+
+// unsupportedArch answers the refusal of arch, an architecture Ze builds no
+// kernel for on any host, named as the operator gave it (what: a flag or a
+// config field), with the arches Ze does build and fix, which the caller ends
+// with its command on a line of its own.
+func unsupportedArch(what, arch, fix string) string {
+	return what + " " + strconv.Quote(arch) + " names an architecture Ze builds no kernel for: Ze builds kernels for " +
+		strings.Join(kernelbuilder.SupportedArches(), " and ") + " only, each on a host of its own arch; " + fix
 }
 
 // runtimeKernelReachable answers the refusal an image build of arch would meet
