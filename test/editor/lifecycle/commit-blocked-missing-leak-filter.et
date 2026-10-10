@@ -55,6 +55,6 @@ option=timeout:value=20s
 input=type:text=set bgp peer peer1 session router-id 1.2.3.5
 input=enter
 
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=commit blocked

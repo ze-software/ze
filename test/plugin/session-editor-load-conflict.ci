@@ -62,7 +62,7 @@ EOF_BOB
 tmpfs=session-editor-load-conflict-admin.script:terminator=EOF_ADMIN
 send load file absolute merge session-editor-load-conflict-add.conf
 wait Configuration merged from
-send commit
+send commit now
 wait LIVE
 wait bob
 kill

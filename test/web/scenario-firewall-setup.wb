@@ -74,7 +74,7 @@ action=wait:ms=300
 action=fill:id=cli-input:value=top
 action=press:key=Enter
 action=wait:ms=200
-action=fill:id=cli-input:value=commit
+action=fill:id=cli-input:value=commit now
 action=press:key=Enter
 action=wait:ms=1200
 

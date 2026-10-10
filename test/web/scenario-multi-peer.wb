@@ -31,7 +31,7 @@ expect=element:text=multi-isp
 expect=element:text=multi-cust
 
 # Commit
-action=fill:id=cli-input:value=commit
+action=fill:id=cli-input:value=commit now
 action=press:key=Enter
 action=wait:ms=2000
 

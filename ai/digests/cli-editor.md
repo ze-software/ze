@@ -76,7 +76,7 @@ to in-process registry handlers.
 | `internal/component/cli/model_keys.go` | Keystroke dispatch: `handleKeyMsg`, `handleTab`, `handleEnter`, paste mode, history |
 | `internal/component/cli/model_mode.go` | `EditorMode` (config/operational), `SwitchMode`, `configModeCommands`, `executeOperationalCommand` |
 | `internal/component/cli/model_commands.go` | Config-mode command dispatch (`dispatchCommand`), `tokenizeCommand` |
-| `internal/component/cli/model_commands_commit.go` | `commit`/`commit force`/`commit confirmed`, session commit, `discard`, `rollback`, validation gate |
+| `internal/component/cli/model_commands_commit.go` | `commit now [force]`/`commit confirmed`/`commit verify`, session commit, `discard`, `rollback`, validation gate |
 | `internal/component/cli/editor.go` | `Editor` over `*config.Tree`: working/original content, `NotifyReload`, `Save`, backups |
 | `internal/component/cli/completer.go` | YANG config completion; `valueCompletions` (`ze:validate` CompleteFn → enum/bool/union → hint) |
 | `internal/component/cli/client/main.go` | Standalone/attached interactive CLI entry; builds command tree from dispatch |
@@ -114,8 +114,9 @@ to in-process registry handlers.
   YANG-backed commands, so a plugin needing offline completion must ship a `-cmd` YANG module
   (`ai/rules/cli.md`).
 - **Commit is fail-closed and transactional-when-daemon.** Both errors and warnings block a
-  plain `commit`; `commit force` skips warnings but still blocks on errors; `commit
-  confirmed <N>` arms an auto-rollback countdown and is not supported in session mode.
+  `commit now`; `commit now force` skips warnings but still blocks on errors; `commit
+  confirmed <N>` arms an auto-rollback countdown (answered by `commit accept` / `commit abort`)
+  and is not supported in session mode. One grammar: `contract.ParseCommit`.
   Session commit does conflict detection (LIVE/STALE, `:286`). Transactional path fires only when
   `HasReloadNotifier()`, `StageCandidate` → `NotifyReload` → `MarkCommittedContent`; a reload
   error clears the candidate (`storage.ClearCandidate`) and reports failure. No notifier =

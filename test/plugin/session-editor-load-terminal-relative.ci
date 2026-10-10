@@ -63,7 +63,7 @@ key ctrl-d
 wait Configuration merged
 send show | changes
 wait 1 pending change
-send commit
+send commit now
 wait Session committed:
 has 1.2.3.4
 EOF_SCRIPT

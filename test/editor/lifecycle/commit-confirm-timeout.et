@@ -1,6 +1,6 @@
-# Test: Commit confirm sets timer active
+# Test: commit confirmed sets timer active
 # VALIDATES: "commit confirmed N" activates timer state
-# VALIDATES: Status message shows confirm requirement
+# VALIDATES: Status message shows the countdown and names commit accept and commit abort
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -41,5 +41,6 @@ expect=dirty:true
 input=type:text=commit confirmed 60
 input=enter
 expect=timer:active
-expect=status:contains=confirm
+expect=status:contains=Confirm within
+expect=status:contains=Use 'commit accept' or 'commit abort'
 expect=error:none

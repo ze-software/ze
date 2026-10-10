@@ -126,7 +126,7 @@ send load file absolute replace session-editor-load-replace-new.conf
 wait Configuration loaded from
 send show | changes
 wait 2 pending changes
-send commit
+send commit now
 wait Session committed:
 lacks peer2
 has peer1
@@ -150,7 +150,7 @@ key ctrl-d
 wait Configuration loaded
 send show | changes
 wait 1 pending change
-send commit
+send commit now
 wait Session committed:
 cli show bgp
 has 1.2.3.4

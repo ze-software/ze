@@ -49,7 +49,7 @@ input=enter
 expect=status:contains=set
 
 # Single commit for all changes
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false

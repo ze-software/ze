@@ -43,7 +43,7 @@ input=enter
 expect=dirty:true
 
 # Commit should fail because the daemon did not accept the candidate
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=commit failed
 expect=status:contains=daemon not reachable

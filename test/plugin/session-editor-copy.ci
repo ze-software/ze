@@ -64,7 +64,7 @@ wait already exists
 send set bgp peer peer2 connection remote ip 127.0.0.3
 send show | changes
 wait 2 pending changes
-send commit
+send commit now
 wait Session committed:
 has peer2
 has peer1

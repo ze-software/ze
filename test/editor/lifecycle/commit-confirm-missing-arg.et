@@ -37,4 +37,4 @@ expect=dirty:true
 # Commit confirm without seconds should fail
 input=type:text=commit confirmed
 input=enter
-expect=error:contains=usage
+expect=error:contains=commit confirmed <seconds> needs the seconds, from 1 to 3600

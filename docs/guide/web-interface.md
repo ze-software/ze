@@ -303,7 +303,7 @@ In integrated mode, CLI commands update the page content directly:
 | `show [path]` | Display config text at the current or specified path |
 | `top` | Navigate to root |
 | `up` | Navigate one level up |
-| `commit` | Commit pending changes |
+| `commit now` | Commit pending changes. `commit` without a subcommand is refused with the list of subcommands; `commit confirmed` and `commit verify` are refused in the browser by name |
 | `discard` | Discard pending changes |
 | `help` | List available commands |
 

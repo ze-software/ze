@@ -23,7 +23,7 @@ action=wait:ms=1000
 expect=element:text=setup-test
 
 # Commit
-action=fill:id=cli-input:value=commit
+action=fill:id=cli-input:value=commit now
 action=press:key=Enter
 action=wait:ms=2000
 

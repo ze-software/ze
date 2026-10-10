@@ -28,7 +28,7 @@ option=timeout:value=10s
 expect=errors:count=1
 
 # Commit is blocked by validation errors
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=blocked
 

@@ -32,6 +32,6 @@ expect=status:contains=set
 
 # Bob commits -- blocked by live conflict with Alice
 session=bob
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=conflict

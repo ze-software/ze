@@ -20,8 +20,8 @@ command history.
 Three more surfaces reach the same editor against a running daemon. An SSH
 session opens in configuration mode. The web interface gives each authenticated
 user an editor of their own. The console of `ze start --cli` opens at the
-operational prompt, where `configure` enters configuration mode. A `commit` from
-any of the three reloads the daemon.
+operational prompt, where `configure` enters configuration mode. A `commit now`
+from any of the three reloads the daemon.
 <!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor, attachedConsoleEditor -->
 <!-- source: internal/component/cli/model_keys.go -- handleEnter, the configure arm -->
 
@@ -38,10 +38,12 @@ any of the three reloads the daemon.
 | `show \| compare` | Diff against committed config; shows only the parts that differ |
 | `show \| errors` | Validation issues |
 | `show \| history` | List rollback revisions |
-| `commit` | Save changes and notify daemon |
+| `commit now` | Save changes and notify daemon |
+| `commit now force` | Commit even though validation reports warnings (never errors) |
 | `commit confirmed <N>` | Commit with N-second auto-revert window (1-3600) |
-| `confirm` | Make a pending confirmed commit permanent |
-| `confirm abort` | Roll back a pending confirmed commit immediately |
+| `commit accept` | Make a pending confirmed commit permanent |
+| `commit abort` | Roll back a pending confirmed commit immediately |
+| `commit verify` | Validate the candidate and apply nothing |
 | `rollback <N>` | Restore revision N |
 | `top` | Navigate to config root |
 | `up` | Navigate up one level |
@@ -49,7 +51,17 @@ any of the three reloads the daemon.
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 
-`commit` reaches the same reload as `ze signal reload`. Which configuration
+`commit` always takes a subcommand: a bare `commit`, a bare `force`, or an
+unknown word is refused with the list of subcommands, so a typo never applies a
+configuration. `force` is a modifier that only follows `commit now` or
+`commit confirmed <seconds>`. While a confirmed commit is pending, `commit now`
+and a second `commit confirmed` are refused: answer the window first with
+`commit accept` or `commit abort`. The SSH editor, `ze config edit` and the web
+terminal share this grammar.
+<!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, errCommitWindowPending -->
+
+`commit now` reaches the same reload as `ze signal reload`. Which configuration
 changes stop a session, and in what order, is in
 [The order of a commit](config-reload.md#the-order-of-a-commit).
 
@@ -93,7 +105,7 @@ clear, so the operator still reads which leaf was written.
 ### Commands run one at a time, in order
 
 The config commands of one session run serially, in the order the operator
-entered them. Pasting a block of `set` lines followed by `commit` over SSH lands
+entered them. Pasting a block of `set` lines followed by `commit now` over SSH lands
 every `set` before the `commit` reads the draft. Nothing is dropped and no
 command is refused for arriving while another is in flight.
 <!-- source: internal/component/cli/model_commands.go -- dispatchQueue -->
@@ -209,12 +221,10 @@ edit must be reconciled before a competing daemon commit can succeed. Bare
 Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:
 
 <!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
-<!-- source: internal/component/cli/model_commands_commit.go -- errCommitForceNotYetSupportedIn -->
 
 | Blocked command | Reason |
 |-----------------|--------|
-| `commit confirmed` | Needs session-aware rollback |
-| `commit force` | Needs session-aware rollback |
+| `commit confirmed <seconds>` | Needs session-aware rollback |
 
 `insert` is supported in session mode: `InsertLeafListValue` routes through
 `writeThroughMemberOp`, and so do `deactivate` and `activate` when they name a
@@ -226,7 +236,7 @@ leaf-list member rather than a leaf or a path.
 session mode too. Each records one structural op in your change file
 (`copy-entry`, `deactivate-leaf`, `activate-leaf`, `deactivate-path`,
 `activate-path`), shows as one change in `show | changes`, and is applied by
-`commit` before your leaf edits. `copy` never overwrites: a destination that
+`commit now` before your leaf edits. `copy` never overwrites: a destination that
 exists is refused, so delete it first.
 <!-- source: internal/component/cli/editor_draft.go -- writeThroughCopy, writeThroughToggle, writeThroughStructuralOp, applyToggleOp -->
 
@@ -305,15 +315,15 @@ from configuration mode behind `run `, and the keys are in the
 
 ## Commit Confirmed
 
-`commit confirmed <seconds>` writes the configuration and notifies the daemon, but starts a countdown timer. If `confirm` is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.
+`commit confirmed <seconds>` writes the configuration and notifies the daemon, but starts a countdown timer. If `commit accept` is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed, handleConfirmCountdown, rollbackConfirmed -->
 
 | Step | What happens |
 |------|-------------|
 | `commit confirmed 60` | Config saved, daemon notified, 60-second timer starts |
 | Verify the change works | BGP sessions come up, routes propagate, etc. |
-| `confirm` | Timer stops, config is permanent |
-| *or* `confirm abort` | Config reverts immediately |
+| `commit accept` | Timer stops, config is permanent |
+| *or* `commit abort` | Config reverts immediately |
 | *or* timer expires | Config reverts automatically |
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
@@ -321,7 +331,7 @@ The seconds parameter accepts values from 1 to 3600 (one hour).
 The revert restores the rollback revision the commit records, so `commit
 confirmed` needs config history. An editor without one, such as
 `ze config edit -f` on a file whose folder holds no store, refuses before it
-writes the file and names `ze init`; a plain `commit` still works there.
+writes the file and names `ze init`; `commit now` still works there.
 
 <!-- terminal-demo: commit-confirmed -->
 

@@ -32,7 +32,7 @@ The console dispatches each command in the daemon process, so it needs no SSH
 server and it works in a build with SSH compiled out.
 
 The console opens at the operational prompt. Type `configure` to reach
-configuration mode, and `commit` there reloads the running daemon, as it does
+configuration mode, and `commit now` there reloads the running daemon, as it does
 over SSH. Type `exit`, or press Ctrl-D, to detach the console and leave the
 daemon running.
 

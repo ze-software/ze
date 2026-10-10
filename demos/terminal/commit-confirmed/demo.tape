@@ -53,9 +53,9 @@ Enter
 Type "commit confirmed 8"
 Enter
 Wait+Screen /Confirm within/
-Type "confirm"
+Type "commit accept"
 Enter
-Wait+Screen /confirmed and saved permanently/
+Wait+Screen /Commit accepted/
 Sleep 5s
 Type "show system host"
 Enter

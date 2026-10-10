@@ -65,7 +65,7 @@ expect=status:contains=set
 expect=error:none
 
 # Commit: both peers should be present
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false
@@ -87,7 +87,7 @@ expect=status:contains=set
 expect=dirty:true
 expect=error:none
 
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false
@@ -106,7 +106,7 @@ input=enter
 expect=dirty:true
 expect=error:none
 
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false
@@ -143,7 +143,7 @@ input=enter
 expect=status:contains=set
 expect=error:none
 
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false

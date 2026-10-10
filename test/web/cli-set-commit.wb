@@ -12,7 +12,7 @@ action=fill:id=cli-input:value=set router-id 10.99.99.98
 action=press:key=Enter
 action=wait:ms=1000
 
-action=fill:id=cli-input:value=commit
+action=fill:id=cli-input:value=commit now
 action=press:key=Enter
 action=wait:ms=1000
 expect=element:not-text=pending

@@ -40,7 +40,7 @@ input=enter
 expect=dirty:true
 
 # Commit should succeed without mentioning reload
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false

@@ -16,7 +16,7 @@ action=fill:id=cli-input:value=set interface ethernet iface-test unit 0 ipv4 add
 action=press:key=Enter
 action=wait:ms=1000
 
-action=fill:id=cli-input:value=commit
+action=fill:id=cli-input:value=commit now
 action=press:key=Enter
 action=wait:ms=2000
 

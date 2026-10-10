@@ -29,7 +29,7 @@ input=enter
 expect=dirty:true
 
 # Commit
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=dirty:false
 expect=status:contains=committed

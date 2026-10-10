@@ -42,7 +42,7 @@ input=enter
 expect=dirty:true
 
 # Commit writes through storage interface
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false

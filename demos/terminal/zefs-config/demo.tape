@@ -76,7 +76,7 @@ Sleep 4s
 Type "show | compare"
 Enter
 Sleep 6s
-Type "commit"
+Type "commit now"
 Enter
 Wait+Screen /Session committed/
 Sleep 3s

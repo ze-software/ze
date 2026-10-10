@@ -26,7 +26,7 @@ input=enter
 expect=error:none
 
 # Commit must apply AND reload
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=error:none
 expect=status:contains=1 change(s) applied and reloaded

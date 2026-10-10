@@ -1,5 +1,5 @@
-# Test: Confirm abort without pending commit confirm
-# VALIDATES: confirm abort command when no timer is active shows message
+# Test: commit abort without a pending confirmed commit
+# VALIDATES: commit abort when no timer is active names what is missing
 # PREVENTS: Unexpected behavior for out-of-sequence command
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -30,6 +30,6 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Abort without prior commit confirm
-input=type:text=confirm abort
+input=type:text=commit abort
 input=enter
-expect=error:contains=pending
+expect=error:contains=no confirmed commit is pending, so there is nothing to abort

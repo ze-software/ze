@@ -16,7 +16,7 @@ gallery is `../guide/terminal-demonstrations.md`.
 The demo does not type configuration one character at a time. It loads the
 configuration into the running router one section at a time with a
 `load merge`-style verb. Each section is shown on screen and explained as it is
-loaded. Then the demo runs `show | compare` and `commit`.
+loaded. Then the demo runs `show | compare` and `commit now`.
 
 ### 2. Show the lab a user would build
 
@@ -29,7 +29,7 @@ Each feature recording has five beats, in this order:
 | Beat | What the viewer sees |
 |------|----------------------|
 | 1. The lab | The topology, briefly: which peers and daemons exist, and why |
-| 2. The load | The feature's configuration loaded section by section, each section explained, then `show \| compare` and `commit` |
+| 2. The load | The feature's configuration loaded section by section, each section explained, then `show \| compare` and `commit now` |
 | 3. The proof | The operational show commands an operator uses to see that the feature works |
 | 4. The failure | At least one realistic failure or misconfiguration, scripted |
 | 5. The diagnosis | Ze's own tools (show commands, counters, logs, monitor, debug) reveal the cause, then the fix |

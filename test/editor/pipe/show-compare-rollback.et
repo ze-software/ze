@@ -37,7 +37,7 @@ input=type:text=set bgp peer peer1 description "test router"
 input=enter
 expect=dirty:true
 
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=dirty:false
 

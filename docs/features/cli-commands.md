@@ -199,7 +199,7 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 
 <!-- terminal-demo: cli-dashboard -->
 
-**Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `confirm` is not issued within the timeout window (1-3600 seconds). Use `confirm abort` to revert manually. Modeled after Junos commit confirmed.
+**Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `commit accept` is not issued within the timeout window (1-3600 seconds). Use `commit abort` to revert manually. A plain commit is `commit now`; `commit verify` validates without applying. Modeled after Junos commit confirmed.
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
 
 **Command history persistence:** Both `ze config edit` and `ze cli` persist command history to the `database/` store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).

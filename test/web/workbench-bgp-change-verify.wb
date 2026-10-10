@@ -29,7 +29,7 @@ action=wait:ms=500
 expect=element:text=tool-overlay
 
 # 4. Review and commit.
-action=fill:id=cli-input:value=commit
+action=fill:id=cli-input:value=commit now
 action=press:key=Enter
 action=wait:ms=1000
 expect=element:not-text=●

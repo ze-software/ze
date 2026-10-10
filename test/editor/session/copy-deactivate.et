@@ -60,7 +60,7 @@ input=enter
 expect=error:none
 expect=status:contains=Deactivated
 
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=error:none
 expect=dirty:false
@@ -74,7 +74,7 @@ expect=error:none
 input=type:text=activate bgp peer peer1
 input=enter
 expect=error:none
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=error:none
 expect=dirty:false

@@ -1,5 +1,5 @@
-# Test: Commit confirm with confirmation
-# VALIDATES: Commit confirm followed by confirm makes permanent
+# Test: commit confirmed then commit accept
+# VALIDATES: commit accept after commit confirmed makes it permanent
 # PREVENTS: Confirmed changes being rolled back
 # NOTE: Timer state not tracked in headless mode - check status messages instead
 
@@ -44,7 +44,7 @@ input=enter
 expect=status:contains=Confirm within
 
 # Confirm the commit
-input=type:text=confirm
+input=type:text=commit accept
 input=enter
-expect=status:contains=confirmed
+expect=status:contains=Commit accepted
 expect=error:none

@@ -297,7 +297,7 @@ func validateCommitConfirmed() error {
 		return err
 	}
 	config := commitConfirmedConfig()
-	output, err := runPTYFixture(demoEnvironment(), "--delay", "2", "--command", "show system host", "--command", "set system host edge-trial", "--command", "show | compare", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "show system host", "--command", "@wait automatically rolled back", "--command", "show system host", "--command", "set system host edge-confirmed", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "confirm", "--command", "@wait confirmed and saved permanently", "--command", "@sleep 7", "--command", "show system host", "--command", "exit", "--command", `@wait operational\]`, "--command", "@escape", "--command", `@wait Quit\?`, "--command", "@escape", "--", "ze", "config", "edit", "-f", config)
+	output, err := runPTYFixture(demoEnvironment(), "--delay", "2", "--command", "show system host", "--command", "set system host edge-trial", "--command", "show | compare", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "show system host", "--command", "@wait automatically rolled back", "--command", "show system host", "--command", "set system host edge-confirmed", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "commit accept", "--command", "@wait Commit accepted", "--command", "@sleep 7", "--command", "show system host", "--command", "exit", "--command", `@wait operational\]`, "--command", "@escape", "--command", `@wait Quit\?`, "--command", "@escape", "--", "ze", "config", "edit", "-f", config)
 	if err != nil {
 		return err
 	}

@@ -31,7 +31,7 @@ expect=status:contains=set
 expect=dirty:true
 
 # Bob tries to commit -- should be blocked by live conflict with Alice's change file
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=conflict
 expect=viewport:contains=LIVE

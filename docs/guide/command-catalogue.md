@@ -332,7 +332,7 @@ Runtime-level config manipulation that is not `set` / `del`.
 | Show running config | `show configuration` | `show configuration` | `admin display-config` | `show running-config` | `show running-config` | `ze config dump` | shipped | config | |
 | Show candidate config | - | `show \| compare` | `candidate view` | - | `show running-config differences` | editor dashboard | shipped | config | |
 | Validate config | - | `commit check` | `candidate check` | `show running-config \| section ...` | `configure terminal`+checks | `ze config validate` | shipped | config | |
-| Commit config | - | `commit` | `commit` | `commit` | `end` | editor `commit` | shipped | config | |
+| Commit config | - | `commit` | `commit` | `commit` | `end` | editor `commit now` | shipped | config | |
 | Rollback revision | `configure > rollback` | `rollback <n>` | `rollback <n>` | `configure replace` | - | `ze config rollback <N>` | shipped | config | spec-config-2-archive |
 | List revisions | - | `show system rollback` | `admin rollback list` | `show configuration sessions` | - | `ze config history` | shipped | config | |
 | Archive to URL | `copy file ... scp://...` | `file copy` | `file copy` | `copy running-config scp://` | `copy running-config` | `ze config archive` | shipped | config | |

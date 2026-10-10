@@ -26,7 +26,7 @@ expect=status:contains=set
 expect=dirty:true
 
 # Commit -- should write config.conf in set format
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false

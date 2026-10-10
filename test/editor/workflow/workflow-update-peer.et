@@ -50,7 +50,7 @@ input=type:text=top
 input=enter
 expect=context:root
 
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false

@@ -45,7 +45,7 @@ expect=dirty:true
 expect=status:contains=set
 
 # Commit should succeed
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=status:contains=committed
 expect=dirty:false

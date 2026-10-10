@@ -28,7 +28,7 @@ expect=error:none
 expect=key:path=file/active/test.conf.change.alice:contains=#alice @ssh
 
 # Commit the change
-input=type:text=commit
+input=type:text=commit now
 input=enter
 expect=dirty:false
 expect=error:none

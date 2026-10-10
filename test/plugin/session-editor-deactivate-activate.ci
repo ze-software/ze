@@ -85,7 +85,7 @@ send deactivate bgp peer peer2
 wait Deactivated bgp peer peer2
 send show | changes
 wait 2 pending changes
-send commit
+send commit now
 wait Session committed:
 cli show bgp peer list
 lacks peer2
@@ -100,7 +100,7 @@ send activate bgp peer peer2
 wait Activated bgp peer peer2
 send show | changes
 wait 2 pending changes
-send commit
+send commit now
 wait Session committed:
 cli show bgp peer list
 has peer2
