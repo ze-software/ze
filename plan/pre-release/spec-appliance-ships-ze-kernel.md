@@ -58,7 +58,7 @@ AC-15 depends on this spec.
 
 -> Implemented (2026-10-10, phases 1, 2 and 4 code half): rtr7 and `ze.gok.kernel-package` deleted; `gokrazy/ze/config.json` names `ze.invalid/kernel`; `ze appliance build` (`resolveBuildParentDir`) and `./le build gokrazy` (`prepareArgs`) resolve `appliance.RuntimeKernelTree(arch)` and `instance.Prepare` assembles the package from that cache entry inside the prepared parent and replaces the module. AC-4, AC-5, AC-6 (rewritten), AC-7, AC-10 carry unit tests; AC-1/2/3/11 still owe the boot proofs; AC-13, AC-17, the doctor check and the provenance digest are not started.
 -> Decision (implementation): the kernel module path is `ze.invalid/kernel`: RFC 2606 reserves `.invalid`, so a prepared instance whose replace went missing fails `go list` instead of fetching (R-3). The assembler lives in `internal/appliance/instance/kernelpkg.go`, not `internal/appliance/kernelpkg.go`, because `Prepare` assembles inside the prepared parent (R-6) and `instance` cannot import `appliance`; it writes the go.mod and Go file itself, so no tracked `gokrazy/kernel/package/` skeleton exists. `TestNoRtr7KernelReference` excludes all of `plan/` (specs describe the removal), `vendor/` and `gokrazy/modcache/`. `./le setup install` skips the kernel module, which has nothing to download.
--> Evidence (2026-10-10, arm64 on the Mac under HVF; AC-1, AC-2, AC-3 and AC-11 for arm64; the amd64 half is owed on the Linux host): `./le test qemu mpls-boot-test` (`ze_vpp_hp_aarch64_bios=/opt/homebrew/share/qemu/edk2-aarch64-code.fd`; the default firmware path is Linux's) built the arm64 appliance with the MPLS seed from the cached runtime kernel, so gokrazy's arch check passed (AC-11), and booted it: console `Linux version 7.2.9-ze ... #1 SMP PREEMPT Sat Oct 10 09:18:07 UTC 2026`, ze started with `fib-kernel: running` and LDP loaded. The proof then FAILED with no SSH answer: the harness gave the arm64 guest an e1000 NIC, which the arm64 kernel builds as a module (`CONFIG_E1000=m`), and gokrazy loads no modules. Fixed in the harness (`Hugepages.qemuArgs`, `internal/le/test/qemu/boot.go`: arm64 takes `virtio-net-pci`, which `runtime.require` makes built in; `TestTheArm64MachineGetsTheNICItsKernelBuildsIn`, red first). The kept image booted with that NIC answered over SSH: `show host kernel | json` gives `"release": "7.2.9-ze"`, `"architecture": "arm64"` (equals `internal/appliance/kernel.version`, AC-2); `show ldp neighbor | json` answers `[]`, JSON from the LDP engine (AC-3); `show doctor | json` answers (a no-NTP error and listener warnings only, no kernel-capability refusal). The harness itself was not re-run after the NIC fix, because its fresh host build hashes the kernel builder sources AC-13 changed and would start the cold arm64 rebuild. AC-1/AC-2 config: every one of the 128 symbols in `kernel.require` plus `runtime.require` reads `=y` in the packaged config of cache entry `7.2.9-runtime-arm64-runtime-7c0d8f79-bf3ac1c9`, including `CONFIG_MPLS_ROUTING=y` and `CONFIG_MPLS_IPTUNNEL=y`; `CONFIG_LOCALVERSION="-ze"`, `CONFIG_IKCONFIG_PROC=y`.
+-> Evidence (2026-10-10, arm64 on the Mac under HVF; AC-1, AC-2, AC-3 and AC-11 for arm64; the amd64 half is owed on the Linux host): `./le test qemu mpls-boot-test` (`ze_vpp_hp_aarch64_bios=/opt/homebrew/share/qemu/edk2-aarch64-code.fd`; the default firmware path is Linux's) built the arm64 appliance with the MPLS seed from the cached runtime kernel, so gokrazy's arch check passed (AC-11), and booted it: console `Linux version 7.2.9-ze ... #1 SMP PREEMPT Sat Oct 10 09:18:07 UTC 2026`, ze started with `fib-kernel: running` and LDP loaded. The proof then FAILED with no SSH answer: the harness gave the arm64 guest an e1000 NIC, which the arm64 kernel builds as a module (`CONFIG_E1000=m`), and gokrazy loads no modules. Fixed in the harness (`Hugepages.qemuArgs`, `internal/le/test/qemu/boot.go`: arm64 takes `virtio-net-pci`, which `runtime.require` makes built in; `TestTheArm64MachineGetsTheNICItsKernelBuildsIn`, red first). The kept image booted with that NIC answered over SSH: `show host kernel | json` gives `"release": "7.2.9-ze"`, `"architecture": "arm64"` (equals `internal/appliance/kernel.version`, AC-2); `show ldp neighbor | json` answers `[]`, JSON from the LDP engine (AC-3); `show doctor | json` answers (a no-NTP error and listener warnings only, no kernel-capability refusal). The harness itself was not re-run after the NIC fix, because its fresh host build hashes the kernel builder sources AC-13 changed and would start the cold arm64 rebuild. AC-1/AC-2 config: every one of the 128 symbols in `kernel.require` plus `runtime.require` reads `=y` in the packaged config of cache entry `7.2.9-runtime-arm64-runtime-7c0d8f79-bf3ac1c9`, including `CONFIG_MPLS_ROUTING=y` and `CONFIG_MPLS_IPTUNNEL=y`; `CONFIG_LOCALVERSION="-ze"`, `CONFIG_IKCONFIG_PROC=y`. That entry was superseded (no provenance source lines); re-checked 2026-10-10 against the entry the passing boot below ran on, `7.2.9-runtime-arm64-runtime-7c0d8f79-d826e25e`: all 128 symbols of the two require files read `=y` in its `config`, with the same four lines. 45834f22d7 and 6aa76ad8a0 changed the kernel builder sources, so d826e25e is itself stale for the next build: the next arm64 image rebuilds the kernel, and its config owes the same check.
 -> Implemented (2026-10-10): AC-13 in 179ca326f2. `validateRequest` refuses a kernel for an arch other than `hostGOARCH`; `qemuArgs` refuses a QEMU with neither hvf nor kvm, with no tcg fallback. This changes the runtime kernel cache key, so the arm64 cache entry above is stale and a cold rebuild (about 30 minutes) is owed before the next arm64 image build.
 -> Implemented (2026-10-10): the provenance source digest in 33d6ff0a4e. `writeProvenance` adds `source-url` (`kernelTarballURL`, what `downloadKernelSource` fetches) and `source-sha256` (`SourceDigest`, what `verifyKernelSource` checks), and refuses a version with no tracked digest. AC-17 next: `kernelbuilder.ReadProvenance` and `Provenance.LinuxNotice` (`provenance.go`); `instance.Prepare` reads the kernel tree's provenance and `addLinuxNotice` puts the notice at `/etc/linux-gpl-notice` through the ze package's `ExtraFileContents` (gokrazy copies only `lib/modules` from a kernel package). `TestLinuxNoticeMatchesTheBuiltKernel` builds the notice from the provenance `writeProvenance` wrote and asserts version, URL and digest; `TestPrepareCarriesTheLinuxNotice` and `TestPrepareRefusesAKernelWithoutProvenance` went red with the `addLinuxNotice` call removed. A cache entry built before 33d6ff0a4e has no source lines and is refused, so every existing cache entry needs the rebuild. Found: `kernel-builder-single-driver` and `kernel-wiring` fixtures are red on an arm64 host since 179ca326f2 (their amd64 requests meet the AC-13 refusal).
 -> Evidence (2026-10-10, arm64 on the Mac under HVF, after the cold rebuild; AC-1, AC-3 and AC-11 for arm64, with the NIC fix and AC-13 in the tree): the cold rebuild wrote cache entry `7.2.9-runtime-arm64-runtime-7c0d8f79-d826e25e`, whose `kernel.version` carries `source-url=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz` and `source-sha256=b4c5dfbe...d8ba`; the old entry `...-bf3ac1c9` (no source lines) has a different key and nothing selected it. The first image build after the rebuild FAILED in gok: le exports `GOTOOLCHAIN=go1.27.0` (go.mod's go directive, for its linter), the host go is 1.27.1, and with `GOMODCACHE=gokrazy/modcache` and `GOPROXY=off` every go subprocess answered `toolchain not available`; gok reported its failed `go list` as `go get ze.invalid/kernel`. The replace was in place (the failed builddir's go.mod carries it, and `go list ze.invalid/kernel` resolves under `GOTOOLCHAIN=local`). Fixed in 0313f16ee7: `appliance.SetGokGoEnv` sets `GOTOOLCHAIN=local` for both gok entry points (`TestGokBuildsWithTheHostToolchain`, red first). Re-run: `ze_vpp_hp_aarch64_bios=/opt/homebrew/share/qemu/edk2-aarch64-code.fd ./le --name zek test qemu mpls-boot-test` answered `APPLIANCE-MPLS-QEMU: PASS ze started with MPLS in use; \`show ldp neighbor | json\` answered`, exit 0 (log `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/mpls-boot-arm64-run2.log`). The arm64 fixture red is fixed in ecd9a892ba (`kernel-builder-single-driver`, `kernel-wiring` use `runtime.GOARCH`). `/etc/linux-gpl-notice` was not read back from the booted image.
@@ -73,6 +73,10 @@ AC-15 depends on this spec.
 | AC-16 | `docs/contributing/running-commands.md` "When the disk is full" | names the kernel cache, states it is not a reclamation target and why (a cold rebuild is about 30 minutes) |
 | AC-17 | any `ze appliance build` image | carries a GPLv2 notice naming Linux, the exact kernel.org version, the tarball URL and its SHA-256, all derived from `kernel.version` and the tracked digest pin the worker verifies; a test builds the notice and asserts its version equals the built kernel's `kernel.version` provenance and its URL and digest equal the ones `downloadKernelSource` used |
 | AC-19 | `internal/appliance/kernel.version` and its digest pin, at AC-1 | pin the exact latest stable 7.x found when AC-1 is implemented (7.2.9 on 2026-10-09, or later if kernel.org has moved), with the SHA-256 from kernel.org's `sha256sums.asc`; the patch series applies cleanly to it; `TestKernelVersionHasDigestPin` (AC-9) covers the pair |
+
+AC-18 was never assigned. The gap is kept rather than renumbered, because commits and evidence lines already cite AC-19 by number.
+
+-> Decision (review round 1 NOTE 3, 2026-10-10): the notice does NOT name a Ze commit. The runtime kernel cache key hashes the working-tree build inputs (`kernelCacheVariantFor` in `internal/appliance/cache.go`: the profile's config fragments and manifests, the patches and `kernelBuilderSources`, beside the version in the entry name), not a commit: a dirty tree has no commit to name, and a cached kernel is served unchanged across later commits that do not touch those inputs, so a commit recorded at build time would name a tree that is not what the kernel was built from. What the notice names (version, tarball URL, SHA-256) is what the provenance records from the build itself. Recording the commit would also mean editing `internal/appliance/kernelbuilder`, which changes the cache key once more. This is an engineering decision about drift, not a licence reading; the owner's GPLv2 decision above is unchanged.
 
 ## Required Reading
 
@@ -137,14 +141,14 @@ AC-15 depends on this spec.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `ze appliance build <name>` (appliance config `image.arch`) and `./le build gokrazy` (GOARCH, optional `ze.gok.kernel-package`)
+- `ze appliance build <name>` (appliance config `image.arch`) and `./le build gokrazy` (GOARCH; no kernel override exists, AC-6)
 
 ### Transformation Path
 1. Resolve arch from `image.arch` (or GOARCH for `./le build gokrazy`)
 2. `resolveRuntimeKernel(defaultKernelVersion, arch, "runtime", builder, ...)`: cache hit, else verified-source native build plus requirement enforcement, then cache
-3. Assemble a gokrazy kernel package directory under the prepared instance from the tracked skeleton (go.mod + one `.go` file) plus the cached tree's `vmlinuz`, `lib/modules`, `*.dtb`, `overlays/`
-4. `instance.Prepare` with `KernelPackage` = that directory: the tracked ze kernel builddir module gets its replace pointed at it in the prepared copy only
-5. `gok` resolves `KernelPackage` through the replace, checks arch, writes boot and root partitions
+3. `instance.Prepare` with `KernelTree` = that cache entry and `Arch`: `checkKernelArch` reads the vmlinuz magic, `addLinuxNotice` puts `/etc/linux-gpl-notice` into the ze package's `ExtraFileContents` from the entry's provenance, and `assembleKernelPackage` (`internal/appliance/instance/kernelpkg.go`) writes the module's go.mod and Go file itself (no tracked skeleton) and copies `vmlinuz`, `lib/modules`, `*.dtb`, `overlays/`, `cmdline.txt` and `config.txt` into the prepared parent
+4. The prepared builddir's `ze.invalid/kernel` module gets its replace pointed at that directory, in the prepared copy only
+5. `gok` resolves `ze.invalid/kernel` through the replace, checks arch, writes boot and root partitions
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -155,8 +159,8 @@ AC-15 depends on this spec.
 
 ### Integration Points
 - `resolveRuntimeKernel` / `kernelCachePathFor` (`internal/appliance/cmd_kernel.go`) - reused unchanged as the single resolver
-- `instance.Options.KernelPackage` / `replaceKernel` (`internal/appliance/instance/prepare.go`) - retargeted from the rtr7 module to the ze kernel module
-- `assembleKernelPackage` (`internal/le/test/deployment/gokrazyimage.go`) - moved into `internal/appliance` as the one assembler; the deployment proof calls it rather than owning a copy
+- `instance.Options.KernelTree` (`internal/appliance/instance/prepare.go`) - replaces `KernelPackage`: `Prepare` assembles the package itself and replaces `ze.invalid/kernel` (was the rtr7 module)
+- `assembleKernelPackage` - moved from `internal/le/test/deployment/gokrazyimage.go` into `internal/appliance/instance/kernelpkg.go` as the one assembler, because `Prepare` assembles inside the prepared parent and `instance` cannot import `appliance`; the deployment proof goes through `Prepare` rather than owning a copy
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -231,7 +235,7 @@ AC-15 depends on this spec.
 | `TestResolveBuildParentDirUsesRuntimeKernel` | `internal/appliance/kernelargs_test.go` | AC-1 wiring, AC-7 with a fake cached tree | |
 | `TestPrepareRefusesWithoutKernelPackage` | `internal/appliance/instance/prepare_test.go` | AC-5 | |
 | `TestPrepareReplacesZeKernelModule` | `internal/appliance/instance/prepare_test.go` | replace lands on the ze kernel module in the prepared copy only | |
-| `TestAssembleKernelPackage` | `internal/appliance/kernelpkg_test.go` | skeleton + vmlinuz + modules + dtbs + overlays; refuses wrong-arch vmlinuz | |
+| `TestAssembleKernelPackage` | `internal/appliance/instance/kernelpkg_test.go` (moved; no skeleton, see Deviations) | skeleton + vmlinuz + modules + dtbs + overlays; refuses wrong-arch vmlinuz | |
 | `TestDownloadKernelSourceVerifiesDigest` | `internal/appliance/kernelbuilder/worker_test.go` | AC-8 | |
 | `TestKernelVersionHasDigestPin` | `internal/appliance/cmd_kernel_test.go` | AC-9 | |
 | `TestColdOfflineCacheNamesRemedy` | `internal/appliance/cmd_kernel_test.go` | AC-10 | |
@@ -432,7 +436,8 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 - Native-only kernel builds: foreign arch refused, QEMU without hvf or kvm refused (179ca326f2).
 - Provenance names the verified source URL and digest (33d6ff0a4e); every image carries `/etc/linux-gpl-notice` derived from it (5fcbae2a10).
 - `ze doctor` check `appliance-runtime-kernel` (1927823c9f), kept out of the kernel cache hash (3fa832a60c).
-- Harness and toolchain fixes the boot proofs needed: arm64 guest NIC (1ec402852a), gok error reaching stderr (0a221fb741), gok on the host toolchain (0313f16ee7), fixtures on `runtime.GOARCH` (ecd9a892ba).
+- Harness and toolchain fixes the boot proofs needed: arm64 guest NIC (1ec402852a), gok error reaching stderr (0a221fb741), gok on the host toolchain (0313f16ee7), fixtures on `runtime.GOARCH` (ecd9a892ba), the QEMU proofs naming a failed step's exit status and finding Homebrew's keg-only e2fsprogs through the build's own resolver (ed5d5e5310).
+- Review round 1 fixes: see the Review Gate's round-1 table.
 
 ### Bugs Found/Fixed
 - arm64 QEMU guest had an e1000 NIC its kernel builds as a module: `TestTheArm64MachineGetsTheNICItsKernelBuildsIn`.
@@ -552,10 +557,26 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 
 | Field | Value |
 |-------|-------|
-| Artifact | none yet: ready for independent review |
+| Artifact | round 1: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-appliance-ships-ze-kernel.md` (0 BLOCKER, 6 ISSUE, 8 NOTE); every finding fixed or recorded below; ready for independent review round 2 |
 | `./le spec review check` | not run |
-| Rounds | 0 recorded; round 1 interrupted by the owner after a partial pass (one ISSUE, two NOTEs), full round 1 owed |
-| Reviewer lenses used | owed: logic+wiring (resolver to image), supply chain (digest pin, notice), cache safety |
+| Rounds | 1 (preceded by a partial pass the owner interrupted, whose ISSUE is row 1 below); round 2 owed over the fix commits |
+| Reviewer lenses used | round 1: logic+wiring (resolver to image), supply chain (digest pin, notice), cache safety |
+
+### Round 1 fixes
+| Finding | Fixed by | What changed |
+|---------|----------|--------------|
+| ISSUE 1 (accelerator listed is not usable) + NOTE 5 (Alpine ISO fetched before the accelerator check) | 6aa76ad8a0 | `hardwareAccelerator` probes `/dev/kvm` and `kern.hv_support`, `SelectBuilder` runs it, `runQEMU` asks before `ensureAlpineISO`, QEMU stderr kept in the boot failure |
+| ISSUE 2 (cold-cache fix impossible across arches) + ISSUE 6 (arm64 examples with no host condition) | 28e49feda7 | foreign-arch cold cache refused before building with a fix that names building on that arch or setting `image.arch`; `docs/guide/appliance.md` examples carry the host condition |
+| ISSUE 3 (missing or old go found after the kernel build) | 04aec23668 | `checkGokHost` / `CheckGoToolchain` run before the kernel is resolved, in `ze appliance build` and `./le build gokrazy` |
+| ISSUE 4 (cache key hashes code no build runs) | 6aa76ad8a0 | provenance reader and notice moved to `internal/appliance/instance/provenance.go`; `kernelBuilderSources` hashes every non-test kernelbuilder file with no exclusion |
+| ISSUE 5 (errors with no fix) + NOTE 8 (nonexistent KernelTree untested) | 388c67ac73 | provenance, vmlinuz-open and magic refusals print the command that deletes the cache entry; notice collision names the config entry; tests for each |
+| NOTE 1 (`KernelCacheNamespaces` had no production caller) | 95c7a2a05f | `cleanTargets` skips any target within or holding a kernel cache, and the store trim now honours that skip too (`TestTrimSkipsATargetHoldingTheKernelCache`, red first) |
+| NOTE 2 (spec drift) | this spec commit | Data Flow, Integration Points, Wiring and TDD rows match the code; AC-1/AC-2 symbols re-checked on `...-d826e25e`; AC-18 gap stated; ed5d5e5310 in the Implementation Summary |
+| NOTE 3 (notice names no Ze commit) | this spec commit | decision recorded after the AC-13..AC-19 table: no commit in the notice, because the cache key hashes working-tree inputs |
+| NOTE 4 (nightly CI kernel cache key omits `internal/appliance/kernelbuilder/**`) | this spec commit | one row in `plan/journal/stale-artifact-reused.md`; predates the spec, not fixed (the workflow is outside this spec) |
+| NOTE 6 (arm64 proofs need the firmware path by hand) | 3271485c9d | `newHugepages` defaults to `hostArm64BIOS`, the package's own `Run.arm64BIOS` lookup; nothing copied from kernelbuilder |
+| NOTE 7 (`WorkerRequest.SourceSHA256` also set by `install_fixture.go`) | 0e887b69de | a correction to the record, no defect; the install fixtures now ask for the host arch and assert the foreign arch refused |
+| Doctor `.ci` header and fix-line assertion | 8257fcace4 | `test/ui/doctor-appliance-runtime-kernel.ci` asserts the source-tree remedy; passed under `./le test ui` |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
