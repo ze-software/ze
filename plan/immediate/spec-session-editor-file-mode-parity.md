@@ -630,12 +630,12 @@ ACs not evidenced through their named entry point:
 |----|-----------------|
 | (none) | |
 
-`./le test editor` with a fresh build (2026-10-10): 173/175, the two reds are
-`load-file-absolute-merge.et` and `load-blocked.et`, both owner items above.
-
-At 4700624c8a (2026-10-10): `./le test web` with a fresh build 103/103;
-scoped lint of `internal/component/web` and `internal/component/cli` 0
-issues in every flavour. `test/web/interface-mac-override.wb` flakes about
+At 08f414e79a (2026-10-10, after the round 1 fixes): `./le test editor`
+174/174, `./le test web` 103/103, `./le test bgp plugin -pattern
+session-editor` 24/24, `./le repo compiles check` OK; scoped lint of
+cli, web, config/confirm, cmd/ze/hub, api and config/storage/cli 0 issues
+in every flavour once `broadcastEvent`'s unused result went (unparam on
+3e9fd40da9's new caller). `test/web/interface-mac-override.wb` flakes about
 1 in 6 under load at HEAD, predates this spec and is journaled in
 `plan/journal/late-write-lands-on-the-successor.md`.
 
@@ -644,8 +644,19 @@ Owed gates (not run by an implementing agent): `./le test unit all` (race),
 
 ## Review Gate
 
-Status: ready for independent review (2026-10-10). Not yet run; the
-implementing agents did not review their own work.
+Status: ready for round 2 (2026-10-10). Round 1 ran over
+`b5274c4fa8^..4700624c8a` (findings B1, I2 to I7, NOTEs 8 to 10). Its
+fix commits, in order: e331710552 (I2, I3), e7d916be5d (I6), f24e13e0ab
+(B1 web button), 365edbbf79 (I7), c692784281 (I4), 2ebfddc99d (I5),
+6989477da1 (owner a), 642ad44e28 (owner b), e0c9ea0287 (owner c),
+b052b05584 (NOTE 8), 3e9fd40da9 (owner d), 08f414e79a (owner e, B1 for
+the writers outside the editors), 2cc4e056ae (unparam lint on
+3e9fd40da9). Round 2 reviews those fix commits and
+rules on NOTEs 9 and 10, which are open: 9, a failed discard after a
+landed forced commit is only logged (`MarkCommittedContent`); 10, the
+discard notice reaches only the first session of the user that polls.
+
+Round 1 scope, kept for reference:
 
 Commit range: `b5274c4fa8^..4700624c8a`. Main is shared, so the range
 interleaves other sessions' commits. This spec's commits in it are, in
