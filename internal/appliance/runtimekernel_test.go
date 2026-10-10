@@ -158,7 +158,7 @@ func TestColdOfflineCacheNamesRemedy(t *testing.T) {
 	if err == nil {
 		t.Fatal("a cold cache with no network resolved a kernel")
 	}
-	for _, want := range []string{cached, "ze appliance kernel --target runtime --arch " + runtime.GOARCH, "no such host"} {
+	for _, want := range []string{cached, "on an " + runtime.GOARCH + " host", "ze appliance kernel --target runtime --arch " + runtime.GOARCH, "no such host"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not name %q:\n%v", want, err)
 		}

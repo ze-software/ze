@@ -41,6 +41,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -391,6 +392,11 @@ func (h *Hugepages) plan() (HugepagesReport, error) {
 	return report, nil
 }
 
+// e2fsToolFn finds one e2fsprogs tool the way `ze appliance build` does, which
+// is the build this proof runs: Homebrew's keg-only e2fsprogs is never on PATH,
+// so a PATH lookup alone answered SKIP on a Mac whose build would have worked.
+var e2fsToolFn = appliance.ResolveE2FSTool
+
 // missingPrerequisite names the first tool this machine does not have, or
 // nothing when it has them all.
 //
@@ -405,8 +411,6 @@ func (h *Hugepages) missingPrerequisite() string {
 		{"go", "go toolchain not found"},
 		{qemuBinary(h.Arch), ""},
 		{"sshpass", "sshpass not found (needed for non-interactive SSH assert)"},
-		{"mkfs.ext4", "e2fsprogs (mkfs.ext4/debugfs) not found"},
-		{"debugfs", "e2fsprogs (mkfs.ext4/debugfs) not found"},
 	}
 	for _, one := range required {
 		if _, err := exec.LookPath(one.command); err == nil {
@@ -417,6 +421,13 @@ func (h *Hugepages) missingPrerequisite() string {
 		}
 		var tb textbuf.Buffer
 		return tb.Str(one.command).Str(" not found").String()
+	}
+	for _, tool := range []string{"mkfs.ext4", "debugfs"} {
+		if e2fsToolFn(tool) == "" {
+			var tb textbuf.Buffer
+			return tb.Str("e2fsprogs (mkfs.ext4/debugfs) not found: ").Str(tool).
+				Str(" is in no directory `ze appliance build` searches, nor on PATH").String()
+		}
 	}
 	return ""
 }
@@ -461,7 +472,7 @@ func (h *Hugepages) buildHostZe(work string) (string, error) {
 	out, err := build.CombinedOutput()
 	if err != nil {
 		var tb textbuf.Buffer
-		return "", errors.New(tb.Str("host ze build failed:\n").Str(string(out)).String())
+		return "", errors.New(tb.Str("host ze build failed (").Err(err).Str("):\n").Str(string(out)).String())
 	}
 	return host, nil
 }
@@ -483,18 +494,28 @@ func (h *Hugepages) buildImage(host, work string) (string, error) {
 	environment := h.applianceEnv(dir)
 
 	if out, err := h.appliance(host, environment, "init"); err != nil {
-		var tb textbuf.Buffer
-		return "", errors.New(tb.Str("ze appliance init failed:\n").Str(out).String())
+		return "", applianceStepError("init", "", out, err)
 	}
 	if err := h.writeApplianceConfig(filepath.Join(dir, ApplianceName, "appliance.json")); err != nil {
 		return "", err
 	}
 	out, err := h.appliance(host, environment, zeApplianceVerbBuild)
 	if err != nil {
-		var tb textbuf.Buffer
-		return "", errors.New(tb.Str("ze appliance build failed:").Str(buildHint(out)).Byte('\n').Str(out).String())
+		return "", applianceStepError(zeApplianceVerbBuild, buildHint(out), out, err)
 	}
 	return findImage(dir)
+}
+
+// applianceStepError answers the error for a `ze appliance <verb>` that failed.
+//
+// It names how the step ended as well as what it printed. A build that exits 1
+// with no output leaves out empty, and the status is then the only fact the
+// operator gets; dropping it printed "ze appliance build failed:" and nothing
+// else. hint is buildHint's remedy, or empty.
+func applianceStepError(verb, hint, out string, err error) error {
+	var tb textbuf.Buffer
+	tb.Str("ze appliance ").Str(verb).Str(" failed (").Err(err).Str("):").Str(hint).Byte('\n').Str(out)
+	return errors.New(tb.String())
 }
 
 // appliance runs one `ze appliance <verb> <name>` and answers what it wrote.

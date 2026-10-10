@@ -183,8 +183,7 @@ func (m *MPLSBoot) buildImage(host, work, seed string) (string, error) {
 	environment := m.run.applianceEnv(dir)
 
 	if out, err := m.run.appliance(host, environment, "init"); err != nil {
-		var tb textbuf.Buffer
-		return "", errors.New(tb.Str("ze appliance init failed:\n").Str(out).String())
+		return "", applianceStepError("init", "", out, err)
 	}
 	applianceDir := filepath.Join(dir, ApplianceName)
 	err := editImageConfig(filepath.Join(applianceDir, "appliance.json"), func(image map[string]any) {
@@ -200,8 +199,7 @@ func (m *MPLSBoot) buildImage(host, work, seed string) (string, error) {
 	}
 	out, err := m.run.appliance(host, environment, zeApplianceVerbBuild)
 	if err != nil {
-		var tb textbuf.Buffer
-		return "", errors.New(tb.Str("ze appliance build failed:").Str(buildHint(out)).Byte('\n').Str(out).String())
+		return "", applianceStepError(zeApplianceVerbBuild, buildHint(out), out, err)
 	}
 	return findImage(dir)
 }

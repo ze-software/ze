@@ -419,7 +419,7 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 		// A cold cache with no network fails here, at the source download, so the
 		// error names the entry that was missing and the command that fills it.
 		return "", fmt.Errorf("runtime kernel %s for %s is not in the cache at %s, and building it failed: %w\n"+
-			"build it once, with network access, on a %s host: ze appliance kernel --target runtime --arch %s",
+			"build it once, with network access, on an %s host: ze appliance kernel --target runtime --arch %s",
 			version, arch, cachedDir, err, arch, arch)
 	}
 
