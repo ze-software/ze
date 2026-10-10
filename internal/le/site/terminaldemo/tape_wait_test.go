@@ -46,7 +46,8 @@ func selfSatisfiedWaits(tape terminalTape) (findings []string, waitCount int) {
 // The config-views recording shipped that defect: its round-trip `cmp` ran in a
 // directory without the files and printed nothing, yet the wait for
 // "canonical output: identical" passed on the echoed `echo` argument.
-// Method: parse each demos/terminal/*/demo.tape the way the recorder does, and
+// Method: parse each demos/terminal/*/demo.tape and each topic fragment under
+// demos/terminal/topics/ the way the recorder does, and
 // test each wait against the prompt plus the lines typed since the wait before.
 func TestTapeWaitsAreNotSatisfiedByTheTypedCommand(t *testing.T) {
 	// The recorder runs from the demo tree, where `Source common.tape` resolves.
@@ -55,6 +56,13 @@ func TestTapeWaitsAreNotSatisfiedByTheTypedCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A topic fragment is judged on its own as well: a topic recording and the
+	// showcase both source it, and a wait it carries is the same wait in each.
+	fragmentPaths, err := filepath.Glob(filepath.Join(demoTreePath, "topics", "*", "*.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tapePaths = append(tapePaths, fragmentPaths...)
 	// An empty glob means the path above no longer reaches the demo tree, and
 	// a loop over nothing would pass in silence.
 	if len(tapePaths) == 0 {
