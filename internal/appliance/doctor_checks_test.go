@@ -20,6 +20,7 @@ func TestApplianceDoctorChecksRegistered(t *testing.T) {
 		"appliance-xorriso",
 		"appliance-e2fsprogs",
 		"appliance-runtime-kernel",
+		"appliance-go-toolchain",
 	}
 	nameSet := make(map[string]bool, len(names))
 	for _, n := range names {
@@ -295,5 +296,41 @@ func TestDoctorRuntimeKernelNamesTheBuilderCause(t *testing.T) {
 	}
 	if strings.Contains(diags[0].Message, "QEMU with Go is not installed") {
 		t.Errorf("message says QEMU is missing on a host whose accelerator is the cause:\n%s", diags[0].Message)
+	}
+}
+
+// TestDoctorGoToolchainReportsAnOldGo verifies ze doctor reports a go older
+// than go.mod requires, the refusal ze appliance build would otherwise meet
+// only after the runtime kernel, and passes with a new enough go.
+//
+// VALIDATES: round-2 ISSUE 2.
+func TestDoctorGoToolchainReportsAnOldGo(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if diags := checkGoToolchain(diagnostic.DoctorCheckContext{}); len(diags) != 1 || !strings.Contains(diags[0].Message, "\nrun ze doctor from the top of the Ze source tree") {
+		t.Fatalf("outside the source tree: got %+v, want the fix to run from the tree", diags)
+	}
+	if err := os.WriteFile("go.mod", []byte("module github.com/ze-software/ze\n\ngo 1.27.0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fakeBin := t.TempDir()
+	goScript := filepath.Join(fakeBin, "go")
+	t.Setenv("PATH", fakeBin)
+	for _, tc := range []struct {
+		have string
+		pass bool
+	}{{"go1.20.1", false}, {"go1.27.0", true}} {
+		if err := os.WriteFile(goScript, []byte("#!/bin/sh\necho "+tc.have+"\n"), 0o755); err != nil { //nolint:gosec // an executable test fake
+			t.Fatal(err)
+		}
+		diags := checkGoToolchain(diagnostic.DoctorCheckContext{})
+		if tc.pass {
+			if len(diags) != 0 {
+				t.Errorf("go %s: got %+v, want no diagnostic", tc.have, diags)
+			}
+			continue
+		}
+		if len(diags) != 1 || diags[0].Code != "doctor-appliance-go-toolchain" || !strings.Contains(diags[0].Message, "older than go 1.27.0") {
+			t.Errorf("go %s: got %+v, want the old-go diagnostic", tc.have, diags)
+		}
 	}
 }

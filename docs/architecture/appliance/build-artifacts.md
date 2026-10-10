@@ -86,6 +86,50 @@ entry and the `ze appliance kernel --target runtime --arch <arch>` command to
 run once the builder can run. Run outside the Ze source tree,
 where the kernel config cannot be read, the check warns rather than pass.
 
+`ze doctor` also reports, as the warning `doctor-appliance-go-toolchain`, a
+host whose `go` cannot compile the image: no `go` on `PATH`, or one older than
+the `go` directive in `go.mod`. It asks `CheckGoToolchain`, the question
+`ze appliance build` asks before it starts, so a host with Docker and an old
+`go` is told before a build rather than after its kernel. Outside the Ze source
+tree it cannot read `go.mod`, and says to run from the top of the tree.
+
+<!-- source: internal/appliance/doctor_checks.go -- checkGoToolchain -->
+<!-- source: internal/appliance/gokpreflight.go -- CheckGoToolchain -->
+
+### Free space before a Docker kernel build
+
+A Docker kernel build that runs out of disk does not fail cleanly: it fills the
+store the daemon writes into, fails twenty minutes in, and names a content blob
+rather than the disk. So `runDocker` measures free space before it builds the
+builder image, and refuses below 40 GiB (`kernelBuildFreeBytesMin`). The figure
+is one measurement, rounded: on 2026-09-02 an arm64 runtime build died part way
+through `drivers/` with 13G in its build volume and 41G in use under the
+daemon's root.
+
+What it measures is the host filesystem that receives the build's writes:
+
+| Host | Path measured | Why |
+|------|---------------|-----|
+| macOS | `~/.colima`, else `~/Library/Containers/com.docker.docker` | The daemon runs in a VM whose whole disk is one sparse file there; `/var/lib/docker` is a path inside the guest |
+| Linux | The daemon's own root, from `docker info --format {{.DockerRootDir}}` | The data root is configurable, and a host that moved it keeps an empty `/var/lib/docker` on a small root disk |
+| Linux, daemon not answering | `/var/lib/docker` | The default; the refusal says the daemon could not name its root, and why |
+
+`docker info` is bounded at fifteen seconds. With `DOCKER_HOST` pointing at a
+remote daemon, the path that daemon names is measured on this host, which is
+the wrong machine; the guard does not detect that case. When no layout matches,
+the build prints that free space was not checked and goes on, rather than read
+as measured.
+
+The refusal names both numbers, the path and why it was chosen, then two
+commands on their own lines: `df -h <path>` to check the reading, and the same
+kernel build with `--builder qemu`. The QEMU backend writes its build tree under
+`tmp/qemu` in the checkout and has no free-space check of its own. On a VM-backed
+daemon the space a build used is handed back to the host afterwards, pass or
+fail (`reclaimBuildSpace`), because the VM's sparse disk never shrinks on its
+own.
+
+<!-- source: internal/appliance/kernelbuilder/space.go -- kernelBuildFreeBytesMin, dockerStoreHostPath, dockerRootDir, checkKernelBuildSpace, kernelBuildSpaceError, reclaimBuildSpace -->
+
 The kernel cache variant hashes the inputs that decide a kernel's bytes, and
 nothing else. A cold rebuild costs about thirty minutes per arch, so an edit
 that changes no kernel must keep the cache. The key covers:

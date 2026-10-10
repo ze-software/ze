@@ -97,6 +97,16 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 			Codes:        []string{"doctor-appliance-runtime-kernel"},
 			Check:        checkRuntimeKernel,
 		},
+		{
+			Name:         "appliance-go-toolchain",
+			Phase:        diagnostic.DoctorPhasePreConfig,
+			Order:        806,
+			Component:    componentAppliance,
+			Dependencies: []string{dependencyExternalBinary},
+			Platforms:    []string{diagnostic.DoctorPlatformAny},
+			Codes:        []string{"doctor-appliance-go-toolchain"},
+			Check:        checkGoToolchain,
+		},
 	}
 }
 
@@ -199,6 +209,29 @@ func checkRuntimeKernel(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 		"cache entry: " + cached + "\n" +
 		"install Docker, or QEMU and Go with hvf or kvm usable, then build the kernel once, with network access:\n" +
 		"ze appliance kernel --target runtime --arch " + arch)
+}
+
+// checkGoToolchain reports a host whose go cannot compile the image: the same
+// question `ze appliance build` asks before it starts (CheckGoToolchain), so a
+// host with Docker and an old go fails here rather than after the kernel.
+func checkGoToolchain(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	goMod := "go.mod"
+	if _, err := os.Stat(goMod); err != nil {
+		return goToolchainDiagnostic("cannot check the go toolchain: no go.mod here (" + err.Error() + "), and ze appliance build compiles the image from the Ze source tree, with the go its go.mod requires.\n" +
+			"run ze doctor from the top of the Ze source tree")
+	}
+	if err := CheckGoToolchain(goMod); err != nil {
+		return goToolchainDiagnostic(err.Error())
+	}
+	return nil
+}
+
+func goToolchainDiagnostic(message string) []diagnostic.Diagnostic {
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-appliance-go-toolchain",
+		Severity: diagnostic.SeverityWarning,
+		Message:  message,
+	}}
 }
 
 func runtimeKernelDiagnostic(message string) []diagnostic.Diagnostic {
