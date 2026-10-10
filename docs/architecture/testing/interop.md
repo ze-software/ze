@@ -364,13 +364,20 @@ transit MTU probe's mount and its `/proc/sys` write, and that row would read
 `denied` (owner D-7: the host is set up for Ze, never unconfined). On a Linux
 client whose `/sys/kernel/security/apparmor/profiles` lacks the profile, the
 check refuses before any container starts and names
-`./le setup docker-kernel apparmor confirm ze-kernel-probe`; an unreadable list
-says nothing, so the probe runs and Docker's own answer is reported. A security
+`./le setup docker-kernel apparmor confirm ze-kernel-probe`. An unreadable list
+(apparmorfs refuses it to a reader without policy-view privilege, such as a
+non-root user) is never read as "loaded": the probe runs, and
+when runc answers "unable to apply apparmor profile" the check refuses with the
+same command rather than reporting an unreadable answer. Both refusals also name
+the daemon's kernel release and the kernel route below, because the profile lets
+the probe answer and adds no kernel feature: a stock kernel may still lack some
+(MOBIKE's xfrm migrate, for example), and the operator reads the whole path in
+one run. A security
 options query that fails or prints no JSON refuses, because the argv depends on
 it. Ze's own kernel carries no AppArmor, so the QEMU guest's daemon lists none
 and the guest route is unchanged.
 
-<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, kernelProbeArgv -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- dockerAppArmor, appArmorProfileMissing, appArmorProfileUnapplied, appArmorRefusal, kernelProbeArgv -->
 
 The check runs after the preflight, because it needs the staged ze, and before
 the first image build, so a refused host costs no build and counts no scenario.

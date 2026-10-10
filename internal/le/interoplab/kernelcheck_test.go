@@ -417,3 +417,57 @@ func TestAppArmorProfileLoaded(t *testing.T) {
 		}
 	}
 }
+
+// runcAppArmorRefusal is Docker's answer, verbatim from the Ubuntu 6.8 host on
+// 2026-10-10, when the daemon applies AppArmor and ze-kernel-probe is not loaded.
+const runcAppArmorRefusal = "docker: Error response from daemon: failed to create task for container: " +
+	"failed to create shim task: OCI runtime create failed: runc create failed: unable to start container " +
+	"process: error during container init: unable to apply apparmor profile: apparmor failed to apply " +
+	"profile: write fsmount:fscontext:proc/thread-self/attr/apparmor/exec: no such file or directory"
+
+// VALIDATES: AC-18 for a host whose profile list the check cannot read (Ubuntu
+// as a non-root user). The unread list is not taken for a loaded profile: the
+// probe's own failure to apply the profile refuses, naming the load command and
+// the kernel route, and never reads as an unreadable kernel answer.
+// PREVENTS: the owner's 2026-10-10 run, where the check started the container
+// and reported "unexpected end of JSON input" for a profile nobody had loaded.
+func TestDockerKernelUnloadedProfileOnAnUnreadableListNamesTheFix(t *testing.T) {
+	runner := appArmorKernel(t, "", "", false)
+	probe := runner.run
+	runner.run = func(command processCommand) (processResult, error) {
+		if slices.Contains(command.Arguments, "run") {
+			return processResult{ExitCode: 127, Stderr: runcAppArmorRefusal}, nil
+		}
+		return probe(command)
+	}
+	err := checkDockerKernel(context.Background(), newDocker(runner), kernelCheckZe)
+	if err == nil {
+		t.Fatal("a profile the daemon could not apply proceeded")
+	}
+	for _, want := range []string{"ze-kernel-probe", AppArmorLoadCommand, "6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %q: %v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "unreadable answer") {
+		t.Errorf("the profile refusal reads as an unreadable probe answer: %v", err)
+	}
+}
+
+// VALIDATES: item 3 of the owner's 2026-10-10 report. The missing-profile
+// refusal also names the daemon's kernel and the route to Ze's kernel, because
+// loading the profile lets the probe answer and changes no kernel feature.
+// PREVENTS: an operator who loads the profile, reruns, and only then learns the
+// stock kernel needs replacing too.
+func TestDockerKernelUnloadedProfileNamesTheKernelRoute(t *testing.T) {
+	runner := appArmorKernel(t, allPresent, "docker-default (enforce)\n", true)
+	err := checkDockerKernel(context.Background(), newDocker(runner), kernelCheckZe)
+	if err == nil {
+		t.Fatal("an unloaded profile proceeded")
+	}
+	for _, want := range []string{"6.8.0-117-generic", DockerKernelRoute(runtime.GOOS)} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %q: %v", want, err)
+		}
+	}
+}

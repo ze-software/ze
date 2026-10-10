@@ -175,9 +175,12 @@ func dockerAppArmor(ctx context.Context, docker *Docker) (bool, error) {
 }
 
 // appArmorProfileMissing answers the refusal for a Linux host whose kernel
-// lists its loaded profiles and lacks Ze's, or nil. An unreadable list says
-// nothing, so the probe runs and Docker's own answer is reported.
-func appArmorProfileMissing() error {
+// lists its loaded profiles and lacks Ze's, or nil. An unreadable list is no
+// answer either way (apparmorfs refuses it to a reader without policy-view
+// privilege, such as a non-root user), so it is never read as "loaded": the
+// probe runs, and a daemon that cannot apply the profile refuses
+// through appArmorProfileUnapplied instead.
+func appArmorProfileMissing(release string) error {
 	profiles, readable := appArmorProfiles()
 	if !readable {
 		return nil
@@ -185,11 +188,38 @@ func appArmorProfileMissing() error {
 	if appArmorProfileLoaded(profiles, kernelcap.ProbeAppArmorProfileName) {
 		return nil
 	}
+	return appArmorRefusal(release, appArmorProfilesPath+" does not list")
+}
+
+// runcAppArmorUnapplied is the phrase runc writes when the daemon applies
+// AppArmor and cannot put the container under the profile it was asked for,
+// which is what a profile the daemon's kernel has not loaded produces
+// ("... unable to apply apparmor profile: ... attr/apparmor/exec: no such
+// file or directory", Ubuntu 6.8, 2026-10-10).
+const runcAppArmorUnapplied = "unable to apply apparmor profile"
+
+// appArmorProfileUnapplied reports whether a probe that exited exit with
+// stderr was refused by the daemon because it could not apply Ze's profile.
+func appArmorProfileUnapplied(exit int, stderr string) bool {
+	if exit == 0 {
+		return false
+	}
+	return strings.Contains(strings.ToLower(stderr), runcAppArmorUnapplied)
+}
+
+// appArmorRefusal names the profile, what showed it is not in force, the
+// command that loads it, and the kernel route. Loading the profile lets the
+// probe answer and changes no kernel feature, so the operator reads the whole
+// path at once rather than one step per run.
+func appArmorRefusal(release, finding string) error {
 	var refusal textbuf.Buffer
 	return errors.New(refusal.Str("the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ").
-		Str(kernelcap.ProbeAppArmorProfileName).Str(", which ").Str(appArmorProfilesPath).
-		Str(" does not list. Docker's docker-default profile denies the probe's mount and its /proc/sys write, so load Ze's: ").
-		Str(AppArmorLoadCommand).String())
+		Str(kernelcap.ProbeAppArmorProfileName).Str(", which ").Str(finding).
+		Str(". Docker's docker-default profile denies the probe's mount and its /proc/sys write, so load Ze's: ").
+		Str(AppArmorLoadCommand).
+		Str("\nThe profile lets the probe answer and adds no kernel feature: every feature the daemon's kernel (").
+		Str(release).Str(") lacks, MOBIKE's xfrm migrate for example, is then named, and the route to a kernel carrying them all is: ").
+		Str(DockerKernelRoute(runtime.GOOS)).String())
 }
 
 // checkDockerKernel runs the probe and returns nil only when the answer holds at
@@ -208,12 +238,12 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	if err != nil {
 		return err
 	}
+	release := dockerKernelRelease(ctx, docker)
 	if appArmor {
-		if missing := appArmorProfileMissing(); missing != nil {
+		if missing := appArmorProfileMissing(release); missing != nil {
 			return missing
 		}
 	}
-	release := dockerKernelRelease(ctx, docker)
 	argv := kernelProbeArgv(zePath, appArmor)
 	result, err := docker.runner.Run(ctx, processCommand{Arguments: argv, Timeout: kernelProbeTimeout})
 
@@ -222,6 +252,9 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 		Str(strings.Join(argv, " ")).Str("` ")
 	if err != nil {
 		return errors.New(problem.Str("failed: ").Err(err).String())
+	}
+	if appArmor && appArmorProfileUnapplied(result.ExitCode, result.Stderr) {
+		return appArmorRefusal(release, "the daemon could not apply ("+strings.TrimSpace(result.Stderr)+")")
 	}
 	var answer kernelAnswer
 	if jsonErr := json.Unmarshal([]byte(result.Stdout), &answer); jsonErr != nil {
