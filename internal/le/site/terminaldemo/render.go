@@ -25,6 +25,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/dockerhost"
+	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/le/tail"
 )
 
 var (
@@ -266,12 +268,40 @@ func (e *Engine) runValidation(manifest Manifest, demo Demo) error {
 	var buffer textbuf.Buffer
 	e.output.Write(buffer.Str("validating ").Str(demo.ID).Str("...\n").Bytes()) //nolint:errcheck // CLI progress output cannot change the validation verdict.
 	return e.withLock(func() error {
-		code := e.execute(e.externalCommand(command, e.root))
-		if code != 0 {
-			return commandFailure{code: code, args: command}
-		}
-		return nil
+		return e.runDemoContainer(&demo, command)
 	})
+}
+
+// demoStderrTailOctets bounds what runDemoContainer keeps of a net-sysctl
+// demo's stderr: runc's AppArmor refusal is the last line docker writes.
+const demoStderrTailOctets = 4096
+
+// runDemoContainer runs one demo container. A net-sysctl demo's stderr is
+// also kept in a bounded tail, because when the host's AppArmor profile list
+// is unreadable (a non-root renderer) demoGrants cannot refuse first, and the
+// daemon's failure to apply the profile surfaces only there; it is answered
+// with the load command, never as a bare exit code.
+func (e *Engine) runDemoContainer(demo *Demo, command []string) error {
+	run := e.externalCommand(command, e.root)
+	var stderrTail *tail.Buffer
+	if demo.isNetSysctl() {
+		stderrTail = tail.New(demoStderrTailOctets)
+		terminal := run.Stderr
+		if terminal == nil {
+			terminal = os.Stderr
+		}
+		run.Stderr = io.MultiWriter(terminal, stderrTail)
+	}
+	code := e.execute(run)
+	if code == 0 {
+		return nil
+	}
+	if stderrTail != nil {
+		if refusal := interoplab.NetSysctlUnapplied(code, stderrTail.String()); refusal != nil {
+			return fmt.Errorf("terminal demo %s writes /proc/sys/net: %w", demo.ID, refusal)
+		}
+	}
+	return commandFailure{code: code, args: command}
 }
 
 // containerCommand answers the docker argv one demo step runs in.
@@ -521,8 +551,8 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 		dockerEnvironmentToken, speedEnv,
 	)
 	e.output.Write(buffer.Reset().Str("rendering ").Str(demo.ID).Str("...\n").Bytes()) //nolint:errcheck // CLI progress output cannot change the render verdict.
-	if code := e.execute(e.externalCommand(command, e.root)); code != 0 {
-		return ArtifactEntry{}, commandFailure{code: code, args: command}
+	if err := e.runDemoContainer(&demo, command); err != nil {
+		return ArtifactEntry{}, err
 	}
 	if videoPath != "" {
 		if err := e.expandTimeline(videoPath, speedup); err != nil {

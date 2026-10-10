@@ -6,9 +6,9 @@ package interoplab
 func init() {
 	RegisterAppArmorProfile(AppArmorProfile{
 		Name:  NetSysctlAppArmorProfileName,
-		Runs:  "a lab peer that writes its network namespace's sysctls while it runs",
+		Runs:  "a container (a lab peer or a terminal demo) that writes its network namespace's sysctls while it runs",
 		Needs: "sysctl writes under /proc/sys/net",
 		Text:  netSysctlAppArmorProfile,
-		Next:  "re-run the lab that refused",
+		Next:  "re-run the lab or terminal demo that refused",
 	})
 }

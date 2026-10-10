@@ -54,6 +54,24 @@ func (d *Docker) NetSysctlSecurityArguments(ctx context.Context) ([]string, erro
 	return append(NetSysctlWriteArguments(), profile...), nil
 }
 
+// NetSysctlUnapplied answers the refusal, naming the load command, for a
+// container run under NetSysctlSecurityArguments that exited with exitCode
+// because the daemon could not apply the profile (runc's "unable to apply
+// apparmor profile" in stderr), and nil for any other outcome. A caller that
+// runs the container outside Docker.runContainer, such as the terminal demo
+// renderer, reads it from the tail of the run's stderr: when the host's
+// profile list is unreadable, NetSysctlSecurityArguments cannot refuse first.
+func NetSysctlUnapplied(exitCode int, stderr string) error {
+	if !appArmorProfileUnapplied(exitCode, stderr) {
+		return nil
+	}
+	profile, registered := LookupAppArmorProfile(NetSysctlAppArmorProfileName)
+	if !registered {
+		return nil
+	}
+	return labAppArmorRefusal(profile, "the daemon could not apply ("+strings.TrimSpace(stderr)+")")
+}
+
 // NetSysctlGranted reports whether the profile admits a write of key, spelled
 // as sysctl spells it (net.ipv4.ip_forward).
 func NetSysctlGranted(key string) bool {

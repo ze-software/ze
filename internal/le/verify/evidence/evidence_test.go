@@ -300,19 +300,3 @@ func TestAHostWithoutAContainerDeviceNamesTheModule(t *testing.T) {
 		t.Errorf("an unrelated docker failure answered an error: %v", err)
 	}
 }
-
-// VALIDATES: tailBuffer keeps exactly the last limit octets across writes and
-// always reports every octet written.
-// PREVENTS: Docker's one-line refusal falling out of the kept tail, or a short
-// write stopping the copy of docker's stderr.
-func TestTailBufferKeepsTheLastOctets(t *testing.T) {
-	tail := &tailBuffer{limit: 8}
-	for _, chunk := range []string{"0123", "456789", "abcdefghijkl", "XY"} {
-		if n, err := tail.Write([]byte(chunk)); n != len(chunk) || err != nil {
-			t.Fatalf("Write(%q) = %d, %v", chunk, n, err)
-		}
-	}
-	if got := string(tail.data); got != "ghijklXY" {
-		t.Errorf("tail = %q, want %q", got, "ghijklXY")
-	}
-}

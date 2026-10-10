@@ -161,6 +161,9 @@ type demoFixture struct {
 	// netSysctlRefusal is what the net sysctl grant answers; nil grants
 	// fixtureNetSysctlGrants.
 	netSysctlRefusal error
+	// appArmorUnapplied makes every container run under the net sysctl
+	// profile fail as runc does when the daemon cannot apply it.
+	appArmorUnapplied bool
 }
 
 // fixtureNetSysctlGrants stands in for the daemon's net sysctl arguments.
@@ -254,6 +257,15 @@ func (f *demoFixture) execute(command Command) int {
 			return 1
 		}
 		return 0
+	}
+	if f.appArmorUnapplied && slices.Contains(command.Args, "apparmor=ze-lab-net-sysctl") {
+		if command.Stderr != nil {
+			//nolint:errcheck // the fixture's stderr is a test buffer
+			command.Stderr.Write([]byte("docker: Error response from daemon: failed to create task: " +
+				"OCI runtime create failed: runc create failed: unable to apply apparmor profile: " +
+				"apparmor failed to apply profile: write /proc/self/attr/apparmor/exec: no such file or directory\n"))
+		}
+		return 126
 	}
 	// `docker image inspect <image>` is how the pipeline asks whether the renderer
 	// image is built. The fixture image is, unless a case says otherwise.
@@ -589,6 +601,31 @@ func TestANetSysctlDemoRunsWithoutPrivilege(t *testing.T) {
 			if slices.Contains(command.Args, "browser") && slices.Contains(command.Args, "--network") {
 				t.Errorf("the refused demo's container started: %v", command.Args)
 			}
+		}
+	})
+	t.Run("daemon cannot apply the profile", func(t *testing.T) {
+		// The host's profile list was unreadable, so the grant went ahead;
+		// the daemon then refuses the profile. The refusal names the load
+		// command and what the demo needs, never a bare exit code.
+		fixture := newDemoFixture(t)
+		setNetSysctl(t, fixture, false)
+		fixture.appArmorUnapplied = true
+		_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+		if err == nil {
+			t.Fatal("a demo whose profile the daemon could not apply was accepted")
+		}
+		for _, want := range []string{
+			"terminal demo browser writes /proc/sys/net",
+			"a container (a lab peer or a terminal demo)",
+			"\n  ./le setup docker-kernel apparmor confirm ze-lab-net-sysctl",
+		} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error %q lacks %q", err, want)
+			}
+		}
+		var failure commandFailure
+		if errors.As(err, &failure) {
+			t.Errorf("the refusal is a bare exit code: %v", err)
 		}
 	})
 	t.Run("both grants", func(t *testing.T) {

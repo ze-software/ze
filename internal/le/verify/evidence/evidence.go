@@ -36,6 +36,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/le/tail"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/runner"
 )
@@ -400,18 +401,18 @@ func startDocker(args ...string) (int, string) {
 	// stderr so that `le verify evidence release-candidate-check | json` still
 	// answers one JSON document on stdout.
 	cmd.Stdout = os.Stderr
-	tail := &tailBuffer{limit: stderrTailOctets}
-	cmd.Stderr = io.MultiWriter(os.Stderr, tail)
+	stderrTail := tail.New(stderrTailOctets)
+	cmd.Stderr = io.MultiWriter(os.Stderr, stderrTail)
 
 	if err := cmd.Run(); err != nil {
 		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-			return exit.ExitCode(), string(tail.data)
+			return exit.ExitCode(), stderrTail.String()
 		}
 		var tb textbuf.Buffer
 		tb.Str("error: docker run: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
-		return 1, string(tail.data)
+		return 1, stderrTail.String()
 	}
-	return 0, string(tail.data)
+	return 0, stderrTail.String()
 }
 
 // stderrTailOctets bounds what startDocker keeps of docker's stderr. Docker's
@@ -419,20 +420,3 @@ func startDocker(args ...string) (int, string) {
 // the last few kilobytes always hold it, and a 50-minute gate's output is
 // never held whole.
 const stderrTailOctets = 4096
-
-// tailBuffer keeps the last limit octets written to it. Not safe for
-// concurrent use: exec copies one stream into it from one goroutine.
-type tailBuffer struct {
-	data  []byte
-	limit int
-}
-
-// Write keeps p's last octets within the limit and always reports p whole, so
-// the writer copying docker's stderr never stops.
-func (b *tailBuffer) Write(p []byte) (int, error) {
-	b.data = append(b.data, p...)
-	if excess := len(b.data) - b.limit; excess > 0 {
-		b.data = append(b.data[:0], b.data[excess:]...)
-	}
-	return len(p), nil
-}
