@@ -320,9 +320,31 @@ One container site per commit, test first:
 
 ## Review Gate
 
-### Status: ready for round 4
+### Status: review loop closed after round 4; owner approval owed
 
-The implementing session MUST NOT review its own work: round 4 is owed to an independent reviewer, with at least two lenses, over the round-3 fix commits in the commit range below (61e717df0c to 6d8feeca0b), with the whole diff in reach. Write each round's scope here before it runs.
+Round 4 left 0 BLOCKER code-side and 0 ISSUE; its 5 NOTEs are fixed below. The loop is closed for code. BLOCKER 1 that remains is the owner's approval only (the verification-debt rows in `plan/verification-debt/d1987d95.md` and the decision below), not a code finding.
+
+What remains owed before closure:
+
+| Owed | Who | What closes it |
+|------|-----|----------------|
+| Owner approval | Thomas | his answer to the verification-debt rows for 2e16e9e966, 11e3964084 and 61e717df0c (`./le commit debt-discharge ... kind owner`, or `./le rfc approve unit` per unit) |
+| AC-8 and AC-9 lab runs | main thread | the amd64 runtime kernel cache entry built on a host with room, then every lab and proof run in the docker-lab guest (AC-8 row), then one grant-removal red per grant (AC-9 row) |
+| AC-2 AppArmor load | main thread, root on an AppArmor host | `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl` loads and enforces the profile |
+| AC-10 evidence | main thread | `./le verify evidence release-candidate` on Ze's kernel with `ze-kernel-probe` loaded, and one terminal-demo render on amd64 Linux including `rib-fib` |
+| Full lint and verify | main thread or a fresh agent | `./le go lint run` and `./le verify worktree` over the tree |
+
+### Round 4 (2026-10-10, independent reviewer): fixes
+
+0 BLOCKER code-side, 0 ISSUE, 5 NOTE, over 61e717df0c to 6d8feeca0b.
+
+| Finding | Fix |
+|---------|-----|
+| NOTE 1: `resolvePath` kept a dangling symlink inside a staged root lexically when `filepath.EvalSymlinks` failed, so it passed as staged; its comment said the missing part "holds no symlink because it holds nothing" | 3decb37219: `resolvePath` Lstats each prefix; one that exists but does not resolve (a dangling symlink, a loop) answers not-judgeable, and `stagedInside` refuses it; the comment states the new contract. `TestParsePeerResolvesSymlinksAndRefusesSockets` gains a dangling symlink and a path below one, both red with the Lstat check disabled |
+| NOTE 2: a read-only mount of a DIRECTORY holding a unix socket passed, and `StagedRoots` includes the system temporary directory (the X11 socket directory on Linux) | 3decb37219: `stagedInside` refuses every directory mount; every lab mount (BGP, IPsec, L2TP, PPPoE, RADIUS, RSVP-TE) is a file, so no lab needs one. The `ParsePeer` comment says so. The test mounts a directory holding a socket, red with the directory check disabled; every grantcheck user's privilege test stays green |
+| NOTE 3: `Parse` stopped at the first positional, so an argv opening with the docker binary parsed to no grant | 3decb37219: a leading `docker` (any path whose base is `interoplab.DockerExecutable`, now exported) is skipped, and any other opening word lands in `Unclassified`. `TestParseReadsPastTheExecutableAndRefusesAnOpeningWord`, red against the old stop-at-positional read |
+| NOTE 4: the `prepare.go` FRR comment called `frr:10.3.1` "the image the labs pin", but three BGP scenarios pin 10.4.1 and 10.7.1 through `frr-image` files | a152c566c2: the comment names frr-10.3.1 (`defaultFRRImage`), frr-10.4.1 (`bgp-linklocal-only-multihop-withdraw-frr`), frr-10.7.1 (the two `bgp-srv6-next-hop-identity` scenarios) and frr-10.5.3. At each, `zebra/main.c` and `bgpd/bgp_main.c` `_caps_p` list `ZCAP_SYS_ADMIN` and `lib/privs.c` prints "privs_init: initial cap_set_proc failed"; 10.3.1, 10.4.1 and 10.5.3 read from the local FRR checkout, 10.7.1 from the tag on GitHub (absent locally) |
+| NOTE 5: `docs/architecture/testing/interop.md` did not describe the exact grant-set check | 3decb37219: section "The exact grant-set check" (what `Parse` and `ParsePeer` read, fail-closed on unclassified flags, staged mounts) |
 
 -> Decision (review round 3, 2026-10-10, main thread on the owner's delegation of privilege calls, option (a)): the per-test device declaration is deleted. `option=opens-device` had no reader (the evidence container is granted the whole `ContainerDevicePaths` table) and it over-declared the SCCRQ-only tests. 61e717df0c removes the option grammar (`record_parse` case, `Record.Devices`, vocabulary entry, `ci-format.md` rows) and the option line from all 34 `test/l2tp` and `test/pppoe` files. Each of them, including the four RFC-tagged ones (`radius-acct-wire`, `rfc2661-emitted-control-shape`, `rfc2661-sccrq-mandatory-avp`, `rfc2661-sccrq-tunnel-id-zero`), is byte-identical to `origin/main`, so the round-2 OPEN OWNER QUESTIONS for those four are withdrawn: no assertion, expectation, claim or option line of theirs differs from the base. The table (`containerDevices`) and the device-error refusal (`deviceRefusal`) stay.
 
@@ -440,8 +462,10 @@ Commit range, this spec's commits only, oldest first (other sessions' commits in
 | 94caa32651 | interoplab: the FRR SYS_ADMIN quotes name the FRR versions read | round 3 NOTE 7 |
 | 9bd028370a | journal: .ci option types other than timeout and needs-linux drop keys | round 3 NOTE 5 |
 | 6d8feeca0b | grantcheck: the socket test listens through a ListenConfig | scoped lint over 2d3ec909b0 |
+| 3decb37219 | grantcheck: refuse dangling links, directory mounts and opening words | round 4 NOTE 1, NOTE 2, NOTE 3, NOTE 5 |
+| a152c566c2 | interoplab/bgp: FRR SYS_ADMIN comment names every pinned FRR tag | round 4 NOTE 4 |
 
-Unit evidence: `go test -race` with the gate tags over `internal/le/interoplab`, `.../ipsec`, `.../l2tp`, `.../pppoe`, `.../rsvpte`, `internal/le/site/terminaldemo`, `internal/le/verify/evidence`, `internal/test/runner`, `internal/le/test/deployment`, `internal/le/le/tail`, `internal/le/interoplab/grantcheck`: all `ok` at 6d8feeca0b (2026-10-10).
+Unit evidence: `go test -race` with the gate tags over `internal/le/interoplab`, `.../ipsec`, `.../l2tp`, `.../pppoe`, `.../rsvpte`, `internal/le/site/terminaldemo`, `internal/le/verify/evidence`, `internal/test/runner`, `internal/le/test/deployment`, `internal/le/le/tail`, `internal/le/interoplab/grantcheck`: all `ok` at 6d8feeca0b (2026-10-10). Round 4: `go test -race` with the gate tags over `internal/le/interoplab/grantcheck` and `internal/le/interoplab`, and the privilege tests of `.../pppoe`, `.../rsvpte`, `.../ipsec`, `.../l2tp`, `internal/le/test/deployment` and `internal/le/verify/evidence`: all `ok` at 3decb37219. Scoped lint over `grantcheck` and `interoplab`: 0 issues; over `interoplab/bgp`: red only on lines no commit of this spec wrote (journal row in `plan/journal/lint-contract-not-applied.md`, a152c566c2).
 
 | AC | Evidence | Owed, and where |
 |----|----------|-----------------|
@@ -458,4 +482,4 @@ Unit evidence: `go test -race` with the gate tags over `internal/le/interoplab`,
 
 Scoped lint after round 2 (2026-10-10, `./le go lint run scope` over grantcheck, ipsec, l2tp, pppoe, rsvpte, bgp, evidence, terminaldemo, `le/tail`, `test/runner`): the three findings in this spec's code are fixed in 668b7c52b5. What remains is in other sessions' code: `internal/le/interoplab/bgp` goconst, gosec, errorlint, modernize, staticcheck and prealloc findings in `check_*.go`, `speaker_parsed_empty_mp.go`, and `prepare.go` lines 363, 410 and 557 (none written by this spec), plus `internal/test/runner/needs_path.go` and `ports_lease_test.go`. `internal/le/test/deployment` could not be linted: it imports `internal/appliance`, which does not typecheck while another session's uncommitted `internal/appliance/kernelbuilder/driver.go` is in the tree.
 
-Gates owed by the main thread: `./le go lint run` (the scoped run over this spec's packages left findings only in other sessions' files: `internal/test/fixture/plugin_fixture_rfc2545_*`, `plugin_fixture_03_bfd.go`, `plugin_fixture_15_rpki.go`, `plugin_fixture_clamped_path_linux.go`, `ui_fixture_le_binary_dispatches.go`, `ui_fixture_pipe_review_entry_contracts.go`, `internal/test/runner/needs_path.go`, `ports_lease_test.go`), `./le verify worktree`, then the independent review rounds.
+Gates owed by the main thread: `./le go lint run` (the scoped run over this spec's packages left findings only in other sessions' files: `internal/test/fixture/plugin_fixture_rfc2545_*`, `plugin_fixture_03_bfd.go`, `plugin_fixture_15_rpki.go`, `plugin_fixture_clamped_path_linux.go`, `ui_fixture_le_binary_dispatches.go`, `ui_fixture_pipe_review_entry_contracts.go`, `internal/test/runner/needs_path.go`, `ports_lease_test.go`) and `./le verify worktree`. The independent review rounds are done (round 4 closed the loop); the full list of what remains is the table under "Status" above.
