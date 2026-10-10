@@ -164,6 +164,9 @@ func (e *Engine) validateDemo(demo *Demo) error {
 			return fmt.Errorf("manifest.json: %s.%s is required", demo.ID, field.name)
 		}
 	}
+	if err := privilegeJustified(demo); err != nil {
+		return err
+	}
 	extensions, err := assetExtensions(demo.Kind)
 	if err != nil {
 		return fmt.Errorf("manifest.json: %s.kind is unsupported", demo.ID)
@@ -196,6 +199,31 @@ func (e *Engine) validateDemo(demo *Demo) error {
 			relative = check.path
 		}
 		return fmt.Errorf("manifest.json: %s does not exist: %s", check.kind, filepath.ToSlash(relative))
+	}
+	return nil
+}
+
+// privilegeJustified refuses a privileged demo that states no reason, and a
+// reason on a demo that is not privileged. --privileged lifts every container
+// limit, so each demo that takes it says why in the manifest
+// (spec-lab-containers-least-privilege, owner decision 3), and a reason that
+// outlives its grant is a stale claim.
+func privilegeJustified(demo *Demo) error {
+	if demo.isPrivileged() {
+		if demo.PrivilegedReason == "" {
+			return fmt.Errorf("manifest.json: %s runs --privileged and states no privileged-reason: "+
+				"--privileged lifts every container limit, so the manifest must say why this demo needs it; "+
+				"add \"privileged-reason\" to %s in demos/terminal/manifest.json naming what the demo does that "+
+				"NET_ADMIN, NET_RAW and SYS_ADMIN under Docker's default profiles refuse, or remove \"privileged\"",
+				demo.ID, demo.ID)
+		}
+		return nil
+	}
+	if demo.PrivilegedReason != "" {
+		return fmt.Errorf("manifest.json: %s states a privileged-reason but is not privileged: "+
+			"the reason would justify a grant the demo does not take; "+
+			"remove \"privileged-reason\" from %s in demos/terminal/manifest.json, or set \"privileged\": true",
+			demo.ID, demo.ID)
 	}
 	return nil
 }

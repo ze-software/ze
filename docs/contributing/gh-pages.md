@@ -59,6 +59,15 @@ manifest demo with no scenario, fails the package's unit test.
 <!-- source: internal/le/site/terminaldemo/register_scenarios.go -- init -->
 <!-- source: internal/le/site/terminaldemo/registry_test.go -- TestEveryManifestDemoHasARegisteredScenario -->
 
+A demo's container holds `NET_ADMIN`, `NET_RAW` and `SYS_ADMIN` under Docker's
+default seccomp and AppArmor profiles. A demo that needs more sets
+`"privileged": true` and MUST state why in `"privileged-reason"`: what it does
+that those grants refuse, such as `ip netns add`, whose bind mount the default
+AppArmor profile denies. Every mode refuses a privileged demo with no reason,
+and a reason on a demo that is not privileged, before any command starts.
+<!-- source: internal/le/site/terminaldemo/render.go -- containerCommand -->
+<!-- source: internal/le/site/terminaldemo/manifest.go -- privilegeJustified -->
+
 A tape can `Source` a fragment that lives outside its demo directory, such as a
 topic's `demos/terminal/topics/<topic>/configure.tape`, which both the topic
 recording and the showcase play. A recording's source and definition digests

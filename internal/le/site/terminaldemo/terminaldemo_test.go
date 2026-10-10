@@ -204,7 +204,7 @@ func (f *demoFixture) writeTree(t *testing.T) {
 		GalleryPage: "guide/gallery.md",
 		Demos: []Demo{
 			{ID: "term", Title: "Terminal", Description: "Terminal demo", Page: "guide/demo.md", Anchor: "terminal", Platform: "portable", Kind: "terminal", Engine: "Ze recorder", Source: "term/demo.tape", Validate: "term"},
-			{ID: "browser", Title: "Browser", Description: "Browser demo", Page: "guide/demo.md", Anchor: "browser", Platform: "portable", Kind: "browser", Engine: "Playwright", Source: "browser/run.cjs", Validate: "browser", Duration: "10 seconds", Privileged: new(true)},
+			{ID: "browser", Title: "Browser", Description: "Browser demo", Page: "guide/demo.md", Anchor: "browser", Platform: "portable", Kind: "browser", Engine: "Playwright", Source: "browser/run.cjs", Validate: "browser", Duration: "10 seconds", Privileged: new(true), PrivilegedReason: "the fixture browser needs the whole device tree"},
 		},
 	}
 	writeJSON(t, filepath.Join(demoRoot, "manifest.json"), manifest)
@@ -461,6 +461,53 @@ func TestEveryModeFailsClosedOnTheManifestContract(t *testing.T) {
 			}
 			if len(fixture.commands) != 0 {
 				t.Errorf("invalid manifest started commands: %#v", fixture.commands)
+			}
+		})
+	}
+}
+
+// VALIDATES: a privileged demo with no privileged-reason, and a reason on a
+// demo that is not privileged, are refused before any command starts, and the
+// refusal names the demo, why the reason is owed and the manifest key that
+// fixes it (spec-lab-containers-least-privilege, owner decision 3).
+// PREVENTS: --privileged, which lifts every container limit, being granted to a
+// demo nobody justified, or a stale reason surviving its grant.
+func TestAPrivilegedDemoWithoutAReasonIsRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		privileged *bool
+		reason     string
+		want       []string
+	}{
+		{"privileged without reason", new(true), "", []string{
+			"manifest.json: browser runs --privileged and states no privileged-reason",
+			"lifts every container limit",
+			`add "privileged-reason" to browser in demos/terminal/manifest.json`,
+		}},
+		{"reason without privilege", nil, "stale", []string{
+			"manifest.json: browser states a privileged-reason but is not privileged",
+			`remove "privileged-reason" from browser in demos/terminal/manifest.json`,
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newDemoFixture(t)
+			path := filepath.Join(fixture.root, "demos", "terminal", "manifest.json")
+			var manifest Manifest
+			readJSONForTest(t, path, &manifest)
+			manifest.Demos[1].Privileged = tc.privileged
+			manifest.Demos[1].PrivilegedReason = tc.reason
+			writeJSON(t, path, manifest)
+			_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.08.27")
+			if err == nil {
+				t.Fatal("the manifest was accepted")
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q lacks %q", err, want)
+				}
+			}
+			if len(fixture.commands) != 0 {
+				t.Errorf("the refused manifest started commands: %#v", fixture.commands)
 			}
 		})
 	}

@@ -188,7 +188,12 @@ type Demo struct {
 	Validate    string `json:"validate"`
 	Duration    string `json:"duration,omitempty"`
 	Privileged  *bool  `json:"privileged,omitempty"`
-	Realtime    *bool  `json:"realtime,omitempty"`
+	// PrivilegedReason says what the demo does that its default grants
+	// (NET_ADMIN, NET_RAW, SYS_ADMIN under Docker's default seccomp and
+	// AppArmor profiles) refuse. It is required when Privileged is true and
+	// refused otherwise.
+	PrivilegedReason string `json:"privileged-reason,omitempty"`
+	Realtime         *bool  `json:"realtime,omitempty"`
 }
 
 func (d Demo) isPrivileged() bool { return d.Privileged != nil && *d.Privileged }
