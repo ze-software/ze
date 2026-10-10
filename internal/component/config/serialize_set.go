@@ -152,13 +152,9 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 		}
 
 	case *BracketLeafListNode:
-		if v, ok := tree.values[name]; ok {
-			b.Str(setOrNop(tree, name))
-			b.Str(prefix)
-			b.Str(name)
-			b.Str(" [ ")
-			b.Str(v)
-			b.Str(" ]\n")
+		if body, ok := bracketBody(tree, name); ok {
+			b.Str(setOrNop(tree, name)).Str(prefix).Str(name).Str(" [ ").Str(body).Str(" ]\n")
+			writeInactiveMemberLines(b, tree, name, prefix)
 		}
 
 	case *ValueOrArrayNode:
@@ -202,6 +198,26 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 	case *InlineListNode:
 		serializeSetInlineList(b, tree, name, n, prefix)
 	}
+}
+
+// writeInactiveMemberLines writes one `inactive <path> <member>` line for each
+// deactivated member of a bracket leaf-list, after the line that sets the whole
+// list, so a set-format load reads the members back deactivated. Caller holds
+// tree.mu.RLock.
+func writeInactiveMemberLines(b *textbuf.Buffer, tree *Tree, name, prefix string) {
+	for _, member := range tree.multiValues[name] {
+		if tree.inactiveMembers[name][member] {
+			b.Str("inactive ").Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
+		}
+	}
+}
+
+// bracketValue spells a bracket leaf-list value, its members as
+// JoinLeafListMembers spells them, inside brackets. A metadata entry holds
+// that spelling, so a contested entry's line reads back as members too.
+func bracketValue(members string) string {
+	var b textbuf.Buffer
+	return b.Str("[ ").Str(members).Str(" ]").String()
 }
 
 // splitInactiveMembers separates leaf-list items into the full ordered member
@@ -598,9 +614,10 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 		}
 
 	case *BracketLeafListNode:
-		if v, ok := tree.values[name]; ok {
+		if body, ok := bracketBody(tree, name); ok {
 			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
-			writeMetaLeafLineCmd(b, meta, name, setOrNop(tree, name), pathPfx, tb.Reset().Str("[ ").Str(v).Str(" ]").String())
+			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, bracketValue(body), bracketValue)
+			writeInactiveMemberLines(b, tree, name, prefix)
 		}
 
 	case *ValueOrArrayNode:
@@ -737,6 +754,13 @@ func writeMetaLeafLine(b *textbuf.Buffer, meta *MetaTree, name, pathPrefix, valu
 // (including trailing space). value is the formatted value (empty for flags).
 // For contested leaves (multiple session entries), it emits one line per entry.
 func writeMetaLeafLineCmd(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPrefix, value string) {
+	writeMetaLeafLineFormat(b, meta, name, cmd, pathPrefix, value, quoteIfNeeded)
+}
+
+// writeMetaLeafLineFormat is writeMetaLeafLineCmd with the spelling of a
+// contested entry's value given: quoteIfNeeded for a leaf, bracketValue for a
+// bracket leaf-list, whose entry value is several members.
+func writeMetaLeafLineFormat(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPrefix, value string, entryValue func(string) string) {
 	if meta != nil {
 		entries := meta.entries[name]
 		if len(entries) > 1 {
@@ -756,7 +780,7 @@ func writeMetaLeafLineCmd(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPref
 					if !strings.HasSuffix(pathPrefix, " ") {
 						b.Str(" ")
 					}
-					b.Str(quoteIfNeeded(e.Value))
+					b.Str(entryValue(e.Value))
 				}
 				b.Str("\n")
 			}

@@ -416,6 +416,8 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | `ddos-parent-config-removed` (changed) | `test/plugin/ddos-parent-config-removed.ci` | Not this spec's AC: d789fb00d2, a defect fix this spec found, changed what it exercises. Deleting the whole `ddos` block now delivers ddos-local the empty body before the stop, so the config boundary withdraws and the exit path finds nothing to remove. The test now expects the "section was removed" withdrawal and rejects the exit-path line, so it pins d789fb00d2 at the operator gesture. The exit path alone has no operator gesture left (a daemon stop also flushes every ze table through the firewall engine), so `TestLocalEngineExitRemovesTheDrop` (below) is its proof and no sibling `.ci` can discriminate it | OWED: QEMU guest run (needs-linux net-admin,bpf), not run while a kernel rebuild is pending. The new expectations have never run (independent review, 2026-10-10, ISSUE 5); not weakened |
 | `TestLocalEngineExitRemovesTheDrop` | `internal/plugins/ddos/local/stale_table_test.go` | The exit path d789fb00d2 left without an operator gesture: the firewall and ddos-local engines run over the SDK transport, a detection installs a drop, the local engine's transport closes, and the backend then holds no `ze_ddos-local` rule. `TestLocalEngineStopRemovesTheDrop` calls `stopResponder` directly and stays green with runEngine's defer gone; this one goes red (-overlay mutant, the rule left in the backend) | pass (40aa9dd299) |
 | `TestLoadMergeBracketTwiceBeforeCommit`, `TestLoadBracketSetFormat` | `internal/component/cli/editor_load_test.go` | The load path under AC-2, after the review BLOCKER: two merges of a bracket leaf-list with no commit between keep every member (session and file mode), with the member store, ToMap, the scalar and the serializer agreeing; a set-format merge unions like a hierarchical one, and a set-format replace with the unchanged list records nothing. Both union against held members. Red with -overlay when Tree.Set's mirror branch and the editor's SetSlice routing are off; the set-format test also with the set parser back on Set | pass (ec97c976a8) |
+| `TestDeactivateBracketMemberSurvivesSave`, `TestDeactivateBracketMemberSurvivesCommit`, `TestLoadMergeKeepsDeactivatedBracketMember`, `TestSessionFirstBracketWriteKeepsMembersAfterCommit` | `internal/component/cli/editor_bracket_inactive_test.go` | Round-2 review ISSUE 1 and ISSUE 2: a bracket member deactivated in file mode survives Save and a reload, in session mode survives CommitSession; a load merge after it keeps the member deactivated; a bracket leaf first written in a session holds members (GetSlice, ToMap) in the editor's tree after the commit. Save and commit red with -overlay when the hierarchical and set serializer arms drop the inactive members; merge and first-write red before the editor fix (SetSlice cleared the marker; the commit replay stored the joined text as a scalar) | pass |
+| `TestBracketLeafListInactiveMemberRoundTrip`, `TestBracketLeafListAllMembersInactiveRoundTrip`, `TestBracketLeafListQuotedMemberRoundTrip`, `TestTreeSetMirroredKeepsQuotedAndInactiveMembers`, `TestMergeContainerDedupsAndCarriesInactive` | `internal/component/config/tree_bracket_inactive_test.go` | Round-2 ISSUE 1 and NOTES 1-3: a deactivated bracket member, and a list whose every member is deactivated, round-trip through hierarchical, set and set-with-meta text, with a whole-leaf marker beside it; a quoted member stays one member in every format and both parsers agree; Tree.Set on a mirrored leaf-list (bracket or not) keeps quoted members and deactivated ones; two blocks of one container dedup a set, keep an ordered sequence's repeats and carry the second block's member marker. Round trips red with -overlay on the old serializer arms; Set, quoting and merge red with -overlay on the old setLocked and mergeFrom | pass |
 | `TestBuildDiffSectionsFilesAChangedAncestorUnderItsDeclaredRoot` | `internal/component/plugin/server/reload_test.go` | The Changed arm of d789fb00d2's declared-root pass: an ancestor whose value changed gives the nested root an add, a removal or a change by which side holds it. Red with -overlay when the both-sides arm files an add | pass |
 | one `.ci` per further topic found not to enable on a live commit | `test/reload/<topic>-added-live.ci` | AC-2: named when the Work Plan step 1 probe finds the defect; none exists yet because none is proven | |
 | topic and showcase validators | `./le site terminal-demo` validate mode, Linux renderer container | AC-2, AC-3, AC-4, AC-11: the recording's claims hold against the live lab | |
@@ -591,6 +593,22 @@ the light of decision 4: they guard against wrong output on screen, nothing more
   bracket leaf-list in two stores and the editor's write paths updated one, so
   two load merges with no commit between lost a member. The members are now
   authoritative and `Tree.Set` keeps the scalar mirror and the members in step.
+- Round-2 review (2 ISSUE, 5 NOTE) fixed. ISSUE 1, a data loss older than this
+  spec: deactivating a bracket leaf-list member deleted it on the next save,
+  because every bracket serializer wrote the mirror, which names active members
+  only. The serializers now write every member and one `inactive: <leaf>
+  <member>` statement (`inactive <path> <member>` in set form) per deactivated
+  one, both parsers read that back, the display serializers and the tree diff
+  show it, and the load merge unions over the member states. ISSUE 2: the
+  session commit, the draft replay, the forced restore and the revert wrote a
+  whole value with `Tree.Set`, so a bracket leaf first written in a session
+  became one joined scalar after the commit; all four now go through the
+  editor's schema-aware `storeLeaf` (the forced restore copies the member
+  states). The mirror is the active view, spelled with quotes where a member
+  needs them (`JoinLeafListMembers`), and a whole write
+  (`Tree.SetLeafListMembers`, `Tree.Set` on a mirrored name) keeps a
+  deactivated member it does not name. A merge of two blocks of one container
+  dedups a set and carries member markers (`mergeFrom` takes the schema node).
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/configorder"
@@ -44,11 +43,13 @@ type Tree struct {
 	// DeactivateMultiValue rather than silently marking every copy inactive.
 	inactiveMembers map[string]map[string]bool
 	// mirrored names every leaf-list whose values[name] is the derived mirror
-	// of its multiValues members, written by syncMultiValueToValueLocked. The
-	// members are authoritative; the mirror exists for Get() and for the
-	// serializers that read values[name]. A leaf-list held in both stores MUST
-	// change both on every write, so setLocked re-derives the members when a
-	// caller sets the mirror whole, and no reader sees a stale member list.
+	// of its multiValues members, written by syncMultiValueToValueLocked: the
+	// ACTIVE members, spelled by JoinLeafListMembers. It covers every leaf-list
+	// stored as members, bracket (BracketLeafListNode) or not
+	// (ValueOrArrayNode). The members are authoritative; the mirror exists for
+	// Get(). A leaf-list held in both stores MUST change both on every write,
+	// so setLocked reads a value set whole as the active view
+	// (setActiveMembersLocked), and no reader sees a stale member list.
 	// A name with members but no mirror (AppendValue: freeform entries, the
 	// plugin-map singleton view) is not in this set, because its values are not
 	// space-joined members and splitting them would corrupt them.
@@ -191,20 +192,75 @@ func (t *Tree) Set(name, value string) {
 
 // setLocked is the lock-free core of Set. Caller MUST hold t.mu.Lock().
 //
-// When name is a mirrored leaf-list (see Tree.mirrored), value is the whole
-// list spelled as the mirror spells it, members joined by spaces, so the
-// members are replaced by its fields and their deactivation markers dropped:
-// setting the list whole states every member active. Without this the member
-// store keeps the old list, ToMap and GetSlice answer it, and the serializers,
-// which read the mirror, answer the new one.
+// When name is a mirrored leaf-list (see Tree.mirrored), value is the list
+// spelled as the mirror spells it (JoinLeafListMembers), so it is read back
+// with SplitLeafListMembers and stored as the active view
+// (setActiveMembersLocked): a quoted member stays one member, and a
+// deactivated member, which the mirror never names, is kept. Without this the
+// member store keeps the old list and ToMap and GetSlice answer it.
 func (t *Tree) setLocked(name, value string) {
 	if t.mirrored[name] {
-		t.multiValues[name] = strings.Fields(value)
-		delete(t.inactiveMembers, name)
-		t.syncMultiValueToValueLocked(name)
+		t.setActiveMembersLocked(name, SplitLeafListMembers(value))
 		return
 	}
 	t.storeValueLocked(name, value)
+}
+
+// SetLeafListMembers writes a leaf-list whole from its active view, the list
+// an operator writes and the mirror spells: items become the members, in
+// order, and a deactivated member items does not name is kept deactivated,
+// after them. A member items names keeps the marker it had, so writing the
+// view back never activates what the operator deactivated. Unlike SetSlice it
+// works whether or not name was stored before, so a first write leaves the
+// members and the mirror both.
+func (t *Tree) SetLeafListMembers(name string, items []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.setActiveMembersLocked(name, items)
+}
+
+// setActiveMembersLocked is the core of SetLeafListMembers. Caller MUST hold
+// t.mu.Lock().
+func (t *Tree) setActiveMembersLocked(name string, items []string) {
+	members := slices.Clone(items)
+	inactive := t.inactiveMembers[name]
+	for _, old := range t.multiValues[name] {
+		if inactive[old] && !slices.Contains(items, old) {
+			members = append(members, old)
+		}
+	}
+	for member := range inactive {
+		if !slices.Contains(members, member) {
+			delete(inactive, member)
+		}
+	}
+	if len(inactive) == 0 {
+		delete(t.inactiveMembers, name)
+	}
+	t.multiValues[name] = members
+	t.syncMultiValueToValueLocked(name)
+}
+
+// SetMemberStates replaces a leaf-list with exactly states, members and
+// deactivation markers both, as GetMultiValuesState answered them on another
+// tree. An empty states removes the leaf-list.
+func (t *Tree) SetMemberStates(name string, states []MemberState) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	members := make([]string, len(states))
+	delete(t.inactiveMembers, name)
+	for i, state := range states {
+		members[i] = state.Value
+		if !state.Inactive {
+			continue
+		}
+		if t.inactiveMembers[name] == nil {
+			t.inactiveMembers[name] = make(map[string]bool)
+		}
+		t.inactiveMembers[name][state.Value] = true
+	}
+	t.multiValues[name] = members
+	t.syncMultiValueToValueLocked(name)
 }
 
 // storeValueLocked writes values[name] and records its insertion order.
@@ -532,7 +588,13 @@ func (t *Tree) RemoveContainer(name string) *Tree {
 // `existing` mid-merge; recursive merges into sub-containers acquire the
 // sub-container's own lock in parent-then-child order. `child` is the
 // caller's (not yet shared) tree and is not locked.
-func (t *Tree) MergeContainer(name string, child *Tree) {
+//
+// schema is the container's schema node, which tells a leaf-list that is an
+// ordered sequence (its repeats kept) from a set (one copy of each member).
+// A caller with no schema passes nil, and every leaf-list then keeps its
+// repeats: without the schema a set cannot be told from a sequence, and
+// keeping a repeat loses nothing while dropping one can drop a prepend.
+func (t *Tree) MergeContainer(name string, child *Tree, schema childProvider) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	existing := t.containers[name]
@@ -540,7 +602,7 @@ func (t *Tree) MergeContainer(name string, child *Tree) {
 		t.containers[name] = child
 		return
 	}
-	existing.mergeFrom(child)
+	existing.mergeFrom(child, schema)
 }
 
 // mergeFrom merges the contents of `other` into t. Acquires t.mu itself;
@@ -551,13 +613,31 @@ func (t *Tree) MergeContainer(name string, child *Tree) {
 // mergeFrom must respect this order. There is no code path that takes
 // a child mutex before its parent; if one is added, deadlock is possible.
 // `other` is assumed caller-owned and unshared.
-func (t *Tree) mergeFrom(other *Tree) {
+func (t *Tree) mergeFrom(other *Tree, schema childProvider) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	maps.Copy(t.values, other.values)
+	// The second block's leaf-list statements accumulate onto the first's, as
+	// repeated statements in one block do (RFC 7950 Section 7.7): a set keeps
+	// one copy of each member, an ordered sequence keeps its repeats, and a
+	// member deactivated in either block stays deactivated.
 	for k, v := range other.multiValues {
-		t.multiValues[k] = append(t.multiValues[k], v...)
+		if keepsRepeats(schema, k) {
+			t.multiValues[k] = append(t.multiValues[k], v...)
+		} else {
+			for _, member := range v {
+				if !slices.Contains(t.multiValues[k], member) {
+					t.multiValues[k] = append(t.multiValues[k], member)
+				}
+			}
+		}
+		for member := range other.inactiveMembers[k] {
+			if t.inactiveMembers[k] == nil {
+				t.inactiveMembers[k] = make(map[string]bool)
+			}
+			t.inactiveMembers[k][member] = true
+		}
 	}
 	// A mirrored leaf-list on either side now holds the appended members, and
 	// the copied value is other's mirror alone: re-derive it from the members.
@@ -571,7 +651,7 @@ func (t *Tree) mergeFrom(other *Tree) {
 		if existing := t.containers[k]; existing != nil {
 			// existing.mu is a different lock from t.mu; recurse in
 			// parent-then-child order (we still hold t.mu here).
-			existing.mergeFrom(v)
+			existing.mergeFrom(v, childSchema(schema, k))
 		} else {
 			t.containers[k] = v
 		}
@@ -589,6 +669,36 @@ func (t *Tree) mergeFrom(other *Tree) {
 			t.lists[k][key] = v[key]
 		}
 	}
+}
+
+// keepsRepeats reports whether a merge keeps repeated members of the
+// leaf-list name under schema: an ordered sequence (ze:ordered) does, a set
+// does not. With no schema the answer is unknown and repeats are kept, so a
+// merge never drops a member it cannot prove redundant.
+func keepsRepeats(schema childProvider, name string) bool {
+	if schema == nil {
+		return true
+	}
+	switch n := schema.Get(name).(type) {
+	case *BracketLeafListNode:
+		return n.Ordered
+	case *ValueOrArrayNode:
+		return n.Ordered
+	}
+	return false
+}
+
+// childSchema answers the schema node of the container name under schema, or
+// nil when there is none.
+func childSchema(schema childProvider, name string) childProvider {
+	if schema == nil {
+		return nil
+	}
+	child, ok := schema.Get(name).(childProvider)
+	if !ok {
+		return nil
+	}
+	return child
 }
 
 // GetList returns a list (keyed map of trees).
@@ -868,7 +978,7 @@ func (t *Tree) syncMultiValueToValueLocked(name string) {
 		delete(t.values, name)
 		return
 	}
-	t.storeValueLocked(name, textbuf.Join(active, " "))
+	t.storeValueLocked(name, JoinLeafListMembers(active))
 }
 
 // InsertMultiValue inserts a value into a multi-value list at the specified position.

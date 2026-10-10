@@ -376,7 +376,7 @@ func (e *Editor) applySessionEntryToTree(tree *config.Tree, parentPath []string,
 		if walkErr != nil {
 			return walkErr
 		}
-		target.Set(leafName, entry.Value)
+		e.storeLeaf(target, parentPath, leafName, entry.Value)
 		return nil
 	}
 	if target := walkPath(tree, e.schema, parentPath); target != nil {

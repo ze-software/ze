@@ -289,16 +289,7 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 		}
 
 	case *BracketLeafListNode:
-		if v, ok := tree.values[name]; ok {
-			b.Str(prefix)
-			if tree.inactiveValues[name] {
-				b.Str("inactive: ")
-			}
-			b.Str(name)
-			b.Str(" [ ")
-			b.Str(v) // Space-separated items
-			b.Str(" ]\n")
-		}
+		serializeBracketLeafList(b, tree, name, prefix)
 
 	case *ValueOrArrayNode:
 		// Direct access: caller holds tree.mu.RLock, calling GetSlice
@@ -754,6 +745,40 @@ func serializeInlineListEntry(b *textbuf.Buffer, tree *Tree, node *InlineListNod
 	}
 
 	serializeExtraValues(b, tree, node.Children(), indent)
+}
+
+// serializeBracketLeafList writes a bracket leaf-list from its member store:
+// every member, active or not, then one `inactive: <leaf> <member>` statement
+// for each deactivated member, the form parseNodeInactive reads back. The
+// mirror names the active members only, so writing it would delete every
+// deactivated member on the next save. Caller holds tree.mu.RLock.
+func serializeBracketLeafList(b *textbuf.Buffer, tree *Tree, name, prefix string) {
+	body, ok := bracketBody(tree, name)
+	if !ok {
+		return
+	}
+	b.Str(prefix)
+	if tree.inactiveValues[name] {
+		b.Str("inactive: ")
+	}
+	b.Str(name).Str(" [ ").Str(body).Str(" ]\n")
+	for _, member := range tree.multiValues[name] {
+		if tree.inactiveMembers[name][member] {
+			b.Str(prefix).Str("inactive: ").Str(name).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
+		}
+	}
+}
+
+// bracketBody answers the text between a bracket leaf-list's brackets: every
+// member, quoted when it needs it, so both parsers read the same members back.
+// A value with no members (Tree.Set on a name no parser or editor stored as a
+// leaf-list) is answered as it stands. Caller holds tree.mu.RLock.
+func bracketBody(tree *Tree, name string) (string, bool) {
+	if items := tree.multiValues[name]; len(items) > 0 {
+		return JoinLeafListMembers(items), true
+	}
+	v, ok := tree.values[name]
+	return v, ok
 }
 
 // quoteIfNeeded quotes a string if it contains spaces or special characters.

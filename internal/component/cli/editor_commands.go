@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -169,6 +168,11 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 		return e.setLeafListMember(path, key, value)
 	}
 	value = e.normalizeLeafValue(path, key, value)
+	if e.bracketLeafList(path, key) != nil {
+		// One spelling for the list, the mirror's, so the metadata entry and
+		// every replay of it read back the same members, a quoted one included.
+		value = config.JoinLeafListMembers(config.SplitLeafListMembers(value))
+	}
 	if e.session != nil {
 		return e.writeThroughSet(path, key, value)
 	}
@@ -183,12 +187,15 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 
 // storeLeaf writes value whole at key in target. A bracket leaf-list is the one
 // value this editor writes for that kind, but the tree holds it as members plus
-// a scalar mirror, so it goes in through SetSlice: Set alone would leave a
-// first write with no members, and GetSlice and ToMap would then answer the
-// joined text as one value.
+// a scalar mirror, so it goes in through SetLeafListMembers: Set alone would
+// leave a first write with no members, and GetSlice and ToMap would then
+// answer the joined text as one value. The value is the active view, so a
+// member the operator deactivated and the value does not name is kept,
+// deactivated. Every path that writes a whole leaf value from a session entry,
+// a committed value or a recorded previous value goes through here.
 func (e *Editor) storeLeaf(target *config.Tree, path []string, key, value string) {
 	if e.bracketLeafList(path, key) != nil {
-		target.SetSlice(key, strings.Fields(value))
+		target.SetLeafListMembers(key, config.SplitLeafListMembers(value))
 		return
 	}
 	target.Set(key, value)

@@ -188,8 +188,8 @@ func diffMultiLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix strin
 }
 
 func diffBracketLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix string) {
-	origVal, origOk := orig.Get(name)
-	modVal, modOk := mod.Get(name)
+	origVal, origOk := bracketDisplay(orig, name)
+	modVal, modOk := bracketDisplay(mod, name)
 
 	var tb textbuf.Buffer
 	fmtBracket := func(v string) string { return tb.Reset().Str("[ ").Str(v).Str(" ]").String() }
@@ -204,6 +204,17 @@ func diffBracketLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix str
 	case modOk:
 		*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(fmtBracket(modVal)).String()})
 	}
+}
+
+// bracketDisplay renders a bracket leaf-list's members for the tree diff, a
+// deactivated member included and marked (memberDisplay): the mirror names the
+// active members only, so diffing it showed a deactivation as a deletion.
+// A value stored with no members is rendered as it stands.
+func bracketDisplay(tree *config.Tree, name string) (string, bool) {
+	if members := memberDisplay(tree, name); len(members) > 0 {
+		return textbuf.Join(members, " "), true
+	}
+	return tree.Get(name)
 }
 
 // memberDisplay renders a leaf-list's members for the tree diff, marking any

@@ -134,15 +134,21 @@ func (p *Parser) parseBody(unknown string, known []string, lookup func(name stri
 }
 
 // parseNodeInactive parses one statement that carried the "inactive:"
-// prefix. Plain leaf-lists (ValueOrArrayNode) support member-level
-// deactivation -- `inactive: <leaf-list> <member>` where <member> is
-// already an active member of the parsed leaf marks just that member
-// (the form the serializer writes for deactivated members). Every other
+// prefix. Leaf-lists support member-level deactivation --
+// `inactive: <leaf-list> <member>` where <member> is already a member of
+// the parsed leaf marks just that member (the form the serializer writes
+// for deactivated members); a bracket leaf-list takes this form whenever no
+// '[' follows its name. Every other
 // shape parses normally and the whole node is marked inactive.
 // Shared by parseRoot, parseContainer, and parseListFieldBlock.
 func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int) error {
 	if vn, ok := node.(*ValueOrArrayNode); ok {
 		return p.parseInactiveValueOrArray(tree, name, vn, line)
+	}
+	if _, ok := node.(*BracketLeafListNode); ok {
+		if tok := p.tok.peek(); tok.kind != tokenLBracket {
+			return p.parseInactiveBracketMember(tree, name)
+		}
 	}
 	if err := p.parseNode(tree, name, node); err != nil {
 		return err
@@ -173,6 +179,31 @@ func (p *Parser) parseInactiveValueOrArray(tree *Tree, name string, node *ValueO
 		return err
 	}
 	applyInactive(tree, name, node, p, line)
+	return nil
+}
+
+// parseInactiveBracketMember handles `inactive: <leaf-list> <member>;` for a
+// bracket leaf-list, the statement the serializer writes after the list for
+// each deactivated member: the member MUST already be in the list, because the
+// list line states every member. `inactive: <leaf-list> [ ... ];` is the whole
+// leaf and does not come here.
+func (p *Parser) parseInactiveBracketMember(tree *Tree, name string) error {
+	tok := p.tok.peek()
+	if tok.kind != tokenWord && tok.kind != tokenString {
+		return p.errorf(tok, "expected '[' or a member after inactive: %s, got %s", name, tok.kind)
+	}
+	member := tok.value
+	p.tok.next()
+	if end := p.tok.peek(); end.kind != tokenSemicolon {
+		return p.errorf(end, "expected ';' after inactive: %s %s, got %s", name, member, end.kind)
+	}
+	p.tok.next()
+	if present, _ := tree.MultiValueMemberState(name, member); !present {
+		return p.errorf(tok, "inactive: %s %s names no member of %s; write the member in the %s [ ... ] list first", name, member, name, name)
+	}
+	if err := tree.DeactivateMultiValue(name, member); err != nil {
+		return p.errorf(tok, "deactivate member %s %s: %v", name, member, err)
+	}
 	return nil
 }
 
@@ -359,7 +390,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				if err := p.parseNode(child, childName, childNode); err != nil {
 					return err
 				}
-				tree.MergeContainer(name, child)
+				tree.MergeContainer(name, child, node)
 				return nil
 			}
 		}
@@ -424,7 +455,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 		}
 	}
 
-	tree.MergeContainer(name, child)
+	tree.MergeContainer(name, child, node)
 	return nil
 }
 

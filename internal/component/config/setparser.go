@@ -240,10 +240,9 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
-		// The members are the fields of the joined value, so a quoted token
-		// holding several members (a metadata line's earlier value) splits
-		// exactly as the scalar mirror would.
-		items := strings.Fields(parseBracketValue(tokens))
+		// Each token is one member, a quoted one included, as the hierarchical
+		// parser reads `[ a "b c" ]`, so the two parsers agree on the members.
+		items := bracketItems(tokens)
 		for _, item := range items {
 			if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
 				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
@@ -491,9 +490,21 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 		tree.SetLeafInactive(name, true)
 		return nil
 	}
+	// A bracket leaf-list takes the same two forms as a plain one below: the
+	// serializer writes `inactive <path> <member>` after the list line for each
+	// deactivated member, and the member MUST already be in the list.
 	if _, ok := node.(*BracketLeafListNode); ok {
-		tree.SetLeafInactive(name, true)
-		return nil
+		switch len(tokens) {
+		case 0:
+			tree.SetLeafInactive(name, true)
+			return nil
+		case 1:
+			if present, _ := tree.MultiValueMemberState(name, tokens[0]); !present {
+				return fmt.Errorf("line %d: inactive %s %s names no member of %s; set the member in the %s list first", lineNum, name, tokens[0], name, name)
+			}
+			return tree.DeactivateMultiValue(name, tokens[0])
+		}
+		return fmt.Errorf("line %d: inactive on leaf-list expects either no value or one value, got %d", lineNum, len(tokens))
 	}
 
 	// ValueOrArray: a final token denotes a single leaf-list value
@@ -816,19 +827,6 @@ func schemaChildNames(schema *Schema, parent Node) []string {
 		return c.Children()
 	}
 	return nil
-}
-
-// parseBracketValue joins tokens, stripping optional surrounding [ ] brackets.
-// Handles: "value", "[ a b c ]", "a b c".
-func parseBracketValue(tokens []string) string {
-	if len(tokens) == 0 {
-		return ""
-	}
-	// Strip surrounding brackets if present.
-	if tokens[0] == "[" && tokens[len(tokens)-1] == "]" {
-		tokens = tokens[1 : len(tokens)-1]
-	}
-	return textbuf.Join(tokens, " ")
 }
 
 // NormalizeLeafValue rewrites an accepted leaf value into the one spelling the

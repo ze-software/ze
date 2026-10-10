@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/fs"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -246,40 +245,66 @@ func (e *Editor) bracketLeafList(path []string, name string) *config.BracketLeaf
 }
 
 // loadBracketLeafList applies a bracket-syntax leaf-list. The editor writes the
-// kind whole, as ONE value holding every member (SetValue stores it as members
-// plus the scalar mirror), so the load sets that value whole. A merge keeps the members the configuration holds
-// and appends the loaded ones it lacks; a replace, and an ordered sequence
-// whose repeats are meaningful, take the loaded members as they are.
+// kind whole (SetValue stores it as members plus the scalar mirror), so the
+// load sets the list whole, then applies the member deactivation markers. A
+// merge keeps the members the configuration holds, a deactivated one included,
+// and appends the loaded ones it lacks; it never activates a member, as it
+// never activates a leaf. A replace, and an ordered sequence whose repeats are
+// meaningful, take the loaded members as they are; a replace also takes their
+// markers, and drops a deactivated member the input does not hold.
 func (e *Editor) loadBracketLeafList(path []string, name string, node *config.BracketLeafListNode, current, want *config.Tree, replace bool) error {
-	members := want.GetMultiValues(name)
+	where := append(slices.Clip(path), name)
+	wantStates := want.GetMultiValuesState(name)
+	members := make([]string, len(wantStates))
+	for i, state := range wantStates {
+		members[i] = state.Value
+	}
 	if !replace && !node.Ordered {
-		merged := slices.Clone(bracketMembers(current, name))
+		merged := current.GetMultiValues(name)
 		for _, member := range members {
-			if !slices.Contains(merged, member) {
+			if present, _ := current.MultiValueMemberState(name, member); !present && !slices.Contains(merged, member) {
 				merged = append(merged, member)
 			}
 		}
 		members = merged
 	}
-	value := textbuf.Join(members, " ")
-	if have, ok := current.Get(name); ok && have == value {
-		return nil
+	value := config.JoinLeafListMembers(members)
+	if have, ok := current.Get(name); !ok || have != value {
+		if err := e.SetValue(path, name, value); err != nil {
+			return loadError(where, err)
+		}
 	}
-	return loadErrorIf(append(slices.Clip(path), name), e.SetValue(path, name, value))
+	return e.loadBracketMemberStates(path, name, current, wantStates, replace)
 }
 
-// bracketMembers answers the members a bracket leaf-list holds in tree: the
-// member store, which every parser and the editor fill, else the fields of a
-// value some other writer set with Tree.Set alone. A nil tree holds none.
-func bracketMembers(tree *config.Tree, name string) []string {
-	if tree == nil {
+// loadBracketMemberStates applies the deactivation markers of the loaded
+// members, which the list value cannot carry. current is the configuration
+// before the load.
+func (e *Editor) loadBracketMemberStates(path []string, name string, current *config.Tree, wantStates []config.MemberState, replace bool) error {
+	for _, state := range wantStates {
+		_, wasInactive := current.MultiValueMemberState(name, state.Value)
+		if state.Inactive && !wasInactive {
+			if err := e.DeactivateLeafListValue(path, name, state.Value); err != nil {
+				return loadError(append(slices.Clip(path), name, state.Value), err)
+			}
+		}
+		if !replace || state.Inactive || !wasInactive {
+			continue
+		}
+		if err := e.ActivateLeafListValue(path, name, state.Value); err != nil {
+			return loadError(append(slices.Clip(path), name, state.Value), err)
+		}
+	}
+	if !replace {
 		return nil
 	}
-	if members := tree.GetMultiValues(name); len(members) > 0 {
-		return members
-	}
-	if value, ok := tree.Get(name); ok {
-		return strings.Fields(value)
+	for _, held := range current.GetMultiValuesState(name) {
+		if !held.Inactive || slices.ContainsFunc(wantStates, func(s config.MemberState) bool { return s.Value == held.Value }) {
+			continue
+		}
+		if err := e.deleteLeafListValue(path, name, held.Value); err != nil {
+			return loadError(append(slices.Clip(path), name, held.Value), err)
+		}
 	}
 	return nil
 }
@@ -335,8 +360,9 @@ func (e *Editor) loadDeletes(path []string, current, want *config.Tree) error {
 		keep := want.GetMultiValues(name)
 		if e.bracketLeafList(path, name) != nil {
 			// Written whole in this editor: loadBracketLeafList replaces it
-			// when want holds members, and an absent leaf-list is deleted whole.
-			if len(keep) == 0 {
+			// when want holds members, deactivated ones included, and an
+			// absent leaf-list is deleted whole.
+			if len(want.GetMultiValuesState(name)) == 0 {
 				if err := e.DeleteValue(path, name); err != nil {
 					return loadError(append(slices.Clip(path), name), err)
 				}

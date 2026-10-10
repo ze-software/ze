@@ -286,8 +286,16 @@ from its store"; `commit now` still works there. The web editor of
 
 `insert` is supported in session mode: `InsertLeafListValue` routes through
 `writeThroughMemberOp`, and so do `deactivate` and `activate` when they name a
-leaf-list member rather than a leaf or a path.
-<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue -->
+leaf-list member rather than a leaf or a path. A deactivated member stays in
+its leaf-list, bracket ones such as `address [ ... ]` included: the file writes
+the whole list and then one `inactive: address <member>` statement for it
+(`inactive <path> <member>` in `set` form), so a save, a commit and a reload all
+keep it deactivated. Setting a bracket leaf-list whole keeps a deactivated
+member the new list does not name, still deactivated; delete the member to
+remove it.
+<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue, storeLeaf -->
+<!-- source: internal/component/config/serialize.go -- serializeBracketLeafList -->
+<!-- source: internal/component/config/tree.go -- SetLeafListMembers -->
 <!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->
 
 `copy`, and `deactivate` or `activate` on a leaf or a path, are supported in
@@ -310,8 +318,10 @@ kept; a `replace` also deletes what the node holds and the input omits, scoped t
 context for a `relative` load. A bracket leaf-list such as
 `address [ 192.0.2.1/24 ]` or `virtual-address [ 203.0.113.1 ]` is written as
 one value, the way a typed `set` writes it: a `merge` adds the loaded members
-the configuration lacks to the ones it holds, while a `replace`, and an ordered
-sequence whose repeats matter, take the loaded members as they are. In session mode each applied difference is one
+the configuration lacks to the ones it holds, and a member you deactivated
+stays deactivated, while a `replace`, and an ordered sequence whose repeats
+matter, take the loaded members as they are; a `replace` takes their inactive
+markers too. In session mode each applied difference is one
 tracked change, the same entry a typed `set` or `delete` records, so a leaf
 equal to its current value records nothing and `show | changes` lists exactly
 what the load changed.

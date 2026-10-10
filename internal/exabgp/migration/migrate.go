@@ -596,7 +596,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	mergeContainerFields := []string{"static", "announce"}
 	for _, key := range mergeContainerFields {
 		if c := neighbor.GetContainer(key); c != nil {
-			merged.MergeContainer(key, c.Clone())
+			merged.MergeContainer(key, c.Clone(), nil)
 		}
 	}
 

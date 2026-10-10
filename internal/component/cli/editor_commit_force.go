@@ -215,8 +215,14 @@ func (e *Editor) restoreCommittedValue(tree, committed *config.Tree, change conf
 		return
 	}
 	if source != nil {
+		// A leaf-list is restored member by member, deactivated ones included,
+		// which its mirror alone cannot name.
+		if states := source.GetMultiValuesState(leaf); len(states) > 0 && e.bracketLeafList(parent, leaf) != nil {
+			target.SetMemberStates(leaf, states)
+			return
+		}
 		if value, ok := source.Get(leaf); ok {
-			target.Set(leaf, value)
+			e.storeLeaf(target, parent, leaf, value)
 			return
 		}
 	}

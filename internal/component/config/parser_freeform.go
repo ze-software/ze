@@ -91,7 +91,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 		}
 	}
 
-	tree.MergeContainer(name, child)
+	tree.MergeContainer(name, child, nil)
 	return nil
 }
 
@@ -137,7 +137,7 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 			}
 		}
 
-		tree.MergeContainer(name, child)
+		tree.MergeContainer(name, child, node)
 		return nil
 
 	case tokenLParen:

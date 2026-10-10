@@ -5,6 +5,7 @@
 package cli
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -240,14 +241,16 @@ func (e *Editor) contentWithoutUser(username string) string {
 	}
 
 	clone := e.tree.Clone()
-	revertUserChanges(clone, e.meta, username)
+	e.revertUserChanges(clone, e.meta, username, nil)
 	return config.Serialize(clone, e.schema)
 }
 
 // revertUserChanges walks the MetaTree and reverts leaves changed by the specified user.
 // MetaTree containers hold both YANG containers and list-level wrappers.
-// MetaTree lists hold individual list entry sub-trees.
-func revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string) {
+// MetaTree lists hold individual list entry sub-trees. path is the schema path
+// of tree, list keys included, so a previous value goes back through storeLeaf
+// and a bracket leaf-list keeps its members.
+func (e *Editor) revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string, path []string) {
 	// Revert leaf entries at this level.
 	for name, entries := range meta.AllEntries() {
 		for _, entry := range entries {
@@ -257,7 +260,7 @@ func revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string
 			if entry.Previous == "" {
 				tree.Delete(name)
 			} else {
-				tree.Set(name, entry.Previous)
+				e.storeLeaf(tree, path, name, entry.Previous)
 			}
 		}
 	}
@@ -266,14 +269,14 @@ func revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string
 	for name, sub := range meta.Containers() {
 		// Try as YANG container first.
 		if child := tree.GetContainer(name); child != nil {
-			revertUserChanges(child, sub, username)
+			e.revertUserChanges(child, sub, username, slices.Concat(path, []string{name}))
 			continue
 		}
 		// Try as list-level wrapper: meta stores list containers with list entries inside.
 		for key, entrySub := range sub.Lists() {
 			if listEntries := tree.GetList(name); listEntries != nil {
 				if entryTree := listEntries[key]; entryTree != nil {
-					revertUserChanges(entryTree, entrySub, username)
+					e.revertUserChanges(entryTree, entrySub, username, slices.Concat(path, []string{name, key}))
 				}
 			}
 		}
@@ -287,7 +290,7 @@ func revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string
 		if listMap := tree.GetList(key); listMap != nil {
 			for entryKey, entryTree := range listMap {
 				if entrySub := sub.GetListEntry(entryKey); entrySub != nil {
-					revertUserChanges(entryTree, entrySub, username)
+					e.revertUserChanges(entryTree, entrySub, username, slices.Concat(path, []string{key, entryKey}))
 				}
 			}
 		}

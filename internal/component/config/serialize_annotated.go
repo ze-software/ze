@@ -242,16 +242,19 @@ func serializeAnnotatedTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 		}
 
 	case *BracketLeafListNode:
-		if v, ok := tree.values[name]; ok {
+		if body, ok := bracketBody(tree, name); ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			b.Str(prefix)
 			if tree.inactiveValues[name] {
 				b.Str("inactive: ")
 			}
-			b.Str(name)
-			b.Str(" [ ")
-			b.Str(v)
-			b.Str(" ]\n")
+			b.Str(name).Str(" [ ").Str(body).Str(" ]\n")
+			for _, member := range tree.multiValues[name] {
+				if tree.inactiveMembers[name][member] {
+					writeAnnotatedLeafGutter(b, meta, name, columns)
+					b.Str(prefix).Str("inactive: ").Str(name).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
+				}
+			}
 		}
 
 	case *ValueOrArrayNode:
@@ -679,13 +682,15 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 		}
 
 	case *BracketLeafListNode:
-		if v, ok := tree.values[name]; ok {
+		if body, ok := bracketBody(tree, name); ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			b.Str(setOrNop(tree, name))
-			b.Str(path)
-			b.Str(" [ ")
-			b.Str(v)
-			b.Str(" ]\n")
+			b.Str(setOrNop(tree, name)).Str(path).Str(" [ ").Str(body).Str(" ]\n")
+			for _, member := range tree.multiValues[name] {
+				if tree.inactiveMembers[name][member] {
+					writeAnnotatedLeafGutter(b, meta, name, columns)
+					b.Str("inactive ").Str(path).Byte(' ').Str(quoteIfNeeded(member)).Byte('\n')
+				}
+			}
 		}
 
 	case *ValueOrArrayNode:
