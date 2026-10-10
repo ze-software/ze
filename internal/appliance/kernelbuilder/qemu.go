@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/tmplink"
@@ -36,9 +37,14 @@ const (
 
 var alpineReleaseBaseURL = "https://dl-cdn.alpinelinux.org/alpine"
 
+// runQEMU asks for the hardware accelerator first, so a host QEMU cannot run on
+// is refused before the Alpine ISO download and the worker build.
 func runQEMU(ctx context.Context, req Request) error {
-	arch := alpineArch(req.Arch)
-	iso, err := ensureAlpineISO(ctx, arch)
+	accel, err := hardwareAccelerator(ctx, qemuBinary(req.Arch))
+	if err != nil {
+		return err
+	}
+	iso, err := ensureAlpineISO(ctx, alpineArch(req.Arch))
 	if err != nil {
 		return err
 	}
@@ -46,7 +52,7 @@ func runQEMU(ctx context.Context, req Request) error {
 	if err != nil {
 		return err
 	}
-	return runQEMUBuild(ctx, req, iso, workerRel)
+	return runQEMUBuild(ctx, req, iso, workerRel, accel)
 }
 
 func alpineArch(arch string) string {
@@ -213,7 +219,7 @@ func buildGuestWorker(ctx context.Context, req Request) (string, error) {
 	return filepath.ToSlash(rel), nil
 }
 
-func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error {
+func runQEMUBuild(ctx context.Context, req Request, iso, workerRel, accel string) error {
 	port, err := freeTCPPort(ctx)
 	if err != nil {
 		return err
@@ -230,7 +236,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error
 	if err != nil {
 		return fmt.Errorf("find the tmp directories relocated out of the checkout: %w", err)
 	}
-	args, err := qemuArgs(ctx, req, iso, port, memory, ccache, build, shares)
+	args, err := qemuArgs(req, iso, accel, port, memory, ccache, build, shares)
 	if err != nil {
 		return err
 	}
@@ -244,14 +250,17 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error
 	if err != nil {
 		return err
 	}
-	cmd.Stderr = io.Discard
+	// QEMU's stderr is kept, bounded, so a QEMU that exits before the guest
+	// boots is reported with its own reason rather than as a boot timeout.
+	qemuStderr := &stderrTail{}
+	cmd.Stderr = qemuStderr
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start QEMU: %w", err)
 	}
 	console := newConsole(stdout)
 	defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
 	if !console.expect(ctx, "login:", bootTimeout) {
-		return errors.New("timeout waiting for VM login prompt")
+		return errBootFailed(qemuBinary(req.Arch), qemuStderr.String())
 	}
 	if !sleepContext(ctx, time.Second) {
 		return ctx.Err()
@@ -344,7 +353,10 @@ func guestSetup(req Request, shares []tmplink.Share) (string, string) {
 	return setup + mounts.String(), guestOutput
 }
 
-func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, ccache, build string, shares []tmplink.Share) ([]string, error) {
+// qemuArgs builds the QEMU command line. accel is the hardware accelerator
+// hardwareAccelerator chose: owner decision 2026-10-09, no CPU emulation, so
+// tcg is never offered, even as a fallback.
+func qemuArgs(req Request, iso, accel string, port, memory int, ccache, build string, shares []tmplink.Share) ([]string, error) {
 	args := make([]string, 0, 40)
 	if req.Arch == archARM64 {
 		firmware, err := findAArch64Firmware()
@@ -353,24 +365,7 @@ func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, cc
 		}
 		args = append(args, "-machine", "virt,highmem=on", "-cpu", "max", "-bios", firmware)
 	}
-	// Owner decision 2026-10-09: no CPU emulation. QEMU runs only under a
-	// hardware accelerator; tcg is never offered, even as a fallback.
-	binary := qemuBinary(req.Arch)
-	accels, err := availableAccelerators(ctx, binary)
-	if err != nil {
-		return nil, err
-	}
-	accelerated := false
-	for _, accel := range []string{"hvf", "kvm"} {
-		if accels[accel] {
-			args = append(args, "-accel", accel)
-			accelerated = true
-		}
-	}
-	if !accelerated {
-		return nil, fmt.Errorf("%s offers neither hvf nor kvm: Ze builds a kernel only under a hardware accelerator, never the tcg emulator; enable hvf (macOS) or kvm (Linux, /dev/kvm) on this host", binary)
-	}
-	args = append(args, "-smp", strconv.Itoa(max(2, runtime.NumCPU())), "-m", strconv.Itoa(memory), "-cdrom", iso, "-boot", "d", "-nographic", "-serial", "mon:stdio", "-netdev", fmt.Sprintf("user,id=net0,hostfwd=tcp::%d-:22", port), "-device", "virtio-net-pci,netdev=net0", "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=workspace,security_model=none,id=ws0,readonly=off", req.Root), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=ccache,security_model=none,id=cc0,readonly=off", ccache), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=builddir,security_model=none,id=bd0,readonly=off", build))
+	args = append(args, "-accel", accel, "-smp", strconv.Itoa(max(2, runtime.NumCPU())), "-m", strconv.Itoa(memory), "-cdrom", iso, "-boot", "d", "-nographic", "-serial", "mon:stdio", "-netdev", fmt.Sprintf("user,id=net0,hostfwd=tcp::%d-:22", port), "-device", "virtio-net-pci,netdev=net0", "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=workspace,security_model=none,id=ws0,readonly=off", req.Root), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=ccache,security_model=none,id=cc0,readonly=off", ccache), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=builddir,security_model=none,id=bd0,readonly=off", build))
 	if filepath.IsAbs(req.OutputDir) {
 		args = append(args, "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=output,security_model=none,id=out0,readonly=off", req.OutputDir))
 	}
@@ -381,6 +376,112 @@ func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, cc
 		args = append(args, "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=%s,security_model=none,id=%s,readonly=off", share.Host, share.Tag, share.Tag))
 	}
 	return args, nil
+}
+
+// hardwareAccelerator answers the hardware accelerator QEMU runs the build VM
+// under on this host: hvf or kvm, never tcg (owner decision 2026-10-09, no CPU
+// emulation). `-accel help` lists the accelerators compiled into QEMU, not the
+// ones this host can use: a distro QEMU on Linux always lists kvm. So a listed
+// accelerator counts only when its probe (acceleratorProbes) passes, and a host
+// where none passes is refused naming the probe's reason and fix, before the
+// ISO download and the VM boot, which would otherwise end in a boot timeout.
+func hardwareAccelerator(ctx context.Context, binary string) (string, error) {
+	accels, err := availableAccelerators(ctx, binary)
+	if err != nil {
+		return "", err
+	}
+	var unusable error
+	for _, accel := range []string{accelHVF, accelKVM} {
+		if !accels[accel] {
+			continue
+		}
+		probeErr := acceleratorProbes[accel](ctx)
+		if probeErr == nil {
+			return accel, nil
+		}
+		unusable = fmt.Errorf("%s lists %s, but this host cannot use it: %w", binary, accel, probeErr)
+	}
+	if unusable != nil {
+		return "", unusable
+	}
+	return "", fmt.Errorf("%s offers neither hvf nor kvm: Ze builds a kernel only under a hardware accelerator, never the tcg emulator; enable hvf (macOS) or kvm (Linux, /dev/kvm) on this host", binary)
+}
+
+// acceleratorProbes ask the host whether an accelerator QEMU lists can run a
+// VM. A package variable so a test can play a host without one.
+var acceleratorProbes = map[string]func(context.Context) error{
+	accelHVF: probeHVF,
+	accelKVM: probeKVM,
+}
+
+// The hardware accelerators a build VM may run under, in preference order.
+const (
+	accelHVF = "hvf"
+	accelKVM = "kvm"
+)
+
+// kvmDevice is the device QEMU opens for kvm. A variable so a test can point
+// it at a path that does not exist.
+var kvmDevice = "/dev/kvm"
+
+// probeKVM opens kvmDevice read-write, as QEMU does for -accel kvm.
+func probeKVM(context.Context) error {
+	device, err := os.OpenFile(kvmDevice, os.O_RDWR, 0)
+	if err == nil {
+		return device.Close()
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("%s does not exist (%w), so QEMU would exit at once; enable virtualization (VT-x or AMD-V) in the firmware and load the KVM module, then check that %s exists:\nsudo modprobe kvm_intel   # or kvm_amd", kvmDevice, err, kvmDevice)
+	}
+	return fmt.Errorf("%s cannot be opened (%w), so QEMU would exit at once; add your user to the kvm group, then log in again:\nsudo usermod -aG kvm $USER", kvmDevice, err)
+}
+
+// probeHVF asks macOS whether Hypervisor.framework can run a VM:
+// `sysctl -n kern.hv_support` prints 1 when it can.
+func probeHVF(ctx context.Context) error {
+	output, err := exec.CommandContext(ctx, "sysctl", "-n", "kern.hv_support").Output()
+	if err != nil {
+		return fmt.Errorf("sysctl -n kern.hv_support failed (%w), so whether this Mac can run a VM is unknown; run it by hand to see why:\nsysctl kern.hv_support", err)
+	}
+	if strings.TrimSpace(string(output)) != "1" {
+		return errors.New("kern.hv_support is not 1, so Hypervisor.framework cannot run a VM on this Mac (a Mac that is itself a VM has no nested virtualization); build on a Mac where this prints 1, or install Docker:\nsysctl kern.hv_support")
+	}
+	return nil
+}
+
+// errBootFailed reports a build VM that never reached its login prompt, with
+// what QEMU wrote to stderr: a QEMU that exits at once (an accelerator it
+// cannot open, a bad option) says why there, and the console says nothing.
+func errBootFailed(binary, stderr string) error {
+	if stderr == "" {
+		return fmt.Errorf("the build VM did not reach its login prompt within %s, and %s wrote nothing to stderr; run the build again, and if it repeats, check that %s starts a VM on this host", bootTimeout, binary, binary)
+	}
+	return fmt.Errorf("the build VM did not reach its login prompt: %s stopped or stalled, and wrote:\n%s", binary, stderr)
+}
+
+// stderrTail keeps the last stderrTailMax bytes written to it. exec copies a
+// child's stderr from its own goroutine, so the type is safe for concurrent use.
+type stderrTail struct {
+	mu   sync.Mutex
+	data []byte
+}
+
+const stderrTailMax = 4096
+
+func (tail *stderrTail) Write(chunk []byte) (int, error) {
+	tail.mu.Lock()
+	defer tail.mu.Unlock()
+	tail.data = append(tail.data, chunk...)
+	if excess := len(tail.data) - stderrTailMax; excess > 0 {
+		tail.data = tail.data[excess:]
+	}
+	return len(chunk), nil
+}
+
+func (tail *stderrTail) String() string {
+	tail.mu.Lock()
+	defer tail.mu.Unlock()
+	return strings.TrimSpace(string(tail.data))
 }
 
 // availableAccelerators asks QEMU which accelerators it offers. A QEMU that
@@ -399,7 +500,7 @@ func availableAccelerators(ctx context.Context, binary string) (map[string]bool,
 		}
 		return nil, fmt.Errorf("%s -accel help failed: %w%s: QEMU cannot list its accelerators, so the kernel build cannot start; install or repair QEMU, then run `%s -accel help` and confirm it lists hvf or kvm", binary, err, detail, binary)
 	}
-	known := map[string]bool{"hvf": true, "kvm": true, "tcg": true, "whpx": true, "xen": true}
+	known := map[string]bool{accelHVF: true, accelKVM: true, "tcg": true, "whpx": true, "xen": true}
 	for line := range strings.SplitSeq(string(output), "\n") {
 		token := strings.TrimSpace(line)
 		if known[token] {

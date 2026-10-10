@@ -66,22 +66,26 @@ never from `tmp/kernel/build`, which every resolver call rewrites.
 `ze doctor` reports a host that cannot produce this kernel, as the warning
 `doctor-appliance-runtime-kernel`. The kernel builds only on a host of its own
 architecture, so the check asks about this host's: it passes when the cache
-entry the resolver would serve holds its `vmlinuz`, and otherwise when Docker,
-or QEMU with Go, is there for the cold build. With neither, the warning names
-the cache entry and the `ze appliance kernel --target runtime --arch <arch>`
-command to run once Docker or QEMU is installed. Run outside the Ze source tree,
+entry the resolver would serve holds its `vmlinuz`, and otherwise when the
+cold build has a builder: Docker, or QEMU with Go and a hardware accelerator
+this host can use (the same choice a build makes, `kernelbuilder.SelectBuilder`).
+Otherwise the warning carries the builder's own reason, for example a QEMU that
+lists `kvm` on a host whose `/dev/kvm` cannot be opened, then names the cache
+entry and the `ze appliance kernel --target runtime --arch <arch>` command to
+run once the builder can run. Run outside the Ze source tree,
 where the kernel config cannot be read, the check warns rather than pass.
 
-The builder query the check calls, `kernelbuilder.UsableBuilder`, lives in its
-own file, `kernelbuilder/doctor.go`, and that file is the one builder source the
-kernel cache variant does not hash. Every other builder source is hashed, so an
-edit to it makes each cached kernel stale and costs a cold rebuild per arch;
-nothing in the doctor's file runs during a build, so editing it must not.
+The kernel cache variant hashes every non-test file in `kernelbuilder`, with no
+exclusion, so an edit there makes each cached kernel stale and costs a cold
+rebuild per arch. Code that never runs during a build therefore lives outside
+that package: the doctor query in `doctor_checks.go`, and the provenance reader
+and GPLv2 notice in `internal/appliance/instance`. Editing either keeps the
+cache.
 
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel -->
 <!-- source: internal/appliance/doctor_checks.go -- checkRuntimeKernel -->
-<!-- source: internal/appliance/kernelbuilder/doctor.go -- UsableBuilder, DoctorSourceName -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- SelectBuilder -->
 <!-- source: internal/appliance/cache.go -- kernelBuilderSources -->
 
 ## Related

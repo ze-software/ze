@@ -16,11 +16,18 @@ import (
 )
 
 const (
-	defaultBuilderDir      = "tools/kernel-builder"
-	defaultCommonDir       = "tools/kernel-builder/common"
-	defaultImage           = "ze-kernel-builder"
-	ProvenanceName         = "kernel.version"
-	ownershipRepairTimeout = 2 * time.Minute
+	defaultBuilderDir = "tools/kernel-builder"
+	defaultCommonDir  = "tools/kernel-builder/common"
+	defaultImage      = "ze-kernel-builder"
+	ProvenanceName    = "kernel.version"
+
+	// The provenance record's keys for its source: what writeProvenance writes
+	// and what the image assembly (internal/appliance/instance) reads back for
+	// the GPLv2 notice. Declared once, here, beside the writer.
+	ProvenanceKeyVersion      = "version"
+	ProvenanceKeySourceURL    = "source-url"
+	ProvenanceKeySourceSHA256 = "source-sha256"
+	ownershipRepairTimeout    = 2 * time.Minute
 
 	archAMD64   = "amd64"
 	archX8664   = "x86_64"
@@ -73,7 +80,7 @@ func Build(ctx context.Context, req Request) error {
 	if err := validateRequest(&req); err != nil {
 		return err
 	}
-	backend, err := selectBuilder(req.Builder, req.Arch)
+	backend, err := SelectBuilder(ctx, req.Builder, req.Arch)
 	if err != nil {
 		return err
 	}
@@ -225,7 +232,12 @@ func hostOutputPath(req Request) string {
 	return filepath.Join(req.Root, req.OutputDir)
 }
 
-func selectBuilder(requested, arch string) (string, error) {
+// SelectBuilder answers the backend a kernel build for arch uses: requested
+// when it is named, else Docker, else QEMU with Go. QEMU counts only when it can
+// run under a hardware accelerator on this host (hardwareAccelerator), so a host
+// whose QEMU would exit at once is refused here, before any download or build.
+// `ze doctor` asks the same question before a build (internal/appliance).
+func SelectBuilder(ctx context.Context, requested, arch string) (string, error) {
 	hasDocker := commandAvailable(backendDocker)
 	qemu := qemuBinary(arch)
 	hasQEMU := commandAvailable(qemu) && commandAvailable("go")
@@ -239,19 +251,29 @@ func selectBuilder(requested, arch string) (string, error) {
 		if !hasQEMU {
 			return "", fmt.Errorf("qemu builder requested but %s or go not found", qemu)
 		}
+		if _, err := acceleratorCheck(ctx, qemu); err != nil {
+			return "", err
+		}
 		return requested, nil
 	case "":
 		if hasDocker {
 			return backendDocker, nil
 		}
-		if hasQEMU {
-			return backendQEMU, nil
+		if !hasQEMU {
+			return "", errors.New("no builder available; install docker or qemu and go")
 		}
-		return "", errors.New("no builder available; install docker or qemu and go")
+		if _, err := acceleratorCheck(ctx, qemu); err != nil {
+			return "", fmt.Errorf("no builder available: docker is not installed, and %w", err)
+		}
+		return backendQEMU, nil
 	default:
 		return "", fmt.Errorf("unsupported builder %s (expected docker or qemu)", requested)
 	}
 }
+
+// acceleratorCheck is hardwareAccelerator, a variable so a test can select a
+// QEMU backend on a host with no QEMU.
+var acceleratorCheck = hardwareAccelerator
 
 var commandAvailable = func(name string) bool {
 	_, err := exec.LookPath(name)
@@ -380,14 +402,14 @@ func writeProvenance(outputDir string, req Request, backend string) error {
 		return fmt.Errorf("create provenance directory: %w", err)
 	}
 	var tb textbuf.Buffer
-	data := tb.Str("version=").Str(req.Version).
+	data := tb.Str(ProvenanceKeyVersion).Byte('=').Str(req.Version).
 		Str("\ntarget=").Str(req.Target).
 		Str("\nprofile=").Str(req.Profile).
 		Str("\narch=").Str(req.Arch).
 		Str("\nmodules=").Str(req.Modules).
 		Str("\nbuilder=").Str(backend).
-		Str("\nsource-url=").Str(kernelTarballURL(req.Version)).
-		Str("\nsource-sha256=").Str(digest).
+		Byte('\n').Str(ProvenanceKeySourceURL).Byte('=').Str(kernelTarballURL(req.Version)).
+		Byte('\n').Str(ProvenanceKeySourceSHA256).Byte('=').Str(digest).
 		Str("\n").Bytes()
 	if err := os.WriteFile(filepath.Join(path, ProvenanceName), data, 0o600); err != nil {
 		return fmt.Errorf("write kernel provenance: %w", err)

@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -93,8 +92,10 @@ func kernelTreeCachePath(version, variant string) string {
 // kernelBuilderSources lists every production source file used by the native
 // builder. The list is discovered and sorted so adding or editing a backend
 // invalidates cached kernels without maintaining another filename registry.
-// The one file left out is kernelbuilder.DoctorSourceName, the query `ze doctor`
-// runs: nothing in it runs during a build, so an edit to it changes no kernel.
+// Every non-test file in kernelbuilder is hashed, with no exclusion, so code
+// that never runs during a build lives outside that package: the GPLv2 notice
+// and the provenance reader in internal/appliance/instance, the doctor query
+// in doctor_checks.go. An edit there changes no kernel and keeps the cache.
 func kernelBuilderSources() (paths []string, ok bool) {
 	roots := []string{
 		kernelBuilderDir,
@@ -112,9 +113,6 @@ func kernelBuilderSources() (paths []string, ok bool) {
 				return nil
 			}
 			if strings.HasSuffix(path, "_test.go") {
-				return nil
-			}
-			if path == filepath.Join(root, kernelbuilder.DoctorSourceName) {
 				return nil
 			}
 			paths = append(paths, path)

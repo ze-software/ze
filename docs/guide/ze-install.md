@@ -794,10 +794,15 @@ for hours and fails late. For the same reason the QEMU backend runs only under
 a hardware accelerator, `hvf` on macOS or `kvm` on Linux, and refuses rather
 than fall back to the `tcg` emulator. When QEMU itself is missing or fails to
 start, the error says so and shows QEMU's own message; install or repair QEMU,
-then check that `qemu-system-<arch> -accel help` lists `hvf` or `kvm`.
+then check that `qemu-system-<arch> -accel help` lists `hvf` or `kvm`. That
+listing shows what QEMU was built with, not what this host can use, so the
+build also checks the host: on Linux, `/dev/kvm` must open for your user
+(`sudo usermod -aG kvm $USER`, then log in again); on macOS,
+`sysctl kern.hv_support` must print `1`. `ze doctor` reports the same
+condition.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- validateRequest, hostGOARCH -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- qemuArgs, availableAccelerators -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators -->
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->

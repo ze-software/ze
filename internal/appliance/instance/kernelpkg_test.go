@@ -247,7 +247,7 @@ func TestPrepareCarriesTheLinuxNotice(t *testing.T) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatalf("parse prepared config: %v", err)
 	}
-	record, err := kernelbuilder.ReadProvenance(filepath.Join(opts.KernelTree, kernelbuilder.ProvenanceName))
+	record, err := readProvenance(filepath.Join(opts.KernelTree, kernelbuilder.ProvenanceName))
 	if err != nil {
 		t.Fatal(err)
 	}

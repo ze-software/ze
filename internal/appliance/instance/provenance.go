@@ -1,8 +1,13 @@
 // Design: docs/architecture/appliance/gokrazy-build-pins.md -- the GPLv2 notice
 // every appliance image carries for the Linux kernel it ships.
-// Related: driver.go -- writeProvenance writes the record this file reads back.
+// Related: kernelpkg.go -- addLinuxNotice places the notice in the image.
+//
+// This code runs when an image is assembled, never during a kernel build, so it
+// lives here and not in kernelbuilder: every kernelbuilder source is hashed
+// into the kernel cache key, and an edit to the notice must not make every
+// cached kernel stale.
 
-package kernelbuilder
+package instance
 
 import (
 	"bufio"
@@ -12,12 +17,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Provenance is the source half of the record Build writes beside a kernel
-// (ProvenanceName): the kernel.org version, and the tarball URL and SHA-256 the
-// worker downloaded and verified. A value comes only from ReadProvenance, which
+// (kernelbuilder.ProvenanceName): the kernel.org version, and the tarball URL and SHA-256 the
+// worker downloaded and verified. A value comes only from readProvenance, which
 // refuses a record that lacks any of the three.
 type Provenance struct {
 	Version      string
@@ -25,11 +31,12 @@ type Provenance struct {
 	SourceSHA256 string
 }
 
-// ReadProvenance reads a provenance record writeProvenance wrote. A record from
+// readProvenance reads the provenance record kernelbuilder's writeProvenance
+// wrote beside a built kernel. A record from
 // before the build recorded its source carries no source-url or source-sha256,
 // and is refused naming the field: the kernel beside it was built from a source
 // this record cannot name, so it is rebuilt rather than shipped.
-func ReadProvenance(path string) (Provenance, error) {
+func readProvenance(path string) (Provenance, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // G304: the provenance beside a resolved kernel tree
 	if err != nil {
 		return Provenance{}, fmt.Errorf("read kernel provenance: %w", err)
@@ -45,11 +52,15 @@ func ReadProvenance(path string) (Provenance, error) {
 	if err := scanner.Err(); err != nil {
 		return Provenance{}, fmt.Errorf("read kernel provenance %s: %w", path, err)
 	}
-	record := Provenance{Version: fields["version"], SourceURL: fields["source-url"], SourceSHA256: fields["source-sha256"]}
+	record := Provenance{
+		Version:      fields[kernelbuilder.ProvenanceKeyVersion],
+		SourceURL:    fields[kernelbuilder.ProvenanceKeySourceURL],
+		SourceSHA256: fields[kernelbuilder.ProvenanceKeySourceSHA256],
+	}
 	for _, required := range []struct{ key, value string }{
-		{"version", record.Version},
-		{"source-url", record.SourceURL},
-		{"source-sha256", record.SourceSHA256},
+		{kernelbuilder.ProvenanceKeyVersion, record.Version},
+		{kernelbuilder.ProvenanceKeySourceURL, record.SourceURL},
+		{kernelbuilder.ProvenanceKeySourceSHA256, record.SourceSHA256},
 	} {
 		if required.value == "" {
 			return Provenance{}, errProvenanceField(path, required.key)

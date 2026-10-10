@@ -25,15 +25,21 @@ command.
 
 The builder runs only natively. `validateRequest` refuses a kernel whose
 architecture is not the host's (`hostGOARCH`), so Docker's `--platform` always
-names the host's own platform, and `qemuArgs` refuses a QEMU that offers
-neither `hvf` nor `kvm` instead of emulating under `tcg`. A QEMU that cannot
-answer `-accel help` at all, missing or crashing, is refused as that failure
-with its exit status and stderr, never reported as a host without an
-accelerator. An arm64 kernel is built on the Mac and an amd64 kernel on the
+names the host's own platform, and `hardwareAccelerator` refuses a QEMU that
+offers neither `hvf` nor `kvm` instead of emulating under `tcg`. A QEMU that
+cannot answer `-accel help` at all, missing or crashing, is refused as that
+failure with its exit status and stderr, never reported as a host without an
+accelerator. `-accel help` lists the accelerators compiled into QEMU, not the
+ones the host can use, and a distro QEMU on Linux always lists `kvm`, so a
+listed accelerator counts only when its probe passes: `/dev/kvm` opens
+read-write for `kvm`, and `sysctl -n kern.hv_support` prints `1` for `hvf`.
+The check runs when the builder is chosen, before the Alpine ISO download, and
+`ze doctor` asks the same question. A QEMU that still exits before the guest
+boots is reported with what it wrote to stderr. An arm64 kernel is built on the Mac and an amd64 kernel on the
 Linux host.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest -->
-<!-- source: internal/appliance/kernelbuilder/qemu.go -- qemuArgs, availableAccelerators -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 `ze appliance kernel` selects the profile and architecture, validates the

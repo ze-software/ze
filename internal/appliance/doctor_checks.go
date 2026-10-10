@@ -3,6 +3,7 @@
 package appliance
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,9 +27,13 @@ const (
 
 var doctorLookPathFn = exec.LookPath
 
-// doctorRuntimeBuilderFn answers the kernel builder this host would use. It is
+// doctorRuntimeBuilderFn answers the kernel builder this host would use, with
+// the same choice a build makes (kernelbuilder.SelectBuilder, no builder named):
+// Docker, else QEMU and Go with a hardware accelerator this host can use. It is
 // a package var so the doctor tests run with no Docker and no QEMU.
-var doctorRuntimeBuilderFn = kernelbuilder.UsableBuilder
+var doctorRuntimeBuilderFn = func(arch string) (string, error) {
+	return kernelbuilder.SelectBuilder(context.Background(), "", arch)
+}
 
 func applianceDoctorChecks() []diagnostic.DoctorCheck {
 	return []diagnostic.DoctorCheck{
@@ -184,14 +189,15 @@ func checkRuntimeKernel(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 	if _, err := os.Stat(filepath.Join(cached, runtimeKernelArtifact)); err == nil {
 		return nil
 	}
-	if _, err := doctorRuntimeBuilderFn(arch); err == nil {
+	_, builderErr := doctorRuntimeBuilderFn(arch)
+	if builderErr == nil {
 		return nil
 	}
 	return runtimeKernelDiagnostic("the runtime kernel " + defaultKernelVersion + " for " + arch + " is not in the cache, " +
-		"and this host cannot build it: Docker is not installed, and QEMU with Go is not installed.\n" +
+		"and this host cannot build it: " + builderErr.Error() + "\n" +
 		"ze appliance build boots this kernel, so it cannot build an image on this host.\n" +
 		"cache entry: " + cached + "\n" +
-		"install Docker, or QEMU and Go, then build the kernel once, with network access:\n" +
+		"install Docker, or QEMU and Go with hvf or kvm usable, then build the kernel once, with network access:\n" +
 		"ze appliance kernel --target runtime --arch " + arch)
 }
 

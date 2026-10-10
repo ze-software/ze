@@ -23,7 +23,9 @@ import (
 
 func TestSelectBuilder(t *testing.T) {
 	old := commandAvailable
-	t.Cleanup(func() { commandAvailable = old })
+	oldCheck := acceleratorCheck
+	t.Cleanup(func() { commandAvailable, acceleratorCheck = old, oldCheck })
+	acceleratorCheck = func(context.Context, string) (string, error) { return "kvm", nil }
 
 	tests := []struct {
 		name      string
@@ -44,15 +46,15 @@ func TestSelectBuilder(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			commandAvailable = func(name string) bool { return test.available[name] }
-			got, err := selectBuilder(test.requested, "arm64")
+			got, err := SelectBuilder(context.Background(), test.requested, "arm64")
 			if test.wantError != "" {
 				if err == nil || !strings.Contains(err.Error(), test.wantError) {
-					t.Fatalf("selectBuilder error = %v, want %q", err, test.wantError)
+					t.Fatalf("SelectBuilder error = %v, want %q", err, test.wantError)
 				}
 				return
 			}
 			if err != nil || got != test.want {
-				t.Fatalf("selectBuilder = %q, %v, want %q", got, err, test.want)
+				t.Fatalf("SelectBuilder = %q, %v, want %q", got, err, test.want)
 			}
 		})
 	}
@@ -319,7 +321,7 @@ func TestQEMUArgsLifecycleMounts(t *testing.T) {
 	}
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	req := Request{Root: root, Arch: "amd64", OutputDir: filepath.Join(root, "external-output"), FirmwareDir: filepath.Join(root, "firmware")}
-	args, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), nil)
+	args, err := qemuArgs(req, "alpine.iso", "kvm", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,10 +389,9 @@ func TestQEMUArgsRefusesWithoutHardwareAccelerator(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	req := Request{Root: root, Arch: "amd64", OutputDir: filepath.Join(root, "out")}
-	_, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), nil)
+	_, err := hardwareAccelerator(context.Background(), "qemu-system-x86_64")
 	if err == nil {
-		t.Fatal("qemuArgs accepted a QEMU that offers only tcg")
+		t.Fatal("hardwareAccelerator accepted a QEMU that offers only tcg")
 	}
 	for _, want := range []string{"hvf", "kvm", "tcg"} {
 		if !strings.Contains(err.Error(), want) {
@@ -403,7 +404,7 @@ func TestQEMUArgsRefusesWithoutHardwareAccelerator(t *testing.T) {
 // its accelerators is reported as that failure, with its exit status and its
 // stderr, and not as a host that lacks hvf and kvm.
 //
-// VALIDATES: availableAccelerators returns the exec error; qemuArgs names it.
+// VALIDATES: availableAccelerators returns the exec error; hardwareAccelerator names it.
 // PREVENTS: a missing or crashing QEMU read as "offers neither hvf nor kvm",
 // sending the operator to enable an accelerator the host already has.
 func TestQEMUArgsNamesABrokenQEMU(t *testing.T) {
@@ -417,10 +418,9 @@ func TestQEMUArgsNamesABrokenQEMU(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	req := Request{Root: root, Arch: "amd64", OutputDir: filepath.Join(root, "out")}
-	_, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), nil)
+	_, err := hardwareAccelerator(context.Background(), "qemu-system-x86_64")
 	if err == nil {
-		t.Fatal("qemuArgs accepted a QEMU that cannot list its accelerators")
+		t.Fatal("hardwareAccelerator accepted a QEMU that cannot list its accelerators")
 	}
 	if strings.Contains(err.Error(), "offers neither") {
 		t.Errorf("a broken QEMU is reported as a missing accelerator: %v", err)
@@ -467,7 +467,7 @@ func TestARealTmpWithSymlinkedChildrenIsSharedWithTheGuest(t *testing.T) {
 	}
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	req := Request{Root: root, Arch: "amd64", OutputDir: filepath.Join("tmp", "kernel", "build")}
-	args, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), shares)
+	args, err := qemuArgs(req, "alpine.iso", "kvm", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), shares)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -623,5 +623,95 @@ func writeFixture(t *testing.T, root, relative, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// fakeQEMU puts a qemu-system-x86_64 on PATH that runs script.
+func fakeQEMU(t *testing.T, script string) {
+	t.Helper()
+	fakeBin := filepath.Join(t.TempDir(), "bin")
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fakeBin, "qemu-system-x86_64"), []byte("#!/bin/sh\n"+script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// TestHardwareAcceleratorRefusesAListedButUnusableKVM verifies that a QEMU
+// which lists kvm on a host with no usable /dev/kvm is refused, naming the
+// device and the fix, rather than being started with -accel kvm.
+//
+// VALIDATES: round-1 ISSUE 1, the guard probes usability, not the listing.
+// PREVENTS: QEMU exiting at once and the operator reading "timeout waiting for
+// VM login prompt" two minutes later, with the KVM cause discarded.
+func TestHardwareAcceleratorRefusesAListedButUnusableKVM(t *testing.T) {
+	fakeQEMU(t, "printf 'kvm\\ntcg\\n'\n")
+	old := kvmDevice
+	t.Cleanup(func() { kvmDevice = old })
+	kvmDevice = filepath.Join(t.TempDir(), "kvm")
+
+	accel, err := hardwareAccelerator(context.Background(), "qemu-system-x86_64")
+	if err == nil {
+		t.Fatalf("hardwareAccelerator chose %q on a host with no %s", accel, kvmDevice)
+	}
+	for _, want := range []string{"lists kvm", kvmDevice, "does not exist", "modprobe kvm"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not name %q: %v", want, err)
+		}
+	}
+
+	if err := os.WriteFile(kvmDevice, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	accel, err = hardwareAccelerator(context.Background(), "qemu-system-x86_64")
+	if err != nil || accel != "kvm" {
+		t.Fatalf("with an openable %s: accel = %q, err = %v, want kvm", kvmDevice, accel, err)
+	}
+}
+
+// TestSelectBuilderRefusesQEMUThatCannotRun verifies that with no Docker, a
+// QEMU whose accelerator cannot run is refused when the builder is chosen,
+// which is also the answer `ze doctor` reports.
+//
+// VALIDATES: round-1 ISSUE 1 and NOTE 5, the refusal comes before any download.
+// PREVENTS: a doctor that passes, and a build that downloads the Alpine ISO,
+// on a host where QEMU cannot start a VM.
+func TestSelectBuilderRefusesQEMUThatCannotRun(t *testing.T) {
+	old := commandAvailable
+	oldProbes := acceleratorProbes
+	t.Cleanup(func() { commandAvailable, acceleratorProbes = old, oldProbes })
+	commandAvailable = func(name string) bool { return name == "qemu-system-x86_64" || name == "go" }
+	fakeQEMU(t, "printf 'kvm\\ntcg\\n'\n")
+	acceleratorProbes = map[string]func(context.Context) error{
+		"kvm": func(context.Context) error { return errors.New("/dev/kvm cannot be opened") },
+	}
+	for _, requested := range []string{"", "qemu"} {
+		_, err := SelectBuilder(context.Background(), requested, "amd64")
+		if err == nil {
+			t.Fatalf("builder %q chosen on a host whose kvm cannot be opened", requested)
+		}
+		if !strings.Contains(err.Error(), "/dev/kvm cannot be opened") {
+			t.Errorf("builder %q refusal does not carry the accelerator cause: %v", requested, err)
+		}
+	}
+}
+
+// TestBootFailureCarriesQEMUStderr verifies that a QEMU which exits before the
+// guest boots is reported with what it wrote to stderr.
+//
+// VALIDATES: round-1 ISSUE 1, QEMU stderr is kept on an early exit.
+// PREVENTS: "timeout waiting for VM login prompt" with QEMU's reason discarded.
+func TestBootFailureCarriesQEMUStderr(t *testing.T) {
+	fakeQEMU(t, "echo 'qemu-system-x86_64: failed to initialize kvm: Permission denied' >&2\nexit 1\n")
+	root := t.TempDir()
+	req := Request{Root: root, Arch: "amd64", OutputDir: "out", Stderr: os.Stderr}
+	err := runQEMUBuild(context.Background(), req, "alpine.iso", "worker", "kvm")
+	if err == nil {
+		t.Fatal("a QEMU that exited at once was reported as a build")
+	}
+	if !strings.Contains(err.Error(), "failed to initialize kvm: Permission denied") {
+		t.Errorf("error does not carry QEMU's stderr: %v", err)
 	}
 }

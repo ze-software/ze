@@ -29,12 +29,12 @@ const (
 
 // addLinuxNotice returns config with the GPLv2 notice for the kernel in tree
 // added to noticePackage's ExtraFileContents, preserving every other field. The
-// notice derives from the tree's own provenance (kernelbuilder.ReadProvenance),
+// notice derives from the tree's own provenance (readProvenance),
 // so it names the version built and the source the build verified. A tree with
 // no provenance, or one recorded before the source was, is refused: the image
 // would ship a kernel whose source it cannot name.
 func addLinuxNotice(config []byte, tree string) ([]byte, error) {
-	record, err := kernelbuilder.ReadProvenance(filepath.Join(tree, kernelbuilder.ProvenanceName))
+	record, err := readProvenance(filepath.Join(tree, kernelbuilder.ProvenanceName))
 	if err != nil {
 		return nil, fmt.Errorf("kernel package: %w", err)
 	}

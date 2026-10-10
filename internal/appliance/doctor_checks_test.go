@@ -2,13 +2,16 @@ package appliance
 
 import (
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -246,6 +249,7 @@ func TestDoctorRuntimeKernelMissing(t *testing.T) {
 		cached,
 		"ze appliance build",
 		"install Docker, or QEMU and Go",
+		"no builder available",
 		"ze appliance kernel --target runtime --arch " + runtime.GOARCH,
 	} {
 		if !strings.Contains(diags[0].Message, want) {
@@ -273,33 +277,79 @@ func TestDoctorRuntimeKernelOutsideSourceTree(t *testing.T) {
 	}
 }
 
-// TestKernelBuilderSourcesSkipTheDoctorQuery verifies the builder source hash
-// that keys every cached kernel leaves out the file the doctor check calls,
-// and still covers the driver that selects the backend.
+// TestDoctorRuntimeKernelNamesTheBuilderCause verifies the warning carries the
+// reason the builder query gave, so a host with QEMU whose accelerator cannot
+// run is told that, and not that QEMU is missing.
 //
-// VALIDATES: an edit to the doctor's builder query keeps every cached kernel.
-// PREVENTS: a doctor-only change forcing a cold rebuild of each arch's kernel.
-func TestKernelBuilderSourcesSkipTheDoctorQuery(t *testing.T) {
+// VALIDATES: round-1 ISSUE 1, the doctor reports an unusable accelerator.
+// PREVENTS: "QEMU with Go is not installed" on a host that has both.
+func TestDoctorRuntimeKernelNamesTheBuilderCause(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeRuntimeKernelRegistry(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	cause := "qemu-system-x86_64 lists kvm, but this host cannot use it: /dev/kvm cannot be opened"
+	setTestRuntimeBuilder(t, errors.New(cause))
+
+	diags := checkRuntimeKernel(diagnostic.DoctorCheckContext{})
+	if len(diags) != 1 {
+		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
+	}
+	if !strings.Contains(diags[0].Message, cause) {
+		t.Errorf("message does not carry the builder cause %q:\n%s", cause, diags[0].Message)
+	}
+	if strings.Contains(diags[0].Message, "QEMU with Go is not installed") {
+		t.Errorf("message says QEMU is missing on a host whose accelerator is the cause:\n%s", diags[0].Message)
+	}
+}
+
+// TestKernelBuilderSourcesHoldOnlyBuildCode verifies the builder source hash
+// that keys every cached kernel covers every non-test kernelbuilder file, with
+// no exclusion, and that none of those files declares code that runs outside a
+// build: the image-time notice and provenance reader, or a doctor-only query.
+//
+// VALIDATES: round-1 ISSUE 4, the hash covers what a build runs and nothing else.
+// PREVENTS: an edit to the GPLv2 notice wording, or to a doctor query, forcing a
+// cold rebuild of each arch's kernel; and a filename exclusion that hides a
+// build-time file from the hash.
+func TestKernelBuilderSourcesHoldOnlyBuildCode(t *testing.T) {
 	t.Chdir(filepath.Join("..", ".."))
 	paths, ok := kernelBuilderSources()
 	if !ok {
 		t.Fatal("no kernel builder sources found from the repository root")
 	}
-	doctor := filepath.Join("internal", "appliance", "kernelbuilder", kernelbuilder.DoctorSourceName)
-	if _, err := os.Stat(doctor); err != nil {
-		t.Fatalf("the doctor query file is not where the hash looks: %v", err)
-	}
-	driver := filepath.Join("internal", "appliance", "kernelbuilder", "driver.go")
-	hasDriver := false
+	hashed := make(map[string]bool, len(paths))
 	for _, path := range paths {
-		if path == doctor {
-			t.Errorf("the builder source hash includes %s", doctor)
+		hashed[path] = true
+	}
+	pkg := filepath.Join("internal", "appliance", "kernelbuilder")
+	entries, err := os.ReadDir(pkg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
 		}
-		if path == driver {
-			hasDriver = true
+		if !hashed[filepath.Join(pkg, name)] {
+			t.Errorf("the builder source hash leaves out %s", filepath.Join(pkg, name))
 		}
 	}
-	if !hasDriver {
-		t.Errorf("the builder source hash misses %s", driver)
+	notBuildTime := []string{"LinuxNotice", "ReadProvenance", "readProvenance", "UsableBuilder"}
+	fset := token.NewFileSet()
+	for _, path := range paths {
+		if !strings.HasSuffix(path, ".go") {
+			continue
+		}
+		file, parseErr := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		for _, decl := range file.Decls {
+			fn, isFunc := decl.(*ast.FuncDecl)
+			if isFunc && slices.Contains(notBuildTime, fn.Name.Name) {
+				t.Errorf("%s declares %s, which no kernel build runs, inside the hashed builder sources", path, fn.Name.Name)
+			}
+		}
 	}
 }

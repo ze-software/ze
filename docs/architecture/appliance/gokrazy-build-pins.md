@@ -312,5 +312,5 @@ carry it. A kernel tree with no provenance, or one built before the build record
 its source, is refused with the field it lacks, and the kernel is rebuilt.
 
 <!-- source: internal/appliance/kernelbuilder/driver.go -- writeProvenance -->
-<!-- source: internal/appliance/kernelbuilder/provenance.go -- ReadProvenance, Provenance.LinuxNotice -->
+<!-- source: internal/appliance/instance/provenance.go -- readProvenance, Provenance.LinuxNotice -->
 <!-- source: internal/appliance/instance/kernelpkg.go -- addLinuxNotice, linuxNoticePath -->
