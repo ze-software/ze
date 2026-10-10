@@ -31,7 +31,8 @@ with compiled-in defaults. Partial downloads are removed rather than cached.
 - **Doctor checks test for the artifact, not for the build tool.** The artifact
   is the result; a build tool is one path to it. An operator who downloads
   pre-built artifacts gets clean doctor output with no Docker installed. Build
-  tools are checked only when the build fallback is the tier in use.
+  tools are checked only when the build fallback is the tier in use, which for
+  the runtime kernel means a cold cache.
 - `ze appliance iso --check` calls the same resolution functions as the ISO
   build itself, so the readiness report cannot drift from the build.
 - The build-host surface is registered by `internal/appliance`: kernel,
@@ -62,8 +63,19 @@ network for the kernel.org tarball, fails with the cache path and the command
 that fills it. The image's kernel package is assembled from the cache entry,
 never from `tmp/kernel/build`, which every resolver call rewrites.
 
+`ze doctor` reports a host that cannot produce this kernel, as the warning
+`doctor-appliance-runtime-kernel`. The kernel builds only on a host of its own
+architecture, so the check asks about this host's: it passes when the cache
+entry the resolver would serve holds its `vmlinuz`, and otherwise when Docker,
+or QEMU with Go, is there for the cold build. With neither, the warning names
+the cache entry and the `ze appliance kernel --target runtime --arch <arch>`
+command to run once Docker or QEMU is installed. Run outside the Ze source tree,
+where the kernel config cannot be read, the check warns rather than pass.
+
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel -->
+<!-- source: internal/appliance/doctor_checks.go -- checkRuntimeKernel -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- UsableBuilder -->
 
 ## Related
 

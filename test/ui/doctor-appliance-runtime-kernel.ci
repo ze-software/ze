@@ -1,0 +1,20 @@
+# Test: ze doctor reports the runtime kernel check through its user entry point
+# VALIDATES: the appliance-runtime-kernel doctor check is registered in ze and runs
+# under `ze doctor`. The run sits outside the Ze source tree, so the check cannot
+# read gokrazy/kernel and says so rather than pass.
+# PREVENTS: a check that only its unit test reaches, and a silent pass when the
+# kernel config cannot be read.
+
+tmpfs=runtime-kernel.conf:terminator=EOF_CONF
+environment {
+    ntp {
+        enabled true
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json config runtime-kernel.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-appliance-runtime-kernel
+expect=stdout:contains=cannot check the runtime kernel
+expect=stdout:contains=gokrazy/kernel
