@@ -265,7 +265,7 @@ func TestEveryCapsBitHasADockerName(t *testing.T) {
 //
 // VALIDATES: option=opens-device:name=ppp records the token and skips no host
 // (it is independent of needs-linux); an unknown token, an unknown key (the
-// misspelt device=), an empty or missing name= and an unknown needs-linux key
+// misspelled device=), an empty or missing name= and an unknown needs-linux key
 // are each refused on every host with the accepted spelling; and
 // ContainerDevicePaths answers /dev/ppp.
 // PREVENTS: a typo leaving a test's device need undeclared or silently

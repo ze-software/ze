@@ -427,7 +427,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// test does have the capability and therefore really runs.
 		r.NeedsLinux = true
 		// An unknown key is refused on every host, like an unknown token: a
-		// misspelt key (device=ppp) read as absent leaves the author with no
+		// misspelled key (device=ppp) read as absent leaves the author with no
 		// feedback and the declaration silently missing.
 		if err := checkKeys("option=needs-linux", kv, "caps"); err != nil {
 			return err

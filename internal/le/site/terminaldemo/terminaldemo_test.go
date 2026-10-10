@@ -623,8 +623,7 @@ func TestANetSysctlDemoRunsWithoutPrivilege(t *testing.T) {
 				t.Errorf("error %q lacks %q", err, want)
 			}
 		}
-		var failure commandFailure
-		if errors.As(err, &failure) {
+		if _, ok := errors.AsType[commandFailure](err); ok {
 			t.Errorf("the refusal is a bare exit code: %v", err)
 		}
 	})
