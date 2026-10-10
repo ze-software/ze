@@ -11,6 +11,7 @@ package perf
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -39,6 +40,27 @@ type recorder struct {
 	measured suite
 	checkRC  int
 	measRC   int
+	// kernelErr is what the Docker kernel check answers; kernelZe records the
+	// ze each check probed with.
+	kernelErr error
+	kernelZe  []string
+}
+
+// stepActions names each recorded step, for a failure message that does not
+// print a child environment.
+func stepActions(steps []step) []string {
+	actions := make([]string, 0, len(steps))
+	for i := range steps {
+		actions = append(actions, steps[i].Action)
+	}
+	return actions
+}
+
+// kernel is the Docker kernel check seam.
+func (r *recorder) kernel(zePath string) error {
+	r.steps = append(r.steps, step{Action: "kernel", Argv: []string{zePath}})
+	r.kernelZe = append(r.kernelZe, zePath)
+	return r.kernelErr
 }
 
 // command is the process seam the evidence chain sends its regression check
@@ -75,6 +97,7 @@ func fixtureBench(t *testing.T) (*Bench, *recorder) {
 		Toolchain: gotoolchain.Toolchain{Root: root, GoToolchain: fixturePin},
 		Command:   rec.command,
 		Measure:   rec.measure,
+		Kernel:    rec.kernel,
 	}
 	return bench, rec
 }
@@ -112,8 +135,9 @@ func TestCheckArgvReadsTheCommittedHistoryOfOneDUT(t *testing.T) {
 	}
 }
 
-// TestRunMeasuresThenRecords is the ze-perf-bench chain in order: one runner
-// call with both steps, the running le as the reporter, then the marker.
+// TestRunMeasuresThenRecords is the ze-perf-bench chain in order: the Docker
+// kernel check, one runner call with both steps, the running le as the
+// reporter, then the marker.
 func TestRunMeasuresThenRecords(t *testing.T) {
 	bench, rec := fixtureBench(t)
 
@@ -121,8 +145,8 @@ func TestRunMeasuresThenRecords(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("Run answered %d: %s", code, report.Error)
 	}
-	if len(rec.steps) != 1 || rec.steps[0].Action != "measure" {
-		t.Fatalf("the chain ran %#v, want the measurement alone", rec.steps)
+	if len(rec.steps) != 2 || rec.steps[0].Action != "kernel" || rec.steps[1].Action != "measure" {
+		t.Fatalf("the chain ran %d steps, want the kernel check then the measurement: %v", len(rec.steps), stepActions(rec.steps))
 	}
 	want := suite{Root: bench.Root, Self: fixtureSelf, LinuxTags: fixtureTags, Steps: bothSteps(), DUTs: []string{"ze"}}
 	if !reflect.DeepEqual(rec.measured, want) {
@@ -281,17 +305,17 @@ func TestEvidenceRecordMeasuresZeAppendsAndChecks(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("EvidenceRecord answered %d: %s", code, report.Error)
 	}
-	if len(rec.steps) != 2 {
-		t.Fatalf("the chain ran %d steps: %#v", len(rec.steps), rec.steps)
+	if len(rec.steps) != 3 || rec.steps[0].Action != "kernel" {
+		t.Fatalf("the chain ran %d steps, want the kernel check first: %v", len(rec.steps), stepActions(rec.steps))
 	}
 	if !reflect.DeepEqual(rec.measured.DUTs, []string{zeDUT}) || rec.measured.Steps != bothSteps() {
 		t.Fatalf("the gate measured %+v, want both steps over the ze DUT alone", rec.measured)
 	}
-	if rec.steps[1].Action != checkAction {
-		t.Fatalf("the second step is %q, want the regression check", rec.steps[1].Action)
+	if rec.steps[2].Action != checkAction {
+		t.Fatalf("the third step is %q, want the regression check", rec.steps[2].Action)
 	}
-	if !reflect.DeepEqual(rec.steps[1].Argv, bench.checkArgv()) {
-		t.Fatalf("the check ran %#v, want %#v", rec.steps[1].Argv, bench.checkArgv())
+	if !reflect.DeepEqual(rec.steps[2].Argv, bench.checkArgv()) {
+		t.Fatalf("the check ran %#v, want %#v", rec.steps[2].Argv, bench.checkArgv())
 	}
 	if report.Checked != bench.historyFile(zeDUT) || report.Recorded == "" {
 		t.Fatalf("report = %+v, want the history it checked and the marker it wrote", report)
@@ -386,4 +410,60 @@ func TestRunReportRendersEveryStepItPerformed(t *testing.T) {
 			t.Errorf("the payload has no %s key: %s", key, raw)
 		}
 	}
+}
+
+// VALIDATES: a run that starts the ze DUT checks the Docker daemon's kernel
+// with the ze the DUT image carries (test/interop/ze-linux) before the DUT
+// starts, and a refusal stops the run before any measurement. A run that
+// starts no ze, a build alone or other DUTs only, does not check.
+// PREVENTS: a benchmark of Ze on a Docker kernel lacking a feature Ze enrolls
+// (owner D-4: every Docker run that runs Ze; a wrong kernel must not be
+// possible).
+func TestRunChecksTheDockerKernelBeforeTheZeDUT(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		steps perfrunner.Steps
+		duts  []string
+		check bool
+	}{
+		{"every DUT", bothSteps(), nil, true},
+		{"ze named", perfrunner.Steps{Test: true}, []string{"bird", "ze"}, true},
+		{"build alone", perfrunner.Steps{Build: true}, []string{"ze"}, false},
+		{"no ze", bothSteps(), []string{"bird"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bench, rec := fixtureBench(t)
+			bench.Run(tc.steps, tc.duts)
+			if !tc.check {
+				if len(rec.kernelZe) != 0 {
+					t.Errorf("checked the kernel for a run that starts no ze: %v", rec.kernelZe)
+				}
+				return
+			}
+			want := filepath.Join(bench.Root, "test", "interop", "ze-linux")
+			if len(rec.kernelZe) != 1 || rec.kernelZe[0] != want {
+				t.Fatalf("kernel checks = %v, want one with %s", rec.kernelZe, want)
+			}
+			if rec.steps[0].Action != "kernel" {
+				t.Errorf("first step = %q, want the kernel check before the measurement", rec.steps[0].Action)
+			}
+		})
+	}
+
+	t.Run("refusal", func(t *testing.T) {
+		bench, rec := fixtureBench(t)
+		rec.kernelErr = errors.New("the Docker daemon's kernel lacks CONFIG_XFRM_MIGRATE")
+		report, code := bench.Run(bothSteps(), []string{"ze"})
+		if code == 0 {
+			t.Fatal("a refused kernel answered exit 0")
+		}
+		if !strings.Contains(report.Error, "CONFIG_XFRM_MIGRATE") {
+			t.Errorf("report error %q does not carry the refusal", report.Error)
+		}
+		for _, done := range rec.steps {
+			if done.Action == "measure" {
+				t.Error("the DUTs were measured after the kernel refused")
+			}
+		}
+	})
 }

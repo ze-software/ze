@@ -15,6 +15,7 @@ package perf
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,10 +23,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/interoplab"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/linuxle"
@@ -156,6 +159,10 @@ type suite struct {
 // measureStep runs the multi-DUT Docker benchmark and answers its exit code.
 type measureStep func(run suite) int
 
+// kernelStep refuses a Docker daemon whose kernel lacks a feature Ze enrolls,
+// probing with the linux ze at zePath.
+type kernelStep func(zePath string) error
+
 // Bench is one benchmark chain over a checkout. The two process seams are
 // fields so a package test pins what each verb runs without Docker, a compiler,
 // or minutes of machine time. Self is the le running this command, which
@@ -167,6 +174,7 @@ type Bench struct {
 	Toolchain gotoolchain.Toolchain
 	Command   commandStep
 	Measure   measureStep
+	Kernel    kernelStep
 }
 
 // newBench answers a chain over the checkout this command was run in.
@@ -194,7 +202,40 @@ func newBench() (*Bench, error) {
 		Toolchain: toolchain,
 		Command:   streamCommand,
 		Measure:   measureDUTs,
+		Kernel:    dockerKernel,
 	}, nil
+}
+
+// stagedZeRel is the linux ze the ze DUT image carries: test/interop/Dockerfile.ze
+// copies this path to /usr/local/bin/ze, so it is the binary the kernel check
+// probes with.
+const stagedZeRel = "test/interop/ze-linux"
+
+// stagedZe answers the ze DUT's binary in this checkout.
+func (b *Bench) stagedZe() string {
+	return filepath.Join(b.Root, filepath.FromSlash(stagedZeRel))
+}
+
+// runsZe answers whether a run of duts starts the ze DUT. An empty list selects
+// every DUT, ze among them.
+func runsZe(duts []string) bool {
+	if len(duts) == 0 {
+		return true
+	}
+	return slices.Contains(duts, zeDUT)
+}
+
+// dockerKernelTimeout bounds the Docker kernel check: the release query and
+// the probe container, whose own bound is the interoplab probe timeout.
+const dockerKernelTimeout = 3 * time.Minute
+
+// dockerKernel is the production kernelStep: the check every Docker run that
+// runs Ze makes (interoplab.DockerKernel), against the daemon in hand.
+func dockerKernel(zePath string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dockerKernelTimeout)
+	defer cancel()
+
+	return interoplab.DockerKernel(zePath)(ctx, interoplab.NewDocker())
 }
 
 // streamCommand runs one command with the child on this terminal.
@@ -245,6 +286,15 @@ func fail(action string, code int, err error) (RunReport, int) {
 func (b *Bench) Run(steps perfrunner.Steps, duts []string) (RunReport, int) {
 	if err := validateDUTs(duts); err != nil {
 		return fail(runVerb, 1, err)
+	}
+	// The ze DUT runs Ze in a container on the Docker daemon's kernel, so that
+	// kernel must carry every feature Ze enrolls before the DUT starts (owner
+	// D-4: a wrong kernel "should not be possible - fail"). A build alone, or a
+	// run of other DUTs only, starts no ze.
+	if steps.Test && runsZe(duts) {
+		if err := b.Kernel(b.stagedZe()); err != nil {
+			return fail(runVerb, 1, err)
+		}
 	}
 	gaterun.Announce(measureAction)
 	if code := b.Measure(b.suite(steps, duts)); code != 0 {

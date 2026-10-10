@@ -115,7 +115,14 @@ The included test runner benchmarks all eight supported implementations in Docke
 | FreeRtr | freertr-interop (built) | `test/perf/configs/freertr-sw.txt` | eBGP + redistribute connected |
 | OpenBGPD | openbgpd-interop (built) | `test/perf/configs/openbgpd.conf` | allow from/to any |
 
+The Ze DUT runs on the Docker daemon's kernel, so a run that tests it first
+checks that kernel with `test/interop/ze-linux`, the ze the image carries, and
+refuses one that lacks any feature Ze enrolls, naming each. The check and its
+routes are in `docs/architecture/testing/interop.md`, "The Docker host kernel
+check".
+
 <!-- source: internal/test/perfrunner/run.go -- native Docker benchmark runner -->
+<!-- source: internal/le/perf/bench.go -- Bench.Run -->
 <!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
 
 ```bash

@@ -198,7 +198,7 @@ proof. Diagnostic collection has a cancellation-independent fifteen-second bound
 | Requirement | Used By | Notes |
 |-------------|---------|-------|
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
-| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode | Checked before any image build or container start; see "The Docker host kernel check" |
+| A Docker daemon kernel with every feature Ze enrolls | Interop tests, `docker-*` deployment proofs, the `l2tp-test`, `vpp-test` and `vpp-iface-test` proofs, `TestVPPSRv6ServiceRoute`, the terminal-demo render and validate mode, the `./le perf` ze DUT | Checked before any image build or container start; see "The Docker host kernel check" |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
@@ -387,6 +387,13 @@ the renderer's `validate` mode run Ze in validator and recorder containers, so
 both make the same check, through one shared preflight, with the demo binary
 (`tmp/terminal-demos/bin/ze`) after confirming that binary exists and before the
 renderer image is inspected or any container starts.
+
+`./le perf run` and `./le perf evidence-record` run the ze DUT in a container,
+so a run that tests the ze DUT (every DUT, or `ze` named) makes the same check
+with the ze the DUT image carries, `test/interop/ze-linux`, before the
+benchmark starts. A build alone, or a run of other DUTs only, starts no ze and
+does not check.
+<!-- source: internal/le/perf/bench.go -- Bench.Run, runsZe, stagedZeRel -->
 
 `./le setup docker-kernel check ze <linux ze>` asks the daemon in hand the same
 question with any linux `ze`. `./le setup docker-kernel install` is the Linux
