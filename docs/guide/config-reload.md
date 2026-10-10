@@ -16,6 +16,7 @@ kill -HUP $(pidof ze)               # Direct signal
 |--------|--------|
 | New peer added | Session initiated |
 | Peer removed | Session torn down with NOTIFICATION |
+| A peer `create bgp peer` built, which the file does not declare | Nothing: the peer keeps its session. `delete bgp peer` removes it, and `update bgp config` writes it into the file |
 | Peer settings changed | Session restarted with new config |
 | Plugin config changed | Plugin reloaded |
 | Static routes changed | New routes announced, old withdrawn |
@@ -26,6 +27,7 @@ kill -HUP $(pidof ze)               # Direct signal
 | A web `certificate` reference changed | The listener serves the new chain on the next handshake with no rebind |
 | A looking-glass `certificate` reference changed | The same, on the looking-glass listener. A name the new store does not define refuses the whole commit and puts the prior store back |
 
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- reactorAPIAdapter.ReloadRunning, withPeerEntries -->
 <!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the looking-glass certificate gate -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate -->
 

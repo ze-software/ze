@@ -641,11 +641,24 @@ show bgp peer <selector> statistics   # Show specific peer statistics
 show bgp peer <selector> history      # Show FSM transition history
 request peer <selector> teardown [<cease-subcode>]  # Disconnect peer
 create bgp peer <address> asn <asn> [...]  # Add a peer to the running daemon
-delete bgp peer <name>             # Remove dynamic peer
+delete bgp peer <name>             # Stop a peer, configured or created, and remove it from the running set
 update bgp config                  # Write the running peer set to the config file
 request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
+
+`create bgp peer` (`ze-bgp:peer-create`) and `delete bgp peer`
+(`ze-bgp:peer-delete`) change the running peer set and never write the
+configuration file. A commit or a reload whose configuration does not declare a
+created peer keeps it running: the reload leaves the created peers the
+candidate does not name out of the running tree it compares against, so the
+diff plans no removal, and carries them into the tree that replaces it.
+`update bgp config` (`ze-bgp:peer-save`) takes no selector and makes the file state the whole running set: a created peer is
+written in, and a configured peer that was deleted is taken out.
+<!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerCreate -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDelete -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- reactorAPIAdapter.ReloadRunning -->
 
 ### Cache Commands (Ze)
 
