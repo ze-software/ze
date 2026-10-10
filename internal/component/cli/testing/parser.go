@@ -123,6 +123,7 @@ const (
 	etRestart    = "restart"
 	etSession    = "session"
 	etStatus     = "status"
+	etTimeout    = "timeout"
 	etWait       = "wait"
 	keyNameSpace = "space"
 )

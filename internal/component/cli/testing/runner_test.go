@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // TestRunnerBasicTest verifies a simple test case runs successfully.
@@ -314,7 +315,7 @@ expect=context:root
 	err := os.WriteFile(etPath, []byte(etContent), 0o600)
 	require.NoError(t, err)
 
-	result := RunETFile(etPath)
+	result := RunETFile(etPath, 1)
 	require.NotNil(t, result)
 	assert.True(t, result.Passed, "test should pass: %s", result.Error)
 }
@@ -409,7 +410,9 @@ func TestFunctionalETFiles(t *testing.T) {
 		relPath, _ := filepath.Rel(editorTestDir, etPath)
 		t.Run(relPath, func(t *testing.T) {
 			t.Parallel()
-			result := RunETFile(etPath)
+			// Parallel subtests share the CPU, so each authored timeout
+			// gets the same headroom `le test editor` gives it.
+			result := RunETFile(etPath, runner.ParallelTimeoutHeadroom)
 			if !result.Passed {
 				t.Errorf("test failed: %s", result.Error)
 			}
@@ -461,13 +464,13 @@ expect=explanation:contains=no command declares this sentence
 
 	tc, err := parseETFile(passing)
 	require.NoError(t, err)
-	result := runTestCase(tc)
+	result := runTestCase(tc, 1)
 	assert.Empty(t, result.Error)
 	assert.True(t, result.Passed, "expected the matching file to pass")
 
 	tc, err = parseETFile(failing)
 	require.NoError(t, err)
-	result = runTestCase(tc)
+	result = runTestCase(tc, 1)
 	assert.False(t, result.Passed, "expected the mismatching file to fail")
 	assert.Contains(t, result.Error, "no command declares this sentence")
 }

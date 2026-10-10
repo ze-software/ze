@@ -432,6 +432,17 @@ and name, plus periodic progress while tests are still running.
 <!-- source: internal/test/cli/cmd_vpp.go -- VPP stub-backed suite runner -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility runner -->
 
+An editor `.et` test's `option=timeout:value=<duration>` is its wall-clock
+budget, 30s when the file declares none. `le test editor` and
+`TestFunctionalETFiles` run the tests concurrently, so both multiply the budget
+by `ParallelTimeoutHeadroom` (x3). A run past its budget fails with
+`timed out after <budget>` and writes the goroutine stacks to `hang-stacks.txt`
+in the test's temp directory, so a hung command fails its test instead of
+holding the suite. A timeout the runner cannot parse fails the test rather than
+falling back to the default.
+<!-- source: internal/component/cli/testing/runner.go -- testBudget, runTestCase, timedOutError -->
+<!-- source: internal/test/cli/cmd_editor.go -- runner.ParallelTimeoutHeadroom -->
+
 The checks, RFC, inventory, spec-status, consistency, discovery and doc-validity
 UI fixtures execute the suite's native `le` binary over owned inputs instead of
 rebuilding it or repeatedly scanning the moving checkout.

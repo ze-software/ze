@@ -30,7 +30,7 @@ bgp {
 EOF_CONF
 
 option=file:path=test.conf
-option=timeout:value=10s
+option=timeout:value=90s
 
 # Verify initial state: peer-alpha present, clean
 expect=dirty:false

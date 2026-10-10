@@ -172,7 +172,9 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 
 	for _, test := range tests.Selected() {
 		pr.AddTestWithNick(test.Name, test.Nick, test, func(_ context.Context, t *runner.EditorTest) (bool, error) {
-			testResult := editortesting.RunETFile(t.Path)
+			// The runner keeps its default concurrency, which is above one,
+			// so each authored timeout gets the parallel headroom.
+			testResult := editortesting.RunETFile(t.Path, runner.ParallelTimeoutHeadroom)
 
 			t.ErrMsg = testResult.Error
 			t.TempDir = testResult.TempDir

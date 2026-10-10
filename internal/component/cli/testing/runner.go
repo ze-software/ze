@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 var (
 	errNoConfigFileSpecifiedUseOption = errors.New("no config file specified (use option=file:path=...)")
 	errDaemonNotReachable             = errors.New("daemon not reachable")
+	errTimeoutNeedsValue              = errors.New("option=timeout needs value=<duration>")
 )
 
 // TestResult represents the outcome of running an .et test.
@@ -31,9 +33,16 @@ type TestResult struct {
 	Steps    []trace.StepResult
 }
 
-// runETTest parses and executes an .et test from content string.
-// Returns a TestResult with pass/fail status and any error message.
+// runETTest parses and executes an .et test from content string, with its
+// declared timeout as the budget. Returns a TestResult with pass/fail status
+// and any error message.
 func runETTest(content string) *TestResult {
+	return runETContent(content, 1)
+}
+
+// runETContent parses and executes an .et test from content string, with its
+// declared timeout multiplied by headroom as the budget.
+func runETContent(content string, headroom int) *TestResult {
 	start := time.Now()
 	result := &TestResult{}
 
@@ -45,7 +54,7 @@ func runETTest(content string) *TestResult {
 	}
 
 	// Run the test case
-	runResult := runTestCase(tc)
+	runResult := runTestCase(tc, headroom)
 	result.Passed = runResult.Passed
 	result.Error = runResult.Error
 	result.Steps = runResult.Steps
@@ -54,29 +63,109 @@ func runETTest(content string) *TestResult {
 	return result
 }
 
-// RunETFile loads and executes an .et test from a file path.
-func RunETFile(path string) *TestResult {
+// RunETFile loads and executes an .et test from a file path. The run's budget
+// is its declared option=timeout (defaultTestTimeout when it declares none)
+// multiplied by headroom, which MUST be at least 1: a caller running tests
+// concurrently passes runner.ParallelTimeoutHeadroom, because authored
+// timeouts are measured against an uncontended run.
+func RunETFile(path string, headroom int) *TestResult {
 	content, err := os.ReadFile(path) //nolint:gosec // Test file path
 	if err != nil {
 		return &TestResult{Error: fmt.Sprintf("reading file: %v", err)}
 	}
-	return runETTest(string(content))
+	return runETContent(string(content), headroom)
 }
 
-// runTestCase executes a parsed test case in a temporary directory that it
-// creates and removes.
-func runTestCase(tc *testCase) *TestResult {
+// defaultTestTimeout is the budget of a test that declares no option=timeout.
+const defaultTestTimeout = 30 * time.Second
+
+// testBudget answers how long tc may run: its declared option=timeout, or
+// defaultTestTimeout when it declares none, multiplied by headroom. A timeout
+// that does not parse is an error, never the default, so a typo cannot hand
+// the test a budget nobody wrote.
+func testBudget(tc *testCase, headroom int) (time.Duration, error) {
+	if headroom < 1 {
+		return 0, fmt.Errorf("timeout headroom %d: must be at least 1", headroom)
+	}
+	timeout := defaultTestTimeout
+	for _, opt := range tc.Options {
+		if opt.Type != etTimeout {
+			continue
+		}
+		val, ok := opt.Values["value"]
+		if !ok {
+			return 0, errTimeoutNeedsValue
+		}
+		d, err := time.ParseDuration(val)
+		if err != nil {
+			return 0, fmt.Errorf("option=timeout:value=%s: %w", val, err)
+		}
+		timeout = d
+	}
+	return timeout * time.Duration(headroom), nil
+}
+
+// runTestCase executes a parsed test case in a temporary directory and fails
+// it when it outlasts testBudget.
+//
+// The run happens on a worker goroutine that owns the directory and removes
+// it when the run ends. A run past its budget is reported failed and left
+// running: a goroutine cannot be stopped from outside, and a hung run is a
+// command blocked forever (a deadlock on the write-through lock, for one), so
+// its worker lives until the process exits. The runner process runs one suite
+// and exits, so the leak is bounded by the number of hung tests. Without this
+// deadline, settleWait, which blocks by design, held the whole suite.
+func runTestCase(tc *testCase, headroom int) *TestResult {
+	budget, err := testBudget(tc, headroom)
+	if err != nil {
+		return &TestResult{Error: err.Error()}
+	}
+
 	// Create temp directory for test files
 	tmpDir, err := os.MkdirTemp("", "ze-editor-test-*")
 	if err != nil {
 		var tb textbuf.Buffer
 		return &TestResult{Error: tb.Str("creating temp dir: ").Err(err).String()}
 	}
-	defer func() {
-		_ = os.RemoveAll(tmpDir)
-	}()
 
-	return runTestCaseIn(tc, tmpDir)
+	done := make(chan *TestResult, 1)
+	go runTestCaseWorker(tc, tmpDir, done)
+
+	deadline := time.NewTimer(budget)
+	defer deadline.Stop()
+
+	select {
+	case result := <-done:
+		return result
+	case <-deadline.C:
+		return &TestResult{Error: timedOutError(budget, tmpDir), TempDir: tmpDir}
+	}
+}
+
+// runTestCaseWorker runs tc in tmpDir, sends its one result on done and
+// removes tmpDir. done MUST have capacity 1, so the send never blocks once
+// runTestCase has stopped waiting.
+func runTestCaseWorker(tc *testCase, tmpDir string, done chan<- *TestResult) {
+	defer os.RemoveAll(tmpDir) //nolint:errcheck // test cleanup
+	done <- runTestCaseIn(tc, tmpDir)
+}
+
+// timedOutError names the budget and writes every goroutine's stack to
+// hang-stacks.txt beside the test's files, so the blocked call survives the
+// run rather than being lost with it.
+func timedOutError(budget time.Duration, tmpDir string) string {
+	var tb textbuf.Buffer
+	tb.Str("timed out after ").Str(budget.String())
+	stacks := filepath.Join(tmpDir, "hang-stacks.txt")
+	f, err := os.Create(stacks) //nolint:gosec // path under the test's own temp dir
+	if err != nil {
+		return tb.Str(" (stacks not written: ").Err(err).Str(")").String()
+	}
+	defer f.Close() //nolint:errcheck // best effort diagnostics file
+	if err := pprof.Lookup("goroutine").WriteTo(f, 2); err != nil {
+		return tb.Str(" (stacks not written: ").Err(err).Str(")").String()
+	}
+	return tb.Str("; goroutine stacks: ").Str(stacks).String()
 }
 
 // runTestCaseIn executes a parsed test case with tmpDir as its working
@@ -121,7 +210,6 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 
 	// Get config file path from options
 	configPath := ""
-	timeout := 30 * time.Second
 	width := 80
 	height := 24
 	reloadMode := ""         // "success", "fail", or "" (standalone)
@@ -138,12 +226,6 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 		case etFile:
 			if path, ok := opt.Values["path"]; ok {
 				configPath = filepath.Join(tmpDir, path)
-			}
-		case "timeout":
-			if val, ok := opt.Values["value"]; ok {
-				if d, err := time.ParseDuration(val); err == nil {
-					timeout = d
-				}
 			}
 		case "width":
 			if val, ok := opt.Values["value"]; ok {
@@ -264,7 +346,6 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 	// Set window size if specified
 	_ = width
 	_ = height
-	_ = timeout
 
 	// Process steps in order (inputs, expectations, waits, sessions interleaved)
 	for stepIdx, step := range tc.Steps {

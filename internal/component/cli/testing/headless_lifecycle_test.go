@@ -57,7 +57,7 @@ func TestHeadlessRestartFuncViaRunTestCase(t *testing.T) {
 		},
 	}
 
-	result := runTestCase(tc)
+	result := runTestCase(tc, 1)
 	if result.Error != "" {
 		t.Errorf("runTestCase failed: %s", result.Error)
 	}
