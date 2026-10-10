@@ -41,7 +41,7 @@ func TestForceGrammarNamesEveryForcibleState(t *testing.T) {
 	if description == "" {
 		t.Fatalf("%s is not registered in a zetest build", forceEnv)
 	}
-	for state := StatePresent; state <= StateDenied; state++ {
+	for _, state := range namedStates(t) {
 		if !strings.Contains(description, state.String()) {
 			t.Errorf("description %q does not name %s", description, state)
 		}
@@ -50,4 +50,34 @@ func TestForceGrammarNamesEveryForcibleState(t *testing.T) {
 			t.Errorf("forcedState(%q) = %+v, %v; want %s", state.String(), result, ok, state)
 		}
 	}
+}
+
+// namedStates answers every State after StateUnspecified that String names,
+// found by asking String rather than by naming the last state, so a state
+// added later is checked with no edit here. String panics on an unnamed
+// value, which is where the walk stops.
+func namedStates(t *testing.T) []State {
+	t.Helper()
+	var states []State
+	for state := StatePresent; ; state++ {
+		if !stateIsNamed(state) {
+			break
+		}
+		states = append(states, state)
+	}
+	if len(states) == 0 {
+		t.Fatal("String names no state after StateUnspecified")
+	}
+	return states
+}
+
+// stateIsNamed reports whether String names state, recovering its panic for
+// an unnamed value.
+func stateIsNamed(state State) (named bool) {
+	defer func() {
+		if recover() != nil {
+			named = false
+		}
+	}()
+	return state.String() != ""
 }

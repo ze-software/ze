@@ -24,11 +24,11 @@ var _ = env.MustRegister(env.EnvEntry{
 })
 
 // forceGrammar is the forced-answer grammar the variable's description shows,
-// <subsystem>=<present|absent|...>[,...], built from forcedSpellings (probe.go).
+// <subsystem>=<present|absent|...>[,...], built from forcedStates (probe.go).
 func forceGrammar() string {
-	spellings := make([]string, 0, len(forcedSpellings))
-	for _, forced := range forcedSpellings {
-		spellings = append(spellings, forced.spelling)
+	spellings := make([]string, 0, len(forcedStates))
+	for _, state := range forcedStates {
+		spellings = append(spellings, state.String())
 	}
 	return "<subsystem>=<" + strings.Join(spellings, "|") + ">[,...]"
 }

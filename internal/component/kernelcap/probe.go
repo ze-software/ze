@@ -29,7 +29,7 @@ const (
 	// would only be exercised where the feature happens to be missing, which is
 	// the vacuity trap of ai/rules/interop-and-goal-validation.md. The value is
 	// a comma-separated list in the grammar forceGrammar builds from
-	// forcedSpellings. Only a zetest build, the functional-test daemon,
+	// forcedStates. Only a zetest build, the functional-test daemon,
 	// registers and reads it
 	// (probe_force_zetest.go); a shipped build never does
 	// (probe_force_shipped.go), so it is not an operator override.
@@ -108,7 +108,7 @@ func ForceAnswersForTest(value string) (restore func()) {
 }
 
 // forcedFor returns the answer value forces on subsystem, and true when it
-// forces one. An entry whose state is not one of forcedSpellings is treated
+// forces one. An entry whose state is not one of forcedStates is treated
 // as no override rather than as an answer: a typo in a test variable must not
 // decide whether a daemon starts. The variable is read on the control plane
 // only (doctor, start, reload, validate), so it is parsed at each read.
@@ -126,27 +126,19 @@ func forcedFor(subsystem, value string) (Result, bool) {
 	return Result{}, false
 }
 
-// forcedSpellings is the forced-answer grammar, declared once: forcedState
-// accepts exactly these spellings, and the variable's description is built
-// from them (forceGrammar, probe_force_zetest.go), so the parser and the
-// description a test author reads cannot disagree. Each spelling is the one
-// the doctor row prints for that state.
-var forcedSpellings = [...]struct {
-	spelling string
-	state    State
-}{
-	{"present", StatePresent},
-	{"absent", StateAbsent},
-	{"unknown", StateUnknown},
-	{"denied", StateDenied},
-}
+// forcedStates is the forced-answer grammar, declared once: each state's
+// spelling is its String, the one the doctor row prints, so forcedState and
+// the variable's description (forceGrammar, probe_force_zetest.go) read the
+// same words and cannot disagree with the row. StateUnspecified is no answer,
+// so it cannot be forced.
+var forcedStates = [...]State{StatePresent, StateAbsent, StateUnknown, StateDenied}
 
 // forcedState classifies one state spelling. A forced present carries its
 // reason too, so the row and the diagnostic say it was forced (evaluateOne).
 func forcedState(spelling string) (Result, bool) {
-	for _, forced := range forcedSpellings {
-		if spelling == forced.spelling {
-			return Result{State: forced.state, Reason: errForced}, true
+	for _, state := range forcedStates {
+		if spelling == state.String() {
+			return Result{State: state, Reason: errForced}, true
 		}
 	}
 	return Result{}, false
