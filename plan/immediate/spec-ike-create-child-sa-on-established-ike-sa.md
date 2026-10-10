@@ -598,7 +598,7 @@ section.
 |-------|-------|
 | Artifact | not recorded: round 1 was not CLEAN |
 | `./le spec review check` | not run |
-| Rounds | 1 complete (1 BLOCKER, 6 ISSUE, 8 NOTE); round 2 ISSUE 1 fixed by fbd9399f33; round 3 ISSUE 1 and NOTE 3 fixed by bedf48bfba; ready for round 4 over that fix only |
+| Rounds | 1 complete (1 BLOCKER, 6 ISSUE, 8 NOTE); round 2 ISSUE 1 fixed by fbd9399f33; round 3 ISSUE 1 and NOTE 3 fixed by bedf48bfba; round 4 ISSUE 1 fixed by 07e74bfd6d; ready for round 5 over that fix only |
 | Reviewer lenses used | round 1: independent reviewer over the diff, RFC text, commit audit, interop evidence (`tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/review-r1-ike-ccs.md`) |
 
 ### Findings fixed
@@ -626,7 +626,12 @@ section.
 | 1 | ISSUE | `childResponseFixInstall` called three causes a kernel refusal and named a peer if-id that no config carries: `resolveIfID` (vti bind names no XFRM interface or one with if-id 0) and `newChildSA` (endpoint not an IP address) were wrapped in `errChildInstall` beside `installChildTolerant` | `create_child.go` | bedf48bfba: per-cause sentinels `errChildBinding` (fix names `vti bind` on this peer and the if-id under `interfaces xfrm`), `errChildAddress` (fix names `local-address` and `remote-address`), `errChildInstall` (kernel refusal, esp-group algorithms only). `TestChildCreateBadVTIBindNamesFix` and `TestChildCreateBadAddressNamesFix` drive both paths through the real `respondNewChild`; both red via `-overlay` with the two wraps reverted to `errChildInstall`; engine package green under `-race` with every gate tag; `./le rfc check` names no IKE violation, so no discrimination record staled |
 | N3 | NOTE | YANG `vti` container and `bind` leaf descriptions said no code maps the name to the if-id, which `resolveIfID` has done since 2026-09-16 | `ze-ipsec-conf.yang` | bedf48bfba: both descriptions now state what `resolveIfID` does; fixed in place, so no journal row |
 
-Round 4 is owed over bedf48bfba for that fix only.
+### Round 4 findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The responder logged every `respondNewChild` error with `childRefusedFixResponder` (match the esp-group proposals and traffic selectors), wrong for three local causes: `resolveIfID` (bad `vti bind`), `newChildSA` (local-address or remote-address not an IP address) and `installChildTolerant` (kernel refusal); the IKE_AUTH responder logged its `resolveIfID` refusal the same way | `create_child.go`, `inbound.go`, `responder.go` | 07e74bfd6d: `respondNewChild` wraps the three in `errChildBinding`, `errChildAddress`, `errChildInstall`, and `selectAuthChildSA` wraps its `resolveIfID` error in `errChildBinding`; `childRefusedResponderFix` maps each to a responder fix (this node refused, the peer may ask again, no retry-after or deleted-pair wording) and falls back to `childRefusedFixResponder`; `handleNewChildRequest` and `buildChildlessAuthResponse` use it. `notifyForRefusal` unchanged, so the peer still reads NO_PROPOSAL_CHOSEN (RFC 7296 Section 3.10.1). The sentinel texts lost their initiator-only "child creation response" prefix. `TestResponderChildRefusalNamesLocalFix` (three causes through `handleNewChildRequest`, asserts the fix, no retry-after, NO_PROPOSAL_CHOSEN) and `TestResponderAuthChildRefusalNamesBindingFix` (`buildAuthResponse`) red via `-overlay` both with the two log sites reverted and with the four wraps removed; engine package green under `-race` with every gate tag. The sentinel text change staled RFC7296-1.3.1-2's revert record on `applyChildCreateResponse`, re-observed with `./le rfc discriminate-record` (no reseal); `./le rfc check` then names no IKE violation |
+
+Round 5 is owed over 07e74bfd6d for that fix only.
 
 NOTE 1 (RFC7296-2.7-1 and RFC3948-3.1.2-1 SHIFTED by checkers.go) goes to an independent RFC re-judge. NOTE 2 and NOTE 7 need nothing. NOTE 6 belongs to another session's privilege work. NOTE 5 is answered: the RECONNECTED red is recorded under Functional Tests.
 
