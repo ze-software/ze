@@ -5,7 +5,7 @@ description: Find Encoding Allocations
 
 # Find Encoding Allocations
 
-Scan encoding paths for `make([]byte, ...)` allocations that should use buffer-writing instead.
+Scan encoding paths for `make([]byte, ...)` allocations that should use buffer-writing instead, and for values that change form twice on a hot path.
 
 See also: `/ze-fix-alloc` (fix a specific allocation)
 
@@ -54,6 +54,29 @@ Inline byte slice literals that build wire fragments:
 append\(\[\]byte\{
 ```
 
+### Pattern 5: A value that changes form twice
+A value converted to a third form and back, which `ai/rules/performance.md`
+forbids on a hot path even when nothing allocates. It is also caught when the two
+halves sit on separate lines, so read each hit's neighbors:
+```
+AddrFrom16\([^)]*\.As16\(\)\)
+AddrFrom4\([^)]*\.As4\(\)\)
+AddrFromSlice\([^)]*\.AsSlice\(\)\)
+```
+Also look for a decode into a struct whose only consumer encodes it back to wire
+bytes, and for a typed value stored as bytes or a string and parsed again later.
+
+### Pattern 6: What the compiler actually does
+A `make`-free line can still allocate (`AsSlice()` result kept past the call,
+`moved to heap:`), and an inlined call can still copy. Ask the compiler, per
+package, into the session scratch directory:
+```
+dir=$(./le session scratch ensure)
+go test -c -o bin/esc.test -gcflags=-m ./<package> > "$dir/escape.log" 2>&1; rm -f bin/esc.test
+```
+Report each `moved to heap` or `escapes to heap` line inside a hot-path function.
+For a suspected round trip, `-gcflags=-S` shows whether the copy survived.
+
 ## Classification
 
 For each finding, classify:
@@ -95,6 +118,7 @@ Where "Target Pattern" is one of:
 - `WriteHeaderTo()` -- use existing attribute.WriteHeaderTo
 - `binary.BigEndian.PutUintNN(buf[off:])` -- direct write
 - `copy(buf[off:], data)` -- direct copy into buffer
+- `Direct method` -- a form round trip replaced by an operation on the type that owns the representation
 - `Keep` -- legitimate allocation (explain why)
 
 ### Existing WriteTo Coverage

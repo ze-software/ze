@@ -22,7 +22,7 @@ full before acting on a topic it covers.
 | Interop Testing and Goal Validation | implementing or changing protocol behavior, and when validating that a spec's stated goals are met | blocking | `ai/rules/interop-and-goal-validation.md` |
 | Never Destroy Uncommitted Work | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work | blocking | `ai/rules/never-destroy-work.md` |
 | No Layering | when replacing X with Y | blocking | `ai/rules/no-layering.md` |
-| Memory and Encoding | before writing buffer, pool, allocation, string-building, or wire-encoding code | blocking | `ai/rules/performance.md` |
+| Memory and Encoding | before writing buffer, pool, allocation, string-building, or wire-encoding code, or converting a value between representations on a hot path | blocking | `ai/rules/performance.md` |
 | Specs and Phases | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes | blocking | `ai/rules/planning.md` |
 | Linux, QEMU and the Appliance | writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency | blocking | `ai/rules/platform-linux.md` |
 | Plugins | "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate" | blocking | `ai/rules/plugins.md` |

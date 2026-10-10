@@ -24,7 +24,7 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/interop-and-goal-validation.md` | blocking, always-on | implementing or changing protocol behavior, and when validating that a spec's stated goals are met |
 | `ai/rules/never-destroy-work.md` | blocking, always-on | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work |
 | `ai/rules/no-layering.md` | blocking, always-on | when replacing X with Y |
-| `ai/rules/performance.md` | blocking | before writing buffer, pool, allocation, string-building, or wire-encoding code |
+| `ai/rules/performance.md` | blocking | before writing buffer, pool, allocation, string-building, or wire-encoding code, or converting a value between representations on a hot path |
 | `ai/rules/planning.md` | blocking | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes |
 | `ai/rules/platform-linux.md` | blocking | writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency |
 | `ai/rules/plugins.md` | blocking | "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate" |
