@@ -103,10 +103,7 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest) (
 	if err != nil {
 		return webCommitAnswer{}, err
 	}
-	answer, err := m.appliedAnswer(username, req)
-	if err != nil {
-		return webCommitAnswer{}, err
-	}
+	answer := m.appliedAnswer(username, req)
 	answer.message = cli.WithSkippedWarnings(forced, skipped, answer.message)
 	return answer, nil
 }
@@ -141,22 +138,22 @@ func notAppliedAnswer(req contract.CommitRequest, result *contract.CommitResult)
 
 // appliedAnswer is the line a subcommand that succeeded shows. An abort also
 // rebuilds the user's view over the restored config.
-func (m *EditorManager) appliedAnswer(username string, req contract.CommitRequest) (webCommitAnswer, error) {
+func (m *EditorManager) appliedAnswer(username string, req contract.CommitRequest) webCommitAnswer {
 	switch req.Action {
 	case contract.CommitNow:
-		return webCommitAnswer{message: terminalOutputCommitSuccessful}, nil
+		return webCommitAnswer{message: terminalOutputCommitSuccessful}
 	case contract.CommitConfirmed:
 		var tb textbuf.Buffer
 		return webCommitAnswer{message: tb.Str(terminalOutputCommitSuccessful).Str(". Confirm within ").
-			Int(int64(req.Seconds)).Str("s or auto-revert. Use 'commit accept' or 'commit abort'.").String()}, nil
+			Int(int64(req.Seconds)).Str("s or auto-revert. Use 'commit accept' or 'commit abort'.").String()}
 	case contract.CommitAccept:
-		return webCommitAnswer{message: webCommitAccepted}, nil
+		return webCommitAnswer{message: webCommitAccepted}
 	case contract.CommitAbort:
 		if err := m.refreshCommittedView(username); err != nil {
 			var tb textbuf.Buffer
-			return webCommitAnswer{message: tb.Str(webCommitAborted).Str(" (view not refreshed: ").Err(err).Byte(')').String()}, nil
+			return webCommitAnswer{message: tb.Str(webCommitAborted).Str(" (view not refreshed: ").Err(err).Byte(')').String()}
 		}
-		return webCommitAnswer{message: webCommitAborted}, nil
+		return webCommitAnswer{message: webCommitAborted}
 	case contract.CommitVerify, contract.CommitActionUnspecified:
 		panic("BUG: commit verify and an empty action never reach the window")
 	}
