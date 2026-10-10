@@ -278,7 +278,9 @@ func frrPeer(root, suffix, directory string) interoplab.PeerConfig {
 			{Source: filepath.Join(root, "test", "interop-l2tp", "vtysh.conf"), Target: "/etc/frr/vtysh.conf", ReadOnly: true},
 		},
 		// FRR's zebra and bgpd put CAP_SYS_ADMIN in their permitted set at start
-		// (zebra/main.c and bgpd/bgp_main.c _caps_p: "ZCAP_NET_ADMIN,
+		// (read at frr-10.5.3 and at frr-10.3.1, the tag of the
+		// quay.io/frrouting/frr:10.3.1 image the labs pin: zebra/main.c and
+		// bgpd/bgp_main.c _caps_p: "ZCAP_NET_ADMIN,
 		// ZCAP_SYS_ADMIN"), and lib/privs.c zprivs_caps_init exits when
 		// cap_set_proc cannot raise it ("privs_init: initial cap_set_proc
 		// failed"), which it cannot outside Docker's bounding set. NET_RAW and
