@@ -483,10 +483,13 @@ for the daemon's architecture into `tmp/verify-evidence/ze-linux`, which git
 ignores so the tree stays clean, and makes the same check with it. The
 container never runs `--privileged`: it holds one `--cap-add` for each
 capability the `option=needs-linux:caps=` vocabulary names and one `--device`
-for each node the `option=opens-device` vocabulary names, read from the runner's own
-tables (`runner.ContainerCapsDockerNames`, `runner.ContainerDevicePaths`), and
-keeps Docker's default seccomp and AppArmor profiles. A token added to either
-vocabulary reaches the container with no other edit. `sys-time` is left out:
+for each node a production path reached by a test opens (`/dev/ppp`, opened by
+`ppp.DevPPPSetup`), read from the runner's own tables
+(`runner.ContainerCapsDockerNames`, `runner.ContainerDevicePaths`), and keeps
+Docker's default seccomp and AppArmor profiles. A test declares no device:
+`TestContainerDevicesCoverWhatPPPOpens` reads the L2TP sources for every
+`/dev` node they open and checks the table holds exactly those. A token added
+to either table reaches the container with no other edit. `sys-time` is left out:
 a container shares the Docker host's clock, so a verify run must not set it,
 and the NTP restore test skips there through its own caps gate. A container
 never loads a kernel module, so a Docker host without one of those nodes makes
@@ -495,7 +498,7 @@ host command that creates it (`sudo modprobe ppp_generic` for `/dev/ppp`)
 rather than a bare exit code.
 <!-- source: internal/le/verify/evidence/evidence.go -- Runner.Run, Runner.dockerArgs, deviceRefusal, dockerKernel, kernelZeRel -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, capDockerName, capsAltersHost, ContainerCapsDockerNames -->
-<!-- source: internal/test/runner/devices.go -- devicesRequired, ContainerDevicePaths, DeviceHostModule -->
+<!-- source: internal/test/runner/devices.go -- containerDevices, ContainerDevicePaths, DeviceHostModule -->
 
 `./le setup docker-kernel check` asks the daemon in hand the same question. With
 no `ze` it cross-builds `tmp/qemu/linux-<arch>/ze` for the daemon's architecture

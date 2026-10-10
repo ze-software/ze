@@ -427,7 +427,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// test does have the capability and therefore really runs.
 		r.NeedsLinux = true
 		// An unknown key is refused on every host, like an unknown token: a
-		// misspelled key (device=ppp) read as absent leaves the author with no
+		// misspelled key (cap=net-admin) read as absent leaves the author with no
 		// feedback and the declaration silently missing.
 		if err := checkKeys("option=needs-linux", kv, "caps"); err != nil {
 			return err
@@ -468,28 +468,6 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
 				Str(" (capability absent; run via ./le test qemu all-tests)").String()
 			return nil
-		}
-
-	case "opens-device":
-		// Declares the device nodes the test opens on Linux (devices.go). It
-		// gates nothing and is independent of needs-linux, because an L2TP
-		// test that runs on every host still opens /dev/ppp when it runs on
-		// Linux with NET_ADMIN; see devicesRequired for why an absent node
-		// never skips. Keys and tokens are validated on every host.
-		if err := checkKeys("option=opens-device", kv, "name"); err != nil {
-			return err
-		}
-		raw := strings.TrimSpace(kv["name"])
-		if raw == "" {
-			return fmt.Errorf("option=opens-device: name= is missing or empty; name each device the test opens "+
-				"(supported: %s), e.g. option=opens-device:name=ppp", devicesAccepted())
-		}
-		for d := range strings.SplitSeq(raw, ",") {
-			d = strings.TrimSpace(d)
-			if _, ok := devicesRequired[d]; !ok {
-				return fmt.Errorf("option=opens-device: unknown device %q (supported: %s)", d, devicesAccepted())
-			}
-			r.Devices = append(r.Devices, d)
 		}
 
 	case "needs-path":

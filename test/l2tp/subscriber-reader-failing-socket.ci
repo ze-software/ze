@@ -45,7 +45,6 @@
 # crashlog.Flush() before the exec (internal/test/failsyscall, Run), and this
 # line is the only assertion in the tree that would go red if that call were
 # removed (plan/journal/output-lost-to-an-exit-past-the-flush.md).
-option=opens-device:name=ppp
 option=needs-linux
 
 stdin=config:terminator=EOF_CONF

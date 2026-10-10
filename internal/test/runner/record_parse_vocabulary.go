@@ -45,7 +45,7 @@ var (
 
 	recordOptionTypes = []string{
 		"asn", "bind", "env", "exclusive", directiveTypeFile, "needs-linux", "needs-path", "netns-link",
-		directiveTypeOpen, "opens-device", "skip-env", "skip-os", "tcp_connections", "timeout", "update",
+		directiveTypeOpen, "skip-env", "skip-os", "tcp_connections", "timeout", "update",
 	}
 
 	// recordExpectTypes carries the three intercepted spellings as well, because

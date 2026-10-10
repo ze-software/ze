@@ -9,7 +9,6 @@
 # The two probes use different transports on purpose: L2TP over UDP on loopback,
 # PPPoE over AF_PACKET on the veth pair. Passing both proves the daemon is
 # serving two access methods, not one wearing two names.
-option=opens-device:name=ppp
 option=needs-linux:caps=net-admin,net-raw
 option=netns-link:name=veth-bng:peer=veth-sub
 

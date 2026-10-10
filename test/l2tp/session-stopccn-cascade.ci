@@ -41,7 +41,6 @@ EOF_CONF
 # and reliable engine, and asserts count=2 plus zero surviving sessions -- a
 # stronger assertion than this test's stderr substring. This .ci remains the
 # with-data-plane proof; the unit test is the portable one.
-option=opens-device:name=ppp
 option=needs-linux:caps=net-admin
 option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true

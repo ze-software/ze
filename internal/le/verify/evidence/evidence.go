@@ -301,13 +301,13 @@ func deviceRefusal(code int, stderrTail string) error {
 // script for as long as both exist.
 //
 // The container never runs --privileged (spec-lab-containers-least-privilege,
-// site 6). The gate inside it runs every test in the tree, and a test that
-// needs a capability or a device declares it as `option=needs-linux:caps=`
-// or `option=opens-device:name=`, so the container holds the union of both
-// vocabularies, read from the runner's own tables (runner.ContainerCapsDockerNames,
-// runner.ContainerDevicePaths), and Docker's default seccomp and AppArmor
-// profiles stay on. A token added to either vocabulary reaches this list with
-// no edit here. SYS_TIME is the one capability left out on purpose: a test
+// site 6). The gate inside it runs every test in the tree. A test that needs
+// a capability declares it as `option=needs-linux:caps=`, so the container
+// holds every capability that vocabulary names (runner.ContainerCapsDockerNames)
+// and every device node a production path reached by a test opens
+// (runner.ContainerDevicePaths), and Docker's default seccomp and AppArmor
+// profiles stay on. A token added to either table reaches this list with no
+// edit here. SYS_TIME is the one capability left out on purpose: a test
 // that sets the clock from a container sets the Docker host's clock, so
 // storage-ntp-restart.ci skips here through its own caps gate. Docker's
 // default capability set already holds NET_BIND_SERVICE, so its --cap-add is

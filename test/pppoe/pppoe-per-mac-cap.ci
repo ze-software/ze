@@ -18,7 +18,6 @@
 #           (internal/component/l2tp/pppoe/server.go) and the second session
 #           below gets admitted instead of refused
 #           (spec-pppoe-padr-replay-allocates-unbounded-sessions, AC-1).
-option=opens-device:name=ppp
 option=needs-linux:caps=net-admin,net-raw
 option=netns-link:name=veth-bng:peer=veth-sub
 

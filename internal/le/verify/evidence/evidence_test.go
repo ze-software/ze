@@ -112,8 +112,8 @@ func TestACleanTreeStartsOneContainer(t *testing.T) {
 		}
 	}
 	// spec-lab-containers-least-privilege, site 6: the container holds
-	// exactly the capabilities and devices the caps= and devices= vocabularies
-	// name, never SYS_TIME, never --privileged, never a relaxed security
+	// exactly the capabilities the caps= vocabulary names and the devices
+	// runner.ContainerDevicePaths lists, never SYS_TIME, never --privileged, never a relaxed security
 	// profile, a host namespace, the host network or a device cgroup rule,
 	// and mounts only the checkout read-only and the three cache volumes.
 	// grantcheck reads both flag spellings. The want lists are written out
