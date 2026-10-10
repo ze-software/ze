@@ -65,19 +65,24 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	p.tok = newTokenizer(input)
 	p.warnings = nil
 	context := slices.Clip(slices.Clone(contextPath))
-	return p.parseBody("unknown keyword", func(name string) Node {
+	var known []string
+	if parent, ok := p.schema.LookupTokenPath(context).(childProvider); ok {
+		known = parent.Children()
+	}
+	return p.parseBody("unknown keyword", known, func(name string) Node {
 		return p.schema.LookupTokenPath(append(context, name))
 	})
 }
 
 // parseRoot parses the top level of the config.
 func (p *Parser) parseRoot() (*Tree, error) {
-	return p.parseBody("unknown top-level keyword", p.schema.Get)
+	return p.parseBody("unknown top-level keyword", p.schema.Children(), p.schema.Get)
 }
 
 // parseBody parses statements until EOF, resolving each keyword through
-// lookup: the schema root for a whole file, a context node for ParseAt.
-func (p *Parser) parseBody(unknown string, lookup func(name string) Node) (*Tree, error) {
+// lookup: the schema root for a whole file, a context node for ParseAt. known
+// lists the keywords valid there, for the closest-key hint of a refusal.
+func (p *Parser) parseBody(unknown string, known []string, lookup func(name string) Node) (*Tree, error) {
 	tree := NewTree()
 
 	for {
@@ -110,7 +115,7 @@ func (p *Parser) parseBody(unknown string, lookup func(name string) Node) (*Tree
 
 		node := lookup(name)
 		if node == nil {
-			return nil, p.errorf(tok, "%s: %s", unknown, name)
+			return nil, p.errorf(tok, "%s: %s%s", unknown, name, UnknownKeywordHint(name, known))
 		}
 
 		if markInactive {
@@ -404,7 +409,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				}
 				continue
 			}
-			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, RetiredKeywordHint(fieldName), tok.line)
+			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, UnknownKeywordHint(fieldName, node.Children()), tok.line)
 		}
 
 		if markInactive {

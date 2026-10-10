@@ -4,7 +4,10 @@
 
 package config
 
-import "github.com/ze-software/ze/internal/core/textbuf"
+import (
+	"github.com/ze-software/ze/internal/core/suggest"
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
 
 // retiredKeywords maps a config keyword ze no longer accepts to the spelling
 // that replaces it. A retired keyword parses as an unknown field, and the field
@@ -26,6 +29,22 @@ var retiredKeywords = map[string]string{
 	// A pin names one certificate and dies with it. The client now names the
 	// hub's certificate authority instead, so a reissued leaf still validates.
 	"certificate-fingerprint": "ca <pki-ca-name>, naming the certificate authority root exported from the hub",
+}
+
+// UnknownKeywordHint returns the sentence a parse error carries for an unknown
+// field: the retired-keyword sentence when name was once a keyword, else the
+// closest name in known, the keys valid at that position, or "" when no key is
+// close enough to be the one the operator meant.
+func UnknownKeywordHint(name string, known []string) string {
+	if hint := RetiredKeywordHint(name); hint != "" {
+		return hint
+	}
+	closest := suggest.Command(name, known)
+	if closest == "" {
+		return ""
+	}
+	var b textbuf.Buffer
+	return b.Str(" (did you mean ").Str(closest).Str("?)").String()
 }
 
 // RetiredKeywordHint returns the sentence a parse error carries when an unknown

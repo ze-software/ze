@@ -253,7 +253,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, RetiredKeywordHint(name))
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, UnknownKeywordHint(name, schemaChildNames(p.schema, parent)))
 	}
 
 	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Source != ""

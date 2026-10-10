@@ -2,7 +2,7 @@
 # VALIDATES: spec-session-editor-file-mode-parity AC-5 -- over SSH against a
 #            running daemon, `load file absolute merge` of a file holding an
 #            unknown key is refused with the parser's error naming the line
-#            and the key, and the session's pending changes are exactly what
+#            and the key and the closest valid key, and the session's pending changes are exactly what
 #            they were: the load's valid router-id never lands, and the commit
 #            applies only the two edits made before the load
 # PREVENTS: a refused load that applies the part of the input before the
@@ -75,6 +75,7 @@ wait 2 pending changes
 send load file absolute merge session-editor-load-refused-bad.conf
 wait line 4:
 wait timerx
+wait did you mean timer?
 send show | changes
 wait 2 pending changes
 send commit

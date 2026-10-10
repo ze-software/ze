@@ -200,7 +200,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, RetiredKeywordHint(name))
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, UnknownKeywordHint(name, schemaChildNames(p.schema, parent)))
 	}
 
 	//nolint:gocritic // if-else chain preferred over type switch for exhaustive node handling
@@ -468,7 +468,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, RetiredKeywordHint(name))
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, UnknownKeywordHint(name, schemaChildNames(p.schema, parent)))
 	}
 
 	if _, ok := node.(*LeafNode); ok {
@@ -577,7 +577,7 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, RetiredKeywordHint(name))
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, UnknownKeywordHint(name, schemaChildNames(p.schema, parent)))
 	}
 
 	// Leaf-list member delete: `delete <path> <member>` removes one member.
@@ -790,6 +790,19 @@ func resolveSchemaNode(schema *Schema, parent Node, name string) Node {
 	}
 	if il, ok := parent.(*InlineListNode); ok {
 		return il.Get(name)
+	}
+	return nil
+}
+
+// schemaChildNames lists the keys valid under parent (the schema root when
+// parent is nil), for the closest-key hint of an unknown-field refusal. A node
+// with no children answers nil, and the refusal then carries no hint.
+func schemaChildNames(schema *Schema, parent Node) []string {
+	if parent == nil {
+		return schema.Children()
+	}
+	if c, ok := parent.(childProvider); ok {
+		return c.Children()
 	}
 	return nil
 }
