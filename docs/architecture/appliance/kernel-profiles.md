@@ -23,7 +23,14 @@ The low-level Go worker invokes the kernel's `merge_config.sh`, `patch`, and
 `tar`. The container and QEMU guest run the compiled `ze-kernel-builder`
 command.
 
-<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
+The builder runs only natively. `validateRequest` refuses a kernel whose
+architecture is not the host's (`hostGOARCH`), so Docker's `--platform` always
+names the host's own platform, and `qemuArgs` refuses a QEMU that offers
+neither `hvf` nor `kvm` instead of emulating under `tcg`. An arm64 kernel is
+built on the Mac and an amd64 kernel on the Linux host.
+
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build, validateRequest -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- qemuArgs -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 `ze appliance kernel` selects the profile and architecture, validates the

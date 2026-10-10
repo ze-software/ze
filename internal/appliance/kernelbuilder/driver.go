@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -37,6 +38,11 @@ var dockerPlatforms = map[string]string{
 	archX8664: "linux/amd64",
 	archARM64: "linux/arm64",
 }
+
+// hostGOARCH is the arch of the machine running the build. Every kernel is
+// built on a host of its own arch, so a request for another arch is refused
+// (validateRequest). It is a variable so a test can play either host.
+var hostGOARCH = runtime.GOARCH
 
 // Request is one complete kernel build. Fragments MUST be in merge order.
 type Request struct {
@@ -127,6 +133,12 @@ func validateRequest(req *Request) error {
 	}
 	if _, ok := dockerPlatforms[req.Arch]; !ok {
 		return fmt.Errorf("unsupported ARCH=%s (expected amd64, x86_64, or arm64)", req.Arch)
+	}
+	// Owner decision 2026-10-09: every kernel is built on a host of its own
+	// arch, never under Docker --platform emulation or QEMU tcg, which run for
+	// hours and fail late. Refused here, before any backend starts.
+	if want := workerGOARCH(req.Arch); want != hostGOARCH {
+		return fmt.Errorf("kernel for %s cannot be built here: the host is %s, and Ze builds every kernel on a host of its own arch, with no CPU emulation; build it on an %s host", want, hostGOARCH, want)
 	}
 	if err := validateProfile(req.Profile); err != nil {
 		return err

@@ -59,6 +59,7 @@ func TestSelectBuilder(t *testing.T) {
 }
 
 func TestValidateRequestNormalizesAarch64(t *testing.T) {
+	hostIs(t, "arm64")
 	root := t.TempDir()
 	writeFixture(t, root, "configs/kernel.config", "CONFIG_A=y\n")
 	if err := os.MkdirAll(filepath.Join(root, "out"), 0o755); err != nil {
@@ -83,6 +84,7 @@ func TestValidateRequestNormalizesAarch64(t *testing.T) {
 }
 
 func TestValidateRequestAcceptsAbsoluteOutputAndRejectsUnsafePaths(t *testing.T) {
+	hostIs(t, "amd64")
 	root := t.TempDir()
 	writeFixture(t, root, "configs/kernel.config", "CONFIG_A=y\n")
 	for _, dir := range []string{"tools/kernel-builder", "common"} {
@@ -124,6 +126,7 @@ func TestValidateRequestAcceptsAbsoluteOutputAndRejectsUnsafePaths(t *testing.T)
 }
 
 func TestRunDockerArgvAndOwnershipRepair(t *testing.T) {
+	hostIs(t, "amd64")
 	root := t.TempDir()
 	writeFixture(t, root, "configs/kernel.config", "CONFIG_A=y\n")
 	writeFixture(t, root, "configs/kernel.require", "CONFIG_A\n")
@@ -276,9 +279,77 @@ func TestQEMUArgsLifecycleMounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join(args, " ")
-	for _, want := range []string{"-accel kvm", "-accel tcg,thread=multi,tb-size=512", "hostfwd=tcp::22022-:22", "mount_tag=workspace", "mount_tag=ccache", "mount_tag=builddir", "mount_tag=output", "mount_tag=firmware", "readonly=on"} {
+	for _, want := range []string{"-accel kvm", "hostfwd=tcp::22022-:22", "mount_tag=workspace", "mount_tag=ccache", "mount_tag=builddir", "mount_tag=output", "mount_tag=firmware", "readonly=on"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("QEMU argv missing %q: %s", want, joined)
+		}
+	}
+	if strings.Contains(joined, "tcg") {
+		t.Errorf("QEMU argv offers the tcg emulator beside kvm: %s", joined)
+	}
+}
+
+// hostIs makes the build host report arch for the rest of the test.
+func hostIs(t *testing.T, arch string) {
+	t.Helper()
+	old := hostGOARCH
+	hostGOARCH = arch
+	t.Cleanup(func() { hostGOARCH = old })
+}
+
+// TestValidateRequestRefusesForeignArch verifies a kernel for an arch other
+// than the host's is refused before anything runs, whatever spelling the
+// request used, naming the host arch, the requested arch and where to build it.
+//
+// VALIDATES: AC-13, a kernel is built only natively.
+// PREVENTS: a kernel built under Docker --platform emulation or QEMU tcg, which
+// takes hours and fails late.
+func TestValidateRequestRefusesForeignArch(t *testing.T) {
+	for _, tc := range []struct{ host, requested, want string }{
+		{host: "amd64", requested: "arm64", want: "arm64"},
+		{host: "amd64", requested: "aarch64", want: "arm64"},
+		{host: "arm64", requested: "amd64", want: "amd64"},
+	} {
+		t.Run(tc.host+"-builds-"+tc.requested, func(t *testing.T) {
+			hostIs(t, tc.host)
+			req := Request{Root: t.TempDir(), Version: "7.1.1", Arch: tc.requested, Profile: "qemu", Builder: "docker"}
+			err := validateRequest(&req)
+			if err == nil {
+				t.Fatalf("a %s kernel was accepted on a %s host", tc.requested, tc.host)
+			}
+			for _, want := range []string{"the host is " + tc.host, "kernel for " + tc.want, "build it on an " + tc.want + " host"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal lacks %q: %v", want, err)
+				}
+			}
+		})
+	}
+}
+
+// TestQEMUArgsRefusesWithoutHardwareAccelerator verifies the QEMU backend
+// refuses when neither hvf nor kvm serves, rather than emulating under tcg.
+//
+// VALIDATES: AC-13, never QEMU under tcg.
+// PREVENTS: a kernel build that runs for hours in an emulator.
+func TestQEMUArgsRefusesWithoutHardwareAccelerator(t *testing.T) {
+	root := t.TempDir()
+	fakeBin := filepath.Join(root, "bin")
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	qemu := filepath.Join(fakeBin, "qemu-system-x86_64")
+	if err := os.WriteFile(qemu, []byte("#!/bin/sh\nprintf 'tcg\\n'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	req := Request{Root: root, Arch: "amd64", OutputDir: filepath.Join(root, "out")}
+	_, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), nil)
+	if err == nil {
+		t.Fatal("qemuArgs accepted a QEMU that offers only tcg")
+	}
+	for _, want := range []string{"hvf", "kvm", "tcg"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not name %q: %v", want, err)
 		}
 	}
 }

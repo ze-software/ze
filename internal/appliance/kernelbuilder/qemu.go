@@ -353,14 +353,19 @@ func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, cc
 		}
 		args = append(args, "-machine", "virt,highmem=on", "-cpu", "max", "-bios", firmware)
 	}
-	accels := availableAccelerators(ctx, qemuBinary(req.Arch))
+	// Owner decision 2026-10-09: no CPU emulation. QEMU runs only under a
+	// hardware accelerator; tcg is never offered, even as a fallback.
+	binary := qemuBinary(req.Arch)
+	accels := availableAccelerators(ctx, binary)
+	accelerated := false
 	for _, accel := range []string{"hvf", "kvm"} {
 		if accels[accel] {
 			args = append(args, "-accel", accel)
+			accelerated = true
 		}
 	}
-	if accels["tcg"] {
-		args = append(args, "-accel", "tcg,thread=multi,tb-size=512")
+	if !accelerated {
+		return nil, fmt.Errorf("%s offers neither hvf nor kvm: Ze builds a kernel only under a hardware accelerator, never the tcg emulator; enable hvf (macOS) or kvm (Linux, /dev/kvm) on this host", binary)
 	}
 	args = append(args, "-smp", strconv.Itoa(max(2, runtime.NumCPU())), "-m", strconv.Itoa(memory), "-cdrom", iso, "-boot", "d", "-nographic", "-serial", "mon:stdio", "-netdev", fmt.Sprintf("user,id=net0,hostfwd=tcp::%d-:22", port), "-device", "virtio-net-pci,netdev=net0", "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=workspace,security_model=none,id=ws0,readonly=off", req.Root), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=ccache,security_model=none,id=cc0,readonly=off", ccache), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=builddir,security_model=none,id=bd0,readonly=off", build))
 	if filepath.IsAbs(req.OutputDir) {

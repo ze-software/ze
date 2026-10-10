@@ -143,6 +143,7 @@ func pinHostWithoutAContainerStore(t *testing.T) {
 // bound this class asked for in 2026-08-18 came to exist and never run
 // (plan/journal/full-disk-false-red.md).
 func TestRunDockerReturnsSpaceAfterTheBuild(t *testing.T) {
+	hostIs(t, "amd64")
 	root := t.TempDir()
 	writeFixture(t, root, "configs/kernel.config", "CONFIG_A=y\n")
 	writeFixture(t, root, "configs/kernel.require", "CONFIG_A\n")
