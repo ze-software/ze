@@ -60,9 +60,9 @@ func (e *Editor) discardOverridden(guard storage.WriteGuard, overlaps []liveOver
 }
 
 // discardUserChanges rewrites one user's change file without the overridden
-// changes, then appends one notice line per change: the conflict path, who
-// forced, and the discarded change's session, path and member, so the owner's
-// editor can drop it from its in-memory metadata too.
+// changes, then appends one notice line per change: the conflict path and who
+// forced. The owner's editor rebuilds its working tree from the rewritten
+// change file when it reads the notice (takeDiscardNotice).
 func (e *Editor) discardUserChanges(guard storage.WriteGuard, user string, owned []liveOverlap) error {
 	changePath := ChangePath(e.originalPath, user)
 	tree, meta, ops, err := e.readChangeFile(guard, changePath)
@@ -72,9 +72,7 @@ func (e *Editor) discardUserChanges(guard storage.WriteGuard, user string, owned
 	var notice textbuf.Buffer
 	for i := range owned {
 		ops = e.removePendingChange(tree, meta, ops, owned[i].other)
-		other := owned[i].other
-		notice.Str(owned[i].conflict.Path).Byte('\t').Str(e.session.User).Byte('\t').
-			Str(other.SessionID).Byte('\t').Str(other.Path).Byte('\t').Str(other.Member).Byte('\n')
+		notice.Str(owned[i].conflict.Path).Byte('\t').Str(e.session.User).Byte('\n')
 	}
 	if len(meta.AllSessions()) == 0 && len(ops) == 0 {
 		if err := guard.Remove(changePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -142,7 +140,8 @@ func (e *Editor) removePendingChange(tree *config.Tree, meta *config.MetaTree, o
 }
 
 // takeDiscardNotice returns, once, what forced commits by other users
-// discarded from this user's changes, and removes the notice. An empty answer
+// discarded from this user's changes, removes the notice, and rebuilds this
+// editor's working tree without the discarded values. An empty answer
 // means there is no notice; a notice that cannot be read is said so, because
 // dropping it would hide a discarded change from its owner.
 func (e *Editor) takeDiscardNotice() string {
@@ -170,21 +169,22 @@ func (e *Editor) takeDiscardNotice() string {
 	var tb textbuf.Buffer
 	first := true
 	for line := range strings.Lines(string(data)) {
-		fields := strings.Split(strings.TrimRight(line, "\n"), "\t")
-		if len(fields) != 5 {
+		path, user, ok := strings.Cut(strings.TrimRight(line, "\n"), "\t")
+		if !ok {
 			continue
-		}
-		path, user := fields[0], fields[1]
-		// The owner's editor also holds the discarded entry in memory, and
-		// show | changes reads it from there as well as from the change file.
-		if e.meta != nil {
-			e.removePendingChange(config.NewTree(), e.meta, nil, config.PendingChange{SessionID: fields[2], Path: fields[3], Member: fields[4]})
 		}
 		if !first {
 			tb.Str("; ")
 		}
 		first = false
 		tb.Str("Your change at ").Str(path).Str(" was discarded by ").Str(user).Str("'s forced commit")
+	}
+
+	// The owner's editor still holds the discarded value in its working tree
+	// and meta, which show and show | changes read. Rebuild both from disk now,
+	// so the discarded value disappears at once rather than at the next reload.
+	if err := e.reloadSessionView(guard); err != nil {
+		tb.Str("; your editor could not reload, so it may still show the discarded value until you reconnect: ").Str(err.Error())
 	}
 	return tb.String()
 }

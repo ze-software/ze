@@ -216,6 +216,13 @@ func (m *EditorManager) RenameListEntry(username string, parentPath []string, li
 // Commit applies the user's pending changes to the configuration file.
 // Returns a CommitResult describing conflicts or the number of applied changes.
 func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) {
+	return m.commit(username, false)
+}
+
+// commit is Commit, and with force a LIVE or STALE conflict applies instead
+// of refusing: the editor discards the other users' overridden changes and
+// leaves them a notice (cli.Editor.CommitSessionForce, AC-32).
+func (m *EditorManager) commit(username string, force bool) (*contract.CommitResult, error) {
 	us, err := m.GetOrCreate(username)
 	if err != nil {
 		return nil, err
@@ -228,9 +235,16 @@ func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) 
 	hook := m.commitHook
 	m.mu.RUnlock()
 	if hook == nil {
+		if force {
+			return us.editor.CommitSessionForce()
+		}
 		return us.editor.CommitSession()
 	}
-	result, content, err := us.editor.CommitSessionCandidate(time.Now())
+	commitCandidate := us.editor.CommitSessionCandidate
+	if force {
+		commitCandidate = us.editor.CommitSessionCandidateForce
+	}
+	result, content, err := commitCandidate(time.Now())
 	if err != nil || result == nil || len(result.Conflicts) > 0 || result.Applied == 0 {
 		return result, err
 	}

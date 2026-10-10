@@ -157,6 +157,11 @@ type Editor interface {
 	ApplyActivation(fullPath []string, activate bool) (string, error)
 	CommitSession() (*CommitResult, error)
 	CommitSessionCandidate(stamp time.Time) (*CommitResult, string, error)
+	// CommitSessionForce and CommitSessionCandidateForce are the two commits
+	// above for `commit now force`: a LIVE or STALE conflict applies, and the
+	// other users' overridden changes are discarded with a notice to them.
+	CommitSessionForce() (*CommitResult, error)
+	CommitSessionCandidateForce(stamp time.Time) (*CommitResult, string, error)
 	MarkCommittedContent(content string)
 	Discard() error
 	DiscardSessionPath(path []string) error

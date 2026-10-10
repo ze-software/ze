@@ -891,21 +891,21 @@ var (
 
 // webCommitRequest parses the arguments after `commit` with the grammar every
 // editor shares, and refuses what the web editor cannot run. Only `commit now`
-// returns no error.
-func webCommitRequest(args []string) error {
+// and `commit now force` return no error; the answer says whether to force.
+func webCommitRequest(args []string) (force bool, err error) {
 	req, err := contract.ParseCommit(args)
 	if err != nil {
-		return err
+		return false, err
 	}
 	switch req.Action {
 	case contract.CommitNow:
-		return nil
+		return req.Force, nil
 	case contract.CommitConfirmed:
-		return errWebCommitConfirmedNotYetSupported
+		return false, errWebCommitConfirmedNotYetSupported
 	case contract.CommitAccept, contract.CommitAbort:
-		return errWebNoConfirmedCommitPending
+		return false, errWebNoConfirmedCommitPending
 	case contract.CommitVerify:
-		return errWebCommitVerifyNotYetSupported
+		return false, errWebCommitVerifyNotYetSupported
 	case contract.CommitActionUnspecified:
 		panic("BUG: commit request carries no action")
 	}
@@ -914,11 +914,12 @@ func webCommitRequest(args []string) error {
 
 // executeTerminalCommit handles the commit command in terminal mode.
 func executeTerminalCommit(mgr *EditorManager, username string, args []string) string {
-	if err := webCommitRequest(args); err != nil {
+	force, err := webCommitRequest(args)
+	if err != nil {
 		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String()
 	}
-	result, err := mgr.Commit(username)
+	result, err := mgr.commit(username, force)
 	if err != nil {
 		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String()

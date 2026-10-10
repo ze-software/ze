@@ -224,8 +224,8 @@ func sessionEditorUser(args []string) (string, error) {
 }
 
 // sessionEditorClientEnv writes user's SSH credentials with `ze init` into a
-// client directory of its own, so two users in one .ci stay apart, and waits
-// until the daemon answers over them.
+// client directory of its own, so two users in one .ci stay apart, reuses
+// them when the same user reconnects, and waits until the daemon answers.
 func sessionEditorClientEnv(ctx context.Context, port, user string) ([]string, error) {
 	clientDir, err := filepath.Abs("client-db-" + user)
 	if err != nil {
@@ -243,9 +243,17 @@ func sessionEditorClientEnv(ctx context.Context, port, user string) ([]string, e
 		"NO_COLOR=1",
 		"TERM=xterm",
 	)
-	initInput := user + "\ntestpass\n127.0.0.1\n" + port + "\n\n"
-	if _, err := runCommandProcess04(ctx, env, strings.NewReader(initInput), "init"); err != nil {
-		return nil, err
+	// A later script for the same user in one .ci reconnects over the
+	// credentials the first one wrote, and `ze init` refuses a database that
+	// already exists.
+	_, statErr := os.Stat(filepath.Join(clientDir, "database"))
+	if errors.Is(statErr, os.ErrNotExist) {
+		initInput := user + "\ntestpass\n127.0.0.1\n" + port + "\n\n"
+		if _, err := runCommandProcess04(ctx, env, strings.NewReader(initInput), "init"); err != nil {
+			return nil, err
+		}
+	} else if statErr != nil {
+		return nil, fmt.Errorf("client database for %s: %w", user, statErr)
 	}
 	var last string
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {

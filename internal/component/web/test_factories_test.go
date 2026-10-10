@@ -108,6 +108,15 @@ func (a *testEditorAdapter) CommitSession() (*contract.CommitResult, error) {
 func (a *testEditorAdapter) CommitSessionCandidate(stamp time.Time) (*contract.CommitResult, string, error) {
 	return a.ed.CommitSessionCandidate(stamp)
 }
+func (a *testEditorAdapter) CommitSessionForce() (*contract.CommitResult, error) {
+	if a.commitErr != nil {
+		return nil, a.commitErr
+	}
+	return a.ed.CommitSessionForce()
+}
+func (a *testEditorAdapter) CommitSessionCandidateForce(stamp time.Time) (*contract.CommitResult, string, error) {
+	return a.ed.CommitSessionCandidateForce(stamp)
+}
 func (a *testEditorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommittedContent(content) }
 func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)

@@ -548,66 +548,76 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		}
 	}
 
-	// Reload in-memory state from base (draft if exists, else committed config).
-	// Cannot use readDraftOrConfig here because its fallback clones e.tree which
-	// still has the user's changes. Read committed config directly instead.
+	return e.reloadSessionView(guard)
+}
+
+// reloadSessionView rebuilds the editor's working tree from disk: the base
+// (the draft if one exists, else the committed config) with every pending
+// change in this user's change file replayed over it. Every edit writes
+// through to the change file, so the rebuilt tree loses nothing the user did;
+// it drops what the change file no longer holds, which a partial discard or
+// another user's forced commit (AC-32) removed. The caller MUST hold guard.
+func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
+	changePath := ChangePath(e.originalPath, e.session.User)
+
+	// Cannot use readDraftOrConfig here because its fallback clones e.tree,
+	// which still holds what was removed. Read the committed config directly.
 	draftPath := DraftPath(e.originalPath)
 	var baseTree *config.Tree
 	var baseMeta *config.MetaTree
+	var err error
 	if draftData, draftErr := guard.ReadFile(draftPath); draftErr == nil {
 		baseTree, baseMeta, err = config.NewSetParser(e.schema).ParseWithMeta(string(draftData))
 		if err != nil {
-			return fmt.Errorf("discard parse draft: %w", err)
+			return fmt.Errorf("reload parse draft: %w", err)
 		}
 	} else {
 		committedData, readErr := guard.ReadFile(e.originalPath)
 		if readErr != nil {
-			return fmt.Errorf("discard read config: %w", readErr)
+			return fmt.Errorf("reload read config: %w", readErr)
 		}
 		baseTree, baseMeta, err = parseConfigWithFormat(string(committedData), e.schema)
 		if err != nil {
-			return fmt.Errorf("discard parse config: %w", err)
+			return fmt.Errorf("reload parse config: %w", err)
 		}
 	}
 
-	// Re-apply remaining changes from change file (if partial discard).
-	if pathPrefix != "" {
-		_, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
-		if err != nil {
-			return err
-		}
-		if err := applyStructuralOps(baseTree, e.schema, changeOps, true); err != nil {
-			return fmt.Errorf("discard apply structural ops: %w", err)
-		}
-		if err := applyStructuralOpsToMeta(baseMeta, e.schema, changeOps, true); err != nil {
-			return fmt.Errorf("discard apply rename meta: %w", err)
-		}
-		for _, sid := range changeMeta.AllSessions() {
-			for _, se := range changeMeta.SessionEntries(sid) {
-				pathParts := strings.Fields(se.Path)
-				if len(pathParts) == 0 {
-					continue
-				}
-				leafName := pathParts[len(pathParts)-1]
-				parentPath := pathParts[:len(pathParts)-1]
-				_ = e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry) // best-effort replay, mirrors the old walk-error tolerance
-				metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
-				metaTarget.SetEntry(leafName, se.Entry)
+	// Replay what remains in the change file. A removed file replays nothing.
+	_, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return err
+	}
+	if err := applyStructuralOps(baseTree, e.schema, changeOps, true); err != nil {
+		return fmt.Errorf("reload apply structural ops: %w", err)
+	}
+	if err := applyStructuralOpsToMeta(baseMeta, e.schema, changeOps, true); err != nil {
+		return fmt.Errorf("reload apply rename meta: %w", err)
+	}
+	for _, sid := range changeMeta.AllSessions() {
+		for _, se := range changeMeta.SessionEntries(sid) {
+			pathParts := strings.Fields(se.Path)
+			if len(pathParts) == 0 {
+				continue
 			}
+			leafName := pathParts[len(pathParts)-1]
+			parentPath := pathParts[:len(pathParts)-1]
+			_ = e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry) // best-effort replay, mirrors the old walk-error tolerance
+			metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
+			metaTarget.SetEntry(leafName, se.Entry)
 		}
 	}
 
 	// Refresh originalContent from disk to capture external commits.
 	committedData, readErr := guard.ReadFile(e.originalPath)
 	if readErr != nil {
-		return fmt.Errorf("discard read config: %w", readErr)
+		return fmt.Errorf("reload read config: %w", readErr)
 	}
 	e.originalContent = string(committedData)
 
 	e.tree = baseTree
 	e.meta = baseMeta
-	// Dirty if change file still has entries (partial discard). Use the guard's
-	// Has, not e.store.Exists: the latter re-locks the store and deadlocks while
+	// Dirty while the change file still holds entries. Use the guard's Has,
+	// not e.store.Exists: the latter re-locks the store and deadlocks while
 	// this guard holds the write lock (same class as the CommitSession bug).
 	e.dirty.Store(guard.Has(changePath))
 	return nil

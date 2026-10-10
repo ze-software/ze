@@ -480,11 +480,12 @@ func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Sch
 
 // handleCLICommit processes the "commit" verb.
 func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, args []string) {
-	if err := webCommitRequest(args); err != nil {
+	force, err := webCommitRequest(args)
+	if err != nil {
 		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
 		return
 	}
-	result, err := mgr.Commit(username)
+	result, err := mgr.commit(username, force)
 	if err != nil {
 		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
 		return

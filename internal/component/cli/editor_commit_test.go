@@ -566,6 +566,13 @@ func TestCommitForceOverridesConflict(t *testing.T) {
 		assert.NotContains(t, alicePaths, "bgp router-id")
 		assert.Contains(t, alicePaths, "bgp peer peer1 timer receive-hold-time")
 
+		// Her working tree stops showing the discarded value at once, without
+		// a reload: it shows the forced value, and keeps her other change.
+		assert.Equal(t, "10.0.0.2", getValueAtPath(alice.tree, alice.schema, []string{"bgp", "router-id"}),
+			"alice's editor shows the forced value, not her discarded one")
+		assert.Equal(t, "180", getValueAtPath(alice.tree, alice.schema, append(holdTime, "receive-hold-time")),
+			"alice's surviving change stays in her working tree")
+
 		_, again := alice.checkDraftChanged()
 		assert.NotContains(t, again, "discarded", "the notice is shown once")
 	})

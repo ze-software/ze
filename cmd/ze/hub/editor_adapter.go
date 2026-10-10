@@ -52,6 +52,12 @@ func (a *editorAdapter) CommitSession() (*contract.CommitResult, error) {
 func (a *editorAdapter) CommitSessionCandidate(stamp time.Time) (*contract.CommitResult, string, error) {
 	return a.ed.CommitSessionCandidate(stamp)
 }
+func (a *editorAdapter) CommitSessionForce() (*contract.CommitResult, error) {
+	return a.ed.CommitSessionForce()
+}
+func (a *editorAdapter) CommitSessionCandidateForce(stamp time.Time) (*contract.CommitResult, string, error) {
+	return a.ed.CommitSessionCandidateForce(stamp)
+}
 func (a *editorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommittedContent(content) }
 func (a *editorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)

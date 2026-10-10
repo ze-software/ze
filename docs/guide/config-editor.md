@@ -60,14 +60,20 @@ and a second `commit confirmed` are refused: answer the window first with
 terminal share this grammar.
 <!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
 
-In the SSH editor, `commit now` is refused when your change conflicts with
-another user's pending change (LIVE) or with a value committed since you made it
-(STALE). `commit now force` applies your change anyway. Each other user's
-pending change that it overrides is removed from that user's change file, and
-nothing else of theirs is touched; their editor then reports "Your change at
-<path> was discarded by <you>'s forced commit" once, and `show | changes` there
-no longer lists it. Validation errors still block a forced commit.
+In the SSH editor and the web terminal, `commit now` is refused when your
+change conflicts with another user's pending change (LIVE) or with a value
+committed since you made it (STALE). `commit now force` applies your change
+anyway. Each other user's pending change that it overrides is removed from that
+user's change file, and nothing else of theirs is touched. Their SSH editor
+reports "Your change at <path> was discarded by <you>'s forced commit" once, at
+its next check for changes by other sessions (every two seconds, or when they
+next connect); from then on it shows the committed value in place of theirs,
+and `show | changes` there no longer lists it. The web editor does not show
+this notice. Validation errors still block a forced commit.
 <!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, takeDiscardNotice -->
+<!-- source: internal/component/cli/editor_commit.go -- reloadSessionView -->
+<!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->
+<!-- source: internal/component/web/editor.go -- EditorManager.commit -->
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, errCommitWindowPending -->
 
 `commit now` reaches the same reload as `ze signal reload`. Which configuration

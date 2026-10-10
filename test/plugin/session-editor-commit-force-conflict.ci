@@ -1,0 +1,75 @@
+# Test: `commit now force` applies over another user's LIVE conflict and tells that user
+# VALIDATES: spec-session-editor-file-mode-parity AC-32 -- over SSH against a
+#            running daemon, user bob sets router-id and drops the connection
+#            with the change pending; user admin sets a different router-id,
+#            `commit now` is refused with the LIVE conflict naming bob, and
+#            `commit now force` applies admin's value. When bob comes back his
+#            editor says his change was discarded by admin's forced commit, and
+#            no pending change of his survives to be committed later
+# PREVENTS: force still refusing on a conflict, force overwriting bob's change
+#           without telling him, or bob's discarded change lingering pending
+option=timeout:value=90s
+
+tmpfs=session-editor-commit-force-conflict.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+        user bob {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=session-editor-commit-force-conflict-bob.script:terminator=EOF_BOB
+send set bgp router-id 9.9.9.9
+send show | changes
+wait 1 pending change
+kill
+EOF_BOB
+
+tmpfs=session-editor-commit-force-conflict-admin.script:terminator=EOF_ADMIN
+send set bgp router-id 5.6.7.8
+send commit now
+wait LIVE
+wait bob
+send commit now force
+wait Session committed: 1 change(s) applied
+kill
+EOF_ADMIN
+
+tmpfs=session-editor-commit-force-conflict-bob-back.script:terminator=EOF_BACK
+wait discarded by admin's forced commit
+send show | changes all
+wait No pending changes
+kill
+EOF_BACK
+
+cmd=foreground:seq=1:exec=ze start session-editor-commit-force-conflict.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-force-conflict.conf session-editor-commit-force-conflict-bob.script user bob:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-force-conflict.conf session-editor-commit-force-conflict-admin.script user admin:timeout=60s
+cmd=foreground:seq=4:exec=le test fixture plugin/session-editor $PORT2 session-editor-commit-force-conflict.conf session-editor-commit-force-conflict-bob-back.script user bob:timeout=60s
+expect=exit:code=0
+expect=file:path=session-editor-commit-force-conflict.conf:contains=router-id 5.6.7.8
+expect=file:path=session-editor-commit-force-conflict.conf:not-contains=9.9.9.9
