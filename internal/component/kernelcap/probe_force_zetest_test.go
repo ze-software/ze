@@ -26,3 +26,28 @@ func TestZetestBuildReadsTheForceVariable(t *testing.T) {
 		t.Errorf("rows = %+v, want alpha forced absent naming %s", rows, forceEnv)
 	}
 }
+
+// VALIDATES: the force variable's registered description names every state
+// forcedState accepts, and forcedState accepts every state a probe can answer.
+// PREVENTS: the grammar a test author reads in `ze env` and the grammar the
+// parser takes drifting apart, as when denied was accepted and not described.
+func TestForceGrammarNamesEveryForcibleState(t *testing.T) {
+	var description string
+	for _, entry := range env.AllEntries() {
+		if entry.Key == forceEnv {
+			description = entry.Description
+		}
+	}
+	if description == "" {
+		t.Fatalf("%s is not registered in a zetest build", forceEnv)
+	}
+	for state := StatePresent; state <= StateDenied; state++ {
+		if !strings.Contains(description, state.String()) {
+			t.Errorf("description %q does not name %s", description, state)
+		}
+		result, ok := forcedState(state.String())
+		if !ok || result.State != state {
+			t.Errorf("forcedState(%q) = %+v, %v; want %s", state.String(), result, ok, state)
+		}
+	}
+}

@@ -412,7 +412,7 @@ func TestForcedDeniedReachesBothReaders(t *testing.T) {
 	}
 }
 
-// VALIDATES: the variable names several subsystems at once, and a misspelt
+// VALIDATES: the variable names several subsystems at once, and a misspelled
 // state or an entry with no state leaves the real probe in charge.
 // PREVENTS: a typo in a test variable deciding whether a daemon starts.
 func TestForcedAnswerListAndMisspellings(t *testing.T) {

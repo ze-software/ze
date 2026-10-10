@@ -230,7 +230,7 @@ functional test reaches the absent and cannot-determine rows on a healthy host:
 `test/ui/doctor-ipsec-xfrm.ci` and `test/plugin/kernel-capability-*.ci`. A unit
 test in another package, whose test binary is not a `zetest` build, forces
 through `kernelcap.ForceAnswersForTest`, a Go call no operator input reaches.
-<!-- source: internal/component/kernelcap/probe.go -- probe, forcedFor, ForceAnswersForTest -->
+<!-- source: internal/component/kernelcap/probe.go -- probe, forcedFor, forcedSpellings, ForceAnswersForTest -->
 <!-- source: internal/component/kernelcap/probe_force_zetest.go -- forcedAnswersFromEnv -->
 <!-- source: internal/component/kernelcap/probe_force_shipped.go -- forcedAnswersFromEnv -->
 <!-- source: internal/component/kernelcap/kernelcap.go -- forcedPresent -->

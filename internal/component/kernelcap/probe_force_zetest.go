@@ -6,7 +6,11 @@
 
 package kernelcap
 
-import "github.com/ze-software/ze/internal/core/env"
+import (
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/env"
+)
 
 // The variable exists only in a zetest build, the functional-test daemon
 // (internal/le/test/functional/binaries.go adds the tag). The tag is the same
@@ -15,9 +19,19 @@ import "github.com/ze-software/ze/internal/core/env"
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         forceEnv,
 	Type:        envTypeString,
-	Description: "Force enrolled kernel capability probe answers: <subsystem>=<present|absent|unknown>[,...] (zetest builds only)",
+	Description: "Force enrolled kernel capability probe answers: " + forceGrammar() + " (zetest builds only)",
 	Private:     true,
 })
+
+// forceGrammar is the forced-answer grammar the variable's description shows,
+// <subsystem>=<present|absent|...>[,...], built from forcedSpellings (probe.go).
+func forceGrammar() string {
+	spellings := make([]string, 0, len(forcedSpellings))
+	for _, forced := range forcedSpellings {
+		spellings = append(spellings, forced.spelling)
+	}
+	return "<subsystem>=<" + strings.Join(spellings, "|") + ">[,...]"
+}
 
 // forcedAnswersFromEnv returns the variable's forced-answer list.
 func forcedAnswersFromEnv() string {
