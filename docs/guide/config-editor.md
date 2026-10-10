@@ -307,7 +307,11 @@ by name. A `merge` then applies each leaf, leaf-list member, list entry and
 inactive marker the input carries that the configuration does not already hold,
 and a leaf both name takes the loaded value while every leaf the input omits is
 kept; a `replace` also deletes what the node holds and the input omits, scoped to the
-context for a `relative` load. In session mode each applied difference is one
+context for a `relative` load. A bracket leaf-list such as
+`address [ 192.0.2.1/24 ]` or `virtual-address [ 203.0.113.1 ]` is written as
+one value, the way a typed `set` writes it: a `merge` adds the loaded members
+the configuration lacks to the ones it holds, while a `replace`, and an ordered
+sequence whose repeats matter, take the loaded members as they are. In session mode each applied difference is one
 tracked change, the same entry a typed `set` or `delete` records, so a leaf
 equal to its current value records nothing and `show | changes` lists exactly
 what the load changed.
@@ -320,7 +324,7 @@ configuration once, applies every difference in memory, and writes the change
 file once, at the end, so its cost grows with the size of the input rather than
 with its square.
 <!-- source: internal/component/cli/model_load.go -- cmdLoadNew, applyLoad -->
-<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage -->
+<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage, loadBracketLeafList -->
 <!-- source: internal/component/cli/editor_draft.go -- openChangeFile, writeChangeFile, readCommittedTree -->
 <!-- source: internal/component/config/parser.go -- ParseAt -->
 

@@ -174,6 +174,68 @@ func TestSessionLoadRefusesBadInputAtomically(t *testing.T) {
 	assert.Equal(t, "1.2.3.4", routerID)
 }
 
+// loadIfaceAddresses is an interface block whose unit 0 ipv4 address, a
+// bracket-syntax leaf-list (ze:syntax "bracket"), holds addrs. The unit
+// carries a description so it survives a load that deletes the address.
+func loadIfaceAddresses(addrs string) string {
+	return `interface {
+	ethernet eth9 {
+		unit 0 {
+			description lab;
+			ipv4 {
+				address [ ` + addrs + ` ];
+			}
+		}
+	}
+}
+`
+}
+
+// committedIfaceAddresses answers the committed unit 0 ipv4 address members.
+func committedIfaceAddresses(t *testing.T, ed *Editor, configPath string) []string {
+	t.Helper()
+	eth := committedLoadTree(t, ed, configPath).GetContainer("interface").GetList("ethernet")["eth9"]
+	require.NotNil(t, eth, "interface ethernet eth9 must survive the commit")
+	unit := eth.GetList("unit")["0"]
+	require.NotNil(t, unit)
+	// The set-format parser keeps a bracket leaf-list as ONE value, so
+	// GetSlice answers nil here: read the members the way the load does.
+	return bracketMembers(unit.GetContainer("ipv4"), "address")
+}
+
+// TestLoadMergeBracketLeafList verifies that a load merges a bracket-syntax
+// leaf-list, which the boot parser accepts, instead of refusing it.
+//
+// VALIDATES: a merge adds the loaded members to the ones the configuration
+// holds; a replace leaves exactly the loaded members; a replace whose input
+// omits the leaf-list deletes it.
+// PREVENTS: `load file absolute merge` refusing `virtual-address [ 203.0.113.1 ]`
+// (and every other bracket leaf-list) with "holds several values in a leaf kind
+// load cannot apply member by member" while the same file boots.
+func TestLoadMergeBracketLeafList(t *testing.T) {
+	ed, _, configPath := newLoadSessionEditor(t, validBGPConfig+loadIfaceAddresses("192.0.2.1/24"))
+
+	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, loadIfaceAddresses("192.0.2.2/30"))))
+	result, err := ed.CommitSession()
+	require.NoError(t, err)
+	require.Empty(t, result.Conflicts)
+	assert.ElementsMatch(t, []string{"192.0.2.1/24", "192.0.2.2/30"}, committedIfaceAddresses(t, ed, configPath))
+
+	require.NoError(t, ed.LoadReplace(nil, parseLoadInput(t, ed, validBGPConfig+loadIfaceAddresses("198.51.100.1/24"))))
+	result, err = ed.CommitSession()
+	require.NoError(t, err)
+	require.Empty(t, result.Conflicts)
+	assert.Equal(t, []string{"198.51.100.1/24"}, committedIfaceAddresses(t, ed, configPath))
+
+	replaced := parseLoadInput(t, ed, validBGPConfig+loadIfaceAddresses("198.51.100.1/24"))
+	replaced.GetContainer("interface").GetList("ethernet")["eth9"].GetList("unit")["0"].GetContainer("ipv4").Delete("address")
+	require.NoError(t, ed.LoadReplace(nil, replaced))
+	result, err = ed.CommitSession()
+	require.NoError(t, err)
+	require.Empty(t, result.Conflicts)
+	assert.Empty(t, committedIfaceAddresses(t, ed, configPath))
+}
+
 // TestParseAtContext verifies config.Parser.ParseAt, the parse a relative
 // load runs: a fragment is checked against the context node's children and
 // answered rooted at the context; a keyword the context does not hold and a

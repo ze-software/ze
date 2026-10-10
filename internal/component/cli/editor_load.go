@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -202,6 +203,12 @@ func (e *Editor) loadLeaves(path []string, current, want *config.Tree, replace b
 		}
 	}
 	for _, name := range multi {
+		if node := e.bracketLeafList(path, name); node != nil {
+			if err := e.loadBracketLeafList(path, name, node, current, want, replace); err != nil {
+				return err
+			}
+			continue
+		}
 		if !e.isValueOrArrayLeaf(path, name) {
 			var tb textbuf.Buffer
 			return fmt.Errorf("load: %s holds several values in a leaf kind load cannot apply member by member", tb.Join(path, " ").Byte(' ').Str(name).String())
@@ -220,6 +227,60 @@ func (e *Editor) loadLeaves(path []string, current, want *config.Tree, replace b
 		if err := e.loadLeafState(path, name, current.IsLeafInactive(name), want.IsLeafInactive(name), replace); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// bracketLeafList answers the schema node when name under path is a
+// bracket-syntax leaf-list (ze:syntax "bracket"), nil otherwise.
+func (e *Editor) bracketLeafList(path []string, name string) *config.BracketLeafListNode {
+	if e.schema == nil {
+		return nil
+	}
+	parentSchema := e.walkSchema(path)
+	if parentSchema == nil {
+		return nil
+	}
+	node, _ := parentSchema.Get(name).(*config.BracketLeafListNode)
+	return node
+}
+
+// loadBracketLeafList applies a bracket-syntax leaf-list. The parser stores
+// its members as a leaf-list, but the editor writes the kind as ONE value
+// holding every member (SetValue keeps scalar semantics for it), so the load
+// sets that value whole. A merge keeps the members the configuration holds
+// and appends the loaded ones it lacks; a replace, and an ordered sequence
+// whose repeats are meaningful, take the loaded members as they are.
+func (e *Editor) loadBracketLeafList(path []string, name string, node *config.BracketLeafListNode, current, want *config.Tree, replace bool) error {
+	members := want.GetMultiValues(name)
+	if !replace && !node.Ordered {
+		merged := slices.Clone(bracketMembers(current, name))
+		for _, member := range members {
+			if !slices.Contains(merged, member) {
+				merged = append(merged, member)
+			}
+		}
+		members = merged
+	}
+	value := textbuf.Join(members, " ")
+	if have, ok := current.Get(name); ok && have == value {
+		return nil
+	}
+	return loadErrorIf(append(slices.Clip(path), name), e.SetValue(path, name, value))
+}
+
+// bracketMembers answers the members a bracket leaf-list holds in tree: the
+// leaf-list store when the parser filled it, else the one value the editor
+// wrote. A nil tree holds none.
+func bracketMembers(tree *config.Tree, name string) []string {
+	if tree == nil {
+		return nil
+	}
+	if members := tree.GetMultiValues(name); len(members) > 0 {
+		return members
+	}
+	if value, ok := tree.Get(name); ok {
+		return strings.Fields(value)
 	}
 	return nil
 }
@@ -273,6 +334,16 @@ func (e *Editor) loadDeletes(path []string, current, want *config.Tree) error {
 	}
 	for _, name := range multi {
 		keep := want.GetMultiValues(name)
+		if e.bracketLeafList(path, name) != nil {
+			// One value in this editor: loadBracketLeafList replaces it
+			// when want holds members, and an absent leaf-list is deleted whole.
+			if len(keep) == 0 {
+				if err := e.DeleteValue(path, name); err != nil {
+					return loadError(append(slices.Clip(path), name), err)
+				}
+			}
+			continue
+		}
 		for _, member := range current.GetMultiValues(name) {
 			if slices.Contains(keep, member) {
 				continue
