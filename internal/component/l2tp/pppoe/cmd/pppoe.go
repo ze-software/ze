@@ -16,8 +16,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
-	"github.com/ze-software/ze/internal/component/command" // register ze-pppoe-api.yang
-	_ "github.com/ze-software/ze/internal/component/l2tp/pppoe/yang"
+	"github.com/ze-software/ze/internal/component/command"
+	_ "github.com/ze-software/ze/internal/component/l2tp/pppoe/yang" // register ze-pppoe-api.yang
 )
 
 var (

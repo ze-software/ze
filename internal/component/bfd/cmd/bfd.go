@@ -26,8 +26,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
-	_ "github.com/ze-software/ze/internal/component/bfd/yang"
-	"github.com/ze-software/ze/internal/component/command" // register ze-bfd-cmd.yang + ze-bfd-api.yang
+	_ "github.com/ze-software/ze/internal/component/bfd/yang" // register ze-bfd-cmd.yang + ze-bfd-api.yang
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // errBFDServiceUnavailable is returned when a show command runs while
