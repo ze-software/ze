@@ -30,6 +30,18 @@ command.
 result against the registry, and uses the shared builder in
 `internal/appliance/kernelbuilder`.
 
+The kernel source is pinned by exact release and digest.
+`internal/appliance/kernel.version` names the release (7.2.9), and
+`kernelSourceSHA256` in the worker holds the SHA-256 kernel.org publishes for
+that tarball in `sha256sums.asc`. The worker refuses a version with no tracked
+digest before downloading, and refuses a tarball, downloaded or found in the
+work directory, whose digest differs, naming both digests;
+`TestKernelVersionHasDigestPin` fails when the pinned release has no digest.
+The patch series applies with `patch --fuzz=0`, so a bump the series no longer
+fits fails the build instead of placing a hunk by guesswork; a bump refreshes
+the series against the new release.
+<!-- source: internal/appliance/kernelbuilder/worker.go -- kernelSourceSHA256, verifyKernelSource, applyPatches -->
+
 The runtime profile requires `CONFIG_XFRM_MIGRATE` for atomic MOBIKE state
 migration and `CONFIG_MPLS_IP_MTU` for native labeled-IP fragmentation and ICMP.
 Both requirements are in the compiled runtime floor, so an edited manifest

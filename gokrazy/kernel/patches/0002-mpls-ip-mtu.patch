@@ -12,7 +12,9 @@ headroom exactly once. Do not advertise a clamped 1280 instead of the actual
 MPLS payload MTU. CONFIG_MPLS_IP_MTU identifies this capability to the runtime
 kernel manifest; it has no alternate datapath or disable switch.
 
-Based on Linux v7.2.
+Based on Linux v7.2.9. The ip_do_fragment guard against an MTU below
+one fragment quantum (mtu < hlen + 8) is upstream in v7.2.9, so this
+patch no longer carries it.
 
 --- a/net/mpls/af_mpls.c
 +++ b/net/mpls/af_mpls.c
@@ -32,7 +34,7 @@ Based on Linux v7.2.
  #include <net/dst.h>
  #include <net/sock.h>
  #include <net/arp.h>
-@@ -362,6 +364,178 @@
+@@ -364,6 +366,178 @@
  	return success;
  }
  
@@ -211,7 +213,7 @@ Based on Linux v7.2.
  static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
  			struct packet_type *pt, struct net_device *orig_dev)
  {
-@@ -440,8 +614,8 @@
+@@ -442,8 +616,8 @@
  	/* Verify the destination can hold the packet */
  	new_header_size = mpls_nh_header_size(nh);
  	mtu = mpls_dev_mtu(out_dev);
@@ -222,7 +224,7 @@ Based on Linux v7.2.
  
  	hh_len = LL_RESERVED_SPACE(out_dev);
  	if (!out_dev->header_ops)
-@@ -474,15 +648,7 @@
+@@ -476,15 +650,7 @@
  		}
  	}
  
@@ -239,7 +241,7 @@ Based on Linux v7.2.
  	if (err)
  		net_dbg_ratelimited("%s: packet transmission failed: %d\n",
  				    __func__, err);
-@@ -506,12 +672,14 @@
+@@ -508,12 +674,14 @@
  };
  
  static const struct nla_policy rtm_mpls_policy[RTA_MAX+1] = {
@@ -254,7 +256,7 @@ Based on Linux v7.2.
  	u32			rc_protocol;
  	u32			rc_ifindex;
  	u8			rc_via_table;
-@@ -1056,6 +1224,7 @@
+@@ -1058,6 +1226,7 @@
  		goto errout;
  	}
  
@@ -262,7 +264,7 @@ Based on Linux v7.2.
  	rt->rt_protocol = cfg->rc_protocol;
  	rt->rt_payload_type = cfg->rc_payload_type;
  	rt->rt_ttl_propagate = cfg->rc_ttl_propagate;
-@@ -1845,6 +2014,46 @@
+@@ -1847,6 +2016,46 @@
  }
  EXPORT_SYMBOL_GPL(nla_get_labels);
  
@@ -309,7 +311,7 @@ Based on Linux v7.2.
  static int rtm_to_route_config(struct sk_buff *skb,
  			       struct nlmsghdr *nlh,
  			       struct mpls_route_config *cfg,
-@@ -1920,6 +2129,10 @@
+@@ -1922,6 +2131,10 @@
  			continue;
  
  		switch (index) {
@@ -320,7 +322,7 @@ Based on Linux v7.2.
  		case RTA_OIF:
  			cfg->rc_ifindex = nla_get_u32(nla);
  			break;
-@@ -2054,6 +2267,8 @@
+@@ -2057,6 +2270,8 @@
  	rtm->rtm_type = RTN_UNICAST;
  	rtm->rtm_flags = 0;
  
@@ -329,7 +331,7 @@ Based on Linux v7.2.
  	if (nla_put_labels(skb, RTA_DST, 1, &label))
  		goto nla_put_failure;
  
-@@ -2291,7 +2506,8 @@
+@@ -2294,7 +2509,8 @@
  	size_t payload =
  		NLMSG_ALIGN(sizeof(struct rtmsg))
  		+ nla_total_size(4)			/* RTA_DST */
@@ -339,7 +341,7 @@ Based on Linux v7.2.
  
  	if (rt->rt_nhn == 1) {
  		struct mpls_nh *nh = rt->rt_nh;
-@@ -2545,6 +2761,8 @@
+@@ -2548,6 +2764,8 @@
  	r->rtm_protocol = rt->rt_protocol;
  	r->rtm_flags	= 0;
  
@@ -360,7 +362,7 @@ Based on Linux v7.2.
  	u8			rt_max_alen;
 --- a/net/mpls/Kconfig
 +++ b/net/mpls/Kconfig
-@@ -25,10 +25,19 @@
+@@ -25,11 +25,20 @@
  
  config MPLS_ROUTING
  	tristate "MPLS: routing support"
@@ -370,16 +372,17 @@ Based on Linux v7.2.
  	depends on PROC_SYSCTL
  	help
  	 Add support for forwarding of mpls packets.
-+
+ 
 +config MPLS_IP_MTU
 +	def_bool y
 +	depends on MPLS_ROUTING && INET && IPV6
 +	help
 +	 Native labeled-IP fragmentation and ICMP PMTU errors, with
 +	 per-LSP frame MTU carried in RTA_METRICS/RTAX_MTU.
- 
++
  config MPLS_IPTUNNEL
  	tristate "MPLS: IP over MPLS tunnel support"
+ 	depends on LWTUNNEL && MPLS_ROUTING
 --- a/include/net/ip.h
 +++ b/include/net/ip.h
 @@ -497,6 +497,8 @@
@@ -391,7 +394,7 @@ Based on Linux v7.2.
  	mtu = min_t(unsigned int, mtu, IP_MAX_MTU);
  
  	res = mtu - lwtunnel_headroom(dst->lwtstate, mtu);
-@@ -519,6 +521,9 @@
+@@ -544,6 +546,9 @@
  	}
  
  	mtu = min(READ_ONCE(dst_dev(dst)->mtu), IP_MAX_MTU);
@@ -423,18 +426,18 @@ Based on Linux v7.2.
  		mtu = dst_metric_raw(dst, RTAX_MTU);
  		if (mtu)
  			goto out;
-@@ -382,6 +386,8 @@
- 	rcu_read_unlock();
+@@ -383,6 +387,8 @@
  
  out:
+ 	mtu = min_t(unsigned int, mtu, IP6_MAX_MTU);
 +	if (dst->lwtstate && dst->lwtstate->type == LWTUNNEL_ENCAP_MPLS)
 +		mtu = min(mtu, READ_ONCE(dst_dev(dst)->mtu));
+ 
  	return mtu - lwtunnel_headroom(dst->lwtstate, mtu);
  }
- 
 --- a/net/ipv6/ip6_output.c
 +++ b/net/ipv6/ip6_output.c
-@@ -661,7 +661,8 @@
+@@ -663,7 +663,8 @@
  	__IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
  
  	mtu = ip6_dst_mtu_maybe_forward(dst, true);
@@ -454,20 +457,3 @@ Based on Linux v7.2.
  
  /* helper used by ip_options_compile() to call fib_compute_spec_dst()
   * at most one time.
---- a/net/ipv4/ip_output.c
-+++ b/net/ipv4/ip_output.c
-@@ -790,6 +790,14 @@
- 	 */
- 
- 	hlen = iph->ihl * 4;
-+	/* Encapsulation can leave less than one fragment quantum, even when
-+	 * the device MTU itself is valid. Never underflow or emit a fragment
-+	 * whose rounded payload is zero: ip_frag_next must make progress.
-+	 */
-+	if (unlikely(mtu < hlen + 8)) {
-+		err = -EMSGSIZE;
-+		goto fail;
-+	}
- 	mtu = mtu - hlen;	/* Size of data space */
- 	IPCB(skb)->flags |= IPSKB_FRAG_COMPLETE;
- 	ll_rs = LL_RESERVED_SPACE(rt->dst.dev);

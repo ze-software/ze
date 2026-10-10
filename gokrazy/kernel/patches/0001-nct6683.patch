@@ -1,8 +1,6 @@
-diff --git i/drivers/hwmon/nct6683.c w/drivers/hwmon/nct6683.c
-index a23047a3b..c199b549a 100644
---- i/drivers/hwmon/nct6683.c
-+++ w/drivers/hwmon/nct6683.c
-@@ -1202,6 +1202,8 @@ static int nct6683_probe(struct platform_device *pdev)
+--- a/drivers/hwmon/nct6683.c
++++ b/drivers/hwmon/nct6683.c
+@@ -1205,6 +1205,8 @@
  	int groups = 0;
  	char build[16];
  
@@ -11,7 +9,7 @@ index a23047a3b..c199b549a 100644
  	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
  	if (!devm_request_region(dev, res->start, IOREGION_LENGTH, DRVNAME))
  		return -EBUSY;
-@@ -1218,6 +1220,7 @@ static int nct6683_probe(struct platform_device *pdev)
+@@ -1221,6 +1223,7 @@
  
  	data->customer_id = nct6683_read16(data, NCT6683_REG_CUSTOMER_ID);
  
@@ -19,16 +17,16 @@ index a23047a3b..c199b549a 100644
  	/* By default only instantiate driver if the customer ID is known */
  	switch (data->customer_id) {
  	case NCT6683_CUSTOMER_ID_INTEL:
-@@ -1229,6 +1232,8 @@ static int nct6683_probe(struct platform_device *pdev)
- 	case NCT6683_CUSTOMER_ID_ASROCK:
+@@ -1252,6 +1255,8 @@
+ 	case NCT6683_CUSTOMER_ID_ASROCK7:
  		break;
  	default:
 +	pr_info("customer_id %x unhandled\n", data->customer_id);
 +	force = true;
  		if (!force)
  			return -ENODEV;
- 	}
-@@ -1350,7 +1355,7 @@ static int __init nct6683_find(int sioaddr, struct nct6683_sio_data *sio_data)
+ 		dev_warn(dev, "Enabling support for unknown customer ID 0x%04x\n", data->customer_id);
+@@ -1375,7 +1380,7 @@
  	int addr;
  	u16 val;
  	int err;

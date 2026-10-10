@@ -1098,7 +1098,7 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 		}
 	}
 	files := map[string]string{
-		filepath.Join(work, "linux-7.1.1.tar.xz"):             "cached",
+		filepath.Join(work, "linux-7.1.1.tar.xz"):             fixtureSourceTarball,
 		filepath.Join(tree, "scripts", "Kbuild.include"):      "present",
 		filepath.Join(tree, ".config"):                        config,
 		filepath.Join(tree, "arch", "x86", "boot", "bzImage"): "kernel",
@@ -1132,12 +1132,20 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 	defer restore()
 	var output bytes.Buffer
 	err = kernelbuilder.RunWorker(ctx, kernelbuilder.WorkerRequest{
-		Version: versionKernel711, Arch: archAMD64, Profile: profile, Modules: modules, Jobs: "1",
+		Version: versionKernel711, SourceSHA256: fixtureSourceSHA256, Arch: archAMD64, Profile: profile, Modules: modules, Jobs: "1",
 		SourceDir: root, OutputDir: out, WorkDir: work, BuildDir: build,
 		Fragments: []string{fragment}, Stdout: &output, Stderr: &output,
 	})
 	return output.String(), err
 }
+
+// fixtureSourceTarball stands in for the worker fixture's pre-downloaded kernel
+// tarball, and fixtureSourceSHA256 is its SHA-256, which the worker verifies
+// before it uses the file.
+const (
+	fixtureSourceTarball = "cached"
+	fixtureSourceSHA256  = "3673014e72b67383be302485694555a57ad393afdebaed6ded110a775bd0556d"
+)
 
 func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error {
 	if len(args) != 1 {

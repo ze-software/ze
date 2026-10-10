@@ -3,6 +3,8 @@ package kernelbuilder
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -23,22 +25,43 @@ const (
 	kernelSourceBaseURL = "https://cdn.kernel.org/pub/linux/kernel"
 )
 
+// kernelSourceSHA256 is the SHA-256 of each kernel.org tarball Ze builds, keyed
+// by version, copied from https://cdn.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc
+// when the version was pinned. internal/appliance/kernel.version names the
+// version Ze ships, and TestKernelVersionHasDigestPin (internal/appliance) fails
+// when that version has no entry here. A version with no entry is not built:
+// the tarball is the kernel source Ze compiles and distributes, so it is the one
+// that was reviewed, never whatever the network served.
+var kernelSourceSHA256 = map[string]string{
+	"7.2.9": "b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba",
+}
+
+// SourceDigest returns the tracked SHA-256 of linux-<version>.tar.xz, and false
+// when the version has no tracked digest.
+func SourceDigest(version string) (string, bool) {
+	digest, ok := kernelSourceSHA256[version]
+	return digest, ok
+}
+
 // WorkerRequest describes the in-container or in-VM kernel compilation step.
 type WorkerRequest struct {
-	Version     string
-	Arch        string
-	Profile     string
-	Modules     string
-	Jobs        string
-	SourceDir   string
-	OutputDir   string
-	WorkDir     string
-	BuildDir    string
-	PatchesDir  string
-	FirmwareDir string
-	Fragments   []string
-	Stdout      io.Writer
-	Stderr      io.Writer
+	Version string
+	// SourceSHA256 is the digest the source tarball MUST have. Empty means the
+	// tracked digest for Version (kernelSourceSHA256).
+	SourceSHA256 string
+	Arch         string
+	Profile      string
+	Modules      string
+	Jobs         string
+	SourceDir    string
+	OutputDir    string
+	WorkDir      string
+	BuildDir     string
+	PatchesDir   string
+	FirmwareDir  string
+	Fragments    []string
+	Stdout       io.Writer
+	Stderr       io.Writer
 }
 
 // RunWorker downloads, configures, compiles, and publishes one Linux kernel.
@@ -63,6 +86,13 @@ func RunWorker(ctx context.Context, req WorkerRequest) error {
 	}
 	if err := validateVersion(req.Version); err != nil {
 		return err
+	}
+	if req.SourceSHA256 == "" {
+		digest, tracked := kernelSourceSHA256[req.Version]
+		if !tracked {
+			return fmt.Errorf("linux %s has no tracked SHA-256 (kernelSourceSHA256, internal/appliance/kernelbuilder/worker.go); add the digest kernel.org publishes in sha256sums.asc before building it", req.Version)
+		}
+		req.SourceSHA256 = digest
 	}
 	kernelArch, imagePath, makeTarget, err := workerArch(req.Arch)
 	if err != nil {
@@ -216,6 +246,9 @@ func downloadKernelSource(ctx context.Context, req WorkerRequest) (string, error
 	path := filepath.Join(req.WorkDir, name)
 	if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
 		fmt.Fprintf(req.Stdout, ">>> using pre-downloaded %s\n", name) //nolint:errcheck // progress output
+		if err := verifyKernelSource(path, req.SourceSHA256); err != nil {
+			return "", err
+		}
 		return path, nil
 	}
 	fmt.Fprintf(req.Stdout, ">>> downloading linux %s\n", req.Version) //nolint:errcheck // progress output
@@ -243,11 +276,35 @@ func downloadKernelSource(ctx context.Context, req WorkerRequest) (string, error
 		_ = os.Remove(part)
 		return "", errors.Join(copyErr, closeErr)
 	}
+	if err := verifyKernelSource(part, req.SourceSHA256); err != nil {
+		_ = os.Remove(part)
+		return "", err
+	}
 	if err := os.Rename(part, path); err != nil {
 		_ = os.Remove(part)
 		return "", fmt.Errorf("publish kernel source: %w", err)
 	}
 	return path, nil
+}
+
+// verifyKernelSource refuses a tarball whose SHA-256 is not want, naming both
+// digests, before anything is extracted from it.
+func verifyKernelSource(path, want string) error {
+	file, err := os.Open(path) //nolint:gosec // G304: path is the tarball name downloadKernelSource built from WorkDir
+	if err != nil {
+		return fmt.Errorf("open kernel source: %w", err)
+	}
+	hash := sha256.New()
+	_, copyErr := io.Copy(hash, file)
+	closeErr := file.Close()
+	if copyErr != nil || closeErr != nil {
+		return fmt.Errorf("hash kernel source: %w", errors.Join(copyErr, closeErr))
+	}
+	got := hex.EncodeToString(hash.Sum(nil))
+	if got != want {
+		return fmt.Errorf("kernel source %s has SHA-256 %s, want %s: refusing to build from it", filepath.Base(path), got, want)
+	}
+	return nil
 }
 
 func restoreOrExtractTree(ctx context.Context, req WorkerRequest, tarball string) (string, error) {
@@ -338,7 +395,10 @@ func applyPatches(ctx context.Context, req WorkerRequest, buildTree string) erro
 		if err != nil {
 			return fmt.Errorf("open patch %s: %w", path, err)
 		}
-		cmd := exec.CommandContext(ctx, "patch", "-p1") //nolint:gosec // fixed executable and argv
+		// --fuzz=0: a hunk whose context no longer matches the pinned source is
+		// refused rather than placed by guesswork, so a kernel.version bump that
+		// the series does not apply to cleanly fails here, at the build.
+		cmd := exec.CommandContext(ctx, "patch", "-p1", "--fuzz=0", "--batch") //nolint:gosec // fixed executable and argv
 		cmd.Dir, cmd.Stdin, cmd.Stdout, cmd.Stderr = buildTree, file, req.Stdout, req.Stderr
 		runErr := cmd.Run()
 		closeErr := file.Close()

@@ -948,3 +948,21 @@ func TestRuntimeKernelFloorRejectsMissing(t *testing.T) {
 		t.Fatalf("runtime floor error = %v, want CONFIG_PPPOE", err)
 	}
 }
+
+// VALIDATES: AC-9 and AC-19 of spec-appliance-ships-ze-kernel. The kernel Ze
+// ships (kernel.version) is an exact release with a tracked tarball digest, so
+// the worker builds the reviewed source and refuses any other.
+// PREVENTS: a kernel.version bump that forgets the digest, which the worker
+// would only refuse after the builder image is built.
+func TestKernelVersionHasDigestPin(t *testing.T) {
+	if strings.Count(defaultKernelVersion, ".") != 2 {
+		t.Errorf("kernel.version %q is not an exact major.minor.patch release", defaultKernelVersion)
+	}
+	digest, tracked := kernelbuilder.SourceDigest(defaultKernelVersion)
+	if !tracked {
+		t.Fatalf("kernel.version %s has no tracked SHA-256 in kernelbuilder", defaultKernelVersion)
+	}
+	if decoded, err := hex.DecodeString(digest); err != nil || len(decoded) != sha256.Size {
+		t.Errorf("tracked digest %q for %s is not a SHA-256", digest, defaultKernelVersion)
+	}
+}
