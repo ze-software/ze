@@ -16,6 +16,27 @@ import (
 // swanctl.conf turns strongSwan on and frr.conf turns FRR on.
 const natConfigName = "nat.conf"
 
+// natSysctls are the NAT box's kernel settings, each `key=value`. The box
+// forwards between two addresses on ONE interface, so the packet leaves by the
+// interface it arrived on. Linux answers that with an ICMP redirect, which would
+// teach a peer to bypass the very translation under test. They are set once,
+// before the box's script runs, so Docker writes them through `--sysctl` into the
+// box's own network namespace and /proc/sys stays read-only.
+var natSysctls = []string{
+	"net.ipv4.ip_forward=1",
+	"net.ipv4.conf.all.send_redirects=0",
+	"net.ipv4.conf.all.accept_redirects=0",
+}
+
+// natSysctlArguments answers natSysctls as docker run arguments.
+func natSysctlArguments() []string {
+	arguments := make([]string, 0, 2*len(natSysctls))
+	for _, sysctl := range natSysctls {
+		arguments = append(arguments, "--sysctl", sysctl)
+	}
+	return arguments
+}
+
 // natTranslationsMax bounds a scenario's nat.conf. The lab has three peers and only
 // two of them can sit behind a translation, so a longer file is a mistake rather
 // than a topology.
@@ -102,12 +123,7 @@ func readNATConfig(directory string) ([]natTranslation, error) {
 func natSetupScript(translations []natTranslation) string {
 	var script textbuf.Buffer
 	script.Str("set -e\n")
-	// The box forwards between two addresses on ONE interface, so the packet leaves
-	// by the interface it arrived on. Linux answers that with an ICMP redirect, which
-	// would teach a peer to bypass the very translation under test.
-	script.Str("sysctl -w net.ipv4.ip_forward=1\n")
-	script.Str("sysctl -w net.ipv4.conf.all.send_redirects=0\n")
-	script.Str("sysctl -w net.ipv4.conf.all.accept_redirects=0\n")
+	// The box's sysctls are natSysctls, which Docker sets before this script runs.
 	for _, translation := range translations {
 		script.Str("ip addr add ").Str(translation.public.String()).Byte('/').
 			Int(int64(networkPrefix.Bits())).Str(" dev eth0\n")

@@ -608,8 +608,7 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 			t.Errorf("%s Ze peer = %#v", source.Name, ze)
 		}
 		swan := ipsecPeerByName(t, prepared.Peers, swanPeer)
-		if swan.Host != 3 || swan.Image != swanPeer ||
-			!reflect.DeepEqual(swan.Arguments, []string{"--privileged"}) {
+		if swan.Host != 3 || swan.Image != swanPeer {
 			t.Errorf("%s strongSwan peer = %#v", source.Name, swan)
 		}
 		hasFRR := fileExists(filepath.Join(source.Directory, "frr.conf"))

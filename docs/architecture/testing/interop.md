@@ -395,8 +395,21 @@ AppArmor the option is left out. The VRRP scenarios' ze (any scenario carrying
 interface, so the container keeps `systempaths=unconfined` (Docker mounts
 `/proc/sys` read-only otherwise) and the profile, docker-default with its
 `/proc/sys` write denials narrowed to `net/ipv[46]/conf/`, keeps every other
-`/proc/sys` write and every mount denied. Both registered profiles parse with
-`apparmor_parser -Q` 4.0.1 (Ubuntu 24.04).
+`/proc/sys` write and every mount denied. `ze-kernel-probe` and `ze-lab-vrrp`
+parse with `apparmor_parser -Q` 4.0.1 (Ubuntu 24.04).
+
+A lab peer runs with no more than its daemon needs, never `--privileged`
+(`plan/pre-release/spec-lab-containers-least-privilege.md`). A sysctl set once
+before the daemon starts is a `--sysctl` argument, written by Docker into the
+peer's own network namespace. A sysctl written while the peer runs takes
+`interoplab.NetSysctlWriteArguments` (`systempaths=unconfined`) together with
+the generic profile `ze-lab-net-sysctl`, which is docker-default with every
+`/proc/sys` write denied outside `net/` and every mount denied; any lab names it,
+none defines its own copy. In the IPsec lab the NAT box, strongSwan and ze hold
+`NET_ADMIN`; the NAT box sets its three sysctls through `--sysctl`; strongSwan
+runs under `ze-lab-net-sysctl` only in a scenario named in `peerSysctlWriters`
+(`internal/le/interoplab/ipsec/checkers.go`), whose checker cuts its reassembly
+marks at run time.
 
 <!-- source: internal/le/interoplab/apparmor.go -- RegisterAppArmorProfile, appArmorSecurityOption, labAppArmorProfileMissing -->
 <!-- source: internal/le/interoplab/bgp/register_apparmor.go -- vrrpLabAppArmorProfile -->

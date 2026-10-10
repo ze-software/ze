@@ -33,9 +33,11 @@ const (
 	swanImage       = "ze-ipsec-strongswan"
 	natImage        = "ze-ipsec-nat"
 
-	// dockerPrivileged is what every peer of this lab needs: XFRM state, XFRM policy
-	// and netfilter NAT rules are all privileged operations inside a container.
-	dockerPrivileged = "--privileged"
+	// capabilityNetAdmin is the one capability beyond Docker's default set every
+	// peer of this lab needs: XFRM state and policy, addresses, routes, rules and
+	// netfilter NAT are all netlink or iptables writes CAP_NET_ADMIN admits.
+	// Raw sockets (nping, ping -M do) are CAP_NET_RAW, which Docker grants.
+	capabilityNetAdmin = "NET_ADMIN"
 
 	zeCLIStore     = "/tmp/ze-cli-store"
 	zeCLIUser      = "interop"
@@ -254,12 +256,13 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 			return fail(natErr)
 		}
 		peers = append(peers, interoplab.PeerConfig{
-			Name:      natPeer,
-			Container: natContainer,
-			Image:     natPeer,
-			Host:      natHost,
-			Arguments: []string{dockerPrivileged},
-			Command:   []string{"-c", natSetupScript(translations)},
+			Name:         natPeer,
+			Container:    natContainer,
+			Image:        natPeer,
+			Host:         natHost,
+			Capabilities: []string{capabilityNetAdmin},
+			Arguments:    natSysctlArguments(),
+			Command:      []string{"-c", natSetupScript(translations)},
 			Ready: &interoplab.ReadyProbe{
 				Command:  []string{"sh", "-c", "iptables -t nat -S | grep -q SNAT"},
 				Timeout:  30 * time.Second,
@@ -289,13 +292,27 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 				mounts = append(mounts, interoplab.Mount{Source: path, Target: mount.target, ReadOnly: true})
 			}
 		}
+		// A checker that cuts strongSwan's reassembly marks while the scenario runs
+		// (dropFragmentsAtPeer) needs /proc/sys writable, which Docker mounts
+		// read-only and docker-default denies; the generic lab profile then confines
+		// the writes to the peer's own network namespace. Every other scenario keeps
+		// Docker's defaults.
+		var swanArguments []string
+		swanProfile := ""
+		if peerSysctlWriters[source.Name] {
+			swanArguments = interoplab.NetSysctlWriteArguments()
+			swanProfile = interoplab.NetSysctlAppArmorProfileName
+		}
 		peers = append(peers, interoplab.PeerConfig{
-			Name:      swanPeer,
-			Container: swanContainer,
-			Image:     swanPeer,
-			Host:      3,
-			Mounts:    mounts,
-			Arguments: []string{dockerPrivileged},
+			Name:         swanPeer,
+			Container:    swanContainer,
+			Image:        swanPeer,
+			Host:         3,
+			Mounts:       mounts,
+			Capabilities: []string{capabilityNetAdmin},
+			Arguments:    swanArguments,
+			// An empty profile keeps docker-default.
+			AppArmorProfile: swanProfile,
 			Ready: &interoplab.ReadyProbe{
 				Command:  []string{"sh", "-c", "swanctl --stats | grep -q uptime && swanctl --load-all >/dev/null"},
 				Timeout:  30 * time.Second,
@@ -330,10 +347,10 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		Host:      2,
 		// Mount only the input file; /etc/ze remains container-owned and writable
 		// for the database tree created beside that explicit configuration.
-		Mounts:      []interoplab.Mount{{Source: renderedConfig, Target: "/etc/ze/ze.conf", ReadOnly: true}},
-		Environment: environment,
-		Arguments:   []string{dockerPrivileged},
-		Command:     []string{"start", "/etc/ze/ze.conf"},
+		Mounts:       []interoplab.Mount{{Source: renderedConfig, Target: "/etc/ze/ze.conf", ReadOnly: true}},
+		Environment:  environment,
+		Capabilities: []string{capabilityNetAdmin},
+		Command:      []string{"start", "/etc/ze/ze.conf"},
 	})
 	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, nil
 }

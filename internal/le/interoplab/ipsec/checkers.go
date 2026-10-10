@@ -20,6 +20,13 @@ import (
 
 type scenarioChecker func(context.Context, *scenarioLab) error
 
+// peerSysctlWriters names the scenarios whose checker writes strongSwan's
+// sysctls while the scenario runs (dropFragmentsAtPeer). Only their strongSwan
+// gets /proc/sys writable, under the generic lab profile.
+var peerSysctlWriters = map[string]bool{
+	"ike-padded-probe-strongswan": true,
+}
+
 var scenarioCheckers = map[string]scenarioChecker{
 	"child-rekey":                          checkChildRekey,
 	"child-rekey-narrowing":                checkChildRekeyNarrowing,

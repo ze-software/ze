@@ -1943,7 +1943,9 @@ func (l *scenarioLab) dropFragmentsAtPeer(ctx context.Context) (restore func(con
 	// Low first: high may not go below low.
 	for _, mark := range slices.Backward(peerReassemblyMarks) {
 		if _, err := l.exec(ctx, swanPeer, "sysctl", "-w", mark+"=0"); err != nil {
-			return nil, fmt.Errorf("cut strongSwan's %s: %w", mark, err)
+			return nil, fmt.Errorf("cut strongSwan's %s: %w (Docker mounts /proc/sys read-only: "+
+				"a scenario whose checker writes a peer sysctl is named in peerSysctlWriters, "+
+				"which runs strongSwan under %s)", mark, err, interoplab.NetSysctlAppArmorProfileName)
 		}
 	}
 	return func(ctx context.Context) error {
