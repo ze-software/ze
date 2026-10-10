@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-09 |
+| Updated | 2026-10-10 |
 
 <!-- Backfilled after implementation began. The interop scenario's forced red
      was observed on 2026-10-09; the spec stays in-progress until its Review
@@ -135,7 +135,7 @@ builder argument fed from `targets[i].peer`.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every per-peer fact the builder reads is now a field | read at `buildBatchAnnounceUpdate` during the change | a peer receives another peer's bytes again | reading the builder; `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` pins the builder's parameter list going forward | confirmed for today's tree |
-| A-2 | No per-peer fact that changes only the SEND is left outside the key | `extended` was the one such fact and it is a field | two peers are cut into a different number of messages from one build | asserted; only `extended` and `groupUpdates` were found | UNVALIDATED |
+| A-2 | No per-peer fact that changes only the SEND is left outside the key | `extended` was the one such fact and it is a field | two peers are cut into a different number of messages from one build | reading `announceBatchToPeers` and `sendBatchUpdate` (Evidence 2026-10-09, A-2 and Send path rows) | confirmed |
 | A-3 | `announceFacts` stays comparable as fields are added | Go refuses a map key holding a slice at compile time | the key silently becomes expensive, or fails to compile | the compiler | confirmed |
 
 ### Risks
@@ -484,10 +484,11 @@ value in argument to pinBuilderSignatures
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| two peers differing in a builder fact never share bytes | interop | `local-as-replace-as-partition`: FRR installs `65020 65001`, BIRD `65020`: GREEN `interop: 1 passed, 0 failed` (`iop-green.log`). RED with the key's prepend zeroed: assertion 6 failed, FRR installed `"aspath":{"string":"65020"}`, BIRD's replace-as build (`iop-red3.log`), both under the ownership agent's scratch named above |
+| two peers differing in a builder fact never share bytes | interop | `local-as-replace-as-partition` as repaired in `a6835d057d` (BIRD enables extended messages, so the two sessions differ only in the prepend): FRR installs `65020 65001`, BIRD `65020`: GREEN `interop: 1 passed, 0 failed` (`iop-green.log`). RED with the key's prepend zeroed: assertion 6 failed, FRR installed `"aspath":{"string":"65020"}`, BIRD's replace-as build (`iop-red3.log`), both under the ownership agent's scratch named above |
 | the same, through the operator entry point | functional | `local-as-replace-as-announce-partition.ci`, RED conn=1 got `[65010]` expected `[65010 65000]` |
 | identical peers still share one build | unit | `TestAnnounceFactsIdenticalPeersShareOneBuild`, RED `expected: 1 actual: 2` with a peer-unique field |
-| a new per-peer wire decision cannot reach the builder without entering the key | unit (guard) | `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts`, RED as a build failure in the guard alone with an extra per-peer builder parameter (`job-sig-red-9c83a8b2.log`) |
+| a new per-peer wire decision cannot reach the builder without entering the key | unit (guard) | `TestAnnounceBuildersTakePerPeerInputOnlyAsAnnounceFacts` (`264b63cca8`, `feec602c1d`), RED as a build failure in the guard alone with an extra per-peer parameter on `buildBatchAnnounceUpdate` (`job-sig-red-9c83a8b2.log`) and on `buildWithheldWithdrawUpdate` (`job-sig-red2-9c83a8b2.log`); GREEN `job-unit-pkg-sig-586a2619.log` |
+| peers differing in any one key field never share a group | unit | `TestAnnounceFactsPartitionUpdateGroups` subtests per field, `TestAnnounceBuildGroupSplitsOnGroupUpdates`, `TestWithdrawBuildGroupSplitsOnGroupUpdates` PASS (`bk-green-final.log`); RED with `extended` and `prepend` zeroed in the key (`job-bk-red-3110288b.log`) |
 
 ## Work Not Done
 
@@ -499,9 +500,9 @@ value in argument to pinBuilderSignatures
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/announce-build-key-is-the-builder-argument-set-5620b26f-603e-4d57-826d-6ef92b7fcd64.md` (round 2, 10 files, verdict=findings: ISSUE 1, NOTE 1-3). Round 1 was `...-12d06ccf-2460-42c7-a707-30bb0a427796.md`, verdict=clean |
-| `./le spec review check` | owed: a fresh independent review over the round-3 fixes, commissioned by the main thread |
-| Rounds | 3 (round 3: `scratch/review-round3-announce-build-key.md`, ISSUE 1, NOTE 1-3), a fourth owed |
+| Artifact | `tmp/review/announce-build-key-is-the-builder-argument-set-5620b26f-603e-4d57-826d-6ef92b7fcd64.md`, verdict=clean, rounds=4, 12 files hash-pinned. Round 1 was `...-12d06ccf-2460-42c7-a707-30bb0a427796.md` |
+| `./le spec review check` | OK over the round-4 artifact |
+| Rounds | 4. Round 1 clean (later overturned by the vacuous interop red); round 2 ISSUE 1, NOTE 1-3; round 3 (`scratch/review-round3-announce-build-key.md`) ISSUE 1, NOTE 1-3; round 4 (`scratch/review-round4-announce-build-key.md`, over `feec602c1d`) **0 BLOCKER, 0 ISSUE**, NOTE 1-2 |
 | Reviewer lenses used | logic+wiring (key fields vs builder reads), vacuity (each red), style pass over the changed Go (`register_local_as_partition.go`, `register_local_as_announce_partition.go`, `announce_facts_one_build_test.go`): no panic, no discarded error, comments are sentences, registration only in `register*.go` |
 
 ### Findings fixed
@@ -514,6 +515,12 @@ value in argument to pinBuilderSignatures
 | 5 | NOTE (round 2, NOTE 3) | `iop-green.log` carries only the summary line | evidence | none owed: the reviewer verified the exports against the tree instead |
 | 6 | ISSUE (round 3, ISSUE 1) | the guard pinned two of the three group-shared builders; `buildWithheldWithdrawUpdate` was not pinned | `announce_facts_builder_signature_test.go` | third pinned parameter, rule comment, forced red (see "AC-6 guard") |
 | 7 | NOTE (round 3, NOTE 1-3) | send-path reason too thin; core-design line 136 columns; `announceFacts` opening still read as compiler enforcement | spec, `core-design.md`, `reactor_api_batch.go` | reason stated, reflowed, reworded |
+| 8 | NOTE (round 4, NOTE 1) | `fwdBodyCache` is keyed on `fwdBodyCacheKey` while `buildFwdBody` also takes `peer` and `maxMsgSize`: same class on a different key, outside this spec's announce scope | `forward_body.go`, `reactor_api_forward.go` | journal row in `plan/journal/key-omits-a-fact-the-builder-uses.md`, not fixed |
+| 9 | NOTE (round 4, NOTE 2) | `./le commit audit` flags a WEAKENED test in `811a3b6582` | `internal/component/web/editor_session_copy_test.go` | another session's commit, not this spec |
+
+### Final run (round 4)
+
+0 BLOCKER, 0 ISSUE. Sweep of `internal/component/bgp/reactor/`: the only maps keyed on `announceFacts` are `buildGroups` and `wdGroups`; their shared builders `buildBatchAnnounceUpdate`, `buildBatchWithdrawUpdate` and `buildWithheldWithdrawUpdate` are all pinned. Red proof of the withheld pin verified from `sigclone2`.
 
 ## Pre-Commit Verification
 
