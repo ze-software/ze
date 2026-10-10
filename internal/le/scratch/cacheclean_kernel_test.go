@@ -77,7 +77,7 @@ func TestCleanTargetsSkipATargetHoldingTheKernelCache(t *testing.T) {
 	t.Fatalf("no target has the ambient path %s", ambient)
 }
 
-// TestTrimSkipsATargetHoldingTheKernelCache verifies the store trim honours the
+// TestTrimSkipsATargetHoldingTheKernelCache verifies the store trim honors the
 // kernel-cache skip cleanTargets records, so a trimmed store that holds a built
 // kernel is left whole, however far over budget it is.
 //
