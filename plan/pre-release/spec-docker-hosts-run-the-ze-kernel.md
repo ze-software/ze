@@ -33,13 +33,13 @@ Owner answers to the first design (2026-10-09), which replace its exact-version 
 | Site | Use | Verdict |
 |------|-----|---------|
 | `internal/le/interoplab/bgp/prepare.go` `scenarioPeers` (VRRP ze) | was `apparmor=unconfined` + `systempaths=unconfined` | REPLACED by `ze-lab-net-sysctl` (was `ze-lab-vrrp`, deleted in review round 2); `systempaths=unconfined` stays because Docker mounts `/proc/sys` read-only, and AppArmor confines the writes |
-| `internal/le/interoplab/ipsec/ipsec.go` `dockerPrivileged` (strongSwan and ze) | `--privileged` | owed: research what XFRM needs beyond `NET_ADMIN`, then a profile or capabilities; owner decides the scope |
-| `privilegedArgument` in `internal/le/interoplab/l2tp/l2tp.go`, `pppoe/pppoe.go`, `rsvpte/rsvpte.go` | `--privileged` | owed: kernel L2TP and PPP need `NET_ADMIN` and `/dev/ppp`; research per container; owner decides the scope |
-| `internal/le/test/deployment/l2tp.go`, `vppiface.go` (their `docker run` argv) | `--privileged` | owed: VPP needs hugepages and device access; research; owner decides the scope |
-| `internal/le/verify/evidence/evidence.go` (asserted by `internal/test/fixture/ui_fixture_le_evidence_answers.go`) | `--privileged` | owed: research |
-| `internal/le/site/terminaldemo/render.go` | `seccomp=unconfined`, `--privileged` | owed: the website demo container, not a lab; research |
+| `internal/le/interoplab/ipsec/ipsec.go` `dockerPrivileged` (strongSwan and ze) | was `--privileged` | REPLACED (`dba10b4c75`): `NET_ADMIN` for nat, strongSwan and ze, `--sysctl` for the NAT box's keys, and the shared `ze-lab-net-sysctl` profile (`spec-lab-containers-least-privilege` AC-1, AC-2) |
+| `privilegedArgument` in `internal/le/interoplab/l2tp/l2tp.go`, `pppoe/pppoe.go`, `rsvpte/rsvpte.go` | was `--privileged` | REPLACED: L2TP (`6d6f2fb308`) and PPPoE (`bdee1599a3`) carry `NET_ADMIN` and `--device /dev/ppp`, no `modprobe`, no `/lib/modules`; RSVP-TE (`9cf91dc469`) carries `NET_ADMIN`, `systempaths=unconfined` and `ze-lab-net-sysctl` (AC-3, AC-4, AC-5) |
+| `internal/le/test/deployment/l2tp.go`, `vppiface.go` (their `docker run` argv) | was `--privileged` | REPLACED: L2TP (`dc39259013`) `NET_ADMIN` and `--device /dev/ppp`; VPP (`6ac9aa5b10`, `28df8df562`) `NET_ADMIN`, `--device /dev/net/tun` and `--device /dev/vhost-net`, no hugepages and no `IPC_LOCK`, settled by a run on an amd64 Linux host (AC-6, AC-7) |
+| `internal/le/verify/evidence/evidence.go` (asserted by `internal/test/fixture/ui_fixture_le_evidence_answers.go`) | was `--privileged` | REPLACED (`e0d84318e9`, owner decision 2026-10-10): one `--cap-add` per capability of the `caps=` vocabulary, derived by `runner.CapsDockerNames`; Docker's default seccomp and AppArmor stay on. A full verify inside it is owed |
+| `internal/le/site/terminaldemo/render.go` | was `seccomp=unconfined`; `--privileged` per demo | `seccomp=unconfined` REMOVED (`bf2d59fa9e`): `SYS_ADMIN` already admits `mount`, `unshare` and `setns` under the default profile. `--privileged` stays per demo, and each privileged demo states its `privileged-reason` in the manifest, refused when missing (`2d429ec8be`, owner decision 2026-10-10) |
 
-None of the owed rows is researched yet; each is a scope question for the owner, not done by this spec.
+Every row was settled by `plan/pre-release/spec-lab-containers-least-privilege.md`, which carries the evidence, the owner's decisions and the lab runs still owed.
 
 The symptom. `mobike-initiator` and `mobike-responder` fail on every nightly and on the Mac (`plan/spec-interop-image-copies-a-prebuilt-ze.md`, AC-9: `34 passed, 3 failed`). Ze offers MOBIKE only when the kernel answers `XFRM_MSG_MIGRATE_STATE` (`xfrmMigrationAvailable`, `internal/component/ike/dataplane/xfrm_migrate_linux.go`), which first appears in Linux 7.2. The suite spends 15 minutes and reports two protocol failures that are a host fact.
 
