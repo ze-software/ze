@@ -1,0 +1,131 @@
+# Test: OSPF added to a RUNNING daemon over SSH starts the OSPF instance
+# Initial config: a daemon with one iBGP peer and no `ospf` root, so the ospf
+#                 plugin is not loaded.
+# Live change:    an SSH session editor load-merges an `ospf` root (router-id,
+#                 backbone area, a loopback and a passive interface), and
+#                 commits.
+# Expected:       `show ospf instance` reports the committed router-id and
+#                 `show ospf interface` lists both interfaces in their
+#                 runtime states (loopback, and down for the passive one).
+#
+# VALIDATES: spec-terminal-demo-showcase AC-2 (OSPF topic) -- a topic's
+#            configuration load-merged in the SSH editor and committed enables
+#            the feature on a daemon started without it.
+# PREVENTS: a commit that reports success while the ospf plugin never starts
+#           its instance, which the OSPF topic recording would show as empty
+#           tables. tcp_connections=1 also proves adding OSPF leaves the BGP
+#           session alone: a second connection fails the peer.
+#
+# No pre-commit read: before the commit every `show ospf` command answers an
+# error (the ospf plugin loads on its config root), and the fixture's lacks
+# step polls only a command that succeeds.
+#
+# The area entry carries `area-type normal`: an empty `area 0.0.0.0 { }`
+# committed from the SSH editor is refused as an undeclared area, while boot
+# accepts it (plan/journal/silent-fall-through.md, 2026-10-10).
+#
+# PLATFORM: skipped on darwin, as test/ospf/ospf-interface-runtime.ci is: the
+# interface dependency has no default backend there.
+option=skip-os:value=darwin
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=ospf-added-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+plugin {
+    internal adj-rib-in {
+        use bgp-adj-rib-in
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ]
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=ospf-topic.conf:terminator=EOF_TOPIC
+ospf {
+    router-id 10.0.0.1
+    areas {
+        area 0.0.0.0 {
+            area-type normal
+        }
+    }
+    interfaces {
+        interface lo0 {
+            area 0.0.0.0
+            network-type loopback
+        }
+        interface passive0 {
+            area 0.0.0.0
+            passive true
+        }
+    }
+}
+EOF_TOPIC
+
+tmpfs=ospf-added-live.script:terminator=EOF_SCRIPT
+send load file absolute merge ospf-topic.conf
+wait Configuration merged from
+send commit now
+wait Session committed:
+cli show ospf instance | yaml
+has 10.0.0.1
+cli show ospf interface | yaml
+has lo0
+has passive0
+has loopback
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze start ospf-added-live.conf:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture plugin/session-editor $PORT2 ospf-added-live.conf ospf-added-live.script:timeout=60s
+expect=exit:code=0
